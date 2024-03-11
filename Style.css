@@ -30,10 +30,10 @@ header {
 
 #logo {
     display: block; /* Ensures the logo is block level for easier manipulation */
-    max-width: 100%; /* Prevents the logo from exceeding the container's width */
+    max-width: 75%; /* Prevents the logo from exceeding the container's width */
     height: auto; /* Maintains aspect ratio */
     margin: 0 auto; /* Centers the logo horizontally */
-    padding: 5px; /* Adjust padding as needed */
+    padding: 15px; /* Adjust padding as needed */
 }
 
 /* Media query for smaller screens */
