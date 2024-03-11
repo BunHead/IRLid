@@ -29,16 +29,17 @@ header {
 }
 
 #logo {
-    width: 320px; /* Makes sure the logo is not wider than its container */
-    height: 320px; /* Maintains aspect ratio */
-    padding: 10px;
-    box-sizing: border-box;
+    display: block; /* Ensures the logo is block level for easier manipulation */
+    max-width: 100%; /* Prevents the logo from exceeding the container's width */
+    height: auto; /* Maintains aspect ratio */
+    margin: 0 auto; /* Centers the logo horizontally */
+    padding: 5px; /* Adjust padding as needed */
 }
 
-@media (max-width: 768px) { /* Adjusts settings for devices with width 768px or less */
+/* Media query for smaller screens */
+@media screen and (max-width: 600px) {
     #logo {
-        max-height: 10vh; /* Reduces the logo size on smaller screens */
-        max-width: 50%; /* Further ensure the logo fits within smaller screens */
+        max-width: 50%; /* Reduces the logo's max width on smaller screens */
     }
 }
 
@@ -55,18 +56,18 @@ main {
 }
 
 footer {
-    text-align: center; /* Centers the text within the footer */
-    width: 100%; /* Ensures the footer spans the full width of its parent */
+    width: 100%;
+    text-align: center; /* Center-aligns text for non-flex children */
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centers the items horizontally in a flex container */
-    justify-content: center; /* Centers the items vertically in a flex container */
+    align-items: center; /* Centers flex items horizontally */
+    justify-content: center; /* Centers flex items vertically if the container has a specific height */
+    padding: 10px 0; /* Adds padding above and below the footer content */
 }
 
+/* If GPS and time are within divs, ensure those divs inherit center alignment */
 footer div {
-    font-weight: bold; /* Ensure text is bold */
-    line-height: 1.5;
-    background-color: #FFF;
-    margin: 0;
-    padding: 0;
+    width: 100%; /* Ensures the div takes up the full width for text-align to work effectively */
+    text-align: center; /* This might be redundant if footer already sets it, but ensures text is centered */
 }
+
