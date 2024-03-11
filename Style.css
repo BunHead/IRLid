@@ -29,12 +29,17 @@ header {
 }
 
 #logo {
-    max-height: 120%; /* Increasing the size of the logo */
-    max-width: 120%; /* Adjust this value based on your needs */
+    max-width: 100%; /* Makes sure the logo is not wider than its container */
+    height: auto; /* Maintains aspect ratio */
     padding: 10px;
-    background-color: #FFF;
     box-sizing: border-box;
-    /* Ensure the logo container or image can accommodate this increase */
+}
+
+@media (max-width: 768px) { /* Adjusts settings for devices with width 768px or less */
+    #logo {
+        max-height: 10vh; /* Reduces the logo size on smaller screens */
+        max-width: 50%; /* Further ensure the logo fits within smaller screens */
+    }
 }
 
 main {
