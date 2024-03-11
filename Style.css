@@ -29,8 +29,8 @@ header {
 }
 
 #logo {
-    max-width: 100%; /* Makes sure the logo is not wider than its container */
-    height: auto; /* Maintains aspect ratio */
+    width: 320px; /* Makes sure the logo is not wider than its container */
+    height: 320px; /* Maintains aspect ratio */
     padding: 10px;
     box-sizing: border-box;
 }
