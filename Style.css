@@ -55,15 +55,12 @@ main {
 }
 
 footer {
-    flex: 1;
-    max-height: 16.66vh; /* 1/6th of the viewport height */
+    text-align: center; /* Centers the text within the footer */
+    width: 100%; /* Ensures the footer spans the full width of its parent */
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    background-color: #FFF;
-    color: #333;
+    align-items: center; /* Centers the items horizontally in a flex container */
+    justify-content: center; /* Centers the items vertically in a flex container */
 }
 
 footer div {
