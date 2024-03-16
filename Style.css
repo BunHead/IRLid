@@ -1,0 +1,115 @@
+html {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    font-size: 130%;
+    font-family: Arial, sans-serif;
+    background-color: #fff; /* Ensure the main body background is white */
+}
+
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 10;
+    background-color: transparent; /* Make header background transparent */
+    box-shadow: 0 2px 5px rgba(0,0,0,.2);
+}
+
+#logo {
+    max-width: 200px;
+    height: auto;
+    padding: 10px;
+    margin-left: 20px;
+    background-color: transparent;
+}
+
+.navbar {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background-color: #000; /* Navbar background */
+}
+
+.navbar li a {
+    display: block;
+    color: #fff; /* Navbar links color */
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+}
+
+.navbar li a:hover {
+    background-color: #333; /* Navbar links hover color */
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding-top: 0; /* Remove top padding so content starts at the top */
+    text-align: center;
+    width: 100%;
+    margin-top: 60px; /* Use margin-top instead of padding to offset the fixed header */
+}
+
+.iframe-wrapper {
+    width: 80%; /* Adjust this value to your preference */
+    margin: 0 auto; /* Center the iframe wrapper */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.iframe-wrapper iframe {
+    width: 100%;
+    height: 600px; /* Adjust height as needed */
+    border: none;
+}
+
+footer {
+    background-color: #000;
+    color: #fff;
+    text-align: center;
+    padding: 20px 0;
+    position: fixed; /* Fix the footer to the bottom */
+    bottom: 0; /* Align the footer at the bottom */
+    width: 100%;
+    z-index: 10; /* Ensure the footer is above other content */
+}
+
+#second-logo {
+    width: 500px; /* Set the width as desired */
+    height: auto; /* Set height to 'auto' to maintain aspect ratio */
+    display: block; /* Display block to allow width and height to take effect */
+    margin: 0 auto; /* Center the logo if within a block-level parent */
+    /* Additional properties for positioning, if necessary */
+}
+
+@media screen and (max-width: 600px) {
+    .navbar {
+        justify-content: center;
+    }
+
+    .navbar li a {
+        padding: 10px;
+    }
+
+    .iframe-wrapper {
+        width: 25%; /* Slightly less width for small screens */
+    }
+
+    .iframe-wrapper iframe {
+        height: 500px; /* Adjusted height for smaller screens */
+    }
+}
