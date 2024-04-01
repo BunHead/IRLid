@@ -8,26 +8,19 @@ function generateQRCodeWithLocation() {
         navigator.geolocation.getCurrentPosition(function(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-            // Construct Google Maps URL
+			const names = "Alice+Bob"; // Example names, URL-encoded
+            const timestamp = encodeURIComponent(new Date().toLocaleString());
             const googleMapsURL = `https://www.google.com/maps?q=${latitude},${longitude}`;
-            generateQRCode(googleMapsURL); // Generates QR code for the URL
-            // Display names and timestamp separately
-            displayInfo("Alice", "Bob", new Date().toLocaleString());
+            generateQRCode(googleMapsURL); // Pass Google Maps URL to QR code generator
         }, function(error) {
             console.error("Geolocation error:", error);
-            // Handle error
+            const fallbackData = "Unable to fetch location";
+            generateQRCode(`https://www.google.com/maps?q=error`);
         });
     } else {
         console.log("Geolocation is not supported by this browser.");
     }
 }
-
-function displayInfo(name1, name2, timestamp) {
-    // Example function to display the names and timestamp separately
-    // This can be adapted based on how you intend to display the information (e.g., updating DOM elements)
-    console.log(`${name1} and ${name2} met at ${timestamp}`);
-}
-
 
 
 function generateQRCode(data) {
