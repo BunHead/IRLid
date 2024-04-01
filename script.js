@@ -6,11 +6,12 @@ document.addEventListener("DOMContentLoaded", function() {
 function generateQRCodeWithLocation() {
     if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(function(position) {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
+            	const latitude = position.coords.latitude;
+            	const longitude = position.coords.longitude;
 			const names = "Alice+Bob"; // Example names, URL-encoded
-            const timestamp = encodeURIComponent(new Date().toLocaleString());
-            const googleMapsURL = `https://www.google.com/maps?q=${latitude},${longitude}`;
+            	const timestamp = encodeURIComponent(new Date().toLocaleString());
+            	const googleMapsURL = `https://www.google.com/maps?q=${latitude},${longitude}`;
+		const encodedURL = encodeURIComponent(googleMapsURL);
             generateQRCode(googleMapsURL); // Pass Google Maps URL to QR code generator
         }, function(error) {
             console.error("Geolocation error:", error);
