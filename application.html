@@ -44,6 +44,7 @@
       <p>
         Show this QR to the other person. Then press the button and scan their response QR.
       </p>
+      <button class="btn" id="startCamBtn">Start Camera</button>
 
       <div class="qr-box" id="responseQr"></div>
 
@@ -244,3 +245,4 @@
 
       const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload") || "null");
       const storedMid = sessionStorage.getItem(
+
