@@ -27,6 +27,8 @@
 
     <p id="status">Step 1: Scan the other person’s IRLid QR.</p>
 
+    <button class="btn" id="startCamBtn">Start Camera</button>
+
     <p id="libWarning" style="display:none; max-width:720px; margin: 0 auto; color:#900;">
       QR scanner library failed to load. This is usually caused by an adblock/privacy extension blocking
       <b>unpkg.com</b> or by no internet connection.
@@ -44,8 +46,6 @@
       <p>
         Show this QR to the other person. Then press the button and scan their response QR.
       </p>
-      <button class="btn" id="startCamBtn">Start Camera</button>
-
       <div class="qr-box" id="responseQr"></div>
 
       <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
@@ -245,4 +245,5 @@
 
       const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload") || "null");
       const storedMid = sessionStorage.getItem(
+
 
