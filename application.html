@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-
-  <!-- Deploy 4 -->
-  
+  <!-- Deploy 5 -->
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,11 +21,9 @@
       align-items: center;
       justify-content: center;
     }
-
     #debug {
       max-width: 980px;
       margin: 12px auto 24px;
-      text-align: left;
       white-space: pre-wrap;
       font-family: ui-monospace, monospace;
       font-size: 12px;
@@ -36,11 +32,9 @@
       border-radius: 10px;
       background: #fff;
     }
-
     .small { max-width: 980px; margin: 10px auto; padding: 0 12px; }
     #responseArea { display:none; max-width: 980px; margin: 0 auto; text-align:center; }
     select { padding: 8px; margin: 6px 0; }
-
     .hint {
       max-width: 980px;
       margin: 8px auto;
@@ -71,7 +65,7 @@
   <div class="hint">
     <b>Desktop webcam tips:</b><br>
     • Make the other person’s QR fill the phone screen<br>
-    • Hold it close until it’s sharp (webcams need focus distance)<br>
+    • Hold it close until it’s sharp<br>
     • Keep QR inside the dashed box
   </div>
 
@@ -81,9 +75,7 @@
 
   <div class="small">
     <label><b>Camera:</b></label><br>
-    <select id="cameraSelect">
-      <option value="">(Start camera to list)</option>
-    </select><br>
+    <select id="cameraSelect"></select><br>
     <button class="btn" id="startBtn">Start Camera</button>
     <button class="btn secondary" id="stopBtn">Stop</button>
   </div>
@@ -122,40 +114,56 @@
   function log(...a) { debugEl.textContent += a.join(" ") + "\n"; }
   function setStatus(t) { statusEl.textContent = t; log(t); }
 
-  async function listCameras() {
-    const cams = await Html5Qrcode.getCameras();
-    cameraSelect.innerHTML = "";
-    cams.forEach(c => {
-      const o = document.createElement("option");
-      o.value = c.id;
-      o.textContent = c.label || c.id;
-      cameraSelect.appendChild(o);
-    });
-    return cams;
-  }
-
   async function stopCam() {
     if (qr && running) {
       await qr.stop();
       await qr.clear();
     }
     running = false;
+    qr = null;
   }
 
-  async function startScan() {
-    await listCameras();
+  function pickRearCamera(cams) {
+    for (const c of cams) {
+      const l = (c.label || "").toLowerCase();
+      if (l.includes("back") || l.includes("rear") || l.includes("environment")) {
+        return c.id;
+      }
+    }
+    return cams[cams.length - 1]?.id;
+  }
 
-    const camId = cameraSelect.value;
+  async function listCameras() {
+    const cams = await Html5Qrcode.getCameras();
+    cameraSelect.innerHTML = "";
+
+    let defaultId = pickRearCamera(cams);
+
+    cams.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = c.label || c.id;
+      if (c.id === defaultId) o.selected = true;
+      cameraSelect.appendChild(o);
+    });
+
+    return defaultId;
+  }
+
+  async function startScan(deviceId) {
+    await stopCam();
+
     qr = new Html5Qrcode("scanner");
     running = true;
 
     await qr.start(
-      camId,
+      { deviceId: { exact: deviceId } },
       {
         fps: 10,
         qrbox: { width: 300, height: 300 },
+        disableFlip: false,
         videoConstraints: {
-          deviceId: { exact: camId },
+          deviceId: { exact: deviceId },
           width: { ideal: 1920 },
           height: { ideal: 1080 },
           frameRate: { ideal: 30 }
@@ -167,7 +175,7 @@
       }
     );
 
-    setStatus("Camera started — scanning…");
+    setStatus("Camera started (rear-facing if available). Scanning…");
   }
 
   async function handleHello(text) {
@@ -182,6 +190,7 @@
     const payload = { v:1, type:"meeting", a, b, t:Math.floor(Date.now()/1000) };
     const mid = b64urlEncode(await sha256Bytes(canonical(payload)));
     const sig = await signMid(mid);
+
     const ctx = await new Promise(r =>
       navigator.geolocation.getCurrentPosition(p =>
         r({ lat:p.coords.latitude, lng:p.coords.longitude, ts:Date.now()/1000 })
@@ -196,8 +205,16 @@
     setStatus("Response QR ready.");
   }
 
-  startBtn.onclick = startScan;
+  startBtn.onclick = async () => {
+    const defaultId = await listCameras();
+    startScan(cameraSelect.value || defaultId);
+  };
+
   stopBtn.onclick = stopCam;
+
+  cameraSelect.onchange = () => {
+    if (running) startScan(cameraSelect.value);
+  };
 </script>
 </body>
 </html>
