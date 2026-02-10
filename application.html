@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- Full Handshake 2 -->
+  <!-- Deployment 3 -->
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,8 +10,8 @@
 
   <style>
     #scanner {
-      width: 360px;
-      height: 360px;
+      width: 420px;
+      height: 420px;
       margin: 16px auto;
       border: 2px dashed #999;
       border-radius: 12px;
@@ -21,9 +21,14 @@
       align-items: center;
       justify-content: center;
     }
-    #startCamBtn { position: relative; z-index: 9999; touch-action: manipulation; user-select:none; }
+    #startCamBtn {
+      position: relative;
+      z-index: 9999;
+      touch-action: manipulation;
+      user-select: none;
+    }
     #debug {
-      max-width: 900px;
+      max-width: 980px;
       margin: 12px auto 24px;
       text-align: left;
       white-space: pre-wrap;
@@ -35,11 +40,22 @@
       background: #fff;
       color: #111;
     }
-    .small { max-width: 900px; margin: 10px auto; padding: 0 12px; }
-    #responseArea { display:none; max-width: 900px; margin: 0 auto; text-align:center; }
+    .small { max-width: 980px; margin: 10px auto; padding: 0 12px; }
+    #responseArea { display:none; max-width: 980px; margin: 0 auto; text-align:center; }
     #responseQr { margin: 12px auto; }
-    #controls { max-width: 900px; margin: 0 auto; text-align:center; }
+    #controls { max-width: 980px; margin: 0 auto; text-align:center; }
     select { max-width: 90%; padding: 8px; margin: 8px 0; }
+    .hint {
+      max-width: 980px;
+      margin: 8px auto;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f3f7ff;
+      border: 1px solid #d6e4ff;
+      color: #123;
+      font-size: 14px;
+    }
+    .kbd { font-family: ui-monospace, monospace; background:#eee; padding: 1px 6px; border-radius: 6px; }
   </style>
 </head>
 
@@ -57,6 +73,14 @@
 
 <main>
   <h2>Application (Mutual Scan + GPS)</h2>
+
+  <div class="hint">
+    <b>Tips for desktop webcam scanning:</b><br>
+    • Make the QR BIG (fill the phone screen) and bright<br>
+    • Hold it close until it’s sharp (webcams have a focus distance)<br>
+    • Keep it inside the dashed box<br>
+    • If it won’t scan, increase QR size on the page generating it
+  </div>
 
   <p class="small" id="status">
     Step 1: Tap <b>Start Camera</b> and scan the other person’s Home QR.
@@ -82,6 +106,8 @@
     <p class="small">
       This QR includes your <b>meeting signature</b> and a <b>signed GPS context</b>.
       Show it to the other person.
+      <br><br>
+      <b>Desktop scan hint:</b> if scanning this fails, increase QR size on the screen and hold it closer.
     </p>
     <div class="qr-box" id="responseQr"></div>
   </div>
@@ -115,6 +141,7 @@
     log(now(), "STATUS:", msg);
   }
 
+  // show errors on-screen
   window.addEventListener("error", (e) => log(now(), "WINDOW ERROR:", e.message || String(e)));
   window.addEventListener("unhandledrejection", (e) => {
     const r = e.reason;
@@ -230,10 +257,8 @@
       return;
     }
 
-    // Use selected camera if available
     let camId = cameraSelect.value;
     if (!camId) {
-      // fallback: prefer rear camera
       camId = cams[cams.length - 1].id;
       for (const c of cams) {
         const lbl = (c.label || "").toLowerCase();
@@ -254,19 +279,25 @@
     try {
       await qr.start(
         { deviceId: { exact: camId } },
-        { fps: 10, qrbox: 250 },
+        {
+          fps: 20,
+          qrbox: { width: 320, height: 320 },
+          aspectRatio: 1.0,
+          disableFlip: false
+        },
         async (decodedText) => {
           log(now(), "SCANNED:", decodedText);
           await stopCamera();
           await onDecoded(decodedText);
           startBtn.disabled = false;
         },
-        () => {}
+        () => {
+          // ignore continuous scan errors
+        }
       );
 
       setStatus("Camera started. Point at the other person's QR…");
     } catch (e) {
-      // THIS is where desktop failures will finally be visible
       running = false;
       const msg = (e && (e.message || e.name)) ? (e.message || e.name) : String(e);
       setStatus("Camera failed to start: " + msg);
@@ -309,24 +340,46 @@
 
     const [aPub, bPub] = orderedPair(myPub, theirPub);
 
-    const payload = { v: 1, type: "meeting", a: aPub, b: bPub, t: Math.floor(Date.now()/1000), method: "mutual-scan" };
+    const payload = {
+      v: 1,
+      type: "meeting",
+      a: aPub,
+      b: bPub,
+      t: Math.floor(Date.now() / 1000),
+      method: "mutual-scan"
+    };
+
     const mid = b64urlEncode(await sha256Bytes(canonical(payload)));
     const mySig = await signMid(mid);
 
     setStatus("Requesting location permission…");
     const myCtx = await getGeoOnce();
+
     const myCtxHash = await ctxHashFrom(mid, myCtx);
     const myCtxSig  = await signMid(myCtxHash);
 
-    const response = { v: 1, type: "response", payload, mid, sig: mySig, ctx: myCtx, ctxHash: myCtxHash, ctxSig: myCtxSig };
+    const response = {
+      v: 1,
+      type: "response",
+      payload,
+      mid,
+      sig: mySig,
+      ctx: myCtx,
+      ctxHash: myCtxHash,
+      ctxSig: myCtxSig
+    };
+
     const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
 
     setStatus("Step 1 complete ✅ Showing your Response QR.");
     responseArea.style.display = "block";
-    makeQR("responseQr", encodedResp, 320);
+
+    // BIGGER QR to help desktop webcam scanning
+    makeQR("responseQr", encodedResp, 600);
 
     log(now(), "MID:", mid);
     log(now(), "My ctx:", myCtx);
+    log(now(), "Response length:", encodedResp.length);
   }
 
   startBtn.addEventListener("click", async () => {
@@ -339,9 +392,6 @@
       startBtn.disabled = false;
     }
   });
-
-  // Pre-list cameras on desktop (optional); on some setups this prompts permissions early.
-  // listCameras().catch(() => {});
 </script>
 
 </body>
