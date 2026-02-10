@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- Full Handshack Deployment -->
+  <!-- Full Handshake 2 -->
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,8 +10,8 @@
 
   <style>
     #scanner {
-      width: 320px;
-      height: 320px;
+      width: 360px;
+      height: 360px;
       margin: 16px auto;
       border: 2px dashed #999;
       border-radius: 12px;
@@ -23,7 +23,7 @@
     }
     #startCamBtn { position: relative; z-index: 9999; touch-action: manipulation; user-select:none; }
     #debug {
-      max-width: 820px;
+      max-width: 900px;
       margin: 12px auto 24px;
       text-align: left;
       white-space: pre-wrap;
@@ -35,9 +35,11 @@
       background: #fff;
       color: #111;
     }
-    .small { max-width: 820px; margin: 10px auto; padding: 0 12px; }
-    #responseArea { display:none; max-width: 820px; margin: 0 auto; text-align:center; }
+    .small { max-width: 900px; margin: 10px auto; padding: 0 12px; }
+    #responseArea { display:none; max-width: 900px; margin: 0 auto; text-align:center; }
     #responseQr { margin: 12px auto; }
+    #controls { max-width: 900px; margin: 0 auto; text-align:center; }
+    select { max-width: 90%; padding: 8px; margin: 8px 0; }
   </style>
 </head>
 
@@ -60,7 +62,14 @@
     Step 1: Tap <b>Start Camera</b> and scan the other person’s Home QR.
   </p>
 
-  <div class="small" style="text-align:center;">
+  <div id="controls" class="small">
+    <div>
+      <label for="cameraSelect"><b>Camera device:</b></label><br />
+      <select id="cameraSelect">
+        <option value="">(Click “Start Camera” to list cameras)</option>
+      </select>
+    </div>
+
     <button class="btn" id="startCamBtn" type="button">Start Camera</button>
   </div>
 
@@ -94,6 +103,7 @@
   const startBtn = document.getElementById("startCamBtn");
   const hintEl   = document.getElementById("scannerHint");
   const responseArea = document.getElementById("responseArea");
+  const cameraSelect = document.getElementById("cameraSelect");
 
   function now() { return new Date().toISOString(); }
   function log(...args) {
@@ -105,7 +115,6 @@
     log(now(), "STATUS:", msg);
   }
 
-  // Show errors on-screen (mobile-friendly)
   window.addEventListener("error", (e) => log(now(), "WINDOW ERROR:", e.message || String(e)));
   window.addEventListener("unhandledrejection", (e) => {
     const r = e.reason;
@@ -114,14 +123,12 @@
 
   debugEl.textContent = "";
   log(now(), "Loaded:", location.href);
+  log(now(), "UserAgent:", navigator.userAgent);
   log(now(), "SecureContext:", window.isSecureContext);
   log(now(), "Html5Qrcode present:", (typeof Html5Qrcode !== "undefined"));
 
-  // --- Helpers ---
   function parseMaybeHelloFromScannedText(scannedText) {
     const text = (scannedText || "").trim();
-
-    // If it's a URL, extract HELLO from hash/query
     if (/^https?:\/\//i.test(text)) {
       try {
         const u = new URL(text);
@@ -129,26 +136,16 @@
           const m = u.hash.match(/HELLO=([^&]+)/);
           if (m && m[1]) return m[1];
         }
-        if (u.searchParams && u.searchParams.get("HELLO")) {
-          return u.searchParams.get("HELLO");
-        }
+        if (u.searchParams && u.searchParams.get("HELLO")) return u.searchParams.get("HELLO");
       } catch {}
     }
-
-    // Otherwise treat it as base64url directly
     return text;
   }
-
-  function isBase64Url(s) {
-    return /^[A-Za-z0-9\-_]+$/.test(s || "");
-  }
+  function isBase64Url(s) { return /^[A-Za-z0-9\-_]+$/.test(s || ""); }
 
   function getGeoOnce({ timeoutMs = 12000, maxAgeMs = 15000, highAccuracy = true } = {}) {
     return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation not supported."));
-        return;
-      }
+      if (!navigator.geolocation) return reject(new Error("Geolocation not supported."));
       navigator.geolocation.getCurrentPosition(
         (p) => resolve({
           lat: +p.coords.latitude.toFixed(7),
@@ -169,22 +166,13 @@
   }
 
   async function ctxHashFrom(mid, ctx) {
-    const ctxPayload = {
-      v: 1,
-      type: "ctx",
-      mid,
-      ts: ctx.ts,
-      lat: ctx.lat,
-      lng: ctx.lng,
-      acc: ctx.acc
-    };
-    const canon = canonical(ctxPayload);
-    return b64urlEncode(await sha256Bytes(canon));
+    const ctxPayload = { v: 1, type: "ctx", mid, ts: ctx.ts, lat: ctx.lat, lng: ctx.lng, acc: ctx.acc };
+    return b64urlEncode(await sha256Bytes(canonical(ctxPayload)));
   }
 
-  // --- Scanner ---
   let qr = null;
   let running = false;
+  let camerasCached = null;
 
   async function stopCamera() {
     try {
@@ -200,6 +188,29 @@
     }
   }
 
+  async function listCameras() {
+    if (typeof Html5Qrcode === "undefined") {
+      setStatus("ERROR: Scanner library didn't load (unpkg blocked/offline).");
+      return [];
+    }
+    const cams = await Html5Qrcode.getCameras();
+    camerasCached = cams || [];
+    cameraSelect.innerHTML = "";
+
+    if (!cams || cams.length === 0) {
+      cameraSelect.innerHTML = `<option value="">(No cameras found)</option>`;
+      return [];
+    }
+
+    for (const c of cams) {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.label || c.id;
+      cameraSelect.appendChild(opt);
+    }
+    return cams;
+  }
+
   async function startScanOnce(onDecoded) {
     if (typeof Html5Qrcode === "undefined") {
       setStatus("ERROR: Scanner library didn't load (unpkg blocked/offline).");
@@ -211,7 +222,7 @@
     }
 
     setStatus("Listing cameras…");
-    const cams = await Html5Qrcode.getCameras();
+    const cams = camerasCached && camerasCached.length ? camerasCached : await listCameras();
     log(now(), "Cameras:", cams);
 
     if (!cams || cams.length === 0) {
@@ -219,34 +230,51 @@
       return;
     }
 
-    // Pick rear camera if label suggests it
-    let camId = cams[cams.length - 1].id;
-    for (const c of cams) {
-      const lbl = (c.label || "").toLowerCase();
-      if (lbl.includes("back") || lbl.includes("rear") || lbl.includes("environment")) {
-        camId = c.id; break;
+    // Use selected camera if available
+    let camId = cameraSelect.value;
+    if (!camId) {
+      // fallback: prefer rear camera
+      camId = cams[cams.length - 1].id;
+      for (const c of cams) {
+        const lbl = (c.label || "").toLowerCase();
+        if (lbl.includes("back") || lbl.includes("rear") || lbl.includes("environment")) {
+          camId = c.id; break;
+        }
       }
     }
+
+    log(now(), "Using camera id:", camId);
 
     hintEl.textContent = "";
     qr = new Html5Qrcode("scanner");
     running = true;
 
-    setStatus("Camera started. Point at the other person's QR…");
+    setStatus("Starting camera…");
 
-    await qr.start(
-      { deviceId: { exact: camId } },
-      { fps: 10, qrbox: 250 },
-      async (decodedText) => {
-        log(now(), "SCANNED:", decodedText);
-        await stopCamera();
-        await onDecoded(decodedText);
-      },
-      () => {}
-    );
+    try {
+      await qr.start(
+        { deviceId: { exact: camId } },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          log(now(), "SCANNED:", decodedText);
+          await stopCamera();
+          await onDecoded(decodedText);
+          startBtn.disabled = false;
+        },
+        () => {}
+      );
+
+      setStatus("Camera started. Point at the other person's QR…");
+    } catch (e) {
+      // THIS is where desktop failures will finally be visible
+      running = false;
+      const msg = (e && (e.message || e.name)) ? (e.message || e.name) : String(e);
+      setStatus("Camera failed to start: " + msg);
+      log(now(), "FULL CAMERA ERROR:", e);
+      startBtn.disabled = false;
+    }
   }
 
-  // --- IRLid Step 1: scan HELLO, build response QR ---
   async function handleHelloScan(decodedText) {
     setStatus("Processing scanned QR…");
 
@@ -281,58 +309,39 @@
 
     const [aPub, bPub] = orderedPair(myPub, theirPub);
 
-    const payload = {
-      v: 1,
-      type: "meeting",
-      a: aPub,
-      b: bPub,
-      t: Math.floor(Date.now() / 1000),
-      method: "mutual-scan"
-    };
-
+    const payload = { v: 1, type: "meeting", a: aPub, b: bPub, t: Math.floor(Date.now()/1000), method: "mutual-scan" };
     const mid = b64urlEncode(await sha256Bytes(canonical(payload)));
     const mySig = await signMid(mid);
 
-    // GPS context (signed)
     setStatus("Requesting location permission…");
     const myCtx = await getGeoOnce();
-
     const myCtxHash = await ctxHashFrom(mid, myCtx);
     const myCtxSig  = await signMid(myCtxHash);
 
-    const response = {
-      v: 1,
-      type: "response",
-      payload,
-      mid,
-      sig: mySig,
-      ctx: myCtx,
-      ctxHash: myCtxHash,
-      ctxSig: myCtxSig
-    };
-
+    const response = { v: 1, type: "response", payload, mid, sig: mySig, ctx: myCtx, ctxHash: myCtxHash, ctxSig: myCtxSig };
     const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
 
-    setStatus("Step 1 complete ✅ Show your Response QR to the other person.");
+    setStatus("Step 1 complete ✅ Showing your Response QR.");
     responseArea.style.display = "block";
     makeQR("responseQr", encodedResp, 320);
 
     log(now(), "MID:", mid);
     log(now(), "My ctx:", myCtx);
-    log(now(), "Response size (chars):", String(encodedResp.length));
   }
 
-  // Button wiring
   startBtn.addEventListener("click", async () => {
     startBtn.disabled = true;
     try {
       await startScanOnce(handleHelloScan);
     } catch (e) {
       log(now(), "Start error:", e);
-      setStatus("Camera failed to start: " + (e?.message || e));
+      setStatus("Unexpected error: " + (e?.message || e));
       startBtn.disabled = false;
     }
   });
+
+  // Pre-list cameras on desktop (optional); on some setups this prompts permissions early.
+  // listCameras().catch(() => {});
 </script>
 
 </body>
