@@ -1,4 +1,4 @@
-// js/qr.js
+// js/qr.js deploy 7
 // Robust QR rendering:
 // 1) Prefer local canvas (QRCode library) for high contrast + quiet zone
 // 2) Fallback to remote QR image API if QRCode library didn't load
@@ -96,3 +96,4 @@
     });
   };
 })();
+
