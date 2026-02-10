@@ -23,11 +23,13 @@
 
   <main>
     <h2>My IRLid QR</h2>
-    <p>Scan this with the other person’s phone to open the Application and begin scanning.</p>
+    <p>Scan this with the other person’s phone to begin a mutual proof-of-personhood.</p>
 
     <div class="qr-box" id="myQr"></div>
 
-    <button class="btn" onclick="location.href='application.html'">Go to Application (Scan)</button>
+    <button class="btn" onclick="location.href='application.html'">
+      Go to Application (Scan)
+    </button>
   </main>
 
   <footer>
@@ -44,17 +46,15 @@
         type: "hello",
         pub,
         nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-        ts: Math.floor(Date.now()/1000)
+        ts: Math.floor(Date.now() / 1000)
       };
 
-      const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+      const encodedHello =
+        b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
 
-      // ✅ Force LAN IP so Android camera opens the correct computer
-      const LAN_IP = "192.168.1.151";
-      const PORT = location.port || "8000";
-      const baseUrl = `http://${LAN_IP}:${PORT}`;
+      const baseUrl = location.origin;
+      const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
 
-      const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
       makeQR("myQr", url, 320);
     })();
   </script>
