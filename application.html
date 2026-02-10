@@ -8,42 +8,46 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    /* Ensure the scanner area is visible no matter what */
+    /* Ensure scanner area is always visible */
     #scanner {
       width: 320px;
       height: 320px;
       margin: 16px auto;
       border: 2px dashed #999;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      background: #f8f8f8;
     }
 
-    /* Make sure button is clickable */
+    /* Keep button clickable */
     #startCamBtn {
       position: relative;
-      z-index: 10;
+      z-index: 9999;
       touch-action: manipulation;
+      user-select: none;
     }
 
-    /* On-page debug panel */
     #debug {
-      max-width: 720px;
-      margin: 12px auto;
+      max-width: 820px;
+      margin: 12px auto 24px;
       text-align: left;
       white-space: pre-wrap;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 12px;
       border: 1px solid #ddd;
       padding: 10px;
-      border-radius: 8px;
-      background: #fafafa;
+      border-radius: 10px;
+      background: #fff;
       color: #111;
     }
 
     .small {
-      max-width: 720px;
-      margin: 8px auto;
+      max-width: 820px;
+      margin: 10px auto;
+      padding: 0 12px;
     }
   </style>
 </head>
@@ -64,23 +68,25 @@
   <h2>Application (Camera Debug)</h2>
 
   <p class="small" id="status">
-    Tap <b>Start Camera</b>. If nothing happens, this page will tell us why.
+    Tap <b>Start Camera</b>. This page will show exactly what happens.
   </p>
 
-  <button class="btn" id="startCamBtn" type="button">Start Camera</button>
-
-  <div id="scanner">
-    <span id="scannerHint">Scanner box (camera preview should appear here)</span>
+  <div class="small" style="text-align:center;">
+    <button class="btn" id="startCamBtn" type="button">Start Camera</button>
   </div>
 
-  <div id="debug">Debug output will appear here…</div>
+  <div id="scanner">
+    <span id="scannerHint">Camera preview should appear here</span>
+  </div>
+
+  <div id="debug">Loading debug…</div>
 </main>
 
 <footer>
   IRLid — Proof of Personhood (Demo)
 </footer>
 
-<!-- Load html5-qrcode -->
+<!-- QR scanner library -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
@@ -89,6 +95,10 @@
   const startBtn = document.getElementById("startCamBtn");
   const hintEl   = document.getElementById("scannerHint");
 
+  function now() {
+    return new Date().toISOString();
+  }
+
   function log(...args) {
     const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
     debugEl.textContent += "\n" + line;
@@ -96,21 +106,157 @@
 
   function setStatus(msg) {
     statusEl.textContent = msg;
-    log("STATUS:", msg);
+    log(now(), "STATUS:", msg);
   }
 
-  // Show JS is running at all
-  debugEl.textContent = "";
-  log("Loaded:", new Date().toISOString());
-  log("URL:", location.href);
-  log("UserAgent:", navigator.userAgent);
-
-  // Confirm the script library loaded
-  const libLoaded = (typeof Html5Qrcode !== "undefined");
-  log("Html5Qrcode present:", libLoaded);
-
-  // Helpful: catch silent errors
+  // Global error visibility (mobile-friendly)
   window.addEventListener("error", (e) => {
-    log("WINDOW ERROR:", e.message || e);
+    log(now(), "WINDOW ERROR:", e.message || String(e));
   });
-  window
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e.reason;
+    log(now(), "UNHANDLED REJECTION:", (r && (r.message || r.name || r)) || String(e));
+  });
+
+  // Initialize debug
+  debugEl.textContent = "";
+  log(now(), "Loaded:", location.href);
+  log(now(), "UserAgent:", navigator.userAgent);
+  log(now(), "SecureContext:", window.isSecureContext);
+  log(now(), "Protocol:", location.protocol);
+
+  const libLoaded = (typeof Html5Qrcode !== "undefined");
+  log(now(), "Html5Qrcode present:", libLoaded);
+
+  // Tap counter to prove the button is actually receiving events
+  let taps = 0;
+  function bumpTap(kind) {
+    taps += 1;
+    startBtn.textContent = `Tapped (${taps})`;
+    startBtn.style.transform = "scale(1.03)";
+    setTimeout(() => startBtn.style.transform = "scale(1)", 120);
+    log(now(), "TAP REGISTERED:", kind, "count=", taps);
+  }
+
+  let qr = null;
+  let running = false;
+
+  async function stopCamera() {
+    try {
+      if (qr && running) {
+        await qr.stop();
+        await qr.clear();
+      }
+    } catch (e) {
+      log(now(), "Stop error:", e);
+    } finally {
+      running = false;
+      qr = null;
+    }
+  }
+
+  async function startCamera() {
+    try {
+      if (!libLoaded) {
+        setStatus("ERROR: html5-qrcode did not load. (unpkg blocked or offline)");
+        log(now(), "Try: disable adblock / private DNS / VPN, try Incognito, or change network.");
+        startBtn.disabled = false;
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        setStatus("ERROR: Not a secure context. Camera requires HTTPS.");
+        log(now(), "Check you are on https://bunhead.github.io/IRLid/...");
+        startBtn.disabled = false;
+        return;
+      }
+
+      if (running) {
+        setStatus("Camera already running.");
+        startBtn.disabled = false;
+        return;
+      }
+
+      setStatus("Requesting camera permission / listing cameras…");
+
+      // Enumerate cameras
+      const cams = await Html5Qrcode.getCameras();
+      log(now(), "Cameras found:", cams);
+
+      if (!cams || cams.length === 0) {
+        setStatus("No cameras detected by the browser.");
+        startBtn.disabled = false;
+        return;
+      }
+
+      // Choose camera: prefer rear camera if label indicates, else last
+      let camId = cams[cams.length - 1].id;
+      for (const c of cams) {
+        const lbl = (c.label || "").toLowerCase();
+        if (lbl.includes("back") || lbl.includes("rear") || lbl.includes("environment")) {
+          camId = c.id;
+          break;
+        }
+      }
+      log(now(), "Using camera id:", camId);
+
+      // Clear hint text and start
+      hintEl.textContent = "";
+      qr = new Html5Qrcode("scanner");
+      running = true;
+
+      await qr.start(
+        { deviceId: { exact: camId } },
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          setStatus("QR scanned ✅");
+          log(now(), "SCANNED:", decodedText);
+
+          // Stop after first successful scan
+          await stopCamera();
+          startBtn.disabled = false;
+          startBtn.textContent = "Start Camera";
+        },
+        (err) => {
+          // ignore scan errors, they occur continuously while scanning
+        }
+      );
+
+      setStatus("Camera started. Point at a QR code.");
+      startBtn.disabled = true;
+
+    } catch (e) {
+      running = false;
+      const msg = (e && (e.message || e.name)) ? (e.message || e.name) : String(e);
+      setStatus("Camera failed: " + msg);
+      log(now(), "FULL ERROR:", e);
+
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Camera";
+    }
+  }
+
+  function wireButton() {
+    // click
+    startBtn.addEventListener("click", async () => {
+      bumpTap("click");
+      await startCamera();
+    });
+
+    // touchend (some mobile cases)
+    startBtn.addEventListener("touchend", async (ev) => {
+      bumpTap("touchend");
+      ev.preventDefault();
+      await startCamera();
+    }, { passive: false });
+
+    log(now(), "Button wired.");
+  }
+
+  // Wire ASAP
+  wireButton();
+  setStatus("Ready. Tap Start Camera.");
+
+</script>
+</body>
+</html>
