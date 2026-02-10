@@ -1,24 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
-
-  <!-- Testing Deployment -->
-  
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid – Application</title>
+  <title>IRLid – Application (Camera Debug)</title>
+
   <link rel="stylesheet" href="css/style.css">
+
   <style>
-    /* safety net in case CSS hides it */
+    /* Ensure the scanner area is visible no matter what */
     #scanner {
       width: 320px;
       height: 320px;
-      margin: 1rem auto;
+      margin: 16px auto;
+      border: 2px dashed #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Make sure button is clickable */
+    #startCamBtn {
+      position: relative;
+      z-index: 10;
+      touch-action: manipulation;
+    }
+
+    /* On-page debug panel */
+    #debug {
+      max-width: 720px;
+      margin: 12px auto;
+      text-align: left;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 8px;
+      background: #fafafa;
+      color: #111;
+    }
+
+    .small {
+      max-width: 720px;
+      margin: 8px auto;
     }
   </style>
 </head>
-<body>
 
+<body>
 <header>
   <img src="logo.png" alt="In Real Life ID Logo" id="logo">
   <nav>
@@ -31,37 +61,56 @@
 </header>
 
 <main>
-  <h2>Application (Camera Test)</h2>
+  <h2>Application (Camera Debug)</h2>
 
-  <p id="status">
-    Tap the button below to start the camera and scan a QR code.
+  <p class="small" id="status">
+    Tap <b>Start Camera</b>. If nothing happens, this page will tell us why.
   </p>
 
-  <button class="btn" id="startCamBtn">
-    Start Camera
-  </button>
+  <button class="btn" id="startCamBtn" type="button">Start Camera</button>
 
-  <div id="scanner"></div>
+  <div id="scanner">
+    <span id="scannerHint">Scanner box (camera preview should appear here)</span>
+  </div>
 
-  <pre id="result"
-       style="max-width:90%; margin:1rem auto; text-align:left; white-space:pre-wrap;">
-  </pre>
+  <div id="debug">Debug output will appear here…</div>
 </main>
 
 <footer>
   IRLid — Proof of Personhood (Demo)
 </footer>
 
-<!-- QR scanner library -->
+<!-- Load html5-qrcode -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
   const statusEl = document.getElementById("status");
-  const resultEl = document.getElementById("result");
+  const debugEl  = document.getElementById("debug");
   const startBtn = document.getElementById("startCamBtn");
+  const hintEl   = document.getElementById("scannerHint");
 
-  let qr;
+  function log(...args) {
+    const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
+    debugEl.textContent += "\n" + line;
+  }
 
-  startBtn.addEventListener("click", async () => {
-    startBtn.disabled = true;
-    statusEl.textConten
+  function setStatus(msg) {
+    statusEl.textContent = msg;
+    log("STATUS:", msg);
+  }
+
+  // Show JS is running at all
+  debugEl.textContent = "";
+  log("Loaded:", new Date().toISOString());
+  log("URL:", location.href);
+  log("UserAgent:", navigator.userAgent);
+
+  // Confirm the script library loaded
+  const libLoaded = (typeof Html5Qrcode !== "undefined");
+  log("Html5Qrcode present:", libLoaded);
+
+  // Helpful: catch silent errors
+  window.addEventListener("error", (e) => {
+    log("WINDOW ERROR:", e.message || e);
+  });
+  window
