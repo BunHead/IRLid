@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IRLid - Application</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+    <nav>
+      <ul class="navbar">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="application.html">Application</a></li>
+        <li><a href="receipt.html">Receipt</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Application (Mutual Scan)</h2>
+
+    <p id="status">Step 1: Scan the other person’s IRLid QR.</p>
+
+    <!-- If scanner library is blocked, we show a helpful message -->
+    <p id="libWarning" style="display:none; max-width:720px; margin: 0 auto; color:#900;">
+      QR scanner library failed to load. This is usually caused by an adblock/privacy extension blocking
+      <b>unpkg.com</b> or by no internet connection.  
+      <br><br>
+      Fix options:
+      <br>1) Temporarily disable adblock/privacy extensions for <b>localhost</b>
+      <br>2) Try an Incognito window (extensions often disabled)
+      <br>3) Make sure you are online
+    </p>
+
+    <div id="scanner" class="scanner"></div>
+
+    <div id="responseArea" style="display:none;">
+      <h3>Your Response QR</h3>
+      <p>
+        Show this QR to the other person. Then press the button and scan their response QR.
+      </p>
+
+      <div class="qr-box" id="responseQr"></div>
+
+      <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
+    </div>
+  </main>
+
+  <footer>
+    IRLid — Proof of Personhood (Demo)
+  </footer>
+
+  <!-- 1) Signing + helpers -->
+  <script src="js/sign.js"></script>
+
+  <!-- 2) Camera QR scanning library (must load BEFORE qr.js uses it) -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <!-- 3) Your QR helper functions -->
+  <script src="js/qr.js"></script>
+
+  <script>
+    // -----------------------------
+    // IRLid Application Flow
+    // Step 1: Scan "hello"
+    // Step 2: Show "response" QR
+    // Step 3: Scan their "response"
+    // Step 4: Build deterministic receipt and redirect to receipt.html#...
+    // -----------------------------
+
+    let myPub, theirPub;
+
+    function orderedPair(pubA, pubB) {
+      // Deterministic ordering so both devices create identical payload fields a/b
+      const aStr = JSON.stringify(pubA);
+      const bStr = JSON.stringify(pubB);
+      return (aStr <= bStr) ? [pubA, pubB] : [pubB, pubA];
+    }
+
+    async function step1ScanHello() {
+      myPub = await getPublicJwk();
+
+      const raw = await scanQR("scanner"); // base64url(JSON)
+      const helloJson = new TextDecoder().decode(b64urlDecode(raw));
+      const hello = JSON.parse(helloJson);
+
+      if (!hello || hello.type !== "hello" || !hello.pub) {
+        alert("Not a valid IRLid QR (hello). Returning to Home.");
+        location.href = "index.html";
+        return;
+      }
+
+      theirPub = hello.pub;
+
+      const [aPub, bPub] = orderedPair(myPub, theirPub);
+
+      const payload = {
+        v: 1,
+        type: "meeting",
+        a: aPub,
+        b: bPub,
+        t: Math.floor(Date.now() / 1000),
+        method: "mutual-scan"
+        // Future: ble: {...}
+      };
+
+      const canon = canonical(payload);
+      const mid = b64urlEncode(await sha256Bytes(canon));
+      const mySig = await signMid(mid);
+
+      // Store pending state for step 2
+      sessionStorage.setItem("irlid_payload", JSON.stringify(payload));
+      sessionStorage.setItem("irlid_mid", mid);
+      sessionStorage.setItem("irlid_mysig", mySig);
+      sessionStorage.setItem("irlid_mypub", JSON.stringify(myPub));
+
+      // Create response QR
+      const response = {
+        v: 1,
+        type: "response",
+        payload,
+        mid,
+        sig: mySig
+      };
+
+      const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+
+      document.getElementById("status").textContent = "Step 1 complete: Show your response QR.";
+      document.getElementById("responseArea").style.display = "block";
+      makeQR("responseQr", encodedResp, 320);
+    }
+
+    async function step2ScanResponse() {
+      document.getElementById("status").textContent = "Step 2: Scan their response QR.";
+      document.getElementById("responseArea").style.display = "none";
+
+      const raw = await scanQR("scanner");
+      const respJson = new TextDecoder().decode(b64urlDecode(raw));
+      const resp = JSON.parse(respJson);
+
+      if (!resp || resp.type !== "response" || !resp.payload || !resp.mid || !resp.sig) {
+        alert("Not a valid IRLid response QR. Returning to Home.");
+        location.href = "index.html";
+        return;
+      }
+
+      const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload") || "null");
+      const storedMid = sessionStorage.getItem("irlid_mid");
+      const storedSig = sessionStorage.getItem("irlid_mysig");
+
+      if (!storedPayload || !storedMid || !storedSig) {
+        alert("Missing local meeting state. Restart from Home.");
+        location.href = "index.html";
+        return;
+      }
+
+      // Must match the exact meeting payload+mid
+      if (resp.mid !== storedMid || canonical(resp.payload) !== canonical(storedPayload)) {
+        alert("Response does not match this meeting.");
+        location.href = "index.html";
+        return;
+      }
+
+      // Verify both signatures
+      const okMy = await verifySig(storedMid, storedSig, myPub);
+      const okOtherA = await verifySig(storedMid, resp.sig, resp.payload.a);
+      const okOtherB = await verifySig(storedMid, resp.sig, resp.payload.b);
+      const okOther = okOtherA || okOtherB;
+
+      if (!okMy || !okOther) {
+        alert("Signature verification failed.");
+        location.href = "index.html";
+        return;
+      }
+
+      // Deterministic receipt: sigA corresponds to payload.a, sigB corresponds to payload.b
+      const myPubStr = JSON.stringify(myPub);
+      const sigA = (myPubStr === JSON.stringify(resp.payload.a)) ? storedSig : resp.sig;
+      const sigB = (myPubStr === JSON.stringify(resp.payload.b)) ? storedSig : resp.sig;
+
+      const receipt = {
+        v: 1,
+        type: "receipt",
+        payload: resp.payload,
+        mid: storedMid,
+        sigA,
+        sigB
+      };
+
+      const receiptB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(receipt)));
+
+      // Optional: remember last receipt so "Receipt" tab can show something
+      localStorage.setItem("irlid_last_receipt", receiptB64);
+
+      location.href = "receipt.html#" + receiptB64;
+    }
+
+    // Hook button
+    document.getElementById("scanResponseBtn").addEventListener("click", () => {
+      step2ScanResponse().catch(err => {
+        console.error(err);
+        alert("Scan failed: " + (err?.message || err));
+      });
+    });
+
+    // Start: verify the library loaded, otherwise show warning
+    (async () => {
+      if (typeof Html5Qrcode === "undefined") {
+        document.getElementById("libWarning").style.display = "block";
+        document.getElementById("scanner").style.display = "none";
+        document.getElementById("status").textContent = "Scanner unavailable (library blocked).";
+        return;
+      }
+
+      try {
+        await step1ScanHello();
+      } catch (err) {
+        console.error(err);
+        const isFile = location.protocol === "file:";
+        if (isFile) {
+          alert("Camera blocked because you opened the page with file://\n\nRun a local server:\npython -m http.server 8000\nthen open http://localhost:8000/application.html");
+        } else {
+          alert("Camera/scan failed:\n" + (err?.message || err));
+        }
+      }
+    })();
+  </script>
+
+</body>
+</html>

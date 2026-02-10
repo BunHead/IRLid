@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRLid - Receipt</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+    <nav>
+      <ul class="navbar">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="about.html">About</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="application.html">Application</a></li>
+        <li><a href="receipt.html">Receipt</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h2>Receipt</h2>
+    <p>This receipt is cryptographically signed by both participants.</p>
+
+    <div class="receipt" id="details">Loading…</div>
+
+    <h3>Receipt QR</h3>
+    <div class="qr-box" id="receiptQr"></div>
+
+    <button class="btn" id="mapBtn">Open in Google Maps (context only)</button>
+  </main>
+
+  <footer>
+    IRLid — Proof of Personhood (Demo)
+  </footer>
+
+  <script src="js/sign.js"></script>
+  <script src="js/qr.js"></script>
+  <script>
+    (async () => {
+      const detailsEl = document.getElementById("details");
+
+      if (!location.hash || location.hash.length < 5) {
+        detailsEl.textContent = "No receipt data found. Complete a mutual scan first.";
+        makeQR("receiptQr", window.location.href, 320);
+        return;
+      }
+
+      const receiptJson = new TextDecoder().decode(b64urlDecode(location.hash.slice(1)));
+      const receipt = JSON.parse(receiptJson);
+
+      if (!receipt || receipt.type !== "receipt" || !receipt.payload || !receipt.mid || !receipt.sigA || !receipt.sigB) {
+        detailsEl.textContent = "Invalid receipt format.";
+        return;
+      }
+
+      // Recompute mid from payload
+      const canon = canonical(receipt.payload);
+      const midCheck = b64urlEncode(await sha256Bytes(canon));
+
+      if (midCheck !== receipt.mid) {
+        detailsEl.textContent = "Receipt FAILED (hash mismatch).";
+        return;
+      }
+
+      // Verify signatures
+      const okA = await verifySig(receipt.mid, receipt.sigA, receipt.payload.a);
+      const okB = await verifySig(receipt.mid, receipt.sigB, receipt.payload.b);
+
+      const aId = await pubKeyId(receipt.payload.a);
+      const bId = await pubKeyId(receipt.payload.b);
+
+      detailsEl.textContent =
+        `VALID RECEIPT: ${(okA && okB) ? "YES" : "NO"}\n\n` +
+        `Meeting ID: ${receipt.mid.slice(0, 22)}…\n\n` +
+        `Person A: ${aId}\n` +
+        `Person B: ${bId}\n\n` +
+        `Timestamp: ${new Date(receipt.payload.t * 1000).toLocaleString()}\n` +
+        `Method: ${receipt.payload.method}\n\n` +
+        `Signatures:\n` +
+        `  sigA valid: ${okA}\n` +
+        `  sigB valid: ${okB}\n`;
+
+      // QR contains the full shareable receipt URL
+      makeQR("receiptQr", window.location.href, 320);
+
+      document.getElementById("mapBtn").addEventListener("click", () => {
+        navigator.geolocation.getCurrentPosition(
+          (p) => {
+            const url = `https://www.google.com/maps?q=${p.coords.latitude},${p.coords.longitude}`;
+            window.open(url, "_blank");
+          },
+          () => alert("Location unavailable (permission denied or not supported).")
+        );
+      });
+    })();
+  </script>
+</body>
+</html>

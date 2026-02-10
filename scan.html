@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>IRLid – Scan</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <img src="logo.png" alt="IRLid Logo" id="logo">
+  <nav>
+    <ul class="navbar">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="features.html">Features</a></li>
+      <li><a href="application.html">Application</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main>
+  <h2>Scan the other person</h2>
+  <p id="status">Step 1: Scan their QR.</p>
+
+  <div id="scanner" style="width:360px; margin: 0 auto;"></div>
+
+  <div id="responseArea" style="display:none;">
+    <h3>Your Response QR</h3>
+    <p>Now show this QR to the other person. Then scan their response QR.</p>
+    <div class="qr-box" id="responseQr"></div>
+
+    <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
+  </div>
+</main>
+
+<footer>
+  IRLid — Proof of Personhood (Demo)
+</footer>
+
+<script src="sign.js"></script>
+<script src="qr.js"></script>
+<script>
+let myPub, theirPub, payload, mid, mySig;
+
+function orderedPair(pubA, pubB) {
+  // Deterministic ordering so both devices create identical payload fields a/b
+  const aStr = JSON.stringify(pubA);
+  const bStr = JSON.stringify(pubB);
+  return (aStr <= bStr) ? [pubA, pubB] : [pubB, pubA];
+}
+
+async function step1ScanHello() {
+  myPub = await getPublicJwk();
+
+  const raw = await scanQR("scanner");
+  const helloJson = new TextDecoder().decode(b64urlDecode(raw));
+  const hello = JSON.parse(helloJson);
+
+  if (!hello || hello.type !== "hello" || !hello.pub) {
+    alert("Not a valid IRLid hello QR.");
+    location.href = "index.html";
+    return;
+  }
+
+  theirPub = hello.pub;
+
+  const [aPub, bPub] = orderedPair(myPub, theirPub);
+
+  payload = {
+    v: 1,
+    type: "meeting",
+    a: aPub,
+    b: bPub,
+    t: Math.floor(Date.now()/1000),
+    method: "mutual-scan"
+    // Future: ble: {...}
+  };
+
+  const canon = canonical(payload);
+  mid = b64urlEncode(await sha256Bytes(canon));
+  mySig = await signMid(mid);
+
+  // store pending so we can finalize after scanning response
+  sessionStorage.setItem("irlid_payload", JSON.stringify(payload));
+  sessionStorage.setItem("irlid_mid", mid);
+  sessionStorage.setItem("irlid_mysig", mySig);
+
+  // Create response QR
+  const response = {
+    v: 1,
+    type: "response",
+    payload,
+    mid,
+    sig: mySig
+  };
+
+  const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+
+  document.getElementById("status").textContent = "Step 1 complete: Show your response QR.";
+  document.getElementById("responseArea").style.display = "block";
+  makeQR("responseQr", encodedResp, 320);
+}
+
+async function step2ScanResponse() {
+  document.getElementById("status").textContent = "Step 2: Scan their response QR.";
+  document.getElementById("responseArea").style.display = "none";
+
+  const raw = await scanQR("scanner");
+  const respJson = new TextDecoder().decode(b64urlDecode(raw));
+  const resp = JSON.parse(respJson);
+
+  if (!resp || resp.type !== "response" || !resp.payload || !resp.mid || !resp.sig) {
+    alert("Not a valid IRLid response QR.");
+    location.href = "index.html";
+    return;
+  }
+
+  const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload"));
+  const storedMid = sessionStorage.getItem("irlid_mid");
+  const storedSig = sessionStorage.getItem("irlid_mysig");
+
+  // Must match exact meeting
+  if (resp.mid !== storedMid || canonical(resp.payload) !== canonical(storedPayload)) {
+    alert("Response does not match this meeting.");
+    location.href = "index.html";
+    return;
+  }
+
+  // Verify signatures (both)
+  const okMy = await verifySig(storedMid, storedSig, myPub);
+  const okOtherA = await verifySig(storedMid, resp.sig, resp.payload.a);
+  const okOtherB = await verifySig(storedMid, resp.sig, resp.payload.b);
+  const okOther = okOtherA || okOtherB; // signature should verify against one of the two pubkeys
+
+  if (!okMy || !okOther) {
+    alert("Signature verification failed.");
+    location.href = "index.html";
+    return;
+  }
+
+  // Build FINAL deterministic receipt (same for both)
+  // We assign sigA/sigB according to payload.a / payload.b
+  const sigForA = (JSON.stringify(myPub) === JSON.stringify(resp.payload.a)) ? storedSig
+                  : (JSON.stringify(theirPub) === JSON.stringify(resp.payload.a)) ? resp.sig
+                  : null;
+
+  const sigForB = (JSON.stringify(myPub) === JSON.stringify(resp.payload.b)) ? storedSig
+                  : (JSON.stringify(theirPub) === JSON.stringify(resp.payload.b)) ? resp.sig
+                  : null;
+
+  // If we can’t confidently map using stored theirPub, fall back:
+  const receipt = {
+    v: 1,
+    type: "receipt",
+    payload: resp.payload,
+    mid: storedMid,
+    sigA: sigForA || storedSig,
+    sigB: sigForB || resp.sig
+  };
+
+  const receiptB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(receipt)));
+  location.href = "receipt.html#" + receiptB64;
+}
+
+document.getElementById("scanResponseBtn").addEventListener("click", step2ScanResponse);
+
+step1ScanHello().catch(err => {
+  console.error(err);
+  alert("Camera/scan failed. If testing locally, use a local server or HTTPS.");
+});
+</script>
+
+</body>
+</html>
