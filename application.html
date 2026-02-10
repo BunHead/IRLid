@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- Deployment 3 -->
+
+  <!-- Deploy 4 -->
+  
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -21,47 +23,39 @@
       align-items: center;
       justify-content: center;
     }
-    #startCamBtn {
-      position: relative;
-      z-index: 9999;
-      touch-action: manipulation;
-      user-select: none;
-    }
+
     #debug {
       max-width: 980px;
       margin: 12px auto 24px;
       text-align: left;
       white-space: pre-wrap;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, monospace;
       font-size: 12px;
       border: 1px solid #ddd;
       padding: 10px;
       border-radius: 10px;
       background: #fff;
-      color: #111;
     }
+
     .small { max-width: 980px; margin: 10px auto; padding: 0 12px; }
     #responseArea { display:none; max-width: 980px; margin: 0 auto; text-align:center; }
-    #responseQr { margin: 12px auto; }
-    #controls { max-width: 980px; margin: 0 auto; text-align:center; }
-    select { max-width: 90%; padding: 8px; margin: 8px 0; }
+    select { padding: 8px; margin: 6px 0; }
+
     .hint {
       max-width: 980px;
       margin: 8px auto;
-      padding: 10px 12px;
+      padding: 10px;
       border-radius: 10px;
       background: #f3f7ff;
       border: 1px solid #d6e4ff;
-      color: #123;
       font-size: 14px;
     }
-    .kbd { font-family: ui-monospace, monospace; background:#eee; padding: 1px 6px; border-radius: 6px; }
   </style>
 </head>
 
 <body>
 <header>
-  <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+  <img src="logo.png" alt="IRLid Logo" id="logo">
   <nav>
     <ul class="navbar">
       <li><a href="index.html">Home</a></li>
@@ -75,44 +69,35 @@
   <h2>Application (Mutual Scan + GPS)</h2>
 
   <div class="hint">
-    <b>Tips for desktop webcam scanning:</b><br>
-    • Make the QR BIG (fill the phone screen) and bright<br>
-    • Hold it close until it’s sharp (webcams have a focus distance)<br>
-    • Keep it inside the dashed box<br>
-    • If it won’t scan, increase QR size on the page generating it
+    <b>Desktop webcam tips:</b><br>
+    • Make the other person’s QR fill the phone screen<br>
+    • Hold it close until it’s sharp (webcams need focus distance)<br>
+    • Keep QR inside the dashed box
   </div>
 
   <p class="small" id="status">
-    Step 1: Tap <b>Start Camera</b> and scan the other person’s Home QR.
+    Step 1: Start camera and scan the other person’s Home QR.
   </p>
 
-  <div id="controls" class="small">
-    <div>
-      <label for="cameraSelect"><b>Camera device:</b></label><br />
-      <select id="cameraSelect">
-        <option value="">(Click “Start Camera” to list cameras)</option>
-      </select>
-    </div>
-
-    <button class="btn" id="startCamBtn" type="button">Start Camera</button>
+  <div class="small">
+    <label><b>Camera:</b></label><br>
+    <select id="cameraSelect">
+      <option value="">(Start camera to list)</option>
+    </select><br>
+    <button class="btn" id="startBtn">Start Camera</button>
+    <button class="btn secondary" id="stopBtn">Stop</button>
   </div>
 
   <div id="scanner">
-    <span id="scannerHint">Camera preview will appear here</span>
+    <span>Camera preview</span>
   </div>
 
   <div id="responseArea">
     <h3>Your Response QR</h3>
-    <p class="small">
-      This QR includes your <b>meeting signature</b> and a <b>signed GPS context</b>.
-      Show it to the other person.
-      <br><br>
-      <b>Desktop scan hint:</b> if scanning this fails, increase QR size on the screen and hold it closer.
-    </p>
     <div class="qr-box" id="responseQr"></div>
   </div>
 
-  <div id="debug">Loading…</div>
+  <div id="debug"></div>
 </main>
 
 <footer>
@@ -125,274 +110,94 @@
 
 <script>
   const statusEl = document.getElementById("status");
-  const debugEl  = document.getElementById("debug");
-  const startBtn = document.getElementById("startCamBtn");
-  const hintEl   = document.getElementById("scannerHint");
-  const responseArea = document.getElementById("responseArea");
+  const debugEl = document.getElementById("debug");
   const cameraSelect = document.getElementById("cameraSelect");
-
-  function now() { return new Date().toISOString(); }
-  function log(...args) {
-    const line = args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
-    debugEl.textContent += "\n" + line;
-  }
-  function setStatus(msg) {
-    statusEl.textContent = msg;
-    log(now(), "STATUS:", msg);
-  }
-
-  // show errors on-screen
-  window.addEventListener("error", (e) => log(now(), "WINDOW ERROR:", e.message || String(e)));
-  window.addEventListener("unhandledrejection", (e) => {
-    const r = e.reason;
-    log(now(), "UNHANDLED REJECTION:", (r && (r.message || r.name || r)) || String(e));
-  });
-
-  debugEl.textContent = "";
-  log(now(), "Loaded:", location.href);
-  log(now(), "UserAgent:", navigator.userAgent);
-  log(now(), "SecureContext:", window.isSecureContext);
-  log(now(), "Html5Qrcode present:", (typeof Html5Qrcode !== "undefined"));
-
-  function parseMaybeHelloFromScannedText(scannedText) {
-    const text = (scannedText || "").trim();
-    if (/^https?:\/\//i.test(text)) {
-      try {
-        const u = new URL(text);
-        if (u.hash && u.hash.includes("HELLO=")) {
-          const m = u.hash.match(/HELLO=([^&]+)/);
-          if (m && m[1]) return m[1];
-        }
-        if (u.searchParams && u.searchParams.get("HELLO")) return u.searchParams.get("HELLO");
-      } catch {}
-    }
-    return text;
-  }
-  function isBase64Url(s) { return /^[A-Za-z0-9\-_]+$/.test(s || ""); }
-
-  function getGeoOnce({ timeoutMs = 12000, maxAgeMs = 15000, highAccuracy = true } = {}) {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject(new Error("Geolocation not supported."));
-      navigator.geolocation.getCurrentPosition(
-        (p) => resolve({
-          lat: +p.coords.latitude.toFixed(7),
-          lng: +p.coords.longitude.toFixed(7),
-          acc: Math.round(p.coords.accuracy || 0),
-          ts: Math.floor(Date.now() / 1000)
-        }),
-        (err) => reject(new Error(err?.message || "Geolocation failed / denied.")),
-        { enableHighAccuracy: !!highAccuracy, timeout: timeoutMs, maximumAge: maxAgeMs }
-      );
-    });
-  }
-
-  function orderedPair(pubA, pubB) {
-    const aStr = JSON.stringify(pubA);
-    const bStr = JSON.stringify(pubB);
-    return (aStr <= bStr) ? [pubA, pubB] : [pubB, pubA];
-  }
-
-  async function ctxHashFrom(mid, ctx) {
-    const ctxPayload = { v: 1, type: "ctx", mid, ts: ctx.ts, lat: ctx.lat, lng: ctx.lng, acc: ctx.acc };
-    return b64urlEncode(await sha256Bytes(canonical(ctxPayload)));
-  }
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const responseArea = document.getElementById("responseArea");
 
   let qr = null;
   let running = false;
-  let camerasCached = null;
 
-  async function stopCamera() {
-    try {
-      if (qr && running) {
-        await qr.stop();
-        await qr.clear();
-      }
-    } catch (e) {
-      log(now(), "Stop error:", e);
-    } finally {
-      running = false;
-      qr = null;
-    }
-  }
+  function log(...a) { debugEl.textContent += a.join(" ") + "\n"; }
+  function setStatus(t) { statusEl.textContent = t; log(t); }
 
   async function listCameras() {
-    if (typeof Html5Qrcode === "undefined") {
-      setStatus("ERROR: Scanner library didn't load (unpkg blocked/offline).");
-      return [];
-    }
     const cams = await Html5Qrcode.getCameras();
-    camerasCached = cams || [];
     cameraSelect.innerHTML = "";
-
-    if (!cams || cams.length === 0) {
-      cameraSelect.innerHTML = `<option value="">(No cameras found)</option>`;
-      return [];
-    }
-
-    for (const c of cams) {
-      const opt = document.createElement("option");
-      opt.value = c.id;
-      opt.textContent = c.label || c.id;
-      cameraSelect.appendChild(opt);
-    }
+    cams.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.id;
+      o.textContent = c.label || c.id;
+      cameraSelect.appendChild(o);
+    });
     return cams;
   }
 
-  async function startScanOnce(onDecoded) {
-    if (typeof Html5Qrcode === "undefined") {
-      setStatus("ERROR: Scanner library didn't load (unpkg blocked/offline).");
-      return;
+  async function stopCam() {
+    if (qr && running) {
+      await qr.stop();
+      await qr.clear();
     }
-    if (!window.isSecureContext) {
-      setStatus("ERROR: Not secure context (need HTTPS).");
-      return;
-    }
+    running = false;
+  }
 
-    setStatus("Listing cameras…");
-    const cams = camerasCached && camerasCached.length ? camerasCached : await listCameras();
-    log(now(), "Cameras:", cams);
+  async function startScan() {
+    await listCameras();
 
-    if (!cams || cams.length === 0) {
-      setStatus("No cameras detected.");
-      return;
-    }
-
-    let camId = cameraSelect.value;
-    if (!camId) {
-      camId = cams[cams.length - 1].id;
-      for (const c of cams) {
-        const lbl = (c.label || "").toLowerCase();
-        if (lbl.includes("back") || lbl.includes("rear") || lbl.includes("environment")) {
-          camId = c.id; break;
-        }
-      }
-    }
-
-    log(now(), "Using camera id:", camId);
-
-    hintEl.textContent = "";
+    const camId = cameraSelect.value;
     qr = new Html5Qrcode("scanner");
     running = true;
 
-    setStatus("Starting camera…");
-
-    try {
-      await qr.start(
-        { deviceId: { exact: camId } },
-        {
-          fps: 20,
-          qrbox: { width: 320, height: 320 },
-          aspectRatio: 1.0,
-          disableFlip: false
-        },
-        async (decodedText) => {
-          log(now(), "SCANNED:", decodedText);
-          await stopCamera();
-          await onDecoded(decodedText);
-          startBtn.disabled = false;
-        },
-        () => {
-          // ignore continuous scan errors
+    await qr.start(
+      camId,
+      {
+        fps: 10,
+        qrbox: { width: 300, height: 300 },
+        videoConstraints: {
+          deviceId: { exact: camId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
         }
-      );
+      },
+      async (text) => {
+        await stopCam();
+        await handleHello(text);
+      }
+    );
 
-      setStatus("Camera started. Point at the other person's QR…");
-    } catch (e) {
-      running = false;
-      const msg = (e && (e.message || e.name)) ? (e.message || e.name) : String(e);
-      setStatus("Camera failed to start: " + msg);
-      log(now(), "FULL CAMERA ERROR:", e);
-      startBtn.disabled = false;
-    }
+    setStatus("Camera started — scanning…");
   }
 
-  async function handleHelloScan(decodedText) {
-    setStatus("Processing scanned QR…");
-
-    const raw = parseMaybeHelloFromScannedText(decodedText);
-
-    if (!isBase64Url(raw)) {
-      setStatus("That QR is not an IRLid HELLO payload.");
-      log(now(), "Not base64url:", raw);
-      return;
-    }
-
-    let hello;
-    try {
-      const helloJson = new TextDecoder().decode(b64urlDecode(raw));
-      hello = JSON.parse(helloJson);
-    } catch (e) {
-      setStatus("Failed to decode HELLO payload.");
-      log(now(), "Decode error:", e);
-      return;
-    }
-
-    if (!hello || hello.type !== "hello" || !hello.pub) {
-      setStatus("QR decoded, but not a valid HELLO payload.");
-      log(now(), "Decoded object:", hello);
-      return;
-    }
-
-    setStatus("HELLO decoded. Generating meeting + GPS context…");
+  async function handleHello(text) {
+    const raw = text.includes("HELLO=") ? text.split("HELLO=")[1] : text;
+    const hello = JSON.parse(new TextDecoder().decode(b64urlDecode(raw)));
 
     const myPub = await getPublicJwk();
-    const theirPub = hello.pub;
+    const [a, b] = JSON.stringify(myPub) < JSON.stringify(hello.pub)
+      ? [myPub, hello.pub]
+      : [hello.pub, myPub];
 
-    const [aPub, bPub] = orderedPair(myPub, theirPub);
-
-    const payload = {
-      v: 1,
-      type: "meeting",
-      a: aPub,
-      b: bPub,
-      t: Math.floor(Date.now() / 1000),
-      method: "mutual-scan"
-    };
-
+    const payload = { v:1, type:"meeting", a, b, t:Math.floor(Date.now()/1000) };
     const mid = b64urlEncode(await sha256Bytes(canonical(payload)));
-    const mySig = await signMid(mid);
+    const sig = await signMid(mid);
+    const ctx = await new Promise(r =>
+      navigator.geolocation.getCurrentPosition(p =>
+        r({ lat:p.coords.latitude, lng:p.coords.longitude, ts:Date.now()/1000 })
+      )
+    );
 
-    setStatus("Requesting location permission…");
-    const myCtx = await getGeoOnce();
+    const response = { payload, mid, sig, ctx };
+    const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
 
-    const myCtxHash = await ctxHashFrom(mid, myCtx);
-    const myCtxSig  = await signMid(myCtxHash);
-
-    const response = {
-      v: 1,
-      type: "response",
-      payload,
-      mid,
-      sig: mySig,
-      ctx: myCtx,
-      ctxHash: myCtxHash,
-      ctxSig: myCtxSig
-    };
-
-    const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
-
-    setStatus("Step 1 complete ✅ Showing your Response QR.");
     responseArea.style.display = "block";
-
-    // BIGGER QR to help desktop webcam scanning
-    makeQR("responseQr", encodedResp, 600);
-
-    log(now(), "MID:", mid);
-    log(now(), "My ctx:", myCtx);
-    log(now(), "Response length:", encodedResp.length);
+    makeQR("responseQr", encoded, 600);
+    setStatus("Response QR ready.");
   }
 
-  startBtn.addEventListener("click", async () => {
-    startBtn.disabled = true;
-    try {
-      await startScanOnce(handleHelloScan);
-    } catch (e) {
-      log(now(), "Start error:", e);
-      setStatus("Unexpected error: " + (e?.message || e));
-      startBtn.disabled = false;
-    }
-  });
+  startBtn.onclick = startScan;
+  stopBtn.onclick = stopCam;
 </script>
-
 </body>
 </html>
