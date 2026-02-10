@@ -1,19 +1,29 @@
-function makeQR(elId, data, size = 320) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
-  document.getElementById(elId).innerHTML = `<img alt="QR" src="${url}">`;
-}
+// Local QR generation (no remote API)
+// Improves contrast, quiet zone, and webcam scannability
 
-function scanQR(targetElId) {
-  return new Promise((resolve, reject) => {
-    const qr = new Html5Qrcode(targetElId);
+(function () {
+  function clear(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
 
-    qr.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      (text) => {
-        qr.stop().then(() => resolve(text));
-      },
-      () => {}
-    ).catch(err => reject(err));
-  });
-}
+  window.makeQR = function makeQR(elId, data, size = 320) {
+    const el = document.getElementById(elId);
+    clear(el);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+
+    QRCode.toCanvas(canvas, data, {
+      errorCorrectionLevel: "Q",
+      margin: 4,
+      width: size,
+      color: { dark: "#000", light: "#fff" }
+    }, err => {
+      if (err) el.textContent = err.message;
+      else el.appendChild(canvas);
+    });
+  };
+})();
