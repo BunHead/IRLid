@@ -1,11 +1,26 @@
 <!DOCTYPE html>
+<!!-- Deploy 7 -->
 <html lang="en">
-  <!-- Deploy 5 -->
+  <!-- Deploy 6 -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>In Real Life ID - Proof of Personhood</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    #qrError {
+      max-width: 980px;
+      margin: 10px auto;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #f3c0c0;
+      background: #fff3f3;
+      color: #600;
+      font-family: ui-monospace, monospace;
+      white-space: pre-wrap;
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -26,6 +41,8 @@
     <h2>My IRLid QR</h2>
     <p>Scan this with the other person’s phone to begin a mutual proof-of-personhood.</p>
 
+    <div id="qrError"></div>
+
     <div class="qr-box" id="myQr"></div>
 
     <button class="btn" onclick="location.href='application.html'">
@@ -39,29 +56,45 @@
 
   <script src="js/sign.js"></script>
 
-  <!-- REQUIRED for new local QR rendering in js/qr.js -->
+  <!-- Local QR generator (used if available; qr.js also has fallback) -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-  <script src="js/qr.js"></script>
+  <!-- Cache-bust so GitHub Pages/browser updates immediately -->
+  <script src="js/qr.js?v=deploy6"></script>
 
   <script>
+    const qrErrorEl = document.getElementById("qrError");
+    function showErr(e) {
+      qrErrorEl.style.display = "block";
+      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
+      console.error(e);
+    }
+
+    window.addEventListener("error", (e) => showErr(e.error || e.message));
+    window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
+
     (async () => {
-      const pub = await getPublicJwk();
-      const hello = {
-        v: 1,
-        type: "hello",
-        pub,
-        nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-        ts: Math.floor(Date.now() / 1000)
-      };
+      try {
+        const pub = await getPublicJwk();
+        const hello = {
+          v: 1,
+          type: "hello",
+          pub,
+          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
+          ts: Math.floor(Date.now() / 1000)
+        };
 
-      const encodedHello =
-        b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+        const encodedHello =
+          b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
 
-      const baseUrl = location.origin;
-      const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
+        const baseUrl = location.origin;
+        const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
 
-      makeQR("myQr", url, 420);
+        // Bigger QR helps desktop webcams a lot
+        makeQR("myQr", url, 420);
+      } catch (e) {
+        showErr(e);
+      }
     })();
   </script>
 </body>
