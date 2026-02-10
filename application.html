@@ -27,13 +27,12 @@
 
     <p id="status">Step 1: Scan the other person’s IRLid QR.</p>
 
-    <!-- If scanner library is blocked, we show a helpful message -->
     <p id="libWarning" style="display:none; max-width:720px; margin: 0 auto; color:#900;">
       QR scanner library failed to load. This is usually caused by an adblock/privacy extension blocking
-      <b>unpkg.com</b> or by no internet connection.  
+      <b>unpkg.com</b> or by no internet connection.
       <br><br>
       Fix options:
-      <br>1) Temporarily disable adblock/privacy extensions for <b>localhost</b>
+      <br>1) Temporarily disable adblock/privacy extensions
       <br>2) Try an Incognito window (extensions often disabled)
       <br>3) Make sure you are online
     </p>
@@ -59,7 +58,7 @@
   <!-- 1) Signing + helpers -->
   <script src="js/sign.js"></script>
 
-  <!-- 2) Camera QR scanning library (must load BEFORE qr.js uses it) -->
+  <!-- 2) Camera QR scanning library -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- 3) Your QR helper functions -->
@@ -67,11 +66,11 @@
 
   <script>
     // -----------------------------
-    // IRLid Application Flow
+    // IRLid Application Flow (with signed GPS context)
     // Step 1: Scan "hello"
-    // Step 2: Show "response" QR
+    // Step 2: Show "response" QR (meeting sig + context sig)
     // Step 3: Scan their "response"
-    // Step 4: Build deterministic receipt and redirect to receipt.html#...
+    // Step 4: Build deterministic receipt (midpoint + max timestamp), redirect to receipt.html#...
     // -----------------------------
 
     let myPub, theirPub;
@@ -83,10 +82,85 @@
       return (aStr <= bStr) ? [pubA, pubB] : [pubB, pubA];
     }
 
+    function parseMaybeHelloFromScannedText(scannedText) {
+      // Accept either:
+      //  1) base64url(JSON)
+      //  2) URL containing #HELLO=base64url(JSON) or ?HELLO=...
+      const text = (scannedText || "").trim();
+
+      if (/^https?:\/\//i.test(text)) {
+        try {
+          const u = new URL(text);
+          // Try hash first
+          if (u.hash && u.hash.includes("HELLO=")) {
+            const m = u.hash.match(/HELLO=([^&]+)/);
+            if (m && m[1]) return m[1];
+          }
+          // Try query next
+          if (u.searchParams && u.searchParams.get("HELLO")) {
+            return u.searchParams.get("HELLO");
+          }
+        } catch {}
+      }
+
+      return text; // assume it's already base64url(json)
+    }
+
+    function getGeoOnce({ timeoutMs = 12000, maxAgeMs = 15000, highAccuracy = true } = {}) {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("Geolocation not supported on this device/browser."));
+          return;
+        }
+
+        const opts = {
+          enableHighAccuracy: !!highAccuracy,
+          timeout: timeoutMs,
+          maximumAge: maxAgeMs
+        };
+
+        navigator.geolocation.getCurrentPosition(
+          (p) => resolve({
+            lat: +p.coords.latitude.toFixed(7),
+            lng: +p.coords.longitude.toFixed(7),
+            acc: Math.round(p.coords.accuracy || 0),
+            ts: Math.floor(Date.now() / 1000)
+          }),
+          (err) => reject(new Error(err?.message || "Geolocation failed / permission denied.")),
+          opts
+        );
+      });
+    }
+
+    async function ctxHashFrom(mid, ctx) {
+      // Canonical context to sign: binds location+ts to this meeting id
+      const ctxPayload = {
+        v: 1,
+        type: "ctx",
+        mid,
+        ts: ctx.ts,
+        lat: ctx.lat,
+        lng: ctx.lng,
+        acc: ctx.acc
+      };
+      const canon = canonical(ctxPayload);
+      return b64urlEncode(await sha256Bytes(canon));
+    }
+
+    function midpoint(a, b) {
+      return {
+        lat: +(((a.lat + b.lat) / 2).toFixed(7)),
+        lng: +(((a.lng + b.lng) / 2).toFixed(7))
+      };
+    }
+
     async function step1ScanHello() {
       myPub = await getPublicJwk();
 
-      const raw = await scanQR("scanner"); // base64url(JSON)
+      // Scan QR text
+      const scanned = await scanQR("scanner");
+      const raw = parseMaybeHelloFromScannedText(scanned);
+
       const helloJson = new TextDecoder().decode(b64urlDecode(raw));
       const hello = JSON.parse(helloJson);
 
@@ -100,6 +174,7 @@
 
       const [aPub, bPub] = orderedPair(myPub, theirPub);
 
+      // Meeting payload (what both parties must agree on BEFORE signing)
       const payload = {
         v: 1,
         type: "meeting",
@@ -107,31 +182,46 @@
         b: bPub,
         t: Math.floor(Date.now() / 1000),
         method: "mutual-scan"
-        // Future: ble: {...}
       };
 
       const canon = canonical(payload);
       const mid = b64urlEncode(await sha256Bytes(canon));
+
+      // Meeting signature (existing)
       const mySig = await signMid(mid);
+
+      // GPS context (new)
+      document.getElementById("status").textContent = "Getting location permission…";
+      const myCtx = await getGeoOnce();
+
+      const myCtxHash = await ctxHashFrom(mid, myCtx);
+      const myCtxSig = await signMid(myCtxHash);
 
       // Store pending state for step 2
       sessionStorage.setItem("irlid_payload", JSON.stringify(payload));
       sessionStorage.setItem("irlid_mid", mid);
       sessionStorage.setItem("irlid_mysig", mySig);
       sessionStorage.setItem("irlid_mypub", JSON.stringify(myPub));
+      sessionStorage.setItem("irlid_myctx", JSON.stringify(myCtx));
+      sessionStorage.setItem("irlid_myctxhash", myCtxHash);
+      sessionStorage.setItem("irlid_myctxsig", myCtxSig);
 
-      // Create response QR
+      // Response QR includes BOTH meeting signature + signed context
       const response = {
         v: 1,
         type: "response",
         payload,
         mid,
-        sig: mySig
+        sig: mySig,
+        ctx: myCtx,
+        ctxHash: myCtxHash,
+        ctxSig: myCtxSig
       };
 
       const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
 
-      document.getElementById("status").textContent = "Step 1 complete: Show your response QR.";
+      document.getElementById("status").textContent =
+        "Step 1 complete: Show your response QR (includes signed GPS context).";
       document.getElementById("responseArea").style.display = "block";
       makeQR("responseQr", encodedResp, 320);
     }
@@ -140,97 +230,17 @@
       document.getElementById("status").textContent = "Step 2: Scan their response QR.";
       document.getElementById("responseArea").style.display = "none";
 
-      const raw = await scanQR("scanner");
+      const scanned = await scanQR("scanner");
+      const raw = parseMaybeHelloFromScannedText(scanned);
+
       const respJson = new TextDecoder().decode(b64urlDecode(raw));
       const resp = JSON.parse(respJson);
 
-      if (!resp || resp.type !== "response" || !resp.payload || !resp.mid || !resp.sig) {
+      if (!resp || resp.type !== "response" || !resp.payload || !resp.mid || !resp.sig || !resp.ctx || !resp.ctxHash || !resp.ctxSig) {
         alert("Not a valid IRLid response QR. Returning to Home.");
         location.href = "index.html";
         return;
       }
 
       const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload") || "null");
-      const storedMid = sessionStorage.getItem("irlid_mid");
-      const storedSig = sessionStorage.getItem("irlid_mysig");
-
-      if (!storedPayload || !storedMid || !storedSig) {
-        alert("Missing local meeting state. Restart from Home.");
-        location.href = "index.html";
-        return;
-      }
-
-      // Must match the exact meeting payload+mid
-      if (resp.mid !== storedMid || canonical(resp.payload) !== canonical(storedPayload)) {
-        alert("Response does not match this meeting.");
-        location.href = "index.html";
-        return;
-      }
-
-      // Verify both signatures
-      const okMy = await verifySig(storedMid, storedSig, myPub);
-      const okOtherA = await verifySig(storedMid, resp.sig, resp.payload.a);
-      const okOtherB = await verifySig(storedMid, resp.sig, resp.payload.b);
-      const okOther = okOtherA || okOtherB;
-
-      if (!okMy || !okOther) {
-        alert("Signature verification failed.");
-        location.href = "index.html";
-        return;
-      }
-
-      // Deterministic receipt: sigA corresponds to payload.a, sigB corresponds to payload.b
-      const myPubStr = JSON.stringify(myPub);
-      const sigA = (myPubStr === JSON.stringify(resp.payload.a)) ? storedSig : resp.sig;
-      const sigB = (myPubStr === JSON.stringify(resp.payload.b)) ? storedSig : resp.sig;
-
-      const receipt = {
-        v: 1,
-        type: "receipt",
-        payload: resp.payload,
-        mid: storedMid,
-        sigA,
-        sigB
-      };
-
-      const receiptB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(receipt)));
-
-      // Optional: remember last receipt so "Receipt" tab can show something
-      localStorage.setItem("irlid_last_receipt", receiptB64);
-
-      location.href = "receipt.html#" + receiptB64;
-    }
-
-    // Hook button
-    document.getElementById("scanResponseBtn").addEventListener("click", () => {
-      step2ScanResponse().catch(err => {
-        console.error(err);
-        alert("Scan failed: " + (err?.message || err));
-      });
-    });
-
-    // Start: verify the library loaded, otherwise show warning
-    (async () => {
-      if (typeof Html5Qrcode === "undefined") {
-        document.getElementById("libWarning").style.display = "block";
-        document.getElementById("scanner").style.display = "none";
-        document.getElementById("status").textContent = "Scanner unavailable (library blocked).";
-        return;
-      }
-
-      try {
-        await step1ScanHello();
-      } catch (err) {
-        console.error(err);
-        const isFile = location.protocol === "file:";
-        if (isFile) {
-          alert("Camera blocked because you opened the page with file://\n\nRun a local server:\npython -m http.server 8000\nthen open http://localhost:8000/application.html");
-        } else {
-          alert("Camera/scan failed:\n" + (err?.message || err));
-        }
-      }
-    })();
-  </script>
-
-</body>
-</html>
+      const storedMid = sessionStorage.getItem(
