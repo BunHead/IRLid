@@ -1,253 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<!-- Checking if Deployment is working -->
+  <!-- Testing Deployment -->
   
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IRLid - Application</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid – Application</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* safety net in case CSS hides it */
+    #scanner {
+      width: 320px;
+      height: 320px;
+      margin: 1rem auto;
+    }
+  </style>
 </head>
 <body>
 
-  <header>
-    <img src="logo.png" alt="In Real Life ID Logo" id="logo">
-    <nav>
-      <ul class="navbar">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="features.html">Features</a></li>
-        <li><a href="application.html">Application</a></li>
-        <li><a href="receipt.html">Receipt</a></li>
-        <li><a href="contact.html">Contact</a></li>
-      </ul>
-    </nav>
-  </header>
+<header>
+  <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+  <nav>
+    <ul class="navbar">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="application.html">Application</a></li>
+      <li><a href="receipt.html">Receipt</a></li>
+    </ul>
+  </nav>
+</header>
 
-  <main>
-    <h2>Application (Mutual Scan)</h2>
+<main>
+  <h2>Application (Camera Test)</h2>
 
-    <p id="status">Step 1: Scan the other person’s IRLid QR.</p>
+  <p id="status">
+    Tap the button below to start the camera and scan a QR code.
+  </p>
 
-    <button class="btn" id="startCamBtn">Start Camera</button>
+  <button class="btn" id="startCamBtn">
+    Start Camera
+  </button>
 
-    <p id="libWarning" style="display:none; max-width:720px; margin: 0 auto; color:#900;">
-      QR scanner library failed to load. This is usually caused by an adblock/privacy extension blocking
-      <b>unpkg.com</b> or by no internet connection.
-      <br><br>
-      Fix options:
-      <br>1) Temporarily disable adblock/privacy extensions
-      <br>2) Try an Incognito window (extensions often disabled)
-      <br>3) Make sure you are online
-    </p>
+  <div id="scanner"></div>
 
-    <div id="scanner" class="scanner"></div>
+  <pre id="result"
+       style="max-width:90%; margin:1rem auto; text-align:left; white-space:pre-wrap;">
+  </pre>
+</main>
 
-    <div id="responseArea" style="display:none;">
-      <h3>Your Response QR</h3>
-      <p>
-        Show this QR to the other person. Then press the button and scan their response QR.
-      </p>
-      <div class="qr-box" id="responseQr"></div>
+<footer>
+  IRLid — Proof of Personhood (Demo)
+</footer>
 
-      <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
-    </div>
-  </main>
+<!-- QR scanner library -->
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-  <footer>
-    IRLid — Proof of Personhood (Demo)
-  </footer>
+<script>
+  const statusEl = document.getElementById("status");
+  const resultEl = document.getElementById("result");
+  const startBtn = document.getElementById("startCamBtn");
 
-  <!-- 1) Signing + helpers -->
-  <script src="js/sign.js"></script>
+  let qr;
 
-  <!-- 2) Camera QR scanning library -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
-
-  <!-- 3) Your QR helper functions -->
-  <script src="js/qr.js"></script>
-
-  <script>
-    // -----------------------------
-    // IRLid Application Flow (with signed GPS context)
-    // Step 1: Scan "hello"
-    // Step 2: Show "response" QR (meeting sig + context sig)
-    // Step 3: Scan their "response"
-    // Step 4: Build deterministic receipt (midpoint + max timestamp), redirect to receipt.html#...
-    // -----------------------------
-
-    let myPub, theirPub;
-
-    function orderedPair(pubA, pubB) {
-      // Deterministic ordering so both devices create identical payload fields a/b
-      const aStr = JSON.stringify(pubA);
-      const bStr = JSON.stringify(pubB);
-      return (aStr <= bStr) ? [pubA, pubB] : [pubB, pubA];
-    }
-
-    function parseMaybeHelloFromScannedText(scannedText) {
-      // Accept either:
-      //  1) base64url(JSON)
-      //  2) URL containing #HELLO=base64url(JSON) or ?HELLO=...
-      const text = (scannedText || "").trim();
-
-      if (/^https?:\/\//i.test(text)) {
-        try {
-          const u = new URL(text);
-          // Try hash first
-          if (u.hash && u.hash.includes("HELLO=")) {
-            const m = u.hash.match(/HELLO=([^&]+)/);
-            if (m && m[1]) return m[1];
-          }
-          // Try query next
-          if (u.searchParams && u.searchParams.get("HELLO")) {
-            return u.searchParams.get("HELLO");
-          }
-        } catch {}
-      }
-
-      return text; // assume it's already base64url(json)
-    }
-
-    function getGeoOnce({ timeoutMs = 12000, maxAgeMs = 15000, highAccuracy = true } = {}) {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error("Geolocation not supported on this device/browser."));
-          return;
-        }
-
-        const opts = {
-          enableHighAccuracy: !!highAccuracy,
-          timeout: timeoutMs,
-          maximumAge: maxAgeMs
-        };
-
-        navigator.geolocation.getCurrentPosition(
-          (p) => resolve({
-            lat: +p.coords.latitude.toFixed(7),
-            lng: +p.coords.longitude.toFixed(7),
-            acc: Math.round(p.coords.accuracy || 0),
-            ts: Math.floor(Date.now() / 1000)
-          }),
-          (err) => reject(new Error(err?.message || "Geolocation failed / permission denied.")),
-          opts
-        );
-      });
-    }
-
-    async function ctxHashFrom(mid, ctx) {
-      // Canonical context to sign: binds location+ts to this meeting id
-      const ctxPayload = {
-        v: 1,
-        type: "ctx",
-        mid,
-        ts: ctx.ts,
-        lat: ctx.lat,
-        lng: ctx.lng,
-        acc: ctx.acc
-      };
-      const canon = canonical(ctxPayload);
-      return b64urlEncode(await sha256Bytes(canon));
-    }
-
-    function midpoint(a, b) {
-      return {
-        lat: +(((a.lat + b.lat) / 2).toFixed(7)),
-        lng: +(((a.lng + b.lng) / 2).toFixed(7))
-      };
-    }
-
-    async function step1ScanHello() {
-      myPub = await getPublicJwk();
-
-      // Scan QR text
-      const scanned = await scanQR("scanner");
-      const raw = parseMaybeHelloFromScannedText(scanned);
-
-      const helloJson = new TextDecoder().decode(b64urlDecode(raw));
-      const hello = JSON.parse(helloJson);
-
-      if (!hello || hello.type !== "hello" || !hello.pub) {
-        alert("Not a valid IRLid QR (hello). Returning to Home.");
-        location.href = "index.html";
-        return;
-      }
-
-      theirPub = hello.pub;
-
-      const [aPub, bPub] = orderedPair(myPub, theirPub);
-
-      // Meeting payload (what both parties must agree on BEFORE signing)
-      const payload = {
-        v: 1,
-        type: "meeting",
-        a: aPub,
-        b: bPub,
-        t: Math.floor(Date.now() / 1000),
-        method: "mutual-scan"
-      };
-
-      const canon = canonical(payload);
-      const mid = b64urlEncode(await sha256Bytes(canon));
-
-      // Meeting signature (existing)
-      const mySig = await signMid(mid);
-
-      // GPS context (new)
-      document.getElementById("status").textContent = "Getting location permission…";
-      const myCtx = await getGeoOnce();
-
-      const myCtxHash = await ctxHashFrom(mid, myCtx);
-      const myCtxSig = await signMid(myCtxHash);
-
-      // Store pending state for step 2
-      sessionStorage.setItem("irlid_payload", JSON.stringify(payload));
-      sessionStorage.setItem("irlid_mid", mid);
-      sessionStorage.setItem("irlid_mysig", mySig);
-      sessionStorage.setItem("irlid_mypub", JSON.stringify(myPub));
-      sessionStorage.setItem("irlid_myctx", JSON.stringify(myCtx));
-      sessionStorage.setItem("irlid_myctxhash", myCtxHash);
-      sessionStorage.setItem("irlid_myctxsig", myCtxSig);
-
-      // Response QR includes BOTH meeting signature + signed context
-      const response = {
-        v: 1,
-        type: "response",
-        payload,
-        mid,
-        sig: mySig,
-        ctx: myCtx,
-        ctxHash: myCtxHash,
-        ctxSig: myCtxSig
-      };
-
-      const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
-
-      document.getElementById("status").textContent =
-        "Step 1 complete: Show your response QR (includes signed GPS context).";
-      document.getElementById("responseArea").style.display = "block";
-      makeQR("responseQr", encodedResp, 320);
-    }
-
-    async function step2ScanResponse() {
-      document.getElementById("status").textContent = "Step 2: Scan their response QR.";
-      document.getElementById("responseArea").style.display = "none";
-
-      const scanned = await scanQR("scanner");
-      const raw = parseMaybeHelloFromScannedText(scanned);
-
-      const respJson = new TextDecoder().decode(b64urlDecode(raw));
-      const resp = JSON.parse(respJson);
-
-      if (!resp || resp.type !== "response" || !resp.payload || !resp.mid || !resp.sig || !resp.ctx || !resp.ctxHash || !resp.ctxSig) {
-        alert("Not a valid IRLid response QR. Returning to Home.");
-        location.href = "index.html";
-        return;
-      }
-
-      const storedPayload = JSON.parse(sessionStorage.getItem("irlid_payload") || "null");
-      const storedMid = sessionStorage.getItem(
-
-
-
+  startBtn.addEventListener("click", async () => {
+    startBtn.disabled = true;
+    statusEl.textConten
