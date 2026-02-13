@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 9 -->
+<!-- Deploy 10 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,242 +8,232 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    /* =========================
-       GLOBAL NAV (DESKTOP TOP / MOBILE BOTTOM 2x2)
-       ========================= */
     :root{
-      --nav-h-mobile: 148px;
-      --nav-pad: 10px;
-      --btn-radius: 14px;
-      --btn-bg: #000;
-      --btn-fg: #fff;
-      --btn-bg-hover: #111;
-      --btn-bg-press: #222;
-      --btn-focus: rgba(0,0,0,0.22);
-      --bar-border: rgba(0,0,0,0.12);
+      --black:#000;
+      --white:#fff;
+      --mobile-nav-h: 160px; /* 2 rows of big buttons */
     }
 
-    /* Full-width top bar */
+    /* Page reset-ish */
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      background: #fff;
+    }
+
+    /* ===== Desktop header/logo + full-width nav bar ===== */
     header.site-header{
       width: 100%;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(255,255,255,0.96);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--bar-border);
+      background: #fff;
     }
 
-    .header-inner{
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
+    .brand-wrap{
+      width: 100%;
+      padding: 10px 14px 0 14px;  /* minimal spacing around logo */
     }
 
     .brand{
       display: inline-flex;
       align-items: center;
-      gap: 10px;
       text-decoration: none;
       color: inherit;
-      flex: 0 0 auto;
     }
 
-    /* Desktop nav spans screen area (within header) */
+    /* Full-width black nav bar (desktop) */
     nav.site-nav{
+      width: 100%;
+      background: var(--black);
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
-      flex: 1 1 auto;
+      justify-content: flex-start;
+      gap: 0;              /* no padding gaps */
+      padding: 0;          /* no padding per request */
+      margin: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
     }
 
+    /* Buttons: square corners, no padding around container; keep internal click area reasonable */
     a.nav-btn, summary.nav-btn{
-      appearance: none;
-      -webkit-appearance: none;
+      appearance:none;
+      -webkit-appearance:none;
       border: 0;
-      background: var(--btn-bg);
-      color: var(--btn-fg);
-      text-decoration: none;
+      background: var(--black);
+      color: var(--white);
+      text-decoration:none;
       font: inherit;
       font-weight: 700;
-      padding: 10px 14px;
-      border-radius: var(--btn-radius);
+      border-radius: 0;          /* remove round edge */
+      margin: 0;
+      padding: 10px 12px;        /* internal tap target (keep usable) */
+      line-height: 1;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       user-select: none;
       white-space: nowrap;
-      line-height: 1;
-      min-height: 42px;
     }
 
-    a.nav-btn:hover, summary.nav-btn:hover{ background: var(--btn-bg-hover); }
-    a.nav-btn:active, summary.nav-btn:active{ background: var(--btn-bg-press); transform: translateY(1px); }
-    a.nav-btn:focus, summary.nav-btn:focus{ outline: none; box-shadow: 0 0 0 4px var(--btn-focus); }
+    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
+    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
+    a.nav-btn:focus, summary.nav-btn:focus{ outline: 2px solid #555; outline-offset: -2px; }
 
     details.nav-dropdown{ position: relative; }
-    details.nav-dropdown > summary{ list-style: none; }
-    details.nav-dropdown > summary::-webkit-details-marker{ display: none; }
+    details.nav-dropdown > summary{ list-style:none; }
+    details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
 
+    /* Dropdown on desktop */
     .dropdown-menu{
       position: absolute;
-      top: calc(100% + 8px);
-      right: 0;
-      background: rgba(255,255,255,0.98);
-      border: 1px solid var(--bar-border);
-      border-radius: 14px;
-      padding: 8px;
+      top: 100%;
+      left: 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 0;     /* square */
+      padding: 0;           /* no padding */
       min-width: 220px;
-      box-shadow: 0 10px 26px rgba(0,0,0,0.14);
-      z-index: 200;
+      z-index: 1200;
     }
-
     .dropdown-menu a{
       display: block;
-      padding: 10px 12px;
-      border-radius: 12px;
+      padding: 12px 12px;
       text-decoration: none;
       color: #000;
       font-weight: 700;
+      border-radius: 0;
+      margin: 0;
     }
-    .dropdown-menu a:hover{ background: rgba(0,0,0,0.06); }
+    .dropdown-menu a:hover{ background: #f2f2f2; }
 
-    /* =========================
-       HOME MAIN (QR ONLY)
-       ========================= */
+    /* ===== Main: QR only ===== */
     main.home-main{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 18px 12px 26px;
-      display: grid;
-      place-items: center;
-      text-align: center;
-    }
-
-    .qr-hero{
       width: 100%;
       display: grid;
       place-items: center;
+      padding: 10px 0 10px 0; /* minimal */
+      box-sizing: border-box;
     }
 
-    /* Make QR prominent and responsive */
     .qr-box{
-      width: min(92vw, 560px);
+      width: min(92vw, 720px);
       margin: 0 auto;
     }
-
-    /* =========================
-       MOBILE: bottom 2x2 nav
-       ========================= */
-    @media (max-width: 720px){
-      /* Keep header simple on mobile (logo only) */
-      nav.site-nav{
-        position: fixed;
-        left: var(--nav-pad);
-        right: var(--nav-pad);
-        bottom: var(--nav-pad);
-        z-index: 999;
-        background: rgba(255,255,255,0.96);
-        border: 1px solid var(--bar-border);
-        border-radius: 18px;
-        padding: 10px;
-        box-shadow: 0 14px 30px rgba(0,0,0,0.18);
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 10px;
-        height: var(--nav-h-mobile);
-      }
-
-      a.nav-btn, summary.nav-btn{
-        width: 100%;
-        min-height: 56px;
-        font-size: 16px;
-        border-radius: 16px;
-      }
-
-      /* Dropdown opens upward above the bottom nav */
-      .dropdown-menu{
-        position: fixed;
-        left: var(--nav-pad);
-        right: var(--nav-pad);
-        bottom: calc(var(--nav-h-mobile) + (var(--nav-pad) * 2) + 8px);
-        top: auto;
-        margin: 0 auto;
-        width: auto;
-      }
-
-      /* Ensure QR isn't hidden behind bottom nav */
-      body{
-        padding-bottom: calc(var(--nav-h-mobile) + 28px);
-      }
-
-      /* Reduce header thickness */
-      .header-inner{
-        padding: 10px 12px;
-      }
+    /* Ensure canvas/img inside QR container scales properly */
+    .qr-box canvas, .qr-box img{
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      height: auto;
     }
 
-    /* Debug/error area (hidden unless needed) */
+    /* Error area hidden unless needed */
     #qrError{
-      max-width: 980px;
-      margin: 10px auto 0;
-      padding: 10px 12px;
-      border-radius: 10px;
+      display:none;
+      margin: 8px 14px 0 14px;
+      padding: 10px;
       border: 1px solid #f3c0c0;
       background: #fff3f3;
       color: #600;
       font-family: ui-monospace, monospace;
       white-space: pre-wrap;
-      display: none;
-      text-align: left;
+    }
+
+    /* ===== Mobile: fixed bottom 2x2 nav, BLACK, square, no outer padding ===== */
+    @media (max-width: 720px){
+      /* Keep top header small so QR fits */
+      .brand-wrap{
+        padding: 6px 10px 0 10px;
+      }
+
+      /* Bottom nav replaces top nav */
+      nav.site-nav{
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: var(--mobile-nav-h);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 0;             /* no gaps */
+        padding: 0;         /* no padding */
+      }
+
+      a.nav-btn, summary.nav-btn{
+        width: 100%;
+        height: 100%;
+        padding: 0;         /* no padding per request */
+        border-radius: 0;   /* square */
+        font-size: 18px;
+      }
+
+      /* Dropdown opens upward on mobile and spans full width above nav */
+      .dropdown-menu{
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--mobile-nav-h);
+        top: auto;
+        border-radius: 0;
+      }
+
+      /* Make space so QR is fully visible above bottom nav */
+      body{
+        padding-bottom: var(--mobile-nav-h);
+      }
+
+      /* Let main use remaining height */
+      main.home-main{
+        min-height: calc(100vh - var(--mobile-nav-h));
+        padding: 6px 0 6px 0;
+      }
+
+      /* QR should fit on screen: constrain by height too */
+      .qr-box{
+        width: min(96vw, calc(100vh - var(--mobile-nav-h) - 80px));
+      }
     }
   </style>
 </head>
 
 <body>
   <header class="site-header">
-    <div class="header-inner">
+    <div class="brand-wrap">
       <a class="brand" href="index.html" aria-label="IRLid Home">
         <img src="logo.png" alt="IRLid Logo" id="logo">
       </a>
-
-      <nav class="site-nav" aria-label="Primary">
-        <a class="nav-btn" href="index.html">Home</a>
-        <a class="nav-btn" href="application.html">Scan</a>
-
-        <details class="nav-dropdown">
-          <summary class="nav-btn">About ▾</summary>
-          <div class="dropdown-menu" role="menu" aria-label="About menu">
-            <a href="about.html">About</a>
-            <a href="features.html">Features</a>
-            <a href="contact.html">Contact</a>
-          </div>
-        </details>
-
-        <a class="nav-btn" href="receipt.html">Receipts</a>
-      </nav>
     </div>
+
+    <!-- Desktop: full-width black nav bar under logo. Mobile: fixed bottom 2x2 -->
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
+
+      <details class="nav-dropdown">
+        <summary class="nav-btn">About ▼</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
+
+      <a class="nav-btn" href="receipt.html">Receipts</a>
+    </nav>
   </header>
 
   <div id="qrError"></div>
 
   <main class="home-main">
-    <div class="qr-hero">
-      <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
-    </div>
+    <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
   </main>
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout2"></script>
+  <script src="js/qr.js?v=layout3"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -255,7 +245,28 @@
     window.addEventListener("error", (e) => showErr(e.error || e.message));
     window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
 
-    (async () => {
+    function computeQrSize(){
+      const box = document.getElementById("myQr");
+      const boxW = box.clientWidth || Math.min(window.innerWidth * 0.92, 720);
+
+      // Estimate available height (important on mobile so QR is fully on screen)
+      const header = document.querySelector("header.site-header");
+      const headerH = header ? header.getBoundingClientRect().height : 0;
+
+      const isMobile = window.matchMedia("(max-width: 720px)").matches;
+      const mobileNavH = isMobile ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--mobile-nav-h")) : 0;
+
+      // A little breathing room
+      const padding = isMobile ? 24 : 40;
+
+      const availH = Math.max(240, window.innerHeight - headerH - mobileNavH - padding);
+      const size = Math.floor(Math.min(boxW, availH));
+
+      // Keep within reasonable bounds
+      return Math.max(240, Math.min(size, 900));
+    }
+
+    async function renderHelloQr(){
       try {
         const pub = await getPublicJwk();
         const hello = {
@@ -270,12 +281,20 @@
         const baseUrl = location.origin;
         const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
 
-        // Large for prominence
-        makeQR("myQr", url, 520);
+        const size = computeQrSize();
+        makeQR("myQr", url, size);
       } catch (e) {
         showErr(e);
       }
-    })();
+    }
+
+    // Render now + re-render on resize/orientation so QR stays fully visible
+    renderHelloQr();
+    window.addEventListener("resize", () => {
+      // debounce-ish
+      clearTimeout(window.__irlid_qr_t);
+      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+    });
   </script>
 </body>
 </html>
