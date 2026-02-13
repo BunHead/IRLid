@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 10 -->
+<!-- Deploy 11 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,14 +11,16 @@
     :root{
       --black:#000;
       --white:#fff;
-      --mobile-nav-h: 160px; /* 2 rows of big buttons */
+
+      /* Mobile nav target height (2 rows). Keep this conservative so it always fits. */
+      --mobile-nav-h: 132px;
     }
 
-    /* Page reset-ish */
     html, body { height: 100%; }
     body{
       margin: 0;
       background: #fff;
+      overflow-x: hidden;
     }
 
     /* ===== Desktop header/logo + full-width nav bar ===== */
@@ -29,7 +31,7 @@
 
     .brand-wrap{
       width: 100%;
-      padding: 10px 14px 0 14px;  /* minimal spacing around logo */
+      padding: 10px 14px 0 14px;
     }
 
     .brand{
@@ -46,15 +48,15 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 0;              /* no padding gaps */
-      padding: 0;          /* no padding per request */
+      gap: 0;
+      padding: 0;
       margin: 0;
       position: sticky;
       top: 0;
       z-index: 1000;
     }
 
-    /* Buttons: square corners, no padding around container; keep internal click area reasonable */
+    /* Buttons: square corners, no outer padding */
     a.nav-btn, summary.nav-btn{
       appearance:none;
       -webkit-appearance:none;
@@ -64,9 +66,9 @@
       text-decoration:none;
       font: inherit;
       font-weight: 700;
-      border-radius: 0;          /* remove round edge */
+      border-radius: 0;
       margin: 0;
-      padding: 10px 12px;        /* internal tap target (keep usable) */
+      padding: 10px 12px;   /* desktop click area */
       line-height: 1;
       cursor: pointer;
       display: inline-flex;
@@ -91,8 +93,8 @@
       left: 0;
       background: #fff;
       border: 1px solid #ddd;
-      border-radius: 0;     /* square */
-      padding: 0;           /* no padding */
+      border-radius: 0;
+      padding: 0;
       min-width: 220px;
       z-index: 1200;
     }
@@ -112,7 +114,7 @@
       width: 100%;
       display: grid;
       place-items: center;
-      padding: 10px 0 10px 0; /* minimal */
+      padding: 0;
       box-sizing: border-box;
     }
 
@@ -120,7 +122,6 @@
       width: min(92vw, 720px);
       margin: 0 auto;
     }
-    /* Ensure canvas/img inside QR container scales properly */
     .qr-box canvas, .qr-box img{
       display: block;
       margin: 0 auto;
@@ -140,60 +141,72 @@
       white-space: pre-wrap;
     }
 
-    /* ===== Mobile: fixed bottom 2x2 nav, BLACK, square, no outer padding ===== */
+    /* ===== Mobile: fix bottom 2x2 nav fully on-screen + make QR fit ===== */
     @media (max-width: 720px){
-      /* Keep top header small so QR fits */
+      /* Shrink logo so it doesn't steal QR space */
       .brand-wrap{
         padding: 6px 10px 0 10px;
       }
+      #logo{
+        max-width: 74vw;
+        max-height: 140px;   /* critical: prevents huge logo on mobile */
+        width: auto;
+        height: auto;
+        display: block;
+      }
 
-      /* Bottom nav replaces top nav */
+      /* Bottom nav: account for safe-area so it is not cut off */
       nav.site-nav{
         position: fixed;
         top: auto;
         bottom: 0;
         left: 0;
         right: 0;
-        height: var(--mobile-nav-h);
+
+        height: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+
         display: grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap: 0;             /* no gaps */
-        padding: 0;         /* no padding */
+        gap: 0;
+        margin: 0;
+        padding-left: 0;
+        padding-right: 0;
+        background: var(--black);
       }
 
       a.nav-btn, summary.nav-btn{
         width: 100%;
         height: 100%;
-        padding: 0;         /* no padding per request */
-        border-radius: 0;   /* square */
+        padding: 0;         /* no padding per your request */
+        border-radius: 0;
         font-size: 18px;
       }
 
-      /* Dropdown opens upward on mobile and spans full width above nav */
+      /* Dropdown opens upward and uses full width */
       .dropdown-menu{
         position: fixed;
         left: 0;
         right: 0;
-        bottom: var(--mobile-nav-h);
+        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
         top: auto;
         border-radius: 0;
       }
 
-      /* Make space so QR is fully visible above bottom nav */
+      /* Reserve space for fixed nav so content never sits behind it */
       body{
-        padding-bottom: var(--mobile-nav-h);
+        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
       }
 
-      /* Let main use remaining height */
+      /* Give QR the remaining vertical space */
       main.home-main{
-        min-height: calc(100vh - var(--mobile-nav-h));
-        padding: 6px 0 6px 0;
+        min-height: calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)));
       }
 
-      /* QR should fit on screen: constrain by height too */
+      /* Also constrain QR by height (so it doesn't push under the nav) */
       .qr-box{
-        width: min(96vw, calc(100vh - var(--mobile-nav-h) - 80px));
+        width: min(96vw, calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)) - 40px));
       }
     }
   </style>
@@ -207,7 +220,7 @@
       </a>
     </div>
 
-    <!-- Desktop: full-width black nav bar under logo. Mobile: fixed bottom 2x2 -->
+    <!-- Desktop: full-width black bar under logo. Mobile: fixed bottom 2x2 -->
     <nav class="site-nav" aria-label="Primary">
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
@@ -233,7 +246,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout3"></script>
+  <script src="js/qr.js?v=layout4"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -249,21 +262,22 @@
       const box = document.getElementById("myQr");
       const boxW = box.clientWidth || Math.min(window.innerWidth * 0.92, 720);
 
-      // Estimate available height (important on mobile so QR is fully on screen)
       const header = document.querySelector("header.site-header");
       const headerH = header ? header.getBoundingClientRect().height : 0;
 
       const isMobile = window.matchMedia("(max-width: 720px)").matches;
-      const mobileNavH = isMobile ? parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--mobile-nav-h")) : 0;
 
-      // A little breathing room
-      const padding = isMobile ? 24 : 40;
+      // Measure actual nav height (includes safe-area padding)
+      const nav = document.querySelector("nav.site-nav");
+      const navH = (isMobile && nav) ? nav.getBoundingClientRect().height : 0;
 
-      const availH = Math.max(240, window.innerHeight - headerH - mobileNavH - padding);
+      // Padding breathing room; keep bigger on mobile to prevent overlap
+      const pad = isMobile ? 24 : 40;
+
+      const availH = Math.max(220, window.innerHeight - headerH - navH - pad);
       const size = Math.floor(Math.min(boxW, availH));
 
-      // Keep within reasonable bounds
-      return Math.max(240, Math.min(size, 900));
+      return Math.max(220, Math.min(size, 900));
     }
 
     async function renderHelloQr(){
@@ -288,12 +302,11 @@
       }
     }
 
-    // Render now + re-render on resize/orientation so QR stays fully visible
+    // Render now + re-render on resize/orientation so QR and nav always fit
     renderHelloQr();
     window.addEventListener("resize", () => {
-      // debounce-ish
       clearTimeout(window.__irlid_qr_t);
-      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+      window.__irlid_qr_t = setTimeout(renderHelloQr, 150);
     });
   </script>
 </body>
