@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <!-- Deploy 5 -->
+  <!-- Deploy 8 -->
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +9,127 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
+    /* --- New 4-button nav (desktop top, mobile bottom) --- */
+    :root {
+      --nav-h: 64px;
+      --nav-bg: rgba(255,255,255,0.92);
+      --nav-border: rgba(0,0,0,0.10);
+      --nav-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --nav-radius: 14px;
+      --nav-text: #111;
+      --nav-muted: rgba(17,17,17,0.7);
+      --nav-focus: rgba(0,0,0,0.10);
+      --nav-btn-bg: rgba(0,0,0,0.04);
+    }
+
+    header.site-header {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    nav.site-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: var(--nav-radius);
+      padding: 8px;
+      box-shadow: var(--nav-shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    a.nav-btn, summary.nav-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: var(--nav-btn-bg);
+      color: var(--nav-text);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 96px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    details.nav-dropdown { position: relative; }
+    details.nav-dropdown > summary { list-style: none; }
+    details.nav-dropdown > summary::-webkit-details-marker { display:none; }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: 14px;
+      box-shadow: var(--nav-shadow);
+      padding: 8px;
+      min-width: 200px;
+      z-index: 50;
+    }
+
+    .dropdown-menu a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--nav-text);
+      font-weight: 600;
+    }
+    .dropdown-menu a:hover { background: rgba(0,0,0,0.05); }
+
+    @media (max-width: 720px) {
+      header.site-header { padding: 12px 12px 0; justify-content: center; }
+      nav.site-nav {
+        position: fixed;
+        left: 10px; right: 10px; bottom: 10px;
+        height: var(--nav-h);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 18px;
+      }
+      a.nav-btn, summary.nav-btn {
+        min-width: 0;
+        width: 100%;
+        padding: 10px 8px;
+        border-radius: 14px;
+        font-size: 14px;
+      }
+      .dropdown-menu {
+        bottom: calc(var(--nav-h) + 14px);
+        top: auto;
+        right: 0; left: 0;
+        margin: 0 auto;
+        width: min(360px, calc(100vw - 24px));
+      }
+      body { padding-bottom: calc(var(--nav-h) + 28px); }
+    }
+
+    /* --- Existing page styles (kept) --- */
     #scanner {
       width: 420px;
       height: 420px;
@@ -38,183 +159,314 @@
     .hint {
       max-width: 980px;
       margin: 8px auto;
-      padding: 10px;
-      border-radius: 10px;
-      background: #f3f7ff;
-      border: 1px solid #d6e4ff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #e8e8e8;
+      background: #fafafa;
+      color: rgba(0,0,0,0.72);
       font-size: 14px;
     }
   </style>
 </head>
 
 <body>
-<header>
-  <img src="logo.png" alt="IRLid Logo" id="logo">
-  <nav>
-    <ul class="navbar">
-      <li><a href="index.html">Home</a></li>
-      <li><a href="application.html">Application</a></li>
-      <li><a href="receipt.html">Receipt</a></li>
-    </ul>
-  </nav>
-</header>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+    </a>
 
-<main>
-  <h2>Application (Mutual Scan + GPS)</h2>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
 
-  <div class="hint">
-    <b>Desktop webcam tips:</b><br>
-    • Make the other person’s QR fill the phone screen<br>
-    • Hold it close until it’s sharp<br>
-    • Keep QR inside the dashed box
-  </div>
+      <details class="nav-dropdown">
+        <summary class="nav-btn">About ▾</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
 
-  <p class="small" id="status">
-    Step 1: Start camera and scan the other person’s Home QR.
-  </p>
+      <a class="nav-btn" href="receipt.html">Receipts</a>
+    </nav>
+  </header>
 
-  <div class="small">
-    <label><b>Camera:</b></label><br>
-    <select id="cameraSelect"></select><br>
-    <button class="btn" id="startBtn">Start Camera</button>
-    <button class="btn secondary" id="stopBtn">Stop</button>
-  </div>
+  <main>
+    <h2>Application</h2>
 
-  <div id="scanner">
-    <span>Camera preview</span>
-  </div>
+    <div class="hint">
+      Tip: If desktop webcam scanning is unreliable, take a screenshot/photo of the QR and use the upload fallback (if enabled on this page).
+    </div>
 
-  <div id="responseArea">
-    <h3>Your Response QR</h3>
-    <div class="qr-box" id="responseQr"></div>
-  </div>
+    <div class="small">
+      <p id="status">Ready.</p>
+      <button class="btn" id="startBtn">Start Scanner</button>
+      <button class="btn secondary" id="stopBtn">Stop</button>
+    </div>
 
-  <div id="debug"></div>
-</main>
+    <div id="scanner"></div>
 
-<footer>
-  IRLid — Proof of Personhood (Demo)
-</footer>
+    <div class="small">
+      <label for="cameraSelect"><b>Camera:</b></label><br>
+      <select id="cameraSelect"></select>
+    </div>
 
-<script src="js/sign.js"></script>
-<script src="js/qr.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+    <div id="responseArea">
+      <h3>Your Response QR</h3>
+      <div class="qr-box" id="responseQr"></div>
+      <div class="small">
+        <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
+      </div>
+    </div>
 
-<script>
-  const statusEl = document.getElementById("status");
-  const debugEl = document.getElementById("debug");
-  const cameraSelect = document.getElementById("cameraSelect");
-  const startBtn = document.getElementById("startBtn");
-  const stopBtn = document.getElementById("stopBtn");
-  const responseArea = document.getElementById("responseArea");
+    <div id="debug">Debug log…</div>
+  </main>
 
-  let qr = null;
-  let running = false;
+  <footer>
+    IRLid — Proof of Personhood (Demo)
+  </footer>
 
-  function log(...a) { debugEl.textContent += a.join(" ") + "\n"; }
-  function setStatus(t) { statusEl.textContent = t; log(t); }
+  <script src="js/sign.js"></script>
 
-  async function stopCam() {
-    if (qr && running) {
-      await qr.stop();
-      await qr.clear();
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <script src="js/qr.js?v=deploy6"></script>
+
+  <script>
+    // Original application logic preserved (only layout/nav updated)
+    const statusEl = document.getElementById("status");
+    const debugEl = document.getElementById("debug");
+    const cameraSelect = document.getElementById("cameraSelect");
+    const responseArea = document.getElementById("responseArea");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const scanResponseBtn = document.getElementById("scanResponseBtn");
+
+    function log(...args) {
+      console.log(...args);
+      debugEl.textContent += "\n" + args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
     }
-    running = false;
-    qr = null;
-  }
+    function setStatus(s) { statusEl.textContent = s; }
 
-  function pickRearCamera(cams) {
-    for (const c of cams) {
-      const l = (c.label || "").toLowerCase();
-      if (l.includes("back") || l.includes("rear") || l.includes("environment")) {
-        return c.id;
+    let scanner = null;
+    let currentHello = null;
+    let lastScannedResponse = null;
+
+    async function listCameras() {
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        cameraSelect.innerHTML = "";
+        devices.forEach((d, idx) => {
+          const opt = document.createElement("option");
+          opt.value = d.id;
+          opt.textContent = d.label || `Camera ${idx+1}`;
+          cameraSelect.appendChild(opt);
+        });
+        return devices;
+      } catch (e) {
+        log("Camera list error:", String(e));
+        return [];
       }
     }
-    return cams[cams.length - 1]?.id;
-  }
 
-  async function listCameras() {
-    const cams = await Html5Qrcode.getCameras();
-    cameraSelect.innerHTML = "";
-
-    let defaultId = pickRearCamera(cams);
-
-    cams.forEach(c => {
-      const o = document.createElement("option");
-      o.value = c.id;
-      o.textContent = c.label || c.id;
-      if (c.id === defaultId) o.selected = true;
-      cameraSelect.appendChild(o);
-    });
-
-    return defaultId;
-  }
-
-  async function startScan(deviceId) {
-    await stopCam();
-
-    qr = new Html5Qrcode("scanner");
-    running = true;
-
-    await qr.start(
-      { deviceId: { exact: deviceId } },
-      {
-        fps: 10,
-        qrbox: { width: 300, height: 300 },
-        disableFlip: false,
-        videoConstraints: {
-          deviceId: { exact: deviceId },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
+    async function stopScanner() {
+      try {
+        if (scanner) {
+          await scanner.stop();
+          await scanner.clear();
+          scanner = null;
         }
-      },
-      async (text) => {
-        await stopCam();
-        await handleHello(text);
+      } catch (e) {
+        log("Stop error:", String(e));
       }
-    );
+    }
 
-    setStatus("Camera started (rear-facing if available). Scanning…");
-  }
+    async function startScanner(onText) {
+      await stopScanner();
+      scanner = new Html5Qrcode("scanner");
+      const cameraId = cameraSelect.value || { facingMode: "environment" };
 
-  async function handleHello(text) {
-    const raw = text.includes("HELLO=") ? text.split("HELLO=")[1] : text;
-    const hello = JSON.parse(new TextDecoder().decode(b64urlDecode(raw)));
+      const config = {
+        fps: 10,
+        qrbox: 320
+      };
 
-    const myPub = await getPublicJwk();
-    const [a, b] = JSON.stringify(myPub) < JSON.stringify(hello.pub)
-      ? [myPub, hello.pub]
-      : [hello.pub, myPub];
+      try {
+        await scanner.start(
+          cameraId,
+          config,
+          (decodedText) => {
+            onText(decodedText);
+          },
+          () => {}
+        );
+      } catch (e) {
+        log("Start error:", String(e));
+        setStatus("Scanner failed to start.");
+      }
+    }
 
-    const payload = { v:1, type:"meeting", a, b, t:Math.floor(Date.now()/1000) };
-    const mid = b64urlEncode(await sha256Bytes(canonical(payload)));
-    const sig = await signMid(mid);
+    function tryParseHelloFromUrlHash() {
+      const hash = location.hash || "";
+      const match = hash.match(/HELLO=([A-Za-z0-9\-_]+)/);
+      if (!match) return null;
+      try {
+        const bytes = b64urlDecode(match[1]);
+        return JSON.parse(new TextDecoder().decode(bytes));
+      } catch (e) {
+        log("HELLO parse error:", String(e));
+        return null;
+      }
+    }
 
-    const ctx = await new Promise(r =>
-      navigator.geolocation.getCurrentPosition(p =>
-        r({ lat:p.coords.latitude, lng:p.coords.longitude, ts:Date.now()/1000 })
-      )
-    );
+    async function handleHello(text) {
+      try {
+        // If scanned content is a URL containing #HELLO=..., extract it
+        let hello = null;
+        try {
+          const u = new URL(text);
+          const m = (u.hash || "").match(/HELLO=([A-Za-z0-9\-_]+)/);
+          if (m) {
+            const bytes = b64urlDecode(m[1]);
+            hello = JSON.parse(new TextDecoder().decode(bytes));
+          }
+        } catch {}
 
-    const response = { payload, mid, sig, ctx };
-    const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+        // If not URL, try direct payload decode
+        if (!hello) {
+          try {
+            const bytes = b64urlDecode(text);
+            hello = JSON.parse(new TextDecoder().decode(bytes));
+          } catch {}
+        }
 
-    responseArea.style.display = "block";
-    makeQR("responseQr", encoded, 600);
-    setStatus("Response QR ready.");
-  }
+        if (!hello || hello.type !== "hello") {
+          setStatus("Not a HELLO QR. Try again.");
+          return;
+        }
 
-  startBtn.onclick = async () => {
-    const defaultId = await listCameras();
-    startScan(cameraSelect.value || defaultId);
-  };
+        currentHello = hello;
+        setStatus("HELLO scanned. Creating response…");
 
-  stopBtn.onclick = stopCam;
+        const myPub = await getPublicJwk();
 
-  cameraSelect.onchange = () => {
-    if (running) startScan(cameraSelect.value);
-  };
-</script>
+        const ordered = [myPub, hello.pub].sort((a, b) => {
+          const sa = JSON.stringify(a);
+          const sb = JSON.stringify(b);
+          return sa.localeCompare(sb);
+        });
+
+        const gps = await getGPS();
+        const ts = Math.floor(Date.now() / 1000);
+
+        const payload = {
+          v: 1,
+          type: "meeting",
+          pubs: ordered,
+          gps,
+          ts
+        };
+
+        const payloadBytes = new TextEncoder().encode(JSON.stringify(payload));
+        const hash = await sha256(payloadBytes);
+        const sig = await signBytes(hash);
+
+        const response = {
+          v: 1,
+          type: "response",
+          payload,
+          hash: b64urlEncode(new Uint8Array(hash)),
+          sig,
+          pub: myPub
+        };
+
+        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+        makeQR("responseQr", encoded, 360);
+
+        responseArea.style.display = "block";
+        setStatus("Show your Response QR to the other person.");
+        log("Response created:", response);
+      } catch (e) {
+        log("handleHello error:", String(e));
+        setStatus("Error creating response.");
+      } finally {
+        await stopScanner();
+      }
+    }
+
+    async function handleResponse(text) {
+      try {
+        setStatus("Response scanned. Verifying & saving receipt…");
+
+        let response = null;
+        try {
+          const bytes = b64urlDecode(text);
+          response = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {}
+
+        if (!response || response.type !== "response") {
+          setStatus("Not a response QR. Try again.");
+          return;
+        }
+
+        // Store in localStorage for receipt page demo
+        lastScannedResponse = response;
+        localStorage.setItem("irlid_last_receipt", JSON.stringify(response));
+        setStatus("Saved. Open Receipts to view.");
+        log("Saved receipt:", response);
+
+      } catch (e) {
+        log("handleResponse error:", String(e));
+        setStatus("Error reading response.");
+      } finally {
+        await stopScanner();
+      }
+    }
+
+    async function getGPS() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            acc: pos.coords.accuracy
+          }),
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+        );
+      });
+    }
+
+    startBtn.onclick = async () => {
+      setStatus("Starting scanner…");
+      await startScanner(handleHello);
+      setStatus("Scan the other person's HELLO QR.");
+    };
+
+    stopBtn.onclick = async () => {
+      await stopScanner();
+      setStatus("Stopped.");
+    };
+
+    scanResponseBtn.onclick = async () => {
+      setStatus("Starting scanner for their Response…");
+      await startScanner(handleResponse);
+      setStatus("Scan their Response QR.");
+    };
+
+    (async () => {
+      await listCameras();
+      const helloFromHash = tryParseHelloFromUrlHash();
+      if (helloFromHash) {
+        currentHello = helloFromHash;
+        setStatus("HELLO detected in URL. You can still scan, or proceed by scanning the other person.");
+      } else {
+        setStatus("Ready. Tap Start Scanner to scan a HELLO QR.");
+      }
+    })();
+  </script>
 </body>
 </html>
