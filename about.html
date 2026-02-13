@@ -1,43 +1,153 @@
 <!DOCTYPE html>
+<!-- Deploy 8 -->
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>In Real Life ID - Proof of Personhood</title>
-    <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In Real Life ID - Proof of Personhood</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    :root {
+      --nav-h: 64px;
+      --nav-bg: rgba(255,255,255,0.92);
+      --nav-border: rgba(0,0,0,0.10);
+      --nav-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --nav-radius: 14px;
+      --nav-text: #111;
+      --nav-btn-bg: rgba(0,0,0,0.04);
+    }
+    header.site-header {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .brand { display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
+    nav.site-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: var(--nav-radius);
+      padding: 8px;
+      box-shadow: var(--nav-shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    a.nav-btn, summary.nav-btn {
+      border: 0;
+      background: var(--nav-btn-bg);
+      color: var(--nav-text);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 96px;
+      user-select: none;
+      white-space: nowrap;
+    }
+    details.nav-dropdown { position: relative; }
+    details.nav-dropdown > summary { list-style:none; }
+    details.nav-dropdown > summary::-webkit-details-marker { display:none; }
+    .dropdown-menu {
+      position:absolute;
+      top: calc(100% + 8px);
+      right:0;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: 14px;
+      box-shadow: var(--nav-shadow);
+      padding: 8px;
+      min-width: 200px;
+      z-index: 50;
+    }
+    .dropdown-menu a {
+      display:block;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration:none;
+      color: var(--nav-text);
+      font-weight: 600;
+    }
+    .dropdown-menu a:hover { background: rgba(0,0,0,0.05); }
+
+    @media (max-width: 720px) {
+      header.site-header { padding: 12px 12px 0; justify-content:center; }
+      nav.site-nav {
+        position: fixed;
+        left: 10px; right: 10px; bottom: 10px;
+        height: var(--nav-h);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 18px;
+      }
+      a.nav-btn, summary.nav-btn { min-width:0; width:100%; padding:10px 8px; border-radius:14px; font-size:14px; }
+      .dropdown-menu {
+        bottom: calc(var(--nav-h) + 14px);
+        top: auto;
+        right: 0; left: 0;
+        margin: 0 auto;
+        width: min(360px, calc(100vw - 24px));
+      }
+      body { padding-bottom: calc(var(--nav-h) + 28px); }
+    }
+  </style>
 </head>
+
 <body>
-    <header>
-        <img src="logo.png" alt="In Real Life ID Logo" id="logo">
-        <nav>
-            <ul class="navbar">
-                <li><a href="index.html">Home</a></li>
-                <li><a href="about.html">About</a></li>
-                <li><a href="features.html">Features</a></li>
-                <li><a href="application.html">Application</a></li>
-                <li><a href="receipt.html">Receipt</a></li>
-                <li><a href="contact.html">Contact</a></li>
-            </ul>
-        </nav>
-    </header>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+    </a>
 
-    <main>
-        <section id="proof-of-personhood">
-            <h2>Proof of Personhood</h2>
-            <p>Proof of personhood is a method to verify that a digital identity belongs to a unique human, not a bot or duplicate account. This approach is crucial for secure and fair online interactions, moving beyond traditional passwords or biometrics by emphasizing the uniqueness of individual human presence across digital platforms.</p>
-        </section>
-        <section id="importance">
-            <h2>Why It's Important</h2>
-            <p>The significance of proof of personhood is paramount in today's digital landscape, where distinguishing real users from automated entities is essential for the integrity of online spaces. It combats fraud and ensures equitable participation, fostering environments where human voices are authenticated and valued, thereby enhancing the trust and security of digital interactions.</p>
-        </section>
-        <section id="irlid-solution">
-            <h2>The IRLid Solution</h2>
-            <p>IRLid introduces a secure, privacy-centric solution for verifying real-world personhood. By allowing individuals to confirm each other's human status through a simple, secure scan, IRLid facilitates trusted interactions without compromising personal data. This technology supports various applications, from transactions to social engagement, championing authenticity and trust in our digital age.</p>
-        </section>
-    </main>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
 
-    <footer>
-        IRLid — Proof of Personhood
-    </footer>
+      <details class="nav-dropdown">
+        <summary class="nav-btn">About ▾</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
+
+      <a class="nav-btn" href="receipt.html">Receipts</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="proof-of-personhood">
+      <h2>Proof of Personhood</h2>
+      <p>Proof of personhood is a method to verify that a digital identity belongs to a unique human, not a bot or duplicate account. This approach is crucial for secure and fair online interactions, moving beyond traditional passwords or biometrics by emphasizing the uniqueness of individual human presence across digital platforms.</p>
+    </section>
+
+    <section id="importance">
+      <h2>Why It's Important</h2>
+      <p>The significance of proof of personhood is paramount in today's digital landscape, where distinguishing real users from automated entities is essential for the integrity of online spaces. It combats fraud and ensures equitable participation, fostering environments where human voices are authenticated and valued, thereby enhancing the trust and security of digital interactions.</p>
+    </section>
+
+    <section id="irlid-solution">
+      <h2>The IRLid Solution</h2>
+      <p>IRLid introduces a secure, privacy-centric solution for verifying real-world personhood. By allowing individuals to confirm each other's human status through a simple, secure scan, IRLid facilitates trusted interactions without compromising personal data. This technology supports various applications, from transactions to social engagement, championing authenticity and trust in our digital age.</p>
+    </section>
+  </main>
+
+  <footer>
+    IRLid — Proof of Personhood
+  </footer>
 </body>
 </html>
