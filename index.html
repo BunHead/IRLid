@@ -1,13 +1,188 @@
 <!DOCTYPE html>
-<!!-- Deploy 7 -->
+<!!-- Deploy 8 -->
 <html lang="en">
-  <!-- Deploy 6 -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>In Real Life ID - Proof of Personhood</title>
   <link rel="stylesheet" href="css/style.css">
+
   <style>
+    /* --- New 4-button nav (desktop top, mobile bottom) --- */
+    :root {
+      --nav-h: 64px;
+      --nav-bg: rgba(255,255,255,0.92);
+      --nav-border: rgba(0,0,0,0.10);
+      --nav-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      --nav-radius: 14px;
+      --nav-text: #111;
+      --nav-muted: rgba(17,17,17,0.7);
+      --nav-focus: rgba(0,0,0,0.10);
+      --nav-btn-bg: rgba(0,0,0,0.04);
+    }
+
+    header.site-header {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    nav.site-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: var(--nav-radius);
+      padding: 8px;
+      box-shadow: var(--nav-shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    a.nav-btn, summary.nav-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      background: var(--nav-btn-bg);
+      color: var(--nav-text);
+      text-decoration: none;
+      font: inherit;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 96px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    a.nav-btn:hover, summary.nav-btn:hover { filter: brightness(0.98); }
+    a.nav-btn:active, summary.nav-btn:active { transform: translateY(1px); }
+    a.nav-btn:focus, summary.nav-btn:focus { outline: none; box-shadow: 0 0 0 4px var(--nav-focus); }
+
+    details.nav-dropdown {
+      position: relative;
+    }
+
+    details.nav-dropdown > summary {
+      list-style: none;
+    }
+    details.nav-dropdown > summary::-webkit-details-marker { display:none; }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      background: var(--nav-bg);
+      border: 1px solid var(--nav-border);
+      border-radius: 14px;
+      box-shadow: var(--nav-shadow);
+      padding: 8px;
+      min-width: 200px;
+      z-index: 50;
+    }
+
+    .dropdown-menu a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--nav-text);
+      font-weight: 600;
+    }
+    .dropdown-menu a:hover { background: rgba(0,0,0,0.05); }
+
+    /* Close dropdown when clicking outside (no JS) is not possible;
+       but details behaves well enough for a static site. */
+
+    /* --- Mobile: fixed bottom bar --- */
+    @media (max-width: 720px) {
+      header.site-header {
+        padding: 12px 12px 0;
+        justify-content: center;
+      }
+
+      nav.site-nav {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        height: var(--nav-h);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 18px;
+      }
+
+      a.nav-btn, summary.nav-btn {
+        min-width: 0;
+        width: 100%;
+        padding: 10px 8px;
+        border-radius: 14px;
+        font-size: 14px;
+      }
+
+      /* Dropdown opens upward on mobile so it doesn't go off-screen */
+      .dropdown-menu {
+        bottom: calc(var(--nav-h) + 14px);
+        top: auto;
+        right: 0;
+        left: 0;
+        margin: 0 auto;
+        width: min(360px, calc(100vw - 24px));
+      }
+
+      /* Make sure content is not hidden behind bottom nav */
+      body { padding-bottom: calc(var(--nav-h) + 28px); }
+    }
+
+    /* --- Home layout: QR is the main content --- */
+    main.home-main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 16px 12px 24px;
+      text-align: center;
+    }
+
+    .home-title {
+      margin: 10px 0 4px;
+    }
+
+    .home-subtitle {
+      margin: 0 auto 14px;
+      max-width: 720px;
+      color: var(--nav-muted);
+    }
+
+    .qr-hero {
+      display: grid;
+      place-items: center;
+      margin: 10px auto 8px;
+    }
+
+    /* Keep your existing qr-box class working; add a responsive boost */
+    .qr-box {
+      width: min(520px, 92vw);
+      margin: 0 auto;
+    }
+
     #qrError {
       max-width: 980px;
       margin: 10px auto;
@@ -19,35 +194,59 @@
       font-family: ui-monospace, monospace;
       white-space: pre-wrap;
       display: none;
+      text-align: left;
+    }
+
+    .home-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
     }
   </style>
 </head>
+
 <body>
-  <header>
-    <img src="logo.png" alt="In Real Life ID Logo" id="logo">
-    <nav>
-      <ul class="navbar">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="about.html">About</a></li>
-        <li><a href="features.html">Features</a></li>
-        <li><a href="application.html">Application</a></li>
-        <li><a href="receipt.html">Receipt</a></li>
-        <li><a href="contact.html">Contact</a></li>
-      </ul>
+  <header class="site-header">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="In Real Life ID Logo" id="logo">
+    </a>
+
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
+
+      <details class="nav-dropdown">
+        <summary class="nav-btn">About ▾</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
+
+      <a class="nav-btn" href="receipt.html">Receipts</a>
     </nav>
   </header>
 
-  <main>
-    <h2>My IRLid QR</h2>
-    <p>Scan this with the other person’s phone to begin a mutual proof-of-personhood.</p>
-
+  <main class="home-main">
     <div id="qrError"></div>
 
-    <div class="qr-box" id="myQr"></div>
+    <div class="qr-hero">
+      <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
+    </div>
 
-    <button class="btn" onclick="location.href='application.html'">
-      Go to Application (Scan)
-    </button>
+    <h2 class="home-title">My IRLid QR</h2>
+    <p class="home-subtitle">
+      Show this QR to the other person. They can scan it to begin a mutual proof-of-personhood.
+    </p>
+
+    <div class="home-actions">
+      <button class="btn" onclick="location.href='application.html'">
+        Open Scanner
+      </button>
+    </div>
   </main>
 
   <footer>
