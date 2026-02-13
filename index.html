@@ -12,11 +12,14 @@
       --black:#000;
       --white:#fff;
 
-      /* Mobile nav height (2 rows). Conservative so it always fits. */
+      /* Mobile nav height (2 rows). Conservative so it fits most phones. */
       --mobile-nav-h: 124px;
 
-      /* Keep QR centered with equal side padding */
+      /* Equal side padding for QR and error */
       --side-pad: 12px;
+
+      /* Gap between header and QR (smaller on mobile) */
+      --qr-top-gap: 8px;
     }
 
     html, body { height: 100%; }
@@ -115,10 +118,13 @@
     /* ===== Main: QR only (equal side padding) ===== */
     main.home-main{
       width: 100%;
-      display: grid;
-      place-items: center;
-      padding: 0 var(--side-pad);
       box-sizing: border-box;
+      padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
+
+      /* Put QR toward the top rather than perfectly centered */
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
     }
 
     .qr-box{
@@ -147,26 +153,27 @@
       box-sizing: border-box;
     }
 
-    /* ===== Mobile: fixed bottom 2x2 nav fully on-screen + QR always fully visible ===== */
+    /* ===== Mobile: fixed bottom 2x2 nav + QR always fully visible ===== */
     @media (max-width: 720px){
-      /* Shrink logo so QR gets space */
+      :root{ --qr-top-gap: 2px; } /* move QR up a bit more on mobile */
+
+      /* Shrink logo so QR gets space (this is the biggest win) */
       .brand-wrap{
         padding: 4px var(--side-pad) 0 var(--side-pad);
       }
       #logo{
-        max-width: 74vw;
-        max-height: 110px;  /* smaller than before to free space */
+        max-width: 72vw;
+        max-height: 90px;   /* smaller so QR fits */
         width: auto;
         height: auto;
         display: block;
       }
 
-      /* Bottom nav: move UP slightly from bottom safe area so it doesn't get cut
-         and so it visually "sits" above gesture bar. */
+      /* Bottom nav sits above safe-area and stays fully visible */
       nav.site-nav{
         position: fixed;
         top: auto;
-        bottom: env(safe-area-inset-bottom, 0px); /* sits above safe area */
+        bottom: env(safe-area-inset-bottom, 0px);
         left: 0;
         right: 0;
 
@@ -184,7 +191,7 @@
       a.nav-btn, summary.nav-btn{
         width: 100%;
         height: 100%;
-        padding: 0;         /* no padding per your request */
+        padding: 0;
         border-radius: 0;
         font-size: 18px;
       }
@@ -199,16 +206,14 @@
         border-radius: 0;
       }
 
-      /* Reserve space for fixed nav + safe area so QR never hides behind it */
+      /* Reserve space for fixed nav + safe area so content never hides */
       body{
         padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
       }
 
-      /* Give QR remaining vertical space; ensure it fits */
+      /* Ensure main uses remaining height and keeps QR up top */
       main.home-main{
         min-height: calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)));
-        padding-left: var(--side-pad);
-        padding-right: var(--side-pad);
       }
     }
   </style>
@@ -248,7 +253,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout5"></script>
+  <script src="js/qr.js?v=layout6"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -262,6 +267,8 @@
 
     function computeQrSize(){
       const box = document.getElementById("myQr");
+
+      // Equal side padding already applied by CSS; compute actual usable width.
       const boxW = box.clientWidth || Math.min(window.innerWidth - 24, 720);
 
       const header = document.querySelector("header.site-header");
@@ -269,17 +276,27 @@
 
       const isMobile = window.matchMedia("(max-width: 720px)").matches;
 
-      // Measure actual nav height
+      // Measure nav height (mobile fixed bottom; desktop sticky top)
       const nav = document.querySelector("nav.site-nav");
-      const navH = (isMobile && nav) ? nav.getBoundingClientRect().height : 0;
+      const navH = nav ? nav.getBoundingClientRect().height : 0;
 
-      // Also account for safe area inset bottom
-      const safeBottom = isMobile ? (window.visualViewport ? Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop) : 0) : 0;
+      // Use VisualViewport where available (handles mobile URL bar / keyboard changes)
+      const vv = window.visualViewport;
+      const viewportH = vv ? vv.height : window.innerHeight;
 
-      // Keep modest padding so QR doesn't touch edges
+      // Safe area bottom (best-effort). CSS already reserves space; this is extra safety.
+      const safeBottomCss = getComputedStyle(document.documentElement).getPropertyValue("env(safe-area-inset-bottom)");
+      // We can't reliably parse env() from computed style; instead, trust navH measurement.
+
+      // Keep a tiny padding so QR never touches edges
       const pad = isMobile ? 16 : 40;
 
-      const availH = Math.max(220, window.innerHeight - headerH - navH - safeBottom - pad);
+      // Available height:
+      // - Mobile: viewport height minus header minus nav minus padding.
+      // - Desktop: window height minus header+nav minus padding (still fine).
+      const availH = Math.max(220, viewportH - headerH - (isMobile ? navH : 0) - pad);
+
+      // Final size constrained by both width and height
       const size = Math.floor(Math.min(boxW, availH));
 
       return Math.max(220, Math.min(size, 900));
@@ -307,21 +324,20 @@
       }
     }
 
-    // Render now + re-render on resize/orientation so QR always fully fits
+    // Yes — it auto-adjusts on most mobile screens:
+    // - uses visualViewport height when available (handles the shrinking URL bar)
+    // - recalculates on resize/orientation changes
     renderHelloQr();
-    window.addEventListener("resize", () => {
+
+    const rerender = () => {
       clearTimeout(window.__irlid_qr_t);
-      window.__irlid_qr_t = setTimeout(renderHelloQr, 150);
-    });
+      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+    };
+    window.addEventListener("resize", rerender);
+    window.addEventListener("orientationchange", rerender);
     if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", () => {
-        clearTimeout(window.__irlid_qr_t);
-        window.__irlid_qr_t = setTimeout(renderHelloQr, 150);
-      });
-      window.visualViewport.addEventListener("scroll", () => {
-        clearTimeout(window.__irlid_qr_t);
-        window.__irlid_qr_t = setTimeout(renderHelloQr, 150);
-      });
+      window.visualViewport.addEventListener("resize", rerender);
+      window.visualViewport.addEventListener("scroll", rerender);
     }
   </script>
 </body>
