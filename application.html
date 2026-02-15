@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 13 -->
+<!-- Deploy 14 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -160,16 +160,6 @@
       box-sizing: border-box;
     }
 
-    /* Hide file inputs but keep accessible via button click */
-    .file-input{
-      position:absolute;
-      left:-9999px;
-      width:1px;
-      height:1px;
-      overflow:hidden;
-    }
-
-    /* ===== Mobile bottom 2x2 nav ===== */
     @media (max-width: 720px){
       :root{ --top-gap: 6px; }
 
@@ -253,7 +243,6 @@
     <div class="controls">
       <button class="btn" id="startBtn">Start Scanner</button>
       <button class="btn secondary" id="stopBtn">Stop</button>
-      <button class="btn" id="scanHelloPhotoBtn">Scan HELLO Photo</button>
     </div>
 
     <div id="scanner"></div>
@@ -268,17 +257,16 @@
       <div class="qr-box" id="responseQr"></div>
       <div class="controls">
         <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
-        <button class="btn" id="scanResponsePhotoBtn">Scan Response Photo</button>
       </div>
+      <p class="small" style="max-width:560px;margin-left:auto;margin-right:auto;">
+        Tip: If the other person scans your Response with their phone Camera app,
+        it will open this page and process it automatically.
+      </p>
     </div>
 
     <div id="checksArea"></div>
 
     <div id="debug">Debug log…</div>
-
-    <!-- Hidden file inputs -->
-    <input class="file-input" id="helloFile" type="file" accept="image/*">
-    <input class="file-input" id="responseFile" type="file" accept="image/*">
   </main>
 
   <script src="js/sign.js"></script>
@@ -295,10 +283,6 @@
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const scanResponseBtn = document.getElementById("scanResponseBtn");
-    const scanHelloPhotoBtn = document.getElementById("scanHelloPhotoBtn");
-    const scanResponsePhotoBtn = document.getElementById("scanResponsePhotoBtn");
-    const helloFile = document.getElementById("helloFile");
-    const responseFile = document.getElementById("responseFile");
 
     function log(...args) {
       console.log(...args);
@@ -306,12 +290,46 @@
     }
     function setStatus(s) { statusEl.textContent = s; }
 
-    let scanner = null;
-    let currentHello = null;
+    function showChecks(text){
+      checksArea.style.display = "block";
+      checksArea.textContent = text;
+    }
+    function clearChecks(){
+      checksArea.style.display = "none";
+      checksArea.textContent = "";
+    }
 
-    // We store "my response" (created after scanning HELLO) so we can compare it against
-    // the other person's response for time + location checks.
-    let myResponse = null;
+    // ===== Fix for your error: sha256/signBytes wrappers =====
+    async function sha256(bytes) {
+      // bytes: Uint8Array
+      return crypto.subtle.digest("SHA-256", bytes);
+    }
+    async function signBytes(hashArrayBuffer) {
+      const priv = await getPrivateKey();
+      const sig = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        priv,
+        hashArrayBuffer
+      );
+      return b64urlEncode(new Uint8Array(sig));
+    }
+
+    // ===== Distance check =====
+    function distanceMeters(a, b) {
+      const R = 6371000;
+      const toRad = (x) => (x * Math.PI) / 180;
+      const dLat = toRad(b.lat - a.lat);
+      const dLon = toRad(b.lon - a.lon);
+      const lat1 = toRad(a.lat);
+      const lat2 = toRad(b.lat);
+      const s =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      return 2 * R * Math.asin(Math.sqrt(s));
+    }
+
+    // ===== Scanner (live camera in-page) =====
+    let scanner = null;
 
     async function listCameras() {
       try {
@@ -361,36 +379,7 @@
       }
     }
 
-    // ===== Scan-from-photo support =====
-    async function scanFromPhoto(file) {
-      if (!file) throw new Error("No file selected.");
-      if (typeof Html5Qrcode === "undefined") throw new Error("Html5Qrcode not loaded.");
-
-      await stopScanner();
-
-      // Use a fresh instance tied to #scanner (required by the library)
-      const q = new Html5Qrcode("scanner");
-      try {
-        const decodedText = await q.scanFile(file, true);
-        return decodedText;
-      } finally {
-        try { await q.clear(); } catch {}
-      }
-    }
-
-    function tryParseHelloFromUrlHash() {
-      const hash = location.hash || "";
-      const match = hash.match(/HELLO=([A-Za-z0-9\-_]+)/);
-      if (!match) return null;
-      try {
-        const bytes = b64urlDecode(match[1]);
-        return JSON.parse(new TextDecoder().decode(bytes));
-      } catch (e) {
-        log("HELLO parse error:", String(e));
-        return null;
-      }
-    }
-
+    // ===== GPS =====
     async function getGPS() {
       return new Promise((resolve) => {
         if (!navigator.geolocation) return resolve(null);
@@ -402,63 +391,68 @@
       });
     }
 
-    // Haversine distance in metres
-    function distanceMeters(a, b) {
-      const R = 6371000;
-      const toRad = (x) => (x * Math.PI) / 180;
-      const dLat = toRad(b.lat - a.lat);
-      const dLon = toRad(b.lon - a.lon);
-      const lat1 = toRad(a.lat);
-      const lat2 = toRad(b.lat);
-
-      const s =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-      return 2 * R * Math.asin(Math.sqrt(s));
+    // ===== Parse helpers: accept either raw base64url OR URL containing #HELLO= / #RESP= =====
+    function extractParamFromText(text, key) {
+      // key like "HELLO" or "RESP"
+      try {
+        const u = new URL(text);
+        const h = u.hash || "";
+        const m = h.match(new RegExp(`${key}=([A-Za-z0-9\\-_]+)`));
+        if (m) return m[1];
+      } catch {}
+      // also allow "…#HELLO=xxxx" without being a fully-qualified URL
+      const m2 = String(text || "").match(new RegExp(`${key}=([A-Za-z0-9\\-_]+)`));
+      if (m2) return m2[1];
+      return null;
     }
 
-    function showChecks(text) {
-      checksArea.style.display = "block";
-      checksArea.textContent = text;
+    function decodeB64Json(b64url) {
+      const bytes = b64urlDecode(b64url);
+      return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    function clearChecks() {
-      checksArea.style.display = "none";
-      checksArea.textContent = "";
+    // Persist myResponse so camera-app-opened URLs can verify in a fresh tab
+    const MY_RESPONSE_KEY = "irlid_my_response_v1";
+
+    function saveMyResponse(respObj) {
+      try { localStorage.setItem(MY_RESPONSE_KEY, JSON.stringify(respObj)); } catch {}
+    }
+    function loadMyResponse() {
+      try {
+        const raw = localStorage.getItem(MY_RESPONSE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
     }
 
-    async function handleHello(text) {
+    // ===== Core flow =====
+    let myResponse = loadMyResponse();
+
+    async function handleHelloText(textOrUrl) {
       try {
         clearChecks();
 
-        let hello = null;
+        const enc = extractParamFromText(textOrUrl, "HELLO") || (() => {
+          // maybe it's just the b64url itself
+          const s = String(textOrUrl || "").trim();
+          return (/^[A-Za-z0-9\-_]+$/.test(s) ? s : null);
+        })();
 
-        // Try URL form
-        try {
-          const u = new URL(text);
-          const m = (u.hash || "").match(/HELLO=([A-Za-z0-9\-_]+)/);
-          if (m) {
-            const bytes = b64urlDecode(m[1]);
-            hello = JSON.parse(new TextDecoder().decode(bytes));
-          }
-        } catch {}
-
-        // Try raw base64url form
-        if (!hello) {
-          try {
-            const bytes = b64urlDecode(text);
-            hello = JSON.parse(new TextDecoder().decode(bytes));
-          } catch {}
+        if (!enc) {
+          setStatus("Not a HELLO QR. Try again.");
+          return;
         }
+
+        let hello = null;
+        try { hello = decodeB64Json(enc); } catch {}
 
         if (!hello || hello.type !== "hello") {
           setStatus("Not a HELLO QR. Try again.");
           return;
         }
 
-        currentHello = hello;
-        setStatus("HELLO scanned. Creating response…");
+        setStatus("HELLO received. Creating response…");
 
         const myPub = await getPublicJwk();
         const ordered = [myPub, hello.pub].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -481,15 +475,19 @@
           pub: myPub
         };
 
-        // Store my response for later verification
         myResponse = response;
+        saveMyResponse(response);
 
-        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
-        makeQR("responseQr", encoded, 360);
+        // IMPORTANT: encode as URL so phone Camera app can open it immediately.
+        const encodedResp = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+        const respUrl = `${location.origin}${location.pathname}#RESP=${encodedResp}`;
+
+        makeQR("responseQr", respUrl, 360);
 
         responseArea.style.display = "block";
         setStatus("Response created. Show it to the other person.");
         log("Response created:", response);
+
       } catch (e) {
         log("handleHello error:", String(e));
         setStatus("Error creating response.");
@@ -498,47 +496,55 @@
       }
     }
 
-    async function handleResponse(text) {
+    async function handleResponseText(textOrUrl) {
       try {
         clearChecks();
+        setStatus("Response received. Verifying…");
 
-        setStatus("Response scanned. Verifying…");
+        const enc = extractParamFromText(textOrUrl, "RESP") || (() => {
+          // maybe it's just the b64url itself
+          const s = String(textOrUrl || "").trim();
+          return (/^[A-Za-z0-9\-_]+$/.test(s) ? s : null);
+        })();
 
-        let response = null;
-        try {
-          const bytes = b64urlDecode(text);
-          response = JSON.parse(new TextDecoder().decode(bytes));
-        } catch {}
-
-        if (!response || response.type !== "response") {
-          setStatus("Not a response QR. Try again.");
+        if (!enc) {
+          setStatus("Not a Response QR. Try again.");
           return;
         }
 
-        // Require we have our own response (so we can compare time+GPS)
+        let response = null;
+        try { response = decodeB64Json(enc); } catch {}
+
+        if (!response || response.type !== "response") {
+          setStatus("Not a Response QR. Try again.");
+          return;
+        }
+
+        // Load myResponse from storage if needed (fresh tab case)
+        if (!myResponse) myResponse = loadMyResponse();
+
         if (!myResponse || !myResponse.payload) {
           showChecks(
             "Verification unavailable:\n" +
-            "- You have not generated 'Your Response' yet.\n\n" +
+            "- Your device has not created a Response yet.\n\n" +
             "Flow:\n" +
-            "1) Scan HELLO (camera or photo)\n" +
-            "2) Then scan their Response"
+            "1) Scan a HELLO (camera app URL or Start Scanner)\n" +
+            "2) Then scan their Response (camera app URL or in-page scanner)"
           );
-          setStatus("Generate your Response first.");
+          setStatus("Create your Response first.");
           return;
         }
 
-        const a = myResponse.payload;      // "my response" payload (device A)
-        const b = response.payload;        // other person's response payload (device B)
+        const a = myResponse.payload; // my payload
+        const b = response.payload;   // their payload
 
-        // 1) time check (within 60 seconds)
+        // 1) Time within 60s
         const timeDiff = Math.abs((a.ts || 0) - (b.ts || 0));
         const timeOk = timeDiff <= 60;
 
-        // 2) location check (within 2 metres)
-        let locOk = false;
+        // 2) Location within 2m
         let dist = null;
-
+        let locOk = false;
         if (a.gps && b.gps && typeof a.gps.lat === "number" && typeof a.gps.lon === "number" &&
             typeof b.gps.lat === "number" && typeof b.gps.lon === "number") {
           dist = distanceMeters({ lat: a.gps.lat, lon: a.gps.lon }, { lat: b.gps.lat, lon: b.gps.lon });
@@ -548,14 +554,15 @@
         const lines = [];
         lines.push("Verification:");
         lines.push(`- Time difference: ${timeDiff}s (must be ≤ 60s) => ${timeOk ? "PASS" : "FAIL"}`);
-
         if (dist === null) {
-          lines.push(`- Location distance: unavailable (missing GPS on one device) => FAIL`);
+          lines.push("- Location distance: unavailable (missing GPS) => FAIL");
         } else {
           lines.push(`- Location distance: ${dist.toFixed(2)}m (must be ≤ 2.00m) => ${locOk ? "PASS" : "FAIL"}`);
         }
+        // include reported accuracy to explain failures (still keep hard 2m rule)
+        lines.push("");
+        lines.push(`Reported accuracy (my acc / their acc): ${a.gps && a.gps.acc ? a.gps.acc : "?"}m / ${b.gps && b.gps.acc ? b.gps.acc : "?"}m`);
 
-        // If either fails, do not save receipt
         if (!timeOk || !locOk) {
           showChecks(lines.join("\n"));
           setStatus("Verification failed. Receipt NOT saved.");
@@ -563,7 +570,7 @@
           return;
         }
 
-        // Save receipt (other person's response)
+        // Save receipt
         localStorage.setItem("irlid_last_receipt", JSON.stringify(response));
         showChecks(lines.join("\n"));
         setStatus("Verified ✅ Receipt saved. Open Receipts to view.");
@@ -577,10 +584,10 @@
       }
     }
 
-    // ===== UI Wiring =====
+    // ===== Buttons =====
     startBtn.onclick = async () => {
       setStatus("Starting scanner…");
-      await startScanner(handleHello);
+      await startScanner(handleHelloText);
       setStatus("Scan the other person's HELLO QR.");
     };
 
@@ -591,54 +598,38 @@
 
     scanResponseBtn.onclick = async () => {
       setStatus("Starting scanner for their Response…");
-      await startScanner(handleResponse);
+      await startScanner(handleResponseText);
       setStatus("Scan their Response QR.");
     };
 
-    // Scan HELLO from photo
-    scanHelloPhotoBtn.onclick = () => {
-      helloFile.value = "";
-      helloFile.click();
-    };
+    // ===== Auto-run from Camera app URL =====
+    function autoHandleFromHash() {
+      const hash = location.hash || "";
+      const hasHello = /HELLO=([A-Za-z0-9\-_]+)/.test(hash);
+      const hasResp  = /RESP=([A-Za-z0-9\-_]+)/.test(hash);
 
-    helloFile.addEventListener("change", async () => {
-      try {
-        setStatus("Reading HELLO photo…");
-        const text = await scanFromPhoto(helloFile.files[0]);
-        setStatus("HELLO decoded. Creating response…");
-        await handleHello(text);
-      } catch (e) {
-        log("HELLO photo scan error:", String(e));
-        setStatus("Could not read HELLO from photo.");
+      if (hasHello) {
+        setStatus("HELLO opened from Camera. Creating response…");
+        handleHelloText(location.href);
+        return true;
       }
-    });
-
-    // Scan Response from photo
-    scanResponsePhotoBtn.onclick = () => {
-      responseFile.value = "";
-      responseFile.click();
-    };
-
-    responseFile.addEventListener("change", async () => {
-      try {
-        setStatus("Reading Response photo…");
-        const text = await scanFromPhoto(responseFile.files[0]);
-        setStatus("Response decoded. Verifying…");
-        await handleResponse(text);
-      } catch (e) {
-        log("Response photo scan error:", String(e));
-        setStatus("Could not read Response from photo.");
+      if (hasResp) {
+        setStatus("Response opened from Camera. Verifying…");
+        handleResponseText(location.href);
+        return true;
       }
+      return false;
+    }
+
+    // If user scans multiple QRs, some browsers won't reload page; listen for hash changes
+    window.addEventListener("hashchange", () => {
+      autoHandleFromHash();
     });
 
     (async () => {
       await listCameras();
-      const helloFromHash = tryParseHelloFromUrlHash();
-      if (helloFromHash) {
-        currentHello = helloFromHash;
-        setStatus("HELLO detected in URL. Tap Start Scanner OR Scan HELLO Photo.");
-      } else {
-        setStatus("Ready. Tap Start Scanner or Scan HELLO Photo.");
+      if (!autoHandleFromHash()) {
+        setStatus("Ready. Use Start Scanner OR scan a QR with your phone Camera app to open here.");
       }
     })();
   </script>
