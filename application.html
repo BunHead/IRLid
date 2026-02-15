@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 19 (rear-camera default, no parts, paste workflow) -->
+<!-- Deploy 20 (force rear camera; remove debug UI; clearer scan buttons) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -130,7 +130,7 @@
       margin-top: 10px;
       margin-bottom: 8px;
     }
-    .controls .btn{ min-width: 160px; }
+    .controls .btn{ min-width: 180px; }
 
     .small{
       margin: 8px auto 0;
@@ -221,17 +221,6 @@
       background: #fff;
     }
 
-    details.debug-wrap{
-      max-width: 860px;
-      margin: 12px auto 0;
-      border: 1px solid #ddd;
-      background:#fff;
-      padding: 8px 10px;
-      box-sizing: border-box;
-    }
-    details.debug-wrap > summary{ cursor:pointer; font-weight:700; user-select:none; }
-    #debug{ white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; margin-top:8px; }
-
     @media (max-width: 720px){
       :root{ --top-gap: 6px; }
 
@@ -307,20 +296,18 @@
       <textarea id="pasteBox" class="big-input" placeholder="Paste a HELLO/RESP token or a full URL (…#HELLO=… or …#RESP=…)"></textarea>
       <div class="row">
         <button class="btn" id="autoDetectBtn">Auto-Detect & Process</button>
-        <button class="btn secondary" id="processHelloBtn">Process as HELLO</button>
-        <button class="btn secondary" id="processRespBtn">Process as Response</button>
         <button class="btn secondary" id="clearPasteBtn">Clear</button>
       </div>
       <div class="hint">
-        Use your <b>phone Camera app</b> to scan the QR. If it opens this page on your phone, use “Copy Response Link/Token”
-        and paste it here on your computer.
+        If your webcam won’t scan: use your <b>phone Camera app</b> to scan the QR. It opens this page and processes automatically.
+        If you need to transfer between devices, copy/paste the URL or token into the box above and click <b>Auto-Detect & Process</b>.
       </div>
     </div>
 
     <div class="controls" style="margin-top:14px;">
-      <button class="btn" id="startBtn">Start Scanner (optional)</button>
-      <button class="btn secondary" id="stopBtn">Stop</button>
-      <button class="btn secondary" id="scanResponseBtn">Scan Their Response (optional)</button>
+      <button class="btn" id="scanHelloBtn">Scan HELLO (optional)</button>
+      <button class="btn secondary" id="scanRespBtn">Scan RESPONSE (optional)</button>
+      <button class="btn secondary" id="stopBtn">Stop Camera</button>
     </div>
 
     <div id="scanner" aria-label="Scanner viewport">
@@ -328,8 +315,11 @@
     </div>
 
     <div class="small">
-      <label for="cameraSelect"><b>Camera:</b></label><br>
+      <label for="cameraSelect"><b>Camera (optional):</b></label><br>
       <select id="cameraSelect"></select>
+      <div class="hint" style="max-width:860px;margin-left:auto;margin-right:auto;">
+        Default is <b>rear camera</b>. This dropdown is only a fallback if your device misbehaves.
+      </div>
     </div>
 
     <div id="responseArea">
@@ -356,11 +346,6 @@
     </div>
 
     <div id="checksArea"></div>
-
-    <details class="debug-wrap">
-      <summary>Debug (tap to expand)</summary>
-      <div id="debug">Debug log…</div>
-    </details>
   </main>
 
   <script src="js/sign.js"></script>
@@ -370,17 +355,14 @@
 
   <script>
     const statusEl = document.getElementById("status");
-    const debugEl = document.getElementById("debug");
     const cameraSelect = document.getElementById("cameraSelect");
 
-    const startBtn = document.getElementById("startBtn");
+    const scanHelloBtn = document.getElementById("scanHelloBtn");
+    const scanRespBtn = document.getElementById("scanRespBtn");
     const stopBtn = document.getElementById("stopBtn");
-    const scanResponseBtn = document.getElementById("scanResponseBtn");
 
     const pasteBox = document.getElementById("pasteBox");
     const autoDetectBtn = document.getElementById("autoDetectBtn");
-    const processHelloBtn = document.getElementById("processHelloBtn");
-    const processRespBtn = document.getElementById("processRespBtn");
     const clearPasteBtn = document.getElementById("clearPasteBtn");
 
     const responseArea = document.getElementById("responseArea");
@@ -391,15 +373,9 @@
 
     const checksArea = document.getElementById("checksArea");
 
-    const CAM_PREF_KEY = "irlid_cam_pref_id_v2";
-    let hasEverStartedScanner = false;
+    const CAM_PREF_KEY = "irlid_cam_pref_id_v3";
 
-    function log(...args) {
-      console.log(...args);
-      debugEl.textContent += "\n" + args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
-    }
     function setStatus(s) { statusEl.textContent = s; }
-
     function showChecks(text){ checksArea.style.display = "block"; checksArea.textContent = text; }
     function clearChecks(){ checksArea.style.display = "none"; checksArea.textContent = ""; }
 
@@ -448,7 +424,7 @@
       return sa.localeCompare(sb);
     }
 
-    // ===== Camera selection (rear default) =====
+    // ===== Camera selection UI (fallback only) =====
     function scoreCameraLabel(label) {
       const s = (label || "").toLowerCase();
       let score = 0;
@@ -460,12 +436,10 @@
       if (s.includes("face")) score -= 20;
       return score;
     }
-
     function pickBestCameraId(devices) {
       const saved = localStorage.getItem(CAM_PREF_KEY);
       if (saved && devices.some(d => d.id === saved)) return saved;
 
-      // If labels exist, pick best-scoring. Otherwise just pick first.
       let best = null;
       for (const d of devices) {
         const sc = scoreCameraLabel(d.label || "");
@@ -497,8 +471,8 @@
         };
 
         return devices;
-      } catch (e) {
-        log("Camera list error:", String(e));
+      } catch {
+        cameraSelect.innerHTML = "";
         return [];
       }
     }
@@ -510,9 +484,7 @@
           await scanner.clear();
           scanner = null;
         }
-      } catch (e) {
-        log("Stop error:", String(e));
-      }
+      } catch {}
     }
 
     function computeQrbox(viewW, viewH) {
@@ -525,24 +497,6 @@
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
 
-      // ✅ Most reliable rear-camera default:
-      // - On first run (and whenever labels might be missing), request facingMode: environment.
-      // - If user has explicitly selected a device id, use it after the first run.
-      const selectedId = cameraSelect.value;
-      const savedId = localStorage.getItem(CAM_PREF_KEY);
-
-      let cameraSpec;
-      if (!hasEverStartedScanner) {
-        // First start: force rear camera even if dropdown is wrong/labels are blank.
-        cameraSpec = { facingMode: "environment" };
-      } else if (selectedId) {
-        cameraSpec = selectedId;
-      } else if (savedId) {
-        cameraSpec = savedId;
-      } else {
-        cameraSpec = { facingMode: "environment" };
-      }
-
       const config = {
         fps: 12,
         qrbox: (vw, vh) => computeQrbox(vw, vh),
@@ -554,24 +508,34 @@
         }
       };
 
+      // ✅ Force rear camera first. If it fails, fall back to the selected device id.
+      const tryStart = async (cameraSpec) => {
+        await scanner.start(cameraSpec, config, (decodedText) => onText(decodedText), () => {});
+      };
+
       try {
-        await scanner.start(
-          cameraSpec,
-          config,
-          (decodedText) => onText(decodedText),
-          () => {}
-        );
-
-        hasEverStartedScanner = true;
-
-        // After permission is granted, labels typically appear; refresh the list.
-        // This helps future starts pick the proper rear device id.
-        await listCameras();
-
-      } catch (e) {
-        log("Start error:", String(e));
-        setStatus("Scanner failed to start.");
+        // Try strict environment first (best chance to force rear on many phones)
+        await tryStart({ facingMode: { exact: "environment" } });
+      } catch (e1) {
+        try {
+          // Fallback: non-exact environment (some browsers reject exact)
+          await tryStart({ facingMode: "environment" });
+        } catch (e2) {
+          try {
+            // Final fallback: user-selected device id (or first available)
+            const devices = await Html5Qrcode.getCameras();
+            const chosen = cameraSelect.value || pickBestCameraId(devices) || devices[0]?.id;
+            if (!chosen) throw new Error("No camera available");
+            await tryStart(chosen);
+          } catch (e3) {
+            setStatus("Camera failed to start. Use phone Camera app + paste mode.");
+            return;
+          }
+        }
       }
+
+      // After permission, labels often appear—refresh dropdown
+      await listCameras();
     }
 
     // GPS
@@ -586,7 +550,7 @@
       });
     }
 
-    // Parsing helpers (accept URL with #HELLO/#RESP or raw token)
+    // Parsing helpers
     function extractParamFromText(text, key) {
       try {
         const u = new URL(text);
@@ -606,7 +570,7 @@
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    // Storage: keep my response to verify later (even across tabs)
+    // Storage: keep my response to verify later
     const MY_RESPONSE_KEY = "irlid_my_response_v2";
     let myResponse = null;
     function saveMyResponse(respObj) {
@@ -628,12 +592,12 @@
 
       // v2 compact hello: {v:2,t:"h",p:{x,y}}
       if (obj && obj.v === 2 && obj.t === "h" && obj.p && obj.p.x && obj.p.y) {
-        return { theirPubXY: obj.p, version: 2, raw: obj };
+        return { theirPubXY: obj.p, version: 2 };
       }
 
       // legacy v1: {type:"hello", pub:<jwk>}
       if (obj && obj.type === "hello" && obj.pub && obj.pub.x && obj.pub.y) {
-        return { theirPubXY: pubToXY(obj.pub), version: 1, raw: obj };
+        return { theirPubXY: pubToXY(obj.pub), version: 1 };
       }
 
       return null;
@@ -731,12 +695,9 @@
         const link = `${location.origin}${location.pathname}#RESP=${token}`;
 
         setResponseOutputs(token, link);
+        setStatus("Response created. Show it to the other person.");
 
-        setStatus("Response created. Share it with the other person.");
-        log("Response created (v2):", response);
-
-      } catch (e) {
-        log("handleHello error:", String(e));
+      } catch {
         setStatus("Error creating response.");
       } finally {
         await stopScanner();
@@ -791,14 +752,12 @@
       if (!timeOk || !locOk) {
         showChecks(lines.join("\n"));
         setStatus("Verification failed. Receipt NOT saved.");
-        log("Verification failed:", { timeDiff, dist, myPayload, theirPayload });
         return;
       }
 
       localStorage.setItem("irlid_last_receipt", JSON.stringify(responseObj));
       showChecks(lines.join("\n"));
       setStatus("Verified ✅ Receipt saved. Open Receipts to view.");
-      log("Saved receipt:", responseObj);
     }
 
     async function handleResponseText(textOrUrl) {
@@ -814,8 +773,7 @@
         setStatus("Response received. Verifying…");
         await handleResponseObj(parsed.resp);
 
-      } catch (e) {
-        log("handleResponse error:", String(e));
+      } catch {
         setStatus("Error reading response.");
       } finally {
         await stopScanner();
@@ -841,10 +799,11 @@
     }
     window.addEventListener("hashchange", () => { autoHandleFromHash(); });
 
-    // Buttons: paste workflow
+    // Paste workflow
     autoDetectBtn.onclick = async () => {
       const t = (pasteBox.value || "").trim();
       if (!t) { setStatus("Paste something first."); return; }
+
       if (extractParamFromText(t, "HELLO")) return handleHelloText(t);
       if (extractParamFromText(t, "RESP"))  return handleResponseText(t);
 
@@ -852,18 +811,6 @@
       if (parseResp(t))  return handleResponseText(t);
 
       setStatus("Could not auto-detect. Paste a HELLO/RESP URL or token.");
-    };
-
-    processHelloBtn.onclick = async () => {
-      const t = (pasteBox.value || "").trim();
-      if (!t) { setStatus("Paste something first."); return; }
-      await handleHelloText(t);
-    };
-
-    processRespBtn.onclick = async () => {
-      const t = (pasteBox.value || "").trim();
-      if (!t) { setStatus("Paste something first."); return; }
-      await handleResponseText(t);
     };
 
     clearPasteBtn.onclick = () => {
@@ -886,17 +833,17 @@
       setStatus("Token copied.");
     };
 
-    // Optional in-page scanner
-    startBtn.onclick = async () => {
-      setStatus("Starting scanner…");
+    // Scanner buttons
+    scanHelloBtn.onclick = async () => {
+      setStatus("Starting rear camera… (Scan HELLO)");
       await startScanner(handleHelloText);
       setStatus("Scan the other person's HELLO QR (optional).");
     };
 
-    scanResponseBtn.onclick = async () => {
-      setStatus("Starting scanner for their Response…");
+    scanRespBtn.onclick = async () => {
+      setStatus("Starting rear camera… (Scan RESPONSE)");
       await startScanner(handleResponseText);
-      setStatus("Scan their Response QR (optional).");
+      setStatus("Scan the other person's RESPONSE QR (optional).");
     };
 
     stopBtn.onclick = async () => {
@@ -905,10 +852,10 @@
     };
 
     (async () => {
-      await listCameras(); // dropdown populated; may have blank labels until permission
+      await listCameras();
       myResponse = loadMyResponse();
       if (!autoHandleFromHash()) {
-        setStatus("Ready. Recommended: phone Camera app + copy/paste (no webcam needed).");
+        setStatus("Ready. Recommended: phone Camera app + paste mode (no webcam needed).");
       }
     })();
   </script>
