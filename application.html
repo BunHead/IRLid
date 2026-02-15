@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 22 -->
+<!-- Deploy 14 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -273,13 +273,11 @@
 
     /* ===== Missing helpers (fixes sha256 undefined) ===== */
     async function sha256(dataBytes) {
-      // Accept Uint8Array or ArrayBuffer
       const buf = (dataBytes instanceof Uint8Array) ? dataBytes.buffer : dataBytes;
       return crypto.subtle.digest("SHA-256", buf);
     }
 
     async function signBytes(hashBuf) {
-      // Sign an ArrayBuffer hash using ECDSA P-256 / SHA-256
       const priv = await getPrivateKey();
       const sig = await crypto.subtle.sign(
         { name: "ECDSA", hash: "SHA-256" },
@@ -293,7 +291,6 @@
     let currentHello = null;
 
     function pickRearCameraIndex(devices) {
-      // Prefer rear/back/environment if label is available
       const re = /(back|rear|environment)/i;
       const idx = devices.findIndex(d => re.test(d.label || ""));
       return idx >= 0 ? idx : 0;
@@ -310,11 +307,7 @@
           cameraSelect.appendChild(opt);
         });
 
-        if (devices.length) {
-          const rearIdx = pickRearCameraIndex(devices);
-          cameraSelect.selectedIndex = rearIdx;
-        }
-
+        if (devices.length) cameraSelect.selectedIndex = pickRearCameraIndex(devices);
         return devices;
       } catch (e) {
         log("Camera list error:", String(e));
@@ -338,10 +331,7 @@
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
 
-      // If user picked a camera, use it. Otherwise bias strongly to rear camera.
       const cameraId = cameraSelect.value || { facingMode: { ideal: "environment" } };
-
-      // Keep qrbox reasonable; html5-qrcode will adapt video scaling.
       const config = { fps: 10, qrbox: 320 };
 
       try {
@@ -381,30 +371,45 @@
       });
     }
 
+    function decodeQrPayload(text) {
+      // Attempts:
+      // 1) URL with hash HELLO=...
+      // 2) raw b64url JSON
+      // Returns object or null.
+      try {
+        const u = new URL(text);
+        const m = (u.hash || "").match(/HELLO=([A-Za-z0-9\-_]+)/);
+        if (m) {
+          const bytes = b64urlDecode(m[1]);
+          return JSON.parse(new TextDecoder().decode(bytes));
+        }
+      } catch {}
+
+      try {
+        const bytes = b64urlDecode(text);
+        return JSON.parse(new TextDecoder().decode(bytes));
+      } catch {}
+
+      return null;
+    }
+
     async function handleHello(text) {
       try {
-        let hello = null;
+        const obj = decodeQrPayload(text);
 
-        try {
-          const u = new URL(text);
-          const m = (u.hash || "").match(/HELLO=([A-Za-z0-9\-_]+)/);
-          if (m) {
-            const bytes = b64urlDecode(m[1]);
-            hello = JSON.parse(new TextDecoder().decode(bytes));
-          }
-        } catch {}
-
-        if (!hello) {
-          try {
-            const bytes = b64urlDecode(text);
-            hello = JSON.parse(new TextDecoder().decode(bytes));
-          } catch {}
+        // ✅ Robust: if user scans a RESPONSE while in HELLO mode, accept it.
+        if (obj && obj.type === "response") {
+          setStatus("Response detected. Saving receipt…");
+          await handleResponse(text);
+          return;
         }
 
-        if (!hello || hello.type !== "hello") {
+        if (!obj || obj.type !== "hello") {
           setStatus("Not a HELLO QR. Try again.");
           return;
         }
+
+        const hello = obj;
 
         currentHello = hello;
         setStatus("HELLO scanned. Creating response…");
@@ -434,7 +439,7 @@
         makeQR("responseQr", encoded, 360);
 
         responseArea.style.display = "block";
-        setStatus("Show your Response QR to the other person.");
+        setStatus("Show your Response QR to the other person, then tap “Scan Their Response”.");
         log("Response created:", response);
       } catch (e) {
         log("handleHello error:", String(e));
