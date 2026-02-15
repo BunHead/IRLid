@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 12 -->
+<!-- Deploy 22 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -254,7 +254,7 @@
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="js/qr.js?v=layout6"></script>
+  <script src="js/qr.js?v=layout7"></script>
 
   <script>
     const statusEl = document.getElementById("status");
@@ -271,8 +271,33 @@
     }
     function setStatus(s) { statusEl.textContent = s; }
 
+    /* ===== Missing helpers (fixes sha256 undefined) ===== */
+    async function sha256(dataBytes) {
+      // Accept Uint8Array or ArrayBuffer
+      const buf = (dataBytes instanceof Uint8Array) ? dataBytes.buffer : dataBytes;
+      return crypto.subtle.digest("SHA-256", buf);
+    }
+
+    async function signBytes(hashBuf) {
+      // Sign an ArrayBuffer hash using ECDSA P-256 / SHA-256
+      const priv = await getPrivateKey();
+      const sig = await crypto.subtle.sign(
+        { name: "ECDSA", hash: "SHA-256" },
+        priv,
+        hashBuf
+      );
+      return b64urlEncode(new Uint8Array(sig));
+    }
+
     let scanner = null;
     let currentHello = null;
+
+    function pickRearCameraIndex(devices) {
+      // Prefer rear/back/environment if label is available
+      const re = /(back|rear|environment)/i;
+      const idx = devices.findIndex(d => re.test(d.label || ""));
+      return idx >= 0 ? idx : 0;
+    }
 
     async function listCameras() {
       try {
@@ -284,6 +309,12 @@
           opt.textContent = d.label || `Camera ${idx + 1}`;
           cameraSelect.appendChild(opt);
         });
+
+        if (devices.length) {
+          const rearIdx = pickRearCameraIndex(devices);
+          cameraSelect.selectedIndex = rearIdx;
+        }
+
         return devices;
       } catch (e) {
         log("Camera list error:", String(e));
@@ -306,7 +337,11 @@
     async function startScanner(onText) {
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
-      const cameraId = cameraSelect.value || { facingMode: "environment" };
+
+      // If user picked a camera, use it. Otherwise bias strongly to rear camera.
+      const cameraId = cameraSelect.value || { facingMode: { ideal: "environment" } };
+
+      // Keep qrbox reasonable; html5-qrcode will adapt video scaling.
       const config = { fps: 10, qrbox: 320 };
 
       try {
