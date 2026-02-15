@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 17 -->
+<!-- Deploy 18 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -129,14 +129,18 @@
       .brand-wrap{padding:4px var(--side-pad) 0;}
       #logo{max-width:72vw;max-height:90px;width:auto;height:auto;display:block;}
 
+      /* ✅ Fix: explicitly unset top so fixed bar anchors to bottom */
       nav.site-nav{
         position:fixed;
+        top:auto; /* IMPORTANT */
         bottom:env(safe-area-inset-bottom,0);
-        left:0;right:0;
+        left:0;
+        right:0;
         height:var(--mobile-nav-h);
         display:grid;
         grid-template-columns:1fr 1fr;
         grid-template-rows:1fr 1fr;
+        z-index:2000;
       }
 
       a.nav-btn,summary.nav-btn{
@@ -148,9 +152,10 @@
 
       .dropdown-menu{
         position:fixed;
-        left:0;right:0;
-        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
+        left:0;
+        right:0;
         top:auto;
+        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
       }
 
       body{
@@ -300,7 +305,6 @@
   }
 
   function decodeHelloFromUrl(text){
-    // Supports scanning Home QR (URL containing #HELLO=...)
     try{
       const u = new URL(text);
       const hash = u.hash || "";
@@ -323,19 +327,15 @@
   }
 
   function decodeAny(text){
-    // 1) URL hash HELLO=
     const hello = decodeHelloFromUrl(text);
     if (hello) return hello;
-
-    // 2) raw b64url json
     const obj = decodeB64Json(text);
     if (obj) return obj;
-
     return null;
   }
 
   async function handleResponse(text){
-    const obj = decodeB64Json(text); // response QR is raw b64url JSON
+    const obj = decodeB64Json(text);
     if (!obj || obj.type !== "response"){
       setStatus("Not a Response QR.");
       return;
@@ -359,7 +359,6 @@
   async function handleHello(text){
     const obj = decodeAny(text);
 
-    // If user scans Response while in HELLO mode, accept it and save.
     if (obj && obj.type === "response") {
       setStatus("Response detected. Saving receipt…");
       await handleResponse(text);
