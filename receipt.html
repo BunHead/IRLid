@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 12 -->
+<!-- Deploy 15 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -56,9 +56,6 @@
       user-select:none;
       white-space:nowrap;
     }
-    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
-    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
-    a.nav-btn:focus, summary.nav-btn:focus{ outline:2px solid #555; outline-offset:-2px; }
 
     details.nav-dropdown{ position:relative; }
     details.nav-dropdown > summary{ list-style:none; }
@@ -84,7 +81,6 @@
       border-radius:0;
       margin:0;
     }
-    .dropdown-menu a:hover{ background:#f2f2f2; }
 
     main.page-main{
       max-width: 980px;
@@ -200,7 +196,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout6"></script>
+  <script src="js/qr.js?v=deploy9"></script>
 
   <script>
     const details = document.getElementById("details");
@@ -214,7 +210,7 @@
         details.textContent = JSON.stringify(obj, null, 2);
 
         const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(obj)));
-        makeQR("receiptQr", encoded, 420);
+        makeQR("receiptQr", encoded, 520);
       } catch (e) {
         details.textContent = "Failed to parse receipt.";
       }
