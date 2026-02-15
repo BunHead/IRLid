@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 12 -->
+<!-- Deploy 15 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,334 +11,202 @@
     :root{
       --black:#000;
       --white:#fff;
-
-      /* Mobile nav height (2 rows). Conservative so it fits most phones. */
-      --mobile-nav-h: 124px;
-
-      /* Equal side padding for QR and error */
-      --side-pad: 12px;
-
-      /* Gap between header and QR (smaller on mobile) */
-      --qr-top-gap: 8px;
+      --mobile-nav-h:124px;
+      --side-pad:12px;
+      --qr-top-gap:6px;
     }
 
-    html, body { height: 100%; }
-    body{
-      margin: 0;
-      background: #fff;
-      overflow-x: hidden;
-    }
+    html,body{height:100%;}
+    body{margin:0;background:#fff;overflow-x:hidden;}
 
-    /* ===== Desktop header/logo + full-width nav bar ===== */
-    header.site-header{
-      width: 100%;
-      background: #fff;
-    }
+    header.site-header{width:100%;background:#fff;}
+    .brand-wrap{width:100%;padding:8px 14px 0;}
+    .brand{display:inline-flex;align-items:center;text-decoration:none;color:inherit;}
 
-    .brand-wrap{
-      width: 100%;
-      padding: 10px 14px 0 14px;
-    }
-
-    .brand{
-      display: inline-flex;
-      align-items: center;
-      text-decoration: none;
-      color: inherit;
-    }
-
-    /* Full-width black nav bar (desktop) */
     nav.site-nav{
-      width: 100%;
-      background: var(--black);
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 0;
-      padding: 0;
-      margin: 0;
-      position: sticky;
-      top: 0;
-      z-index: 1000;
+      width:100%;
+      background:var(--black);
+      display:flex;
+      gap:0;
+      padding:0;
+      margin:0;
+      position:sticky;
+      top:0;
+      z-index:1000;
     }
 
-    /* Buttons: square corners */
-    a.nav-btn, summary.nav-btn{
-      appearance:none;
-      -webkit-appearance:none;
-      border: 0;
-      background: var(--black);
-      color: var(--white);
+    a.nav-btn,summary.nav-btn{
+      border:0;
+      background:var(--black);
+      color:#fff;
       text-decoration:none;
-      font: inherit;
-      font-weight: 700;
-      border-radius: 0;
-      margin: 0;
-      padding: 10px 12px;   /* desktop click area */
-      line-height: 1;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-      white-space: nowrap;
+      font-weight:700;
+      padding:10px 12px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:0;
+      cursor:pointer;
     }
 
-    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
-    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
-    a.nav-btn:focus, summary.nav-btn:focus{ outline: 2px solid #555; outline-offset: -2px; }
+    details.nav-dropdown{position:relative;}
+    details.nav-dropdown>summary{list-style:none;}
+    details.nav-dropdown>summary::-webkit-details-marker{display:none;}
 
-    details.nav-dropdown{ position: relative; }
-    details.nav-dropdown > summary{ list-style:none; }
-    details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
-
-    /* Dropdown on desktop */
     .dropdown-menu{
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 0;
-      padding: 0;
-      min-width: 220px;
-      z-index: 1200;
+      position:absolute;
+      top:100%;
+      left:0;
+      background:#fff;
+      border:1px solid #ddd;
+      min-width:220px;
+      padding:0;
     }
     .dropdown-menu a{
-      display: block;
-      padding: 12px 12px;
-      text-decoration: none;
-      color: #000;
-      font-weight: 700;
-      border-radius: 0;
-      margin: 0;
+      display:block;
+      padding:12px;
+      font-weight:700;
+      text-decoration:none;
+      color:#000;
     }
-    .dropdown-menu a:hover{ background: #f2f2f2; }
 
-    /* ===== Main: QR only (equal side padding) ===== */
     main.home-main{
-      width: 100%;
-      box-sizing: border-box;
-      padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
-
-      /* Put QR toward the top rather than perfectly centered */
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
+      padding:var(--qr-top-gap) var(--side-pad) 0;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
     }
 
     .qr-box{
-      width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      box-sizing: border-box;
-    }
-    .qr-box canvas, .qr-box img{
-      display: block;
-      margin: 0 auto;
-      max-width: 100%;
-      height: auto;
+      width:100%;
+      max-width:720px;
     }
 
-    /* Error area hidden unless needed */
-    #qrError{
-      display:none;
-      margin: 8px var(--side-pad) 0 var(--side-pad);
-      padding: 10px;
-      border: 1px solid #f3c0c0;
-      background: #fff3f3;
-      color: #600;
-      font-family: ui-monospace, monospace;
-      white-space: pre-wrap;
-      box-sizing: border-box;
-    }
-
-    /* ===== Mobile: fixed bottom 2x2 nav + QR always fully visible ===== */
-    @media (max-width: 720px){
-      :root{ --qr-top-gap: 2px; } /* move QR up a bit more on mobile */
-
-      /* Shrink logo so QR gets space (this is the biggest win) */
-      .brand-wrap{
-        padding: 4px var(--side-pad) 0 var(--side-pad);
-      }
+    @media (max-width:720px){
       #logo{
-        max-width: 72vw;
-        max-height: 90px;   /* smaller so QR fits */
-        width: auto;
-        height: auto;
-        display: block;
+        max-width:72vw;
+        max-height:90px;
+        display:block;
       }
 
-      /* Bottom nav sits above safe-area and stays fully visible */
       nav.site-nav{
-        position: fixed;
-        top: auto;
-        bottom: env(safe-area-inset-bottom, 0px);
-        left: 0;
-        right: 0;
-
-        height: var(--mobile-nav-h);
-
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 0;
-        margin: 0;
-        padding: 0;
-        background: var(--black);
+        position:fixed;
+        bottom:env(safe-area-inset-bottom,0px);
+        left:0;
+        right:0;
+        height:var(--mobile-nav-h);
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        grid-template-rows:1fr 1fr;
       }
 
-      a.nav-btn, summary.nav-btn{
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        border-radius: 0;
-        font-size: 18px;
+      a.nav-btn,summary.nav-btn{
+        width:100%;
+        height:100%;
+        padding:0;
+        font-size:18px;
       }
 
-      /* Dropdown opens upward and uses full width */
       .dropdown-menu{
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
-        top: auto;
-        border-radius: 0;
+        position:fixed;
+        left:0;
+        right:0;
+        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0px));
       }
 
-      /* Reserve space for fixed nav + safe area so content never hides */
       body{
-        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
+        padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0px));
       }
 
-      /* Ensure main uses remaining height and keeps QR up top */
       main.home-main{
-        min-height: calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)));
+        min-height:calc(100vh - var(--mobile-nav-h));
       }
     }
   </style>
 </head>
 
 <body>
-  <header class="site-header">
-    <div class="brand-wrap">
-      <a class="brand" href="index.html" aria-label="IRLid Home">
-        <img src="logo.png" alt="IRLid Logo" id="logo">
-      </a>
-    </div>
 
-    <!-- Desktop: full-width black bar under logo. Mobile: fixed bottom 2x2 -->
-    <nav class="site-nav" aria-label="Primary">
-      <a class="nav-btn" href="index.html">Home</a>
-      <a class="nav-btn" href="application.html">Scan</a>
+<header class="site-header">
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo">
+    </a>
+  </div>
 
-      <details class="nav-dropdown">
-        <summary class="nav-btn">About ▼</summary>
-        <div class="dropdown-menu" role="menu" aria-label="About menu">
-          <a href="about.html">About</a>
-          <a href="features.html">Features</a>
-          <a href="contact.html">Contact</a>
-        </div>
-      </details>
+  <nav class="site-nav" aria-label="Primary">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="application.html">Scan</a>
+    <details class="nav-dropdown">
+      <summary class="nav-btn">About ▼</summary>
+      <div class="dropdown-menu" role="menu" aria-label="About menu">
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </details>
+    <a class="nav-btn" href="receipt.html">Receipts</a>
+  </nav>
+</header>
 
-      <a class="nav-btn" href="receipt.html">Receipts</a>
-    </nav>
-  </header>
+<main class="home-main">
+  <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
+</main>
 
-  <div id="qrError"></div>
+<script src="js/sign.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="js/qr.js?v=deploy9"></script>
 
-  <main class="home-main">
-    <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
-  </main>
+<script>
+  function computeQrSize(){
+    const box=document.getElementById("myQr");
+    const boxW=box.clientWidth||window.innerWidth-24;
+    const headerH=document.querySelector("header").offsetHeight||0;
+    const navH=document.querySelector("nav").offsetHeight||0;
+    const viewportH=window.visualViewport?window.visualViewport.height:window.innerHeight;
+    const availH=viewportH-headerH-navH-16;
+    return Math.max(240,Math.floor(Math.min(boxW,availH)));
+  }
 
-  <script src="js/sign.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout6"></script>
+  function pubToXY(pubJwk){
+    // Compact representation for QR density reduction
+    return { x: pubJwk.x, y: pubJwk.y };
+  }
 
-  <script>
-    const qrErrorEl = document.getElementById("qrError");
-    function showErr(e){
-      qrErrorEl.style.display = "block";
-      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
-      console.error(e);
-    }
-    window.addEventListener("error", (e) => showErr(e.error || e.message));
-    window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
+  async function renderHelloQr(){
+    const pub = await getPublicJwk();
 
-    function computeQrSize(){
-      const box = document.getElementById("myQr");
-
-      // Equal side padding already applied by CSS; compute actual usable width.
-      const boxW = box.clientWidth || Math.min(window.innerWidth - 24, 720);
-
-      const header = document.querySelector("header.site-header");
-      const headerH = header ? header.getBoundingClientRect().height : 0;
-
-      const isMobile = window.matchMedia("(max-width: 720px)").matches;
-
-      // Measure nav height (mobile fixed bottom; desktop sticky top)
-      const nav = document.querySelector("nav.site-nav");
-      const navH = nav ? nav.getBoundingClientRect().height : 0;
-
-      // Use VisualViewport where available (handles mobile URL bar / keyboard changes)
-      const vv = window.visualViewport;
-      const viewportH = vv ? vv.height : window.innerHeight;
-
-      // Safe area bottom (best-effort). CSS already reserves space; this is extra safety.
-      const safeBottomCss = getComputedStyle(document.documentElement).getPropertyValue("env(safe-area-inset-bottom)");
-      // We can't reliably parse env() from computed style; instead, trust navH measurement.
-
-      // Keep a tiny padding so QR never touches edges
-      const pad = isMobile ? 16 : 40;
-
-      // Available height:
-      // - Mobile: viewport height minus header minus nav minus padding.
-      // - Desktop: window height minus header+nav minus padding (still fine).
-      const availH = Math.max(220, viewportH - headerH - (isMobile ? navH : 0) - pad);
-
-      // Final size constrained by both width and height
-      const size = Math.floor(Math.min(boxW, availH));
-
-      return Math.max(220, Math.min(size, 900));
-    }
-
-    async function renderHelloQr(){
-      try {
-        const pub = await getPublicJwk();
-        const hello = {
-          v: 1,
-          type: "hello",
-          pub,
-          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-          ts: Math.floor(Date.now() / 1000)
-        };
-
-        const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-        const baseUrl = location.origin;
-        const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
-
-        const size = computeQrSize();
-        makeQR("myQr", url, size);
-      } catch (e) {
-        showErr(e);
-      }
-    }
-
-    // Yes — it auto-adjusts on most mobile screens:
-    // - uses visualViewport height when available (handles the shrinking URL bar)
-    // - recalculates on resize/orientation changes
-    renderHelloQr();
-
-    const rerender = () => {
-      clearTimeout(window.__irlid_qr_t);
-      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+    // Compact HELLO (v2)
+    const hello = {
+      v: 2,
+      t: "h",
+      p: pubToXY(pub),
+      n: crypto.getRandomValues(new Uint32Array(1))[0],
+      ts: Math.floor(Date.now() / 1000)
     };
-    window.addEventListener("resize", rerender);
-    window.addEventListener("orientationchange", rerender);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", rerender);
-      window.visualViewport.addEventListener("scroll", rerender);
-    }
-  </script>
+
+    const enc = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+
+    // Absolute URL so phone Camera app can open it
+    const base = `${location.origin}${location.pathname.replace(/\/[^\/]*$/, "")}`;
+    const url = `${base}/application.html#HELLO=${enc}`;
+
+    makeQR("myQr", url, computeQrSize());
+  }
+
+  renderHelloQr();
+
+  const rerender = () => {
+    clearTimeout(window.__irlid_qr_t);
+    window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+  };
+  window.addEventListener("resize", rerender);
+  window.addEventListener("orientationchange", rerender);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", rerender);
+    window.visualViewport.addEventListener("scroll", rerender);
+  }
+</script>
+
 </body>
 </html>
