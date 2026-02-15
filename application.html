@@ -482,7 +482,26 @@
     // Scanner
     let scanner = null;
 
-    async function listCameras() {
+        function pickRearCameraId(devices) {
+      const saved = localStorage.getItem(CAM_PREF_KEY);
+      if (saved && devices.some(d => d.id === saved)) return saved;
+
+      // Prefer "back/rear/environment" labels (available after permission)
+      let best = null;
+      for (const d of devices) {
+        const s = (d.label || "").toLowerCase();
+        let score = 0;
+        if (s.includes("back")) score += 50;
+        if (s.includes("rear")) score += 50;
+        if (s.includes("environment")) score += 50;
+        if (s.includes("front")) score -= 30;
+        if (s.includes("user")) score -= 30;
+        if (!best || score > best.score) best = { id: d.id, score };
+      }
+      return best ? best.id : (devices[0]?.id || null);
+    }
+
+    async function listCameras(afterPermission = false) {
       try {
         const devices = await Html5Qrcode.getCameras();
         cameraSelect.innerHTML = "";
@@ -494,18 +513,33 @@
           cameraSelect.appendChild(opt);
         });
 
-        const bestId = pickBestCameraId(devices);
+        // ✅ After permission, labels are usually present — pick rear camera by label now
+        const bestId = pickRearCameraId(devices);
         if (bestId) cameraSelect.value = bestId;
 
-        // Save preference when user changes dropdown
         cameraSelect.onchange = () => {
           try { localStorage.setItem(CAM_PREF_KEY, cameraSelect.value); } catch {}
         };
 
+        // ✅ Optional: if we're refreshing AFTER permission, and a rear camera is now known,
+        // you could restart the scanner on the chosen camera if you want.
+        // (Not auto-restarting here to avoid interrupting an active scan.)
         return devices;
       } catch (e) {
         log("Camera list error:", String(e));
         return [];
+      }
+    }
+
+    async function stopScanner() {
+      try {
+        if (scanner) {
+          await scanner.stop();
+          await scanner.clear();
+          scanner = null;
+        }
+      } catch (e) {
+        log("Stop error:", String(e));
       }
     }
 
@@ -531,19 +565,26 @@
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
 
-      // Use the selected camera id (which we pre-select to rear/back if possible)
-      const cameraId = cameraSelect.value || { facingMode: "environment" };
+      // ✅ Force rear camera by default (works even before labels are available)
+      const useFacingMode = { facingMode: "environment" };
 
       const config = {
         fps: 12,
         qrbox: (vw, vh) => computeQrbox(vw, vh),
         disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
-        }
+        // Keep constraints; facingMode selection above is the key bit
+        videoConstraints: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
       };
+
+      try {
+        await scanner.start(useFacingMode, config, (decodedText) => onText(decodedText), () => {});
+        // ✅ After permission is granted, labels become available — refresh dropdown
+        await listCameras(true);
+      } catch (e) {
+        log("Start error:", String(e));
+        setStatus("Scanner failed to start.");
+      }
+    }
 
       try {
         await scanner.start(cameraId, config, (decodedText) => onText(decodedText), () => {});
@@ -893,3 +934,4 @@
   </script>
 </body>
 </html>
+
