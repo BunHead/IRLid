@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 17 -->
+<!-- Deploy 18 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -90,7 +90,7 @@
       box-sizing: border-box;
     }
 
-    /* Scanner box (kept, but optional) */
+    /* Scanner box (optional) */
     #scanner{
       width: min(92vw, 520px);
       height: min(92vw, 520px);
@@ -390,6 +390,8 @@
 
     const checksArea = document.getElementById("checksArea");
 
+    const CAM_PREF_KEY = "irlid_cam_pref_id_v1";
+
     function log(...args) {
       console.log(...args);
       debugEl.textContent += "\n" + args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
@@ -404,7 +406,6 @@
         await navigator.clipboard.writeText(t);
         return true;
       } catch {
-        // fallback
         const ta = document.createElement("textarea");
         ta.value = t;
         document.body.appendChild(ta);
@@ -445,6 +446,39 @@
       return sa.localeCompare(sb);
     }
 
+    // ===== Camera selection (prefer rear/back) =====
+    function scoreCameraLabel(label) {
+      const s = (label || "").toLowerCase();
+
+      // Prefer "back/rear/environment"
+      let score = 0;
+      if (s.includes("back")) score += 50;
+      if (s.includes("rear")) score += 50;
+      if (s.includes("environment")) score += 50;
+
+      // De-prioritize front/selfie/user cameras
+      if (s.includes("front")) score -= 30;
+      if (s.includes("user")) score -= 30;
+      if (s.includes("face")) score -= 20;
+
+      return score;
+    }
+
+    function pickBestCameraId(devices) {
+      const saved = localStorage.getItem(CAM_PREF_KEY);
+      if (saved && devices.some(d => d.id === saved)) return saved;
+
+      // If labels exist, pick the best-scoring one
+      let best = null;
+      for (const d of devices) {
+        const sc = scoreCameraLabel(d.label || "");
+        if (!best || sc > best.sc) best = { id: d.id, sc };
+      }
+      if (best) return best.id;
+
+      return devices[0]?.id || null;
+    }
+
     // Scanner
     let scanner = null;
 
@@ -452,12 +486,22 @@
       try {
         const devices = await Html5Qrcode.getCameras();
         cameraSelect.innerHTML = "";
+
         devices.forEach((d, idx) => {
           const opt = document.createElement("option");
           opt.value = d.id;
           opt.textContent = d.label || `Camera ${idx + 1}`;
           cameraSelect.appendChild(opt);
         });
+
+        const bestId = pickBestCameraId(devices);
+        if (bestId) cameraSelect.value = bestId;
+
+        // Save preference when user changes dropdown
+        cameraSelect.onchange = () => {
+          try { localStorage.setItem(CAM_PREF_KEY, cameraSelect.value); } catch {}
+        };
+
         return devices;
       } catch (e) {
         log("Camera list error:", String(e));
@@ -486,6 +530,8 @@
     async function startScanner(onText) {
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
+
+      // Use the selected camera id (which we pre-select to rear/back if possible)
       const cameraId = cameraSelect.value || { facingMode: "environment" };
 
       const config = {
@@ -609,7 +655,6 @@
       respTokenCode.textContent = token;
       respLinkCode.textContent = link;
 
-      // QR: for desktop we prefer token (shorter). For mobile, link is camera-app friendly.
       const isMobile = window.matchMedia("(max-width: 720px)").matches;
       const qrData = isMobile ? link : token;
       const qrSize = isMobile ? 360 : 760;
@@ -637,7 +682,6 @@
         const gps = await getGPS();
         const ts = Math.floor(Date.now() / 1000);
 
-        // compact meeting payload (v2)
         const payload = {
           v: 2,
           t: "m",
@@ -783,7 +827,6 @@
       if (extractParamFromText(t, "HELLO")) return handleHelloText(t);
       if (extractParamFromText(t, "RESP"))  return handleResponseText(t);
 
-      // If raw token: try HELLO then RESP
       if (parseHello(t)) return handleHelloText(t);
       if (parseResp(t))  return handleResponseText(t);
 
@@ -841,10 +884,10 @@
     };
 
     (async () => {
-      await listCameras();
+      await listCameras(); // will auto-select rear/back if present
       myResponse = loadMyResponse();
       if (!autoHandleFromHash()) {
-        setStatus("Ready. Recommended: use phone Camera app + copy/paste (no webcam needed).");
+        setStatus("Ready. Recommended: phone Camera app + copy/paste (no webcam needed).");
       }
     })();
   </script>
