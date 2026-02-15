@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 12 -->
+<!-- Deploy 18 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -57,8 +57,6 @@
       white-space:nowrap;
     }
     a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
-    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
-    a.nav-btn:focus, summary.nav-btn:focus{ outline:2px solid #555; outline-offset:-2px; }
 
     details.nav-dropdown{ position:relative; }
     details.nav-dropdown > summary{ list-style:none; }
@@ -106,7 +104,7 @@
 
       nav.site-nav{
         position:fixed;
-        top:auto;
+        top:auto; /* IMPORTANT */
         bottom: env(safe-area-inset-bottom, 0px);
         left:0; right:0;
         height: var(--mobile-nav-h);
@@ -117,6 +115,7 @@
         margin:0;
         padding:0;
         background:var(--black);
+        z-index:2000;
       }
 
       a.nav-btn, summary.nav-btn{
@@ -129,8 +128,8 @@
       .dropdown-menu{
         position:fixed;
         left:0; right:0;
-        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
         top:auto;
+        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
       }
 
       body{
