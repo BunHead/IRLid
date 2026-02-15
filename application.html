@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 21 (reliable rear-camera warmup + move camera selector ABOVE scanner so it stays visible) -->
+<!-- Deploy 12 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -14,12 +14,16 @@
       --mobile-nav-h: 124px;
       --side-pad: 12px;
       --top-gap: 10px;
-      --panel-border: #ddd;
     }
 
     html, body { height: 100%; }
-    body{ margin:0; background:#fff; overflow-x:hidden; }
+    body{
+      margin: 0;
+      background: #fff;
+      overflow-x: hidden;
+    }
 
+    /* ===== Header / Desktop nav ===== */
     header.site-header{ width:100%; background:#fff; }
     .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
     .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
@@ -57,6 +61,9 @@
       user-select:none;
       white-space:nowrap;
     }
+    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
+    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
+    a.nav-btn:focus, summary.nav-btn:focus{ outline:2px solid #555; outline-offset:-2px; }
 
     details.nav-dropdown{ position:relative; }
     details.nav-dropdown > summary{ list-style:none; }
@@ -82,7 +89,9 @@
       border-radius:0;
       margin:0;
     }
+    .dropdown-menu a:hover{ background:#f2f2f2; }
 
+    /* ===== Page layout ===== */
     main.page-main{
       max-width: 980px;
       margin: 0 auto;
@@ -90,11 +99,10 @@
       box-sizing: border-box;
     }
 
-    /* Scanner box */
     #scanner{
-      width: min(92vw, 520px);
-      height: min(92vw, 520px);
-      margin: 10px auto 8px;
+      width: min(92vw, 460px);
+      height: min(92vw, 460px);
+      margin: 14px auto 8px;
       border: 2px dashed #999;
       border-radius: 0;
       overflow: hidden;
@@ -103,23 +111,6 @@
       align-items:center;
       justify-content:center;
       box-sizing: border-box;
-      position:relative;
-    }
-    .scan-overlay{
-      pointer-events:none;
-      position:absolute;
-      inset: 10%;
-      opacity: 0.9;
-      background:
-        linear-gradient(#fff,#fff) left top/24px 3px no-repeat,
-        linear-gradient(#fff,#fff) left top/3px 24px no-repeat,
-        linear-gradient(#fff,#fff) right top/24px 3px no-repeat,
-        linear-gradient(#fff,#fff) right top/3px 24px no-repeat,
-        linear-gradient(#fff,#fff) left bottom/24px 3px no-repeat,
-        linear-gradient(#fff,#fff) left bottom/3px 24px no-repeat,
-        linear-gradient(#fff,#fff) right bottom/24px 3px no-repeat,
-        linear-gradient(#fff,#fff) right bottom/3px 24px no-repeat;
-      filter: drop-shadow(0 0 2px rgba(0,0,0,0.65));
     }
 
     .controls{
@@ -130,79 +121,12 @@
       margin-top: 10px;
       margin-bottom: 8px;
     }
-    .controls .btn{ min-width: 180px; }
+    .controls .btn{ min-width: 160px; }
 
     .small{
       margin: 8px auto 0;
       text-align:center;
       box-sizing:border-box;
-    }
-
-    .panel{
-      border:1px solid var(--panel-border);
-      padding:10px;
-      background:#fff;
-      border-radius:0;
-      box-sizing:border-box;
-      max-width: 860px;
-      margin: 10px auto 0;
-    }
-
-    .panel h3{
-      margin: 0 0 8px;
-      font-size: 16px;
-    }
-
-    textarea.big-input{
-      width:100%;
-      min-height: 92px;
-      resize: vertical;
-      box-sizing: border-box;
-      border: 1px solid #bbb;
-      border-radius: 0;
-      padding: 8px;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-    }
-
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-start;
-      margin-top: 10px;
-    }
-
-    .hint{
-      font-size: 13px;
-      line-height: 1.25;
-      color:#111;
-      margin-top: 8px;
-    }
-
-    .camera-panel{
-      max-width: 860px;
-      margin: 12px auto 0;
-      border: 1px solid var(--panel-border);
-      background:#fff;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-    .camera-panel label{ font-weight:800; display:block; margin-bottom:6px; }
-    .camera-row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:flex-start;
-    }
-    select{
-      max-width: 100%;
-      padding: 10px 10px;
-      border-radius:0;
-      border:1px solid #bbb;
-      font:inherit;
-      min-width: min(520px, 100%);
     }
 
     #responseArea{
@@ -211,57 +135,44 @@
       margin-top: 12px;
     }
 
-    #responseLinks{
-      max-width: 860px;
-      margin: 10px auto 0;
-      text-align:left;
-      border:1px solid var(--panel-border);
-      padding:10px;
-      box-sizing:border-box;
-      background:#fff;
-    }
-
-    #responseLinks code{
-      display:block;
+    #debug{
       white-space: pre-wrap;
-      word-break: break-all;
       font-family: ui-monospace, monospace;
       font-size: 12px;
-      border:1px solid #eee;
-      padding: 8px;
-      background:#fafafa;
-      margin-top: 6px;
-    }
-
-    #checksArea{
-      display:none;
-      margin: 10px auto 0;
-      max-width: 860px;
       border: 1px solid #ddd;
       padding: 10px;
       border-radius: 0;
-      box-sizing: border-box;
-      font-family: ui-monospace, monospace;
-      white-space: pre-wrap;
       background: #fff;
+      margin: 12px auto 0;
+      box-sizing: border-box;
     }
 
+    /* ===== Mobile bottom 2x2 nav ===== */
     @media (max-width: 720px){
       :root{ --top-gap: 6px; }
 
       .brand-wrap{ padding:4px var(--side-pad) 0 var(--side-pad); }
-      #logo{ max-width:72vw; max-height:90px; width:auto; height:auto; display:block; }
+      #logo{
+        max-width:72vw;
+        max-height:90px;
+        width:auto;
+        height:auto;
+        display:block;
+      }
 
       nav.site-nav{
         position:fixed;
         top:auto;
         bottom: env(safe-area-inset-bottom, 0px);
-        left:0; right:0;
+        left:0;
+        right:0;
         height: var(--mobile-nav-h);
         display:grid;
         grid-template-columns: 1fr 1fr;
         grid-template-rows: 1fr 1fr;
-        gap:0; margin:0; padding:0;
+        gap:0;
+        margin:0;
+        padding:0;
         background:var(--black);
       }
 
@@ -275,7 +186,8 @@
 
       .dropdown-menu{
         position:fixed;
-        left:0; right:0;
+        left:0;
+        right:0;
         bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
         top:auto;
         border-radius:0;
@@ -316,198 +228,65 @@
   <main class="page-main">
     <p id="status" class="small">Ready.</p>
 
-    <div class="panel">
-      <h3>No-webcam mode (recommended)</h3>
-      <textarea id="pasteBox" class="big-input" placeholder="Paste a HELLO/RESP token or a full URL (…#HELLO=… or …#RESP=…)"></textarea>
-      <div class="row">
-        <button class="btn" id="autoDetectBtn">Auto-Detect & Process</button>
-        <button class="btn secondary" id="clearPasteBtn">Clear</button>
-      </div>
-      <div class="hint">
-        If your webcam won’t scan: use your <b>phone Camera app</b> to scan the QR. It opens this page and processes automatically.
-        If you need to transfer between devices, copy/paste the URL or token into the box above and click <b>Auto-Detect & Process</b>.
-      </div>
+    <div class="controls">
+      <button class="btn" id="startBtn">Start Scanner</button>
+      <button class="btn secondary" id="stopBtn">Stop</button>
     </div>
 
-    <!-- Moved ABOVE scanner so it is always visible (and not under bottom nav) -->
-    <div class="camera-panel">
-      <label for="cameraSelect">Camera</label>
-      <div class="camera-row">
-        <select id="cameraSelect"></select>
-        <button class="btn secondary" id="refreshCamsBtn" type="button">Refresh Cameras</button>
-      </div>
-      <div class="hint">
-        Default is <b>rear camera</b>. If it still shows front, tap <b>Refresh Cameras</b> (after granting permission),
-        then pick a camera that says <b>Back/Rear</b>.
-      </div>
-    </div>
+    <div id="scanner"></div>
 
-    <div class="controls" style="margin-top:14px;">
-      <button class="btn" id="scanHelloBtn" type="button">Scan HELLO</button>
-      <button class="btn secondary" id="scanRespBtn" type="button">Scan RESPONSE</button>
-      <button class="btn secondary" id="stopBtn" type="button">Stop Camera</button>
-    </div>
-
-    <div id="scanner" aria-label="Scanner viewport">
-      <div class="scan-overlay" aria-hidden="true"></div>
+    <div class="small">
+      <label for="cameraSelect"><b>Camera:</b></label><br>
+      <select id="cameraSelect"></select>
     </div>
 
     <div id="responseArea">
       <h3>Your Response QR</h3>
-      <div class="qr-box" id="responseQr" aria-label="Response QR"></div>
-
-      <div id="responseLinks">
-        <div class="row" style="justify-content:flex-start;">
-          <button class="btn" id="copyRespLinkBtn" type="button">Copy Response Link</button>
-          <button class="btn secondary" id="copyRespTokenBtn" type="button">Copy Token</button>
-        </div>
-        <div class="hint">
-          <b>Response Link</b> is best for phones (Camera app opens it). <b>Token</b> is best for manual copy/paste.
-        </div>
-        <div style="margin-top:10px;">
-          <b>Response Link:</b>
-          <code id="respLinkCode">(not generated yet)</code>
-        </div>
-        <div style="margin-top:10px;">
-          <b>Response Token:</b>
-          <code id="respTokenCode">(not generated yet)</code>
-        </div>
+      <div class="qr-box" id="responseQr"></div>
+      <div class="controls">
+        <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
       </div>
     </div>
 
-    <div id="checksArea"></div>
+    <div id="debug">Debug log…</div>
   </main>
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="js/qr.js?v=deploy9"></script>
+  <script src="js/qr.js?v=layout6"></script>
 
   <script>
     const statusEl = document.getElementById("status");
+    const debugEl = document.getElementById("debug");
     const cameraSelect = document.getElementById("cameraSelect");
-
-    const refreshCamsBtn = document.getElementById("refreshCamsBtn");
-    const scanHelloBtn = document.getElementById("scanHelloBtn");
-    const scanRespBtn = document.getElementById("scanRespBtn");
-    const stopBtn = document.getElementById("stopBtn");
-
-    const pasteBox = document.getElementById("pasteBox");
-    const autoDetectBtn = document.getElementById("autoDetectBtn");
-    const clearPasteBtn = document.getElementById("clearPasteBtn");
-
     const responseArea = document.getElementById("responseArea");
-    const respLinkCode = document.getElementById("respLinkCode");
-    const respTokenCode = document.getElementById("respTokenCode");
-    const copyRespLinkBtn = document.getElementById("copyRespLinkBtn");
-    const copyRespTokenBtn = document.getElementById("copyRespTokenBtn");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const scanResponseBtn = document.getElementById("scanResponseBtn");
 
-    const checksArea = document.getElementById("checksArea");
-
-    const CAM_PREF_KEY = "irlid_cam_pref_id_v4";
-
+    function log(...args) {
+      console.log(...args);
+      debugEl.textContent += "\n" + args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ");
+    }
     function setStatus(s) { statusEl.textContent = s; }
-    function showChecks(text){ checksArea.style.display = "block"; checksArea.textContent = text; }
-    function clearChecks(){ checksArea.style.display = "none"; checksArea.textContent = ""; }
 
-    async function copyText(t){
-      try {
-        await navigator.clipboard.writeText(t);
-        return true;
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = t;
-        document.body.appendChild(ta);
-        ta.select();
-        try { document.execCommand("copy"); } catch {}
-        ta.remove();
-        return true;
-      }
-    }
-
-    // Fix for sha256/signBytes undefined in your sign.js
-    async function sha256(bytes) { return crypto.subtle.digest("SHA-256", bytes); }
-    async function signBytes(hashArrayBuffer) {
-      const priv = await getPrivateKey();
-      const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, priv, hashArrayBuffer);
-      return b64urlEncode(new Uint8Array(sig));
-    }
-
-    function distanceMeters(a, b) {
-      const R = 6371000;
-      const toRad = (x) => (x * Math.PI) / 180;
-      const dLat = toRad(b.lat - a.lat);
-      const dLon = toRad(b.lon - a.lon);
-      const lat1 = toRad(a.lat);
-      const lat2 = toRad(b.lat);
-      const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
-      return 2 * R * Math.asin(Math.sqrt(s));
-    }
-
-    function pubToXY(pubJwk) {
-      if (pubJwk && pubJwk.x && pubJwk.y) return { x: pubJwk.x, y: pubJwk.y };
-      throw new Error("Invalid public key format.");
-    }
-    function sortPubXY(a, b) {
-      const sa = `${a.x}.${a.y}`;
-      const sb = `${b.x}.${b.y}`;
-      return sa.localeCompare(sb);
-    }
-
-    // ===== Camera picking =====
-    function scoreCameraLabel(label) {
-      const s = (label || "").toLowerCase();
-      let score = 0;
-      if (s.includes("back")) score += 100;
-      if (s.includes("rear")) score += 100;
-      if (s.includes("environment")) score += 100;
-      if (s.includes("front")) score -= 80;
-      if (s.includes("user")) score -= 80;
-      if (s.includes("face")) score -= 50;
-      return score;
-    }
-
-    function pickBestCameraId(devices) {
-      const saved = localStorage.getItem(CAM_PREF_KEY);
-      if (saved && devices.some(d => d.id === saved)) return saved;
-
-      let best = null;
-      for (const d of devices) {
-        const sc = scoreCameraLabel(d.label || "");
-        if (!best || sc > best.sc) best = { id: d.id, sc };
-      }
-      return best ? best.id : (devices[0]?.id || null);
-    }
-
-    // ===== Scanner =====
     let scanner = null;
+    let currentHello = null;
 
     async function listCameras() {
       try {
         const devices = await Html5Qrcode.getCameras();
         cameraSelect.innerHTML = "";
-
         devices.forEach((d, idx) => {
           const opt = document.createElement("option");
           opt.value = d.id;
           opt.textContent = d.label || `Camera ${idx + 1}`;
           cameraSelect.appendChild(opt);
         });
-
-        const bestId = pickBestCameraId(devices);
-        if (bestId) cameraSelect.value = bestId;
-
-        cameraSelect.onchange = () => {
-          try { localStorage.setItem(CAM_PREF_KEY, cameraSelect.value); } catch {}
-        };
-
         return devices;
-      } catch {
-        cameraSelect.innerHTML = "";
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "No cameras available";
-        cameraSelect.appendChild(opt);
+      } catch (e) {
+        log("Camera list error:", String(e));
         return [];
       }
     }
@@ -519,84 +298,43 @@
           await scanner.clear();
           scanner = null;
         }
-      } catch {}
-    }
-
-    function computeQrbox(viewW, viewH) {
-      const s = Math.floor(Math.min(viewW, viewH) * 0.72);
-      const size = Math.max(220, Math.min(380, s));
-      return { width: size, height: size };
-    }
-
-    // 🔑 Key change: do a getUserMedia "warmup" requesting rear camera.
-    // This forces the browser to grant permission and often selects the rear camera stream.
-    // After that, device labels become available and we can pick the actual rear deviceId reliably.
-    async function warmupRearCameraPermission() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-
-      let stream = null;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false
-        });
-      } catch {
-        // ignore; html5-qrcode start will surface errors if needed
-      } finally {
-        if (stream) {
-          try { stream.getTracks().forEach(t => t.stop()); } catch {}
-        }
+      } catch (e) {
+        log("Stop error:", String(e));
       }
     }
 
     async function startScanner(onText) {
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
-
-      const config = {
-        fps: 12,
-        qrbox: (vw, vh) => computeQrbox(vw, vh),
-        disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
-        }
-      };
-
-      // 1) Warmup permission with rear preference
-      await warmupRearCameraPermission();
-
-      // 2) Refresh devices (labels usually appear after permission)
-      const devices = await listCameras();
-
-      // 3) Choose rear deviceId by label if possible; otherwise fall back
-      const chosenId = cameraSelect.value || pickBestCameraId(devices);
-
-      const tryStart = async (cameraSpec) => {
-        await scanner.start(cameraSpec, config, (decodedText) => onText(decodedText), () => {});
-      };
+      const cameraId = cameraSelect.value || { facingMode: "environment" };
+      const config = { fps: 10, qrbox: 320 };
 
       try {
-        // Prefer deviceId (most reliable)
-        if (chosenId) {
-          await tryStart(chosenId);
-          return;
-        }
-
-        // Fallback to environment constraints
-        try {
-          await tryStart({ facingMode: { exact: "environment" } });
-          return;
-        } catch {}
-        await tryStart({ facingMode: "environment" });
-
-      } catch {
-        setStatus("Camera failed to start. Use phone Camera app + paste mode.");
+        await scanner.start(
+          cameraId,
+          config,
+          (decodedText) => onText(decodedText),
+          () => {}
+        );
+      } catch (e) {
+        log("Start error:", String(e));
+        setStatus("Scanner failed to start.");
       }
     }
 
-    // ===== GPS =====
+    function tryParseHelloFromUrlHash() {
+      const hash = location.hash || "";
+      const match = hash.match(/HELLO=([A-Za-z0-9\-_]+)/);
+      if (!match) return null;
+      try {
+        const bytes = b64urlDecode(match[1]);
+        return JSON.parse(new TextDecoder().decode(bytes));
+      } catch (e) {
+        log("HELLO parse error:", String(e));
+        return null;
+      }
+    }
+
     async function getGPS() {
       return new Promise((resolve) => {
         if (!navigator.geolocation) return resolve(null);
@@ -608,298 +346,99 @@
       });
     }
 
-    // ===== Parsing helpers =====
-    function extractParamFromText(text, key) {
+    async function handleHello(text) {
       try {
-        const u = new URL(text);
-        const h = u.hash || "";
-        const m = h.match(new RegExp(`${key}=([A-Za-z0-9\\-_]+)`));
-        if (m) return m[1];
-      } catch {}
-      const m2 = String(text || "").match(new RegExp(`${key}=([A-Za-z0-9\\-_]+)`));
-      if (m2) return m2[1];
-      return null;
-    }
-    function looksLikeB64Token(s) {
-      return typeof s === "string" && /^[A-Za-z0-9\-_]+$/.test(s) && s.length > 20;
-    }
-    function decodeB64Json(b64url) {
-      const bytes = b64urlDecode(b64url);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    }
+        let hello = null;
 
-    // ===== Storage =====
-    const MY_RESPONSE_KEY = "irlid_my_response_v2";
-    let myResponse = null;
-    function saveMyResponse(respObj) {
-      try { localStorage.setItem(MY_RESPONSE_KEY, JSON.stringify(respObj)); } catch {}
-    }
-    function loadMyResponse() {
-      try {
-        const raw = localStorage.getItem(MY_RESPONSE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch { return null; }
-    }
+        try {
+          const u = new URL(text);
+          const m = (u.hash || "").match(/HELLO=([A-Za-z0-9\-_]+)/);
+          if (m) {
+            const bytes = b64urlDecode(m[1]);
+            hello = JSON.parse(new TextDecoder().decode(bytes));
+          }
+        } catch {}
 
-    function parseHello(anyText) {
-      const enc = extractParamFromText(anyText, "HELLO") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
-      if (!enc) return null;
+        if (!hello) {
+          try {
+            const bytes = b64urlDecode(text);
+            hello = JSON.parse(new TextDecoder().decode(bytes));
+          } catch {}
+        }
 
-      let obj = null;
-      try { obj = decodeB64Json(enc); } catch { return null; }
-
-      if (obj && obj.v === 2 && obj.t === "h" && obj.p && obj.p.x && obj.p.y) {
-        return { theirPubXY: obj.p, version: 2 };
-      }
-      if (obj && obj.type === "hello" && obj.pub && obj.pub.x && obj.pub.y) {
-        return { theirPubXY: pubToXY(obj.pub), version: 1 };
-      }
-      return null;
-    }
-
-    function parseResp(anyText) {
-      const enc = extractParamFromText(anyText, "RESP") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
-      if (!enc) return null;
-
-      let obj = null;
-      try { obj = decodeB64Json(enc); } catch { return null; }
-
-      if (obj && obj.v === 2 && obj.t === "r" && obj.p) return { resp: obj, version: 2 };
-      if (obj && obj.type === "response" && obj.payload) return { resp: obj, version: 1 };
-      return null;
-    }
-
-    function extractGpsFromPayload(payload) {
-      if (payload && payload.v === 2 && payload.g && typeof payload.g.la === "number" && typeof payload.g.lo === "number") {
-        return { lat: payload.g.la, lon: payload.g.lo, acc: payload.g.ac };
-      }
-      if (payload && payload.gps && typeof payload.gps.lat === "number" && typeof payload.gps.lon === "number") {
-        return { lat: payload.gps.lat, lon: payload.gps.lon, acc: payload.gps.acc };
-      }
-      return null;
-    }
-    function extractTsFromPayload(payload) {
-      if (!payload) return 0;
-      if (payload.v === 2 && typeof payload.ts === "number") return payload.ts;
-      if (typeof payload.ts === "number") return payload.ts;
-      return 0;
-    }
-
-    function setResponseOutputs(token, link){
-      responseArea.style.display = "block";
-      respTokenCode.textContent = token;
-      respLinkCode.textContent = link;
-
-      const isMobile = window.matchMedia("(max-width: 720px)").matches;
-      const qrData = isMobile ? link : token;
-      const qrSize = isMobile ? 360 : 760;
-      makeQR("responseQr", qrData, qrSize);
-    }
-
-    // ===== Core flows =====
-    async function handleHelloText(textOrUrl) {
-      try {
-        clearChecks();
-
-        const parsed = parseHello(textOrUrl);
-        if (!parsed) {
-          setStatus("Not a HELLO input.");
+        if (!hello || hello.type !== "hello") {
+          setStatus("Not a HELLO QR. Try again.");
           return;
         }
 
-        setStatus("HELLO received. Creating response…");
+        currentHello = hello;
+        setStatus("HELLO scanned. Creating response…");
 
-        const myPubFull = await getPublicJwk();
-        const myPubXY = pubToXY(myPubFull);
-        const theirPubXY = parsed.theirPubXY;
-
-        const ordered = [myPubXY, theirPubXY].sort(sortPubXY);
+        const myPub = await getPublicJwk();
+        const ordered = [myPub, hello.pub].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
 
         const gps = await getGPS();
         const ts = Math.floor(Date.now() / 1000);
 
-        const payload = {
-          v: 2,
-          t: "m",
-          ps: ordered,
-          g: gps ? { la: gps.lat, lo: gps.lon, ac: gps.acc } : null,
-          ts
-        };
+        const payload = { v: 1, type: "meeting", pubs: ordered, gps, ts };
 
         const payloadBytes = new TextEncoder().encode(JSON.stringify(payload));
         const hash = await sha256(payloadBytes);
         const sig = await signBytes(hash);
 
         const response = {
-          v: 2,
-          t: "r",
-          p: payload,
-          h: b64urlEncode(new Uint8Array(hash)),
-          s: sig,
-          k: myPubXY
+          v: 1,
+          type: "response",
+          payload,
+          hash: b64urlEncode(new Uint8Array(hash)),
+          sig,
+          pub: myPub
         };
 
-        myResponse = response;
-        saveMyResponse(response);
+        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+        makeQR("responseQr", encoded, 360);
 
-        const token = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
-        const link = `${location.origin}${location.pathname}#RESP=${token}`;
-
-        setResponseOutputs(token, link);
-        setStatus("Response created. Show it to the other person.");
-
-      } catch {
+        responseArea.style.display = "block";
+        setStatus("Show your Response QR to the other person.");
+        log("Response created:", response);
+      } catch (e) {
+        log("handleHello error:", String(e));
         setStatus("Error creating response.");
       } finally {
         await stopScanner();
       }
     }
 
-    async function handleResponseObj(responseObj) {
-      if (!myResponse) myResponse = loadMyResponse();
-
-      if (!myResponse) {
-        showChecks(
-          "Verification unavailable:\n" +
-          "- Your device has not created a Response yet.\n\n" +
-          "Flow:\n" +
-          "1) Process a HELLO\n" +
-          "2) Then process their Response"
-        );
-        setStatus("Create your Response first.");
-        return;
-      }
-
-      const myPayload = (myResponse.v === 2) ? myResponse.p : myResponse.payload;
-      const theirPayload = (responseObj.v === 2) ? responseObj.p : responseObj.payload;
-
-      const myTs = extractTsFromPayload(myPayload);
-      const theirTs = extractTsFromPayload(theirPayload);
-
-      const timeDiff = Math.abs(myTs - theirTs);
-      const timeOk = timeDiff <= 60;
-
-      const myGps = extractGpsFromPayload(myPayload);
-      const theirGps = extractGpsFromPayload(theirPayload);
-
-      let dist = null;
-      let locOk = false;
-      if (myGps && theirGps) {
-        dist = distanceMeters({ lat: myGps.lat, lon: myGps.lon }, { lat: theirGps.lat, lon: theirGps.lon });
-        locOk = dist <= 2;
-      }
-
-      const lines = [];
-      lines.push("Verification:");
-      lines.push(`- Time difference: ${timeDiff}s (must be ≤ 60s) => ${timeOk ? "PASS" : "FAIL"}`);
-      if (dist === null) {
-        lines.push("- Location distance: unavailable (missing GPS) => FAIL");
-      } else {
-        lines.push(`- Location distance: ${dist.toFixed(2)}m (must be ≤ 2.00m) => ${locOk ? "PASS" : "FAIL"}`);
-      }
-      lines.push("");
-      lines.push(`Reported accuracy (my / their): ${myGps && myGps.acc ? myGps.acc : "?"}m / ${theirGps && theirGps.acc ? theirGps.acc : "?"}m`);
-
-      if (!timeOk || !locOk) {
-        showChecks(lines.join("\n"));
-        setStatus("Verification failed. Receipt NOT saved.");
-        return;
-      }
-
-      localStorage.setItem("irlid_last_receipt", JSON.stringify(responseObj));
-      showChecks(lines.join("\n"));
-      setStatus("Verified ✅ Receipt saved. Open Receipts to view.");
-    }
-
-    async function handleResponseText(textOrUrl) {
+    async function handleResponse(text) {
       try {
-        clearChecks();
+        setStatus("Response scanned. Saving receipt…");
 
-        const parsed = parseResp(textOrUrl);
-        if (!parsed) {
-          setStatus("Not a Response input.");
+        let response = null;
+        try {
+          const bytes = b64urlDecode(text);
+          response = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {}
+
+        if (!response || response.type !== "response") {
+          setStatus("Not a response QR. Try again.");
           return;
         }
 
-        setStatus("Response received. Verifying…");
-        await handleResponseObj(parsed.resp);
-
-      } catch {
+        localStorage.setItem("irlid_last_receipt", JSON.stringify(response));
+        setStatus("Saved. Open Receipts to view.");
+        log("Saved receipt:", response);
+      } catch (e) {
+        log("handleResponse error:", String(e));
         setStatus("Error reading response.");
       } finally {
         await stopScanner();
       }
     }
 
-    function autoHandleFromHash() {
-      const hash = location.hash || "";
-      const hasHello = /HELLO=([A-Za-z0-9\-_]+)/.test(hash);
-      const hasResp  = /RESP=([A-Za-z0-9\-_]+)/.test(hash);
-
-      if (hasHello) {
-        setStatus("HELLO opened from Camera. Creating response…");
-        handleHelloText(location.href);
-        return true;
-      }
-      if (hasResp) {
-        setStatus("Response opened from Camera. Verifying…");
-        handleResponseText(location.href);
-        return true;
-      }
-      return false;
-    }
-    window.addEventListener("hashchange", () => { autoHandleFromHash(); });
-
-    // ===== UI wiring =====
-    refreshCamsBtn.onclick = async () => {
-      setStatus("Refreshing cameras…");
-      await warmupRearCameraPermission();
-      await listCameras();
-      setStatus("Cameras refreshed.");
-    };
-
-    autoDetectBtn.onclick = async () => {
-      const t = (pasteBox.value || "").trim();
-      if (!t) { setStatus("Paste something first."); return; }
-
-      if (extractParamFromText(t, "HELLO")) return handleHelloText(t);
-      if (extractParamFromText(t, "RESP"))  return handleResponseText(t);
-
-      if (parseHello(t)) return handleHelloText(t);
-      if (parseResp(t))  return handleResponseText(t);
-
-      setStatus("Could not auto-detect. Paste a HELLO/RESP URL or token.");
-    };
-
-    clearPasteBtn.onclick = () => {
-      pasteBox.value = "";
-      setStatus("Cleared.");
-    };
-
-    copyRespLinkBtn.onclick = async () => {
-      const link = respLinkCode.textContent;
-      if (!link || link.includes("not generated")) return;
-      await copyText(link);
-      setStatus("Response link copied.");
-    };
-
-    copyRespTokenBtn.onclick = async () => {
-      const token = respTokenCode.textContent;
-      if (!token || token.includes("not generated")) return;
-      await copyText(token);
-      setStatus("Token copied.");
-    };
-
-    scanHelloBtn.onclick = async () => {
-      setStatus("Starting rear camera… (Scan HELLO)");
-      await startScanner(handleHelloText);
+    startBtn.onclick = async () => {
+      setStatus("Starting scanner…");
+      await startScanner(handleHello);
       setStatus("Scan the other person's HELLO QR.");
-    };
-
-    scanRespBtn.onclick = async () => {
-      setStatus("Starting rear camera… (Scan RESPONSE)");
-      await startScanner(handleResponseText);
-      setStatus("Scan the other person's RESPONSE QR.");
     };
 
     stopBtn.onclick = async () => {
@@ -907,11 +446,20 @@
       setStatus("Stopped.");
     };
 
+    scanResponseBtn.onclick = async () => {
+      setStatus("Starting scanner for their Response…");
+      await startScanner(handleResponse);
+      setStatus("Scan their Response QR.");
+    };
+
     (async () => {
       await listCameras();
-      myResponse = loadMyResponse();
-      if (!autoHandleFromHash()) {
-        setStatus("Ready. Recommended: phone Camera app + paste mode (no webcam needed).");
+      const helloFromHash = tryParseHelloFromUrlHash();
+      if (helloFromHash) {
+        currentHello = helloFromHash;
+        setStatus("HELLO detected in URL. Tap Start Scanner to scan their HELLO.");
+      } else {
+        setStatus("Ready. Tap Start Scanner to scan a HELLO QR.");
       }
     })();
   </script>
