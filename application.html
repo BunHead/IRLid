@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 15 -->
+<!-- Deploy 16 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -143,7 +143,45 @@
       margin-top: 12px;
     }
 
+    .qr-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    @media (max-width: 720px){
+      .qr-grid{ grid-template-columns: 1fr; }
+    }
+
+    .qr-card{
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 0;
+      background:#fff;
+      box-sizing:border-box;
+    }
+    .qr-card h4{
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 800;
+      text-align:center;
+    }
+
     #checksArea{
+      display:none;
+      margin: 10px auto 0;
+      max-width: 560px;
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 0;
+      box-sizing: border-box;
+      font-family: ui-monospace, monospace;
+      white-space: pre-wrap;
+      background: #fff;
+    }
+
+    #collector{
       display:none;
       margin: 10px auto 0;
       max-width: 560px;
@@ -240,6 +278,7 @@
     <div class="controls">
       <button class="btn" id="startBtn">Start Scanner</button>
       <button class="btn secondary" id="stopBtn">Stop</button>
+      <button class="btn secondary" id="resetPartsBtn">Reset Parts</button>
     </div>
 
     <div id="scanner" aria-label="Scanner viewport">
@@ -251,14 +290,16 @@
       <select id="cameraSelect"></select>
     </div>
 
+    <div id="collector"></div>
+
     <div id="responseArea">
       <h3>Your Response QR</h3>
-      <div class="qr-box" id="responseQr"></div>
+      <div id="responseQrWrap"></div>
       <div class="controls">
         <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
       </div>
-      <p class="small" style="max-width:560px;margin-left:auto;margin-right:auto;">
-        For weak webcams: this Response QR is now <b>much simpler</b> (compact keys + ECC L).
+      <p class="small" style="max-width:680px;margin-left:auto;margin-right:auto;">
+        <b>Webcam mode:</b> your Response is split into multiple QR parts (much easier to scan). Scan parts in any order.
       </p>
     </div>
 
@@ -281,9 +322,13 @@
     const cameraSelect = document.getElementById("cameraSelect");
     const responseArea = document.getElementById("responseArea");
     const checksArea = document.getElementById("checksArea");
+    const collectorEl = document.getElementById("collector");
+    const responseQrWrap = document.getElementById("responseQrWrap");
+
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const scanResponseBtn = document.getElementById("scanResponseBtn");
+    const resetPartsBtn = document.getElementById("resetPartsBtn");
 
     function log(...args) {
       console.log(...args);
@@ -294,7 +339,10 @@
     function showChecks(text){ checksArea.style.display = "block"; checksArea.textContent = text; }
     function clearChecks(){ checksArea.style.display = "none"; checksArea.textContent = ""; }
 
-    // Compatibility wrappers (fixes sha256/signBytes undefined)
+    function showCollector(text){ collectorEl.style.display = "block"; collectorEl.textContent = text; }
+    function hideCollector(){ collectorEl.style.display = "none"; collectorEl.textContent = ""; }
+
+    // sha256/signBytes wrappers (compat)
     async function sha256(bytes) { return crypto.subtle.digest("SHA-256", bytes); }
     async function signBytes(hashArrayBuffer) {
       const priv = await getPrivateKey();
@@ -313,21 +361,15 @@
       return 2 * R * Math.asin(Math.sqrt(s));
     }
 
-    // ===== Compact pubkey handling =====
+    // ===== Compact key handling =====
     function pubToXY(pubJwk) {
-      // Accept either full jwk or already compact
       if (pubJwk && pubJwk.x && pubJwk.y) return { x: pubJwk.x, y: pubJwk.y };
       throw new Error("Invalid public key format.");
     }
-    function xyToPubJwk(xy) {
-      return {
-        kty: "EC",
-        crv: "P-256",
-        x: xy.x,
-        y: xy.y,
-        ext: true,
-        key_ops: ["verify"]
-      };
+    function sortPubXY(a, b) {
+      const sa = `${a.x}.${a.y}`;
+      const sb = `${b.x}.${b.y}`;
+      return sa.localeCompare(sb);
     }
 
     // ===== Scanner =====
@@ -404,7 +446,7 @@
       });
     }
 
-    // ===== Parse helpers: support legacy v1 + compact v2 =====
+    // ===== Parsing helpers =====
     function extractParamFromText(text, key) {
       try {
         const u = new URL(text);
@@ -426,8 +468,70 @@
       return typeof s === "string" && /^[A-Za-z0-9\-_]+$/.test(s) && s.length > 20;
     }
 
-    const MY_RESPONSE_KEY = "irlid_my_response_v2";
+    // ===== Chunk collector for webcam mode =====
+    // Format: IRLID2|i/n|<chunk>
+    const PARTS_KEY = "irlid_parts_buffer_v1";
+    let partsState = loadPartsState();
 
+    function loadPartsState(){
+      try {
+        const raw = localStorage.getItem(PARTS_KEY);
+        if (!raw) return { n: 0, got: {}, updated: 0 };
+        const o = JSON.parse(raw);
+        if (!o || typeof o !== "object") throw 0;
+        if (!o.got) o.got = {};
+        return o;
+      } catch {
+        return { n: 0, got: {}, updated: 0 };
+      }
+    }
+    function savePartsState(){
+      try { localStorage.setItem(PARTS_KEY, JSON.stringify(partsState)); } catch {}
+    }
+    function resetParts(){
+      partsState = { n: 0, got: {}, updated: 0 };
+      savePartsState();
+      hideCollector();
+    }
+    function parsePart(text){
+      const s = String(text || "");
+      const m = s.match(/^IRLID2\|(\d+)\/(\d+)\|([A-Za-z0-9\-_]+)$/);
+      if (!m) return null;
+      const i = parseInt(m[1], 10);
+      const n = parseInt(m[2], 10);
+      const chunk = m[3];
+      if (!Number.isFinite(i) || !Number.isFinite(n) || i < 1 || n < 1 || i > n) return null;
+      return { i, n, chunk };
+    }
+    function addPart(part){
+      if (partsState.n && part.n !== partsState.n) {
+        // different message; reset
+        resetParts();
+      }
+      partsState.n = part.n;
+      partsState.got[String(part.i)] = part.chunk;
+      partsState.updated = Date.now();
+      savePartsState();
+
+      const gotCount = Object.keys(partsState.got).length;
+      showCollector(`Collected parts: ${gotCount}/${partsState.n}\nScan remaining parts (any order).`);
+
+      if (gotCount === partsState.n) {
+        const chunks = [];
+        for (let i=1;i<=partsState.n;i++){
+          const c = partsState.got[String(i)];
+          if (!c) return null;
+          chunks.push(c);
+        }
+        const token = chunks.join("");
+        return token;
+      }
+      return null;
+    }
+
+    // ===== Store my response for verification =====
+    const MY_RESPONSE_KEY = "irlid_my_response_v2";
+    let myResponse = loadMyResponse();
     function saveMyResponse(respObj) {
       try { localStorage.setItem(MY_RESPONSE_KEY, JSON.stringify(respObj)); } catch {}
     }
@@ -438,9 +542,7 @@
       } catch { return null; }
     }
 
-    let myResponse = loadMyResponse();
-
-    // Normalize hello into {theirPubXY}
+    // ===== Protocol parsing =====
     function parseHello(anyText) {
       const enc = extractParamFromText(anyText, "HELLO") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
       if (!enc) return null;
@@ -448,48 +550,112 @@
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 compact: {v:2,t:"h",p:{x,y},...}
+      // v2 compact hello: {v:2,t:"h",p:{x,y},...}
       if (obj && obj.v === 2 && obj.t === "h" && obj.p && obj.p.x && obj.p.y) {
-        return { enc, theirPubXY: obj.p, raw: obj, version: 2 };
+        return { theirPubXY: obj.p, raw: obj, version: 2 };
       }
 
-      // legacy v1: {type:"hello", pub:<full jwk>, ...}
+      // legacy v1 hello: {type:"hello", pub:<jwk>, ...}
       if (obj && obj.type === "hello" && obj.pub && obj.pub.x && obj.pub.y) {
-        return { enc, theirPubXY: pubToXY(obj.pub), raw: obj, version: 1 };
+        return { theirPubXY: pubToXY(obj.pub), raw: obj, version: 1 };
       }
 
       return null;
     }
 
     function parseResp(anyText) {
+      // chunked?
+      const part = parsePart(anyText);
+      if (part) return { kind: "part", part };
+
+      // URL or token
       const enc = extractParamFromText(anyText, "RESP") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
       if (!enc) return null;
 
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 compact: {v:2,t:"r",p:payload,...}
-      if (obj && obj.v === 2 && obj.t === "r" && obj.p) {
-        return { enc, resp: obj, version: 2 };
-      }
+      // v2 response: {v:2,t:"r",p:payload,...}
+      if (obj && obj.v === 2 && obj.t === "r" && obj.p) return { kind: "resp", resp: obj, version: 2 };
 
-      // legacy v1: {type:"response", payload:..., ...}
-      if (obj && obj.type === "response" && obj.payload) {
-        return { enc, resp: obj, version: 1 };
-      }
+      // v1 response: {type:"response", payload:..., ...}
+      if (obj && obj.type === "response" && obj.payload) return { kind: "resp", resp: obj, version: 1 };
 
       return null;
     }
 
-    function sortPubXY(a, b) {
-      const sa = `${a.x}.${a.y}`;
-      const sb = `${b.x}.${b.y}`;
-      return sa.localeCompare(sb);
+    function extractGpsFromPayload(payload) {
+      if (payload && payload.v === 2 && payload.g && typeof payload.g.la === "number" && typeof payload.g.lo === "number") {
+        return { lat: payload.g.la, lon: payload.g.lo, acc: payload.g.ac };
+      }
+      if (payload && payload.gps && typeof payload.gps.lat === "number" && typeof payload.gps.lon === "number") {
+        return { lat: payload.gps.lat, lon: payload.gps.lon, acc: payload.gps.acc };
+      }
+      return null;
+    }
+    function extractTsFromPayload(payload) {
+      if (!payload) return 0;
+      if (payload.v === 2 && typeof payload.ts === "number") return payload.ts;
+      if (typeof payload.ts === "number") return payload.ts;
+      return 0;
     }
 
+    // ===== Render chunked response QRs (webcam-friendly) =====
+    function chunkString(s, maxLen){
+      const out = [];
+      for (let i=0;i<s.length;i+=maxLen) out.push(s.slice(i, i+maxLen));
+      return out;
+    }
+
+    function renderResponseQrsForDesktop(token){
+      responseQrWrap.innerHTML = "";
+
+      // Chunk size chosen to keep each QR very light for bad webcams.
+      // Smaller chunk = easier scan, more parts.
+      const chunks = chunkString(token, 280);
+      const n = chunks.length;
+
+      const grid = document.createElement("div");
+      grid.className = "qr-grid";
+
+      chunks.forEach((chunk, idx) => {
+        const i = idx + 1;
+        const payload = `IRLID2|${i}/${n}|${chunk}`;
+
+        const card = document.createElement("div");
+        card.className = "qr-card";
+
+        const h = document.createElement("h4");
+        h.textContent = `Response Part ${i} / ${n}`;
+        card.appendChild(h);
+
+        const box = document.createElement("div");
+        const id = `respPart_${i}`;
+        box.id = id;
+        card.appendChild(box);
+
+        grid.appendChild(card);
+
+        // Big per-part QR makes modules huge
+        makeQR(id, payload, 520);
+      });
+
+      responseQrWrap.appendChild(grid);
+    }
+
+    function renderResponseQrForMobile(respUrl){
+      responseQrWrap.innerHTML = "";
+      const box = document.createElement("div");
+      box.id = "respMobile";
+      responseQrWrap.appendChild(box);
+      makeQR("respMobile", respUrl, 360);
+    }
+
+    // ===== Core flows =====
     async function handleHelloText(textOrUrl) {
       try {
         clearChecks();
+        hideCollector();
 
         const parsed = parseHello(textOrUrl);
         if (!parsed) {
@@ -508,8 +674,7 @@
         const gps = await getGPS();
         const ts = Math.floor(Date.now() / 1000);
 
-        // Compact meeting payload (v2)
-        // keys: v,t,ps,g,ts
+        // v2 compact payload
         const payload = {
           v: 2,
           t: "m",
@@ -522,7 +687,6 @@
         const hash = await sha256(payloadBytes);
         const sig = await signBytes(hash);
 
-        // Compact response object (v2)
         const response = {
           v: 2,
           t: "r",
@@ -537,20 +701,20 @@
 
         const token = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
 
-        // For webcams: shorter QR = easier scan.
-        // Desktop defaults to RAW token (no URL).
         const isMobile = window.matchMedia("(max-width: 720px)").matches;
-        const dataForQr = isMobile
-          ? `${location.origin}${location.pathname}#RESP=${token}`   // camera-app friendly
-          : token;                                                  // webcam friendly
 
-        // Make it big on desktop
-        const qrSize = isMobile ? 360 : 760;
-        makeQR("responseQr", dataForQr, qrSize);
+        if (isMobile) {
+          // Camera-app friendly URL on mobile
+          const respUrl = `${location.origin}${location.pathname}#RESP=${token}`;
+          renderResponseQrForMobile(respUrl);
+        } else {
+          // Webcam-friendly: split into multiple easy QRs
+          renderResponseQrsForDesktop(token);
+        }
 
         responseArea.style.display = "block";
         setStatus("Response created. Show it to the other person.");
-        log("Response created (compact v2):", response);
+        log("Response created (v2):", response);
 
       } catch (e) {
         log("handleHello error:", String(e));
@@ -560,92 +724,101 @@
       }
     }
 
-    function extractGpsFromPayload(payload) {
-      // v2 payload uses g:{la,lo,ac}
-      if (payload && payload.v === 2 && payload.g && typeof payload.g.la === "number" && typeof payload.g.lo === "number") {
-        return { lat: payload.g.la, lon: payload.g.lo, acc: payload.g.ac };
-      }
-      // v1 payload uses gps:{lat,lon,acc}
-      if (payload && payload.gps && typeof payload.gps.lat === "number" && typeof payload.gps.lon === "number") {
-        return { lat: payload.gps.lat, lon: payload.gps.lon, acc: payload.gps.acc };
-      }
-      return null;
-    }
+    async function handleResponseObj(responseObj) {
+      if (!myResponse) myResponse = loadMyResponse();
 
-    function extractTsFromPayload(payload) {
-      if (!payload) return 0;
-      if (payload.v === 2 && typeof payload.ts === "number") return payload.ts;
-      if (typeof payload.ts === "number") return payload.ts;
-      return 0;
+      if (!myResponse) {
+        showChecks(
+          "Verification unavailable:\n" +
+          "- Your device has not created a Response yet.\n\n" +
+          "Flow:\n" +
+          "1) Scan a HELLO\n" +
+          "2) Then scan their Response (parts ok)"
+        );
+        setStatus("Create your Response first.");
+        return;
+      }
+
+      const myPayload = (myResponse.v === 2) ? myResponse.p : myResponse.payload;
+      const theirPayload = (responseObj.v === 2) ? responseObj.p : responseObj.payload;
+
+      const myTs = extractTsFromPayload(myPayload);
+      const theirTs = extractTsFromPayload(theirPayload);
+
+      const timeDiff = Math.abs(myTs - theirTs);
+      const timeOk = timeDiff <= 60;
+
+      const myGps = extractGpsFromPayload(myPayload);
+      const theirGps = extractGpsFromPayload(theirPayload);
+
+      let dist = null;
+      let locOk = false;
+      if (myGps && theirGps) {
+        dist = distanceMeters({ lat: myGps.lat, lon: myGps.lon }, { lat: theirGps.lat, lon: theirGps.lon });
+        locOk = dist <= 2;
+      }
+
+      const lines = [];
+      lines.push("Verification:");
+      lines.push(`- Time difference: ${timeDiff}s (must be ≤ 60s) => ${timeOk ? "PASS" : "FAIL"}`);
+      if (dist === null) {
+        lines.push("- Location distance: unavailable (missing GPS) => FAIL");
+      } else {
+        lines.push(`- Location distance: ${dist.toFixed(2)}m (must be ≤ 2.00m) => ${locOk ? "PASS" : "FAIL"}`);
+      }
+      lines.push("");
+      lines.push(`Reported accuracy (my / their): ${myGps && myGps.acc ? myGps.acc : "?"}m / ${theirGps && theirGps.acc ? theirGps.acc : "?"}m`);
+
+      if (!timeOk || !locOk) {
+        showChecks(lines.join("\n"));
+        setStatus("Verification failed. Receipt NOT saved.");
+        log("Verification failed:", { timeDiff, dist, myPayload, theirPayload });
+        return;
+      }
+
+      localStorage.setItem("irlid_last_receipt", JSON.stringify(responseObj));
+      showChecks(lines.join("\n"));
+      setStatus("Verified ✅ Receipt saved. Open Receipts to view.");
+      log("Saved receipt:", responseObj);
     }
 
     async function handleResponseText(textOrUrl) {
       try {
         clearChecks();
-        setStatus("Response received. Verifying…");
 
+        // parts?
         const parsed = parseResp(textOrUrl);
         if (!parsed) {
           setStatus("Not a Response QR. Try again.");
           return;
         }
-        const responseObj = parsed.resp;
 
-        if (!myResponse) myResponse = loadMyResponse();
-        if (!myResponse) {
-          showChecks(
-            "Verification unavailable:\n" +
-            "- Your device has not created a Response yet.\n\n" +
-            "Flow:\n" +
-            "1) Scan a HELLO (camera app URL or Start Scanner)\n" +
-            "2) Then scan their Response"
-          );
-          setStatus("Create your Response first.");
+        if (parsed.kind === "part") {
+          setStatus("Part scanned. Collecting…");
+          const token = addPart(parsed.part);
+          if (!token) return;
+
+          // got full token
+          setStatus("All parts collected. Decoding…");
+          let obj = null;
+          try { obj = decodeB64Json(token); } catch {
+            showCollector("Collected all parts, but decoding failed.");
+            setStatus("Decode failed.");
+            return;
+          }
+
+          // reset buffer so next receipt starts clean
+          resetParts();
+          hideCollector();
+
+          // obj should be response v2 (or v1 if you chunked that)
+          await handleResponseObj(obj);
           return;
         }
 
-        // payload locations/timestamps
-        const myPayload = (myResponse.v === 2) ? myResponse.p : myResponse.payload;
-        const theirPayload = (responseObj.v === 2) ? responseObj.p : responseObj.payload;
-
-        const myTs = extractTsFromPayload(myPayload);
-        const theirTs = extractTsFromPayload(theirPayload);
-
-        const timeDiff = Math.abs(myTs - theirTs);
-        const timeOk = timeDiff <= 60;
-
-        const myGps = extractGpsFromPayload(myPayload);
-        const theirGps = extractGpsFromPayload(theirPayload);
-
-        let dist = null;
-        let locOk = false;
-        if (myGps && theirGps) {
-          dist = distanceMeters({ lat: myGps.lat, lon: myGps.lon }, { lat: theirGps.lat, lon: theirGps.lon });
-          locOk = dist <= 2;
-        }
-
-        const lines = [];
-        lines.push("Verification:");
-        lines.push(`- Time difference: ${timeDiff}s (must be ≤ 60s) => ${timeOk ? "PASS" : "FAIL"}`);
-        if (dist === null) {
-          lines.push("- Location distance: unavailable (missing GPS) => FAIL");
-        } else {
-          lines.push(`- Location distance: ${dist.toFixed(2)}m (must be ≤ 2.00m) => ${locOk ? "PASS" : "FAIL"}`);
-        }
-        lines.push("");
-        lines.push(`Reported accuracy (my / their): ${myGps && myGps.acc ? myGps.acc : "?"}m / ${theirGps && theirGps.acc ? theirGps.acc : "?"}m`);
-
-        if (!timeOk || !locOk) {
-          showChecks(lines.join("\n"));
-          setStatus("Verification failed. Receipt NOT saved.");
-          log("Verification failed:", { timeDiff, dist, myPayload, theirPayload });
-          return;
-        }
-
-        localStorage.setItem("irlid_last_receipt", JSON.stringify(responseObj));
-        showChecks(lines.join("\n"));
-        setStatus("Verified ✅ Receipt saved. Open Receipts to view.");
-        log("Saved receipt:", responseObj);
+        // normal response
+        setStatus("Response received. Verifying…");
+        await handleResponseObj(parsed.resp);
 
       } catch (e) {
         log("handleResponse error:", String(e));
@@ -655,6 +828,7 @@
       }
     }
 
+    // ===== Auto-run from camera-app opened URLs =====
     function autoHandleFromHash() {
       const hash = location.hash || "";
       const hasHello = /HELLO=([A-Za-z0-9\-_]+)/.test(hash);
@@ -672,13 +846,19 @@
       }
       return false;
     }
-
     window.addEventListener("hashchange", () => { autoHandleFromHash(); });
 
+    // ===== UI wiring =====
     startBtn.onclick = async () => {
       setStatus("Starting scanner…");
       await startScanner(handleHelloText);
-      setStatus("Scan the other person's HELLO QR (keep inside the frame).");
+      setStatus("Scan the other person's HELLO QR (inside the frame).");
+    };
+
+    scanResponseBtn.onclick = async () => {
+      setStatus("Starting scanner for their Response…");
+      await startScanner(handleResponseText);
+      setStatus("Scan their Response QR (parts supported).");
     };
 
     stopBtn.onclick = async () => {
@@ -686,15 +866,19 @@
       setStatus("Stopped.");
     };
 
-    scanResponseBtn.onclick = async () => {
-      setStatus("Starting scanner for their Response…");
-      await startScanner(handleResponseText);
-      setStatus("Scan their Response QR (keep inside the frame).");
+    resetPartsBtn.onclick = () => {
+      resetParts();
+      setStatus("Parts reset.");
     };
 
     (async () => {
       await listCameras();
       myResponse = loadMyResponse();
+      // Show collector if partially collected
+      const gotCount = Object.keys(partsState.got || {}).length;
+      if (partsState.n && gotCount) {
+        showCollector(`Collected parts: ${gotCount}/${partsState.n}\nScan remaining parts.`);
+      }
       if (!autoHandleFromHash()) {
         setStatus("Ready. Use Start Scanner OR scan a QR with your phone Camera app to open here.");
       }
