@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 16 -->
+<!-- Deploy 17 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -14,6 +14,7 @@
       --mobile-nav-h: 124px;
       --side-pad: 12px;
       --top-gap: 10px;
+      --panel-border: #ddd;
     }
 
     html, body { height: 100%; }
@@ -89,6 +90,7 @@
       box-sizing: border-box;
     }
 
+    /* Scanner box (kept, but optional) */
     #scanner{
       width: min(92vw, 520px);
       height: min(92vw, 520px);
@@ -103,7 +105,6 @@
       box-sizing: border-box;
       position:relative;
     }
-
     .scan-overlay{
       pointer-events:none;
       position:absolute;
@@ -137,54 +138,80 @@
       box-sizing:border-box;
     }
 
+    .panel{
+      border:1px solid var(--panel-border);
+      padding:10px;
+      background:#fff;
+      border-radius:0;
+      box-sizing:border-box;
+      max-width: 860px;
+      margin: 10px auto 0;
+    }
+
+    .panel h3{
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    textarea.big-input{
+      width:100%;
+      min-height: 92px;
+      resize: vertical;
+      box-sizing: border-box;
+      border: 1px solid #bbb;
+      border-radius: 0;
+      padding: 8px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-start;
+      margin-top: 10px;
+    }
+
+    .hint{
+      font-size: 13px;
+      line-height: 1.25;
+      color:#111;
+      margin-top: 8px;
+    }
+
     #responseArea{
       display:none;
       text-align:center;
       margin-top: 12px;
     }
 
-    .qr-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      max-width: 980px;
-      margin: 0 auto;
-    }
-    @media (max-width: 720px){
-      .qr-grid{ grid-template-columns: 1fr; }
+    #responseLinks{
+      max-width: 860px;
+      margin: 10px auto 0;
+      text-align:left;
+      border:1px solid var(--panel-border);
+      padding:10px;
+      box-sizing:border-box;
+      background:#fff;
     }
 
-    .qr-card{
-      border: 1px solid #ddd;
-      padding: 10px;
-      border-radius: 0;
-      background:#fff;
-      box-sizing:border-box;
-    }
-    .qr-card h4{
-      margin: 0 0 8px;
-      font-size: 14px;
-      font-weight: 800;
-      text-align:center;
+    #responseLinks code{
+      display:block;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      border:1px solid #eee;
+      padding: 8px;
+      background:#fafafa;
+      margin-top: 6px;
     }
 
     #checksArea{
       display:none;
       margin: 10px auto 0;
-      max-width: 560px;
-      border: 1px solid #ddd;
-      padding: 10px;
-      border-radius: 0;
-      box-sizing: border-box;
-      font-family: ui-monospace, monospace;
-      white-space: pre-wrap;
-      background: #fff;
-    }
-
-    #collector{
-      display:none;
-      margin: 10px auto 0;
-      max-width: 560px;
+      max-width: 860px;
       border: 1px solid #ddd;
       padding: 10px;
       border-radius: 0;
@@ -195,7 +222,7 @@
     }
 
     details.debug-wrap{
-      max-width: 760px;
+      max-width: 860px;
       margin: 12px auto 0;
       border: 1px solid #ddd;
       background:#fff;
@@ -275,10 +302,25 @@
   <main class="page-main">
     <p id="status" class="small">Ready.</p>
 
-    <div class="controls">
-      <button class="btn" id="startBtn">Start Scanner</button>
+    <div class="panel">
+      <h3>No-webcam mode (recommended)</h3>
+      <textarea id="pasteBox" class="big-input" placeholder="Paste a HELLO/RESP token or a full URL (…#HELLO=… or …#RESP=…)"></textarea>
+      <div class="row">
+        <button class="btn" id="autoDetectBtn">Auto-Detect & Process</button>
+        <button class="btn secondary" id="processHelloBtn">Process as HELLO</button>
+        <button class="btn secondary" id="processRespBtn">Process as Response</button>
+        <button class="btn secondary" id="clearPasteBtn">Clear</button>
+      </div>
+      <div class="hint">
+        Use your <b>phone Camera app</b> to scan the QR. If it opens this page on your phone, use “Copy Response Link/Token”
+        and paste it here on your computer.
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top:14px;">
+      <button class="btn" id="startBtn">Start Scanner (optional)</button>
       <button class="btn secondary" id="stopBtn">Stop</button>
-      <button class="btn secondary" id="resetPartsBtn">Reset Parts</button>
+      <button class="btn secondary" id="scanResponseBtn">Scan Their Response (optional)</button>
     </div>
 
     <div id="scanner" aria-label="Scanner viewport">
@@ -290,17 +332,26 @@
       <select id="cameraSelect"></select>
     </div>
 
-    <div id="collector"></div>
-
     <div id="responseArea">
       <h3>Your Response QR</h3>
-      <div id="responseQrWrap"></div>
-      <div class="controls">
-        <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
+      <div class="qr-box" id="responseQr" aria-label="Response QR"></div>
+      <div id="responseLinks">
+        <div class="row" style="justify-content:flex-start;">
+          <button class="btn" id="copyRespLinkBtn">Copy Response Link</button>
+          <button class="btn secondary" id="copyRespTokenBtn">Copy Token</button>
+        </div>
+        <div class="hint">
+          <b>Response Link</b> is best for phones (Camera app opens it). <b>Token</b> is best for manual copy/paste.
+        </div>
+        <div style="margin-top:10px;">
+          <b>Response Link:</b>
+          <code id="respLinkCode">(not generated yet)</code>
+        </div>
+        <div style="margin-top:10px;">
+          <b>Response Token:</b>
+          <code id="respTokenCode">(not generated yet)</code>
+        </div>
       </div>
-      <p class="small" style="max-width:680px;margin-left:auto;margin-right:auto;">
-        <b>Webcam mode:</b> your Response is split into multiple QR parts (much easier to scan). Scan parts in any order.
-      </p>
     </div>
 
     <div id="checksArea"></div>
@@ -320,15 +371,24 @@
     const statusEl = document.getElementById("status");
     const debugEl = document.getElementById("debug");
     const cameraSelect = document.getElementById("cameraSelect");
-    const responseArea = document.getElementById("responseArea");
-    const checksArea = document.getElementById("checksArea");
-    const collectorEl = document.getElementById("collector");
-    const responseQrWrap = document.getElementById("responseQrWrap");
 
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const scanResponseBtn = document.getElementById("scanResponseBtn");
-    const resetPartsBtn = document.getElementById("resetPartsBtn");
+
+    const pasteBox = document.getElementById("pasteBox");
+    const autoDetectBtn = document.getElementById("autoDetectBtn");
+    const processHelloBtn = document.getElementById("processHelloBtn");
+    const processRespBtn = document.getElementById("processRespBtn");
+    const clearPasteBtn = document.getElementById("clearPasteBtn");
+
+    const responseArea = document.getElementById("responseArea");
+    const respLinkCode = document.getElementById("respLinkCode");
+    const respTokenCode = document.getElementById("respTokenCode");
+    const copyRespLinkBtn = document.getElementById("copyRespLinkBtn");
+    const copyRespTokenBtn = document.getElementById("copyRespTokenBtn");
+
+    const checksArea = document.getElementById("checksArea");
 
     function log(...args) {
       console.log(...args);
@@ -339,10 +399,23 @@
     function showChecks(text){ checksArea.style.display = "block"; checksArea.textContent = text; }
     function clearChecks(){ checksArea.style.display = "none"; checksArea.textContent = ""; }
 
-    function showCollector(text){ collectorEl.style.display = "block"; collectorEl.textContent = text; }
-    function hideCollector(){ collectorEl.style.display = "none"; collectorEl.textContent = ""; }
+    async function copyText(t){
+      try {
+        await navigator.clipboard.writeText(t);
+        return true;
+      } catch {
+        // fallback
+        const ta = document.createElement("textarea");
+        ta.value = t;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch {}
+        ta.remove();
+        return true;
+      }
+    }
 
-    // sha256/signBytes wrappers (compat)
+    // Fix for sha256/signBytes undefined in your sign.js
     async function sha256(bytes) { return crypto.subtle.digest("SHA-256", bytes); }
     async function signBytes(hashArrayBuffer) {
       const priv = await getPrivateKey();
@@ -361,7 +434,7 @@
       return 2 * R * Math.asin(Math.sqrt(s));
     }
 
-    // ===== Compact key handling =====
+    // Compact pubkey helpers
     function pubToXY(pubJwk) {
       if (pubJwk && pubJwk.x && pubJwk.y) return { x: pubJwk.x, y: pubJwk.y };
       throw new Error("Invalid public key format.");
@@ -372,7 +445,7 @@
       return sa.localeCompare(sb);
     }
 
-    // ===== Scanner =====
+    // Scanner
     let scanner = null;
 
     async function listCameras() {
@@ -434,7 +507,7 @@
       }
     }
 
-    // ===== GPS =====
+    // GPS
     async function getGPS() {
       return new Promise((resolve) => {
         if (!navigator.geolocation) return resolve(null);
@@ -446,7 +519,7 @@
       });
     }
 
-    // ===== Parsing helpers =====
+    // Parsing helpers (accept URL with #HELLO/#RESP or raw token)
     function extractParamFromText(text, key) {
       try {
         const u = new URL(text);
@@ -458,80 +531,17 @@
       if (m2) return m2[1];
       return null;
     }
-
+    function looksLikeB64Token(s) {
+      return typeof s === "string" && /^[A-Za-z0-9\-_]+$/.test(s) && s.length > 20;
+    }
     function decodeB64Json(b64url) {
       const bytes = b64urlDecode(b64url);
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    function looksLikeB64Token(s) {
-      return typeof s === "string" && /^[A-Za-z0-9\-_]+$/.test(s) && s.length > 20;
-    }
-
-    // ===== Chunk collector for webcam mode =====
-    // Format: IRLID2|i/n|<chunk>
-    const PARTS_KEY = "irlid_parts_buffer_v1";
-    let partsState = loadPartsState();
-
-    function loadPartsState(){
-      try {
-        const raw = localStorage.getItem(PARTS_KEY);
-        if (!raw) return { n: 0, got: {}, updated: 0 };
-        const o = JSON.parse(raw);
-        if (!o || typeof o !== "object") throw 0;
-        if (!o.got) o.got = {};
-        return o;
-      } catch {
-        return { n: 0, got: {}, updated: 0 };
-      }
-    }
-    function savePartsState(){
-      try { localStorage.setItem(PARTS_KEY, JSON.stringify(partsState)); } catch {}
-    }
-    function resetParts(){
-      partsState = { n: 0, got: {}, updated: 0 };
-      savePartsState();
-      hideCollector();
-    }
-    function parsePart(text){
-      const s = String(text || "");
-      const m = s.match(/^IRLID2\|(\d+)\/(\d+)\|([A-Za-z0-9\-_]+)$/);
-      if (!m) return null;
-      const i = parseInt(m[1], 10);
-      const n = parseInt(m[2], 10);
-      const chunk = m[3];
-      if (!Number.isFinite(i) || !Number.isFinite(n) || i < 1 || n < 1 || i > n) return null;
-      return { i, n, chunk };
-    }
-    function addPart(part){
-      if (partsState.n && part.n !== partsState.n) {
-        // different message; reset
-        resetParts();
-      }
-      partsState.n = part.n;
-      partsState.got[String(part.i)] = part.chunk;
-      partsState.updated = Date.now();
-      savePartsState();
-
-      const gotCount = Object.keys(partsState.got).length;
-      showCollector(`Collected parts: ${gotCount}/${partsState.n}\nScan remaining parts (any order).`);
-
-      if (gotCount === partsState.n) {
-        const chunks = [];
-        for (let i=1;i<=partsState.n;i++){
-          const c = partsState.got[String(i)];
-          if (!c) return null;
-          chunks.push(c);
-        }
-        const token = chunks.join("");
-        return token;
-      }
-      return null;
-    }
-
-    // ===== Store my response for verification =====
+    // Storage: keep my response to verify later (even across tabs)
     const MY_RESPONSE_KEY = "irlid_my_response_v2";
-    let myResponse = loadMyResponse();
+    let myResponse = null;
     function saveMyResponse(respObj) {
       try { localStorage.setItem(MY_RESPONSE_KEY, JSON.stringify(respObj)); } catch {}
     }
@@ -542,7 +552,6 @@
       } catch { return null; }
     }
 
-    // ===== Protocol parsing =====
     function parseHello(anyText) {
       const enc = extractParamFromText(anyText, "HELLO") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
       if (!enc) return null;
@@ -550,36 +559,31 @@
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 compact hello: {v:2,t:"h",p:{x,y},...}
+      // v2 compact hello: {v:2,t:"h",p:{x,y}}
       if (obj && obj.v === 2 && obj.t === "h" && obj.p && obj.p.x && obj.p.y) {
-        return { theirPubXY: obj.p, raw: obj, version: 2 };
+        return { theirPubXY: obj.p, version: 2, raw: obj };
       }
 
-      // legacy v1 hello: {type:"hello", pub:<jwk>, ...}
+      // legacy v1: {type:"hello", pub:<jwk>}
       if (obj && obj.type === "hello" && obj.pub && obj.pub.x && obj.pub.y) {
-        return { theirPubXY: pubToXY(obj.pub), raw: obj, version: 1 };
+        return { theirPubXY: pubToXY(obj.pub), version: 1, raw: obj };
       }
 
       return null;
     }
 
     function parseResp(anyText) {
-      // chunked?
-      const part = parsePart(anyText);
-      if (part) return { kind: "part", part };
-
-      // URL or token
       const enc = extractParamFromText(anyText, "RESP") || (looksLikeB64Token(String(anyText).trim()) ? String(anyText).trim() : null);
       if (!enc) return null;
 
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 response: {v:2,t:"r",p:payload,...}
-      if (obj && obj.v === 2 && obj.t === "r" && obj.p) return { kind: "resp", resp: obj, version: 2 };
+      // v2 compact response: {v:2,t:"r",p:payload,...}
+      if (obj && obj.v === 2 && obj.t === "r" && obj.p) return { resp: obj, version: 2 };
 
-      // v1 response: {type:"response", payload:..., ...}
-      if (obj && obj.type === "response" && obj.payload) return { kind: "resp", resp: obj, version: 1 };
+      // legacy v1: {type:"response", payload:...}
+      if (obj && obj.type === "response" && obj.payload) return { resp: obj, version: 1 };
 
       return null;
     }
@@ -600,66 +604,25 @@
       return 0;
     }
 
-    // ===== Render chunked response QRs (webcam-friendly) =====
-    function chunkString(s, maxLen){
-      const out = [];
-      for (let i=0;i<s.length;i+=maxLen) out.push(s.slice(i, i+maxLen));
-      return out;
+    function setResponseOutputs(token, link){
+      responseArea.style.display = "block";
+      respTokenCode.textContent = token;
+      respLinkCode.textContent = link;
+
+      // QR: for desktop we prefer token (shorter). For mobile, link is camera-app friendly.
+      const isMobile = window.matchMedia("(max-width: 720px)").matches;
+      const qrData = isMobile ? link : token;
+      const qrSize = isMobile ? 360 : 760;
+      makeQR("responseQr", qrData, qrSize);
     }
 
-    function renderResponseQrsForDesktop(token){
-      responseQrWrap.innerHTML = "";
-
-      // Chunk size chosen to keep each QR very light for bad webcams.
-      // Smaller chunk = easier scan, more parts.
-      const chunks = chunkString(token, 280);
-      const n = chunks.length;
-
-      const grid = document.createElement("div");
-      grid.className = "qr-grid";
-
-      chunks.forEach((chunk, idx) => {
-        const i = idx + 1;
-        const payload = `IRLID2|${i}/${n}|${chunk}`;
-
-        const card = document.createElement("div");
-        card.className = "qr-card";
-
-        const h = document.createElement("h4");
-        h.textContent = `Response Part ${i} / ${n}`;
-        card.appendChild(h);
-
-        const box = document.createElement("div");
-        const id = `respPart_${i}`;
-        box.id = id;
-        card.appendChild(box);
-
-        grid.appendChild(card);
-
-        // Big per-part QR makes modules huge
-        makeQR(id, payload, 520);
-      });
-
-      responseQrWrap.appendChild(grid);
-    }
-
-    function renderResponseQrForMobile(respUrl){
-      responseQrWrap.innerHTML = "";
-      const box = document.createElement("div");
-      box.id = "respMobile";
-      responseQrWrap.appendChild(box);
-      makeQR("respMobile", respUrl, 360);
-    }
-
-    // ===== Core flows =====
     async function handleHelloText(textOrUrl) {
       try {
         clearChecks();
-        hideCollector();
 
         const parsed = parseHello(textOrUrl);
         if (!parsed) {
-          setStatus("Not a HELLO QR. Try again.");
+          setStatus("Not a HELLO input.");
           return;
         }
 
@@ -674,7 +637,7 @@
         const gps = await getGPS();
         const ts = Math.floor(Date.now() / 1000);
 
-        // v2 compact payload
+        // compact meeting payload (v2)
         const payload = {
           v: 2,
           t: "m",
@@ -700,20 +663,11 @@
         saveMyResponse(response);
 
         const token = b64urlEncode(new TextEncoder().encode(JSON.stringify(response)));
+        const link = `${location.origin}${location.pathname}#RESP=${token}`;
 
-        const isMobile = window.matchMedia("(max-width: 720px)").matches;
+        setResponseOutputs(token, link);
 
-        if (isMobile) {
-          // Camera-app friendly URL on mobile
-          const respUrl = `${location.origin}${location.pathname}#RESP=${token}`;
-          renderResponseQrForMobile(respUrl);
-        } else {
-          // Webcam-friendly: split into multiple easy QRs
-          renderResponseQrsForDesktop(token);
-        }
-
-        responseArea.style.display = "block";
-        setStatus("Response created. Show it to the other person.");
+        setStatus("Response created. Share it with the other person.");
         log("Response created (v2):", response);
 
       } catch (e) {
@@ -732,8 +686,8 @@
           "Verification unavailable:\n" +
           "- Your device has not created a Response yet.\n\n" +
           "Flow:\n" +
-          "1) Scan a HELLO\n" +
-          "2) Then scan their Response (parts ok)"
+          "1) Process a HELLO\n" +
+          "2) Then process their Response"
         );
         setStatus("Create your Response first.");
         return;
@@ -786,37 +740,12 @@
       try {
         clearChecks();
 
-        // parts?
         const parsed = parseResp(textOrUrl);
         if (!parsed) {
-          setStatus("Not a Response QR. Try again.");
+          setStatus("Not a Response input.");
           return;
         }
 
-        if (parsed.kind === "part") {
-          setStatus("Part scanned. Collecting…");
-          const token = addPart(parsed.part);
-          if (!token) return;
-
-          // got full token
-          setStatus("All parts collected. Decoding…");
-          let obj = null;
-          try { obj = decodeB64Json(token); } catch {
-            showCollector("Collected all parts, but decoding failed.");
-            setStatus("Decode failed.");
-            return;
-          }
-
-          // reset buffer so next receipt starts clean
-          resetParts();
-          hideCollector();
-
-          // obj should be response v2 (or v1 if you chunked that)
-          await handleResponseObj(obj);
-          return;
-        }
-
-        // normal response
         setStatus("Response received. Verifying…");
         await handleResponseObj(parsed.resp);
 
@@ -828,7 +757,6 @@
       }
     }
 
-    // ===== Auto-run from camera-app opened URLs =====
     function autoHandleFromHash() {
       const hash = location.hash || "";
       const hasHello = /HELLO=([A-Za-z0-9\-_]+)/.test(hash);
@@ -848,17 +776,63 @@
     }
     window.addEventListener("hashchange", () => { autoHandleFromHash(); });
 
-    // ===== UI wiring =====
+    // Buttons: paste workflow
+    autoDetectBtn.onclick = async () => {
+      const t = (pasteBox.value || "").trim();
+      if (!t) { setStatus("Paste something first."); return; }
+      if (extractParamFromText(t, "HELLO")) return handleHelloText(t);
+      if (extractParamFromText(t, "RESP"))  return handleResponseText(t);
+
+      // If raw token: try HELLO then RESP
+      if (parseHello(t)) return handleHelloText(t);
+      if (parseResp(t))  return handleResponseText(t);
+
+      setStatus("Could not auto-detect. Paste a HELLO/RESP URL or token.");
+    };
+
+    processHelloBtn.onclick = async () => {
+      const t = (pasteBox.value || "").trim();
+      if (!t) { setStatus("Paste something first."); return; }
+      await handleHelloText(t);
+    };
+
+    processRespBtn.onclick = async () => {
+      const t = (pasteBox.value || "").trim();
+      if (!t) { setStatus("Paste something first."); return; }
+      await handleResponseText(t);
+    };
+
+    clearPasteBtn.onclick = () => {
+      pasteBox.value = "";
+      setStatus("Cleared.");
+    };
+
+    // Copy buttons
+    copyRespLinkBtn.onclick = async () => {
+      const link = respLinkCode.textContent;
+      if (!link || link.includes("not generated")) return;
+      await copyText(link);
+      setStatus("Response link copied.");
+    };
+
+    copyRespTokenBtn.onclick = async () => {
+      const token = respTokenCode.textContent;
+      if (!token || token.includes("not generated")) return;
+      await copyText(token);
+      setStatus("Token copied.");
+    };
+
+    // Optional in-page scanner
     startBtn.onclick = async () => {
       setStatus("Starting scanner…");
       await startScanner(handleHelloText);
-      setStatus("Scan the other person's HELLO QR (inside the frame).");
+      setStatus("Scan the other person's HELLO QR (optional).");
     };
 
     scanResponseBtn.onclick = async () => {
       setStatus("Starting scanner for their Response…");
       await startScanner(handleResponseText);
-      setStatus("Scan their Response QR (parts supported).");
+      setStatus("Scan their Response QR (optional).");
     };
 
     stopBtn.onclick = async () => {
@@ -866,21 +840,11 @@
       setStatus("Stopped.");
     };
 
-    resetPartsBtn.onclick = () => {
-      resetParts();
-      setStatus("Parts reset.");
-    };
-
     (async () => {
       await listCameras();
       myResponse = loadMyResponse();
-      // Show collector if partially collected
-      const gotCount = Object.keys(partsState.got || {}).length;
-      if (partsState.n && gotCount) {
-        showCollector(`Collected parts: ${gotCount}/${partsState.n}\nScan remaining parts.`);
-      }
       if (!autoHandleFromHash()) {
-        setStatus("Ready. Use Start Scanner OR scan a QR with your phone Camera app to open here.");
+        setStatus("Ready. Recommended: use phone Camera app + copy/paste (no webcam needed).");
       }
     })();
   </script>
