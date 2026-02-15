@@ -1,9 +1,10 @@
-// js/qr.js deploy 8
-// Robust QR rendering:
-// 1) Prefer local canvas (QRCode library) for high contrast + quiet zone
-// 2) Fallback to remote QR image API if QRCode library didn't load
+// js/qr.js deploy 9
+// QR rendering tuned for weak cameras:
+// - errorCorrectionLevel: "L" (lowest density)
+// - larger margin/quiet zone
+// - keeps fallback remote image
 // Also keeps scanQR() helper.
-// Deploy 14
+// Deploy 15
 
 (function () {
   "use strict";
@@ -19,7 +20,7 @@
   }
 
   function makeRemoteImg(data, size) {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(data)}`;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?ecc=L&margin=8&size=${size}x${size}&data=${encodeURIComponent(data)}`;
     const img = document.createElement("img");
     img.alt = "QR";
     img.src = url;
@@ -33,7 +34,6 @@
     const el = elById(elId);
     clear(el);
 
-    // Prefer local QRCode canvas if available
     if (typeof window.QRCode !== "undefined" && typeof window.QRCode.toCanvas === "function") {
       const canvas = document.createElement("canvas");
       canvas.width = size;
@@ -42,11 +42,10 @@
       canvas.style.height = size + "px";
       canvas.style.imageRendering = "pixelated";
 
-      // "M" is less dense than "Q" and tends to scan better on older webcams.
-      // Larger quiet zone helps detectors lock on.
+      // Lowest density + bigger quiet zone
       const opts = {
-        errorCorrectionLevel: "M",
-        margin: 6,
+        errorCorrectionLevel: "L",
+        margin: 8,
         width: size,
         color: { dark: "#000000", light: "#ffffff" }
       };
@@ -62,7 +61,6 @@
       return;
     }
 
-    // Fallback: remote image API
     el.appendChild(makeRemoteImg(data, size));
   };
 
@@ -78,8 +76,8 @@
       qr.start(
         { facingMode: "environment" },
         {
-          fps: 10,
-          qrbox: { width: 280, height: 280 },
+          fps: 12,
+          qrbox: { width: 320, height: 320 },
           disableFlip: false,
           videoConstraints: {
             width: { ideal: 1920 },
