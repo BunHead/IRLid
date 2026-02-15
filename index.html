@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 16 -->
+<!-- Deploy 18 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -12,13 +12,8 @@
       --black:#000;
       --white:#fff;
 
-      /* Mobile nav height (2 rows). Conservative so it fits most phones. */
       --mobile-nav-h: 124px;
-
-      /* Equal side padding for QR and error */
       --side-pad: 12px;
-
-      /* Gap between header and QR (smaller on mobile) */
       --qr-top-gap: 8px;
     }
 
@@ -47,7 +42,6 @@
       color: inherit;
     }
 
-    /* Full-width black nav bar (desktop) */
     nav.site-nav{
       width: 100%;
       background: var(--black);
@@ -62,7 +56,6 @@
       z-index: 1000;
     }
 
-    /* Buttons: square corners */
     a.nav-btn, summary.nav-btn{
       appearance:none;
       -webkit-appearance:none;
@@ -74,7 +67,7 @@
       font-weight: 700;
       border-radius: 0;
       margin: 0;
-      padding: 10px 12px;   /* desktop click area */
+      padding: 10px 12px;
       line-height: 1;
       cursor: pointer;
       display: inline-flex;
@@ -92,7 +85,6 @@
     details.nav-dropdown > summary{ list-style:none; }
     details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
 
-    /* Dropdown on desktop */
     .dropdown-menu{
       position: absolute;
       top: 100%;
@@ -120,8 +112,6 @@
       width: 100%;
       box-sizing: border-box;
       padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
-
-      /* Put QR toward the top rather than perfectly centered */
       display: flex;
       align-items: flex-start;
       justify-content: center;
@@ -140,7 +130,6 @@
       height: auto;
     }
 
-    /* Error area hidden unless needed */
     #qrError{
       display:none;
       margin: 8px var(--side-pad) 0 var(--side-pad);
@@ -153,30 +142,27 @@
       box-sizing: border-box;
     }
 
-    /* ===== Mobile: fixed bottom 2x2 nav + QR always fully visible ===== */
+    /* ===== Mobile: fixed bottom 2x2 nav ===== */
     @media (max-width: 720px){
-      :root{ --qr-top-gap: 2px; } /* move QR up a bit more on mobile */
+      :root{ --qr-top-gap: 2px; }
 
-      /* Shrink logo so QR gets space (this is the biggest win) */
       .brand-wrap{
         padding: 4px var(--side-pad) 0 var(--side-pad);
       }
       #logo{
         max-width: 72vw;
-        max-height: 90px;   /* smaller so QR fits */
+        max-height: 90px;
         width: auto;
         height: auto;
         display: block;
       }
 
-      /* Bottom nav sits above safe-area and stays fully visible */
       nav.site-nav{
         position: fixed;
-        top: auto;
+        top: auto; /* IMPORTANT: ensures it snaps to bottom */
         bottom: env(safe-area-inset-bottom, 0px);
         left: 0;
         right: 0;
-
         height: var(--mobile-nav-h);
 
         display: grid;
@@ -186,6 +172,7 @@
         margin: 0;
         padding: 0;
         background: var(--black);
+        z-index: 2000;
       }
 
       a.nav-btn, summary.nav-btn{
@@ -196,22 +183,19 @@
         font-size: 18px;
       }
 
-      /* Dropdown opens upward and uses full width */
       .dropdown-menu{
         position: fixed;
         left: 0;
         right: 0;
-        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
         top: auto;
+        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
         border-radius: 0;
       }
 
-      /* Reserve space for fixed nav + safe area so content never hides */
       body{
         padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
       }
 
-      /* Ensure main uses remaining height and keeps QR up top */
       main.home-main{
         min-height: calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)));
       }
@@ -227,7 +211,6 @@
       </a>
     </div>
 
-    <!-- Desktop: full-width black bar under logo. Mobile: fixed bottom 2x2 -->
     <nav class="site-nav" aria-label="Primary">
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
@@ -253,7 +236,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout6"></script>
+  <script src="js/qr.js?v=layout10"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -267,8 +250,6 @@
 
     function computeQrSize(){
       const box = document.getElementById("myQr");
-
-      // Equal side padding already applied by CSS; compute actual usable width.
       const boxW = box.clientWidth || Math.min(window.innerWidth - 24, 720);
 
       const header = document.querySelector("header.site-header");
@@ -276,29 +257,16 @@
 
       const isMobile = window.matchMedia("(max-width: 720px)").matches;
 
-      // Measure nav height (mobile fixed bottom; desktop sticky top)
       const nav = document.querySelector("nav.site-nav");
       const navH = nav ? nav.getBoundingClientRect().height : 0;
 
-      // Use VisualViewport where available (handles mobile URL bar / keyboard changes)
       const vv = window.visualViewport;
       const viewportH = vv ? vv.height : window.innerHeight;
 
-      // Safe area bottom (best-effort). CSS already reserves space; this is extra safety.
-      const safeBottomCss = getComputedStyle(document.documentElement).getPropertyValue("env(safe-area-inset-bottom)");
-      // We can't reliably parse env() from computed style; instead, trust navH measurement.
-
-      // Keep a tiny padding so QR never touches edges
       const pad = isMobile ? 16 : 40;
 
-      // Available height:
-      // - Mobile: viewport height minus header minus nav minus padding.
-      // - Desktop: window height minus header+nav minus padding (still fine).
       const availH = Math.max(220, viewportH - headerH - (isMobile ? navH : 0) - pad);
-
-      // Final size constrained by both width and height
       const size = Math.floor(Math.min(boxW, availH));
-
       return Math.max(220, Math.min(size, 900));
     }
 
@@ -324,9 +292,6 @@
       }
     }
 
-    // Yes — it auto-adjusts on most mobile screens:
-    // - uses visualViewport height when available (handles the shrinking URL bar)
-    // - recalculates on resize/orientation changes
     renderHelloQr();
 
     const rerender = () => {
