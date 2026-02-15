@@ -1,8 +1,9 @@
-// js/qr.js deploy 7
+// js/qr.js deploy 8
 // Robust QR rendering:
 // 1) Prefer local canvas (QRCode library) for high contrast + quiet zone
 // 2) Fallback to remote QR image API if QRCode library didn't load
 // Also keeps scanQR() helper.
+// Deploy 14
 
 (function () {
   "use strict";
@@ -41,17 +42,17 @@
       canvas.style.height = size + "px";
       canvas.style.imageRendering = "pixelated";
 
-      // Q: good balance between robustness and density.
+      // "M" is less dense than "Q" and tends to scan better on older webcams.
+      // Larger quiet zone helps detectors lock on.
       const opts = {
-        errorCorrectionLevel: "Q",
-        margin: 4,      // quiet zone
+        errorCorrectionLevel: "M",
+        margin: 6,
         width: size,
         color: { dark: "#000000", light: "#ffffff" }
       };
 
       window.QRCode.toCanvas(canvas, data, opts, (err) => {
         if (err) {
-          // If local generator fails for any reason, fallback to remote API.
           el.appendChild(makeRemoteImg(data, size));
           return;
         }
@@ -96,4 +97,3 @@
     });
   };
 })();
-
