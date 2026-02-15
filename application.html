@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 20 (force rear camera; remove debug UI; clearer scan buttons) -->
+<!-- Deploy 21 (reliable rear-camera warmup + move camera selector ABOVE scanner so it stays visible) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -90,11 +90,11 @@
       box-sizing: border-box;
     }
 
-    /* Scanner box (optional) */
+    /* Scanner box */
     #scanner{
       width: min(92vw, 520px);
       height: min(92vw, 520px);
-      margin: 14px auto 8px;
+      margin: 10px auto 8px;
       border: 2px dashed #999;
       border-radius: 0;
       overflow: hidden;
@@ -178,6 +178,31 @@
       line-height: 1.25;
       color:#111;
       margin-top: 8px;
+    }
+
+    .camera-panel{
+      max-width: 860px;
+      margin: 12px auto 0;
+      border: 1px solid var(--panel-border);
+      background:#fff;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    .camera-panel label{ font-weight:800; display:block; margin-bottom:6px; }
+    .camera-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    select{
+      max-width: 100%;
+      padding: 10px 10px;
+      border-radius:0;
+      border:1px solid #bbb;
+      font:inherit;
+      min-width: min(520px, 100%);
     }
 
     #responseArea{
@@ -304,22 +329,27 @@
       </div>
     </div>
 
+    <!-- Moved ABOVE scanner so it is always visible (and not under bottom nav) -->
+    <div class="camera-panel">
+      <label for="cameraSelect">Camera</label>
+      <div class="camera-row">
+        <select id="cameraSelect"></select>
+        <button class="btn secondary" id="refreshCamsBtn" type="button">Refresh Cameras</button>
+      </div>
+      <div class="hint">
+        Default is <b>rear camera</b>. If it still shows front, tap <b>Refresh Cameras</b> (after granting permission),
+        then pick a camera that says <b>Back/Rear</b>.
+      </div>
+    </div>
+
     <div class="controls" style="margin-top:14px;">
-      <button class="btn" id="scanHelloBtn">Scan HELLO (optional)</button>
-      <button class="btn secondary" id="scanRespBtn">Scan RESPONSE (optional)</button>
-      <button class="btn secondary" id="stopBtn">Stop Camera</button>
+      <button class="btn" id="scanHelloBtn" type="button">Scan HELLO</button>
+      <button class="btn secondary" id="scanRespBtn" type="button">Scan RESPONSE</button>
+      <button class="btn secondary" id="stopBtn" type="button">Stop Camera</button>
     </div>
 
     <div id="scanner" aria-label="Scanner viewport">
       <div class="scan-overlay" aria-hidden="true"></div>
-    </div>
-
-    <div class="small">
-      <label for="cameraSelect"><b>Camera (optional):</b></label><br>
-      <select id="cameraSelect"></select>
-      <div class="hint" style="max-width:860px;margin-left:auto;margin-right:auto;">
-        Default is <b>rear camera</b>. This dropdown is only a fallback if your device misbehaves.
-      </div>
     </div>
 
     <div id="responseArea">
@@ -328,8 +358,8 @@
 
       <div id="responseLinks">
         <div class="row" style="justify-content:flex-start;">
-          <button class="btn" id="copyRespLinkBtn">Copy Response Link</button>
-          <button class="btn secondary" id="copyRespTokenBtn">Copy Token</button>
+          <button class="btn" id="copyRespLinkBtn" type="button">Copy Response Link</button>
+          <button class="btn secondary" id="copyRespTokenBtn" type="button">Copy Token</button>
         </div>
         <div class="hint">
           <b>Response Link</b> is best for phones (Camera app opens it). <b>Token</b> is best for manual copy/paste.
@@ -357,6 +387,7 @@
     const statusEl = document.getElementById("status");
     const cameraSelect = document.getElementById("cameraSelect");
 
+    const refreshCamsBtn = document.getElementById("refreshCamsBtn");
     const scanHelloBtn = document.getElementById("scanHelloBtn");
     const scanRespBtn = document.getElementById("scanRespBtn");
     const stopBtn = document.getElementById("stopBtn");
@@ -373,7 +404,7 @@
 
     const checksArea = document.getElementById("checksArea");
 
-    const CAM_PREF_KEY = "irlid_cam_pref_id_v3";
+    const CAM_PREF_KEY = "irlid_cam_pref_id_v4";
 
     function setStatus(s) { statusEl.textContent = s; }
     function showChecks(text){ checksArea.style.display = "block"; checksArea.textContent = text; }
@@ -413,7 +444,6 @@
       return 2 * R * Math.asin(Math.sqrt(s));
     }
 
-    // Compact pubkey helpers
     function pubToXY(pubJwk) {
       if (pubJwk && pubJwk.x && pubJwk.y) return { x: pubJwk.x, y: pubJwk.y };
       throw new Error("Invalid public key format.");
@@ -424,18 +454,19 @@
       return sa.localeCompare(sb);
     }
 
-    // ===== Camera selection UI (fallback only) =====
+    // ===== Camera picking =====
     function scoreCameraLabel(label) {
       const s = (label || "").toLowerCase();
       let score = 0;
-      if (s.includes("back")) score += 50;
-      if (s.includes("rear")) score += 50;
-      if (s.includes("environment")) score += 50;
-      if (s.includes("front")) score -= 30;
-      if (s.includes("user")) score -= 30;
-      if (s.includes("face")) score -= 20;
+      if (s.includes("back")) score += 100;
+      if (s.includes("rear")) score += 100;
+      if (s.includes("environment")) score += 100;
+      if (s.includes("front")) score -= 80;
+      if (s.includes("user")) score -= 80;
+      if (s.includes("face")) score -= 50;
       return score;
     }
+
     function pickBestCameraId(devices) {
       const saved = localStorage.getItem(CAM_PREF_KEY);
       if (saved && devices.some(d => d.id === saved)) return saved;
@@ -448,7 +479,7 @@
       return best ? best.id : (devices[0]?.id || null);
     }
 
-    // Scanner
+    // ===== Scanner =====
     let scanner = null;
 
     async function listCameras() {
@@ -473,6 +504,10 @@
         return devices;
       } catch {
         cameraSelect.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No cameras available";
+        cameraSelect.appendChild(opt);
         return [];
       }
     }
@@ -493,6 +528,27 @@
       return { width: size, height: size };
     }
 
+    // 🔑 Key change: do a getUserMedia "warmup" requesting rear camera.
+    // This forces the browser to grant permission and often selects the rear camera stream.
+    // After that, device labels become available and we can pick the actual rear deviceId reliably.
+    async function warmupRearCameraPermission() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+      } catch {
+        // ignore; html5-qrcode start will surface errors if needed
+      } finally {
+        if (stream) {
+          try { stream.getTracks().forEach(t => t.stop()); } catch {}
+        }
+      }
+    }
+
     async function startScanner(onText) {
       await stopScanner();
       scanner = new Html5Qrcode("scanner");
@@ -508,37 +564,39 @@
         }
       };
 
-      // ✅ Force rear camera first. If it fails, fall back to the selected device id.
+      // 1) Warmup permission with rear preference
+      await warmupRearCameraPermission();
+
+      // 2) Refresh devices (labels usually appear after permission)
+      const devices = await listCameras();
+
+      // 3) Choose rear deviceId by label if possible; otherwise fall back
+      const chosenId = cameraSelect.value || pickBestCameraId(devices);
+
       const tryStart = async (cameraSpec) => {
         await scanner.start(cameraSpec, config, (decodedText) => onText(decodedText), () => {});
       };
 
       try {
-        // Try strict environment first (best chance to force rear on many phones)
-        await tryStart({ facingMode: { exact: "environment" } });
-      } catch (e1) {
-        try {
-          // Fallback: non-exact environment (some browsers reject exact)
-          await tryStart({ facingMode: "environment" });
-        } catch (e2) {
-          try {
-            // Final fallback: user-selected device id (or first available)
-            const devices = await Html5Qrcode.getCameras();
-            const chosen = cameraSelect.value || pickBestCameraId(devices) || devices[0]?.id;
-            if (!chosen) throw new Error("No camera available");
-            await tryStart(chosen);
-          } catch (e3) {
-            setStatus("Camera failed to start. Use phone Camera app + paste mode.");
-            return;
-          }
+        // Prefer deviceId (most reliable)
+        if (chosenId) {
+          await tryStart(chosenId);
+          return;
         }
-      }
 
-      // After permission, labels often appear—refresh dropdown
-      await listCameras();
+        // Fallback to environment constraints
+        try {
+          await tryStart({ facingMode: { exact: "environment" } });
+          return;
+        } catch {}
+        await tryStart({ facingMode: "environment" });
+
+      } catch {
+        setStatus("Camera failed to start. Use phone Camera app + paste mode.");
+      }
     }
 
-    // GPS
+    // ===== GPS =====
     async function getGPS() {
       return new Promise((resolve) => {
         if (!navigator.geolocation) return resolve(null);
@@ -550,7 +608,7 @@
       });
     }
 
-    // Parsing helpers
+    // ===== Parsing helpers =====
     function extractParamFromText(text, key) {
       try {
         const u = new URL(text);
@@ -570,7 +628,7 @@
       return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    // Storage: keep my response to verify later
+    // ===== Storage =====
     const MY_RESPONSE_KEY = "irlid_my_response_v2";
     let myResponse = null;
     function saveMyResponse(respObj) {
@@ -590,16 +648,12 @@
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 compact hello: {v:2,t:"h",p:{x,y}}
       if (obj && obj.v === 2 && obj.t === "h" && obj.p && obj.p.x && obj.p.y) {
         return { theirPubXY: obj.p, version: 2 };
       }
-
-      // legacy v1: {type:"hello", pub:<jwk>}
       if (obj && obj.type === "hello" && obj.pub && obj.pub.x && obj.pub.y) {
         return { theirPubXY: pubToXY(obj.pub), version: 1 };
       }
-
       return null;
     }
 
@@ -610,12 +664,8 @@
       let obj = null;
       try { obj = decodeB64Json(enc); } catch { return null; }
 
-      // v2 compact response: {v:2,t:"r",p:payload,...}
       if (obj && obj.v === 2 && obj.t === "r" && obj.p) return { resp: obj, version: 2 };
-
-      // legacy v1: {type:"response", payload:...}
       if (obj && obj.type === "response" && obj.payload) return { resp: obj, version: 1 };
-
       return null;
     }
 
@@ -646,6 +696,7 @@
       makeQR("responseQr", qrData, qrSize);
     }
 
+    // ===== Core flows =====
     async function handleHelloText(textOrUrl) {
       try {
         clearChecks();
@@ -799,7 +850,14 @@
     }
     window.addEventListener("hashchange", () => { autoHandleFromHash(); });
 
-    // Paste workflow
+    // ===== UI wiring =====
+    refreshCamsBtn.onclick = async () => {
+      setStatus("Refreshing cameras…");
+      await warmupRearCameraPermission();
+      await listCameras();
+      setStatus("Cameras refreshed.");
+    };
+
     autoDetectBtn.onclick = async () => {
       const t = (pasteBox.value || "").trim();
       if (!t) { setStatus("Paste something first."); return; }
@@ -818,7 +876,6 @@
       setStatus("Cleared.");
     };
 
-    // Copy buttons
     copyRespLinkBtn.onclick = async () => {
       const link = respLinkCode.textContent;
       if (!link || link.includes("not generated")) return;
@@ -833,17 +890,16 @@
       setStatus("Token copied.");
     };
 
-    // Scanner buttons
     scanHelloBtn.onclick = async () => {
       setStatus("Starting rear camera… (Scan HELLO)");
       await startScanner(handleHelloText);
-      setStatus("Scan the other person's HELLO QR (optional).");
+      setStatus("Scan the other person's HELLO QR.");
     };
 
     scanRespBtn.onclick = async () => {
       setStatus("Starting rear camera… (Scan RESPONSE)");
       await startScanner(handleResponseText);
-      setStatus("Scan the other person's RESPONSE QR (optional).");
+      setStatus("Scan the other person's RESPONSE QR.");
     };
 
     stopBtn.onclick = async () => {
