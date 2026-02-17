@@ -1,8 +1,8 @@
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
+//  Deploy 19 
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
-    // Throwing makes it obvious in console AND our pages will catch and alert the message.
     throw new Error(
       "Secure crypto unavailable.\n\n" +
       "This feature requires WebCrypto, which is usually only available on HTTPS or localhost.\n\n" +
@@ -112,4 +112,30 @@ async function pubKeyId(pubJwk) {
   const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
   const h = await sha256Bytes(s);
   return b64urlEncode(h).slice(0, 18);
+}
+
+/* =========================================================
+   Added helpers for mutual validation / consistent signing
+   (No backend; used by application.html and receipt.html)
+   ========================================================= */
+
+async function hashPayloadToB64url(payloadObj) {
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+  const hashBuf = await crypto.subtle.digest("SHA-256", payloadBytes);
+  return b64urlEncode(new Uint8Array(hashBuf));
+}
+
+async function signHashB64url(hashB64url) {
+  // Signs the hash bytes directly (same pattern as previous signBytes(hashBuf) usage)
+  // Uses ECDSA P-256 with SHA-256.
+  const priv = await getPrivateKey();
+  const hashBytes = b64urlDecode(hashB64url);
+
+  const sig = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    priv,
+    hashBytes
+  );
+
+  return b64urlEncode(new Uint8Array(sig));
 }
