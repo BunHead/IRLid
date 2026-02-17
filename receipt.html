@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 19 -->
+<!-- Deploy 20 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -285,6 +285,10 @@
         <div class="btnrow">
           <button class="btn secondary" id="clearBtn">Clear stored receipts</button>
         </div>
+
+        <div class="note" style="margin-top:10px;">
+          Tip: the QR above is a URL. Any QR scanner can open this receipt page on IRLid.
+        </div>
       </div>
 
       <details class="raw" id="rawWrap" style="display:none;">
@@ -297,7 +301,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout11"></script>
+  <script src="js/qr.js?v=deploy19"></script>
 
   <script>
     // thresholds (requested)
@@ -307,6 +311,7 @@
     const KEY_SELF  = "irlid_resp_self";
     const KEY_OTHER = "irlid_resp_other";
     const KEY_LAST  = "irlid_last_receipt"; // legacy
+    const KEY_LIST  = "irlid_receipts";     // history for future "login"
 
     const emptyState = document.getElementById("emptyState");
     const metaPanel = document.getElementById("metaPanel");
@@ -359,6 +364,22 @@
       try { return JSON.parse(raw); } catch { return null; }
     }
 
+    function writeReceiptHistory(combinedObj){
+      // Store a small summary + full combined object for future "member receipts".
+      try {
+        const listRaw = localStorage.getItem(KEY_LIST);
+        const list = listRaw ? JSON.parse(listRaw) : [];
+        const entry = {
+          ts: Date.now(),
+          combined: combinedObj
+        };
+        list.unshift(entry);
+        // cap to avoid infinite growth
+        const capped = list.slice(0, 200);
+        localStorage.setItem(KEY_LIST, JSON.stringify(capped));
+      } catch {}
+    }
+
     async function validateResponse(resp){
       const results = {
         okStructure: false,
@@ -372,7 +393,6 @@
       }
       results.okStructure = true;
 
-      // hash(payload) matches resp.hash
       try {
         const computed = await hashPayloadToB64url(resp.payload);
         results.computedHash = computed;
@@ -381,7 +401,6 @@
         results.okHash = false;
       }
 
-      // signature verifies against resp.pub over resp.hash
       try {
         results.okSig = await verifySig(resp.hash, resp.sig, resp.pub);
       } catch {
@@ -403,6 +422,39 @@
       return (typeof ts === "number") ? ts : null;
     }
 
+    function baseReceiptUrl(){
+      return new URL("receipt.html", location.href).href.split("#")[0];
+    }
+
+    function makeReceiptUrlForCombined(combinedObj){
+      const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(combinedObj)));
+      return `${baseReceiptUrl()}#COMB=${encoded}`;
+    }
+
+    function makeReceiptUrlForResponse(respObj){
+      const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(respObj)));
+      return `${baseReceiptUrl()}#RESP=${encoded}`;
+    }
+
+    function parseFromHash(){
+      const hash = location.hash || "";
+      let m = hash.match(/COMB=([A-Za-z0-9\-_]+)/);
+      if (m) {
+        try {
+          const bytes = b64urlDecode(m[1]);
+          return { kind: "comb", obj: JSON.parse(new TextDecoder().decode(bytes)) };
+        } catch {}
+      }
+      m = hash.match(/RESP=([A-Za-z0-9\-_]+)/);
+      if (m) {
+        try {
+          const bytes = b64urlDecode(m[1]);
+          return { kind: "resp", obj: JSON.parse(new TextDecoder().decode(bytes)) };
+        } catch {}
+      }
+      return null;
+    }
+
     function combinedObject(selfResp, otherResp){
       return {
         v: 1,
@@ -417,22 +469,31 @@
       localStorage.removeItem(KEY_SELF);
       localStorage.removeItem(KEY_OTHER);
       localStorage.removeItem(KEY_LAST);
-      location.reload();
+      localStorage.removeItem(KEY_LIST);
+      // keep URL hash, but refresh view
+      location.href = baseReceiptUrl();
     };
 
     (async () => {
+      // If opened from an external QR scanner (URL QR), import it into localStorage.
+      const fromHash = parseFromHash();
+      if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+        // Store as "last" for compatibility; user can later pair it by scanning the other side.
+        localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      }
+      if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+        // Store combined into history (future login/list)
+        writeReceiptHistory(fromHash.obj);
+      }
+
       const selfResp  = readJson(KEY_SELF);
       const otherResp = readJson(KEY_OTHER);
       const legacy    = readJson(KEY_LAST);
 
-      // Decide what to display as the top QR
-      // - If both responses exist: show Combined QR
-      // - Else if one exists: show that (Return QR)
-      // - Else if legacy exists: show legacy response
       const havePair = !!(selfResp && otherResp);
       const single = selfResp || otherResp || legacy;
 
-      if (!havePair && !single) {
+      if (!havePair && !single && !(fromHash && fromHash.kind === "comb")) {
         emptyState.style.display = "block";
         return;
       }
@@ -440,40 +501,73 @@
       metaPanel.style.display = "block";
       rawWrap.style.display = "block";
 
+      // Decide top QR:
+      // - If combined URL hash exists, show that combined
+      // - Else if both responses exist: show combined
+      // - Else show a URL QR for the single response
+      if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+        metaTitle.textContent = "Combined Receipt (Opened via QR)";
+        const url = makeReceiptUrlForCombined(fromHash.obj);
+        makeQR("topQr", url, 460);
+        rawJson.textContent = JSON.stringify(fromHash.obj, null, 2);
+        // Basic info from combined.a if present
+        const base = fromHash.obj.a || fromHash.obj.b || null;
+        const gps = base ? getGps(base) : null;
+        const ts = base ? getTs(base) : null;
+
+        if (gps) {
+          const q = `${gps.lat},${gps.lon}`;
+          const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
+          coordsRow.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
+          accRow.textContent = (typeof gps.acc === "number") ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
+        } else {
+          coordsRow.textContent = "Location: (not captured)";
+          accRow.textContent = "";
+        }
+        const t = formatTime(ts);
+        timeRow.textContent = t ? `Time: ${t.local} (ts: ${t.epoch})` : "Time: (missing)";
+
+        checksEl.innerHTML = "";
+        addCheck("Combined receipt loaded from URL", true, "This is ready for future account-based receipt history.");
+        return;
+      }
+
       if (havePair) {
         metaTitle.textContent = "Combined Receipt (Both Parties)";
         const combined = combinedObject(selfResp, otherResp);
-        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(combined)));
-        makeQR("topQr", encoded, 460);
+
+        // Top QR is a URL so any generic QR scanner opens this receipt page.
+        const url = makeReceiptUrlForCombined(combined);
+        makeQR("topQr", url, 460);
+
         rawJson.textContent = JSON.stringify({ selfResp, otherResp }, null, 2);
+
+        // Store into history for future "members can view all receipts"
+        writeReceiptHistory(combined);
       } else {
-        metaTitle.textContent = "Return QR (Waiting for the other scan)";
-        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(single)));
-        makeQR("topQr", encoded, 460);
+        metaTitle.textContent = "Return Receipt (Waiting for the other scan)";
+        const url = makeReceiptUrlForResponse(single);
+        makeQR("topQr", url, 460);
         rawJson.textContent = JSON.stringify(single, null, 2);
       }
 
-      // Show meta using "best available": prefer selfResp payload, else otherResp, else legacy.
+      // Meta based on best available local receipt
       const base = selfResp || otherResp || legacy;
       const gps = getGps(base);
       const ts = getTs(base);
 
-      // Location row
       if (gps) {
         const q = `${gps.lat},${gps.lon}`;
         const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
         coordsRow.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
-        if (typeof gps.acc === "number") accRow.textContent = `Accuracy: ±${Math.round(gps.acc)} m`;
-        else accRow.textContent = "";
+        accRow.textContent = (typeof gps.acc === "number") ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
       } else {
         coordsRow.textContent = "Location: (not captured)";
         accRow.textContent = "";
       }
 
-      // Time row
       const t = formatTime(ts);
-      if (t) timeRow.textContent = `Time: ${t.local} (ts: ${t.epoch})`;
-      else timeRow.textContent = "Time: (missing)";
+      timeRow.textContent = t ? `Time: ${t.local} (ts: ${t.epoch})` : "Time: (missing)";
 
       // Validation checks
       checksEl.innerHTML = "";
@@ -493,19 +587,16 @@
       }
 
       if (selfResp && otherResp) {
-        // Check pubs match (same set and order)
         const pubsA = (selfResp.payload && selfResp.payload.pubs) ? JSON.stringify(selfResp.payload.pubs) : null;
         const pubsB = (otherResp.payload && otherResp.payload.pubs) ? JSON.stringify(otherResp.payload.pubs) : null;
         const okPubs = (pubsA && pubsB && pubsA === pubsB);
         addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
 
-        // Timestamp within tolerance
         const tsA = getTs(selfResp);
         const tsB = getTs(otherResp);
         const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
         addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
 
-        // Distance within tolerance
         const gA = getGps(selfResp);
         const gB = getGps(otherResp);
         let okDist = false;
@@ -516,7 +607,7 @@
         }
         addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
       } else {
-        addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the QR above to the other person to scan.");
+        addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person to scan/open.");
       }
     })();
   </script>
