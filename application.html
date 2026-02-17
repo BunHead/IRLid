@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 19 -->
+<!-- Deploy 20 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -86,7 +86,6 @@
 
     .small{text-align:center; margin:8px 0;}
 
-    /* Response must be ABOVE the scanner so the other person can immediately scan it */
     #responseArea{
       display:none;
       text-align:center;
@@ -122,7 +121,6 @@
       margin:10px 0;
     }
 
-    /* Debug hidden by default */
     #debug{
       display:none;
       white-space:pre-wrap;
@@ -140,7 +138,7 @@
 
       nav.site-nav{
         position:fixed;
-        top:auto; /* IMPORTANT */
+        top:auto;
         bottom:env(safe-area-inset-bottom,0);
         left:0;
         right:0;
@@ -207,13 +205,10 @@
     <button class="btn secondary" id="stopBtn">Stop</button>
   </div>
 
-  <!-- IMPORTANT: response QR is above scanner -->
   <div id="responseArea">
     <h3 id="responseTitle">Your Return QR</h3>
     <div class="qr-box" id="responseQr"></div>
-    <p class="small" id="responseHint" style="margin-top:8px;">
-      Show this to the other person to scan.
-    </p>
+    <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
   </div>
 
   <div id="scanner"></div>
@@ -229,14 +224,14 @@
 <script src="js/sign.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="js/qr.js?v=layout11"></script>
+<script src="js/qr.js?v=deploy19"></script>
 
 <script>
-  // Mutual validation thresholds
+  // thresholds (as requested)
   const IRLID_TS_TOL_S = 60;
   const IRLID_DIST_TOL_M = 2;
 
-  // Storage keys (kept simple; receipt.html reads these)
+  // storage keys
   const KEY_SELF  = "irlid_resp_self";
   const KEY_OTHER = "irlid_resp_other";
 
@@ -261,6 +256,11 @@
   function clearStoredPair(){
     localStorage.removeItem(KEY_SELF);
     localStorage.removeItem(KEY_OTHER);
+  }
+
+  function slimPub(pub){
+    if (!pub) return pub;
+    return { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y };
   }
 
   async function getGPS(){
@@ -336,6 +336,20 @@
     }
   }
 
+  function decodeReceiptFromUrl(text){
+    // External QR scanners will open receipt.html#RESP=... or #COMB=...
+    try{
+      const u = new URL(text);
+      const hash = u.hash || "";
+      const m = hash.match(/RESP=([A-Za-z0-9\-_]+)/);
+      if (!m) return null;
+      const bytes = b64urlDecode(m[1]);
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      return null;
+    }
+  }
+
   function decodeB64Json(text){
     try{
       const bytes = b64urlDecode(text);
@@ -346,11 +360,7 @@
   }
 
   function decodeAny(text){
-    const hello = decodeHelloFromUrl(text);
-    if (hello) return hello;
-    const obj = decodeB64Json(text);
-    if (obj) return obj;
-    return null;
+    return decodeHelloFromUrl(text) || decodeReceiptFromUrl(text) || decodeB64Json(text);
   }
 
   function getHelloFromThisUrl(){
@@ -365,73 +375,74 @@
     }
   }
 
-  function showResponseQr(responseObj, titleText, hintText){
+  function receiptBaseUrl(){
+    return new URL("receipt.html", location.href).href.split("#")[0];
+  }
+
+  function makeReceiptUrlForResponse(responseObj){
+    // URL-based QR => any QR scanner opens the site to the receipt page
     const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(responseObj)));
-    makeQR("responseQr", encoded, 380);
+    return `${receiptBaseUrl()}#RESP=${encoded}`;
+  }
+
+  function showResponseQr(responseObj, titleText, hintText){
+    const url = makeReceiptUrlForResponse(responseObj);
+    makeQR("responseQr", url, 380);
     responseTitle.textContent = titleText;
     responseHint.textContent = hintText;
     responseArea.style.display = "block";
-  }
-
-  async function createResponseForMeeting(pubsOrdered, tsOverride){
-    const myPub = await getPublicJwk();
-    const gps = await getGPS();
-    const ts = (typeof tsOverride === "number") ? tsOverride : Math.floor(Date.now()/1000);
-
-    const payload = { v:1, type:"meeting", pubs: pubsOrdered, gps, ts };
-    const response = await buildSignedResponseFromPayload(payload, myPub);
-
-    localStorage.setItem(KEY_SELF, JSON.stringify(response));
-    return response;
-  }
-
-  async function buildSignedResponseFromPayload(payload, myPub){
-    // Compute hash of payload JSON (same as prior behavior)
-    const payloadBytes = new TextEncoder().encode(JSON.stringify(payload));
-    const hashB64 = await hashPayloadToB64url(payload); // from /js/sign.js helper
-    const sigB64 = await signHashB64url(hashB64);       // from /js/sign.js helper
-
-    return {
-      v:1,
-      type:"response",
-      payload,
-      hash: hashB64,
-      sig: sigB64,
-      pub: myPub
-    };
   }
 
   function pubsOrderedFromTwo(pubA, pubB){
     return [pubA, pubB].sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
   }
 
+  async function buildSignedResponseFromPayload(payload, myPubSlim){
+    // Hash is over payload JSON
+    const hashB64 = await hashPayloadToB64url(payload);
+    const sigB64  = await signHashB64url(hashB64);
+    return { v:1, type:"response", payload, hash: hashB64, sig: sigB64, pub: myPubSlim };
+  }
+
+  async function createResponseForMeeting(pubsOrderedSlim, tsOverride){
+    const myPubFull = await getPublicJwk();
+    const myPubSlim = slimPub(myPubFull);
+
+    const gps = await getGPS();
+    const ts = (typeof tsOverride === "number") ? tsOverride : Math.floor(Date.now()/1000);
+
+    const payload = { v:1, type:"meeting", pubs: pubsOrderedSlim, gps, ts };
+    const response = await buildSignedResponseFromPayload(payload, myPubSlim);
+
+    localStorage.setItem(KEY_SELF, JSON.stringify(response));
+    return response;
+  }
+
   async function handleScannedResponse(text){
-    const obj = decodeB64Json(text);
+    const obj = decodeAny(text);
     if (!obj || obj.type !== "response"){
       setStatus("Not a Response QR.");
       return;
     }
 
-    // Save "other" response
     localStorage.setItem(KEY_OTHER, JSON.stringify(obj));
 
     // If we don't already have a self response, create one immediately so the other person can scan it.
     let selfRaw = localStorage.getItem(KEY_SELF);
     if (!selfRaw) {
       try {
-        const myPub = await getPublicJwk();
-        const otherPub = obj.pub;
-        const pubs = pubsOrderedFromTwo(myPub, otherPub);
+        const myPubSlim = slimPub(await getPublicJwk());
+        const otherPubSlim = slimPub(obj.pub);
+        const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
 
-        // Use their timestamp for perfect pairing (still validated within 60s; exact match is best)
-        const theirTs = obj && obj.payload ? obj.payload.ts : null;
+        const theirTs = (obj && obj.payload) ? obj.payload.ts : null;
         const tsOverride = (typeof theirTs === "number") ? theirTs : undefined;
 
         const selfResp = await createResponseForMeeting(pubs, tsOverride);
         showResponseQr(
           selfResp,
           "Your Return QR",
-          "Show this to the other person to scan, then both of you open Receipts."
+          "Show this to the other person to scan. Then both of you open Receipts."
         );
       } catch (e) {
         log("Auto-create self response failed:", String(e));
@@ -446,7 +457,6 @@
   async function handleScannedHello(text){
     const obj = decodeAny(text);
 
-    // If user scans a Response while in HELLO mode, accept and process it.
     if (obj && obj.type === "response") {
       await handleScannedResponse(text);
       return;
@@ -457,14 +467,14 @@
       return;
     }
 
-    // New meeting: clear any previous pair
     clearStoredPair();
 
     const hello = obj;
     setStatus("HELLO read. Creating your return QR…");
 
-    const myPub = await getPublicJwk();
-    const pubs = pubsOrderedFromTwo(myPub, hello.pub);
+    const myPubSlim = slimPub(await getPublicJwk());
+    const otherPubSlim = slimPub(hello.pub);
+    const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
 
     const selfResp = await createResponseForMeeting(pubs, undefined);
     showResponseQr(
@@ -476,9 +486,6 @@
     setStatus("Now scan the other person's return QR below.");
   }
 
-  // UI behavior:
-  // - If page opened with #HELLO=... (from Home QR), auto-generate return QR immediately.
-  // - Scanner in that case should be used to scan their return response (i.e., Response mode).
   let openedWithHello = false;
 
   document.getElementById("startBtn").onclick = async () => {
@@ -502,14 +509,14 @@
     const helloFromUrl = getHelloFromThisUrl();
     if (helloFromUrl && helloFromUrl.type === "hello") {
       openedWithHello = true;
-
-      // New meeting on open-from-Home flow
       clearStoredPair();
 
       try {
         setStatus("Opening from Home QR… generating return QR.");
-        const myPub = await getPublicJwk();
-        const pubs = pubsOrderedFromTwo(myPub, helloFromUrl.pub);
+
+        const myPubSlim = slimPub(await getPublicJwk());
+        const otherPubSlim = slimPub(helloFromUrl.pub);
+        const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
 
         const selfResp = await createResponseForMeeting(pubs, undefined);
         showResponseQr(
