@@ -1,10 +1,10 @@
-// js/qr.js deploy 9
-// QR rendering tuned for weak cameras:
+// js/qr.js deploy 10
+// QR rendering tuned for weak cameras / webcams:
 // - errorCorrectionLevel: "L" (lowest density)
-// - larger margin/quiet zone
-// - keeps fallback remote image
+// - larger quiet zone (margin)
+// - remote image fallback uses same settings
 // Also keeps scanQR() helper.
-// Deploy 15
+// Deploy 20
 
 (function () {
   "use strict";
@@ -20,7 +20,9 @@
   }
 
   function makeRemoteImg(data, size) {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?ecc=L&margin=8&size=${size}x${size}&data=${encodeURIComponent(data)}`;
+    // Larger quiet zone helps cheap/older cameras lock on.
+    const margin = 12;
+    const url = `https://api.qrserver.com/v1/create-qr-code/?ecc=L&margin=${margin}&size=${size}x${size}&data=${encodeURIComponent(data)}`;
     const img = document.createElement("img");
     img.alt = "QR";
     img.src = url;
@@ -34,6 +36,9 @@
     const el = elById(elId);
     clear(el);
 
+    // Larger quiet zone helps scanners more than most other tweaks.
+    const margin = 12;
+
     if (typeof window.QRCode !== "undefined" && typeof window.QRCode.toCanvas === "function") {
       const canvas = document.createElement("canvas");
       canvas.width = size;
@@ -42,10 +47,9 @@
       canvas.style.height = size + "px";
       canvas.style.imageRendering = "pixelated";
 
-      // Lowest density + bigger quiet zone
       const opts = {
         errorCorrectionLevel: "L",
-        margin: 8,
+        margin,
         width: size,
         color: { dark: "#000000", light: "#ffffff" }
       };
@@ -73,6 +77,7 @@
 
       const qr = new Html5Qrcode(targetElId);
 
+      // Bias for rear camera and higher-res frames where possible.
       qr.start(
         { facingMode: "environment" },
         {
