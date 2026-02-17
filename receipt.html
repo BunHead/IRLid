@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 16 -->
+<!-- Deploy 19 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -23,7 +23,6 @@
       overflow-x:hidden;
     }
 
-    /* ===== Header / Desktop nav ===== */
     header.site-header{ width:100%; background:#fff; }
     .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
     .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
@@ -89,7 +88,6 @@
     }
     .dropdown-menu a:hover{ background:#f2f2f2; }
 
-    /* ===== Page layout ===== */
     main.page-main{
       max-width: 980px;
       margin: 0 auto;
@@ -120,32 +118,43 @@
       image-rendering: pixelated;
     }
 
-    .meta{
-      width: min(92vw, 520px);
-      max-width: 520px;
+    .panel{
+      width: min(92vw, 720px);
+      max-width: 720px;
       box-sizing:border-box;
-      text-align:center;
+      border: 1px solid #ddd;
+      padding: 12px;
+      background: #fff;
     }
 
-    .meta .row{
-      margin: 6px 0;
-      font-weight:700;
-    }
+    .panel h3{ margin: 0 0 8px 0; }
+    .row{ margin: 6px 0; font-weight: 700; }
+    .note{ font-size: 13px; font-weight: 600; opacity: 0.85; margin-top: 2px; }
 
-    .meta a{
+    a.maplink{
       color:#000;
       text-decoration: underline;
       font-weight: 800;
     }
 
-    .note{
-      font-size: 13px;
-      font-weight: 600;
-      opacity: 0.85;
-      margin-top: 2px;
+    .checks{ margin-top: 10px; }
+    .check{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      margin: 8px 0;
+      font-weight: 700;
     }
+    .badge{
+      min-width: 54px;
+      text-align:center;
+      border: 1px solid #000;
+      padding: 2px 6px;
+      font-weight: 900;
+    }
+    .pass{ background:#eaffea; }
+    .fail{ background:#ffecec; }
 
-    /* Hidden raw JSON by default (still accessible) */
     details.raw{
       width: min(92vw, 720px);
       max-width: 720px;
@@ -164,7 +173,7 @@
     }
     details.raw > summary::-webkit-details-marker{ display:none; }
 
-    pre#rawJson{
+    pre{
       margin:0;
       padding: 10px 12px;
       border-top: 1px solid #ddd;
@@ -175,16 +184,14 @@
       background:#fff;
     }
 
-    #emptyState{
-      width: min(92vw, 720px);
-      max-width: 720px;
-      border: 1px solid #ddd;
-      padding: 12px;
-      box-sizing:border-box;
-      font-weight: 700;
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+      justify-content:center;
     }
 
-    /* ===== Mobile bottom 2x2 nav ===== */
     @media (max-width:720px){
       :root{ --top-gap: 6px; }
 
@@ -209,6 +216,7 @@
         margin:0;
         padding:0;
         background:var(--black);
+        z-index:2000;
       }
 
       a.nav-btn, summary.nav-btn{
@@ -259,37 +267,57 @@
 
   <main class="page-main">
     <div class="receipt-wrap">
-      <div id="emptyState" style="display:none;">
-        No receipt found yet. Complete the scan flow first in <a href="application.html">Scan</a>.
+
+      <div class="panel" id="emptyState" style="display:none;">
+        No receipts yet. Use <a href="application.html">Scan</a> to exchange return QRs.
       </div>
 
-      <div class="qr-box" id="receiptQr" aria-label="Receipt QR"></div>
+      <div class="qr-box" id="topQr" aria-label="Receipt QR"></div>
 
-      <div class="meta" id="meta" style="display:none;">
+      <div class="panel" id="metaPanel" style="display:none;">
+        <h3 id="metaTitle">Receipt</h3>
         <div class="row" id="coordsRow"></div>
         <div class="row" id="timeRow"></div>
         <div class="note" id="accRow"></div>
+
+        <div class="checks" id="checks"></div>
+
+        <div class="btnrow">
+          <button class="btn secondary" id="clearBtn">Clear stored receipts</button>
+        </div>
       </div>
 
       <details class="raw" id="rawWrap" style="display:none;">
-        <summary>Show raw receipt JSON</summary>
+        <summary>Show stored JSON</summary>
         <pre id="rawJson"></pre>
       </details>
+
     </div>
   </main>
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout9"></script>
+  <script src="js/qr.js?v=layout11"></script>
 
   <script>
+    // thresholds (requested)
+    const TS_TOL_S = 60;
+    const DIST_TOL_M = 2;
+
+    const KEY_SELF  = "irlid_resp_self";
+    const KEY_OTHER = "irlid_resp_other";
+    const KEY_LAST  = "irlid_last_receipt"; // legacy
+
     const emptyState = document.getElementById("emptyState");
-    const meta = document.getElementById("meta");
+    const metaPanel = document.getElementById("metaPanel");
+    const metaTitle = document.getElementById("metaTitle");
     const coordsRow = document.getElementById("coordsRow");
     const timeRow = document.getElementById("timeRow");
     const accRow = document.getElementById("accRow");
+    const checksEl = document.getElementById("checks");
     const rawWrap = document.getElementById("rawWrap");
     const rawJson = document.getElementById("rawJson");
+    const clearBtn = document.getElementById("clearBtn");
 
     function fmtNum(n){
       if (typeof n !== "number") return "";
@@ -299,70 +327,198 @@
     function formatTime(ts){
       if (!ts || typeof ts !== "number") return null;
       const d = new Date(ts * 1000);
+      return { local: d.toLocaleString(), iso: d.toISOString(), epoch: ts, date: d };
+    }
+
+    function haversineMeters(lat1, lon1, lat2, lon2){
+      const R = 6371000;
+      const toRad = (x) => x * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function addCheck(label, ok, detail){
+      const div = document.createElement("div");
+      div.className = "check";
+      const badge = document.createElement("div");
+      badge.className = "badge " + (ok ? "pass" : "fail");
+      badge.textContent = ok ? "PASS" : "FAIL";
+      const txt = document.createElement("div");
+      txt.innerHTML = `${label}${detail ? `<div class="note">${detail}</div>` : ""}`;
+      div.appendChild(badge);
+      div.appendChild(txt);
+      checksEl.appendChild(div);
+    }
+
+    function readJson(key){
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    async function validateResponse(resp){
+      const results = {
+        okStructure: false,
+        okHash: false,
+        okSig: false,
+        computedHash: null
+      };
+
+      if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
+        return results;
+      }
+      results.okStructure = true;
+
+      // hash(payload) matches resp.hash
+      try {
+        const computed = await hashPayloadToB64url(resp.payload);
+        results.computedHash = computed;
+        results.okHash = (computed === resp.hash);
+      } catch {
+        results.okHash = false;
+      }
+
+      // signature verifies against resp.pub over resp.hash
+      try {
+        results.okSig = await verifySig(resp.hash, resp.sig, resp.pub);
+      } catch {
+        results.okSig = false;
+      }
+
+      return results;
+    }
+
+    function getGps(resp){
+      const gps = resp && resp.payload ? resp.payload.gps : null;
+      if (!gps) return null;
+      if (typeof gps.lat !== "number" || typeof gps.lon !== "number") return null;
+      return gps;
+    }
+
+    function getTs(resp){
+      const ts = resp && resp.payload ? resp.payload.ts : null;
+      return (typeof ts === "number") ? ts : null;
+    }
+
+    function combinedObject(selfResp, otherResp){
       return {
-        local: d.toLocaleString(),
-        iso: d.toISOString(),
-        epoch: ts
+        v: 1,
+        type: "combined",
+        tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S },
+        a: selfResp,
+        b: otherResp
       };
     }
 
-    const raw = localStorage.getItem("irlid_last_receipt");
-    if (!raw) {
-      emptyState.style.display = "block";
-    } else {
-      try {
-        const obj = JSON.parse(raw);
+    clearBtn.onclick = () => {
+      localStorage.removeItem(KEY_SELF);
+      localStorage.removeItem(KEY_OTHER);
+      localStorage.removeItem(KEY_LAST);
+      location.reload();
+    };
 
-        // Render QR front and center
-        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(obj)));
-        makeQR("receiptQr", encoded, 460);
+    (async () => {
+      const selfResp  = readJson(KEY_SELF);
+      const otherResp = readJson(KEY_OTHER);
+      const legacy    = readJson(KEY_LAST);
 
-        // Extract metadata
-        const gps = obj && obj.payload && obj.payload.gps ? obj.payload.gps : null;
-        const ts = obj && obj.payload ? obj.payload.ts : null;
+      // Decide what to display as the top QR
+      // - If both responses exist: show Combined QR
+      // - Else if one exists: show that (Return QR)
+      // - Else if legacy exists: show legacy response
+      const havePair = !!(selfResp && otherResp);
+      const single = selfResp || otherResp || legacy;
 
-        // Show meta block if we have anything useful
-        const hasGps = gps && typeof gps.lat === "number" && typeof gps.lon === "number";
-        const t = formatTime(ts);
-
-        if (hasGps || t) meta.style.display = "block";
-
-        if (hasGps) {
-          const lat = gps.lat;
-          const lon = gps.lon;
-          const q = `${lat},${lon}`;
-
-          // Google Maps deep link (pin/search at coords)
-          const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
-
-          coordsRow.innerHTML =
-            `Location: <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(lat)}, ${fmtNum(lon)}</a>`;
-
-          if (typeof gps.acc === "number") {
-            accRow.textContent = `Accuracy: ±${Math.round(gps.acc)} m`;
-          } else {
-            accRow.textContent = "";
-          }
-        } else {
-          coordsRow.textContent = "Location: (not captured)";
-          accRow.textContent = "";
-        }
-
-        if (t) {
-          timeRow.textContent = `Time: ${t.local} (ts: ${t.epoch})`;
-        } else {
-          timeRow.textContent = "Time: (missing)";
-        }
-
-        // Keep raw JSON hidden behind details toggle
-        rawWrap.style.display = "block";
-        rawJson.textContent = JSON.stringify(obj, null, 2);
-
-      } catch (e) {
+      if (!havePair && !single) {
         emptyState.style.display = "block";
-        emptyState.textContent = "Failed to parse receipt. Try scanning again.";
+        return;
       }
-    }
+
+      metaPanel.style.display = "block";
+      rawWrap.style.display = "block";
+
+      if (havePair) {
+        metaTitle.textContent = "Combined Receipt (Both Parties)";
+        const combined = combinedObject(selfResp, otherResp);
+        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(combined)));
+        makeQR("topQr", encoded, 460);
+        rawJson.textContent = JSON.stringify({ selfResp, otherResp }, null, 2);
+      } else {
+        metaTitle.textContent = "Return QR (Waiting for the other scan)";
+        const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(single)));
+        makeQR("topQr", encoded, 460);
+        rawJson.textContent = JSON.stringify(single, null, 2);
+      }
+
+      // Show meta using "best available": prefer selfResp payload, else otherResp, else legacy.
+      const base = selfResp || otherResp || legacy;
+      const gps = getGps(base);
+      const ts = getTs(base);
+
+      // Location row
+      if (gps) {
+        const q = `${gps.lat},${gps.lon}`;
+        const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
+        coordsRow.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
+        if (typeof gps.acc === "number") accRow.textContent = `Accuracy: ±${Math.round(gps.acc)} m`;
+        else accRow.textContent = "";
+      } else {
+        coordsRow.textContent = "Location: (not captured)";
+        accRow.textContent = "";
+      }
+
+      // Time row
+      const t = formatTime(ts);
+      if (t) timeRow.textContent = `Time: ${t.local} (ts: ${t.epoch})`;
+      else timeRow.textContent = "Time: (missing)";
+
+      // Validation checks
+      checksEl.innerHTML = "";
+
+      if (selfResp) {
+        const vr = await validateResponse(selfResp);
+        addCheck("Self receipt structure", vr.okStructure);
+        addCheck("Self hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Self signature valid", vr.okSig);
+      }
+
+      if (otherResp) {
+        const vr = await validateResponse(otherResp);
+        addCheck("Other receipt structure", vr.okStructure);
+        addCheck("Other hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Other signature valid", vr.okSig);
+      }
+
+      if (selfResp && otherResp) {
+        // Check pubs match (same set and order)
+        const pubsA = (selfResp.payload && selfResp.payload.pubs) ? JSON.stringify(selfResp.payload.pubs) : null;
+        const pubsB = (otherResp.payload && otherResp.payload.pubs) ? JSON.stringify(otherResp.payload.pubs) : null;
+        const okPubs = (pubsA && pubsB && pubsA === pubsB);
+        addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
+
+        // Timestamp within tolerance
+        const tsA = getTs(selfResp);
+        const tsB = getTs(otherResp);
+        const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
+        addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
+
+        // Distance within tolerance
+        const gA = getGps(selfResp);
+        const gB = getGps(otherResp);
+        let okDist = false;
+        let dist = null;
+        if (gA && gB) {
+          dist = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+          okDist = dist <= DIST_TOL_M;
+        }
+        addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
+      } else {
+        addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the QR above to the other person to scan.");
+      }
+    })();
   </script>
 </body>
 </html>
