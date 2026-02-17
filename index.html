@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 18 -->
+<!-- Deploy 20 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -24,36 +24,22 @@
       overflow-x: hidden;
     }
 
-    /* ===== Desktop header/logo + full-width nav bar ===== */
-    header.site-header{
-      width: 100%;
-      background: #fff;
-    }
-
-    .brand-wrap{
-      width: 100%;
-      padding: 10px 14px 0 14px;
-    }
-
-    .brand{
-      display: inline-flex;
-      align-items: center;
-      text-decoration: none;
-      color: inherit;
-    }
+    header.site-header{ width:100%; background:#fff; }
+    .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
+    .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
 
     nav.site-nav{
       width: 100%;
       background: var(--black);
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      gap: 0;
-      padding: 0;
-      margin: 0;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:0;
+      padding:0;
+      margin:0;
       position: sticky;
-      top: 0;
-      z-index: 1000;
+      top:0;
+      z-index:1000;
     }
 
     a.nav-btn, summary.nav-btn{
@@ -107,7 +93,6 @@
     }
     .dropdown-menu a:hover{ background: #f2f2f2; }
 
-    /* ===== Main: QR only (equal side padding) ===== */
     main.home-main{
       width: 100%;
       box-sizing: border-box;
@@ -128,6 +113,7 @@
       margin: 0 auto;
       max-width: 100%;
       height: auto;
+      image-rendering: pixelated;
     }
 
     #qrError{
@@ -142,7 +128,6 @@
       box-sizing: border-box;
     }
 
-    /* ===== Mobile: fixed bottom 2x2 nav ===== */
     @media (max-width: 720px){
       :root{ --qr-top-gap: 2px; }
 
@@ -159,7 +144,7 @@
 
       nav.site-nav{
         position: fixed;
-        top: auto; /* IMPORTANT: ensures it snaps to bottom */
+        top: auto; /* IMPORTANT */
         bottom: env(safe-area-inset-bottom, 0px);
         left: 0;
         right: 0;
@@ -236,7 +221,7 @@
 
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=layout10"></script>
+  <script src="js/qr.js?v=deploy19"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -247,6 +232,11 @@
     }
     window.addEventListener("error", (e) => showErr(e.error || e.message));
     window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
+
+    function slimPub(pub){
+      if (!pub) return pub;
+      return { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y };
+    }
 
     function computeQrSize(){
       const box = document.getElementById("myQr");
@@ -272,7 +262,9 @@
 
     async function renderHelloQr(){
       try {
-        const pub = await getPublicJwk();
+        const pubFull = await getPublicJwk();
+        const pub = slimPub(pubFull);
+
         const hello = {
           v: 1,
           type: "hello",
@@ -282,8 +274,10 @@
         };
 
         const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-        const baseUrl = location.origin;
-        const url = `${baseUrl}/IRLid/application.html#HELLO=${encodedHello}`;
+
+        // Use a URL QR so ANY QR scanner can open the site.
+        const appUrlBase = new URL("application.html", location.href).href.split("#")[0];
+        const url = `${appUrlBase}#HELLO=${encodedHello}`;
 
         const size = computeQrSize();
         makeQR("myQr", url, size);
