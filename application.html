@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 20 -->
+<!-- Deploy 26 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -37,6 +37,8 @@
       z-index:1000;
     }
 
+    #accountSlot{ display: contents; }
+
     a.nav-btn,summary.nav-btn{
       border:0;
       background:#000;
@@ -61,21 +63,27 @@
       position:absolute;
       top:100%;
       left:0;
-      background:#fff;
-      border:1px solid #ddd;
-      min-width:220px;
-      border-radius:0;
+      min-width:180px;
+      background:#111;
+      border:0;
       padding:0;
+      margin:0;
       z-index:1200;
     }
     .dropdown-menu a{
       display:block;
-      padding:12px;
-      font-weight:700;
-      color:#000;
+      width:100%;
+      text-align:left;
+      padding:12px 14px;
+      color:#fff;
+      background:#111;
+      border:0;
       text-decoration:none;
+      font-weight:700;
+      border-top:1px solid rgba(255,255,255,0.06);
+      box-sizing:border-box;
     }
-    .dropdown-menu a:hover{background:#f2f2f2;}
+    .dropdown-menu a:hover{ background:#000; }
 
     main.page-main{
       max-width:980px;
@@ -193,7 +201,7 @@
       </div>
     </details>
 
-    <a class="nav-btn" href="receipt.html">Receipts</a>
+    <span id="accountSlot"></span>
   </nav>
 </header>
 
@@ -221,6 +229,8 @@
   <div id="debug"></div>
 </main>
 
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -238,301 +248,168 @@
   const debugMode = new URLSearchParams(location.search).get("debug") === "1";
   const debugEl = document.getElementById("debug");
   if (debugMode) debugEl.style.display = "block";
+
   function log(...args){
     if (!debugMode) return;
-    debugEl.textContent += "\n" + args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ");
+    debugEl.textContent += args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ") + "\n";
   }
 
+  // helpers: b64url JSON decode (supports raw b64url JSON or full URL/hash)
+  function b64urlToBytes(str){
+    str = (str || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (str.length % 4) str += "=";
+    const bin = atob(str);
+    const out = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function parseB64urlJson(str){
+    const bytes = b64urlToBytes(str);
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  }
+
+  // HELLO mode
+  const hash = location.hash || "";
+  const helloMatch = hash.match(/HELLO=([^&]+)/);
+  const hello = helloMatch ? helloMatch[1] : null;
+
   const statusEl = document.getElementById("status");
-  const cameraSelect = document.getElementById("cameraSelect");
   const responseArea = document.getElementById("responseArea");
+  const responseQrElId = "responseQr";
   const responseTitle = document.getElementById("responseTitle");
   const responseHint = document.getElementById("responseHint");
 
-  let scanner = null;
+  // Always generate a Return QR immediately in HELLO mode (Person B)
+  if (hello) {
+    try{
+      responseArea.style.display = "block";
+      responseTitle.textContent = "Your Return QR";
+      responseHint.textContent = "Show this to the other person to scan.";
 
-  function setStatus(s){ statusEl.textContent = s; }
+      // application.html existing behavior should create response object via qr.js
+      if (typeof makeReturnForHello !== "function") {
+        throw new Error("makeReturnForHello() missing (js/qr.js not loaded)");
+      }
+      const returnObj = makeReturnForHello(hello);
+      const encoded = btoa(JSON.stringify(returnObj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+      const url = new URL(location.href);
+      url.hash = "RESP=" + encoded;
 
-  function clearStoredPair(){
-    localStorage.removeItem(KEY_SELF);
-    localStorage.removeItem(KEY_OTHER);
+      makeQR(responseQrElId, url.toString(), 360);
+      statusEl.textContent = "Ready (HELLO mode).";
+    }catch(e){
+      statusEl.textContent = "Error: " + e;
+      log(e);
+    }
   }
 
-  function slimPub(pub){
-    if (!pub) return pub;
-    return { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y };
-  }
+  // scanner
+  let html5QrCode = null;
+  const scannerElId = "scanner";
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const cameraSelect = document.getElementById("cameraSelect");
 
-  async function getGPS(){
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy }),
-        () => resolve(null),
-        { enableHighAccuracy:true, timeout:6000, maximumAge:0 }
-      );
-    });
-  }
-
-  function pickRearCameraIndex(devices){
-    const re = /(back|rear|environment)/i;
-    const idx = devices.findIndex(d => re.test(d.label || ""));
-    return idx >= 0 ? idx : 0;
-  }
+  function setStatus(msg){ statusEl.textContent = msg; }
 
   async function listCameras(){
-    try{
-      const devices = await Html5Qrcode.getCameras();
-      cameraSelect.innerHTML = "";
-      devices.forEach((d,i)=>{
-        const opt = document.createElement("option");
-        opt.value = d.id;
-        opt.textContent = d.label || `Camera ${i+1}`;
-        cameraSelect.appendChild(opt);
-      });
-      if (devices.length) cameraSelect.selectedIndex = pickRearCameraIndex(devices);
-      return devices;
-    } catch(e){
-      log("Camera list error:", String(e));
-      return [];
+    const devices = await Html5Qrcode.getCameras();
+    cameraSelect.innerHTML = "";
+    for (const d of devices){
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = d.label || d.id;
+      cameraSelect.appendChild(opt);
+    }
+    return devices;
+  }
+
+  function extractRespFromText(text){
+    if (!text) return null;
+
+    // full receipt URL or application URL
+    const m1 = text.match(/RESP=([A-Za-z0-9\-_]+)/);
+    if (m1) return parseB64urlJson(m1[1]);
+
+    // raw b64url json
+    if (/^[A-Za-z0-9\-_]+$/.test(text) && text.length > 40){
+      try { return parseB64urlJson(text); } catch {}
+    }
+
+    // plain JSON
+    if (text.trim().startsWith("{")){
+      try { return JSON.parse(text); } catch {}
+    }
+
+    return null;
+  }
+
+  async function onScanSuccess(decodedText){
+    log("scan:", decodedText);
+
+    // In HELLO mode, scanning a response should auto-detect and process
+    const resp = extractRespFromText(decodedText);
+    if (resp && resp.type === "response"){
+      try{
+        if (typeof processScannedResponse !== "function"){
+          throw new Error("processScannedResponse() missing (js/qr.js not loaded)");
+        }
+        const out = await processScannedResponse(resp, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
+        log("processed:", out);
+
+        // Store receipts as before
+        if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
+        if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
+
+        // Redirect to receipt page
+        location.href = "receipt.html";
+      }catch(e){
+        setStatus("Error processing QR: " + e);
+        log(e);
+      }
+    } else {
+      setStatus("QR detected (not a response).");
     }
   }
 
-  async function startScanner(handler){
-    await stopScanner();
-    scanner = new Html5Qrcode("scanner");
+  async function startScanner(){
+    setStatus("Starting camera…");
+    if (!html5QrCode) html5QrCode = new Html5Qrcode(scannerElId);
 
-    const cam = cameraSelect.value || { facingMode: { ideal:"environment" } };
-
-    try{
-      await scanner.start(cam, { fps:10, qrbox:320 }, handler, () => {});
-    } catch(e){
-      log("Start error:", String(e));
-      setStatus("Scanner failed to start.");
-    }
+    const camId = cameraSelect.value;
+    await html5QrCode.start(
+      { deviceId: { exact: camId } },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      onScanSuccess
+    );
+    setStatus("Scanning…");
   }
 
   async function stopScanner(){
-    try{
-      if (!scanner) return;
-      await scanner.stop();
-      await scanner.clear();
-      scanner = null;
-    } catch(e){
-      log("Stop error:", String(e));
-    }
-  }
-
-  function decodeHelloFromUrl(text){
-    try{
-      const u = new URL(text);
-      const hash = u.hash || "";
-      const m = hash.match(/HELLO=([A-Za-z0-9\-_]+)/);
-      if (!m) return null;
-      const bytes = b64urlDecode(m[1]);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return null;
-    }
-  }
-
-  function decodeReceiptFromUrl(text){
-    // External QR scanners will open receipt.html#RESP=... or #COMB=...
-    try{
-      const u = new URL(text);
-      const hash = u.hash || "";
-      const m = hash.match(/RESP=([A-Za-z0-9\-_]+)/);
-      if (!m) return null;
-      const bytes = b64urlDecode(m[1]);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return null;
-    }
-  }
-
-  function decodeB64Json(text){
-    try{
-      const bytes = b64urlDecode(text);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return null;
-    }
-  }
-
-  function decodeAny(text){
-    return decodeHelloFromUrl(text) || decodeReceiptFromUrl(text) || decodeB64Json(text);
-  }
-
-  function getHelloFromThisUrl(){
-    try {
-      const hash = location.hash || "";
-      const m = hash.match(/HELLO=([A-Za-z0-9\-_]+)/);
-      if (!m) return null;
-      const bytes = b64urlDecode(m[1]);
-      return JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      return null;
-    }
-  }
-
-  function receiptBaseUrl(){
-    return new URL("receipt.html", location.href).href.split("#")[0];
-  }
-
-  function makeReceiptUrlForResponse(responseObj){
-    // URL-based QR => any QR scanner opens the site to the receipt page
-    const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(responseObj)));
-    return `${receiptBaseUrl()}#RESP=${encoded}`;
-  }
-
-  function showResponseQr(responseObj, titleText, hintText){
-    const url = makeReceiptUrlForResponse(responseObj);
-    makeQR("responseQr", url, 380);
-    responseTitle.textContent = titleText;
-    responseHint.textContent = hintText;
-    responseArea.style.display = "block";
-  }
-
-  function pubsOrderedFromTwo(pubA, pubB){
-    return [pubA, pubB].sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  }
-
-  async function buildSignedResponseFromPayload(payload, myPubSlim){
-    // Hash is over payload JSON
-    const hashB64 = await hashPayloadToB64url(payload);
-    const sigB64  = await signHashB64url(hashB64);
-    return { v:1, type:"response", payload, hash: hashB64, sig: sigB64, pub: myPubSlim };
-  }
-
-  async function createResponseForMeeting(pubsOrderedSlim, tsOverride){
-    const myPubFull = await getPublicJwk();
-    const myPubSlim = slimPub(myPubFull);
-
-    const gps = await getGPS();
-    const ts = (typeof tsOverride === "number") ? tsOverride : Math.floor(Date.now()/1000);
-
-    const payload = { v:1, type:"meeting", pubs: pubsOrderedSlim, gps, ts };
-    const response = await buildSignedResponseFromPayload(payload, myPubSlim);
-
-    localStorage.setItem(KEY_SELF, JSON.stringify(response));
-    return response;
-  }
-
-  async function handleScannedResponse(text){
-    const obj = decodeAny(text);
-    if (!obj || obj.type !== "response"){
-      setStatus("Not a Response QR.");
-      return;
-    }
-
-    localStorage.setItem(KEY_OTHER, JSON.stringify(obj));
-
-    // If we don't already have a self response, create one immediately so the other person can scan it.
-    let selfRaw = localStorage.getItem(KEY_SELF);
-    if (!selfRaw) {
-      try {
-        const myPubSlim = slimPub(await getPublicJwk());
-        const otherPubSlim = slimPub(obj.pub);
-        const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
-
-        const theirTs = (obj && obj.payload) ? obj.payload.ts : null;
-        const tsOverride = (typeof theirTs === "number") ? theirTs : undefined;
-
-        const selfResp = await createResponseForMeeting(pubs, tsOverride);
-        showResponseQr(
-          selfResp,
-          "Your Return QR",
-          "Show this to the other person to scan. Then both of you open Receipts."
-        );
-      } catch (e) {
-        log("Auto-create self response failed:", String(e));
-      }
-    }
-
-    setStatus("Saved. Opening combined receipt…");
-    await stopScanner();
-    location.href = "receipt.html";
-  }
-
-  async function handleScannedHello(text){
-    const obj = decodeAny(text);
-
-    if (obj && obj.type === "response") {
-      await handleScannedResponse(text);
-      return;
-    }
-
-    if (!obj || obj.type !== "hello"){
-      setStatus("Not a HELLO QR.");
-      return;
-    }
-
-    clearStoredPair();
-
-    const hello = obj;
-    setStatus("HELLO read. Creating your return QR…");
-
-    const myPubSlim = slimPub(await getPublicJwk());
-    const otherPubSlim = slimPub(hello.pub);
-    const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
-
-    const selfResp = await createResponseForMeeting(pubs, undefined);
-    showResponseQr(
-      selfResp,
-      "Your Return QR",
-      "Show this to the other person to scan. Then scan their return below."
-    );
-
-    setStatus("Now scan the other person's return QR below.");
-  }
-
-  let openedWithHello = false;
-
-  document.getElementById("startBtn").onclick = async () => {
-    if (openedWithHello) {
-      setStatus("Scan their Return QR (Response).");
-      await startScanner(handleScannedResponse);
-      return;
-    }
-    setStatus("Scan the other person's Home QR (HELLO).");
-    await startScanner(handleScannedHello);
-  };
-
-  document.getElementById("stopBtn").onclick = async () => {
-    await stopScanner();
+    if (!html5QrCode) return;
+    try{ await html5QrCode.stop(); }catch{}
     setStatus("Stopped.");
-  };
+  }
 
+  startBtn.addEventListener("click", async () => {
+    try{
+      await listCameras();
+      await startScanner();
+    }catch(e){
+      setStatus("Camera error: " + e);
+      log(e);
+    }
+  });
+
+  stopBtn.addEventListener("click", stopScanner);
+
+  // populate cameras early
   (async () => {
-    await listCameras();
-
-    const helloFromUrl = getHelloFromThisUrl();
-    if (helloFromUrl && helloFromUrl.type === "hello") {
-      openedWithHello = true;
-      clearStoredPair();
-
-      try {
-        setStatus("Opening from Home QR… generating return QR.");
-
-        const myPubSlim = slimPub(await getPublicJwk());
-        const otherPubSlim = slimPub(helloFromUrl.pub);
-        const pubs = pubsOrderedFromTwo(myPubSlim, otherPubSlim);
-
-        const selfResp = await createResponseForMeeting(pubs, undefined);
-        showResponseQr(
-          selfResp,
-          "Your Return QR",
-          "Show this to the other person to scan. Then tap Start Scanner to scan their return."
-        );
-
-        setStatus("Show your Return QR above. Then scan their return when ready.");
-      } catch (e) {
-        log("Auto-generate response failed:", String(e));
-        setStatus("Could not generate return QR (check permissions).");
-      }
-    } else {
-      openedWithHello = false;
-      setStatus("Ready. Tap Start Scanner to scan the other person's Home QR (HELLO).");
+    try{
+      await listCameras();
+    }catch(e){
+      log("camera list error", e);
     }
   })();
 </script>
