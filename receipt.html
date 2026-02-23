@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 25 -->
+<!-- Deploy 26 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -78,7 +78,7 @@
       margin:0;
       z-index:1200;
     }
-    .dropdown-menu a, .dropdown-menu button{
+    .dropdown-menu a{
       display:block;
       width:100%;
       text-align:left;
@@ -90,8 +90,11 @@
       font-weight:700;
       border-top:1px solid rgba(255,255,255,0.06);
       cursor:pointer;
+      font-size: inherit;
+      line-height: normal;
+      box-sizing: border-box;
     }
-    .dropdown-menu a:hover, .dropdown-menu button:hover{ background:#000; }
+    .dropdown-menu a:hover{ background:#000; }
 
     main.page-main{
       max-width: 980px;
@@ -301,7 +304,6 @@
         </div>
       </details>
 
-      <!-- Account slot: Login (logged out) OR Name... dropdown (logged in) -->
       <span id="accountSlot"></span>
     </nav>
   </header>
@@ -318,7 +320,6 @@
       <div class="panel" id="metaPanel" style="display:none;">
         <h3 id="metaTitle">Receipt</h3>
 
-        <!-- Split details into Self + Guest -->
         <div class="people-grid" id="peopleGrid" style="display:none;">
           <div class="person-panel">
             <div class="person-title">Self</div>
@@ -360,14 +361,13 @@
   <script src="js/auth.js"></script>
 
   <script>
-    // thresholds (non-negotiable)
     const TS_TOL_S = 60;
     const DIST_TOL_M = 2;
 
     const KEY_SELF  = "irlid_resp_self";
-    const KEY_GUEST = "irlid_resp_other";     // keep storage key, but rename UI to Guest
-    const KEY_LAST  = "irlid_last_receipt";   // legacy single receipt
-    const KEY_LIST  = "irlid_receipts";       // capped history
+    const KEY_GUEST = "irlid_resp_other";
+    const KEY_LAST  = "irlid_last_receipt";
+    const KEY_LIST  = "irlid_receipts";
 
     const emptyState = document.getElementById("emptyState");
     const metaPanel = document.getElementById("metaPanel");
@@ -419,14 +419,14 @@
         return;
       }
 
-      // Logged-in view: Name... dropdown with Settings + Receipts + Logout (bottom)
+      // Logged-in view: all items are <a> so font/size matches perfectly.
       slot.innerHTML = `
         <details class="nav-dropdown" id="accountDropdown">
           <summary class="nav-btn">Name... ▼</summary>
           <div class="dropdown-menu" role="menu" aria-label="Account menu">
             <a href="#" id="acctSettingsLink">Settings</a>
             <a href="receipt.html">Receipts</a>
-            <button type="button" id="acctLogoutBtn">Logout</button>
+            <a href="login.html" id="acctLogoutLink">Logout</a>
           </div>
         </details>
       `;
@@ -439,18 +439,18 @@
         });
       }
 
-      const logoutBtn = document.getElementById("acctLogoutBtn");
-      if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
+      const logoutLink = document.getElementById("acctLogoutLink");
+      if (logoutLink) {
+        logoutLink.addEventListener("click", async (e) => {
+          e.preventDefault();
           try {
             if (window.IRLAuth && typeof window.IRLAuth.logout === "function") {
               await window.IRLAuth.logout();
             }
           } finally {
-            // Close dropdown + re-render to Login
             closeAllDropdowns("__none__");
-            renderAccountNav(false);
-            wireDropdownCloseBehavior();
+            // go to login page after logout (clean state)
+            window.location.href = "login.html";
           }
         });
       }
@@ -537,7 +537,7 @@
       return new URL("receipt.html", location.href).href.split("#")[0];
     }
 
-    // b64url helpers (kept inline)
+    // b64url helpers
     function b64urlEncode(bytes){
       let bin = "";
       for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
@@ -594,7 +594,6 @@
 
     function makeDualMapsUrl(gA, gB){
       if (gA && gB){
-        // Shows both points as a route (pins both).
         return `https://www.google.com/maps/dir/${gA.lat},${gA.lon}/${gB.lat},${gB.lon}`;
       }
       const g = gA || gB;
@@ -663,11 +662,9 @@
       location.href = baseReceiptUrl();
     };
 
-    // ---------- Main render ----------
     (async () => {
       await refreshNav();
 
-      // If opened from external QR scanner, import into localStorage/history (required behavior)
       const fromHash = parseFromHash();
       if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
         localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
@@ -683,7 +680,6 @@
       const havePair = !!(selfResp && guestResp);
       const single = selfResp || guestResp || legacy;
 
-      // If nothing at all, show empty
       if (!havePair && !single && !(fromHash && fromHash.kind === "comb")) {
         emptyState.style.display = "block";
         return;
@@ -695,11 +691,10 @@
       peopleGrid.style.display = "grid";
       metaTitle.textContent = "Receipt";
 
-      // CASE 1: opened via combined URL QR
       if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
         const comb = fromHash.obj;
-        const respA = comb.a || null; // Self
-        const respB = comb.b || null; // Guest
+        const respA = comb.a || null;
+        const respB = comb.b || null;
 
         const url = makeReceiptUrlForCombined(comb);
         if (typeof makeQR === "function") makeQR("topQr", url, 460);
@@ -756,7 +751,6 @@
         return;
       }
 
-      // CASE 2: local pair exists
       if (havePair) {
         const combined = combinedObject(selfResp, guestResp);
         const url = makeReceiptUrlForCombined(combined);
@@ -803,14 +797,12 @@
         return;
       }
 
-      // CASE 3: single receipt only (still show a URL QR so another person can open it)
       if (single) {
         const url = makeReceiptUrlForResponse(single);
         if (typeof makeQR === "function") makeQR("topQr", url, 460);
 
         rawJson.textContent = JSON.stringify(single, null, 2);
 
-        // Show it in "Self" panel if it came from KEY_SELF; otherwise place into Guest if it came from KEY_GUEST.
         const cameFromSelf = !!selfResp;
         const cameFromGuest = !!guestResp && !selfResp;
 
