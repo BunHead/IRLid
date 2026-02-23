@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<!-- Deploy 2 (Login nav: Login vs Name... dropdown) -->
+<!-- Deploy 26 -->
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Login</title>
   <link rel="stylesheet" href="css/style.css">
 
@@ -17,31 +17,37 @@
     }
 
     html, body{ height:100%; }
-    body{ margin:0; background:#fff; overflow-x:hidden; }
+    body{
+      margin:0;
+      background:#fff;
+      overflow-x:hidden;
+    }
 
     header.site-header{ width:100%; background:#fff; }
     .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
     .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
 
     nav.site-nav{
-      width:100%;
-      background:var(--black);
+      width: 100%;
+      background: var(--black);
       display:flex;
       align-items:center;
       justify-content:flex-start;
       gap:0;
       padding:0;
       margin:0;
-      position:sticky;
+      position: sticky;
       top:0;
       z-index:1000;
     }
 
+    #accountSlot{ display: contents; }
+
     a.nav-btn, summary.nav-btn{
       appearance:none; -webkit-appearance:none;
       border:0;
-      background:var(--black);
-      color:var(--white);
+      background: var(--black);
+      color: var(--white);
       text-decoration:none;
       font:inherit;
       font-weight:700;
@@ -54,6 +60,7 @@
       justify-content:center;
       cursor:pointer;
       user-select:none;
+      white-space:nowrap;
     }
 
     a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
@@ -73,7 +80,7 @@
       margin:0;
       z-index:1200;
     }
-    .dropdown-menu a, .dropdown-menu button{
+    .dropdown-menu a{
       display:block;
       width:100%;
       text-align:left;
@@ -84,39 +91,60 @@
       text-decoration:none;
       font-weight:700;
       border-top:1px solid rgba(255,255,255,0.06);
-      cursor:pointer;
+      box-sizing:border-box;
     }
-    .dropdown-menu a:hover, .dropdown-menu button:hover{ background:#000; }
+    .dropdown-menu a:hover{ background:#000; }
 
-    main{
-      padding: 24px 16px 110px;
-      text-align: center;
+    main.page-main{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: var(--top-gap) var(--side-pad) 22px var(--side-pad);
+      box-sizing:border-box;
     }
 
-    /* Mobile nav: fixed bottom 2x2 grid */
+    .card{
+      width: min(92vw, 720px);
+      max-width: 720px;
+      border: 1px solid #ddd;
+      padding: 12px;
+      margin: 0 auto;
+      background: #fff;
+      box-sizing:border-box;
+    }
+
+    .btnrow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin: 10px 0;
+    }
+
+    .statusBox{
+      border: 1px solid #ddd;
+      padding: 10px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+    }
+
     @media (max-width: 720px){
-      .brand-wrap{
-        padding: 4px var(--side-pad) 0 var(--side-pad);
-      }
+      .brand-wrap{ padding:4px var(--side-pad) 0 var(--side-pad); }
       #logo{
-        max-width: 72vw;
-        max-height: 90px;
-        width: auto;
-        height: auto;
-        display: block;
+        max-width:72vw;
+        max-height:90px;
+        width:auto; height:auto;
+        display:block;
       }
 
       nav.site-nav{
         position:fixed;
         top:auto; /* IMPORTANT */
-        bottom:env(safe-area-inset-bottom,0px);
-        left:0;
-        right:0;
-        height:var(--mobile-nav-h);
-
+        bottom: env(safe-area-inset-bottom, 0px);
+        left:0; right:0;
+        height: var(--mobile-nav-h);
         display:grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
+        grid-template-columns:1fr 1fr;
+        grid-template-rows:1fr 1fr;
         gap:0;
         margin:0;
         padding:0;
@@ -128,11 +156,9 @@
         width:100%;
         height:100%;
         padding:0;
-        border-radius:0;
         font-size:18px;
       }
 
-      /* Dropdowns on mobile must open upward and not hide behind nav */
       .dropdown-menu{
         position:fixed;
         left:0;
@@ -145,33 +171,9 @@
       }
 
       body{
-        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0px));
+        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
       }
     }
-
-    /* Page-specific tweaks */
-    main{ padding: 24px 16px 140px; text-align: center; }
-    .card{
-      max-width: 720px;
-      margin: 0 auto;
-      text-align: left;
-      border:1px solid #e5e5e5;
-      background:#fafafa;
-      padding:16px;
-    }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
-    .row .btn{ margin-top:0; }
-    .mono{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 13px;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-    .hint{ color:#333; font-size: 14px; margin-top: 10px; }
-    .status{ margin-top: 10px; padding: 10px; border:1px solid #ddd; background:#fff; }
-
-    /* Keep summary text from wrapping weirdly */
-    summary.nav-btn{ white-space:nowrap; }
   </style>
 </head>
 
@@ -201,160 +203,96 @@
     </nav>
   </header>
 
-  <main>
-    <h2 style="margin: 6px 0 14px 0;">Login (Passkeys)</h2>
+  <main class="page-main">
+    <h2 style="text-align:center; margin-top: 6px;">Login (Passkeys)</h2>
 
     <div class="card">
-      <div class="hint">
+      <p style="margin-top:0;">
         This login is <b>device-local</b> (no backend). It uses a passkey (WebAuthn) stored by your device,
         then keeps a local “logged in” flag in your browser storage.
+      </p>
+
+      <div class="btnrow">
+        <button class="btn" id="createBtn">Create passkey</button>
+        <button class="btn" id="loginBtn">Login with passkey</button>
+        <button class="btn secondary" id="logoutBtn">Logout</button>
       </div>
 
-      <div class="row">
-        <button class="btn" id="btnRegister" type="button">Create passkey</button>
-        <button class="btn" id="btnLogin" type="button">Login with passkey</button>
-        <button class="btn secondary" id="btnLogout" type="button">Logout</button>
-      </div>
+      <div class="statusBox" id="statusBox">Status: Checking…</div>
 
-      <div class="status">
-        <div><b>Status:</b> <span id="statusText">Checking…</span></div>
-        <div class="mono" id="statusDetails" style="margin-top:8px;"></div>
-      </div>
-
-      <div class="hint" style="margin-top:14px;">
+      <p style="margin-bottom:0;">
         Tip: If your device supports it, “Create passkey” will use Face ID / Touch ID / Windows Hello.
         If this page says WebAuthn is unavailable, make sure you are on HTTPS (GitHub Pages is fine).
-      </div>
+      </p>
     </div>
   </main>
 
   <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
 
   <script>
-    (function () {
-      const $ = (id) => document.getElementById(id);
+    const statusBox = document.getElementById("statusBox");
+    const createBtn = document.getElementById("createBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
 
-      function setStatus(text, details="") {
-        $("statusText").textContent = text;
-        $("statusDetails").textContent = details || "";
+    function showStatus(objOrStr){
+      if (typeof objOrStr === "string") {
+        statusBox.textContent = objOrStr;
+        return;
       }
+      statusBox.textContent = "Status: " + (objOrStr && objOrStr.isLoggedIn ? "Logged in" : "Logged out") + "\n\n" +
+        "webauthnSupported: " + (objOrStr ? objOrStr.webauthnSupported : "?") + "\n" +
+        "platformAuthenticatorAvailable: " + (objOrStr ? objOrStr.platformAuthenticatorAvailable : "?") + "\n" +
+        "hasPasskey: " + (objOrStr ? objOrStr.hasPasskey : "?") + "\n" +
+        "isLoggedIn: " + (objOrStr ? objOrStr.isLoggedIn : "?") + "\n" +
+        "credentialId: " + (objOrStr ? (objOrStr.credentialId || "") : "");
+    }
 
-      function closeAllDropdowns(exceptId) {
-        const all = document.querySelectorAll("details.nav-dropdown");
-        all.forEach(d => {
-          if (d.id !== exceptId) d.removeAttribute("open");
-        });
+    async function refresh(){
+      try{
+        if (!window.IRLAuth) throw new Error("IRLAuth missing (js/auth.js not loaded)");
+        const st = await window.IRLAuth.getStatus();
+        showStatus(st);
+      }catch(e){
+        showStatus("Status: Error\n\n" + String(e && e.stack ? e.stack : e));
       }
+    }
 
-      function wireDropdownCloseBehavior() {
-        // Close other dropdown when one opens
-        document.querySelectorAll("details.nav-dropdown").forEach(d => {
-          d.addEventListener("toggle", () => {
-            if (d.open) closeAllDropdowns(d.id);
-          });
-        });
-
-        // Click outside closes any open dropdown
-        document.addEventListener("click", (e) => {
-          const isInside = e.target.closest && e.target.closest("details.nav-dropdown");
-          if (!isInside) closeAllDropdowns("__none__");
-        });
-
-        // Escape closes
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape") closeAllDropdowns("__none__");
-        });
-      }
-
-      function renderAccountNav(isLoggedIn) {
-        const slot = $("accountSlot");
-        if (!slot) return;
-
-        if (!isLoggedIn) {
-          slot.innerHTML = `<a class="nav-btn" href="login.html" aria-current="page">Login</a>`;
-          return;
-        }
-
-        // Logged-in view: Name... dropdown with Settings + Receipts
-        slot.innerHTML = `
-          <details class="nav-dropdown" id="accountDropdown">
-            <summary class="nav-btn">Name... ▼</summary>
-            <div class="dropdown-menu" role="menu" aria-label="Account menu">
-              <a href="#" id="acctSettingsLink">Settings</a>
-              <a href="receipt.html">Receipts</a>
-            </div>
-          </details>
-        `;
-
-        // Settings placeholder for now (no file yet)
-        const settings = document.getElementById("acctSettingsLink");
-        if (settings) {
-          settings.addEventListener("click", (e) => {
-            e.preventDefault();
-            alert("Settings page not added yet.");
-          });
-        }
-      }
-
-      async function refresh() {
-        try {
-          const s = await window.IRLAuth.getStatus();
-
-          // Update nav account slot
-          renderAccountNav(!!s.isLoggedIn);
-          wireDropdownCloseBehavior();
-
-          // Update login UI status block
-          const lines = [
-            `webauthnSupported: ${s.webauthnSupported}`,
-            `platformAuthenticatorAvailable: ${s.platformAuthenticatorAvailable}`,
-            `hasPasskey: ${s.hasPasskey}`,
-            `isLoggedIn: ${s.isLoggedIn}`,
-            `credentialId: ${s.credentialId || "(none)"}`
-          ];
-          setStatus(
-            s.isLoggedIn ? "Logged in" : (s.hasPasskey ? "Logged out" : "No passkey yet"),
-            lines.join("\n")
-          );
-
-          $("btnLogin").disabled = !s.hasPasskey;
-          $("btnLogout").disabled = !s.isLoggedIn;
-        } catch (e) {
-          setStatus("Error", String(e && e.message ? e.message : e));
-        }
-      }
-
-      $("btnRegister").addEventListener("click", async () => {
-        setStatus("Creating passkey…");
-        try {
-          await window.IRLAuth.registerPasskey();
-          setStatus("Passkey created", "Now you can log in with your passkey on this device.");
-        } catch (e) {
-          setStatus("Create passkey failed", String(e && e.message ? e.message : e));
-        } finally {
-          await refresh();
-        }
-      });
-
-      $("btnLogin").addEventListener("click", async () => {
-        setStatus("Waiting for passkey…");
-        try {
-          await window.IRLAuth.loginWithPasskey();
-          setStatus("Logged in", "Passkey assertion succeeded.");
-        } catch (e) {
-          setStatus("Login failed", String(e && e.message ? e.message : e));
-        } finally {
-          await refresh();
-        }
-      });
-
-      $("btnLogout").addEventListener("click", async () => {
-        await window.IRLAuth.logout();
+    createBtn.addEventListener("click", async () => {
+      try{
+        showStatus("Status: Creating passkey…");
+        await window.IRLAuth.registerPasskey();
+      }catch(e){
+        showStatus("Status: Error\n\n" + String(e && e.stack ? e.stack : e));
+      } finally {
         await refresh();
-      });
+      }
+    });
 
-      refresh();
-    })();
+    loginBtn.addEventListener("click", async () => {
+      try{
+        showStatus("Status: Logging in…");
+        await window.IRLAuth.loginWithPasskey();
+      }catch(e){
+        showStatus("Status: Error\n\n" + String(e && e.stack ? e.stack : e));
+      } finally {
+        await refresh();
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      try{
+        showStatus("Status: Logging out…");
+        await window.IRLAuth.logout();
+      }catch(e){
+        showStatus("Status: Error\n\n" + String(e && e.stack ? e.stack : e));
+      } finally {
+        await refresh();
+      }
+    });
+
+    refresh();
   </script>
 </body>
 </html>
