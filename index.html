@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 20 -->
+<!-- Deploy 26 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -42,6 +42,8 @@
       z-index:1000;
     }
 
+    #accountSlot{ display: contents; }
+
     a.nav-btn, summary.nav-btn{
       appearance:none;
       -webkit-appearance:none;
@@ -72,26 +74,30 @@
     details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
 
     .dropdown-menu{
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 0;
-      padding: 0;
-      min-width: 220px;
-      z-index: 1200;
+      position:absolute;
+      top:100%;
+      left:0;
+      min-width:180px;
+      background:#111;
+      border:0;
+      padding:0;
+      margin:0;
+      z-index:1200;
     }
     .dropdown-menu a{
-      display: block;
-      padding: 12px 12px;
-      text-decoration: none;
-      color: #000;
-      font-weight: 700;
-      border-radius: 0;
-      margin: 0;
+      display:block;
+      width:100%;
+      text-align:left;
+      padding:12px 14px;
+      color:#fff;
+      background:#111;
+      border:0;
+      text-decoration:none;
+      font-weight:700;
+      border-top:1px solid rgba(255,255,255,0.06);
+      box-sizing:border-box;
     }
-    .dropdown-menu a:hover{ background: #f2f2f2; }
+    .dropdown-menu a:hover{ background:#000; }
 
     main.home-main{
       width: 100%;
@@ -200,7 +206,7 @@
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
 
-      <details class="nav-dropdown">
+      <details class="nav-dropdown" id="aboutDropdown">
         <summary class="nav-btn">About ▼</summary>
         <div class="dropdown-menu" role="menu" aria-label="About menu">
           <a href="about.html">About</a>
@@ -209,94 +215,93 @@
         </div>
       </details>
 
-      <a class="nav-btn" href="receipt.html">Receipts</a>
+      <span id="accountSlot"></span>
     </nav>
   </header>
 
-  <div id="qrError"></div>
-
   <main class="home-main">
-    <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
+    <div class="qr-box" id="helloQr"></div>
   </main>
 
+  <div id="qrError"></div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="js/qr.js?v=deploy19"></script>
 
   <script>
-    const qrErrorEl = document.getElementById("qrError");
-    function showErr(e){
-      qrErrorEl.style.display = "block";
-      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
-      console.error(e);
-    }
-    window.addEventListener("error", (e) => showErr(e.error || e.message));
-    window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
+    // --- QR-first home: create a HELLO link and render as QR, auto-size to viewport ---
+    const qrElId = "helloQr";
+    const errEl = document.getElementById("qrError");
 
-    function slimPub(pub){
-      if (!pub) return pub;
-      return { kty: pub.kty, crv: pub.crv, x: pub.x, y: pub.y };
+    function showErr(e){
+      errEl.style.display = "block";
+      errEl.textContent = String(e && e.stack ? e.stack : e);
+    }
+
+    function b64url(bytes){
+      let bin = "";
+      for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+    }
+
+    function makeHello(){
+      // payload content is handled by application.html; keep as existing behavior.
+      const hello = b64url(crypto.getRandomValues(new Uint8Array(24)));
+      const url = new URL("application.html", location.href);
+      url.hash = "HELLO=" + hello;
+      return url.toString();
+    }
+
+    function vp(){
+      return (window.visualViewport && window.visualViewport.width && window.visualViewport.height)
+        ? { w: window.visualViewport.width, h: window.visualViewport.height }
+        : { w: window.innerWidth, h: window.innerHeight };
     }
 
     function computeQrSize(){
-      const box = document.getElementById("myQr");
-      const boxW = box.clientWidth || Math.min(window.innerWidth - 24, 720);
+      const { w, h } = vp();
 
-      const header = document.querySelector("header.site-header");
-      const headerH = header ? header.getBoundingClientRect().height : 0;
+      // Account for padding + fixed bottom nav on mobile
+      const pad = 2 * 12;
+      const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
+      const safeB = parseFloat(getComputedStyle(document.body).paddingBottom || "0") || 0;
 
-      const isMobile = window.matchMedia("(max-width: 720px)").matches;
+      const usableH = Math.max(200, h - navH - safeB - 20);
+      const usableW = Math.max(200, w - pad);
 
-      const nav = document.querySelector("nav.site-nav");
-      const navH = nav ? nav.getBoundingClientRect().height : 0;
-
-      const vv = window.visualViewport;
-      const viewportH = vv ? vv.height : window.innerHeight;
-
-      const pad = isMobile ? 16 : 40;
-
-      const availH = Math.max(220, viewportH - headerH - (isMobile ? navH : 0) - pad);
-      const size = Math.floor(Math.min(boxW, availH));
-      return Math.max(220, Math.min(size, 900));
+      const size = Math.floor(Math.min(usableW, usableH));
+      return Math.max(220, Math.min(size, 720));
     }
 
-    async function renderHelloQr(){
-      try {
-        const pubFull = await getPublicJwk();
-        const pub = slimPub(pubFull);
+    let currentUrl = makeHello();
 
-        const hello = {
-          v: 1,
-          type: "hello",
-          pub,
-          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-          ts: Math.floor(Date.now() / 1000)
-        };
-
-        const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-
-        // Use a URL QR so ANY QR scanner can open the site.
-        const appUrlBase = new URL("application.html", location.href).href.split("#")[0];
-        const url = `${appUrlBase}#HELLO=${encodedHello}`;
-
+    function render(){
+      try{
+        errEl.style.display = "none";
         const size = computeQrSize();
-        makeQR("myQr", url, size);
-      } catch (e) {
+        if (typeof makeQR !== "function") throw new Error("makeQR() missing (js/qr.js not loaded)");
+        makeQR(qrElId, currentUrl, size);
+      }catch(e){
         showErr(e);
       }
     }
 
-    renderHelloQr();
+    render();
 
-    const rerender = () => {
-      clearTimeout(window.__irlid_qr_t);
-      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
-    };
-    window.addEventListener("resize", rerender);
-    window.addEventListener("orientationchange", rerender);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", rerender);
-      window.visualViewport.addEventListener("scroll", rerender);
+    // Resize/orientation: use visualViewport when available
+    let rAF = null;
+    function scheduleRender(){
+      if (rAF) cancelAnimationFrame(rAF);
+      rAF = requestAnimationFrame(render);
+    }
+    window.addEventListener("resize", scheduleRender);
+    window.addEventListener("orientationchange", scheduleRender);
+    if (window.visualViewport){
+      window.visualViewport.addEventListener("resize", scheduleRender);
+      window.visualViewport.addEventListener("scroll", scheduleRender);
     }
   </script>
 </body>
