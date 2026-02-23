@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 24 -->
+<!-- Deploy 25 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -140,6 +140,7 @@
       font-weight: 800;
     }
 
+    /* Per-person split */
     .people-grid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -235,7 +236,7 @@
 
       nav.site-nav{
         position:fixed;
-        top:auto;
+        top:auto; /* IMPORTANT */
         bottom: env(safe-area-inset-bottom, 0px);
         left:0; right:0;
         height: var(--mobile-nav-h);
@@ -256,6 +257,7 @@
         font-size:18px;
       }
 
+      /* Dropdowns on mobile must open upward and not hide behind nav */
       .dropdown-menu{
         position:fixed;
         left:0;
@@ -299,19 +301,92 @@
         </div>
       </details>
 
+      <!-- Account slot: Login (logged out) OR Name... dropdown (logged in) -->
       <span id="accountSlot"></span>
     </nav>
   </header>
 
   <main class="page-main">
     <div class="receipt-wrap">
-      <!-- existing receipt content unchanged -->
+
+      <div class="panel" id="emptyState" style="display:none;">
+        No receipts yet. Use <a href="application.html">Scan</a> to exchange return QRs.
+      </div>
+
+      <div class="qr-box" id="topQr" aria-label="Receipt QR"></div>
+
+      <div class="panel" id="metaPanel" style="display:none;">
+        <h3 id="metaTitle">Receipt</h3>
+
+        <!-- Split details into Self + Guest -->
+        <div class="people-grid" id="peopleGrid" style="display:none;">
+          <div class="person-panel">
+            <div class="person-title">Self</div>
+            <div class="person-row" id="aCoords"></div>
+            <div class="person-row" id="aTime"></div>
+            <div class="person-note" id="aAcc"></div>
+          </div>
+
+          <div class="person-panel">
+            <div class="person-title">Guest</div>
+            <div class="person-row" id="bCoords"></div>
+            <div class="person-row" id="bTime"></div>
+            <div class="person-note" id="bAcc"></div>
+          </div>
+        </div>
+
+        <div class="checks" id="checks"></div>
+
+        <div class="btnrow">
+          <button class="btn secondary" id="clearBtn">Clear stored receipts</button>
+        </div>
+
+        <div class="person-note" style="margin-top:10px;">
+          The QR above is a URL. Any QR scanner can open this receipt page.
+        </div>
+      </div>
+
+      <details class="raw" id="rawWrap" style="display:none;">
+        <summary>Show stored JSON</summary>
+        <pre id="rawJson"></pre>
+      </details>
+
     </div>
   </main>
 
+  <script src="js/sign.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="js/qr.js?v=deploy19"></script>
   <script src="js/auth.js"></script>
 
   <script>
+    // thresholds (non-negotiable)
+    const TS_TOL_S = 60;
+    const DIST_TOL_M = 2;
+
+    const KEY_SELF  = "irlid_resp_self";
+    const KEY_GUEST = "irlid_resp_other";     // keep storage key, but rename UI to Guest
+    const KEY_LAST  = "irlid_last_receipt";   // legacy single receipt
+    const KEY_LIST  = "irlid_receipts";       // capped history
+
+    const emptyState = document.getElementById("emptyState");
+    const metaPanel = document.getElementById("metaPanel");
+    const metaTitle = document.getElementById("metaTitle");
+
+    const peopleGrid = document.getElementById("peopleGrid");
+    const aCoords = document.getElementById("aCoords");
+    const aTime = document.getElementById("aTime");
+    const aAcc = document.getElementById("aAcc");
+    const bCoords = document.getElementById("bCoords");
+    const bTime = document.getElementById("bTime");
+    const bAcc = document.getElementById("bAcc");
+
+    const checksEl = document.getElementById("checks");
+    const rawWrap = document.getElementById("rawWrap");
+    const rawJson = document.getElementById("rawJson");
+    const clearBtn = document.getElementById("clearBtn");
+
+    // ---------- Nav account slot (Login vs Name... dropdown) ----------
     function closeAllDropdowns(exceptId) {
       document.querySelectorAll("details.nav-dropdown").forEach(d => {
         if (d.id !== exceptId) d.removeAttribute("open");
@@ -324,10 +399,12 @@
           if (d.open) closeAllDropdowns(d.id);
         });
       });
+
       document.addEventListener("click", (e) => {
         const isInside = e.target.closest && e.target.closest("details.nav-dropdown");
         if (!isInside) closeAllDropdowns("__none__");
       });
+
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") closeAllDropdowns("__none__");
       });
@@ -342,6 +419,7 @@
         return;
       }
 
+      // Logged-in view: Name... dropdown with Settings + Receipts + Logout (bottom)
       slot.innerHTML = `
         <details class="nav-dropdown" id="accountDropdown">
           <summary class="nav-btn">Name... ▼</summary>
@@ -353,16 +431,6 @@
         </details>
       `;
 
-      const logoutBtn = document.getElementById("acctLogoutBtn");
-      if (logoutBtn) {
-        logoutBtn.addEventListener("click", async () => {
-          if (window.IRLAuth && typeof window.IRLAuth.logout === "function") {
-            await window.IRLAuth.logout();
-          }
-          renderAccountNav(false);
-        });
-      }
-
       const settings = document.getElementById("acctSettingsLink");
       if (settings) {
         settings.addEventListener("click", (e) => {
@@ -370,14 +438,398 @@
           alert("Settings page not added yet.");
         });
       }
+
+      const logoutBtn = document.getElementById("acctLogoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", async () => {
+          try {
+            if (window.IRLAuth && typeof window.IRLAuth.logout === "function") {
+              await window.IRLAuth.logout();
+            }
+          } finally {
+            // Close dropdown + re-render to Login
+            closeAllDropdowns("__none__");
+            renderAccountNav(false);
+            wireDropdownCloseBehavior();
+          }
+        });
+      }
     }
 
-    (function initNav(){
-      const isLoggedIn = (window.IRLAuth && window.IRLAuth.isLoggedIn)
-        ? window.IRLAuth.isLoggedIn()
-        : false;
-      renderAccountNav(isLoggedIn);
-      wireDropdownCloseBehavior();
+    async function refreshNav() {
+      try {
+        const isLoggedIn = (window.IRLAuth && typeof window.IRLAuth.isLoggedIn === "function")
+          ? window.IRLAuth.isLoggedIn()
+          : false;
+        renderAccountNav(!!isLoggedIn);
+        wireDropdownCloseBehavior();
+      } catch {
+        renderAccountNav(false);
+        wireDropdownCloseBehavior();
+      }
+    }
+
+    // ---------- Helpers ----------
+    function fmtNum(n){
+      if (typeof n !== "number") return "";
+      return n.toFixed(6);
+    }
+
+    function formatTimeNoTs(ts){
+      if (!ts || typeof ts !== "number") return null;
+      const d = new Date(ts * 1000);
+      return d.toLocaleString();
+    }
+
+    function haversineMeters(lat1, lon1, lat2, lon2){
+      const R = 6371000;
+      const toRad = (x) => x * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function addCheck(label, ok, detail){
+      const div = document.createElement("div");
+      div.className = "check";
+      const badge = document.createElement("div");
+      badge.className = "badge " + (ok ? "pass" : "fail");
+      badge.textContent = ok ? "PASS" : "FAIL";
+      const txt = document.createElement("div");
+      txt.innerHTML = `${label}${detail ? `<div class="person-note">${detail}</div>` : ""}`;
+      div.appendChild(badge);
+      div.appendChild(txt);
+      checksEl.appendChild(div);
+    }
+
+    function readJson(key){
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function writeReceiptHistory(combinedObj){
+      try {
+        const listRaw = localStorage.getItem(KEY_LIST);
+        const list = listRaw ? JSON.parse(listRaw) : [];
+        const entry = { ts: Date.now(), combined: combinedObj };
+        list.unshift(entry);
+        const capped = list.slice(0, 200);
+        localStorage.setItem(KEY_LIST, JSON.stringify(capped));
+      } catch {}
+    }
+
+    function getGps(resp){
+      const gps = resp && resp.payload ? resp.payload.gps : null;
+      if (!gps) return null;
+      if (typeof gps.lat !== "number" || typeof gps.lon !== "number") return null;
+      return gps;
+    }
+
+    function getTs(resp){
+      const ts = resp && resp.payload ? resp.payload.ts : null;
+      return (typeof ts === "number") ? ts : null;
+    }
+
+    function baseReceiptUrl(){
+      return new URL("receipt.html", location.href).href.split("#")[0];
+    }
+
+    // b64url helpers (kept inline)
+    function b64urlEncode(bytes){
+      let bin = "";
+      for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+      const b64 = btoa(bin);
+      return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+    }
+    function b64urlDecode(str){
+      str = (str || "").replace(/-/g,"+").replace(/_/g,"/");
+      while (str.length % 4) str += "=";
+      const bin = atob(str);
+      const out = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+
+    function makeReceiptUrlForCombined(combinedObj){
+      const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(combinedObj)));
+      return `${baseReceiptUrl()}#COMB=${encoded}`;
+    }
+
+    function makeReceiptUrlForResponse(respObj){
+      const encoded = b64urlEncode(new TextEncoder().encode(JSON.stringify(respObj)));
+      return `${baseReceiptUrl()}#RESP=${encoded}`;
+    }
+
+    function parseFromHash(){
+      const hash = location.hash || "";
+      let m = hash.match(/COMB=([A-Za-z0-9\-_]+)/);
+      if (m) {
+        try {
+          const bytes = b64urlDecode(m[1]);
+          return { kind: "comb", obj: JSON.parse(new TextDecoder().decode(bytes)) };
+        } catch {}
+      }
+      m = hash.match(/RESP=([A-Za-z0-9\-_]+)/);
+      if (m) {
+        try {
+          const bytes = b64urlDecode(m[1]);
+          return { kind: "resp", obj: JSON.parse(new TextDecoder().decode(bytes)) };
+        } catch {}
+      }
+      return null;
+    }
+
+    function combinedObject(selfResp, guestResp){
+      return {
+        v: 1,
+        type: "combined",
+        tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S },
+        a: selfResp,
+        b: guestResp
+      };
+    }
+
+    function makeDualMapsUrl(gA, gB){
+      if (gA && gB){
+        // Shows both points as a route (pins both).
+        return `https://www.google.com/maps/dir/${gA.lat},${gA.lon}/${gB.lat},${gB.lon}`;
+      }
+      const g = gA || gB;
+      if (!g) return "#";
+      return `https://www.google.com/maps?q=${encodeURIComponent(g.lat + "," + g.lon)}`;
+    }
+
+    function setPersonPanel(elCoords, elTime, elAcc, resp, mapsUrl){
+      if (!resp) {
+        elCoords.textContent = "Location: (missing)";
+        elTime.textContent = "Time: (missing)";
+        elAcc.textContent = "";
+        return;
+      }
+
+      const gps = getGps(resp);
+      const ts = getTs(resp);
+
+      if (gps) {
+        elCoords.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
+        elAcc.textContent = (typeof gps.acc === "number") ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
+      } else {
+        elCoords.textContent = "Location: (not captured)";
+        elAcc.textContent = "";
+      }
+
+      const t = formatTimeNoTs(ts);
+      elTime.textContent = t ? `Time: ${t}` : "Time: (missing)";
+    }
+
+    async function validateResponse(resp){
+      const results = {
+        okStructure: false,
+        okHash: false,
+        okSig: false,
+        computedHash: null
+      };
+
+      if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
+        return results;
+      }
+      results.okStructure = true;
+
+      try {
+        const computed = await hashPayloadToB64url(resp.payload);
+        results.computedHash = computed;
+        results.okHash = (computed === resp.hash);
+      } catch {
+        results.okHash = false;
+      }
+
+      try {
+        results.okSig = await verifySig(resp.hash, resp.sig, resp.pub);
+      } catch {
+        results.okSig = false;
+      }
+
+      return results;
+    }
+
+    clearBtn.onclick = () => {
+      localStorage.removeItem(KEY_SELF);
+      localStorage.removeItem(KEY_GUEST);
+      localStorage.removeItem(KEY_LAST);
+      localStorage.removeItem(KEY_LIST);
+      location.href = baseReceiptUrl();
+    };
+
+    // ---------- Main render ----------
+    (async () => {
+      await refreshNav();
+
+      // If opened from external QR scanner, import into localStorage/history (required behavior)
+      const fromHash = parseFromHash();
+      if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+        localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      }
+      if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+        writeReceiptHistory(fromHash.obj);
+      }
+
+      const selfResp  = readJson(KEY_SELF);
+      const guestResp = readJson(KEY_GUEST);
+      const legacy    = readJson(KEY_LAST);
+
+      const havePair = !!(selfResp && guestResp);
+      const single = selfResp || guestResp || legacy;
+
+      // If nothing at all, show empty
+      if (!havePair && !single && !(fromHash && fromHash.kind === "comb")) {
+        emptyState.style.display = "block";
+        return;
+      }
+
+      metaPanel.style.display = "block";
+      rawWrap.style.display = "block";
+      checksEl.innerHTML = "";
+      peopleGrid.style.display = "grid";
+      metaTitle.textContent = "Receipt";
+
+      // CASE 1: opened via combined URL QR
+      if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+        const comb = fromHash.obj;
+        const respA = comb.a || null; // Self
+        const respB = comb.b || null; // Guest
+
+        const url = makeReceiptUrlForCombined(comb);
+        if (typeof makeQR === "function") makeQR("topQr", url, 460);
+
+        rawJson.textContent = JSON.stringify(comb, null, 2);
+
+        const gA = getGps(respA);
+        const gB = getGps(respB);
+        const mapsUrl = makeDualMapsUrl(gA, gB);
+
+        setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
+        setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
+
+        if (respA) {
+          const vr = await validateResponse(respA);
+          addCheck("Self receipt structure", vr.okStructure);
+          addCheck("Self hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+          addCheck("Self signature valid", vr.okSig);
+        } else {
+          addCheck("Self receipt present", false, "Missing Self response in combined object.");
+        }
+
+        if (respB) {
+          const vr = await validateResponse(respB);
+          addCheck("Guest receipt structure", vr.okStructure);
+          addCheck("Guest hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+          addCheck("Guest signature valid", vr.okSig);
+        } else {
+          addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
+        }
+
+        if (respA && respB) {
+          const pubsA = (respA.payload && respA.payload.pubs) ? JSON.stringify(respA.payload.pubs) : null;
+          const pubsB = (respB.payload && respB.payload.pubs) ? JSON.stringify(respB.payload.pubs) : null;
+          const okPubs = (pubsA && pubsB && pubsA === pubsB);
+          addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
+
+          const tsA = getTs(respA);
+          const tsB = getTs(respB);
+          const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
+          addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
+
+          let okDist = false;
+          let dist = null;
+          if (gA && gB) {
+            dist = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+            okDist = dist <= DIST_TOL_M;
+          }
+          addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
+        } else {
+          addCheck("Waiting for both parties (need two receipts)", false, "Combined object missing one side.");
+        }
+
+        return;
+      }
+
+      // CASE 2: local pair exists
+      if (havePair) {
+        const combined = combinedObject(selfResp, guestResp);
+        const url = makeReceiptUrlForCombined(combined);
+        if (typeof makeQR === "function") makeQR("topQr", url, 460);
+
+        rawJson.textContent = JSON.stringify({ selfResp, guestResp }, null, 2);
+        writeReceiptHistory(combined);
+
+        const gA = getGps(selfResp);
+        const gB = getGps(guestResp);
+        const mapsUrl = makeDualMapsUrl(gA, gB);
+
+        setPersonPanel(aCoords, aTime, aAcc, selfResp, mapsUrl);
+        setPersonPanel(bCoords, bTime, bAcc, guestResp, mapsUrl);
+
+        const vrA = await validateResponse(selfResp);
+        addCheck("Self receipt structure", vrA.okStructure);
+        addCheck("Self hash matches payload", vrA.okHash, vrA.okHash ? "" : `computed=${vrA.computedHash || "?"}`);
+        addCheck("Self signature valid", vrA.okSig);
+
+        const vrB = await validateResponse(guestResp);
+        addCheck("Guest receipt structure", vrB.okStructure);
+        addCheck("Guest hash matches payload", vrB.okHash, vrB.okHash ? "" : `computed=${vrB.computedHash || "?"}`);
+        addCheck("Guest signature valid", vrB.okSig);
+
+        const pubsA = (selfResp.payload && selfResp.payload.pubs) ? JSON.stringify(selfResp.payload.pubs) : null;
+        const pubsB = (guestResp.payload && guestResp.payload.pubs) ? JSON.stringify(guestResp.payload.pubs) : null;
+        const okPubs = (pubsA && pubsB && pubsA === pubsB);
+        addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
+
+        const tsA = getTs(selfResp);
+        const tsB = getTs(guestResp);
+        const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
+        addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
+
+        let okDist = false;
+        let dist = null;
+        if (gA && gB) {
+          dist = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+          okDist = dist <= DIST_TOL_M;
+        }
+        addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
+
+        return;
+      }
+
+      // CASE 3: single receipt only (still show a URL QR so another person can open it)
+      if (single) {
+        const url = makeReceiptUrlForResponse(single);
+        if (typeof makeQR === "function") makeQR("topQr", url, 460);
+
+        rawJson.textContent = JSON.stringify(single, null, 2);
+
+        // Show it in "Self" panel if it came from KEY_SELF; otherwise place into Guest if it came from KEY_GUEST.
+        const cameFromSelf = !!selfResp;
+        const cameFromGuest = !!guestResp && !selfResp;
+
+        const gS = cameFromSelf ? getGps(single) : null;
+        const gG = cameFromGuest ? getGps(single) : null;
+        const mapsUrl = makeDualMapsUrl(gS, gG);
+
+        setPersonPanel(aCoords, aTime, aAcc, cameFromSelf ? single : null, mapsUrl);
+        setPersonPanel(bCoords, bTime, bAcc, cameFromGuest ? single : null, mapsUrl);
+
+        const vr = await validateResponse(single);
+        addCheck("Receipt structure", vr.okStructure);
+        addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Signature valid", vr.okSig);
+
+        addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person.");
+
+        return;
+      }
     })();
   </script>
 </body>
