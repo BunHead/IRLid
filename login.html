@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 1 (Login + Passkeys) -->
+<!-- Deploy 2 (Login nav: Login vs Name... dropdown) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-:root{
+    :root{
       --black:#000;
       --white:#fff;
       --mobile-nav-h: 124px;
@@ -73,15 +73,20 @@
       margin:0;
       z-index:1200;
     }
-    .dropdown-menu a{
+    .dropdown-menu a, .dropdown-menu button{
       display:block;
+      width:100%;
+      text-align:left;
       padding:12px 14px;
       color:#fff;
+      background:#111;
+      border:0;
       text-decoration:none;
       font-weight:700;
       border-top:1px solid rgba(255,255,255,0.06);
+      cursor:pointer;
     }
-    .dropdown-menu a:hover{ background:#000; }
+    .dropdown-menu a:hover, .dropdown-menu button:hover{ background:#000; }
 
     main{
       padding: 24px 16px 110px;
@@ -127,6 +132,7 @@
         font-size:18px;
       }
 
+      /* Dropdowns on mobile must open upward and not hide behind nav */
       .dropdown-menu{
         position:fixed;
         left:0;
@@ -134,6 +140,8 @@
         top:auto;
         bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0px));
         border-radius:0;
+        min-width:unset;
+        z-index:2600;
       }
 
       body{
@@ -143,12 +151,27 @@
 
     /* Page-specific tweaks */
     main{ padding: 24px 16px 140px; text-align: center; }
-    .card{ max-width: 720px; margin: 0 auto; text-align: left; border:1px solid #e5e5e5; background:#fafafa; padding:16px; }
+    .card{
+      max-width: 720px;
+      margin: 0 auto;
+      text-align: left;
+      border:1px solid #e5e5e5;
+      background:#fafafa;
+      padding:16px;
+    }
     .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
     .row .btn{ margin-top:0; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
     .hint{ color:#333; font-size: 14px; margin-top: 10px; }
     .status{ margin-top: 10px; padding: 10px; border:1px solid #ddd; background:#fff; }
+
+    /* Keep summary text from wrapping weirdly */
+    summary.nav-btn{ white-space:nowrap; }
   </style>
 </head>
 
@@ -164,7 +187,7 @@
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
 
-      <details class="nav-dropdown">
+      <details class="nav-dropdown" id="aboutDropdown">
         <summary class="nav-btn">About ▼</summary>
         <div class="dropdown-menu" role="menu" aria-label="About menu">
           <a href="about.html">About</a>
@@ -173,7 +196,8 @@
         </div>
       </details>
 
-      <a class="nav-btn" href="receipt.html">Receipts</a>
+      <!-- Account slot: becomes Login (logged out) OR Name... dropdown (logged in) -->
+      <span id="accountSlot"></span>
     </nav>
   </header>
 
@@ -205,6 +229,7 @@
   </main>
 
   <script src="js/auth.js"></script>
+
   <script>
     (function () {
       const $ = (id) => document.getElementById(id);
@@ -214,17 +239,84 @@
         $("statusDetails").textContent = details || "";
       }
 
+      function closeAllDropdowns(exceptId) {
+        const all = document.querySelectorAll("details.nav-dropdown");
+        all.forEach(d => {
+          if (d.id !== exceptId) d.removeAttribute("open");
+        });
+      }
+
+      function wireDropdownCloseBehavior() {
+        // Close other dropdown when one opens
+        document.querySelectorAll("details.nav-dropdown").forEach(d => {
+          d.addEventListener("toggle", () => {
+            if (d.open) closeAllDropdowns(d.id);
+          });
+        });
+
+        // Click outside closes any open dropdown
+        document.addEventListener("click", (e) => {
+          const isInside = e.target.closest && e.target.closest("details.nav-dropdown");
+          if (!isInside) closeAllDropdowns("__none__");
+        });
+
+        // Escape closes
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeAllDropdowns("__none__");
+        });
+      }
+
+      function renderAccountNav(isLoggedIn) {
+        const slot = $("accountSlot");
+        if (!slot) return;
+
+        if (!isLoggedIn) {
+          slot.innerHTML = `<a class="nav-btn" href="login.html" aria-current="page">Login</a>`;
+          return;
+        }
+
+        // Logged-in view: Name... dropdown with Settings + Receipts
+        slot.innerHTML = `
+          <details class="nav-dropdown" id="accountDropdown">
+            <summary class="nav-btn">Name... ▼</summary>
+            <div class="dropdown-menu" role="menu" aria-label="Account menu">
+              <a href="#" id="acctSettingsLink">Settings</a>
+              <a href="receipt.html">Receipts</a>
+            </div>
+          </details>
+        `;
+
+        // Settings placeholder for now (no file yet)
+        const settings = document.getElementById("acctSettingsLink");
+        if (settings) {
+          settings.addEventListener("click", (e) => {
+            e.preventDefault();
+            alert("Settings page not added yet.");
+          });
+        }
+      }
+
       async function refresh() {
         try {
           const s = await window.IRLAuth.getStatus();
+
+          // Update nav account slot
+          renderAccountNav(!!s.isLoggedIn);
+          wireDropdownCloseBehavior();
+
+          // Update login UI status block
           const lines = [
             `webauthnSupported: ${s.webauthnSupported}`,
             `platformAuthenticatorAvailable: ${s.platformAuthenticatorAvailable}`,
             `hasPasskey: ${s.hasPasskey}`,
             `isLoggedIn: ${s.isLoggedIn}`,
-            `credentialId: ${s.credentialId || "(none)"}`,
+            `credentialId: ${s.credentialId || "(none)"}`
           ];
-          setStatus(s.isLoggedIn ? "Logged in" : (s.hasPasskey ? "Logged out" : "No passkey yet"), lines.join("\n"));
+          setStatus(
+            s.isLoggedIn ? "Logged in" : (s.hasPasskey ? "Logged out" : "No passkey yet"),
+            lines.join("\n")
+          );
+
           $("btnLogin").disabled = !s.hasPasskey;
           $("btnLogout").disabled = !s.isLoggedIn;
         } catch (e) {
