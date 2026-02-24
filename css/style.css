@@ -1,5 +1,3 @@
-/* IRLid global styles — nav + header baseline */
-
 :root{
   --black:#000;
   --white:#fff;
@@ -9,9 +7,7 @@
 
 *{ box-sizing:border-box; }
 
-html, body{
-  height:100%;
-}
+html, body{ height:100%; }
 
 body{
   font-family: Arial, sans-serif;
@@ -22,7 +18,7 @@ body{
   overflow-x:hidden;
 }
 
-/* Shared button style */
+/* Shared buttons (square corners, minimal padding) */
 .btn{
   background:#000;
   color:#fff;
@@ -36,20 +32,19 @@ body{
   background:#fff;
   color:#000;
 }
-.btn:active{ transform: translateY(1px); }
 
-/* Header + brand */
+/* Header */
 .site-header{
   width:100%;
   background:#fff;
 }
 
-.logo-row{
+/* Keep compatibility with existing markup */
+.brand-wrap{
   width:100%;
   padding:10px 14px 0 14px;
 }
-
-.logo-link{
+.brand{
   display:inline-flex;
   align-items:center;
   gap:10px;
@@ -57,19 +52,14 @@ body{
   color:inherit;
 }
 
-/* ✅ Double the logo size */
-.logo-img{
+/* ✅ Double logo size */
+#logo{
   height:130px;
   width:auto;
   display:block;
 }
 
-/* ✅ Remove IRLid text after logo (global) */
-.logo-text{
-  display:none;
-}
-
-/* Desktop: full-width black nav bar */
+/* Desktop nav: full-width black bar */
 .site-nav{
   width:100%;
   background:#000;
@@ -90,31 +80,19 @@ body{
   justify-content:center;
   color:#fff;
   text-decoration:none;
-  padding:10px 14px;         /* minimal padding */
+  padding:10px 14px;
   border-right:1px solid var(--border);
   user-select:none;
-  border-radius:0;           /* square corners */
+  border-radius:0;
 }
-
-.site-nav .nav-btn:last-child{
-  border-right:0;
-}
-
+.site-nav .nav-btn:last-child{ border-right:0; }
 .site-nav .nav-btn:hover{ background:#111; }
 .site-nav .nav-btn:active{ background:#222; }
 
 /* Dropdown */
-.nav-dropdown{
-  position:relative;
-}
-
-.nav-dropdown > summary{
-  list-style:none;
-}
-
-.nav-dropdown > summary::-webkit-details-marker{
-  display:none;
-}
+.nav-dropdown{ position:relative; }
+.nav-dropdown > summary{ list-style:none; }
+.nav-dropdown > summary::-webkit-details-marker{ display:none; }
 
 .dropdown-menu{
   position:absolute;
@@ -126,10 +104,7 @@ body{
   display:none;
   z-index:2000;
 }
-
-.nav-dropdown[open] .dropdown-menu{
-  display:block;
-}
+.nav-dropdown[open] .dropdown-menu{ display:block; }
 
 .dropdown-menu a{
   display:block;
@@ -138,15 +113,14 @@ body{
   text-decoration:none;
   border-top:1px solid rgba(255,255,255,0.14);
 }
-
 .dropdown-menu a:first-child{ border-top:0; }
 .dropdown-menu a:hover{ background:#111; }
 .dropdown-menu a:active{ background:#222; }
 
-/* Account slot acts like normal nav items */
+/* Account slot behaves like nav items */
 #accountSlot{ display:contents; }
 
-/* Mobile: fixed bottom nav, 2x2 grid, safe-area aware */
+/* Mobile nav: fixed bottom, 2 cols × 2 rows, safe-area aware */
 @media (max-width: 720px){
   body{
     padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0));
@@ -170,13 +144,12 @@ body{
   .site-nav .nav-btn{
     width:100%;
     height:100%;
-    padding:18px 10px;       /* large tappable */
+    padding:18px 10px;
     border-right:1px solid var(--border);
     border-bottom:1px solid var(--border);
     font-size:16px;
   }
 
-  /* Details/summary must fill a grid cell */
   .nav-dropdown{
     display:block;
     width:100%;
@@ -189,7 +162,7 @@ body{
     height:100%;
   }
 
-  /* Dropdown opens upward, fixed, not hidden behind nav */
+  /* Dropdown opens upward and stays above the fixed nav */
   .dropdown-menu{
     position: fixed;
     left: 0;
@@ -199,4 +172,3 @@ body{
     min-width: 0;
   }
 }
-
