@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 61 -->
+<!-- Deploy 62 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -120,9 +120,20 @@
     return (typeof x === "number") ? x.toFixed(6) : String(x || "");
   }
 
+  // Accepts either ms-epoch or sec-epoch and returns ms-epoch (or null)
+  function normalizeEpochMs(ts){
+    if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
+
+    // If it's plausibly seconds-since-epoch (current ~1.7e9), convert to ms.
+    // If it's already ms (current ~1.7e12), leave it.
+    if (ts > 0 && ts < 1e12) return Math.round(ts * 1000);
+    return Math.round(ts);
+  }
+
   function formatTimeNoTs(ts){
-    if (typeof ts !== "number") return "";
-    const d = new Date(ts);
+    const ms = normalizeEpochMs(ts);
+    if (ms === null) return "";
+    const d = new Date(ms);
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleString();
   }
@@ -297,8 +308,25 @@
     return results;
   }
 
+  function entryBestTimeMs(combinedOrResp){
+    if (!combinedOrResp) return null;
+
+    if (combinedOrResp.type === "response") {
+      return normalizeEpochMs(getTs(combinedOrResp));
+    }
+
+    if (combinedOrResp.type === "combined") {
+      const ta = normalizeEpochMs(getTs(combinedOrResp.a));
+      const tb = normalizeEpochMs(getTs(combinedOrResp.b));
+      const t = Math.max(ta || -Infinity, tb || -Infinity);
+      return Number.isFinite(t) ? t : null;
+    }
+
+    return null;
+  }
+
   function pickLatestFromReceiptsKey(){
-    // Accepts several possible stored shapes for KEY_LIST (keeps backward compatibility):
+    // Accept several possible stored shapes for KEY_LIST:
     // - Array of combined objects: [{type:"combined", ...}, ...]
     // - Array of entries: [{ts, combined}, ...]
     // - Array of entries: [{ts, url}, ...] where url is receipt URL
@@ -315,16 +343,16 @@
     let best = null;
     let bestScore = -Infinity;
 
-    for (const item of arr) {
-      const entry = item;
-
-      // Score by explicit ts, otherwise by payload ts, otherwise keep order bias.
-      let score = -Infinity;
-      const t0 = (entry && typeof entry.ts === "number") ? entry.ts : null;
+    for (let i = 0; i < arr.length; i++) {
+      const entry = arr[i];
 
       const combined =
         (entry && entry.type === "combined") ? entry :
         (entry && entry.combined && entry.combined.type === "combined") ? entry.combined :
+        null;
+
+      const resp =
+        (entry && entry.type === "response") ? entry :
         null;
 
       const url =
@@ -333,27 +361,24 @@
         (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
         null;
 
-      if (t0 !== null) score = t0;
-      else if (combined) {
-        const ta = getTs(combined.a);
-        const tb = getTs(combined.b);
-        const tt = Math.max(ta || -Infinity, tb || -Infinity);
-        if (Number.isFinite(tt)) score = tt;
-      } else if (url) {
-        // If we only have a URL, we can't derive exact time; bias by later index.
-        score = 0;
-      } else {
-        // Unknown shape, low score
-        score = -Infinity;
+      // Prefer explicit entry.ts if present; normalize (sec->ms) and fall back to payload ts.
+      let score = null;
+      if (entry && typeof entry.ts === "number") score = normalizeEpochMs(entry.ts);
+
+      if (score === null) {
+        if (combined) score = entryBestTimeMs(combined);
+        else if (resp) score = entryBestTimeMs(resp);
       }
 
-      // Stable tie-breaker using order (later in array is "newer" in many push-based histories)
-      const orderBias = arr.indexOf(item) / 1000000;
-      score += orderBias;
+      // If we still can't score, use array position as a weak signal.
+      if (score === null) score = 0;
+
+      // Tie-breaker: assume later entries are newer in many push-based histories.
+      score = score + (i / 1000000);
 
       if (score > bestScore) {
         bestScore = score;
-        best = { entry, combined, url };
+        best = { entry, combined, resp, url, score };
       }
     }
 
@@ -374,7 +399,7 @@
     // Highest priority: explicit receipt in URL hash
     const fromHash = parseFromHash();
 
-    // Some flows store a single receipt in KEY_LAST; keep in sync if visiting via #RESP.
+    // Keep in sync if visiting via #RESP (single share)
     if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
@@ -389,7 +414,7 @@
       return;
     }
 
-    // Next priority: latest entry in irlid_receipts (this is the key you described as authoritative)
+    // Next priority: latest entry in localStorage["irlid_receipts"]
     const best = pickLatestFromReceiptsKey();
     if (best) {
       if (best.combined) {
@@ -397,7 +422,6 @@
         return;
       }
       if (best.url && typeof best.url === "string") {
-        // If history stores the already-built receipt URL, just show it as-is.
         metaPanel.style.display = "block";
         rawWrap.style.display = "block";
         peopleGrid.style.display = "none";
@@ -407,6 +431,10 @@
 
         if (typeof makeQR === "function") makeQR("topQr", best.url, 460);
         addCheck("Loaded latest receipt URL from localStorage[irlid_receipts]", true);
+        return;
+      }
+      if (best.resp) {
+        await renderSingle(best.resp, "Receipt (latest single)");
         return;
       }
     }
@@ -427,7 +455,6 @@
       return;
     }
 
-    // Nothing found
     emptyState.style.display = "block";
   })();
 
@@ -477,10 +504,10 @@
       const okPubs = (pubsA && pubsB && pubsA === pubsB);
       addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
 
-      const tsA = getTs(respA);
-      const tsB = getTs(respB);
-      const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
-      addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
+      const tsAms = normalizeEpochMs(getTs(respA));
+      const tsBms = normalizeEpochMs(getTs(respB));
+      const okTs = (typeof tsAms === "number" && typeof tsBms === "number" && Math.abs(tsAms - tsBms) <= (TS_TOL_S * 1000));
+      addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsAms && tsBms) ? `Δt=${Math.round(Math.abs(tsAms-tsBms)/1000)}s` : "missing ts");
 
       let okDist = false;
       let dist = null;
