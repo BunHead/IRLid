@@ -24,18 +24,32 @@
       margin: 0 auto;
     }
 
-    .qr-box{
+    .panel{
+      margin: 14px auto 0;
+      padding: 14px 16px;
+      border: 1px solid var(--panel-border);
+      background: #fff;
+      text-align: center;
+    }
+
+    .panel h2{
+      margin: 0 0 10px 0;
+    }
+
+    .qr-img{
+      width: 420px;
+      height: 420px;
+      max-width: 92vw;
+      max-height: 92vw;
+      image-rendering: pixelated;
+      border: 1px solid var(--panel-border);
+      background:#fff;
       display:block;
       margin: 10px auto 0;
-      padding: 16px;
-      background: #fff;
-      border: 1px solid var(--panel-border);
-      width: fit-content;
-      max-width: 100%;
     }
 
     .hint{
-      margin-top:12px;
+      margin-top:10px;
       font-size: 13px;
       opacity: .85;
     }
@@ -43,6 +57,7 @@
     .hint a{
       color:#111;
       text-decoration:underline;
+      word-break: break-all;
     }
 
     .urlbox{
@@ -115,130 +130,74 @@
 
 <main class="page-main">
   <div class="home-wrap">
-    <h2>Show this QR to the other person</h2>
 
-    <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
+    <div class="panel">
+      <h2>Static Test QR (should open Scan page)</h2>
 
-    <div class="hint">
-      If scanning fails, tap: <a id="helloLink" href="application.html">Open handshake link</a>
-    </div>
+      <!--
+        This is a totally static QR image (no JS QR libraries).
+        If phones can't open this, the problem is NOT your code.
+      -->
+      <img
+        class="qr-img"
+        id="staticQr"
+        alt="Static QR to IRLid Scan"
+        src=""
+      >
 
-    <div class="urlbox">
-      <label for="helloUrl">QR contents (should start with https://)</label>
-      <input id="helloUrl" type="text" readonly value="">
+      <div class="hint">
+        Expected: your phone opens <b>application.html</b> in the browser.<br>
+        If it doesn’t, try a dedicated QR scanner app (not Lens) and increase screen brightness.
+      </div>
+
+      <div class="urlbox">
+        <label for="staticUrl">Encoded URL</label>
+        <input id="staticUrl" type="text" readonly value="">
+      </div>
+
+      <div class="hint" style="margin-top:12px;">
+        Or tap directly: <a id="staticLink" href="application.html">Open Scan</a>
+      </div>
     </div>
 
     <div id="qrError" role="alert"></div>
+
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
-<script src="js/sign.js"></script>
-<script src="js/qr.js?v=46"></script>
 
 <script>
 (function(){
   "use strict";
 
-  const qrTarget = document.getElementById("helloQr");
-  const linkEl = document.getElementById("helloLink");
-  const urlEl = document.getElementById("helloUrl");
   const errEl = document.getElementById("qrError");
+  const imgEl = document.getElementById("staticQr");
+  const urlEl = document.getElementById("staticUrl");
+  const linkEl = document.getElementById("staticLink");
 
   function showErr(e){
     errEl.style.display = "block";
     errEl.textContent = String(e && e.stack ? e.stack : e);
   }
-  function clearErr(){
-    errEl.style.display = "none";
-    errEl.textContent = "";
+
+  try{
+    // Build absolute URL to application.html (no hash, no HELLO; simplest possible test)
+    const base = location.origin + location.pathname.replace(/[^\/]*$/, "");
+    const targetUrl = base + "application.html";
+
+    urlEl.value = targetUrl;
+    linkEl.href = targetUrl;
+
+    // Static QR image via Google Charts (simple, reliable)
+    // Larger size improves scan success from another phone screen.
+    const qrImg = "https://chart.googleapis.com/chart?cht=qr&chs=700x700&choe=UTF-8&chld=L|2&chl=" + encodeURIComponent(targetUrl);
+    imgEl.src = qrImg;
+
+  }catch(e){
+    showErr(e);
   }
-
-  function b64urlFromBytes(bytes){
-    let bin = "";
-    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-    const b64 = btoa(bin);
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-
-  function newHelloToken(){
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return b64urlFromBytes(bytes);
-  }
-
-  function loadScript(url){
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = url;
-      s.async = true;
-      s.onload = () => resolve(url);
-      s.onerror = () => reject(new Error("Script load failed: " + url));
-      document.head.appendChild(s);
-    });
-  }
-
-  async function ensureQrLibrary(){
-    if (window.QRCode && typeof window.QRCode.toCanvas === "function") return;
-
-    const candidates = [
-      "qrcode.min.js",
-      "js/qrcode.min.js",
-      "js/vendor/qrcode.min.js",
-      "assets/qrcode.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js",
-      "https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js",
-      "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"
-    ];
-
-    const failures = [];
-    for (const u of candidates){
-      try{
-        await loadScript(u);
-        if (window.QRCode && typeof window.QRCode.toCanvas === "function") return;
-      }catch(e){
-        failures.push(String(e.message || e));
-      }
-    }
-    throw new Error("Failed to load QRCode library.\n" + failures.join("\n"));
-  }
-
-  function baseDir(){
-    // directory of current page, guaranteed (no “view-source:” surprises)
-    const path = location.pathname.replace(/[^\/]*$/, "");
-    return location.origin + path;
-  }
-
-  function qrSize(){
-    const mobile = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
-    return mobile ? 360 : 520;
-  }
-
-  let currentUrl = null;
-
-  async function render(){
-    try{
-      clearErr();
-      await ensureQrLibrary();
-
-      if (typeof window.makeQR !== "function") {
-        throw new Error("makeQR() missing. js/qr.js failed to load.");
-      }
-
-      const url = baseDir() + "application.html#HELLO=" + newHelloToken();
-      currentUrl = url;
-
-      linkEl.href = url;
-      urlEl.value = url;
-
-      window.makeQR(qrTarget, url, qrSize());
-    }catch(e){
-      showErr(e);
-    }
-  }
-
-  render();
 })();
 </script>
 
