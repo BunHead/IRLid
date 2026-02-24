@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 52 -->
+<!-- Deploy 53 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -59,7 +59,7 @@
 <header class="site-header">
   <div class="logo-row">
     <a href="index.html" class="logo-link">
-      <img src="irlid-logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
+      <img src="logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
       <span class="logo-text">IRLid</span>
     </a>
   </div>
@@ -249,6 +249,48 @@
 
   // Last decoded QR payload (for diagnostics / unrecognized QR debugging)
   let lastDecoded = null;
+
+  // ---- QR text classifier (kept local to avoid coupling) ----
+  // Some deploys do not expose a shared classifier in js/qr.js.
+  // For stability, define a minimal classifier here if missing.
+  // Returns: { kind: "HELLO"|"RESP_B64"|"COMB_B64"|"UNKNOWN", value: string|null }
+  if (typeof window.irlidClassifyText !== "function") {
+    window.irlidClassifyText = function irlidClassifyText(text){
+      const t = (text || "").trim();
+      const rx = {
+        hello: /(?:^|[#&])HELLO=([^&]+)/,
+        resp:  /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/,
+        comb:  /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/
+      };
+
+      // Try direct extraction from raw text
+      let m = t.match(rx.hello);
+      if (m) return { kind: "HELLO", value: m[1] };
+
+      m = t.match(rx.comb);
+      if (m) return { kind: "COMB_B64", value: m[1] };
+
+      m = t.match(rx.resp);
+      if (m) return { kind: "RESP_B64", value: m[1] };
+
+      // If it's a URL, try extraction from its hash
+      try{
+        const u = new URL(t);
+        const h = u.hash || "";
+
+        m = h.match(rx.hello);
+        if (m) return { kind: "HELLO", value: m[1] };
+
+        m = h.match(rx.comb);
+        if (m) return { kind: "COMB_B64", value: m[1] };
+
+        m = h.match(rx.resp);
+        if (m) return { kind: "RESP_B64", value: m[1] };
+      }catch{}
+
+      return { kind: "UNKNOWN", value: null };
+    };
+  }
 
   function irlidAnalyzeDecodedText(rawText){
     const t = (rawText || "").trim();
