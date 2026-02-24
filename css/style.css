@@ -59,7 +59,7 @@ body{
 
 /* ✅ Double the logo size */
 .logo-img{
-  height:68px;
+  height:130px;
   width:auto;
   display:block;
 }
@@ -199,3 +199,4 @@ body{
     min-width: 0;
   }
 }
+
