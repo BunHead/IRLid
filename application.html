@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 45 -->
+<!-- Deploy 52 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -247,6 +247,77 @@
   // Diagnostics: what we attempted
   let lastStartAttempt = { engine: "none", mode: "none", detail: "" };
 
+  // Last decoded QR payload (for diagnostics / unrecognized QR debugging)
+  let lastDecoded = null;
+
+  function irlidAnalyzeDecodedText(rawText){
+    const t = (rawText || "").trim();
+    const out = {
+      rawLen: t.length,
+      preview: t.slice(0, 180),
+      previewTail: t.length > 220 ? t.slice(-80) : "",
+      looksLikeUrl: false,
+      url: null,
+      extracted: {
+        hello: null,
+        resp: null,
+        comb: null
+      }
+    };
+
+    // Extract tokens from either a full URL or a raw hash payload
+    const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
+    const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
+    const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
+
+    const mH = t.match(rxHello);
+    const mR = t.match(rxResp);
+    const mC = t.match(rxComb);
+    if (mH) out.extracted.hello = mH[1];
+    if (mR) out.extracted.resp  = mR[1];
+    if (mC) out.extracted.comb  = mC[1];
+
+    // URL parse (best-effort)
+    try{
+      const u = new URL(t);
+      out.looksLikeUrl = true;
+      out.url = {
+        origin: u.origin,
+        pathname: u.pathname,
+        search: u.search,
+        hash: u.hash
+      };
+
+      // Try extraction from hash if not already found
+      if (!out.extracted.hello) {
+        const hm = (u.hash || "").match(rxHello);
+        if (hm) out.extracted.hello = hm[1];
+      }
+      if (!out.extracted.resp) {
+        const rm = (u.hash || "").match(rxResp);
+        if (rm) out.extracted.resp = rm[1];
+      }
+      if (!out.extracted.comb) {
+        const cm = (u.hash || "").match(rxComb);
+        if (cm) out.extracted.comb = cm[1];
+      }
+    }catch{
+      // not a URL; ok
+    }
+
+    // Heuristics to spot common “unrecognized” causes
+    out.hints = [];
+    if (t.startsWith("http") && !out.looksLikeUrl) out.hints.push("Starts with http but URL() parsing failed (likely invalid characters)." );
+    if (!out.extracted.hello && !out.extracted.resp && !out.extracted.comb) {
+      out.hints.push("No HELLO/RESP/COMB token found in text/hash.");
+    }
+    if (t.includes("HELLO=") && !out.extracted.hello) out.hints.push("Contains HELLO= but regex extraction failed (unexpected characters)." );
+    if (t.includes("RESP=") && !out.extracted.resp) out.hints.push("Contains RESP= but payload not b64url (A–Z a–z 0–9 - _)." );
+    if (t.includes("COMB=") && !out.extracted.comb) out.hints.push("Contains COMB= but payload not b64url (A–Z a–z 0–9 - _)." );
+
+    return out;
+  }
+
   function getStoredPreferredCameraId(){
     try{
       const v = localStorage.getItem(KEY_PREF_CAM);
@@ -311,9 +382,14 @@
   async function handleDecodedText(decodedText){
     const t = (decodedText || "").trim();
 
+    // Collect as much info as possible for diagnostics (especially when unrecognized)
+    lastDecoded = irlidAnalyzeDecodedText(t);
+
     // Prefer shared classifier if present
     const classifier = (typeof irlidClassifyText === "function") ? irlidClassifyText : null;
+    if (lastDecoded) lastDecoded.classifierPresent = !!classifier;
     const c = classifier ? classifier(t) : { kind: "UNKNOWN", value: null };
+    if (lastDecoded) lastDecoded.classification = c;
 
     // HELLO: open handshake mode
     if (c.kind === "HELLO") {
@@ -359,7 +435,13 @@
     }
 
     // Unknown
-    setStatus("QR detected (unrecognized).");
+    let msg = "QR detected (unrecognized).";
+    if (!classifier) msg += " (classifier missing)";
+    if (diagnosticsEnabled) msg += " See Diagnostics.";
+    setStatus(msg);
+
+    // Capture the latest decode analysis in diagnostics output
+    try { await refreshDiagnostics(); } catch {}
   }
 
   // ---- diagnostics (no-ops unless enabled) ----
@@ -398,8 +480,17 @@
       qrJs: {
         hasMakeReturnForHelloAsync: (typeof makeReturnForHelloAsync === "function"),
         hasProcessScannedResponse: (typeof processScannedResponse === "function"),
-        hasClassifier: (typeof irlidClassifyText === "function")
+        hasClassifier: (typeof irlidClassifyText === "function"),
+        qrScriptSrc: (function(){
+          try{
+            const s = Array.from(document.querySelectorAll('script[src]'))
+              .map(x => x.getAttribute('src') || '')
+              .find(src => src.includes('js/qr.js'));
+            return s || "";
+          }catch{ return ""; }
+        })()
       },
+      lastDecoded,
       activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
       lastNativeDecoded: nativeLastText || "",
       lastStartAttempt
