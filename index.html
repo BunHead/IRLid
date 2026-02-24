@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 56: HiDPI QR rendering fix (crisp on Retina/Windows scaling) -->
+<!-- Deploy 57: Home restored, vendor QR fixed -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -9,27 +9,37 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
+    :root{
+      --side-pad:12px;
+      --panel-border:#e5e5e5;
+    }
+
     .page-main{
-      padding: 24px 12px calc(var(--mobile-nav-h) + 28px);
+      padding: 24px var(--side-pad) calc(var(--mobile-nav-h) + 28px);
       text-align:center;
     }
 
-    .panel{
+    .home-wrap{
+      max-width: 920px;
+      margin: 0 auto;
+    }
+
+    .qr-panel{
       margin: 14px auto 0;
       padding: 14px 16px;
-      border: 1px solid #e5e5e5;
+      border: 1px solid var(--panel-border);
       background:#fff;
-      max-width: 900px;
     }
 
     .qr-host{
+      display:block;
       margin: 12px auto 0;
       padding: 18px;
-      border: 1px solid #e5e5e5;
+      border: 1px solid var(--panel-border);
       background:#fff;
       width: fit-content;
       max-width: 100%;
-      overflow-x:auto; /* never scale the canvas; scroll instead */
+      overflow-x:auto; /* never scale; scroll instead */
     }
 
     .hint{
@@ -38,43 +48,43 @@
       opacity:.85;
     }
 
-    .urlbox{
-      margin-top: 12px;
-      text-align:left;
+    .hint a{
+      color:#111;
+      text-decoration:underline;
+      word-break: break-all;
     }
 
+    .urlbox{
+      margin: 12px auto 0;
+      max-width: 920px;
+      text-align:left;
+    }
     .urlbox label{
       display:block;
       font-size:12px;
       opacity:.8;
       margin-bottom:6px;
     }
-
     .urlbox input{
       width:100%;
       padding:10px 12px;
+      font-size:12px;
       border:1px solid #ddd;
       border-radius:0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size:12px;
     }
 
-    #status{
-      margin-top:10px;
-      font-size:13px;
+    #err{
+      display:none;
+      max-width: 920px;
+      margin: 14px auto 0;
       text-align:left;
-      white-space:pre-wrap;
-      background:#f7f7f7;
+      white-space: pre-wrap;
+      background:#fff4f4;
+      border:1px solid #ffd0d0;
       padding:10px 12px;
-      border:1px solid #ddd;
-    }
-
-    .controls{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -89,6 +99,7 @@
     </a>
   </div>
 
+  <!-- NAVIGATION (match across pages) -->
   <nav class="site-nav" aria-label="Primary">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
@@ -107,62 +118,59 @@
 </header>
 
 <main class="page-main">
-  <div class="panel">
-    <h2 id="title">Static Test QR (should open Scan page)</h2>
+  <div class="home-wrap">
+    <div class="qr-panel">
+      <h2>Show this QR to the other person</h2>
 
-    <div class="qr-host" id="qrHost" aria-label="QR code"></div>
+      <div class="qr-host" id="helloQr" aria-label="HELLO QR"></div>
 
-    <div class="hint">
-      If your phone vibrates but shows no link, it’s detecting but not decoding.
-      This version renders HiDPI crisp pixels (best for phone scanning).
+      <div class="hint">
+        If scanning fails, tap: <a id="helloLink" href="application.html">Open handshake link</a>
+      </div>
+
+      <div class="urlbox">
+        <label for="helloUrl">QR contents</label>
+        <input id="helloUrl" type="text" readonly value="">
+      </div>
+
+      <div id="err" role="alert"></div>
     </div>
-
-    <div class="urlbox">
-      <label for="qrUrl">QR contents</label>
-      <input id="qrUrl" readonly>
-    </div>
-
-    <div class="controls">
-      <button class="btn secondary" id="btnStatic" type="button">Show Static Test</button>
-      <button class="btn" id="btnHello" type="button">Show HELLO QR</button>
-    </div>
-
-    <div id="status"></div>
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
+<script src="js/sign.js"></script>
 
-<!-- Confirmed working path -->
-<script src="js/vendor/qrcode.min.js"></script>
+<!-- ✅ Fixed vendor QR encoder -->
+<script src="js/vendor/qrcode.min.js?v=56"></script>
+
+<!-- Your app’s QR helpers (expects window.QRCode.toCanvas) -->
+<script src="js/qr.js?v=56"></script>
 
 <script>
 (function(){
   "use strict";
 
-  const qrHost = document.getElementById("qrHost");
-  const qrUrlEl = document.getElementById("qrUrl");
-  const statusEl = document.getElementById("status");
-  const titleEl = document.getElementById("title");
+  const qrEl = document.getElementById("helloQr");
+  const linkEl = document.getElementById("helloLink");
+  const urlEl  = document.getElementById("helloUrl");
+  const errEl  = document.getElementById("err");
 
-  const btnStatic = document.getElementById("btnStatic");
-  const btnHello = document.getElementById("btnHello");
-
-  function log(msg){
-    statusEl.textContent += msg + "\n";
+  function showErr(e){
+    errEl.style.display = "block";
+    errEl.textContent = String(e && e.stack ? e.stack : e);
   }
-
-  function baseDir(){
-    const path = location.pathname.replace(/[^\/]*$/, "");
-    return location.origin + path;
+  function clearErr(){
+    errEl.style.display = "none";
+    errEl.textContent = "";
   }
 
   function b64urlFromBytes(bytes){
     let bin = "";
     for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
     const b64 = btoa(bin);
-    return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   }
 
   function newHelloToken(){
@@ -171,82 +179,43 @@
     return b64urlFromBytes(bytes);
   }
 
+  function baseDir(){
+    const path = location.pathname.replace(/[^\/]*$/, "");
+    return location.origin + path;
+  }
+
   function isMobile(){
     return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
   }
 
-  // CSS size (what user sees). Bigger = easier to scan.
-  function cssSize(){
-    return isMobile() ? 360 : 560;
+  function qrSize(){
+    // Large enough for scanning from another phone
+    return isMobile() ? 420 : 760;
   }
 
-  // HiDPI actual canvas pixels.
-  function deviceSize(){
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    return Math.floor(cssSize() * dpr);
-  }
+  function render(){
+    try{
+      clearErr();
 
-  function renderQr(text){
-    statusEl.textContent = "";
-
-    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
-      log("❌ QRCode.toCanvas not available. Check js/vendor/qrcode.min.js");
-      return;
-    }
-
-    const cssPx = cssSize();
-    const px = deviceSize();
-
-    // Build a fresh canvas each render
-    qrHost.innerHTML = "";
-    const canvas = document.createElement("canvas");
-
-    // Set high-resolution backing store, then display at CSS size
-    canvas.width = px;
-    canvas.height = px;
-    canvas.style.width = cssPx + "px";
-    canvas.style.height = cssPx + "px";
-    canvas.style.display = "block";
-    canvas.style.margin = "0 auto";
-    canvas.style.imageRendering = "pixelated";
-
-    qrHost.appendChild(canvas);
-
-    // Render QR into high-res canvas
-    // Margin increased to help scanning from screens.
-    window.QRCode.toCanvas(canvas, String(text), {
-      width: px,
-      margin: 8,
-      errorCorrectionLevel: "L"
-    }, function(err){
-      if (err){
-        log("❌ QR render error: " + err);
-      } else {
-        log("✅ Rendered at CSS " + cssPx + "px, device " + px + "px (dpr=" + (window.devicePixelRatio||1) + ")");
+      if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+        throw new Error("QR encoder missing: window.QRCode.toCanvas not found.");
       }
-    });
+      if (typeof window.makeQR !== "function") {
+        throw new Error("makeQR() missing. js/qr.js did not load.");
+      }
+
+      const url = baseDir() + "application.html#HELLO=" + newHelloToken();
+      linkEl.href = url;
+      urlEl.value = url;
+
+      // Use your makeQR which already sets EC=L and margin improvements per your notes
+      window.makeQR(qrEl, url, qrSize());
+    }catch(e){
+      showErr(e);
+    }
   }
 
-  function showStatic(){
-    titleEl.textContent = "Static Test QR (should open Scan page)";
-    const url = baseDir() + "application.html";
-    qrUrlEl.value = url;
-    renderQr(url);
-  }
-
-  function showHello(){
-    titleEl.textContent = "HELLO QR (should open Scan with HELLO=...)";
-    const url = baseDir() + "application.html#HELLO=" + newHelloToken();
-    qrUrlEl.value = url;
-    renderQr(url);
-  }
-
-  btnStatic.addEventListener("click", showStatic);
-  btnHello.addEventListener("click", showHello);
-
-  // First render: static
-  showStatic();
-
+  render();
 })();
 </script>
 
