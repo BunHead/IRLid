@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 63 -->
+<!-- Deploy 64 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,7 @@
   <title>IRLid — Receipt</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Receipt page: make final combined fit cleanly on mobile without touching global nav/CSS */
+    /* Receipt page: keep final combined fit cleanly on mobile without touching global nav/CSS */
     .receipt-wrap{ max-width: 860px; margin: 0 auto; }
     .receipt-qr{ text-align:center; }
     .receipt-qr canvas, .receipt-qr img{
@@ -174,11 +174,11 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
-<script src="js/qr.js?v=59"></script>
+<script src="js/qr.js?v=63"></script>
 
 <script>
-  const TS_TOL_S = 90;   // keep aligned with application tolerance (<= 90s)
-  const DIST_TOL_M = 12; // keep aligned with application tolerance (<= 12m)
+  const TS_TOL_S = 90;   // must match application tolerance
+  const DIST_TOL_M = 12; // must match application tolerance
 
   // Back-compat keys (some builds store these)
   const KEY_SELF  = "irlid_resp_self";
@@ -227,8 +227,8 @@
     return Math.round(n);
   }
 
-  function formatTimeNoTs(ts){
-    const ms = normalizeEpochMs(ts);
+  function formatTimeNoTs(tsMs){
+    const ms = normalizeEpochMs(tsMs);
     if (ms === null) return "";
     const d = new Date(ms);
     if (Number.isNaN(d.getTime())) return "";
@@ -273,32 +273,42 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  // More tolerant GPS extraction: accept payload.gps, payload.loc, payload.location
+  // GPS extraction:
+  // Supports both:
+  //  - payload.gps.{lat,lon,acc}  (nested)
+  //  - payload.{lat,lon,acc}      (flat — your current data)
+  // Also supports lon/lng and accuracy fields.
   function extractGpsFromPayload(payload){
     if (!payload) return null;
 
-    const candidates = [
-      payload.gps,
-      payload.loc,
-      payload.location
-    ];
+    // 1) nested objects commonly used
+    const nested = [payload.gps, payload.loc, payload.location].filter(Boolean);
 
-    for (const c of candidates) {
-      if (!c) continue;
-
-      // Accept {lat, lon} or {lat, lng} or arrays [lat, lon]
+    for (const c of nested) {
       if (Array.isArray(c) && c.length >= 2) {
-        const lat = Number(c[0]);
-        const lon = Number(c[1]);
-        if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: null };
+        const latA = Number(c[0]);
+        const lonA = Number(c[1]);
+        if (Number.isFinite(latA) && Number.isFinite(lonA)) {
+          const accA = (c.length >= 3) ? Number(c[2]) : null;
+          return { lat: latA, lon: lonA, acc: Number.isFinite(accA) ? accA : null };
+        }
       }
-
       const lat = Number(c.lat);
       const lon = (c.lon !== undefined) ? Number(c.lon) : Number(c.lng);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
-        const acc = (c.acc !== undefined) ? Number(c.acc) : (c.accuracy !== undefined ? Number(c.accuracy) : null);
+        const acc = (c.acc !== undefined) ? Number(c.acc) :
+                    (c.accuracy !== undefined ? Number(c.accuracy) : null);
         return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
       }
+    }
+
+    // 2) flat payload.lat/payload.lon/payload.acc (your schema)
+    const latF = Number(payload.lat);
+    const lonF = (payload.lon !== undefined) ? Number(payload.lon) : Number(payload.lng);
+    if (Number.isFinite(latF) && Number.isFinite(lonF)) {
+      const accF = (payload.acc !== undefined) ? Number(payload.acc) :
+                   (payload.accuracy !== undefined ? Number(payload.accuracy) : null);
+      return { lat: latF, lon: lonF, acc: Number.isFinite(accF) ? accF : null };
     }
 
     return null;
@@ -309,16 +319,16 @@
     return extractGpsFromPayload(payload);
   }
 
-  // More tolerant timestamp extraction: accept payload.ts, payload.time, payload.t
-  function getTs(resp){
+  // Timestamp extraction:
+  // Supports payload.ts (sec or ms), payload.time, payload.t
+  function getTsMs(resp){
     const payload = resp && resp.payload ? resp.payload : null;
     if (!payload) return null;
     const raw = (payload.ts !== undefined) ? payload.ts :
                 (payload.time !== undefined) ? payload.time :
                 (payload.t !== undefined) ? payload.t :
                 null;
-    const ms = normalizeEpochMs(raw);
-    return ms; // return ms epoch
+    return normalizeEpochMs(raw);
   }
 
   function baseReceiptUrl(){
@@ -369,16 +379,6 @@
     return null;
   }
 
-  function combinedObject(selfResp, guestResp){
-    return {
-      v: 1,
-      type: "combined",
-      tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S },
-      a: selfResp,
-      b: guestResp
-    };
-  }
-
   function makeDualMapsUrl(gA, gB){
     if (gA && gB){
       return `https://www.google.com/maps/dir/${gA.lat},${gA.lon}/${gB.lat},${gB.lon}`;
@@ -389,9 +389,7 @@
   }
 
   function qrSize(){
-    // Keep QR comfortably within viewport on mobile
     const vw = Math.max(320, Math.min(window.innerWidth || 360, 800));
-    // subtract padding/margins; clamp
     return Math.max(220, Math.min(420, Math.floor(vw - 64)));
   }
 
@@ -404,7 +402,7 @@
     }
 
     const gps = getGps(resp);
-    const tsMs = getTs(resp);
+    const tsMs = getTsMs(resp);
 
     if (gps) {
       elCoords.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
@@ -448,23 +446,6 @@
     return results;
   }
 
-  function entryBestTimeMs(combinedOrResp){
-    if (!combinedOrResp) return null;
-
-    if (combinedOrResp.type === "response") {
-      return getTs(combinedOrResp);
-    }
-
-    if (combinedOrResp.type === "combined") {
-      const ta = getTs(combinedOrResp.a);
-      const tb = getTs(combinedOrResp.b);
-      const t = Math.max(ta || -Infinity, tb || -Infinity);
-      return Number.isFinite(t) ? t : null;
-    }
-
-    return null;
-  }
-
   function pickLatestFromReceiptsKey(){
     const raw = localStorage.getItem(KEY_LIST);
     if (!raw) return null;
@@ -496,14 +477,16 @@
         (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
         null;
 
-      // Prefer explicit entry.ts if present; accept sec or ms.
       let score = null;
       if (entry && typeof entry.ts !== "undefined") score = normalizeEpochMs(entry.ts);
 
-      if (score === null) {
-        if (combined) score = entryBestTimeMs(combined);
-        else if (resp) score = entryBestTimeMs(resp);
+      if (score === null && combined) {
+        const ta = combined.a ? getTsMs(combined.a) : null;
+        const tb = combined.b ? getTsMs(combined.b) : null;
+        const t = Math.max(ta || -Infinity, tb || -Infinity);
+        score = Number.isFinite(t) ? t : null;
       }
+      if (score === null && resp) score = getTsMs(resp);
 
       if (score === null) score = 0;
       score = score + (i / 1000000);
@@ -523,17 +506,14 @@
     const respA = comb && comb.a ? comb.a : null;
     const respB = comb && comb.b ? comb.b : null;
 
-    const tsA = respA ? getTs(respA) : null;
-    const tsB = respB ? getTs(respB) : null;
+    const tsA = respA ? getTsMs(respA) : null;
+    const tsB = respB ? getTsMs(respB) : null;
 
     let timeLine = "(missing)";
     if (tsA && tsB) {
-      const a = new Date(tsA);
-      const b = new Date(tsB);
       const lo = new Date(Math.min(tsA, tsB));
       const hi = new Date(Math.max(tsA, tsB));
       const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
-      // concise
       timeLine = `${lo.toLocaleString()} — ${hi.toLocaleTimeString()} (Δ ${deltaS}s)`;
     } else if (tsA) {
       timeLine = `${new Date(tsA).toLocaleString()} (self)`;
@@ -546,10 +526,8 @@
     const gB = respB ? getGps(respB) : null;
 
     let distLine = "(missing)";
-    let distOk = false;
     if (gA && gB) {
       const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-      distOk = d <= DIST_TOL_M;
       distLine = `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`;
     }
     sumDistance.textContent = distLine;
@@ -559,7 +537,6 @@
       ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
       : "(missing)";
 
-    // small hint if key fields are missing
     const missingBits = [];
     if (!gA) missingBits.push("self location");
     if (!gB) missingBits.push("guest location");
@@ -567,9 +544,7 @@
     if (!tsB) missingBits.push("guest time");
 
     receiptHint.style.display = missingBits.length ? "block" : "none";
-    if (missingBits.length) {
-      receiptHint.textContent = "Missing: " + missingBits.join(", ");
-    }
+    if (missingBits.length) receiptHint.textContent = "Missing: " + missingBits.join(", ");
   }
 
   clearBtn.onclick = () => {
@@ -585,12 +560,10 @@
 
     const fromHash = parseFromHash();
 
-    // Keep in sync if visiting via #RESP (single share)
     if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
 
-    // Render: hash first (shared receipts)
     if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
       await renderCombined(fromHash.obj, "Receipt (combined)");
       return;
@@ -600,13 +573,9 @@
       return;
     }
 
-    // Then: latest from history
     const best = pickLatestFromReceiptsKey();
     if (best) {
-      if (best.combined) {
-        await renderCombined(best.combined, "Receipt (combined)");
-        return;
-      }
+      if (best.combined) { await renderCombined(best.combined, "Receipt (combined)"); return; }
       if (best.url && typeof best.url === "string") {
         metaPanel.style.display = "block";
         rawWrap.style.display = "block";
@@ -618,22 +587,16 @@
         addCheck("Loaded latest receipt URL from localStorage[irlid_receipts]", true);
         return;
       }
-      if (best.resp) {
-        await renderSingle(best.resp, "Receipt (single)");
-        return;
-      }
+      if (best.resp) { await renderSingle(best.resp, "Receipt (single)"); return; }
     }
 
-    // Back-compat: stored as two responses
     const selfResp  = readJson(KEY_SELF);
     const guestResp = readJson(KEY_GUEST);
     if (selfResp && guestResp) {
-      const combined = combinedObject(selfResp, guestResp);
-      await renderCombined(combined, "Receipt (combined)");
+      await renderCombined({ v:1, type:"combined", tol:{dist_m:DIST_TOL_M, ts_s:TS_TOL_S}, a:selfResp, b:guestResp }, "Receipt (combined)");
       return;
     }
 
-    // Back-compat: single receipt blob
     const legacy = readJson(KEY_LAST);
     if (legacy && legacy.type === "response") {
       await renderSingle(legacy, "Receipt (single)");
@@ -658,18 +621,12 @@
     const respA = comb.a || null;
     const respB = comb.b || null;
 
-    const gA = getGps(respA);
-    const gB = getGps(respB);
-    const mapsUrl = makeDualMapsUrl(gA, gB);
+    const mapsUrl = makeDualMapsUrl(respA ? getGps(respA) : null, respB ? getGps(respB) : null);
 
-    // Compact summary first
     setSummary(comb);
-
-    // Then per-person panels
     setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
     setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
 
-    // Validation checks (still helpful, but keep the UI lean)
     if (respA) {
       const vr = await validateResponse(respA);
       addCheck("Self: structure", vr.okStructure);
@@ -686,28 +643,6 @@
       addCheck("Guest: signature", vr.okSig);
     } else {
       addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
-    }
-
-    if (respA && respB) {
-      const pubsA = (respA.payload && respA.payload.pubs) ? JSON.stringify(respA.payload.pubs) : null;
-      const pubsB = (respB.payload && respB.payload.pubs) ? JSON.stringify(respB.payload.pubs) : null;
-      const okPubs = (pubsA && pubsB && pubsA === pubsB);
-      addCheck("Same pubs", okPubs);
-
-      const tsAms = getTs(respA);
-      const tsBms = getTs(respB);
-      const okTs = (typeof tsAms === "number" && typeof tsBms === "number" && Math.abs(tsAms - tsBms) <= (TS_TOL_S * 1000));
-      addCheck(`Time within ${TS_TOL_S}s`, okTs, (tsAms && tsBms) ? `Δt=${Math.round(Math.abs(tsAms-tsBms)/1000)}s` : "missing ts");
-
-      let okDist = false;
-      let dist = null;
-      if (gA && gB) {
-        dist = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-        okDist = dist <= DIST_TOL_M;
-      }
-      addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
-    } else {
-      addCheck("Need both parties", false, "Combined object missing one side.");
     }
   }
 
@@ -726,30 +661,17 @@
     summaryKv.style.display = "none";
     receiptHint.style.display = "none";
 
-    // single: show on "Self" panel only
     const mapsUrl = makeDualMapsUrl(getGps(resp), null);
     setPersonPanel(aCoords, aTime, aAcc, resp, mapsUrl);
     setPersonPanel(bCoords, bTime, bAcc, null, mapsUrl);
 
     const vr = await validateResponse(resp);
-    addCheck("Receipt: structure", vr.okStructure);
-    addCheck("Receipt: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-    addCheck("Receipt: signature", vr.okSig);
+    addCheck("Receipt structure", vr.okStructure);
+    addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+    addCheck("Signature valid", vr.okSig);
 
-    addCheck("Need both parties", false, "Have one receipt only. Show the URL QR above to the other person.");
+    addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person.");
   }
-
-  // If the user rotates/resizes, re-render QR at a better size (without changing data)
-  window.addEventListener("resize", () => {
-    // If a canvas exists, rebuild using the same payload encoded in the current QR URL,
-    // which is always the current page URL including hash.
-    const top = document.getElementById("topQr");
-    if (!top) return;
-    // Only rebuild if we have previously rendered something
-    if (!top.querySelector("canvas") && !top.querySelector("img")) return;
-    if (typeof makeQR !== "function") return;
-    makeQR("topQr", window.location.href, qrSize());
-  });
 </script>
 
 </body>
