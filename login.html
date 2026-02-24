@@ -1,180 +1,12 @@
+<!-- login.html -->
 <!DOCTYPE html>
-<!-- Deploy 26 -->
+<!-- Deploy 61 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Login</title>
   <link rel="stylesheet" href="css/style.css">
-
-  <style>
-    :root{
-      --black:#000;
-      --white:#fff;
-      --mobile-nav-h: 124px;
-      --side-pad: 12px;
-      --top-gap: 10px;
-    }
-
-    html, body{ height:100%; }
-    body{
-      margin:0;
-      background:#fff;
-      overflow-x:hidden;
-    }
-
-    header.site-header{ width:100%; background:#fff; }
-    .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
-    .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
-
-    nav.site-nav{
-      width: 100%;
-      background: var(--black);
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      gap:0;
-      padding:0;
-      margin:0;
-      position: sticky;
-      top:0;
-      z-index:1000;
-    }
-
-    #accountSlot{ display: contents; }
-
-    a.nav-btn, summary.nav-btn{
-      appearance:none; -webkit-appearance:none;
-      border:0;
-      background: var(--black);
-      color: var(--white);
-      text-decoration:none;
-      font:inherit;
-      font-weight:700;
-      border-radius:0;
-      margin:0;
-      padding:10px 14px;
-      line-height:1;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      user-select:none;
-      white-space:nowrap;
-    }
-
-    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
-
-    details.nav-dropdown{ position:relative; }
-    details.nav-dropdown > summary{ list-style:none; }
-    details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
-
-    .dropdown-menu{
-      position:absolute;
-      top:100%;
-      left:0;
-      min-width:180px;
-      background:#111;
-      border:0;
-      padding:0;
-      margin:0;
-      z-index:1200;
-    }
-    .dropdown-menu a{
-      display:block;
-      width:100%;
-      text-align:left;
-      padding:12px 14px;
-      color:#fff;
-      background:#111;
-      border:0;
-      text-decoration:none;
-      font-weight:700;
-      border-top:1px solid rgba(255,255,255,0.06);
-      box-sizing:border-box;
-    }
-    .dropdown-menu a:hover{ background:#000; }
-
-    main.page-main{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: var(--top-gap) var(--side-pad) 22px var(--side-pad);
-      box-sizing:border-box;
-    }
-
-    .card{
-      width: min(92vw, 720px);
-      max-width: 720px;
-      border: 1px solid #ddd;
-      padding: 12px;
-      margin: 0 auto;
-      background: #fff;
-      box-sizing:border-box;
-    }
-
-    .btnrow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin: 10px 0;
-    }
-
-    .statusBox{
-      border: 1px solid #ddd;
-      padding: 10px;
-      white-space: pre-wrap;
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-    }
-
-    @media (max-width: 720px){
-      .brand-wrap{ padding:4px var(--side-pad) 0 var(--side-pad); }
-      #logo{
-        max-width:72vw;
-        max-height:90px;
-        width:auto; height:auto;
-        display:block;
-      }
-
-      nav.site-nav{
-        position:fixed;
-        top:auto; /* IMPORTANT */
-        bottom: env(safe-area-inset-bottom, 0px);
-        left:0; right:0;
-        height: var(--mobile-nav-h);
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        gap:0;
-        margin:0;
-        padding:0;
-        background:var(--black);
-        z-index:2000;
-      }
-
-      a.nav-btn, summary.nav-btn{
-        width:100%;
-        height:100%;
-        padding:0;
-        font-size:18px;
-      }
-
-      .dropdown-menu{
-        position:fixed;
-        left:0;
-        right:0;
-        top:auto;
-        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0px));
-        border-radius:0;
-        min-width:unset;
-        z-index:2600;
-      }
-
-      body{
-        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
-      }
-    }
-  </style>
 </head>
 
 <body>
@@ -204,10 +36,10 @@
   </header>
 
   <main class="page-main">
-    <h2 style="text-align:center; margin-top: 6px;">Login (Passkeys)</h2>
+    <h2 class="page-title-center">Login (Passkeys)</h2>
 
     <div class="card">
-      <p style="margin-top:0;">
+      <p class="mt0">
         This login is <b>device-local</b> (no backend). It uses a passkey (WebAuthn) stored by your device,
         then keeps a local “logged in” flag in your browser storage.
       </p>
@@ -220,7 +52,7 @@
 
       <div class="statusBox" id="statusBox">Status: Checking…</div>
 
-      <p style="margin-bottom:0;">
+      <p class="mb0">
         Tip: If your device supports it, “Create passkey” will use Face ID / Touch ID / Windows Hello.
         If this page says WebAuthn is unavailable, make sure you are on HTTPS (GitHub Pages is fine).
       </p>
