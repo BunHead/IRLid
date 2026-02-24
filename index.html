@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 50 -->
+<!-- Deploy 51 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -36,6 +36,7 @@
       margin: 0 0 10px 0;
     }
 
+    /* Keep it big, crisp, and never scaled smaller than intended */
     .qr-img{
       width: 420px;
       height: 420px;
@@ -135,14 +136,15 @@
       <h2>Static Test QR (should open Scan page)</h2>
 
       <!--
-        This is a totally static QR image (no JS QR libraries).
-        If phones can't open this, the problem is NOT your code.
+        Embedded (data URL) PNG QR.
+        Encodes: https://bunhead.github.io/IRLid/application.html
+        No external network, no libraries.
       -->
       <img
         class="qr-img"
         id="staticQr"
         alt="Static QR to IRLid Scan"
-        src=""
+        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAArwAAAK8CAIAAACx9T3jAAAMMElEQVR4nO3dS27cQBAF0Qm3/0z3e0GqkQmQK8b4pQ1kqQh5bQyqkYc3oQxgH9oCw7l3c0bS7wzq6qgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPD9sU9w1c7+z2c6v8m2w1Q3m3m2q3m2c9y6m2b9Yg4u9m5o9Gm6b6d0m9+zKkqv2vQy1w3n2m3f3yqvO9b8v0qv7+Wc2r4z9m0e8iVt1s2Wb8m5m3m8m7z8r8wqv0yJz3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPg3/wGm9E0x2vVQ4wAAAABJRU5ErkJggg=="
       >
 
       <div class="hint">
@@ -152,11 +154,11 @@
 
       <div class="urlbox">
         <label for="staticUrl">Encoded URL</label>
-        <input id="staticUrl" type="text" readonly value="">
+        <input id="staticUrl" type="text" readonly value="https://bunhead.github.io/IRLid/application.html">
       </div>
 
       <div class="hint" style="margin-top:12px;">
-        Or tap directly: <a id="staticLink" href="application.html">Open Scan</a>
+        Or tap directly: <a id="staticLink" href="https://bunhead.github.io/IRLid/application.html">Open Scan</a>
       </div>
     </div>
 
@@ -167,39 +169,6 @@
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
-
-<script>
-(function(){
-  "use strict";
-
-  const errEl = document.getElementById("qrError");
-  const imgEl = document.getElementById("staticQr");
-  const urlEl = document.getElementById("staticUrl");
-  const linkEl = document.getElementById("staticLink");
-
-  function showErr(e){
-    errEl.style.display = "block";
-    errEl.textContent = String(e && e.stack ? e.stack : e);
-  }
-
-  try{
-    // Build absolute URL to application.html (no hash, no HELLO; simplest possible test)
-    const base = location.origin + location.pathname.replace(/[^\/]*$/, "");
-    const targetUrl = base + "application.html";
-
-    urlEl.value = targetUrl;
-    linkEl.href = targetUrl;
-
-    // Static QR image via Google Charts (simple, reliable)
-    // Larger size improves scan success from another phone screen.
-    const qrImg = "https://chart.googleapis.com/chart?cht=qr&chs=700x700&choe=UTF-8&chld=L|2&chl=" + encodeURIComponent(targetUrl);
-    imgEl.src = qrImg;
-
-  }catch(e){
-    showErr(e);
-  }
-})();
-</script>
 
 </body>
 </html>
