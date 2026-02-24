@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 40 -->
+<!-- Deploy 41 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -12,7 +12,6 @@
     :root{
       --black:#000;
       --white:#fff;
-
       --mobile-nav-h:124px;
       --side-pad:12px;
       --top-gap:10px;
@@ -104,23 +103,12 @@
       text-align:center;
     }
 
-    .small{ text-align:center; margin:8px 0; }
-
-    .hero{
-      margin-top:10px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:10px;
-    }
-
     .qr-wrap{
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:10px;
-      margin-top:6px;
-      width:100%;
+      justify-content:flex-start;
+      margin-top: 10px;
     }
 
     .qr-box{
@@ -138,14 +126,6 @@
       image-rendering: pixelated;
     }
 
-    .btn-row{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
-
     #qrError{
       display:none;
       margin: 8px var(--side-pad) 0 var(--side-pad);
@@ -160,12 +140,6 @@
       max-width: 980px;
       margin-left:auto;
       margin-right:auto;
-    }
-
-    .hint{
-      max-width:720px;
-      margin:10px auto 0;
-      line-height:1.35;
     }
 
     /* Mobile nav rules (must match requirement) */
@@ -241,52 +215,30 @@
   </header>
 
   <main class="page-main">
-    <div class="hero">
-      <h2 style="margin:6px 0 0;">In-person proof, instantly.</h2>
-      <p class="hint small" style="margin-top:0;">
-        Show this QR to the other person. They scan it to start the handshake.
-      </p>
-
-      <div class="qr-wrap">
-        <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
-        <div class="small" id="helloText"></div>
-
-        <div class="btn-row">
-          <button class="btn" id="regenBtn" type="button">New QR</button>
-          <a class="btn secondary" id="openBtn" href="application.html">Open Scan</a>
-        </div>
-
-        <p class="hint small">
-          Tip: if a third party scans a combined receipt QR later, it should open the receipt page for verification.
-        </p>
-      </div>
+    <div class="qr-wrap">
+      <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
     </div>
   </main>
 
   <div id="qrError"></div>
 
-  <!-- Existing app scripts (leave as-is) -->
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
 
-  <!-- LOCAL QR LIB (no CDN) -->
-  <script src="js/qrcode.min.js?v=deploy36a"
+  <!-- Local, standards-compliant QR encoder (no CDN) -->
+  <script src="js/qrcode.min.js?v=deploy36b"
           onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Failed to load js/qrcode.min.js (missing file or wrong path).';"></script>
 
   <!-- QR helpers (defines window.makeQR) -->
-  <script src="js/qr.js?v=deploy36a"
+  <script src="js/qr.js?v=deploy36b"
           onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Failed to load js/qr.js (missing file or wrong path).';"></script>
 
-  <!-- Home render -->
   <script>
     (function(){
       "use strict";
 
       const errEl = document.getElementById("qrError");
-      const helloTextEl = document.getElementById("helloText");
-      const regenBtn = document.getElementById("regenBtn");
-      const openBtn = document.getElementById("openBtn");
 
       function showErr(e){
         errEl.style.display = "block";
@@ -316,10 +268,7 @@
 
       function makeHelloUrl(){
         const hello = newHelloToken();
-        const url = new URL(location.href);
-        url.pathname = url.pathname
-          .replace(/\/index\.html$/i, "/application.html")
-          .replace(/\/$/, "/application.html");
+        const url = new URL("application.html", location.href);
         url.hash = "HELLO=" + hello;
         return url.toString();
       }
@@ -340,21 +289,12 @@
           clearErr();
 
           if (typeof window.makeQR !== "function"){
-            throw new Error(
-              "makeQR() missing.\n\n" +
-              "This means js/qr.js did not execute or crashed before defining window.makeQR.\n" +
-              "Check Console for errors, and ensure js/qr.js is the new Deploy 36 file."
-            );
+            throw new Error("makeQR() missing. js/qr.js did not load or crashed.");
           }
 
           const size = computeQrSize();
           const currentUrl = makeHelloUrl();
-
           window.makeQR("helloQr", currentUrl, size);
-
-          const u = new URL(currentUrl);
-          helloTextEl.textContent = u.hash;
-          openBtn.href = "application.html" + u.hash;
         }catch(e){
           showErr(e);
         }
@@ -372,8 +312,6 @@
         window.visualViewport.addEventListener("resize", scheduleRender);
         window.visualViewport.addEventListener("scroll", scheduleRender);
       }
-
-      regenBtn.addEventListener("click", render);
 
       render();
     })();
