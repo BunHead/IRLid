@@ -1,8 +1,22 @@
 :root{
   --black:#000;
   --white:#fff;
+
+  /* nav */
   --border:rgba(255,255,255,0.18);
   --mobile-nav-h:124px;
+
+  /* layout */
+  --side-pad:12px;
+  --top-gap:10px;
+
+  /* logo sizing (fix “logo too big”) */
+  --logo-h-desktop:40px;
+  --logo-h-mobile:28px;
+
+  /* common panels */
+  --panel:#f7f7f7;
+  --panel-border:#e5e5e5;
 }
 
 *{ box-sizing:border-box; }
@@ -33,13 +47,16 @@ body{
   color:#000;
 }
 
-/* Header */
+/* -------------------------
+   Header (supports BOTH markups)
+   ------------------------- */
+
 .site-header{
   width:100%;
   background:#fff;
 }
 
-/* Keep compatibility with existing markup */
+/* Legacy header markup (most pages) */
 .brand-wrap{
   width:100%;
   padding:10px 14px 0 14px;
@@ -52,14 +69,44 @@ body{
   color:inherit;
 }
 
-/* ✅ Double logo size */
-#logo{
-  height:68px;
-  width:auto;
-  display:block;
+/* Modern header markup (receipt/scan pages in your repo) */
+.logo-row{
+  width:100%;
+  padding:10px 14px 0 14px;
+}
+.logo-link{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  text-decoration:none;
+  color:inherit;
+}
+.logo-text{
+  font-weight:bold;
+  letter-spacing:0.2px;
 }
 
-/* Desktop nav: full-width black bar */
+/* Constrain ALL logo images consistently */
+#logo,
+.logo-img{
+  height: var(--logo-h-desktop);
+  width:auto;
+  display:block;
+  max-width: 100%;
+}
+
+/* Mobile logo sizing */
+@media (max-width: 720px){
+  #logo,
+  .logo-img{
+    height: var(--logo-h-mobile);
+  }
+}
+
+/* -------------------------
+   Desktop nav: full-width black bar
+   ------------------------- */
+
 .site-nav{
   width:100%;
   background:#000;
@@ -120,7 +167,60 @@ body{
 /* Account slot behaves like nav items */
 #accountSlot{ display:contents; }
 
-/* Mobile nav: fixed bottom, 2 cols × 2 rows, safe-area aware */
+/* -------------------------
+   Common page helpers (move page styling out of inline <style> blocks)
+   ------------------------- */
+
+.page-main{
+  padding: 18px var(--side-pad) calc(var(--mobile-nav-h) + 22px);
+  text-align:center;
+}
+
+.small{ font-size:12px; opacity:.85; }
+
+.controls{
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  margin: 10px 0 12px;
+  flex-wrap:wrap;
+}
+
+/* QR box used in multiple pages */
+.qr-box{
+  display:inline-block;
+  background:#fff;
+  padding:16px;
+}
+
+/* Scanner container used on Scan page */
+#scanner{
+  width: 340px;
+  max-width: 92vw;
+  margin: 12px auto;
+  background:#000;
+}
+#scanner video,
+#scanner canvas{
+  width:100% !important;
+  height:auto !important;
+  display:block;
+}
+
+/* Generic panel styling (Receipt / Diagnostics style blocks can rely on this) */
+.panel{
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  padding: 14px 16px;
+  text-align: left;
+  margin: 10px 0;
+}
+
+/* -------------------------
+   Mobile nav: fixed bottom, 2 cols × 2 rows, safe-area aware
+   HARD REQUIREMENT preserved
+   ------------------------- */
+
 @media (max-width: 720px){
   body{
     padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0));
@@ -172,4 +272,3 @@ body{
     min-width: 0;
   }
 }
-
