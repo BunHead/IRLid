@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 54: Local QR Loader Diagnostic (fixed candidates array) -->
+<!-- Deploy 55: HiDPI QR rendering fix (crisp on Retina/Windows scaling) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -24,11 +24,18 @@
 
     .qr-host{
       margin: 12px auto 0;
-      padding: 16px;
+      padding: 18px;
       border: 1px solid #e5e5e5;
       background:#fff;
       width: fit-content;
-      overflow-x:auto;
+      max-width: 100%;
+      overflow-x:auto; /* never scale the canvas; scroll instead */
+    }
+
+    .hint{
+      margin-top:10px;
+      font-size:13px;
+      opacity:.85;
     }
 
     .urlbox{
@@ -36,13 +43,20 @@
       text-align:left;
     }
 
+    .urlbox label{
+      display:block;
+      font-size:12px;
+      opacity:.8;
+      margin-bottom:6px;
+    }
+
     .urlbox input{
       width:100%;
-      padding:10px;
+      padding:10px 12px;
       border:1px solid #ddd;
+      border-radius:0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size:12px;
-      border-radius:0;
     }
 
     #status{
@@ -51,8 +65,16 @@
       text-align:left;
       white-space:pre-wrap;
       background:#f7f7f7;
-      padding:10px;
+      padding:10px 12px;
       border:1px solid #ddd;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:12px;
     }
   </style>
 </head>
@@ -86,13 +108,23 @@
 
 <main class="page-main">
   <div class="panel">
-    <h2>QR Library Diagnostic</h2>
+    <h2 id="title">Static Test QR (should open Scan page)</h2>
 
-    <div class="qr-host" id="qrHost"></div>
+    <div class="qr-host" id="qrHost" aria-label="QR code"></div>
+
+    <div class="hint">
+      If your phone vibrates but shows no link, it’s detecting but not decoding.
+      This version renders HiDPI crisp pixels (best for phone scanning).
+    </div>
 
     <div class="urlbox">
-      <label for="qrUrl">QR contents (should open in browser)</label>
+      <label for="qrUrl">QR contents</label>
       <input id="qrUrl" readonly>
+    </div>
+
+    <div class="controls">
+      <button class="btn secondary" id="btnStatic" type="button">Show Static Test</button>
+      <button class="btn" id="btnHello" type="button">Show HELLO QR</button>
     </div>
 
     <div id="status"></div>
@@ -102,97 +134,118 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 
+<!-- Confirmed working path -->
+<script src="js/vendor/qrcode.min.js"></script>
+
 <script>
-(async function(){
-  const status = document.getElementById("status");
+(function(){
+  "use strict";
+
   const qrHost = document.getElementById("qrHost");
-  const qrUrl = document.getElementById("qrUrl");
+  const qrUrlEl = document.getElementById("qrUrl");
+  const statusEl = document.getElementById("status");
+  const titleEl = document.getElementById("title");
+
+  const btnStatic = document.getElementById("btnStatic");
+  const btnHello = document.getElementById("btnHello");
 
   function log(msg){
-    status.textContent += msg + "\n";
+    statusEl.textContent += msg + "\n";
   }
 
-  async function loadScript(path){
-    return new Promise((resolve, reject)=>{
-      const s = document.createElement("script");
-      s.src = path;
-      s.async = true;
-      s.onload = ()=>resolve(path);
-      s.onerror = ()=>reject(new Error("Failed to load: " + path));
-      document.head.appendChild(s);
-    });
+  function baseDir(){
+    const path = location.pathname.replace(/[^\/]*$/, "");
+    return location.origin + path;
   }
 
-  const candidates = [
-    "js/vendor/qrcode.min.js",
-    "./js/vendor/qrcode.min.js",
-    "js/qrcode.min.js",
-    "./js/qrcode.min.js",
-    "qrcode.min.js",
-    "./qrcode.min.js"
-  ];
+  function b64urlFromBytes(bytes){
+    let bin = "";
+    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    const b64 = btoa(bin);
+    return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+  }
 
-  log("Starting QR lib probe…");
+  function newHelloToken(){
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return b64urlFromBytes(bytes);
+  }
 
-  let loadedFrom = null;
+  function isMobile(){
+    return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+  }
 
-  for (const path of candidates){
-    try{
-      log("Trying: " + path);
-      await loadScript(path);
+  // CSS size (what user sees). Bigger = easier to scan.
+  function cssSize(){
+    return isMobile() ? 360 : 560;
+  }
 
-      if (window.QRCode && typeof window.QRCode.toCanvas === "function"){
-        loadedFrom = path;
-        log("SUCCESS: window.QRCode.toCanvas found from " + path);
-        break;
-      }
+  // HiDPI actual canvas pixels.
+  function deviceSize(){
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    return Math.floor(cssSize() * dpr);
+  }
 
-      // Helpful debug if the lib exports differently
-      const globals = Object.keys(window).filter(k => k.toLowerCase().includes("qr"));
-      log("Loaded, but QRCode.toCanvas not found. Window globals containing 'qr': " + (globals.slice(0, 25).join(", ") || "(none)"));
+  function renderQr(text){
+    statusEl.textContent = "";
 
-    }catch(e){
-      log(String(e.message || e));
+    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+      log("❌ QRCode.toCanvas not available. Check js/vendor/qrcode.min.js");
+      return;
     }
-  }
 
-  if (!loadedFrom){
-    log("\n❌ Could not find a QR library that exposes window.QRCode.toCanvas.");
-    log("If you open /IRLid/js/vendor/qrcode.min.js directly in the browser, it should show JavaScript text.");
-    return;
-  }
+    const cssPx = cssSize();
+    const px = deviceSize();
 
-  const base = location.origin + location.pathname.replace(/[^\/]*$/, "");
-  const url = base + "application.html";
-  qrUrl.value = url;
+    // Build a fresh canvas each render
+    qrHost.innerHTML = "";
+    const canvas = document.createElement("canvas");
 
-  const canvas = document.createElement("canvas");
-  const size = 420;
-  canvas.width = size;
-  canvas.height = size;
-  canvas.style.width = size + "px";
-  canvas.style.height = size + "px";
-  canvas.style.display = "block";
-  canvas.style.margin = "0 auto";
-  canvas.style.imageRendering = "pixelated";
-  qrHost.innerHTML = "";
-  qrHost.appendChild(canvas);
+    // Set high-resolution backing store, then display at CSS size
+    canvas.width = px;
+    canvas.height = px;
+    canvas.style.width = cssPx + "px";
+    canvas.style.height = cssPx + "px";
+    canvas.style.display = "block";
+    canvas.style.margin = "0 auto";
+    canvas.style.imageRendering = "pixelated";
 
-  try{
-    window.QRCode.toCanvas(canvas, url, {
-      width: size,
-      margin: 4,
+    qrHost.appendChild(canvas);
+
+    // Render QR into high-res canvas
+    // Margin increased to help scanning from screens.
+    window.QRCode.toCanvas(canvas, String(text), {
+      width: px,
+      margin: 8,
       errorCorrectionLevel: "L"
     }, function(err){
       if (err){
-        log("QR render error: " + err);
+        log("❌ QR render error: " + err);
       } else {
-        log("✅ QR rendered successfully.");
+        log("✅ Rendered at CSS " + cssPx + "px, device " + px + "px (dpr=" + (window.devicePixelRatio||1) + ")");
       }
     });
-  }catch(e){
-    log("QR render threw: " + e);
   }
+
+  function showStatic(){
+    titleEl.textContent = "Static Test QR (should open Scan page)";
+    const url = baseDir() + "application.html";
+    qrUrlEl.value = url;
+    renderQr(url);
+  }
+
+  function showHello(){
+    titleEl.textContent = "HELLO QR (should open Scan with HELLO=...)";
+    const url = baseDir() + "application.html#HELLO=" + newHelloToken();
+    qrUrlEl.value = url;
+    renderQr(url);
+  }
+
+  btnStatic.addEventListener("click", showStatic);
+  btnHello.addEventListener("click", showHello);
+
+  // First render: static
+  showStatic();
 
 })();
 </script>
