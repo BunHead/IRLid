@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 37 -->
+<!-- Deploy 38 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -222,7 +222,7 @@
       </a>
     </div>
 
-    <!-- NAVIGATION (keep structure identical) -->
+    <!-- NAVIGATION (must remain identical across all pages) -->
     <nav class="site-nav" aria-label="Primary">
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
@@ -265,34 +265,36 @@
 
   <div id="qrError"></div>
 
-  <!-- Core app scripts (as before) -->
+  <!-- Existing app scripts (leave as-is) -->
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
 
-  <!-- HARD FIX: ensure QR lib loads BEFORE js/qr.js (no async/defer) -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=deploy35"></script>
-
-  <!-- Home render (runs after libs + after DOM exists) -->
+  <!-- Deterministic loader: loads qrcode -> qr.js -> then runs home -->
   <script>
     (function(){
       "use strict";
 
       const errEl = document.getElementById("qrError");
-      const helloQrId = "helloQr";
-      const helloTextEl = document.getElementById("helloText");
-      const regenBtn = document.getElementById("regenBtn");
-      const openBtn = document.getElementById("openBtn");
 
       function showErr(e){
         errEl.style.display = "block";
         errEl.textContent = String(e && e.stack ? e.stack : e);
       }
-
       function clearErr(){
         errEl.style.display = "none";
         errEl.textContent = "";
+      }
+
+      function loadScript(src){
+        return new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = src;
+          s.async = false; // keep order deterministic
+          s.onload = () => resolve(src);
+          s.onerror = () => reject(new Error("Failed to load script: " + src));
+          document.head.appendChild(s);
+        });
       }
 
       function vp(){
@@ -302,7 +304,6 @@
       }
 
       function b64urlFromBytes(bytes){
-        // Safe for small arrays (we only use 16 bytes)
         const b64 = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
         return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
       }
@@ -316,75 +317,76 @@
       function makeHelloUrl(){
         const hello = newHelloToken();
         const url = new URL(location.href);
-
-        // Ensure it points to application.html from wherever index is served
         url.pathname = url.pathname
           .replace(/\/index\.html$/i, "/application.html")
           .replace(/\/$/, "/application.html");
-
         url.hash = "HELLO=" + hello;
         return url.toString();
       }
 
       function computeQrSize(){
         const { w, h } = vp();
-
-        // Account for padding + fixed bottom nav on mobile
         const pad = 2 * 12;
         const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
         const safeB = parseFloat(getComputedStyle(document.body).paddingBottom || "0") || 0;
-
         const usableH = Math.max(200, h - navH - safeB - 20);
         const usableW = Math.max(200, w - pad);
-
         const size = Math.floor(Math.min(usableW, usableH));
         return Math.max(220, Math.min(size, 720));
       }
 
-      let currentUrl = "";
+      async function initHome(){
+        // Load QR libs in sequence, with explicit error reporting
+        // (This also avoids any weird timing issues with GH Pages + cache)
+        const cacheBust = "deploy35b"; // bump this if you want to force re-fetch
 
-      function render(){
-        try{
+        await loadScript("https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js");
+        await loadScript("js/qr.js?v=" + encodeURIComponent(cacheBust));
+
+        if (typeof window.makeQR !== "function"){
+          throw new Error("makeQR() still missing AFTER loading js/qr.js — qr.js may be throwing, or not defining window.makeQR.");
+        }
+
+        // Home render logic (unchanged behavior: HELLO -> application.html#HELLO=...)
+        const helloTextEl = document.getElementById("helloText");
+        const regenBtn = document.getElementById("regenBtn");
+        const openBtn = document.getElementById("openBtn");
+        const helloQrId = "helloQr";
+
+        let currentUrl = "";
+
+        function render(){
           clearErr();
-
-          if (typeof window.makeQR !== "function") {
-            throw new Error("makeQR() missing (js/qr.js not loaded)");
-          }
-
-          currentUrl = makeHelloUrl();
           const size = computeQrSize();
+          currentUrl = makeHelloUrl();
 
           window.makeQR(helloQrId, currentUrl, size);
 
-          // Show just the hash for readability (as before)
           const u = new URL(currentUrl);
           helloTextEl.textContent = u.hash;
-
-          // Convenience: Open Scan preserves current HELLO
           openBtn.href = "application.html" + u.hash;
-        }catch(e){
-          showErr(e);
         }
+
+        let rAF = null;
+        function scheduleRender(){
+          if (rAF) cancelAnimationFrame(rAF);
+          rAF = requestAnimationFrame(render);
+        }
+
+        window.addEventListener("resize", scheduleRender);
+        window.addEventListener("orientationchange", scheduleRender);
+        if (window.visualViewport){
+          window.visualViewport.addEventListener("resize", scheduleRender);
+          window.visualViewport.addEventListener("scroll", scheduleRender);
+        }
+
+        regenBtn.addEventListener("click", render);
+
+        render();
       }
 
-      // Resize/orientation: use visualViewport when available
-      let rAF = null;
-      function scheduleRender(){
-        if (rAF) cancelAnimationFrame(rAF);
-        rAF = requestAnimationFrame(render);
-      }
-
-      window.addEventListener("resize", scheduleRender);
-      window.addEventListener("orientationchange", scheduleRender);
-      if (window.visualViewport){
-        window.visualViewport.addEventListener("resize", scheduleRender);
-        window.visualViewport.addEventListener("scroll", scheduleRender);
-      }
-
-      regenBtn.addEventListener("click", render);
-
-      // Initial render
-      render();
+      // Start
+      initHome().catch(showErr);
     })();
   </script>
 </body>
