@@ -1,12 +1,92 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 62 -->
+<!-- Deploy 63 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Receipt</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Receipt page: make final combined fit cleanly on mobile without touching global nav/CSS */
+    .receipt-wrap{ max-width: 860px; margin: 0 auto; }
+    .receipt-qr{ text-align:center; }
+    .receipt-qr canvas, .receipt-qr img{
+      max-width: min(92vw, 420px);
+      height: auto !important;
+      display:block;
+      margin: 0 auto;
+    }
+    .receipt-headerline{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .receipt-headerline h3{ margin: 0; }
+    .receipt-mini{
+      font-size: 12px;
+      opacity: .85;
+    }
+    .receipt-kv{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 10px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .receipt-kv .k{ opacity:.8; }
+    .receipt-kv .v{ word-break: break-word; }
+    .receipt-kv a{ color:#111; text-decoration: underline; }
+    .receipt-two{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (min-width: 760px){
+      .receipt-two{ grid-template-columns: 1fr 1fr; }
+    }
+    .person-panel{
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      padding: 12px 12px;
+    }
+    .person-title{ font-weight: 700; margin-bottom: 6px; }
+    .person-row{ margin: 2px 0; }
+    .person-note{ font-size: 12px; opacity: .85; margin-top: 6px; }
+    .checks{ margin-top: 10px; }
+    .check{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:10px 0;
+      border-top:1px solid #e5e5e5;
+    }
+    .check:first-child{ border-top:0; }
+    .badge{
+      width: 64px;
+      text-align:center;
+      font-weight:700;
+      font-size:12px;
+      padding: 6px 0;
+      border:1px solid #e5e5e5;
+      background:#fff;
+      flex: 0 0 auto;
+    }
+    .badge.pass{ background:#eaffea; border-color:#c8f2c8; }
+    .badge.fail{ background:#ffecec; border-color:#ffd0d0; }
+    details.raw{ text-align:left; margin-top: 10px; }
+    pre{
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      padding: 12px 12px;
+      font-size: 12px;
+    }
+  </style>
 </head>
 
 <body>
@@ -45,9 +125,18 @@
     <div class="qr-box receipt-qr" id="topQr" aria-label="Receipt QR"></div>
 
     <div class="panel" id="metaPanel" style="display:none;">
-      <h3 id="metaTitle">Receipt</h3>
+      <div class="receipt-headerline">
+        <h3 id="metaTitle">Receipt</h3>
+        <div class="receipt-mini" id="receiptHint" style="display:none;"></div>
+      </div>
 
-      <div class="people-grid" id="peopleGrid" style="display:none;">
+      <div class="receipt-kv" id="summaryKv" style="display:none;">
+        <div class="k">Time</div><div class="v" id="sumTime"></div>
+        <div class="k">Distance</div><div class="v" id="sumDistance"></div>
+        <div class="k">Map</div><div class="v" id="sumMap"></div>
+      </div>
+
+      <div class="receipt-two" id="peopleGrid" style="display:none;">
         <div class="person-panel">
           <div class="person-title">Self</div>
           <div class="person-row" id="aCoords"></div>
@@ -88,8 +177,8 @@
 <script src="js/qr.js?v=59"></script>
 
 <script>
-  const TS_TOL_S = 60;
-  const DIST_TOL_M = 2;
+  const TS_TOL_S = 90;   // keep aligned with application tolerance (<= 90s)
+  const DIST_TOL_M = 12; // keep aligned with application tolerance (<= 12m)
 
   // Back-compat keys (some builds store these)
   const KEY_SELF  = "irlid_resp_self";
@@ -102,6 +191,13 @@
   const emptyState = document.getElementById("emptyState");
   const metaPanel = document.getElementById("metaPanel");
   const metaTitle = document.getElementById("metaTitle");
+  const receiptHint = document.getElementById("receiptHint");
+
+  const summaryKv = document.getElementById("summaryKv");
+  const sumTime = document.getElementById("sumTime");
+  const sumDistance = document.getElementById("sumDistance");
+  const sumMap = document.getElementById("sumMap");
+
   const rawWrap = document.getElementById("rawWrap");
   const rawJson = document.getElementById("rawJson");
   const peopleGrid = document.getElementById("peopleGrid");
@@ -117,17 +213,18 @@
   const clearBtn = document.getElementById("clearBtn");
 
   function fmtNum(x){
-    return (typeof x === "number") ? x.toFixed(6) : String(x || "");
+    return (typeof x === "number" && Number.isFinite(x)) ? x.toFixed(6) : String(x || "");
   }
 
   // Accepts either ms-epoch or sec-epoch and returns ms-epoch (or null)
   function normalizeEpochMs(ts){
-    if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
+    if (ts === null || ts === undefined) return null;
+    const n = (typeof ts === "string") ? Number(ts) : ts;
+    if (typeof n !== "number" || !Number.isFinite(n)) return null;
 
-    // If it's plausibly seconds-since-epoch (current ~1.7e9), convert to ms.
-    // If it's already ms (current ~1.7e12), leave it.
-    if (ts > 0 && ts < 1e12) return Math.round(ts * 1000);
-    return Math.round(ts);
+    // seconds since epoch is ~1e9; ms is ~1e12
+    if (n > 0 && n < 1e12) return Math.round(n * 1000);
+    return Math.round(n);
   }
 
   function formatTimeNoTs(ts){
@@ -176,16 +273,52 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  function getGps(resp){
-    const gps = resp && resp.payload ? resp.payload.gps : null;
-    if (!gps) return null;
-    if (typeof gps.lat !== "number" || typeof gps.lon !== "number") return null;
-    return gps;
+  // More tolerant GPS extraction: accept payload.gps, payload.loc, payload.location
+  function extractGpsFromPayload(payload){
+    if (!payload) return null;
+
+    const candidates = [
+      payload.gps,
+      payload.loc,
+      payload.location
+    ];
+
+    for (const c of candidates) {
+      if (!c) continue;
+
+      // Accept {lat, lon} or {lat, lng} or arrays [lat, lon]
+      if (Array.isArray(c) && c.length >= 2) {
+        const lat = Number(c[0]);
+        const lon = Number(c[1]);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: null };
+      }
+
+      const lat = Number(c.lat);
+      const lon = (c.lon !== undefined) ? Number(c.lon) : Number(c.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        const acc = (c.acc !== undefined) ? Number(c.acc) : (c.accuracy !== undefined ? Number(c.accuracy) : null);
+        return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
+      }
+    }
+
+    return null;
   }
 
+  function getGps(resp){
+    const payload = resp && resp.payload ? resp.payload : null;
+    return extractGpsFromPayload(payload);
+  }
+
+  // More tolerant timestamp extraction: accept payload.ts, payload.time, payload.t
   function getTs(resp){
-    const ts = resp && resp.payload ? resp.payload.ts : null;
-    return (typeof ts === "number") ? ts : null;
+    const payload = resp && resp.payload ? resp.payload : null;
+    if (!payload) return null;
+    const raw = (payload.ts !== undefined) ? payload.ts :
+                (payload.time !== undefined) ? payload.time :
+                (payload.t !== undefined) ? payload.t :
+                null;
+    const ms = normalizeEpochMs(raw);
+    return ms; // return ms epoch
   }
 
   function baseReceiptUrl(){
@@ -255,6 +388,13 @@
     return `https://www.google.com/maps?q=${encodeURIComponent(g.lat + "," + g.lon)}`;
   }
 
+  function qrSize(){
+    // Keep QR comfortably within viewport on mobile
+    const vw = Math.max(320, Math.min(window.innerWidth || 360, 800));
+    // subtract padding/margins; clamp
+    return Math.max(220, Math.min(420, Math.floor(vw - 64)));
+  }
+
   function setPersonPanel(elCoords, elTime, elAcc, resp, mapsUrl){
     if (!resp) {
       elCoords.textContent = "Location: (missing)";
@@ -264,17 +404,17 @@
     }
 
     const gps = getGps(resp);
-    const ts = getTs(resp);
+    const tsMs = getTs(resp);
 
     if (gps) {
       elCoords.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
-      elAcc.textContent = (typeof gps.acc === "number") ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
+      elAcc.textContent = (typeof gps.acc === "number" && Number.isFinite(gps.acc)) ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
     } else {
       elCoords.textContent = "Location: (not captured)";
       elAcc.textContent = "";
     }
 
-    const t = formatTimeNoTs(ts);
+    const t = formatTimeNoTs(tsMs);
     elTime.textContent = t ? `Time: ${t}` : "Time: (missing)";
   }
 
@@ -312,12 +452,12 @@
     if (!combinedOrResp) return null;
 
     if (combinedOrResp.type === "response") {
-      return normalizeEpochMs(getTs(combinedOrResp));
+      return getTs(combinedOrResp);
     }
 
     if (combinedOrResp.type === "combined") {
-      const ta = normalizeEpochMs(getTs(combinedOrResp.a));
-      const tb = normalizeEpochMs(getTs(combinedOrResp.b));
+      const ta = getTs(combinedOrResp.a);
+      const tb = getTs(combinedOrResp.b);
       const t = Math.max(ta || -Infinity, tb || -Infinity);
       return Number.isFinite(t) ? t : null;
     }
@@ -326,11 +466,6 @@
   }
 
   function pickLatestFromReceiptsKey(){
-    // Accept several possible stored shapes for KEY_LIST:
-    // - Array of combined objects: [{type:"combined", ...}, ...]
-    // - Array of entries: [{ts, combined}, ...]
-    // - Array of entries: [{ts, url}, ...] where url is receipt URL
-    // - Array of strings: ["https://.../receipt.html#COMB=...", ...]
     const raw = localStorage.getItem(KEY_LIST);
     if (!raw) return null;
 
@@ -361,19 +496,16 @@
         (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
         null;
 
-      // Prefer explicit entry.ts if present; normalize (sec->ms) and fall back to payload ts.
+      // Prefer explicit entry.ts if present; accept sec or ms.
       let score = null;
-      if (entry && typeof entry.ts === "number") score = normalizeEpochMs(entry.ts);
+      if (entry && typeof entry.ts !== "undefined") score = normalizeEpochMs(entry.ts);
 
       if (score === null) {
         if (combined) score = entryBestTimeMs(combined);
         else if (resp) score = entryBestTimeMs(resp);
       }
 
-      // If we still can't score, use array position as a weak signal.
       if (score === null) score = 0;
-
-      // Tie-breaker: assume later entries are newer in many push-based histories.
       score = score + (i / 1000000);
 
       if (score > bestScore) {
@@ -383,6 +515,61 @@
     }
 
     return best;
+  }
+
+  function setSummary(comb){
+    summaryKv.style.display = "grid";
+
+    const respA = comb && comb.a ? comb.a : null;
+    const respB = comb && comb.b ? comb.b : null;
+
+    const tsA = respA ? getTs(respA) : null;
+    const tsB = respB ? getTs(respB) : null;
+
+    let timeLine = "(missing)";
+    if (tsA && tsB) {
+      const a = new Date(tsA);
+      const b = new Date(tsB);
+      const lo = new Date(Math.min(tsA, tsB));
+      const hi = new Date(Math.max(tsA, tsB));
+      const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
+      // concise
+      timeLine = `${lo.toLocaleString()} — ${hi.toLocaleTimeString()} (Δ ${deltaS}s)`;
+    } else if (tsA) {
+      timeLine = `${new Date(tsA).toLocaleString()} (self)`;
+    } else if (tsB) {
+      timeLine = `${new Date(tsB).toLocaleString()} (guest)`;
+    }
+    sumTime.textContent = timeLine;
+
+    const gA = respA ? getGps(respA) : null;
+    const gB = respB ? getGps(respB) : null;
+
+    let distLine = "(missing)";
+    let distOk = false;
+    if (gA && gB) {
+      const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+      distOk = d <= DIST_TOL_M;
+      distLine = `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`;
+    }
+    sumDistance.textContent = distLine;
+
+    const mapsUrl = makeDualMapsUrl(gA, gB);
+    sumMap.innerHTML = (mapsUrl !== "#")
+      ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+      : "(missing)";
+
+    // small hint if key fields are missing
+    const missingBits = [];
+    if (!gA) missingBits.push("self location");
+    if (!gB) missingBits.push("guest location");
+    if (!tsA) missingBits.push("self time");
+    if (!tsB) missingBits.push("guest time");
+
+    receiptHint.style.display = missingBits.length ? "block" : "none";
+    if (missingBits.length) {
+      receiptHint.textContent = "Missing: " + missingBits.join(", ");
+    }
   }
 
   clearBtn.onclick = () => {
@@ -396,7 +583,6 @@
   (async () => {
     if (typeof refreshNav === "function") await refreshNav();
 
-    // Highest priority: explicit receipt in URL hash
     const fromHash = parseFromHash();
 
     // Keep in sync if visiting via #RESP (single share)
@@ -404,9 +590,9 @@
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
 
-    // Render: try hash first
+    // Render: hash first (shared receipts)
     if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
-      await renderCombined(fromHash.obj, "Receipt (shared)");
+      await renderCombined(fromHash.obj, "Receipt (combined)");
       return;
     }
     if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
@@ -414,11 +600,11 @@
       return;
     }
 
-    // Next priority: latest entry in localStorage["irlid_receipts"]
+    // Then: latest from history
     const best = pickLatestFromReceiptsKey();
     if (best) {
       if (best.combined) {
-        await renderCombined(best.combined, "Receipt (latest)");
+        await renderCombined(best.combined, "Receipt (combined)");
         return;
       }
       if (best.url && typeof best.url === "string") {
@@ -428,23 +614,22 @@
         checksEl.innerHTML = "";
         metaTitle.textContent = "Receipt (latest)";
         rawJson.textContent = JSON.stringify(best.entry, null, 2);
-
-        if (typeof makeQR === "function") makeQR("topQr", best.url, 460);
+        if (typeof makeQR === "function") makeQR("topQr", best.url, qrSize());
         addCheck("Loaded latest receipt URL from localStorage[irlid_receipts]", true);
         return;
       }
       if (best.resp) {
-        await renderSingle(best.resp, "Receipt (latest single)");
+        await renderSingle(best.resp, "Receipt (single)");
         return;
       }
     }
 
-    // Back-compat: if app stored both responses as KEY_SELF/KEY_GUEST, combine and render
+    // Back-compat: stored as two responses
     const selfResp  = readJson(KEY_SELF);
     const guestResp = readJson(KEY_GUEST);
     if (selfResp && guestResp) {
       const combined = combinedObject(selfResp, guestResp);
-      await renderCombined(combined, "Receipt (local)");
+      await renderCombined(combined, "Receipt (combined)");
       return;
     }
 
@@ -466,7 +651,7 @@
     metaTitle.textContent = title || "Receipt";
 
     const url = makeReceiptUrlForCombined(comb);
-    if (typeof makeQR === "function") makeQR("topQr", url, 460);
+    if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
     rawJson.textContent = JSON.stringify(comb, null, 2);
 
@@ -477,23 +662,28 @@
     const gB = getGps(respB);
     const mapsUrl = makeDualMapsUrl(gA, gB);
 
+    // Compact summary first
+    setSummary(comb);
+
+    // Then per-person panels
     setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
     setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
 
+    // Validation checks (still helpful, but keep the UI lean)
     if (respA) {
       const vr = await validateResponse(respA);
-      addCheck("Self receipt structure", vr.okStructure);
-      addCheck("Self hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-      addCheck("Self signature valid", vr.okSig);
+      addCheck("Self: structure", vr.okStructure);
+      addCheck("Self: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Self: signature", vr.okSig);
     } else {
       addCheck("Self receipt present", false, "Missing Self response in combined object.");
     }
 
     if (respB) {
       const vr = await validateResponse(respB);
-      addCheck("Guest receipt structure", vr.okStructure);
-      addCheck("Guest hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-      addCheck("Guest signature valid", vr.okSig);
+      addCheck("Guest: structure", vr.okStructure);
+      addCheck("Guest: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Guest: signature", vr.okSig);
     } else {
       addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
     }
@@ -502,12 +692,12 @@
       const pubsA = (respA.payload && respA.payload.pubs) ? JSON.stringify(respA.payload.pubs) : null;
       const pubsB = (respB.payload && respB.payload.pubs) ? JSON.stringify(respB.payload.pubs) : null;
       const okPubs = (pubsA && pubsB && pubsA === pubsB);
-      addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
+      addCheck("Same pubs", okPubs);
 
-      const tsAms = normalizeEpochMs(getTs(respA));
-      const tsBms = normalizeEpochMs(getTs(respB));
+      const tsAms = getTs(respA);
+      const tsBms = getTs(respB);
       const okTs = (typeof tsAms === "number" && typeof tsBms === "number" && Math.abs(tsAms - tsBms) <= (TS_TOL_S * 1000));
-      addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsAms && tsBms) ? `Δt=${Math.round(Math.abs(tsAms-tsBms)/1000)}s` : "missing ts");
+      addCheck(`Time within ${TS_TOL_S}s`, okTs, (tsAms && tsBms) ? `Δt=${Math.round(Math.abs(tsAms-tsBms)/1000)}s` : "missing ts");
 
       let okDist = false;
       let dist = null;
@@ -517,7 +707,7 @@
       }
       addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
     } else {
-      addCheck("Waiting for both parties (need two receipts)", false, "Combined object missing one side.");
+      addCheck("Need both parties", false, "Combined object missing one side.");
     }
   }
 
@@ -529,9 +719,12 @@
     metaTitle.textContent = title || "Receipt";
 
     const url = makeReceiptUrlForResponse(resp);
-    if (typeof makeQR === "function") makeQR("topQr", url, 460);
+    if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
     rawJson.textContent = JSON.stringify(resp, null, 2);
+
+    summaryKv.style.display = "none";
+    receiptHint.style.display = "none";
 
     // single: show on "Self" panel only
     const mapsUrl = makeDualMapsUrl(getGps(resp), null);
@@ -539,12 +732,24 @@
     setPersonPanel(bCoords, bTime, bAcc, null, mapsUrl);
 
     const vr = await validateResponse(resp);
-    addCheck("Receipt structure", vr.okStructure);
-    addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-    addCheck("Signature valid", vr.okSig);
+    addCheck("Receipt: structure", vr.okStructure);
+    addCheck("Receipt: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+    addCheck("Receipt: signature", vr.okSig);
 
-    addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person.");
+    addCheck("Need both parties", false, "Have one receipt only. Show the URL QR above to the other person.");
   }
+
+  // If the user rotates/resizes, re-render QR at a better size (without changing data)
+  window.addEventListener("resize", () => {
+    // If a canvas exists, rebuild using the same payload encoded in the current QR URL,
+    // which is always the current page URL including hash.
+    const top = document.getElementById("topQr");
+    if (!top) return;
+    // Only rebuild if we have previously rendered something
+    if (!top.querySelector("canvas") && !top.querySelector("img")) return;
+    if (typeof makeQR !== "function") return;
+    makeQR("topQr", window.location.href, qrSize());
+  });
 </script>
 
 </body>
