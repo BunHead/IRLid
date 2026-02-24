@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 59: Restore working Home QR approach (CDN QR lib + fallback image) -->
+<!-- Deploy 60 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -16,12 +16,11 @@
       </a>
     </div>
 
-    <!-- NAV: Home, Scan, About dropdown, Account slot (your current behavior) -->
     <nav class="site-nav" aria-label="Primary">
       <a class="nav-btn" href="index.html">Home</a>
       <a class="nav-btn" href="application.html">Scan</a>
 
-      <details class="nav-dropdown">
+      <details class="nav-dropdown" id="aboutDropdown">
         <summary class="nav-btn">About ▼</summary>
         <div class="dropdown-menu" role="menu" aria-label="About menu">
           <a href="about.html">About</a>
@@ -34,16 +33,16 @@
     </nav>
   </header>
 
-  <div id="qrError"></div>
+  <div id="qrError" aria-live="polite"></div>
 
   <main class="home-main">
-    <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
+    <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid HELLO QR"></div>
   </main>
 
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
-  <script src="js/qr.js?v=57"></script>
+  <script src="js/qr.js?v=59"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -63,7 +62,6 @@
       const headerH = header ? header.getBoundingClientRect().height : 0;
 
       const isMobile = window.matchMedia("(max-width: 720px)").matches;
-
       const nav = document.querySelector("nav.site-nav");
       const navH = nav ? nav.getBoundingClientRect().height : 0;
 
@@ -71,14 +69,18 @@
       const viewportH = vv ? vv.height : window.innerHeight;
 
       const pad = isMobile ? 16 : 40;
-
       const availH = Math.max(240, viewportH - headerH - (isMobile ? navH : 0) - pad);
+
       const size = Math.floor(Math.min(boxW, availH));
       return Math.max(260, Math.min(size, 980));
     }
 
     async function renderHelloQr(){
       try {
+        if (typeof getPublicJwk !== "function") throw new Error("getPublicJwk() missing in js/sign.js");
+        if (typeof b64urlEncode !== "function") throw new Error("b64urlEncode() missing in js/sign.js");
+        if (typeof makeQR !== "function") throw new Error("makeQR() missing in js/qr.js");
+
         const pub = await getPublicJwk();
         const hello = {
           v: 1,
@@ -90,12 +92,15 @@
 
         const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
 
-        // Use correct base for /IRLid/ on GitHub Pages
+        // GitHub Pages base path: /IRLid/
         const baseUrl = location.origin + "/IRLid";
         const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
 
         const size = computeQrSize();
         await makeQR("myQr", url, size);
+
+        qrErrorEl.style.display = "none";
+        qrErrorEl.textContent = "";
       } catch (e) {
         showErr(e);
       }
