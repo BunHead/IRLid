@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 54 -->
+<!-- Deploy 59 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -72,22 +72,20 @@
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
-<script src="js/sign.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="js/sign.js?v=20"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="js/qr.js?v=deploy45"></script>
+<script src="js/qr.js?v=57"></script>
 
 <script>
-  // thresholds (as requested)
-  const IRLID_TS_TOL_S = 60;
-  const IRLID_DIST_TOL_M = 2;
+  // thresholds (stable defaults)
+  const IRLID_TS_TOL_S = 90;
+  const IRLID_DIST_TOL_M = 12;
 
   // storage keys
   const KEY_SELF  = "irlid_resp_self";
   const KEY_OTHER = "irlid_resp_other";
-  const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
-  // diagnostics flags (future Settings will flip these)
+  // diagnostics flags
   const KEY_SETTINGS = "irlid_settings";
   const KEY_DIAG_SIMPLE = "irlid_diagnostics";
 
@@ -125,6 +123,13 @@
   const diagWrap = document.getElementById("diagWrap");
   if (diagnosticsEnabled) diagWrap.style.display = "block";
 
+  const statusEl = document.getElementById("status");
+  const responseArea = document.getElementById("responseArea");
+  const responseTitle = document.getElementById("responseTitle");
+  const responseHint = document.getElementById("responseHint");
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+
   function getHelloFromHash(){
     const h = location.hash || "";
     const m = h.match(/HELLO=([^&]+)/);
@@ -132,12 +137,6 @@
   }
 
   let hello = getHelloFromHash();
-
-  const statusEl = document.getElementById("status");
-  const responseArea = document.getElementById("responseArea");
-  const responseQrElId = "responseQr";
-  const responseTitle = document.getElementById("responseTitle");
-  const responseHint = document.getElementById("responseHint");
 
   async function initHelloReturnQr(){
     if (!hello) {
@@ -151,73 +150,69 @@
       responseHint.textContent = "Show this to the other person to scan.";
 
       if (typeof makeReturnForHelloAsync !== "function") {
-        throw new Error("Return generation unavailable: makeReturnForHelloAsync() is missing in js/qr.js");
+        throw new Error("Return generation unavailable: makeReturnForHelloAsync() is missing in js/sign.js");
       }
 
-      statusEl.textContent = "Getting location & signing…";
+      setStatus("Getting location & signing…");
       const respObj = await makeReturnForHelloAsync(hello);
 
       if (typeof irlidEncodeJsonToB64url !== "function") {
-        throw new Error("Encoding unavailable: irlidEncodeJsonToB64url() missing in js/qr.js");
+        throw new Error("Encoding unavailable: irlidEncodeJsonToB64url() missing in js/sign.js");
       }
+
+      // Store self response immediately so distance check can work later
+      try { localStorage.setItem(KEY_SELF, JSON.stringify(respObj)); } catch {}
+
       const encoded = irlidEncodeJsonToB64url(respObj);
       const url = new URL(location.href);
       url.hash = "RESP=" + encoded;
 
-      makeQR(responseQrElId, url.toString(), 360);
-      statusEl.textContent = "Ready (HELLO mode).";
+      await makeQR("responseQr", url.toString(), 360);
+      setStatus("Ready (HELLO mode).");
     }catch(e){
-      statusEl.textContent = "Error: " + e;
+      setStatus("Error: " + e);
       log(e);
     }
   }
 
-  // IMPORTANT: hash-based routing must react on the same page
+  // IMPORTANT: react to hash changes on same page
   window.addEventListener("hashchange", () => {
     hello = getHelloFromHash();
     initHelloReturnQr();
   });
 
-  // Run once at load
   initHelloReturnQr();
 
-  // ---- UI / state ----
+  // ---- Scanner UI ----
   const scannerEl = document.getElementById("scanner");
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const cameraSelect = document.getElementById("cameraSelect");
 
-  // Diagnostics elements (only used if enabled)
+  // Diagnostics elements
   const diagTextEl = diagnosticsEnabled ? document.getElementById("diagText") : null;
   const diagRefreshBtn = diagnosticsEnabled ? document.getElementById("diagRefreshBtn") : null;
   const diagCopyBtn = diagnosticsEnabled ? document.getElementById("diagCopyBtn") : null;
 
-  function setStatus(msg){ statusEl.textContent = msg; }
-
-  // ---- scanner engines ----
+  // Scanner state
   let engine = "none"; // "native" | "html5qrcode" | "none"
   let isScanning = false;
 
-  // Native engine (BarcodeDetector)
+  // Native engine
   let nativeStream = null;
   let nativeVideoEl = null;
   let nativeDetector = null;
   let nativeRaf = 0;
   let nativeLastText = "";
 
-  // html5-qrcode engine fallback
+  // html5-qrcode fallback
   let html5QrCode = null;
 
-  // Diagnostics: what we attempted
+  // Diagnostics info
   let lastStartAttempt = { engine: "none", mode: "none", detail: "" };
-
-  // Last decoded QR payload (for diagnostics / unrecognized QR debugging)
   let lastDecoded = null;
 
-  // ---- QR text classifier (kept local to avoid coupling) ----
-  // Some deploys do not expose a shared classifier in js/qr.js.
-  // For stability, define a minimal classifier here if missing.
-  // Returns: { kind: "HELLO"|"RESP_B64"|"COMB_B64"|"UNKNOWN", value: string|null }
+  // Minimal classifier (URL/hash tokens)
   if (typeof window.irlidClassifyText !== "function") {
     window.irlidClassifyText = function irlidClassifyText(text){
       const t = (text || "").trim();
@@ -254,7 +249,7 @@
     };
   }
 
-  function irlidAnalyzeDecodedText(rawText){
+  function analyzeDecodedText(rawText){
     const t = (rawText || "").trim();
     const out = {
       rawLen: t.length,
@@ -262,7 +257,8 @@
       previewTail: t.length > 220 ? t.slice(-80) : "",
       looksLikeUrl: false,
       url: null,
-      extracted: { hello: null, resp: null, comb: null }
+      extracted: { hello: null, resp: null, comb: null },
+      hints: []
     };
 
     const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
@@ -281,39 +277,20 @@
       out.looksLikeUrl = true;
       out.url = { origin: u.origin, pathname: u.pathname, search: u.search, hash: u.hash };
 
-      if (!out.extracted.hello) {
-        const hm = (u.hash || "").match(rxHello);
-        if (hm) out.extracted.hello = hm[1];
-      }
-      if (!out.extracted.resp) {
-        const rm = (u.hash || "").match(rxResp);
-        if (rm) out.extracted.resp = rm[1];
-      }
-      if (!out.extracted.comb) {
-        const cm = (u.hash || "").match(rxComb);
-        if (cm) out.extracted.comb = cm[1];
-      }
+      if (!out.extracted.hello) { const hm = (u.hash || "").match(rxHello); if (hm) out.extracted.hello = hm[1]; }
+      if (!out.extracted.resp)  { const rm = (u.hash || "").match(rxResp);  if (rm) out.extracted.resp  = rm[1]; }
+      if (!out.extracted.comb)  { const cm = (u.hash || "").match(rxComb);  if (cm) out.extracted.comb  = cm[1]; }
     }catch{}
 
-    out.hints = [];
-    if (!out.extracted.hello && !out.extracted.resp && !out.extracted.comb) {
-      out.hints.push("No HELLO/RESP/COMB token found in text/hash.");
-    }
+    if (!out.extracted.hello && !out.extracted.resp && !out.extracted.comb) out.hints.push("No HELLO/RESP/COMB token found.");
+
     return out;
   }
 
-  function getStoredPreferredCameraId(){
-    try{
-      const v = localStorage.getItem(KEY_PREF_CAM);
-      return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
-    }
-  }
-
-  function setStoredPreferredCameraId(id){
-    try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
-  }
+  // Preferred camera memory (deterministic)
+  const KEY_PREF_CAM = "irlid_preferred_camera_id";
+  function getPreferredCameraId(){ try{ return localStorage.getItem(KEY_PREF_CAM) || null; }catch{ return null; } }
+  function setPreferredCameraId(id){ try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{} }
 
   function scoreRearLabel(label){
     const s = (label || "").toLowerCase();
@@ -343,7 +320,7 @@
 
     if (!devices.length) return devices;
 
-    const stored = getStoredPreferredCameraId();
+    const stored = getPreferredCameraId();
     if (stored && devices.some(d => d.deviceId === stored)){
       cameraSelect.value = stored;
       return devices;
@@ -356,24 +333,62 @@
     const best = ranked[0];
     const chosenId = (best && best.score > 0) ? best.id : devices[devices.length - 1].deviceId;
     cameraSelect.value = chosenId;
-    setStoredPreferredCameraId(chosenId);
+    setPreferredCameraId(chosenId);
 
     return devices;
   }
 
+  async function refreshDiagnostics(){
+    if (!diagnosticsEnabled) return null;
+
+    const payload = {
+      time: new Date().toISOString(),
+      engine,
+      isScanning,
+      helloMode: !!hello,
+      signJs: {
+        hasMakeReturnForHelloAsync: (typeof makeReturnForHelloAsync === "function"),
+        hasProcessScannedResponse: (typeof processScannedResponse === "function"),
+        hasEncode: (typeof irlidEncodeJsonToB64url === "function"),
+        hasDecode: (typeof irlidDecodeB64urlJson === "function")
+      },
+      qrJs: { hasMakeQR: (typeof makeQR === "function") },
+      lastDecoded,
+      lastNativeDecoded: nativeLastText || "",
+      lastStartAttempt
+    };
+
+    if (diagTextEl) diagTextEl.textContent = JSON.stringify(payload, null, 2);
+    return payload;
+  }
+
+  if (diagnosticsEnabled && diagRefreshBtn) {
+    diagRefreshBtn.addEventListener("click", async () => {
+      try{ await refreshDiagnostics(); setStatus("Diagnostics refreshed."); }catch(e){ log(e); }
+    });
+  }
+  if (diagnosticsEnabled && diagCopyBtn) {
+    diagCopyBtn.addEventListener("click", async () => {
+      try{
+        const txt = diagTextEl ? diagTextEl.textContent : "";
+        await navigator.clipboard.writeText(txt);
+        setStatus("Diagnostics copied.");
+      }catch(e){
+        setStatus("Copy failed: " + e);
+        log(e);
+      }
+    });
+  }
+
   async function handleDecodedText(decodedText){
     const t = (decodedText || "").trim();
-
-    lastDecoded = irlidAnalyzeDecodedText(t);
+    lastDecoded = analyzeDecodedText(t);
 
     const classifier = (typeof irlidClassifyText === "function") ? irlidClassifyText : null;
-    if (lastDecoded) lastDecoded.classifierPresent = !!classifier;
     const c = classifier ? classifier(t) : { kind: "UNKNOWN", value: null };
-    if (lastDecoded) lastDecoded.classification = c;
 
     if (c.kind === "HELLO") {
       setStatus("HELLO detected. Opening handshake…");
-      // hashchange handler will generate the return QR on this same page
       location.hash = "HELLO=" + (c.value || "");
       return;
     }
@@ -394,10 +409,15 @@
             distTolM: IRLID_DIST_TOL_M
           });
 
-          if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
+          if (out && out.self)  localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
           if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
 
-          location.href = "receipt.html";
+          if (out && out.combined && typeof irlidEncodeJsonToB64url === "function") {
+            const combB64 = irlidEncodeJsonToB64url(out.combined);
+            location.href = "receipt.html#COMB=" + combB64;
+          } else {
+            location.href = "receipt.html";
+          }
           return;
         } catch (e) {
           setStatus("Error processing response: " + e);
@@ -410,97 +430,8 @@
       return;
     }
 
-    let msg = "QR detected (unrecognized).";
-    if (!classifier) msg += " (classifier missing)";
-    if (diagnosticsEnabled) msg += " See Diagnostics.";
-    setStatus(msg);
-
+    setStatus("QR detected (unrecognized).");
     try { await refreshDiagnostics(); } catch {}
-  }
-
-  function safeJson(obj){
-    try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
-  }
-
-  function getActiveNativeTrackInfo(){
-    if (!nativeVideoEl) return { ok: false, reason: "No native video element." };
-    const stream = nativeVideoEl.srcObject;
-    if (!stream) return { ok: false, reason: "Native video has no srcObject." };
-    const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
-    if (!tracks.length) return { ok: false, reason: "Native stream has no video tracks." };
-    const tr = tracks[0];
-    return { ok: true, trackLabel: tr.label || "", settings: (tr.getSettings ? tr.getSettings() : {}) };
-  }
-
-  function getActiveHtml5TrackInfo(){
-    const video = document.querySelector("#scanner video");
-    if (!video) return { ok: false, reason: "No <video> found under #scanner." };
-    const stream = video.srcObject;
-    if (!stream) return { ok: false, reason: "html5 video has no srcObject." };
-    const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
-    if (!tracks.length) return { ok: false, reason: "html5 stream has no video tracks." };
-    const tr = tracks[0];
-    return { ok: true, trackLabel: tr.label || "", settings: (tr.getSettings ? tr.getSettings() : {}) };
-  }
-
-  async function refreshDiagnostics(){
-    if (!diagnosticsEnabled) return null;
-
-    const payload = {
-      time: new Date().toISOString(),
-      engine,
-      isScanning,
-      helloMode: !!hello,
-      qrJs: {
-        hasMakeReturnForHelloAsync: (typeof makeReturnForHelloAsync === "function"),
-        hasProcessScannedResponse: (typeof processScannedResponse === "function"),
-        hasClassifier: (typeof irlidClassifyText === "function"),
-        qrScriptSrc: (function(){
-          try{
-            const s = Array.from(document.querySelectorAll('script[src]'))
-              .map(x => x.getAttribute('src') || '')
-              .find(src => src.includes('js/qr.js'));
-            return s || "";
-          }catch{ return ""; }
-        })()
-      },
-      lastDecoded,
-      activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
-      lastNativeDecoded: nativeLastText || "",
-      lastStartAttempt
-    };
-
-    const el = diagTextEl;
-    if (el) el.textContent = safeJson(payload);
-    return payload;
-  }
-
-  if (diagnosticsEnabled && diagRefreshBtn) {
-    diagRefreshBtn.addEventListener("click", async () => {
-      try{ await refreshDiagnostics(); setStatus("Diagnostics refreshed."); }catch(e){ log(e); }
-    });
-  }
-
-  if (diagnosticsEnabled && diagCopyBtn) {
-    diagCopyBtn.addEventListener("click", async () => {
-      try{
-        const txt = diagTextEl ? diagTextEl.textContent : "";
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(txt);
-          setStatus("Diagnostics copied.");
-        } else {
-          const range = document.createRange();
-          range.selectNodeContents(diagTextEl);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
-          setStatus("Select & copy diagnostics.");
-        }
-      }catch(e){
-        setStatus("Copy failed: " + e);
-        log(e);
-      }
-    });
   }
 
   function ensureNativeVideoEl(){
@@ -541,7 +472,7 @@
     nativeDetector = new BarcodeDetector({ formats: ["qr_code"] });
     ensureNativeVideoEl();
 
-    lastStartAttempt = { engine: "native", mode: "getUserMedia deviceId exact", detail: "Requesting exact selected deviceId via getUserMedia." };
+    lastStartAttempt = { engine: "native", mode: "deviceId exact", detail: "getUserMedia deviceId exact" };
 
     nativeStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -591,16 +522,16 @@
   }
 
   async function startHtml5Qrcode(camId){
-    lastStartAttempt = { engine: "html5qrcode", mode: "cameraId string", detail: "Html5Qrcode.start(cameraIdString)" };
+    lastStartAttempt = { engine: "html5qrcode", mode: "cameraId", detail: "Html5Qrcode.start(cameraId)" };
 
     scannerEl.innerHTML = "";
     html5QrCode = new Html5Qrcode("scanner");
 
     const config = {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
+      fps: 12,
+      qrbox: { width: 280, height: 280 },
       disableFlip: false,
-      videoConstraints: { width: { ideal: 1920 }, height: { ideal: 1080 } }
+      videoConstraints: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }
     };
 
     await html5QrCode.start(
@@ -622,7 +553,7 @@
 
     const camId = cameraSelect.value;
     if (!camId) throw new Error("No camera selected.");
-    setStoredPreferredCameraId(camId);
+    setPreferredCameraId(camId);
 
     await stopScanner();
 
@@ -687,7 +618,7 @@
 
   cameraSelect.addEventListener("change", async () => {
     const camId = cameraSelect.value;
-    setStoredPreferredCameraId(camId);
+    setPreferredCameraId(camId);
     try{
       await restartScannerForSelection();
     }catch(e){
