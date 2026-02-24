@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 30 -->
+<!-- Deploy 31 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -138,7 +138,7 @@
       margin:10px 0;
     }
 
-    /* Diagnostics UI */
+    /* Diagnostics UI (hidden unless enabled) */
     .diag-wrap{
       max-width:980px;
       margin:12px auto 0;
@@ -269,7 +269,8 @@
     <select id="cameraSelect"></select>
   </div>
 
-  <div class="diag-wrap" aria-label="Diagnostics">
+  <!-- Diagnostics panel (hidden unless enabled) -->
+  <div class="diag-wrap" id="diagWrap" aria-label="Diagnostics" style="display:none;">
     <div class="diag-head">
       <div class="diag-title">Diagnostics</div>
       <div class="diag-actions">
@@ -303,13 +304,46 @@
   const KEY_OTHER = "irlid_resp_other";
   const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
-  const debugMode = new URLSearchParams(location.search).get("debug") === "1";
+  // diagnostics flags (future Settings will flip these)
+  const KEY_SETTINGS = "irlid_settings";
+  const KEY_DIAG_SIMPLE = "irlid_diagnostics";
+
+  const urlParams = new URLSearchParams(location.search);
+  const debugMode = urlParams.get("debug") === "1";        // existing
+  const diagQuery = urlParams.get("diag") === "1";         // new explicit toggle
+
   const debugEl = document.getElementById("debug");
   if (debugMode) debugEl.style.display = "block";
 
   function log(...args){
     if (!debugMode) return;
     debugEl.textContent += args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ") + "\n";
+  }
+
+  function isDiagnosticsEnabled(){
+    if (debugMode || diagQuery) return true;
+
+    // Future Settings object: { diagnostics: true }
+    try{
+      const raw = localStorage.getItem(KEY_SETTINGS);
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && obj.diagnostics === true) return true;
+      }
+    }catch{}
+
+    // Simple flag: "1"
+    try{
+      return localStorage.getItem(KEY_DIAG_SIMPLE) === "1";
+    }catch{
+      return false;
+    }
+  }
+
+  const diagnosticsEnabled = isDiagnosticsEnabled();
+  const diagWrap = document.getElementById("diagWrap");
+  if (diagnosticsEnabled) {
+    diagWrap.style.display = "block";
   }
 
   // helpers: b64url JSON decode (supports raw b64url JSON or full URL/hash)
@@ -398,9 +432,10 @@
   const stopBtn = document.getElementById("stopBtn");
   const cameraSelect = document.getElementById("cameraSelect");
 
-  const diagTextEl = document.getElementById("diagText");
-  const diagRefreshBtn = document.getElementById("diagRefreshBtn");
-  const diagCopyBtn = document.getElementById("diagCopyBtn");
+  // Diagnostics elements (only used if enabled)
+  const diagTextEl = diagnosticsEnabled ? document.getElementById("diagText") : null;
+  const diagRefreshBtn = diagnosticsEnabled ? document.getElementById("diagRefreshBtn") : null;
+  const diagCopyBtn = diagnosticsEnabled ? document.getElementById("diagCopyBtn") : null;
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -445,7 +480,6 @@
       return devices;
     }
 
-    // Best rear by label; if labels blank, pick last.
     const ranked = devices
       .map((d, idx) => ({ id: d.deviceId, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
       .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
@@ -501,7 +535,7 @@
     }
   }
 
-  // ---- diagnostics ----
+  // ---- diagnostics (no-ops unless enabled) ----
   function safeJson(obj){
     try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
   }
@@ -560,6 +594,8 @@
   }
 
   async function refreshDiagnostics(){
+    if (!diagnosticsEnabled) return null;
+
     const ua = navigator.userAgent || "";
     const selectedId = cameraSelect.value || "";
     const storedId = getStoredPreferredCameraId() || "";
@@ -579,10 +615,7 @@
         storedPreferredId: storedId
       },
       features: {
-        barcodeDetector: (typeof BarcodeDetector !== "undefined"),
-        barcodeDetectorSupportedFormats: (typeof BarcodeDetector !== "undefined" && BarcodeDetector.getSupportedFormats)
-          ? await BarcodeDetector.getSupportedFormats().catch(() => [])
-          : []
+        barcodeDetector: (typeof BarcodeDetector !== "undefined")
       },
       activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
       enumerateDevices: enumDevs,
@@ -594,29 +627,31 @@
     return payload;
   }
 
-  diagRefreshBtn.addEventListener("click", async () => {
-    try{ await refreshDiagnostics(); } catch (e) { diagTextEl.textContent = "Diagnostics error: " + e; }
-  });
+  if (diagnosticsEnabled) {
+    diagRefreshBtn.addEventListener("click", async () => {
+      try{ await refreshDiagnostics(); } catch (e) { diagTextEl.textContent = "Diagnostics error: " + e; }
+    });
 
-  diagCopyBtn.addEventListener("click", async () => {
-    try{
-      const text = diagTextEl.textContent || "";
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        setStatus("Diagnostics copied.");
-      } else {
-        const range = document.createRange();
-        range.selectNodeContents(diagTextEl);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-        setStatus("Select & copy diagnostics.");
+    diagCopyBtn.addEventListener("click", async () => {
+      try{
+        const text = diagTextEl.textContent || "";
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          setStatus("Diagnostics copied.");
+        } else {
+          const range = document.createRange();
+          range.selectNodeContents(diagTextEl);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          setStatus("Select & copy diagnostics.");
+        }
+      }catch(e){
+        setStatus("Copy failed: " + e);
+        log(e);
       }
-    }catch(e){
-      setStatus("Copy failed: " + e);
-      log(e);
-    }
-  });
+    });
+  }
 
   // ---- Native scanner (BarcodeDetector) ----
 
@@ -657,14 +692,9 @@
       throw new Error("BarcodeDetector not available.");
     }
 
-    const supported = BarcodeDetector.getSupportedFormats ? await BarcodeDetector.getSupportedFormats() : [];
-    const canQr = supported.includes("qr_code") || supported.includes("qrCode") || supported.includes("qr") || supported.includes("QR_CODE");
-    // Even if the list is weird, most Chrome builds accept {formats:["qr_code"]}.
     nativeDetector = new BarcodeDetector({ formats: ["qr_code"] });
-
     ensureNativeVideoEl();
 
-    // Exact camera selection: this is what we could not reliably force through html5-qrcode.
     lastStartAttempt = { engine: "native", mode: "getUserMedia deviceId exact", detail: "Requesting exact selected deviceId via getUserMedia." };
 
     nativeStream = await navigator.mediaDevices.getUserMedia({
@@ -680,7 +710,6 @@
     nativeVideoEl.srcObject = nativeStream;
     await nativeVideoEl.play().catch(() => {});
 
-    // Decode loop
     const loop = async () => {
       if (!isScanning || engine !== "native") return;
 
@@ -691,7 +720,6 @@
             const raw = barcodes[0].rawValue || "";
             if (raw && raw !== nativeLastText) {
               nativeLastText = raw;
-              // stop first to avoid duplicate reads
               await stopNative();
               isScanning = false;
               setStatus("QR detected.");
@@ -701,9 +729,7 @@
             }
           }
         }
-      } catch (e) {
-        // ignore occasional detect errors
-      }
+      } catch {}
 
       nativeRaf = requestAnimationFrame(loop);
     };
@@ -712,7 +738,6 @@
   }
 
   // ---- html5-qrcode fallback ----
-
   async function stopHtml5(){
     if (!html5QrCode) return;
     try { await html5QrCode.stop(); } catch {}
@@ -740,7 +765,6 @@
       camId,
       config,
       async (text) => {
-        // stop first to avoid duplicates
         try { await stopHtml5(); } catch {}
         isScanning = false;
         setStatus("QR detected.");
@@ -752,7 +776,6 @@
   }
 
   // ---- start/stop unified ----
-
   async function startScanner(){
     setStatus("Starting camera…");
 
@@ -760,23 +783,20 @@
     if (!camId) throw new Error("No camera selected.");
     setStoredPreferredCameraId(camId);
 
-    // Always stop whatever was running
     await stopScanner();
 
-    // Prefer native BarcodeDetector when available (Chrome Android).
     if (typeof BarcodeDetector !== "undefined") {
       engine = "native";
       isScanning = true;
-      setStatus("Scanning… (native)");
+      setStatus("Scanning…");
       await startNativeBarcodeDetector(camId);
       await refreshDiagnostics();
       return;
     }
 
-    // Fallback
     engine = "html5qrcode";
     isScanning = true;
-    setStatus("Scanning… (fallback)");
+    setStatus("Scanning…");
     await startHtml5Qrcode(camId);
     await refreshDiagnostics();
   }
@@ -836,7 +856,6 @@
     }
   });
 
-  // Populate camera list early (labels often appear after first permission grant)
   (async () => {
     try{
       await listCamerasAndSelectDefault();
