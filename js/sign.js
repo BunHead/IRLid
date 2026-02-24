@@ -1,5 +1,5 @@
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 19 
+//  Deploy 59
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -67,7 +67,7 @@ async function getPrivateKey() {
     "jwk",
     privJwk,
     { name: "ECDSA", namedCurve: "P-256" },
-    true,
+    false,
     ["sign"]
   );
 }
@@ -80,19 +80,6 @@ async function importPublicKey(pubJwk) {
     true,
     ["verify"]
   );
-}
-
-async function signMid(midB64url) {
-  const priv = await getPrivateKey();
-  const midBytes = b64urlDecode(midB64url);
-
-  const sig = await crypto.subtle.sign(
-    { name: "ECDSA", hash: "SHA-256" },
-    priv,
-    midBytes
-  );
-
-  return b64urlEncode(new Uint8Array(sig));
 }
 
 async function verifySig(midB64url, sigB64url, pubJwk) {
@@ -126,7 +113,7 @@ async function hashPayloadToB64url(payloadObj) {
 }
 
 async function signHashB64url(hashB64url) {
-  // Signs the hash bytes directly (same pattern as previous signBytes(hashBuf) usage)
+  // Signs the hash bytes directly
   // Uses ECDSA P-256 with SHA-256.
   const priv = await getPrivateKey();
   const hashBytes = b64urlDecode(hashB64url);
@@ -138,4 +125,169 @@ async function signHashB64url(hashB64url) {
   );
 
   return b64urlEncode(new Uint8Array(sig));
+}
+
+/* =========================================================
+   IRLid handshake helpers (static, no backend)
+   - Encode/decode b64url JSON
+   - Create signed "response" object for a given HELLO
+   - Validate a scanned response against HELLO + optional self response
+   ========================================================= */
+
+function irlidEncodeJsonToB64url(obj){
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  return b64urlEncode(bytes);
+}
+
+function irlidDecodeB64urlJson(b64url){
+  const bytes = b64urlDecode(String(b64url || ""));
+  const txt = new TextDecoder().decode(bytes);
+  return JSON.parse(txt);
+}
+
+async function irlidHelloHashB64url(helloObj){
+  // Deterministic hash of the original HELLO object as encoded by index.html
+  const bytes = new TextEncoder().encode(JSON.stringify(helloObj));
+  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
+  return b64urlEncode(new Uint8Array(hashBuf));
+}
+
+function irlidHaversineMeters(a, b){
+  const R = 6371000;
+  const toRad = (d) => d * Math.PI / 180;
+  const lat1 = toRad(a.lat), lon1 = toRad(a.lon);
+  const lat2 = toRad(b.lat), lon2 = toRad(b.lon);
+  const dLat = lat2 - lat1;
+  const dLon = lon2 - lon1;
+  const s =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1) * Math.cos(lat2) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  return R * c;
+}
+
+function irlidGetPosition(opts){
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation unavailable."));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, (err) => {
+      reject(new Error(err && err.message ? err.message : "Geolocation error."));
+    }, opts);
+  });
+}
+
+async function makeReturnForHelloAsync(helloB64url){
+  if (!helloB64url) throw new Error("HELLO missing.");
+
+  const helloObj = irlidDecodeB64urlJson(helloB64url);
+  if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) {
+    throw new Error("Invalid HELLO (bad structure).");
+  }
+
+  const helloHash = await irlidHelloHashB64url(helloObj);
+
+  const pos = await irlidGetPosition({
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 12000
+  });
+
+  const lat = Number(pos.coords.latitude);
+  const lon = Number(pos.coords.longitude);
+  const acc = Number(pos.coords.accuracy || 0);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error("Invalid geolocation coordinates.");
+  }
+
+  const ts = Math.floor(Date.now() / 1000);
+
+  const payload = {
+    v: 1,
+    type: "payload",
+    helloHash,
+    lat,
+    lon,
+    acc,
+    ts
+  };
+
+  const pub = await getPublicJwk();
+  const hash = await hashPayloadToB64url(payload);
+  const sig = await signHashB64url(hash);
+
+  const resp = {
+    v: 1,
+    type: "response",
+    payload,
+    hash,
+    sig,
+    pub
+  };
+
+  // Cache for application.html to use in mutual verification
+  window.__irlid_last_self_response = resp;
+
+  return resp;
+}
+
+async function processScannedResponse(otherRespObj, opts){
+  const helloB64url = opts && opts.hello ? opts.hello : null;
+  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
+  const distTolM = (opts && Number.isFinite(opts.distTolM)) ? opts.distTolM : 12;
+
+  if (!helloB64url) throw new Error("HELLO missing for verification.");
+
+  const helloObj = irlidDecodeB64urlJson(helloB64url);
+  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
+
+  const helloHash = await irlidHelloHashB64url(helloObj);
+
+  const other = otherRespObj;
+  if (!other || other.type !== "response" || !other.payload || !other.hash || !other.sig || !other.pub) {
+    throw new Error("Invalid response (bad structure).");
+  }
+
+  const computed = await hashPayloadToB64url(other.payload);
+  if (computed !== other.hash) throw new Error("Hash mismatch.");
+
+  const sigOk = await verifySig(other.hash, other.sig, other.pub);
+  if (!sigOk) throw new Error("Signature invalid.");
+
+  if (!other.payload.helloHash || other.payload.helloHash !== helloHash) {
+    throw new Error("HELLO binding mismatch.");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const ts = Number(other.payload.ts);
+  if (!Number.isFinite(ts)) throw new Error("Response timestamp missing.");
+  const dt = Math.abs(now - ts);
+  if (dt > tsTolS) {
+    throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
+  }
+
+  const self = window.__irlid_last_self_response || null;
+
+  if (self && self.payload && Number.isFinite(self.payload.lat) && Number.isFinite(self.payload.lon)) {
+    const d = irlidHaversineMeters(
+      { lat: self.payload.lat, lon: self.payload.lon },
+      { lat: other.payload.lat, lon: other.payload.lon }
+    );
+    if (d > distTolM) {
+      throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m).");
+    }
+  }
+
+  const combined = {
+    v: 1,
+    type: "combined",
+    tol: { dist_m: distTolM, ts_s: tsTolS },
+    a: self,
+    b: other
+  };
+
+  return { self, other, combined };
 }
