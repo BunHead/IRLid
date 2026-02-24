@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 51 -->
+<!-- Deploy 52: Home QR Test (local qrcode.min.js) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -28,37 +28,25 @@
       margin: 14px auto 0;
       padding: 14px 16px;
       border: 1px solid var(--panel-border);
-      background: #fff;
-      text-align: center;
+      background:#fff;
+      text-align:center;
     }
 
-    .panel h2{
-      margin: 0 0 10px 0;
-    }
-
-    /* Keep it big, crisp, and never scaled smaller than intended */
-    .qr-img{
-      width: 420px;
-      height: 420px;
-      max-width: 92vw;
-      max-height: 92vw;
-      image-rendering: pixelated;
+    .qr-host{
+      display:block;
+      margin: 12px auto 0;
+      padding: 16px;
       border: 1px solid var(--panel-border);
       background:#fff;
-      display:block;
-      margin: 10px auto 0;
+      width: fit-content;
+      max-width: 100%;
+      overflow-x: auto; /* never scale the canvas; scroll instead */
     }
 
     .hint{
       margin-top:10px;
       font-size: 13px;
       opacity: .85;
-    }
-
-    .hint a{
-      color:#111;
-      text-decoration:underline;
-      word-break: break-all;
     }
 
     .urlbox{
@@ -81,6 +69,14 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
 
+    .controls{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:12px;
+    }
+
     #qrError{
       display:none;
       max-width: 920px;
@@ -99,19 +95,14 @@
 <body>
 
 <header class="site-header">
-  <div class="logo-row">
-    <a href="index.html" class="logo-link" aria-label="IRLid Home">
-      <img
-        src="irlid-logo.png"
-        alt="IRLid"
-        class="logo-img"
-        onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='logo.png';}else{this.style.display='none';}"
-      >
-      <span class="logo-text">IRLid</span>
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo"
+           onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='irlid-logo.png';}else{this.style.display='none';}">
     </a>
   </div>
 
-  <!-- NAVIGATION (must match across pages) -->
+  <!-- NAVIGATION (IDENTICAL structure) -->
   <nav class="site-nav" aria-label="Primary">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
@@ -131,44 +122,150 @@
 
 <main class="page-main">
   <div class="home-wrap">
-
     <div class="panel">
-      <h2>Static Test QR (should open Scan page)</h2>
+      <h2 id="modeTitle">Static Test QR (opens Scan page)</h2>
 
-      <!--
-        Embedded (data URL) PNG QR.
-        Encodes: https://bunhead.github.io/IRLid/application.html
-        No external network, no libraries.
-      -->
-      <img
-        class="qr-img"
-        id="staticQr"
-        alt="Static QR to IRLid Scan"
-        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAArwAAAK8CAIAAACx9T3jAAAMMElEQVR4nO3dS27cQBAF0Qm3/0z3e0GqkQmQK8b4pQ1kqQh5bQyqkYc3oQxgH9oCw7l3c0bS7wzq6qgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPD9sU9w1c7+z2c6v8m2w1Q3m3m2q3m2c9y6m2b9Yg4u9m5o9Gm6b6d0m9+zKkqv2vQy1w3n2m3f3yqvO9b8v0qv7+Wc2r4z9m0e8iVt1s2Wb8m5m3m8m7z8r8wqv0yJz3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0yJm3m3bqkq7mJ0mG2mJm2mZ2mKqvWv0wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPg3/wGm9E0x2vVQ4wAAAABJRU5ErkJggg=="
-      >
+      <div class="qr-host" id="qrHost" aria-label="QR"></div>
 
       <div class="hint">
-        Expected: your phone opens <b>application.html</b> in the browser.<br>
-        If it doesn’t, try a dedicated QR scanner app (not Lens) and increase screen brightness.
+        If your phone vibrates but shows no link, it’s not decoding — increase brightness and try the native camera app.
       </div>
 
       <div class="urlbox">
-        <label for="staticUrl">Encoded URL</label>
-        <input id="staticUrl" type="text" readonly value="https://bunhead.github.io/IRLid/application.html">
+        <label for="qrUrl">QR contents</label>
+        <input id="qrUrl" type="text" readonly value="">
+      </div>
+
+      <div class="controls">
+        <button class="btn secondary" id="staticBtn" type="button">Show Static Test QR</button>
+        <button class="btn" id="helloBtn" type="button">Show HELLO QR</button>
       </div>
 
       <div class="hint" style="margin-top:12px;">
-        Or tap directly: <a id="staticLink" href="https://bunhead.github.io/IRLid/application.html">Open Scan</a>
+        Tap directly: <a id="directLink" href="application.html">Open Scan</a>
       </div>
     </div>
 
     <div id="qrError" role="alert"></div>
-
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
+
+<!-- ✅ Local QR encoder that exposes window.QRCode.toCanvas -->
+<script src="qrcode.min.js?v=36e"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  const qrHost = document.getElementById("qrHost");
+  const urlEl = document.getElementById("qrUrl");
+  const titleEl = document.getElementById("modeTitle");
+  const errEl = document.getElementById("qrError");
+  const directLink = document.getElementById("directLink");
+
+  const staticBtn = document.getElementById("staticBtn");
+  const helloBtn = document.getElementById("helloBtn");
+
+  function showErr(e){
+    errEl.style.display = "block";
+    errEl.textContent = String(e && e.stack ? e.stack : e);
+  }
+  function clearErr(){
+    errEl.style.display = "none";
+    errEl.textContent = "";
+  }
+
+  function b64urlFromBytes(bytes){
+    let bin = "";
+    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    const b64 = btoa(bin);
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function newHelloToken(){
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return b64urlFromBytes(bytes);
+  }
+
+  function baseDir(){
+    // directory of current page
+    const path = location.pathname.replace(/[^\/]*$/, "");
+    return location.origin + path;
+  }
+
+  function isMobile(){
+    return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+  }
+
+  function qrPx(){
+    return isMobile() ? 360 : 520;
+  }
+
+  function renderQR(text){
+    clearErr();
+
+    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
+      throw new Error("Local QR encoder not loaded. Expected window.QRCode.toCanvas from /qrcode.min.js");
+    }
+
+    qrHost.innerHTML = "";
+    const canvas = document.createElement("canvas");
+    const px = qrPx();
+
+    // Lock canvas size; never CSS-scale it.
+    canvas.width = px;
+    canvas.height = px;
+    canvas.style.width = px + "px";
+    canvas.style.height = px + "px";
+    canvas.style.display = "block";
+    canvas.style.margin = "0 auto";
+    canvas.style.imageRendering = "pixelated";
+
+    qrHost.appendChild(canvas);
+
+    // Render with LOW error correction (L) and generous margin for scanning
+    window.QRCode.toCanvas(canvas, String(text), {
+      width: px,
+      margin: 4,
+      errorCorrectionLevel: "L"
+    }, function(err){
+      if (err) throw err;
+    });
+  }
+
+  function showStatic(){
+    titleEl.textContent = "Static Test QR (opens Scan page)";
+    const url = baseDir() + "application.html";
+    urlEl.value = url;
+    directLink.href = url;
+    renderQR(url);
+  }
+
+  function showHello(){
+    titleEl.textContent = "HELLO QR (opens Scan with HELLO=...)";
+    const url = baseDir() + "application.html#HELLO=" + newHelloToken();
+    urlEl.value = url;
+    directLink.href = url;
+    renderQR(url);
+  }
+
+  staticBtn.addEventListener("click", () => {
+    try { showStatic(); } catch(e){ showErr(e); }
+  });
+
+  helloBtn.addEventListener("click", () => {
+    try { showHello(); } catch(e){ showErr(e); }
+  });
+
+  // Initial: static test (simplest)
+  try { showStatic(); } catch(e){ showErr(e); }
+
+})();
+</script>
 
 </body>
 </html>
