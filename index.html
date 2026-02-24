@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 47 -->
+<!-- Deploy 49 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -29,6 +29,8 @@
       padding: 16px;
       background: #fff;
       border: 1px solid var(--panel-border);
+      min-width: 64px;
+      min-height: 64px;
     }
 
     .hint{
@@ -107,11 +109,6 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
-
-<!-- ✅ Local QR encoder (repo root). This is the file that exposes window.QRCode.toCanvas -->
-<script src="qrcode.min.js"></script>
-
-<!-- Shared QR helpers -->
 <script src="js/qr.js?v=45"></script>
 
 <script>
@@ -156,16 +153,66 @@
     return Math.max(260, Math.min(Math.floor(usable), 720));
   }
 
-  function loadQrCdnIfNeeded(){
+  function loadScript(url){
     return new Promise((resolve, reject) => {
-      if (window.QRCode && window.QRCode.toCanvas) return resolve(true);
-
       const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js";
-      s.onload = () => resolve(true);
-      s.onerror = () => reject(new Error("Failed to load QRCode library (local and CDN)."));
+      s.src = url;
+      s.async = true;
+      s.onload = () => resolve(url);
+      s.onerror = () => reject(new Error("Script load failed: " + url));
       document.head.appendChild(s);
     });
+  }
+
+  async function ensureQrLibrary(){
+    // If already present, done.
+    if (window.QRCode && typeof window.QRCode.toCanvas === "function") return { ok:true, source:"already-loaded" };
+
+    // Try multiple local paths first (your repo has changed paths a few times)
+    const localCandidates = [
+      "qrcode.min.js",
+      "js/qrcode.min.js",
+      "js/vendor/qrcode.min.js",
+      "js/lib/qrcode.min.js",
+      "assets/qrcode.min.js"
+    ];
+
+    const failures = [];
+
+    for (const u of localCandidates){
+      try{
+        await loadScript(u);
+        if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
+          return { ok:true, source:u };
+        }
+      }catch(e){
+        failures.push(String(e.message || e));
+      }
+    }
+
+    // Then try multiple CDNs (jsdelivr is often blocked; unpkg/cdnjs are good alternates)
+    const cdnCandidates = [
+      "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js",
+      "https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js",
+      "https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"
+    ];
+
+    for (const u of cdnCandidates){
+      try{
+        await loadScript(u);
+        if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
+          return { ok:true, source:u };
+        }
+      }catch(e){
+        failures.push(String(e.message || e));
+      }
+    }
+
+    const msg =
+      "Failed to load QRCode library (tried local + multiple CDNs).\n\n" +
+      failures.join("\n");
+
+    throw new Error(msg);
   }
 
   let currentUrl = null;
@@ -174,8 +221,7 @@
     try{
       clearErr();
 
-      // Ensure QR library exists (local root file OR CDN fallback)
-      await loadQrCdnIfNeeded();
+      const qrInfo = await ensureQrLibrary();
 
       if (typeof window.makeQR !== "function") {
         throw new Error("makeQR() missing. Ensure js/qr.js is loading.");
@@ -188,6 +234,9 @@
       linkEl.href = currentUrl;
 
       window.makeQR(qrTarget, currentUrl, computeQrSize());
+      // optional: leave a tiny breadcrumb in console for debugging
+      // eslint-disable-next-line no-console
+      console.log("IRLid Home QR rendered using QR lib from:", qrInfo.source);
     }catch(e){
       showErr(e);
     }
