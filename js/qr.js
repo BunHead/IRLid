@@ -1,41 +1,28 @@
 // IRLid QR helpers
-// Deploy 41
+// Deploy 42 — scanability fix (no CSS scaling, proper quiet zone)
+// 
 //
-// Provides (globals):
+// Exposes (globals):
 //   - makeQR(targetElOrId, text, sizePx?)
 //   - irlidClassifyText(text) -> { kind: "HELLO"|"RESP"|"COMB"|"UNKNOWN", value: string|null }
 //   - makeReturnForHelloAsync(hello) -> Promise<urlString>
 //   - processScannedResponse(text, opts?) -> Promise<{ ok:true, resp, ageMs, distM }>
-// Requirements enforced in processScannedResponse:
-//   - hash(payload) matches outer hash
-//   - signature verifies (ECDSA P-256)
-//   - payload.pub matches outer pub
-//   - timestamps <= 60s (default)
-//   - GPS distance <= 2m (default)
 //
 // Dependencies:
-//   - QR renderer: qrcode@1.5.3 build (window.QRCode) from js/vendor/qrcode.min.js
-//   - Signing: js/sign.js (getPublicJwk, hashPayloadToB64url, signHashB64url, verifySig)
+//   - QR renderer: js/vendor/qrcode.min.js providing window.QRCode.toCanvas
+//   - Signing: js/sign.js providing getPublicJwk, hashPayloadToB64url, signHashB64url, verifySig
 
 (function () {
   "use strict";
 
-  // ---------- small helpers ----------
-  function assert(cond, msg) {
-    if (!cond) throw new Error(msg);
-  }
-
-  function isString(x) {
-    return typeof x === "string" || x instanceof String;
-  }
+  function assert(cond, msg) { if (!cond) throw new Error(msg); }
+  function isString(x) { return typeof x === "string" || x instanceof String; }
 
   function b64urlEncodeBytes(bytes) {
-    // Do not rely on sign.js b64urlEncode to keep this file standalone
     let bin = "";
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
   }
-
   function b64urlDecodeToBytes(str) {
     str = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
     while (str.length % 4) str += "=";
@@ -44,13 +31,11 @@
     for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
     return out;
   }
-
   function encodeJsonToB64url(obj) {
     const json = JSON.stringify(obj);
     const bytes = new TextEncoder().encode(json);
     return b64urlEncodeBytes(bytes);
   }
-
   function decodeJsonFromB64url(b64u) {
     const bytes = b64urlDecodeToBytes(b64u);
     const json = new TextDecoder().decode(bytes);
@@ -60,24 +45,13 @@
   function slimJwk(pubJwk) {
     return { kty: pubJwk.kty, crv: pubJwk.crv, x: pubJwk.x, y: pubJwk.y };
   }
-
   function sameSlimJwk(a, b) {
-    return !!a && !!b &&
-      a.kty === b.kty &&
-      a.crv === b.crv &&
-      a.x === b.x &&
-      a.y === b.y;
+    return !!a && !!b && a.kty === b.kty && a.crv === b.crv && a.x === b.x && a.y === b.y;
   }
 
-  function isProbablyUrl(s) {
-    return /^https?:\/\//i.test(String(s || ""));
-  }
+  function isProbablyUrl(s) { return /^https?:\/\//i.test(String(s || "")); }
 
   function extractHashParam(text, key) {
-    // Supports:
-    //  - full URL ...#KEY=...
-    //  - "KEY=..."
-    //  - "#KEY=..."
     const t = String(text || "").trim();
     if (!t) return null;
 
@@ -91,9 +65,7 @@
           if (k === key) return v || "";
         }
         return null;
-      } catch {
-        // fall through
-      }
+      } catch { /* fall through */ }
     }
 
     const raw = t.startsWith("#") ? t.slice(1) : t;
@@ -144,13 +116,15 @@
     });
   }
 
-  // ---------- QR render ----------
-  function makeQR(target, text, size) {
-    // qrcode@1.5.3 build exposes window.QRCode with toCanvas
+  // ---------------------------
+  // ✅ makeQR (scanability-safe)
+  // ---------------------------
+  function makeQR(target, text, sizePx) {
     assert(window.QRCode && typeof window.QRCode.toCanvas === "function",
       "QRCode library missing: expected window.QRCode.toCanvas (check js/vendor/qrcode.min.js).");
 
-    const px = Math.max(220, Math.min(720, (size | 0) || 360));
+    const px = Math.max(260, Math.min(720, (sizePx | 0) || 360));
+    const margin = 4; // quiet zone (critical)
 
     let host = target;
     if (isString(target)) {
@@ -159,27 +133,44 @@
     }
     assert(host && host.nodeType === 1, "makeQR: invalid target element.");
 
-    // Render into a canvas inside host (or use host if it is a canvas)
+    // Ensure we don't get CSS scaling artifacts:
+    // - create a canvas sized exactly px x px
+    // - set style width/height to px to prevent rescale
     let canvas;
     if (host.tagName && host.tagName.toLowerCase() === "canvas") {
       canvas = host;
+      // clear parent assumptions
     } else {
       host.innerHTML = "";
       canvas = document.createElement("canvas");
       host.appendChild(canvas);
     }
 
+    // Lock display size to avoid browser scaling
+    canvas.width = px;
+    canvas.height = px;
+    canvas.style.width = px + "px";
+    canvas.style.height = px + "px";
+    canvas.style.maxWidth = "100%";
+    canvas.style.imageRendering = "pixelated";
+    canvas.style.display = "block";
+    canvas.style.margin = "0 auto";
+
+    // Also keep host from shrinking canvas weirdly
+    host.style.display = "block";
+    host.style.maxWidth = "100%";
+
+    // Render
     window.QRCode.toCanvas(
       canvas,
       String(text),
-      { width: px, margin: 1, errorCorrectionLevel: "M" },
+      { width: px, margin: margin, errorCorrectionLevel: "M" },
       function (err) {
         if (err) throw err;
       }
     );
   }
 
-  // ---------- classify ----------
   function irlidClassifyText(text) {
     const hello = extractHashParam(text, "HELLO");
     if (hello != null) return { kind: "HELLO", value: hello };
@@ -193,7 +184,6 @@
     return { kind: "UNKNOWN", value: null };
   }
 
-  // ---------- HELLO -> Return (RESP) ----------
   async function makeReturnForHelloAsync(hello, opts) {
     opts = opts || {};
 
@@ -231,12 +221,11 @@
     return url.toString();
   }
 
-  // ---------- Validate RESP ----------
   async function processScannedResponse(text, opts) {
     opts = opts || {};
     const nowMs = opts.nowMs ?? Date.now();
-    const maxAgeMs = opts.maxAgeMs ?? 60000; // 60s
-    const maxDistM = opts.maxDistM ?? 2;     // 2m
+    const maxAgeMs = opts.maxAgeMs ?? 60000;
+    const maxDistM = opts.maxDistM ?? 2;
 
     assert(typeof window.verifySig === "function", "Verification unavailable: verifySig() missing in js/sign.js");
     assert(typeof window.hashPayloadToB64url === "function", "Verification unavailable: hashPayloadToB64url() missing in js/sign.js");
@@ -253,24 +242,19 @@
     assert(resp.pub && typeof resp.pub === "object", "RESP: missing pub.");
     assert(resp.payload.pub && typeof resp.payload.pub === "object", "RESP: payload.pub missing.");
 
-    // payload.pub matches outer pub
     assert(sameSlimJwk(resp.payload.pub, resp.pub), "RESP: payload.pub does not match outer pub.");
 
-    // hash(payload) matches
     const recomputed = await window.hashPayloadToB64url(resp.payload);
     assert(recomputed === resp.hash, "RESP: hash mismatch.");
 
-    // signature verifies (ECDSA P-256)
     const okSig = await window.verifySig(resp.hash, resp.sig, resp.pub);
     assert(okSig, "RESP: signature invalid.");
 
-    // timestamps <= 60s
     const ts = Number(resp.payload.ts);
     assert(Number.isFinite(ts), "RESP: invalid ts.");
     const ageMs = Math.abs(nowMs - ts);
     assert(ageMs <= maxAgeMs, "RESP: timestamp outside window (" + ageMs + "ms).");
 
-    // distance <= 2m (always enforced per your spec)
     const myGeo = await getGeoOnce(opts.geo || {});
     const distM = haversineMeters(myGeo.lat, myGeo.lon, Number(resp.payload.lat), Number(resp.payload.lon));
     assert(distM <= maxDistM, "RESP: distance too far (" + distM.toFixed(2) + "m).");
@@ -278,7 +262,7 @@
     return { ok: true, resp, ageMs, distM };
   }
 
-  // ---------- export globals ----------
+  // Export globals
   window.makeQR = makeQR;
   window.irlidClassifyText = irlidClassifyText;
   window.makeReturnForHelloAsync = makeReturnForHelloAsync;
