@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 52: Home QR Test (local qrcode.min.js) -->
+<!-- Deploy 53: Local QR Loader Diagnostic -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -9,85 +9,48 @@
   <link rel="stylesheet" href="css/style.css">
 
   <style>
-    :root{
-      --side-pad:12px;
-      --panel-border:#e5e5e5;
-    }
-
     .page-main{
-      padding: 24px var(--side-pad) calc(var(--mobile-nav-h) + 28px);
+      padding: 24px 12px calc(var(--mobile-nav-h) + 28px);
       text-align:center;
-    }
-
-    .home-wrap{
-      max-width: 920px;
-      margin: 0 auto;
     }
 
     .panel{
       margin: 14px auto 0;
       padding: 14px 16px;
-      border: 1px solid var(--panel-border);
+      border: 1px solid #e5e5e5;
       background:#fff;
-      text-align:center;
+      max-width: 900px;
     }
 
     .qr-host{
-      display:block;
       margin: 12px auto 0;
       padding: 16px;
-      border: 1px solid var(--panel-border);
+      border: 1px solid #e5e5e5;
       background:#fff;
       width: fit-content;
-      max-width: 100%;
-      overflow-x: auto; /* never scale the canvas; scroll instead */
-    }
-
-    .hint{
-      margin-top:10px;
-      font-size: 13px;
-      opacity: .85;
+      overflow-x:auto;
     }
 
     .urlbox{
-      margin: 12px auto 0;
-      max-width: 920px;
+      margin-top: 12px;
       text-align:left;
     }
-    .urlbox label{
-      display:block;
-      font-size:12px;
-      opacity:.8;
-      margin-bottom:6px;
-    }
+
     .urlbox input{
       width:100%;
-      padding:10px 12px;
-      font-size:12px;
+      padding:10px;
       border:1px solid #ddd;
-      border-radius:0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: monospace;
     }
 
-    .controls{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:12px;
-    }
-
-    #qrError{
-      display:none;
-      max-width: 920px;
-      margin: 14px auto 0;
+    #status{
+      margin-top:10px;
+      font-size:13px;
       text-align:left;
-      white-space: pre-wrap;
-      background:#fff4f4;
-      border:1px solid #ffd0d0;
-      padding:10px 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
+      white-space:pre-wrap;
+      background:#f7f7f7;
+      padding:10px;
+      border:1px solid #ddd;
     }
   </style>
 </head>
@@ -96,20 +59,18 @@
 
 <header class="site-header">
   <div class="brand-wrap">
-    <a class="brand" href="index.html" aria-label="IRLid Home">
-      <img src="logo.png" alt="IRLid Logo" id="logo"
-           onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='irlid-logo.png';}else{this.style.display='none';}">
+    <a class="brand" href="index.html">
+      <img src="logo.png" alt="IRLid Logo" id="logo">
     </a>
   </div>
 
-  <!-- NAVIGATION (IDENTICAL structure) -->
-  <nav class="site-nav" aria-label="Primary">
+  <nav class="site-nav">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
 
-    <details class="nav-dropdown" id="aboutDropdown">
+    <details class="nav-dropdown">
       <summary class="nav-btn">About ▼</summary>
-      <div class="dropdown-menu" role="menu" aria-label="About menu">
+      <div class="dropdown-menu">
         <a href="about.html">About</a>
         <a href="features.html">Features</a>
         <a href="contact.html">Contact</a>
@@ -121,148 +82,96 @@
 </header>
 
 <main class="page-main">
-  <div class="home-wrap">
-    <div class="panel">
-      <h2 id="modeTitle">Static Test QR (opens Scan page)</h2>
+  <div class="panel">
+    <h2>QR Library Diagnostic</h2>
 
-      <div class="qr-host" id="qrHost" aria-label="QR"></div>
+    <div class="qr-host" id="qrHost"></div>
 
-      <div class="hint">
-        If your phone vibrates but shows no link, it’s not decoding — increase brightness and try the native camera app.
-      </div>
-
-      <div class="urlbox">
-        <label for="qrUrl">QR contents</label>
-        <input id="qrUrl" type="text" readonly value="">
-      </div>
-
-      <div class="controls">
-        <button class="btn secondary" id="staticBtn" type="button">Show Static Test QR</button>
-        <button class="btn" id="helloBtn" type="button">Show HELLO QR</button>
-      </div>
-
-      <div class="hint" style="margin-top:12px;">
-        Tap directly: <a id="directLink" href="application.html">Open Scan</a>
-      </div>
+    <div class="urlbox">
+      <input id="qrUrl" readonly>
     </div>
 
-    <div id="qrError" role="alert"></div>
+    <div id="status"></div>
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 
-<!-- ✅ Local QR encoder that exposes window.QRCode.toCanvas -->
-<script src="qrcode.min.js?v=36e"></script>
-
 <script>
-(function(){
-  "use strict";
-
+(async function(){
+  const status = document.getElementById("status");
   const qrHost = document.getElementById("qrHost");
-  const urlEl = document.getElementById("qrUrl");
-  const titleEl = document.getElementById("modeTitle");
-  const errEl = document.getElementById("qrError");
-  const directLink = document.getElementById("directLink");
+  const qrUrl = document.getElementById("qrUrl");
 
-  const staticBtn = document.getElementById("staticBtn");
-  const helloBtn = document.getElementById("helloBtn");
-
-  function showErr(e){
-    errEl.style.display = "block";
-    errEl.textContent = String(e && e.stack ? e.stack : e);
-  }
-  function clearErr(){
-    errEl.style.display = "none";
-    errEl.textContent = "";
+  function log(msg){
+    status.textContent += msg + "\n";
   }
 
-  function b64urlFromBytes(bytes){
-    let bin = "";
-    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-    const b64 = btoa(bin);
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-
-  function newHelloToken(){
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return b64urlFromBytes(bytes);
-  }
-
-  function baseDir(){
-    // directory of current page
-    const path = location.pathname.replace(/[^\/]*$/, "");
-    return location.origin + path;
-  }
-
-  function isMobile(){
-    return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
-  }
-
-  function qrPx(){
-    return isMobile() ? 360 : 520;
-  }
-
-  function renderQR(text){
-    clearErr();
-
-    if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
-      throw new Error("Local QR encoder not loaded. Expected window.QRCode.toCanvas from /qrcode.min.js");
-    }
-
-    qrHost.innerHTML = "";
-    const canvas = document.createElement("canvas");
-    const px = qrPx();
-
-    // Lock canvas size; never CSS-scale it.
-    canvas.width = px;
-    canvas.height = px;
-    canvas.style.width = px + "px";
-    canvas.style.height = px + "px";
-    canvas.style.display = "block";
-    canvas.style.margin = "0 auto";
-    canvas.style.imageRendering = "pixelated";
-
-    qrHost.appendChild(canvas);
-
-    // Render with LOW error correction (L) and generous margin for scanning
-    window.QRCode.toCanvas(canvas, String(text), {
-      width: px,
-      margin: 4,
-      errorCorrectionLevel: "L"
-    }, function(err){
-      if (err) throw err;
+  async function loadScript(path){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement("script");
+      s.src = path;
+      s.onload = ()=>resolve(path);
+      s.onerror = ()=>reject(path);
+      document.head.appendChild(s);
     });
   }
 
-  function showStatic(){
-    titleEl.textContent = "Static Test QR (opens Scan page)";
-    const url = baseDir() + "application.html";
-    urlEl.value = url;
-    directLink.href = url;
-    renderQR(url);
+  const candidates = [
+    "qrcode.min.js",
+    "./qrcode.min.js",
+    "js/qrcode.min.js"
+  ];
+
+  let loadedFrom = null;
+
+  for (const path of candidates){
+    try{
+      log("Trying: " + path);
+      await loadScript(path);
+      if (window.QRCode && window.QRCode.toCanvas){
+        loadedFrom = path;
+        log("SUCCESS: Loaded QR library from " + path);
+        break;
+      } else {
+        log("Loaded script but window.QRCode not found.");
+      }
+    } catch(e){
+      log("Failed to load: " + path);
+    }
   }
 
-  function showHello(){
-    titleEl.textContent = "HELLO QR (opens Scan with HELLO=...)";
-    const url = baseDir() + "application.html#HELLO=" + newHelloToken();
-    urlEl.value = url;
-    directLink.href = url;
-    renderQR(url);
+  if (!loadedFrom){
+    log("\n❌ Could not find local qrcode.min.js.");
+    log("Check exact filename and folder in your repo.");
+    return;
   }
 
-  staticBtn.addEventListener("click", () => {
-    try { showStatic(); } catch(e){ showErr(e); }
-  });
+  const base = location.origin + location.pathname.replace(/[^\/]*$/, "");
+  const url = base + "application.html";
 
-  helloBtn.addEventListener("click", () => {
-    try { showHello(); } catch(e){ showErr(e); }
-  });
+  qrUrl.value = url;
 
-  // Initial: static test (simplest)
-  try { showStatic(); } catch(e){ showErr(e); }
+  const canvas = document.createElement("canvas");
+  const size = 420;
+  canvas.width = size;
+  canvas.height = size;
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+  qrHost.appendChild(canvas);
+
+  window.QRCode.toCanvas(canvas, url, {
+    width: size,
+    margin: 4,
+    errorCorrectionLevel: "L"
+  }, function(err){
+    if (err){
+      log("QR render error: " + err);
+    } else {
+      log("QR rendered successfully.");
+    }
+  });
 
 })();
 </script>
