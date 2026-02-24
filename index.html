@@ -1,281 +1,110 @@
 <!DOCTYPE html>
-<!-- Deploy 35 -->
 <html lang="en">
+<!-- Deploy 36 -->
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Home</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8" />
+  <title>IRLid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+  <!-- Global CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Page-specific CSS -->
   <style>
-    :root{
-      --black:#000;
-      --white:#fff;
-      --mobile-nav-h:124px;
-      --side-pad:12px;
-      --top-gap:10px;
+    main {
+      padding: 1rem;
+      text-align: center;
     }
 
-    html,body{height:100%;}
-    body{margin:0;background:#fff;overflow-x:hidden;}
-
-    header.site-header{width:100%;background:#fff;}
-    .brand-wrap{padding:10px 14px 0;}
-    .brand{display:inline-flex;text-decoration:none;color:inherit;align-items:center;}
-
-    nav.site-nav{
-      width:100%;
-      background:#000;
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      gap:0;
-      padding:0;
-      margin:0;
-      position:sticky;
-      top:0;
-      z-index:1000;
+    #helloQR {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: center;
     }
 
-    #accountSlot{ display: contents; }
-
-    a.nav-btn,summary.nav-btn{
-      border:0;
-      background:#000;
-      color:#fff;
-      padding:10px 14px;
-      font-weight:700;
-      border-radius:0;
-      text-decoration:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    a.nav-btn:hover,summary.nav-btn:hover{background:#111;}
-
-    details.nav-dropdown{position:relative;}
-    details.nav-dropdown>summary{list-style:none;}
-    details.nav-dropdown>summary::-webkit-details-marker{display:none;}
-
-    .dropdown-menu{
-      position:absolute;
-      top:100%;
-      left:0;
-      min-width:180px;
-      background:#111;
-      border:0;
-      padding:0;
-      margin:0;
-      z-index:1200;
-    }
-    .dropdown-menu a{
-      display:block;
-      width:100%;
-      text-align:left;
-      padding:12px 14px;
-      color:#fff;
-      background:#111;
-      border:0;
-      text-decoration:none;
-      font-weight:700;
-      border-top:1px solid rgba(255,255,255,0.06);
-      box-sizing:border-box;
-    }
-    .dropdown-menu a:hover{ background:#000; }
-
-    main.page-main{
-      max-width:980px;
-      margin:0 auto;
-      padding:var(--top-gap) var(--side-pad) 20px;
-      box-sizing:border-box;
-      text-align:center;
-    }
-
-    .small{ text-align:center; margin:8px 0; }
-
-    .hero{
-      margin-top:10px;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:10px;
-    }
-
-    .qr-wrap{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:10px;
-      margin-top:6px;
-    }
-
-    #helloQr canvas, #helloQr img{
-      display:block;
-      margin:0 auto;
-      max-width:100%;
-      height:auto;
-      image-rendering: pixelated;
-    }
-
-    .btn-row{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      flex-wrap:wrap;
-      margin-top:10px;
-    }
-
-    .hint{
-      max-width:720px;
-      margin:10px auto 0;
-      line-height:1.35;
-    }
-
-    /* Mobile nav rules (must match your requirement) */
-    @media(max-width:720px){
-      .brand-wrap{padding:4px var(--side-pad) 0;}
-      #logo{max-width:72vw;max-height:90px;width:auto;height:auto;display:block;}
-
-      nav.site-nav{
-        position:fixed;
-        top:auto;
-        bottom:env(safe-area-inset-bottom,0);
-        left:0;
-        right:0;
-        height:var(--mobile-nav-h);
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        z-index:2000;
-      }
-
-      a.nav-btn,summary.nav-btn{
-        width:100%;
-        height:100%;
-        padding:0;
-        font-size:18px;
-      }
-
-      .dropdown-menu{
-        position:fixed;
-        left:0;
-        right:0;
-        top:auto;
-        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
-
-      body{
-        padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
+    #helloText {
+      margin-top: 1rem;
+      font-family: monospace;
+      word-break: break-all;
+      font-size: 0.85rem;
+      color: #333;
     }
   </style>
 </head>
-
 <body>
 
-<header class="site-header">
-  <div class="brand-wrap">
-    <a class="brand" href="index.html" aria-label="IRLid Home">
-      <img src="logo.png" alt="IRLid Logo" id="logo">
-    </a>
-  </div>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="logo">
+      IRLid
+    </div>
+  </header>
 
-  <nav class="site-nav" aria-label="Primary">
-    <a class="nav-btn" href="index.html">Home</a>
-    <a class="nav-btn" href="application.html">Scan</a>
-
-    <details class="nav-dropdown">
-      <summary class="nav-btn">About ▼</summary>
-      <div class="dropdown-menu" role="menu" aria-label="About menu">
-        <a href="about.html">About</a>
-        <a href="features.html">Features</a>
-        <a href="contact.html">Contact</a>
+  <!-- Desktop Nav -->
+  <nav class="site-nav desktop-nav">
+    <a href="index.html">Home</a>
+    <a href="scan.html">Scan</a>
+    <div class="dropdown">
+      <button class="dropbtn">About</button>
+      <div class="dropdown-content">
+        <a href="about.html">What is IRLid?</a>
+        <a href="protocol.html">Protocol</a>
       </div>
-    </details>
-
-    <span id="accountSlot"></span>
+    </div>
+    <a href="login.html">Login / Name</a>
   </nav>
-</header>
 
-<main class="page-main">
-  <div class="hero">
-    <h2 style="margin:6px 0 0;">In-person proof, instantly.</h2>
-    <p class="hint small" style="margin-top:0;">
-      Show this QR to the other person. They scan it to start the handshake.
-    </p>
-
-    <div class="qr-wrap">
-      <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
-      <div class="small" id="helloText"></div>
+  <!-- Mobile Nav -->
+  <nav class="mobile-nav">
+    <a href="index.html">Home</a>
+    <a href="scan.html">Scan</a>
+    <div class="dropdown">
+      <button class="dropbtn">About</button>
+      <div class="dropdown-content">
+        <a href="about.html">About</a>
+        <a href="protocol.html">Protocol</a>
+      </div>
     </div>
+    <a href="login.html">Login</a>
+  </nav>
 
-    <div class="btn-row">
-      <button class="btn" id="regenBtn" type="button">New QR</button>
-      <a class="btn secondary" id="openBtn" href="application.html">Open Scan</a>
-    </div>
+  <!-- Main -->
+  <main>
+    <h1>HELLO</h1>
+    <p>Show this QR to someone nearby to prove you're real.</p>
 
-    <p class="hint small">
-      Tip: if a third party scans a combined receipt QR later, it should open the receipt page for verification.
-    </p>
-  </div>
-</main>
+    <div id="helloQR"></div>
+    <div id="helloText"></div>
+  </main>
 
-<script src="js/auth.js"></script>
-<script src="js/nav.js"></script>
+  <!-- ===================================================== -->
+  <!-- SCRIPT LOAD ORDER IS THE FIX — DO NOT ASYNC / DEFER -->
+  <!-- ===================================================== -->
 
-<!-- QRCode lib must be loaded BEFORE js/qr.js so makeQR() can render locally -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <!-- QR code rendering library -->
+  <script src="js/qrcode.min.js"></script>
 
-<!-- This defines window.makeQR -->
-<script src="js/qr.js?v=deploy28"></script>
+  <!-- IRLid QR helpers (defines makeQR) -->
+  <script src="js/qr.js"></script>
 
-<script>
-  (function(){
-    "use strict";
-
-    const helloQrId = "helloQr";
-    const helloTextEl = document.getElementById("helloText");
-    const regenBtn = document.getElementById("regenBtn");
-    const openBtn = document.getElementById("openBtn");
-
-    function b64urlFromBytes(bytes){
-      const b64 = btoa(String.fromCharCode(...bytes));
-      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-    }
-
-    function newHelloToken(){
-      const bytes = new Uint8Array(16);
-      crypto.getRandomValues(bytes);
-      return b64urlFromBytes(bytes);
-    }
-
-    function render(){
-      if (typeof window.makeQR !== "function") {
-        throw new Error("makeQR() missing (js/qr.js not loaded)");
+  <!-- Home render logic -->
+  <script>
+    (function () {
+      if (typeof makeQR !== "function") {
+        console.error("makeQR() not available — qr.js failed to load");
+        return;
       }
 
-      const hello = newHelloToken();
-      const url = new URL(location.href);
-      url.pathname = url.pathname.replace(/\/index\.html$/i, "/application.html").replace(/\/$/, "/application.html");
-      url.hash = "HELLO=" + hello;
+      const helloPayload = "HELLO=" + crypto.randomUUID();
 
-      window.makeQR(helloQrId, url.toString(), 360);
-      helloTextEl.textContent = url.hash;
+      const qrContainer = document.getElementById("helloQR");
+      const textContainer = document.getElementById("helloText");
 
-      // Open Scan should preserve the HELLO for convenience if user taps it
-      openBtn.href = "application.html#HELLO=" + hello;
-    }
+      makeQR(qrContainer, location.origin + "/application.html#" + helloPayload);
 
-    regenBtn.addEventListener("click", () => {
-      try { render(); } catch (e) { helloTextEl.textContent = "Error: " + e; }
-    });
-
-    // initial render
-    try { render(); } catch (e) { helloTextEl.textContent = "Error: " + e; }
-  })();
-</script>
+      textContainer.textContent = helloPayload;
+    })();
+  </script>
 
 </body>
 </html>
