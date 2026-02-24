@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 26 -->
+<!-- Deploy 27 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -234,7 +234,7 @@
 <script src="js/sign.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="js/qr.js?v=deploy19"></script>
+<script src="js/qr.js?v=deploy23"></script>
 
 <script>
   // thresholds (as requested)
@@ -244,6 +244,7 @@
   // storage keys
   const KEY_SELF  = "irlid_resp_self";
   const KEY_OTHER = "irlid_resp_other";
+  const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
   const debugMode = new URLSearchParams(location.search).get("debug") === "1";
   const debugEl = document.getElementById("debug");
@@ -269,6 +270,37 @@
     return JSON.parse(json);
   }
 
+  function scoreRearLabel(label){
+    const s = (label || "").toLowerCase();
+    let score = 0;
+    if (s.includes("back")) score += 80;
+    if (s.includes("rear")) score += 80;
+    if (s.includes("environment")) score += 80;
+    if (s.includes("wide")) score += 20;
+    if (s.includes("ultra")) score += 10;
+
+    if (s.includes("front")) score -= 120;
+    if (s.includes("user")) score -= 60;
+    if (s.includes("face")) score -= 60;
+    if (s.includes("selfie")) score -= 120;
+    return score;
+  }
+
+  function getStoredPreferredCameraId(){
+    try{
+      const v = localStorage.getItem(KEY_PREF_CAM);
+      return v && v.trim() ? v.trim() : null;
+    }catch{
+      return null;
+    }
+  }
+
+  function setStoredPreferredCameraId(id){
+    try{
+      localStorage.setItem(KEY_PREF_CAM, id || "");
+    }catch{}
+  }
+
   // HELLO mode
   const hash = location.hash || "";
   const helloMatch = hash.match(/HELLO=([^&]+)/);
@@ -287,7 +319,6 @@
       responseTitle.textContent = "Your Return QR";
       responseHint.textContent = "Show this to the other person to scan.";
 
-      // application.html existing behavior should create response object via qr.js
       if (typeof makeReturnForHello !== "function") {
         throw new Error("makeReturnForHello() missing (js/qr.js not loaded)");
       }
@@ -306,6 +337,8 @@
 
   // scanner
   let html5QrCode = null;
+  let isScanning = false;
+
   const scannerElId = "scanner";
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
@@ -313,8 +346,9 @@
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
-  async function listCameras(){
+  async function listCamerasAndSelectDefault(){
     const devices = await Html5Qrcode.getCameras();
+
     cameraSelect.innerHTML = "";
     for (const d of devices){
       const opt = document.createElement("option");
@@ -322,22 +356,39 @@
       opt.textContent = d.label || d.id;
       cameraSelect.appendChild(opt);
     }
+
+    if (!devices || !devices.length) return devices;
+
+    // If user already picked one previously, use it (if still present).
+    const stored = getStoredPreferredCameraId();
+    if (stored && devices.some(d => d.id === stored)){
+      cameraSelect.value = stored;
+      return devices;
+    }
+
+    // Otherwise pick best rear by label score; if labels are blank, choose last device.
+    const ranked = devices
+      .map((d, idx) => ({ id: d.id, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
+      .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
+
+    const best = ranked[0];
+    const chosenId = (best && best.score > 0) ? best.id : devices[devices.length - 1].id;
+    cameraSelect.value = chosenId;
+    setStoredPreferredCameraId(chosenId);
+
     return devices;
   }
 
   function extractRespFromText(text){
     if (!text) return null;
 
-    // full receipt URL or application URL
     const m1 = text.match(/RESP=([A-Za-z0-9\-_]+)/);
     if (m1) return parseB64urlJson(m1[1]);
 
-    // raw b64url json
     if (/^[A-Za-z0-9\-_]+$/.test(text) && text.length > 40){
       try { return parseB64urlJson(text); } catch {}
     }
 
-    // plain JSON
     if (text.trim().startsWith("{")){
       try { return JSON.parse(text); } catch {}
     }
@@ -348,7 +399,6 @@
   async function onScanSuccess(decodedText){
     log("scan:", decodedText);
 
-    // In HELLO mode, scanning a response should auto-detect and process
     const resp = extractRespFromText(decodedText);
     if (resp && resp.type === "response"){
       try{
@@ -358,11 +408,9 @@
         const out = await processScannedResponse(resp, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
         log("processed:", out);
 
-        // Store receipts as before
         if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
         if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
 
-        // Redirect to receipt page
         location.href = "receipt.html";
       }catch(e){
         setStatus("Error processing QR: " + e);
@@ -375,26 +423,58 @@
 
   async function startScanner(){
     setStatus("Starting camera…");
+
+    // Ensure we have a selected camera id (and store it).
+    const camId = cameraSelect.value;
+    if (!camId){
+      throw new Error("No camera selected.");
+    }
+    setStoredPreferredCameraId(camId);
+
     if (!html5QrCode) html5QrCode = new Html5Qrcode(scannerElId);
 
-    const camId = cameraSelect.value;
+    // IMPORTANT FIX:
+    // Pass camId STRING directly. Do not pass { deviceId: { exact: camId } }.
+    // This is the most reliable way to force the selected camera in html5-qrcode.
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      disableFlip: false,
+      videoConstraints: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    };
+
     await html5QrCode.start(
-      { deviceId: { exact: camId } },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      onScanSuccess
+      camId,
+      config,
+      onScanSuccess,
+      () => {}
     );
+
+    isScanning = true;
     setStatus("Scanning…");
   }
 
   async function stopScanner(){
     if (!html5QrCode) return;
     try{ await html5QrCode.stop(); }catch{}
+    isScanning = false;
     setStatus("Stopped.");
+  }
+
+  async function restartScannerForSelection(){
+    if (!isScanning) return;
+    setStatus("Switching camera…");
+    await stopScanner();
+    await startScanner();
   }
 
   startBtn.addEventListener("click", async () => {
     try{
-      await listCameras();
+      // List cameras first (this also ensures we have permission/labels on many browsers).
+      await listCamerasAndSelectDefault();
       await startScanner();
     }catch(e){
       setStatus("Camera error: " + e);
@@ -402,12 +482,26 @@
     }
   });
 
-  stopBtn.addEventListener("click", stopScanner);
+  stopBtn.addEventListener("click", async () => {
+    try{ await stopScanner(); }catch(e){ log(e); }
+  });
 
-  // populate cameras early
+  cameraSelect.addEventListener("change", async () => {
+    const camId = cameraSelect.value;
+    setStoredPreferredCameraId(camId);
+    try{
+      await restartScannerForSelection();
+    }catch(e){
+      // If switching fails while scanning, at least keep the selection saved.
+      setStatus("Camera switch error: " + e);
+      log(e);
+    }
+  });
+
+  // populate cameras early and choose a rear default
   (async () => {
     try{
-      await listCameras();
+      await listCamerasAndSelectDefault();
     }catch(e){
       log("camera list error", e);
     }
