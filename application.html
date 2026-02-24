@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 31 -->
+<!-- Deploy 32 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -292,7 +292,7 @@
 <!-- Keep html5-qrcode loaded as fallback -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
-<script src="js/qr.js?v=deploy23"></script>
+<script src="js/qr.js?v=deploy32"></script>
 
 <script>
   // thresholds (as requested)
@@ -310,7 +310,7 @@
 
   const urlParams = new URLSearchParams(location.search);
   const debugMode = urlParams.get("debug") === "1";        // existing
-  const diagQuery = urlParams.get("diag") === "1";         // new explicit toggle
+  const diagQuery = urlParams.get("diag") === "1";         // explicit toggle
 
   const debugEl = document.getElementById("debug");
   if (debugMode) debugEl.style.display = "block";
@@ -323,7 +323,6 @@
   function isDiagnosticsEnabled(){
     if (debugMode || diagQuery) return true;
 
-    // Future Settings object: { diagnostics: true }
     try{
       const raw = localStorage.getItem(KEY_SETTINGS);
       if (raw) {
@@ -332,7 +331,6 @@
       }
     }catch{}
 
-    // Simple flag: "1"
     try{
       return localStorage.getItem(KEY_DIAG_SIMPLE) === "1";
     }catch{
@@ -342,9 +340,7 @@
 
   const diagnosticsEnabled = isDiagnosticsEnabled();
   const diagWrap = document.getElementById("diagWrap");
-  if (diagnosticsEnabled) {
-    diagWrap.style.display = "block";
-  }
+  if (diagnosticsEnabled) diagWrap.style.display = "block";
 
   // helpers: b64url JSON decode (supports raw b64url JSON or full URL/hash)
   function b64urlToBytes(str){
@@ -403,7 +399,8 @@
   const responseTitle = document.getElementById("responseTitle");
   const responseHint = document.getElementById("responseHint");
 
-  // Always generate a Return QR immediately in HELLO mode (Person B)
+  // If we are in HELLO mode, we should show a return QR immediately (Person B),
+  // but only if qr.js provides makeReturnForHello().
   if (hello) {
     try{
       responseArea.style.display = "block";
@@ -411,7 +408,8 @@
       responseHint.textContent = "Show this to the other person to scan.";
 
       if (typeof makeReturnForHello !== "function") {
-        throw new Error("makeReturnForHello() missing (js/qr.js not loaded)");
+        // Accurate message: file loaded, function missing.
+        throw new Error("Return generation unavailable: makeReturnForHello() is missing in js/qr.js");
       }
       const returnObj = makeReturnForHello(hello);
       const encoded = btoa(JSON.stringify(returnObj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
@@ -492,47 +490,116 @@
     return devices;
   }
 
-  // ---- QR parsing / processing ----
-  function extractRespFromText(text){
-    if (!text) return null;
+  // ---- scan classification ----
+  function classifyScan(text){
+    const t = (text || "").trim();
 
-    const m1 = text.match(/RESP=([A-Za-z0-9\-_]+)/);
-    if (m1) return parseB64urlJson(m1[1]);
+    // Full URLs containing fragments
+    const helloUrl = t.match(/(?:#|&|\?)HELLO=([A-Za-z0-9\-_]+)/);
+    if (helloUrl) return { kind: "HELLO", value: helloUrl[1], raw: t };
 
-    if (/^[A-Za-z0-9\-_]+$/.test(text) && text.length > 40){
-      try { return parseB64urlJson(text); } catch {}
+    const respUrl = t.match(/(?:#|&|\?)RESP=([A-Za-z0-9\-_]+)/);
+    if (respUrl) return { kind: "RESP_B64", value: respUrl[1], raw: t };
+
+    const combUrl = t.match(/(?:#|&|\?)COMB=([A-Za-z0-9\-_]+)/);
+    if (combUrl) return { kind: "COMB_B64", value: combUrl[1], raw: t };
+
+    // Just the hash payloads (raw b64url)
+    if (/^[A-Za-z0-9\-_]+$/.test(t) && t.length > 40) {
+      // Could be RESP/COMB payload; we only know after decoding
+      try {
+        const obj = parseB64urlJson(t);
+        if (obj && obj.type === "response") return { kind: "RESP_OBJ", value: obj, raw: t };
+        if (obj && obj.type === "combined") return { kind: "COMB_OBJ", value: obj, raw: t };
+      } catch {}
     }
 
-    if (text.trim().startsWith("{")){
-      try { return JSON.parse(text); } catch {}
+    // Plain JSON
+    if (t.startsWith("{")) {
+      try {
+        const obj = JSON.parse(t);
+        if (obj && obj.type === "response") return { kind: "RESP_OBJ", value: obj, raw: t };
+        if (obj && obj.type === "combined") return { kind: "COMB_OBJ", value: obj, raw: t };
+      } catch {}
     }
 
-    return null;
+    return { kind: "UNKNOWN", value: null, raw: t };
   }
 
+  function b64urlFromObj(obj){
+    const encoded = btoa(JSON.stringify(obj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+    return encoded;
+  }
+
+  // ---- handling decoded text ----
   async function handleDecodedText(decodedText){
     log("scan:", decodedText);
 
-    const resp = extractRespFromText(decodedText);
-    if (resp && resp.type === "response"){
-      try{
-        if (typeof processScannedResponse !== "function"){
-          throw new Error("processScannedResponse() missing (js/qr.js not loaded)");
-        }
-        const out = await processScannedResponse(resp, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
-        log("processed:", out);
+    const c = classifyScan(decodedText);
 
-        if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
-        if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
-
-        location.href = "receipt.html";
-      }catch(e){
-        setStatus("Error processing QR: " + e);
-        log(e);
-      }
-    } else {
-      setStatus("QR detected (not a response).");
+    // 1) HELLO: open this page with #HELLO=... so Person B generates return QR
+    if (c.kind === "HELLO") {
+      setStatus("HELLO detected. Opening handshake…");
+      location.href = "application.html#HELLO=" + c.value;
+      return;
     }
+
+    // 2) COMB: open receipt page for third-party verification
+    if (c.kind === "COMB_B64") {
+      setStatus("Receipt detected. Opening…");
+      location.href = "receipt.html#COMB=" + c.value;
+      return;
+    }
+    if (c.kind === "COMB_OBJ") {
+      setStatus("Receipt detected. Opening…");
+      location.href = "receipt.html#COMB=" + b64urlFromObj(c.value);
+      return;
+    }
+
+    // 3) RESP:
+    // If we are in HELLO mode AND qr.js provides processScannedResponse(), do the mutual-validation flow.
+    // Otherwise, open receipt page with #RESP=... (useful for third-party viewing and future verification).
+    if (c.kind === "RESP_B64") {
+      if (hello && typeof processScannedResponse === "function") {
+        try{
+          const respObj = parseB64urlJson(c.value);
+          const out = await processScannedResponse(respObj, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
+          if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
+          if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
+          location.href = "receipt.html";
+          return;
+        } catch (e) {
+          setStatus("Error processing response: " + e);
+          log(e);
+          // fall back to receipt viewer
+        }
+      }
+      setStatus("Response detected. Opening receipt view…");
+      location.href = "receipt.html#RESP=" + c.value;
+      return;
+    }
+
+    if (c.kind === "RESP_OBJ") {
+      if (hello && typeof processScannedResponse === "function") {
+        try{
+          const out = await processScannedResponse(c.value, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
+          if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
+          if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
+          location.href = "receipt.html";
+          return;
+        } catch (e) {
+          setStatus("Error processing response: " + e);
+          log(e);
+          // fall back to receipt viewer
+        }
+      }
+      setStatus("Response detected. Opening receipt view…");
+      location.href = "receipt.html#RESP=" + b64urlFromObj(c.value);
+      return;
+    }
+
+    // Unknown
+    setStatus("QR detected (unrecognized format).");
   }
 
   // ---- diagnostics (no-ops unless enabled) ----
@@ -551,9 +618,7 @@
       ok: true,
       trackLabel: t.label || "",
       trackId: t.id || "",
-      settings: (t.getSettings ? t.getSettings() : {}),
-      constraints: (t.getConstraints ? t.getConstraints() : {}),
-      capabilities: (t.getCapabilities ? t.getCapabilities() : {})
+      settings: (t.getSettings ? t.getSettings() : {})
     };
   }
 
@@ -569,9 +634,7 @@
       ok: true,
       trackLabel: t.label || "",
       trackId: t.id || "",
-      settings: (t.getSettings ? t.getSettings() : {}),
-      constraints: (t.getConstraints ? t.getConstraints() : {}),
-      capabilities: (t.getCapabilities ? t.getCapabilities() : {})
+      settings: (t.getSettings ? t.getSettings() : {})
     };
   }
 
@@ -582,12 +645,10 @@
     try{
       const all = await navigator.mediaDevices.enumerateDevices();
       const vids = all.filter(d => d.kind === "videoinput").map(d => ({
-        kind: d.kind,
         deviceId: d.deviceId,
-        groupId: d.groupId,
         label: d.label
       }));
-      return { ok: true, videoinput: vids, total: all.length };
+      return { ok: true, videoinput: vids };
     }catch(e){
       return { ok: false, reason: String(e) };
     }
@@ -596,34 +657,22 @@
   async function refreshDiagnostics(){
     if (!diagnosticsEnabled) return null;
 
-    const ua = navigator.userAgent || "";
-    const selectedId = cameraSelect.value || "";
-    const storedId = getStoredPreferredCameraId() || "";
     const enumDevs = await getEnumeratedDevices();
-
     const payload = {
       time: new Date().toISOString(),
-      locationHref: location.href,
-      userAgent: ua,
-      isSecureContext: window.isSecureContext,
       engine,
       isScanning,
       lastStartAttempt,
-      cameraSelect: {
-        selectedId,
-        selectedText: (cameraSelect.options[cameraSelect.selectedIndex] ? cameraSelect.options[cameraSelect.selectedIndex].textContent : ""),
-        storedPreferredId: storedId
-      },
-      features: {
-        barcodeDetector: (typeof BarcodeDetector !== "undefined")
+      helloMode: !!hello,
+      qrJs: {
+        hasMakeReturnForHello: (typeof makeReturnForHello === "function"),
+        hasProcessScannedResponse: (typeof processScannedResponse === "function")
       },
       activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
-      enumerateDevices: enumDevs,
-      lastNativeDecoded: nativeLastText ? (nativeLastText.slice(0, 160) + (nativeLastText.length > 160 ? "…" : "")) : ""
+      enumerateDevices: enumDevs
     };
 
     diagTextEl.textContent = safeJson(payload);
-    if (debugMode) log("diagnostics:", payload);
     return payload;
   }
 
@@ -653,8 +702,7 @@
     });
   }
 
-  // ---- Native scanner (BarcodeDetector) ----
-
+  // ---- scanner engines ----
   function ensureNativeVideoEl(){
     if (nativeVideoEl) return;
     nativeVideoEl = document.createElement("video");
@@ -678,9 +726,7 @@
     }
 
     if (nativeStream) {
-      try {
-        for (const t of nativeStream.getTracks()) t.stop();
-      } catch {}
+      try { for (const t of nativeStream.getTracks()) t.stop(); } catch {}
       nativeStream = null;
     }
 
@@ -737,7 +783,7 @@
     nativeRaf = requestAnimationFrame(loop);
   }
 
-  // ---- html5-qrcode fallback ----
+  // html5-qrcode fallback
   async function stopHtml5(){
     if (!html5QrCode) return;
     try { await html5QrCode.stop(); } catch {}
@@ -775,7 +821,6 @@
     );
   }
 
-  // ---- start/stop unified ----
   async function startScanner(){
     setStatus("Starting camera…");
 
