@@ -1,133 +1,141 @@
-// /js/qr.js
-// Deploy 27
-// QR rendering tuned for weak cameras / webcams:
-// - errorCorrectionLevel: "L" (lowest density)
-// - larger quiet zone (margin)
-// - remote image fallback uses same settings
-// Also keeps scanQR() helper.
+// IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
+//  Deploy 31 
 
 (function () {
-  "use strict";
-
-  function elById(id) {
-    const el = document.getElementById(id);
-    if (!el) throw new Error(`qr.js: element not found: ${id}`);
-    return el;
+  if (!window.crypto || !window.crypto.subtle) {
+    throw new Error(
+      "Secure crypto unavailable.\n\n" +
+      "This feature requires WebCrypto, which is usually only available on HTTPS or localhost.\n\n" +
+      "Fix:\n" +
+      "• Use GitHub Pages (HTTPS) OR\n" +
+      "• Test on localhost OR\n" +
+      "• (Dev only) enable Chrome flag: Insecure origins treated as secure for this URL."
+    );
   }
-
-  function clear(el) {
-    while (el.firstChild) el.removeChild(el.firstChild);
-  }
-
-  function makeRemoteImg(data, size) {
-    const margin = 12;
-    const url = `https://api.qrserver.com/v1/create-qr-code/?ecc=L&margin=${margin}&size=${size}x${size}&data=${encodeURIComponent(
-      data
-    )}`;
-    const img = document.createElement("img");
-    img.alt = "QR";
-    img.src = url;
-    img.style.width = size + "px";
-    img.style.height = size + "px";
-    img.style.imageRendering = "pixelated";
-    return img;
-  }
-
-  window.makeQR = function makeQR(elId, data, size = 320) {
-    const el = elById(elId);
-    clear(el);
-
-    const margin = 12;
-
-    if (typeof window.QRCode !== "undefined" && typeof window.QRCode.toCanvas === "function") {
-      const canvas = document.createElement("canvas");
-      canvas.width = size;
-      canvas.height = size;
-      canvas.style.width = size + "px";
-      canvas.style.height = size + "px";
-      canvas.style.imageRendering = "pixelated";
-
-      const opts = {
-        errorCorrectionLevel: "L",
-        margin,
-        width: size,
-        color: { dark: "#000000", light: "#ffffff" }
-      };
-
-      window.QRCode.toCanvas(canvas, data, opts, (err) => {
-        if (err) {
-          el.appendChild(makeRemoteImg(data, size));
-          return;
-        }
-        el.appendChild(canvas);
-      });
-
-      return;
-    }
-
-    el.appendChild(makeRemoteImg(data, size));
-  };
-
-  // NOTE: application.html currently uses Html5Qrcode directly.
-  // scanQR is still provided for other pages/flows that might call it.
-  window.scanQR = function scanQR(targetElId) {
-    return new Promise(async (resolve, reject) => {
-      if (typeof Html5Qrcode === "undefined") {
-        reject(new Error("Html5Qrcode not loaded."));
-        return;
-      }
-
-      const qr = new Html5Qrcode(targetElId);
-
-      const config = {
-        fps: 12,
-        qrbox: { width: 320, height: 320 },
-        disableFlip: false,
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
-
-      const onScanSuccess = async (text) => {
-        try { await qr.stop(); } catch {}
-        try { await qr.clear(); } catch {}
-        resolve(text);
-      };
-
-      try {
-        // Best effort: choose a real camera id string (rear often last; labels help when available).
-        let camId = null;
-        if (typeof Html5Qrcode.getCameras === "function") {
-          const cams = await Html5Qrcode.getCameras().catch(() => []);
-          if (cams && cams.length) {
-            const score = (label) => {
-              const s = (label || "").toLowerCase();
-              let sc = 0;
-              if (s.includes("back")) sc += 80;
-              if (s.includes("rear")) sc += 80;
-              if (s.includes("environment")) sc += 80;
-              if (s.includes("front")) sc -= 120;
-              if (s.includes("selfie")) sc -= 120;
-              return sc;
-            };
-            const ranked = cams
-              .map((c, i) => ({ id: c.id, label: c.label || "", i, sc: score(c.label || "") }))
-              .sort((a,b) => (b.sc !== a.sc ? b.sc - a.sc : b.i - a.i));
-            camId = (ranked[0] && ranked[0].sc > 0) ? ranked[0].id : cams[cams.length - 1].id;
-          }
-        }
-
-        if (camId) {
-          await qr.start(camId, config, onScanSuccess, () => {});
-          return;
-        }
-
-        // Fallback
-        await qr.start({ facingMode: "environment" }, config, onScanSuccess, () => {});
-      } catch (err) {
-        reject(err);
-      }
-    });
-  };
 })();
+
+function b64urlEncode(bytes) {
+  const b64 = btoa(String.fromCharCode(...bytes));
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function b64urlDecode(str) {
+  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  while (str.length % 4) str += "=";
+  const bin = atob(str);
+  return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+
+function canonical(obj) {
+  const keys = Object.keys(obj).sort();
+  const o = {};
+  for (const k of keys) o[k] = obj[k];
+  return JSON.stringify(o);
+}
+
+async function sha256Bytes(str) {
+  const enc = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest("SHA-256", enc);
+  return new Uint8Array(hash);
+}
+
+async function ensureKeys() {
+  if (localStorage.getItem("irlid_priv_jwk") && localStorage.getItem("irlid_pub_jwk")) return;
+
+  const kp = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"]
+  );
+
+  const privJwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
+  const pubJwk  = await crypto.subtle.exportKey("jwk", kp.publicKey);
+
+  localStorage.setItem("irlid_priv_jwk", JSON.stringify(privJwk));
+  localStorage.setItem("irlid_pub_jwk", JSON.stringify(pubJwk));
+}
+
+async function getPublicJwk() {
+  await ensureKeys();
+  return JSON.parse(localStorage.getItem("irlid_pub_jwk"));
+}
+
+async function getPrivateKey() {
+  await ensureKeys();
+  const privJwk = JSON.parse(localStorage.getItem("irlid_priv_jwk"));
+  return crypto.subtle.importKey(
+    "jwk",
+    privJwk,
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign"]
+  );
+}
+
+async function importPublicKey(pubJwk) {
+  return crypto.subtle.importKey(
+    "jwk",
+    pubJwk,
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["verify"]
+  );
+}
+
+async function signMid(midB64url) {
+  const priv = await getPrivateKey();
+  const midBytes = b64urlDecode(midB64url);
+
+  const sig = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    priv,
+    midBytes
+  );
+
+  return b64urlEncode(new Uint8Array(sig));
+}
+
+async function verifySig(midB64url, sigB64url, pubJwk) {
+  const pub = await importPublicKey(pubJwk);
+  const midBytes = b64urlDecode(midB64url);
+  const sigBytes = b64urlDecode(sigB64url);
+
+  return crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    pub,
+    sigBytes,
+    midBytes
+  );
+}
+
+async function pubKeyId(pubJwk) {
+  const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
+  const h = await sha256Bytes(s);
+  return b64urlEncode(h).slice(0, 18);
+}
+
+/* =========================================================
+   Added helpers for mutual validation / consistent signing
+   (No backend; used by application.html and receipt.html)
+   ========================================================= */
+
+async function hashPayloadToB64url(payloadObj) {
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+  const hashBuf = await crypto.subtle.digest("SHA-256", payloadBytes);
+  return b64urlEncode(new Uint8Array(hashBuf));
+}
+
+async function signHashB64url(hashB64url) {
+  // Signs the hash bytes directly (same pattern as previous signBytes(hashBuf) usage)
+  // Uses ECDSA P-256 with SHA-256.
+  const priv = await getPrivateKey();
+  const hashBytes = b64urlDecode(hashB64url);
+
+  const sig = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    priv,
+    hashBytes
+  );
+
+  return b64urlEncode(new Uint8Array(sig));
+}
