@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 27 -->
+<!-- Deploy 28 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -129,6 +129,17 @@
       margin:10px 0;
     }
 
+    #androidHint{
+      display:none;
+      max-width:720px;
+      margin:10px auto 0;
+      padding:10px 12px;
+      border:1px solid #ddd;
+      font-size:13px;
+      line-height:1.35;
+      box-sizing:border-box;
+    }
+
     #debug{
       display:none;
       white-space:pre-wrap;
@@ -226,14 +237,25 @@
     <select id="cameraSelect"></select>
   </div>
 
+  <div id="androidHint">
+    <b>Android/Chrome note:</b> If this page always opens your selfie camera no matter what you select,
+    check Chrome’s per-site camera setting:<br>
+    <b>Chrome</b> → (⋮) <b>Settings</b> → <b>Site settings</b> → <b>Camera</b> → ensure this site is not pinned to “Front camera”.
+    Then reload and try again.
+  </div>
+
   <div id="debug"></div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
+
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode"></script>
+
+<!-- Pin html5-qrcode to a known build -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
 <script src="js/qr.js?v=deploy23"></script>
 
 <script>
@@ -254,6 +276,16 @@
     if (!debugMode) return;
     debugEl.textContent += args.map(a => (typeof a === "string" ? a : JSON.stringify(a, null, 2))).join(" ") + "\n";
   }
+
+  // Show Android hint on Android Chrome-ish UAs
+  (function(){
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isChrome = /Chrome\/|Chromium\//i.test(ua);
+    if (isAndroid && isChrome) {
+      document.getElementById("androidHint").style.display = "block";
+    }
+  })();
 
   // helpers: b64url JSON decode (supports raw b64url JSON or full URL/hash)
   function b64urlToBytes(str){
@@ -346,7 +378,18 @@
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
+  async function hardResetScanner(){
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode(scannerElId);
+      return;
+    }
+    try { await html5QrCode.stop(); } catch {}
+    try { await html5QrCode.clear(); } catch {}
+    html5QrCode = new Html5Qrcode(scannerElId);
+  }
+
   async function listCamerasAndSelectDefault(){
+    // Per docs this will trigger permissions if not granted. :contentReference[oaicite:2]{index=2}
     const devices = await Html5Qrcode.getCameras();
 
     cameraSelect.innerHTML = "";
@@ -359,14 +402,12 @@
 
     if (!devices || !devices.length) return devices;
 
-    // If user already picked one previously, use it (if still present).
     const stored = getStoredPreferredCameraId();
     if (stored && devices.some(d => d.id === stored)){
       cameraSelect.value = stored;
       return devices;
     }
 
-    // Otherwise pick best rear by label score; if labels are blank, choose last device.
     const ranked = devices
       .map((d, idx) => ({ id: d.id, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
       .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
@@ -421,22 +462,8 @@
     }
   }
 
-  async function startScanner(){
-    setStatus("Starting camera…");
-
-    // Ensure we have a selected camera id (and store it).
-    const camId = cameraSelect.value;
-    if (!camId){
-      throw new Error("No camera selected.");
-    }
-    setStoredPreferredCameraId(camId);
-
-    if (!html5QrCode) html5QrCode = new Html5Qrcode(scannerElId);
-
-    // IMPORTANT FIX:
-    // Pass camId STRING directly. Do not pass { deviceId: { exact: camId } }.
-    // This is the most reliable way to force the selected camera in html5-qrcode.
-    const config = {
+  function makeScanConfig(){
+    return {
       fps: 10,
       qrbox: { width: 250, height: 250 },
       disableFlip: false,
@@ -445,6 +472,38 @@
         height: { ideal: 1080 }
       }
     };
+  }
+
+  async function startScanner(){
+    setStatus("Starting camera…");
+
+    const camId = cameraSelect.value;
+    if (!camId) throw new Error("No camera selected.");
+    setStoredPreferredCameraId(camId);
+
+    // Always hard reset so we don't reuse a stale front-camera stream.
+    await hardResetScanner();
+
+    const config = makeScanConfig();
+
+    // Strategy:
+    // 1) Try rear-first via facingMode environment (helps when Chrome maps deviceIds weirdly)
+    // 2) Fall back to selected cameraId string (recommended approach). :contentReference[oaicite:3]{index=3}
+    try {
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        () => {}
+      );
+      isScanning = true;
+      setStatus("Scanning… (rear preferred)");
+      return;
+    } catch (e1) {
+      log("start env failed:", String(e1));
+      // Ensure a clean slate before trying cameraId
+      await hardResetScanner();
+    }
 
     await html5QrCode.start(
       camId,
@@ -460,6 +519,7 @@
   async function stopScanner(){
     if (!html5QrCode) return;
     try{ await html5QrCode.stop(); }catch{}
+    try{ await html5QrCode.clear(); }catch{}
     isScanning = false;
     setStatus("Stopped.");
   }
@@ -473,7 +533,6 @@
 
   startBtn.addEventListener("click", async () => {
     try{
-      // List cameras first (this also ensures we have permission/labels on many browsers).
       await listCamerasAndSelectDefault();
       await startScanner();
     }catch(e){
@@ -492,7 +551,6 @@
     try{
       await restartScannerForSelection();
     }catch(e){
-      // If switching fails while scanning, at least keep the selection saved.
       setStatus("Camera switch error: " + e);
       log(e);
     }
