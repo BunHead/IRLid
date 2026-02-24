@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 45 -->
+<!-- Deploy 46 (index fix) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -10,22 +10,16 @@
 
   <style>
     :root{
-      --black:#000;
-      --white:#fff;
-      --mobile-nav-h:124px;
       --side-pad:12px;
-      --top-gap:10px;
     }
 
-    html, body { height: 100%; }
-
     .page-main{
-      padding: 24px var(--side-pad) calc(var(--mobile-nav-h) + 28px);
-      text-align: center;
+      padding: 24px var(--side-pad) calc(var(--mobile-nav-h, 0px) + 28px);
+      text-align:center;
     }
 
     .home-wrap{
-      max-width: 860px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
@@ -33,11 +27,20 @@
       display:inline-block;
       padding: 16px;
       background: #fff;
+      border: 1px solid #e5e5e5;
     }
+
+    .hint{
+      margin-top:10px;
+      font-size: 13px;
+      opacity: .85;
+    }
+
+    .hint a{ color:#111; text-decoration:underline; }
 
     #qrError{
       display:none;
-      max-width: 860px;
+      max-width: 900px;
       margin: 14px auto 0;
       text-align:left;
       white-space: pre-wrap;
@@ -47,10 +50,6 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 12px;
     }
-
-    @media (min-width: 721px){
-      .page-main{ padding-bottom: 40px; }
-    }
   </style>
 </head>
 
@@ -58,12 +57,13 @@
 
 <header class="site-header">
   <div class="logo-row">
-    <a href="index.html" class="logo-link">
+    <a href="index.html" class="logo-link" aria-label="IRLid Home">
       <img src="irlid-logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
       <span class="logo-text">IRLid</span>
     </a>
   </div>
 
+  <!-- NAVIGATION (must match across pages) -->
   <nav class="site-nav" aria-label="Primary">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
@@ -85,94 +85,101 @@
   <div class="home-wrap">
     <h2>Show this QR to the other person</h2>
     <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
+    <div class="hint">
+      If scanning fails, tap: <a id="helloLink" href="application.html">Open Scan</a>
+    </div>
     <div id="qrError" role="alert"></div>
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
+<script src="js/sign.js"></script>
 
-<!-- Signing (needed to include initiator pub in HELLO) -->
-<script src="js/sign.js"
-        onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/sign.js';"></script>
+<!-- IMPORTANT: use the local qrcode library that exists in this repo -->
+<script src="js/qrcode.min.js"></script>
 
-<!-- Local QR encoder (no CDN) -->
-<script src="js/vendor/qrcode.min.js?v=36e"
-        onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/vendor/qrcode.min.js';"></script>
-
-<!-- Your QR helpers -->
-<script src="js/qr.js?v=deploy45"
-        onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/qr.js';"></script>
+<!-- IMPORTANT: no spaces in cache-busters -->
+<script src="js/qr.js?v=45"></script>
 
 <script>
-  (function(){
-    "use strict";
-    const errEl = document.getElementById("qrError");
+(function(){
+  "use strict";
 
-    function showErr(e){
-      errEl.style.display = "block";
-      errEl.textContent = String(e && e.stack ? e.stack : e);
-    }
-    function clearErr(){
-      errEl.style.display = "none";
-      errEl.textContent = "";
-    }
+  const qrEl = document.getElementById("helloQr");
+  const linkEl = document.getElementById("helloLink");
+  const errEl = document.getElementById("qrError");
 
-    function b64urlFromBytes(bytes){
-      const b64 = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
-      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-    }
-    function newHelloToken(){
-      const bytes = new Uint8Array(16);
-      crypto.getRandomValues(bytes);
-      return b64urlFromBytes(bytes);
-    }
+  function showErr(e){
+    errEl.style.display = "block";
+    errEl.textContent = String(e && e.stack ? e.stack : e);
+  }
+  function clearErr(){
+    errEl.style.display = "none";
+    errEl.textContent = "";
+  }
 
-    function computeQrSize(){
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const pad = 2 * 12;
-      const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
-      const safeB = parseFloat(getComputedStyle(document.body).paddingBottom || "0") || 0;
-      const usableH = Math.max(240, h - navH - safeB - 20);
-      const usableW = Math.max(240, w - pad);
-      const size = Math.floor(Math.min(usableW, usableH));
-      return Math.max(260, Math.min(size, 720));
+  function b64urlFromBytes(bytes){
+    let bin = "";
+    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+    const b64 = btoa(bin);
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+
+  function newHelloToken(){
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return b64urlFromBytes(bytes);
+  }
+
+  function computeQrSize(){
+    const w = window.innerWidth || 360;
+    const h = window.innerHeight || 640;
+    const pad = 24;
+    const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
+    const usable = Math.min(w - pad, h - navH - pad);
+    return Math.max(260, Math.min(usable, 720));
+  }
+
+  let currentUrl = null;
+
+  async function render(){
+    try{
+      clearErr();
+
+      if (typeof window.makeQR !== "function") {
+        throw new Error("QR renderer unavailable. Ensure js/qrcode.min.js and js/qr.js load correctly.");
+      }
+
+      const url = new URL("application.html", location.href);
+      url.hash = "HELLO=" + newHelloToken();
+      currentUrl = url.toString();
+
+      linkEl.href = currentUrl;
+
+      window.makeQR(qrEl, currentUrl, computeQrSize());
+    }catch(e){
+      showErr(e);
     }
+  }
 
-    let currentUrl = null;
-
-    async function render(){
+  let t = null;
+  function schedule(){
+    if (!currentUrl) return;
+    clearTimeout(t);
+    t = setTimeout(() => {
       try{
         clearErr();
-        if (typeof window.makeQR !== "function") throw new Error("makeQR() missing (js/qr.js).");
+        window.makeQR(qrEl, currentUrl, computeQrSize());
+      }catch(e){ showErr(e); }
+    }, 150);
+  }
 
-        const url = new URL("application.html", location.href);
-        url.hash = "HELLO=" + (typeof window.makeHelloTokenAsync === "function" ? await window.makeHelloTokenAsync() : newHelloToken());
-        currentUrl = url.toString();
+  window.addEventListener("resize", schedule);
+  window.addEventListener("orientationchange", schedule);
 
-        window.makeQR("helloQr", currentUrl, computeQrSize());
-      }catch(e){
-        showErr(e);
-      }
-    }
-
-    let t = null;
-    function schedule(){
-      if (!currentUrl) return render().catch(showErr);
-      clearTimeout(t);
-      t = setTimeout(() => {
-        try{
-          clearErr();
-          window.makeQR("helloQr", currentUrl, computeQrSize());
-        }catch(e){ showErr(e); }
-      }, 150);
-    }
-    window.addEventListener("resize", schedule);
-    window.addEventListener("orientationchange", schedule);
-
-    render().catch(showErr);
-  })();
+  render();
+})();
 </script>
 
 </body>
