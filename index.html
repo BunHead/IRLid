@@ -1,223 +1,166 @@
 <!DOCTYPE html>
-<!-- Deploy 57: Home restored, vendor QR fixed -->
+<!-- Deploy 58: Restore working Home QR approach (CDN QR lib + fallback image) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Home</title>
-
+  <title>IRLid — Proof of Personhood</title>
   <link rel="stylesheet" href="css/style.css">
 
   <style>
     :root{
-      --side-pad:12px;
-      --panel-border:#e5e5e5;
+      --side-pad: 12px;
+      --qr-top-gap: 8px;
     }
 
-    .page-main{
-      padding: 24px var(--side-pad) calc(var(--mobile-nav-h) + 28px);
-      text-align:center;
+    html, body { height: 100%; }
+    body{
+      margin: 0;
+      background: #fff;
+      overflow-x: hidden;
     }
 
-    .home-wrap{
-      max-width: 920px;
+    main.home-main{
+      width: 100%;
+      box-sizing: border-box;
+      padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .qr-box{
+      width: 100%;
+      max-width: 900px;
       margin: 0 auto;
+      box-sizing: border-box;
     }
 
-    .qr-panel{
-      margin: 14px auto 0;
-      padding: 14px 16px;
-      border: 1px solid var(--panel-border);
-      background:#fff;
+    .qr-box canvas, .qr-box img{
+      display: block;
+      margin: 0 auto;
+      height: auto;
     }
 
-    .qr-host{
-      display:block;
-      margin: 12px auto 0;
-      padding: 18px;
-      border: 1px solid var(--panel-border);
-      background:#fff;
-      width: fit-content;
-      max-width: 100%;
-      overflow-x:auto; /* never scale; scroll instead */
-    }
-
-    .hint{
-      margin-top:10px;
-      font-size:13px;
-      opacity:.85;
-    }
-
-    .hint a{
-      color:#111;
-      text-decoration:underline;
-      word-break: break-all;
-    }
-
-    .urlbox{
-      margin: 12px auto 0;
-      max-width: 920px;
-      text-align:left;
-    }
-    .urlbox label{
-      display:block;
-      font-size:12px;
-      opacity:.8;
-      margin-bottom:6px;
-    }
-    .urlbox input{
-      width:100%;
-      padding:10px 12px;
-      font-size:12px;
-      border:1px solid #ddd;
-      border-radius:0;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-
-    #err{
+    #qrError{
       display:none;
-      max-width: 920px;
-      margin: 14px auto 0;
-      text-align:left;
+      margin: 8px var(--side-pad) 0 var(--side-pad);
+      padding: 10px;
+      border: 1px solid #f3c0c0;
+      background: #fff3f3;
+      color: #600;
+      font-family: ui-monospace, monospace;
       white-space: pre-wrap;
-      background:#fff4f4;
-      border:1px solid #ffd0d0;
-      padding:10px 12px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
+      box-sizing: border-box;
     }
   </style>
 </head>
 
 <body>
-
-<header class="site-header">
-  <div class="brand-wrap">
-    <a class="brand" href="index.html" aria-label="IRLid Home">
-      <img src="logo.png" alt="IRLid Logo" id="logo"
-           onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='irlid-logo.png';}else{this.style.display='none';}">
-    </a>
-  </div>
-
-  <!-- NAVIGATION (match across pages) -->
-  <nav class="site-nav" aria-label="Primary">
-    <a class="nav-btn" href="index.html">Home</a>
-    <a class="nav-btn" href="application.html">Scan</a>
-
-    <details class="nav-dropdown" id="aboutDropdown">
-      <summary class="nav-btn">About ▼</summary>
-      <div class="dropdown-menu" role="menu" aria-label="About menu">
-        <a href="about.html">About</a>
-        <a href="features.html">Features</a>
-        <a href="contact.html">Contact</a>
-      </div>
-    </details>
-
-    <span id="accountSlot"></span>
-  </nav>
-</header>
-
-<main class="page-main">
-  <div class="home-wrap">
-    <div class="qr-panel">
-      <h2>Show this QR to the other person</h2>
-
-      <div class="qr-host" id="helloQr" aria-label="HELLO QR"></div>
-
-      <div class="hint">
-        If scanning fails, tap: <a id="helloLink" href="application.html">Open handshake link</a>
-      </div>
-
-      <div class="urlbox">
-        <label for="helloUrl">QR contents</label>
-        <input id="helloUrl" type="text" readonly value="">
-      </div>
-
-      <div id="err" role="alert"></div>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo">
+      </a>
     </div>
-  </div>
-</main>
 
-<script src="js/auth.js"></script>
-<script src="js/nav.js"></script>
-<script src="js/sign.js"></script>
+    <!-- NAV: Home, Scan, About dropdown, Account slot (your current behavior) -->
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
 
-<!-- ✅ Fixed vendor QR encoder -->
-<script src="js/vendor/qrcode.min.js?v=56"></script>
+      <details class="nav-dropdown">
+        <summary class="nav-btn">About ▼</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
 
-<!-- Your app’s QR helpers (expects window.QRCode.toCanvas) -->
-<script src="js/qr.js?v=56"></script>
+      <span id="accountSlot"></span>
+    </nav>
+  </header>
 
-<script>
-(function(){
-  "use strict";
+  <div id="qrError"></div>
 
-  const qrEl = document.getElementById("helloQr");
-  const linkEl = document.getElementById("helloLink");
-  const urlEl  = document.getElementById("helloUrl");
-  const errEl  = document.getElementById("err");
+  <main class="home-main">
+    <div class="qr-box" id="myQr" aria-label="Your IRLid HELLO QR"></div>
+  </main>
 
-  function showErr(e){
-    errEl.style.display = "block";
-    errEl.textContent = String(e && e.stack ? e.stack : e);
-  }
-  function clearErr(){
-    errEl.style.display = "none";
-    errEl.textContent = "";
-  }
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/sign.js"></script>
+  <script src="js/qr.js?v=57"></script>
 
-  function b64urlFromBytes(bytes){
-    let bin = "";
-    for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-    const b64 = btoa(bin);
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-
-  function newHelloToken(){
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    return b64urlFromBytes(bytes);
-  }
-
-  function baseDir(){
-    const path = location.pathname.replace(/[^\/]*$/, "");
-    return location.origin + path;
-  }
-
-  function isMobile(){
-    return window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
-  }
-
-  function qrSize(){
-    // Large enough for scanning from another phone
-    return isMobile() ? 420 : 760;
-  }
-
-  function render(){
-    try{
-      clearErr();
-
-      if (!window.QRCode || typeof window.QRCode.toCanvas !== "function") {
-        throw new Error("QR encoder missing: window.QRCode.toCanvas not found.");
-      }
-      if (typeof window.makeQR !== "function") {
-        throw new Error("makeQR() missing. js/qr.js did not load.");
-      }
-
-      const url = baseDir() + "application.html#HELLO=" + newHelloToken();
-      linkEl.href = url;
-      urlEl.value = url;
-
-      // Use your makeQR which already sets EC=L and margin improvements per your notes
-      window.makeQR(qrEl, url, qrSize());
-    }catch(e){
-      showErr(e);
+  <script>
+    const qrErrorEl = document.getElementById("qrError");
+    function showErr(e){
+      qrErrorEl.style.display = "block";
+      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
+      console.error(e);
     }
-  }
+    window.addEventListener("error", (e) => showErr(e.error || e.message));
+    window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));
 
-  render();
-})();
-</script>
+    function computeQrSize(){
+      const box = document.getElementById("myQr");
+      const boxW = box.clientWidth || Math.min(window.innerWidth - 24, 900);
 
+      const header = document.querySelector("header.site-header");
+      const headerH = header ? header.getBoundingClientRect().height : 0;
+
+      const isMobile = window.matchMedia("(max-width: 720px)").matches;
+
+      const nav = document.querySelector("nav.site-nav");
+      const navH = nav ? nav.getBoundingClientRect().height : 0;
+
+      const vv = window.visualViewport;
+      const viewportH = vv ? vv.height : window.innerHeight;
+
+      const pad = isMobile ? 16 : 40;
+
+      const availH = Math.max(240, viewportH - headerH - (isMobile ? navH : 0) - pad);
+      const size = Math.floor(Math.min(boxW, availH));
+      return Math.max(260, Math.min(size, 980));
+    }
+
+    async function renderHelloQr(){
+      try {
+        const pub = await getPublicJwk();
+        const hello = {
+          v: 1,
+          type: "hello",
+          pub,
+          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
+          ts: Math.floor(Date.now() / 1000)
+        };
+
+        const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+
+        // Use correct base for /IRLid/ on GitHub Pages
+        const baseUrl = location.origin + "/IRLid";
+        const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+
+        const size = computeQrSize();
+        await makeQR("myQr", url, size);
+      } catch (e) {
+        showErr(e);
+      }
+    }
+
+    renderHelloQr();
+
+    const rerender = () => {
+      clearTimeout(window.__irlid_qr_t);
+      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+    };
+    window.addEventListener("resize", rerender);
+    window.addEventListener("orientationchange", rerender);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", rerender);
+      window.visualViewport.addEventListener("scroll", rerender);
+    }
+  </script>
 </body>
 </html>
