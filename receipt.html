@@ -91,9 +91,12 @@
   const TS_TOL_S = 60;
   const DIST_TOL_M = 2;
 
+  // Back-compat keys (some builds store these)
   const KEY_SELF  = "irlid_resp_self";
   const KEY_GUEST = "irlid_resp_other";
   const KEY_LAST  = "irlid_receipt_last";
+
+  // Primary history key (per project description)
   const KEY_LIST  = "irlid_receipts";
 
   const emptyState = document.getElementById("emptyState");
@@ -156,15 +159,10 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  function writeReceiptHistory(combinedObj){
-    try {
-      const listRaw = localStorage.getItem(KEY_LIST);
-      const list = listRaw ? JSON.parse(listRaw) : [];
-      const entry = { ts: Date.now(), combined: combinedObj };
-      list.unshift(entry);
-      const capped = list.slice(0, 200);
-      localStorage.setItem(KEY_LIST, JSON.stringify(capped));
-    } catch {}
+  function safeParseAny(raw){
+    if (!raw) return null;
+    if (typeof raw !== "string") return raw;
+    try { return JSON.parse(raw); } catch { return null; }
   }
 
   function getGps(resp){
@@ -299,6 +297,69 @@
     return results;
   }
 
+  function pickLatestFromReceiptsKey(){
+    // Accepts several possible stored shapes for KEY_LIST (keeps backward compatibility):
+    // - Array of combined objects: [{type:"combined", ...}, ...]
+    // - Array of entries: [{ts, combined}, ...]
+    // - Array of entries: [{ts, url}, ...] where url is receipt URL
+    // - Array of strings: ["https://.../receipt.html#COMB=...", ...]
+    const raw = localStorage.getItem(KEY_LIST);
+    if (!raw) return null;
+
+    const parsed = safeParseAny(raw);
+    if (!parsed) return null;
+
+    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : null);
+    if (!arr || !arr.length) return null;
+
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const item of arr) {
+      const entry = item;
+
+      // Score by explicit ts, otherwise by payload ts, otherwise keep order bias.
+      let score = -Infinity;
+      const t0 = (entry && typeof entry.ts === "number") ? entry.ts : null;
+
+      const combined =
+        (entry && entry.type === "combined") ? entry :
+        (entry && entry.combined && entry.combined.type === "combined") ? entry.combined :
+        null;
+
+      const url =
+        (typeof entry === "string") ? entry :
+        (entry && typeof entry.url === "string") ? entry.url :
+        (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
+        null;
+
+      if (t0 !== null) score = t0;
+      else if (combined) {
+        const ta = getTs(combined.a);
+        const tb = getTs(combined.b);
+        const tt = Math.max(ta || -Infinity, tb || -Infinity);
+        if (Number.isFinite(tt)) score = tt;
+      } else if (url) {
+        // If we only have a URL, we can't derive exact time; bias by later index.
+        score = 0;
+      } else {
+        // Unknown shape, low score
+        score = -Infinity;
+      }
+
+      // Stable tie-breaker using order (later in array is "newer" in many push-based histories)
+      const orderBias = arr.indexOf(item) / 1000000;
+      score += orderBias;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = { entry, combined, url };
+      }
+    }
+
+    return best;
+  }
+
   clearBtn.onclick = () => {
     localStorage.removeItem(KEY_SELF);
     localStorage.removeItem(KEY_GUEST);
@@ -310,124 +371,114 @@
   (async () => {
     if (typeof refreshNav === "function") await refreshNav();
 
+    // Highest priority: explicit receipt in URL hash
     const fromHash = parseFromHash();
+
+    // Some flows store a single receipt in KEY_LAST; keep in sync if visiting via #RESP.
     if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
+
+    // Render: try hash first
     if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
-      writeReceiptHistory(fromHash.obj);
+      await renderCombined(fromHash.obj, "Receipt (shared)");
+      return;
     }
-
-    const selfResp  = readJson(KEY_SELF);
-    const guestResp = readJson(KEY_GUEST);
-    const legacy    = readJson(KEY_LAST);
-
-    const havePair = !!(selfResp && guestResp);
-    const single = selfResp || guestResp || legacy;
-
-    if (!havePair && !single && !(fromHash && fromHash.kind === "comb")) {
-      emptyState.style.display = "block";
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+      await renderSingle(fromHash.obj, "Receipt (single)");
       return;
     }
 
+    // Next priority: latest entry in irlid_receipts (this is the key you described as authoritative)
+    const best = pickLatestFromReceiptsKey();
+    if (best) {
+      if (best.combined) {
+        await renderCombined(best.combined, "Receipt (latest)");
+        return;
+      }
+      if (best.url && typeof best.url === "string") {
+        // If history stores the already-built receipt URL, just show it as-is.
+        metaPanel.style.display = "block";
+        rawWrap.style.display = "block";
+        peopleGrid.style.display = "none";
+        checksEl.innerHTML = "";
+        metaTitle.textContent = "Receipt (latest)";
+        rawJson.textContent = JSON.stringify(best.entry, null, 2);
+
+        if (typeof makeQR === "function") makeQR("topQr", best.url, 460);
+        addCheck("Loaded latest receipt URL from localStorage[irlid_receipts]", true);
+        return;
+      }
+    }
+
+    // Back-compat: if app stored both responses as KEY_SELF/KEY_GUEST, combine and render
+    const selfResp  = readJson(KEY_SELF);
+    const guestResp = readJson(KEY_GUEST);
+    if (selfResp && guestResp) {
+      const combined = combinedObject(selfResp, guestResp);
+      await renderCombined(combined, "Receipt (local)");
+      return;
+    }
+
+    // Back-compat: single receipt blob
+    const legacy = readJson(KEY_LAST);
+    if (legacy && legacy.type === "response") {
+      await renderSingle(legacy, "Receipt (single)");
+      return;
+    }
+
+    // Nothing found
+    emptyState.style.display = "block";
+  })();
+
+  async function renderCombined(comb, title){
     metaPanel.style.display = "block";
     rawWrap.style.display = "block";
     checksEl.innerHTML = "";
     peopleGrid.style.display = "grid";
-    metaTitle.textContent = "Receipt";
+    metaTitle.textContent = title || "Receipt";
 
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
-      const comb = fromHash.obj;
-      const respA = comb.a || null;
-      const respB = comb.b || null;
+    const url = makeReceiptUrlForCombined(comb);
+    if (typeof makeQR === "function") makeQR("topQr", url, 460);
 
-      const url = makeReceiptUrlForCombined(comb);
-      if (typeof makeQR === "function") makeQR("topQr", url, 460);
+    rawJson.textContent = JSON.stringify(comb, null, 2);
 
-      rawJson.textContent = JSON.stringify(comb, null, 2);
+    const respA = comb.a || null;
+    const respB = comb.b || null;
 
-      const gA = getGps(respA);
-      const gB = getGps(respB);
-      const mapsUrl = makeDualMapsUrl(gA, gB);
+    const gA = getGps(respA);
+    const gB = getGps(respB);
+    const mapsUrl = makeDualMapsUrl(gA, gB);
 
-      setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
-      setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
+    setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
+    setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
 
-      if (respA) {
-        const vr = await validateResponse(respA);
-        addCheck("Self receipt structure", vr.okStructure);
-        addCheck("Self hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-        addCheck("Self signature valid", vr.okSig);
-      } else {
-        addCheck("Self receipt present", false, "Missing Self response in combined object.");
-      }
-
-      if (respB) {
-        const vr = await validateResponse(respB);
-        addCheck("Guest receipt structure", vr.okStructure);
-        addCheck("Guest hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-        addCheck("Guest signature valid", vr.okSig);
-      } else {
-        addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
-      }
-
-      if (respA && respB) {
-        const pubsA = (respA.payload && respA.payload.pubs) ? JSON.stringify(respA.payload.pubs) : null;
-        const pubsB = (respB.payload && respB.payload.pubs) ? JSON.stringify(respB.payload.pubs) : null;
-        const okPubs = (pubsA && pubsB && pubsA === pubsB);
-        addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
-
-        const tsA = getTs(respA);
-        const tsB = getTs(respB);
-        const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
-        addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
-
-        let okDist = false;
-        let dist = null;
-        if (gA && gB) {
-          dist = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-          okDist = dist <= DIST_TOL_M;
-        }
-        addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
-      } else {
-        addCheck("Waiting for both parties (need two receipts)", false, "Combined object missing one side.");
-      }
-
-      return;
+    if (respA) {
+      const vr = await validateResponse(respA);
+      addCheck("Self receipt structure", vr.okStructure);
+      addCheck("Self hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Self signature valid", vr.okSig);
+    } else {
+      addCheck("Self receipt present", false, "Missing Self response in combined object.");
     }
 
-    if (havePair) {
-      const combined = combinedObject(selfResp, guestResp);
-      const url = makeReceiptUrlForCombined(combined);
-      if (typeof makeQR === "function") makeQR("topQr", url, 460);
+    if (respB) {
+      const vr = await validateResponse(respB);
+      addCheck("Guest receipt structure", vr.okStructure);
+      addCheck("Guest hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Guest signature valid", vr.okSig);
+    } else {
+      addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
+    }
 
-      rawJson.textContent = JSON.stringify({ selfResp, guestResp }, null, 2);
-      writeReceiptHistory(combined);
-
-      const gA = getGps(selfResp);
-      const gB = getGps(guestResp);
-      const mapsUrl = makeDualMapsUrl(gA, gB);
-
-      setPersonPanel(aCoords, aTime, aAcc, selfResp, mapsUrl);
-      setPersonPanel(bCoords, bTime, bAcc, guestResp, mapsUrl);
-
-      const vrA = await validateResponse(selfResp);
-      addCheck("Self receipt structure", vrA.okStructure);
-      addCheck("Self hash matches payload", vrA.okHash, vrA.okHash ? "" : `computed=${vrA.computedHash || "?"}`);
-      addCheck("Self signature valid", vrA.okSig);
-
-      const vrB = await validateResponse(guestResp);
-      addCheck("Guest receipt structure", vrB.okStructure);
-      addCheck("Guest hash matches payload", vrB.okHash, vrB.okHash ? "" : `computed=${vrB.computedHash || "?"}`);
-      addCheck("Guest signature valid", vrB.okSig);
-
-      const pubsA = (selfResp.payload && selfResp.payload.pubs) ? JSON.stringify(selfResp.payload.pubs) : null;
-      const pubsB = (guestResp.payload && guestResp.payload.pubs) ? JSON.stringify(guestResp.payload.pubs) : null;
+    if (respA && respB) {
+      const pubsA = (respA.payload && respA.payload.pubs) ? JSON.stringify(respA.payload.pubs) : null;
+      const pubsB = (respB.payload && respB.payload.pubs) ? JSON.stringify(respB.payload.pubs) : null;
       const okPubs = (pubsA && pubsB && pubsA === pubsB);
       addCheck("Both receipts refer to the same two public keys (ordered pubs)", okPubs);
 
-      const tsA = getTs(selfResp);
-      const tsB = getTs(guestResp);
+      const tsA = getTs(respA);
+      const tsB = getTs(respB);
       const okTs = (typeof tsA === "number" && typeof tsB === "number" && Math.abs(tsA - tsB) <= TS_TOL_S);
       addCheck(`Timestamps within ${TS_TOL_S}s`, okTs, (tsA && tsB) ? `Δt=${Math.abs(tsA-tsB)}s` : "missing ts");
 
@@ -438,36 +489,35 @@
         okDist = dist <= DIST_TOL_M;
       }
       addCheck(`Distance within ${DIST_TOL_M}m`, okDist, dist !== null ? `Δ=${dist.toFixed(2)}m` : "missing gps");
-
-      return;
+    } else {
+      addCheck("Waiting for both parties (need two receipts)", false, "Combined object missing one side.");
     }
+  }
 
-    if (single) {
-      const url = makeReceiptUrlForResponse(single);
-      if (typeof makeQR === "function") makeQR("topQr", url, 460);
+  async function renderSingle(resp, title){
+    metaPanel.style.display = "block";
+    rawWrap.style.display = "block";
+    checksEl.innerHTML = "";
+    peopleGrid.style.display = "grid";
+    metaTitle.textContent = title || "Receipt";
 
-      rawJson.textContent = JSON.stringify(single, null, 2);
+    const url = makeReceiptUrlForResponse(resp);
+    if (typeof makeQR === "function") makeQR("topQr", url, 460);
 
-      const cameFromSelf = !!selfResp;
-      const cameFromGuest = !!guestResp && !selfResp;
+    rawJson.textContent = JSON.stringify(resp, null, 2);
 
-      const gS = cameFromSelf ? getGps(single) : null;
-      const gG = cameFromGuest ? getGps(single) : null;
-      const mapsUrl = makeDualMapsUrl(gS, gG);
+    // single: show on "Self" panel only
+    const mapsUrl = makeDualMapsUrl(getGps(resp), null);
+    setPersonPanel(aCoords, aTime, aAcc, resp, mapsUrl);
+    setPersonPanel(bCoords, bTime, bAcc, null, mapsUrl);
 
-      setPersonPanel(aCoords, aTime, aAcc, cameFromSelf ? single : null, mapsUrl);
-      setPersonPanel(bCoords, bTime, bAcc, cameFromGuest ? single : null, mapsUrl);
+    const vr = await validateResponse(resp);
+    addCheck("Receipt structure", vr.okStructure);
+    addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+    addCheck("Signature valid", vr.okSig);
 
-      const vr = await validateResponse(single);
-      addCheck("Receipt structure", vr.okStructure);
-      addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
-      addCheck("Signature valid", vr.okSig);
-
-      addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person.");
-
-      return;
-    }
-  })();
+    addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person.");
+  }
 </script>
 
 </body>
