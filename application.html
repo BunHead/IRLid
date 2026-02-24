@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 28 -->
+<!-- Deploy 29 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -140,6 +140,43 @@
       box-sizing:border-box;
     }
 
+    /* Diagnostics UI */
+    .diag-wrap{
+      max-width:980px;
+      margin:12px auto 0;
+      border:1px solid #ddd;
+      padding:10px 12px;
+      box-sizing:border-box;
+    }
+    .diag-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .diag-title{
+      font-weight:800;
+    }
+    .diag-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    #diagText{
+      margin-top:10px;
+      white-space:pre-wrap;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12px;
+      line-height:1.35;
+      background:#fafafa;
+      border:1px solid #eee;
+      padding:10px;
+      overflow:auto;
+      max-height:260px;
+    }
+
+    /* Debug area (querystring-controlled) */
     #debug{
       display:none;
       white-space:pre-wrap;
@@ -238,10 +275,20 @@
   </div>
 
   <div id="androidHint">
-    <b>Android/Chrome note:</b> If this page always opens your selfie camera no matter what you select,
-    check Chrome’s per-site camera setting:<br>
-    <b>Chrome</b> → (⋮) <b>Settings</b> → <b>Site settings</b> → <b>Camera</b> → ensure this site is not pinned to “Front camera”.
-    Then reload and try again.
+    <b>Android/Chrome note:</b> You’ve allowed camera access (good). If this page still always opens your selfie camera,
+    Chrome may be overriding the chosen device. The diagnostics below will show which camera is actually active.
+  </div>
+
+  <!-- Diagnostics panel (always visible) -->
+  <div class="diag-wrap" aria-label="Diagnostics">
+    <div class="diag-head">
+      <div class="diag-title">Diagnostics</div>
+      <div class="diag-actions">
+        <button class="btn secondary" id="diagRefreshBtn" type="button">Refresh Diagnostics</button>
+        <button class="btn secondary" id="diagCopyBtn" type="button">Copy Diagnostics</button>
+      </div>
+    </div>
+    <div id="diagText">Diagnostics not yet collected.</div>
   </div>
 
   <div id="debug"></div>
@@ -250,10 +297,9 @@
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
-
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-<!-- Pin html5-qrcode to a known build -->
+<!-- Keep html5-qrcode pinned to a known build -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
 <script src="js/qr.js?v=deploy23"></script>
@@ -370,11 +416,16 @@
   // scanner
   let html5QrCode = null;
   let isScanning = false;
+  let lastStartAttempt = { mode: "none", detail: "" };
 
   const scannerElId = "scanner";
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const cameraSelect = document.getElementById("cameraSelect");
+
+  const diagTextEl = document.getElementById("diagText");
+  const diagRefreshBtn = document.getElementById("diagRefreshBtn");
+  const diagCopyBtn = document.getElementById("diagCopyBtn");
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -389,7 +440,6 @@
   }
 
   async function listCamerasAndSelectDefault(){
-    // Per docs this will trigger permissions if not granted. :contentReference[oaicite:2]{index=2}
     const devices = await Html5Qrcode.getCameras();
 
     cameraSelect.innerHTML = "";
@@ -474,6 +524,116 @@
     };
   }
 
+  // ---- Diagnostics ----
+
+  function safeJson(obj){
+    try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+  }
+
+  function getActiveVideoTrackInfo(){
+    const video = document.querySelector("#scanner video");
+    if (!video) return { ok: false, reason: "No <video> element found under #scanner yet." };
+    const stream = video.srcObject;
+    if (!stream) return { ok: false, reason: "Video has no srcObject stream yet." };
+
+    const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
+    if (!tracks || !tracks.length) return { ok: false, reason: "Stream has no video tracks." };
+
+    const track = tracks[0];
+    const settings = (track.getSettings ? track.getSettings() : {});
+    const constraints = (track.getConstraints ? track.getConstraints() : {});
+    const capabilities = (track.getCapabilities ? track.getCapabilities() : {});
+
+    return {
+      ok: true,
+      trackLabel: track.label || "",
+      trackId: track.id || "",
+      trackEnabled: track.enabled,
+      trackMuted: track.muted,
+      trackReadyState: track.readyState,
+      settings,
+      constraints,
+      // Capabilities can be huge; still useful for facingMode support etc.
+      capabilities
+    };
+  }
+
+  async function getEnumeratedDevices(){
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      return { ok: false, reason: "navigator.mediaDevices.enumerateDevices not available." };
+    }
+    try{
+      const all = await navigator.mediaDevices.enumerateDevices();
+      const vids = all.filter(d => d.kind === "videoinput").map(d => ({
+        kind: d.kind,
+        deviceId: d.deviceId,
+        groupId: d.groupId,
+        label: d.label
+      }));
+      return { ok: true, videoinput: vids, total: all.length };
+    }catch(e){
+      return { ok: false, reason: String(e) };
+    }
+  }
+
+  async function refreshDiagnostics(){
+    const ua = navigator.userAgent || "";
+    const selectedId = cameraSelect.value || "";
+    const storedId = getStoredPreferredCameraId() || "";
+    const active = getActiveVideoTrackInfo();
+    const enumDevs = await getEnumeratedDevices();
+
+    const payload = {
+      time: new Date().toISOString(),
+      locationHref: location.href,
+      userAgent: ua,
+      isSecureContext: window.isSecureContext,
+      lastStartAttempt,
+      cameraSelect: {
+        selectedId,
+        selectedText: (cameraSelect.options[cameraSelect.selectedIndex] ? cameraSelect.options[cameraSelect.selectedIndex].textContent : ""),
+        storedPreferredId: storedId
+      },
+      html5Qrcode: {
+        present: typeof Html5Qrcode !== "undefined",
+        versionHint: (typeof Html5Qrcode !== "undefined" && Html5Qrcode.VERSION) ? Html5Qrcode.VERSION : "(unknown)"
+      },
+      activeVideoTrack: active,
+      enumerateDevices: enumDevs
+    };
+
+    diagTextEl.textContent = safeJson(payload);
+    if (debugMode) log("diagnostics:", payload);
+    return payload;
+  }
+
+  diagRefreshBtn.addEventListener("click", async () => {
+    try{ await refreshDiagnostics(); } catch (e) { diagTextEl.textContent = "Diagnostics error: " + e; }
+  });
+
+  diagCopyBtn.addEventListener("click", async () => {
+    try{
+      const text = diagTextEl.textContent || "";
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        setStatus("Diagnostics copied.");
+      } else {
+        // fallback: select text
+        const range = document.createRange();
+        range.selectNodeContents(diagTextEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        setStatus("Select & copy diagnostics.");
+      }
+    }catch(e){
+      setStatus("Copy failed: " + e);
+      log(e);
+    }
+  });
+
+  // ---- Scanner control ----
+
   async function startScanner(){
     setStatus("Starting camera…");
 
@@ -481,15 +641,14 @@
     if (!camId) throw new Error("No camera selected.");
     setStoredPreferredCameraId(camId);
 
-    // Always hard reset so we don't reuse a stale front-camera stream.
     await hardResetScanner();
-
     const config = makeScanConfig();
 
     // Strategy:
-    // 1) Try rear-first via facingMode environment (helps when Chrome maps deviceIds weirdly)
-    // 2) Fall back to selected cameraId string (recommended approach). :contentReference[oaicite:3]{index=3}
+    // 1) Try facingMode environment first
+    // 2) Fall back to selected cameraId string
     try {
+      lastStartAttempt = { mode: "facingMode:environment", detail: "Attempted Html5Qrcode.start({facingMode:'environment'})" };
       await html5QrCode.start(
         { facingMode: "environment" },
         config,
@@ -498,13 +657,14 @@
       );
       isScanning = true;
       setStatus("Scanning… (rear preferred)");
+      await refreshDiagnostics();
       return;
     } catch (e1) {
       log("start env failed:", String(e1));
-      // Ensure a clean slate before trying cameraId
       await hardResetScanner();
     }
 
+    lastStartAttempt = { mode: "cameraId", detail: "Attempted Html5Qrcode.start(cameraIdString) with selected dropdown id." };
     await html5QrCode.start(
       camId,
       config,
@@ -514,6 +674,7 @@
 
     isScanning = true;
     setStatus("Scanning…");
+    await refreshDiagnostics();
   }
 
   async function stopScanner(){
@@ -522,10 +683,15 @@
     try{ await html5QrCode.clear(); }catch{}
     isScanning = false;
     setStatus("Stopped.");
+    await refreshDiagnostics();
   }
 
   async function restartScannerForSelection(){
-    if (!isScanning) return;
+    if (!isScanning) {
+      // still refresh diagnostics to show dropdown + enumerations
+      await refreshDiagnostics();
+      return;
+    }
     setStatus("Switching camera…");
     await stopScanner();
     await startScanner();
@@ -538,6 +704,7 @@
     }catch(e){
       setStatus("Camera error: " + e);
       log(e);
+      try { await refreshDiagnostics(); } catch {}
     }
   });
 
@@ -553,6 +720,7 @@
     }catch(e){
       setStatus("Camera switch error: " + e);
       log(e);
+      try { await refreshDiagnostics(); } catch {}
     }
   });
 
@@ -560,8 +728,10 @@
   (async () => {
     try{
       await listCamerasAndSelectDefault();
+      await refreshDiagnostics();
     }catch(e){
       log("camera list error", e);
+      try { await refreshDiagnostics(); } catch {}
     }
   })();
 </script>
