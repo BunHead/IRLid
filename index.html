@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 39 -->
+<!-- Deploy 40 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -270,13 +270,15 @@
   <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
 
-  <!-- IMPORTANT: local QR lib first (no CDN) -->
-  <script src="js/qrcode.min.js?v=deploy35-local"></script>
+  <!-- LOCAL QR LIB (no CDN) -->
+  <script src="js/qrcode.min.js?v=deploy36a"
+          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Failed to load js/qrcode.min.js (missing file or wrong path).';"></script>
 
-  <!-- Then qr helpers that define makeQR -->
-  <script src="js/qr.js?v=deploy35"></script>
+  <!-- QR helpers (defines window.makeQR) -->
+  <script src="js/qr.js?v=deploy36a"
+          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Failed to load js/qr.js (missing file or wrong path).';"></script>
 
-  <!-- Home render (runs after both scripts + DOM exists) -->
+  <!-- Home render -->
   <script>
     (function(){
       "use strict";
@@ -338,7 +340,11 @@
           clearErr();
 
           if (typeof window.makeQR !== "function"){
-            throw new Error("makeQR() missing (js/qr.js did not define it). Check console for qr.js errors.");
+            throw new Error(
+              "makeQR() missing.\n\n" +
+              "This means js/qr.js did not execute or crashed before defining window.makeQR.\n" +
+              "Check Console for errors, and ensure js/qr.js is the new Deploy 36 file."
+            );
           }
 
           const size = computeQrSize();
