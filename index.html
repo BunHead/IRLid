@@ -1,59 +1,11 @@
 <!DOCTYPE html>
-<!-- Deploy 58: Restore working Home QR approach (CDN QR lib + fallback image) -->
+<!-- Deploy 59: Restore working Home QR approach (CDN QR lib + fallback image) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Proof of Personhood</title>
   <link rel="stylesheet" href="css/style.css">
-
-  <style>
-    :root{
-      --side-pad: 12px;
-      --qr-top-gap: 8px;
-    }
-
-    html, body { height: 100%; }
-    body{
-      margin: 0;
-      background: #fff;
-      overflow-x: hidden;
-    }
-
-    main.home-main{
-      width: 100%;
-      box-sizing: border-box;
-      padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-    }
-
-    .qr-box{
-      width: 100%;
-      max-width: 900px;
-      margin: 0 auto;
-      box-sizing: border-box;
-    }
-
-    .qr-box canvas, .qr-box img{
-      display: block;
-      margin: 0 auto;
-      height: auto;
-    }
-
-    #qrError{
-      display:none;
-      margin: 8px var(--side-pad) 0 var(--side-pad);
-      padding: 10px;
-      border: 1px solid #f3c0c0;
-      background: #fff3f3;
-      color: #600;
-      font-family: ui-monospace, monospace;
-      white-space: pre-wrap;
-      box-sizing: border-box;
-    }
-  </style>
 </head>
 
 <body>
@@ -157,10 +109,7 @@
     };
     window.addEventListener("resize", rerender);
     window.addEventListener("orientationchange", rerender);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", rerender);
-      window.visualViewport.addEventListener("scroll", rerender);
-    }
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
   </script>
 </body>
 </html>
