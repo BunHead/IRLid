@@ -1,5 +1,5 @@
 // IRLid QR helpers
-// Deploy 43 — FIX: guaranteed quiet zone + no cropping + no CSS scaling artifacts
+// Deploy 44 — FIX: guaranteed quiet zone + no cropping + no CSS scaling artifacts
 //
 // Exposes (globals):
 //   - makeQR(targetElOrId, text, sizePx?)
