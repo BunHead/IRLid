@@ -1,6 +1,5 @@
 // IRLid QR helpers
-// Deploy 42 — scanability fix (no CSS scaling, proper quiet zone)
-// 
+// Deploy 43 — FIX: guaranteed quiet zone + no cropping + no CSS scaling artifacts
 //
 // Exposes (globals):
 //   - makeQR(targetElOrId, text, sizePx?)
@@ -117,14 +116,21 @@
   }
 
   // ---------------------------
-  // ✅ makeQR (scanability-safe)
+  // ✅ makeQR (guaranteed quiet zone)
   // ---------------------------
   function makeQR(target, text, sizePx) {
     assert(window.QRCode && typeof window.QRCode.toCanvas === "function",
       "QRCode library missing: expected window.QRCode.toCanvas (check js/vendor/qrcode.min.js).");
 
-    const px = Math.max(260, Math.min(720, (sizePx | 0) || 360));
-    const margin = 4; // quiet zone (critical)
+    // Desired overall size (outer canvas including quiet zone)
+    const outerPx = Math.max(280, Math.min(720, (sizePx | 0) || 360));
+
+    // Quiet zone in pixels (must be visibly white; scanners need it)
+    // Use at least 16px, or ~6% of size (whichever is larger).
+    const qz = Math.max(16, Math.floor(outerPx * 0.06));
+
+    // Inner QR render size
+    const innerPx = Math.max(120, outerPx - 2 * qz);
 
     let host = target;
     if (isString(target)) {
@@ -133,40 +139,54 @@
     }
     assert(host && host.nodeType === 1, "makeQR: invalid target element.");
 
-    // Ensure we don't get CSS scaling artifacts:
-    // - create a canvas sized exactly px x px
-    // - set style width/height to px to prevent rescale
+    // Visible canvas (outer, includes quiet zone)
     let canvas;
     if (host.tagName && host.tagName.toLowerCase() === "canvas") {
       canvas = host;
-      // clear parent assumptions
     } else {
       host.innerHTML = "";
       canvas = document.createElement("canvas");
       host.appendChild(canvas);
     }
 
-    // Lock display size to avoid browser scaling
-    canvas.width = px;
-    canvas.height = px;
-    canvas.style.width = px + "px";
-    canvas.style.height = px + "px";
+    // Lock display size so browser never rescales (important for decoding)
+    canvas.width = outerPx;
+    canvas.height = outerPx;
+    canvas.style.width = outerPx + "px";
+    canvas.style.height = outerPx + "px";
     canvas.style.maxWidth = "100%";
     canvas.style.imageRendering = "pixelated";
     canvas.style.display = "block";
     canvas.style.margin = "0 auto";
-
-    // Also keep host from shrinking canvas weirdly
+    host.style.background = "#fff";
     host.style.display = "block";
     host.style.maxWidth = "100%";
 
-    // Render
+    // Render QR into an offscreen canvas at innerPx
+    const tmp = document.createElement("canvas");
+    tmp.width = innerPx;
+    tmp.height = innerPx;
+
+    // Ask library for margin too, but we *still* enforce quiet zone ourselves.
     window.QRCode.toCanvas(
-      canvas,
+      tmp,
       String(text),
-      { width: px, margin: margin, errorCorrectionLevel: "M" },
+      { width: innerPx, margin: 1, errorCorrectionLevel: "M" },
       function (err) {
         if (err) throw err;
+
+        const ctx = canvas.getContext("2d");
+
+        // White background for entire outer area (quiet zone)
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, outerPx, outerPx);
+
+        // Draw inner QR centered with quiet zone padding
+        ctx.drawImage(tmp, qz, qz, innerPx, innerPx);
+        ctx.restore();
       }
     );
   }
