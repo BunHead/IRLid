@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 42 -->
+<!-- Deploy 43 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -210,18 +210,17 @@
   <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
 
-  <!-- LOCAL official qrcode library (NO CDN) -->
-  <script src="js/vendor/qrcode.min.js?v=1.5.3"
-          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/vendor/qrcode.min.js (copy qrcode@1.5.3 build here).';"></script>
+  <!-- Local QR encoder (no CDN) -->
+  <script src="js/vendor/qrcode.min.js?v=36e"
+          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/vendor/qrcode.min.js';"></script>
 
-  <!-- Your existing qr helpers; must define window.makeQR -->
-  <script src="js/qr.js?v=deploy36c"
-          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Failed to load js/qr.js';"></script>
+  <!-- Your QR helpers (must define makeQR + makeReturnForHelloAsync etc) -->
+  <script src="js/qr.js?v=36e"
+          onerror="document.getElementById('qrError').style.display='block';document.getElementById('qrError').textContent='Missing js/qr.js';"></script>
 
   <script>
     (function(){
       "use strict";
-
       const errEl = document.getElementById("qrError");
 
       function showErr(e){
@@ -233,63 +232,58 @@
         errEl.textContent = "";
       }
 
-      function vp(){
-        return (window.visualViewport && window.visualViewport.width && window.visualViewport.height)
-          ? { w: window.visualViewport.width, h: window.visualViewport.height }
-          : { w: window.innerWidth, h: window.innerHeight };
-      }
-
       function b64urlFromBytes(bytes){
         const b64 = btoa(String.fromCharCode.apply(null, Array.from(bytes)));
         return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
       }
-
       function newHelloToken(){
         const bytes = new Uint8Array(16);
         crypto.getRandomValues(bytes);
         return b64urlFromBytes(bytes);
       }
 
-      function makeHelloUrl(){
-        const hello = newHelloToken();
-        const url = new URL("application.html", location.href);
-        url.hash = "HELLO=" + hello;
-        return url.toString();
-      }
-
       function computeQrSize(){
-        const { w, h } = vp();
+        // Render once at a stable size; no scroll-driven re-rendering.
+        const w = window.innerWidth;
+        const h = window.innerHeight;
         const pad = 2 * 12;
         const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
         const safeB = parseFloat(getComputedStyle(document.body).paddingBottom || "0") || 0;
-        const usableH = Math.max(200, h - navH - safeB - 20);
-        const usableW = Math.max(200, w - pad);
+        const usableH = Math.max(240, h - navH - safeB - 20);
+        const usableW = Math.max(240, w - pad);
         const size = Math.floor(Math.min(usableW, usableH));
-        return Math.max(220, Math.min(size, 720));
+        return Math.max(260, Math.min(size, 720));
       }
+
+      let currentUrl = null;
 
       function render(){
         try{
           clearErr();
-          if (typeof window.makeQR !== "function") throw new Error("makeQR() missing (js/qr.js did not define it).");
-          window.makeQR("helloQr", makeHelloUrl(), computeQrSize());
+          if (typeof window.makeQR !== "function") throw new Error("makeQR() missing (js/qr.js).");
+          const url = new URL("application.html", location.href);
+          url.hash = "HELLO=" + newHelloToken();
+          currentUrl = url.toString();
+          window.makeQR("helloQr", currentUrl, computeQrSize());
         }catch(e){
           showErr(e);
         }
       }
 
-      let rAF = null;
-      function scheduleRender(){
-        if (rAF) cancelAnimationFrame(rAF);
-        rAF = requestAnimationFrame(render);
+      // Render once; re-render only on true resize/orientation (debounced)
+      let t = null;
+      function schedule(){
+        if (!currentUrl) return render();
+        clearTimeout(t);
+        t = setTimeout(() => {
+          try{
+            clearErr();
+            window.makeQR("helloQr", currentUrl, computeQrSize());
+          }catch(e){ showErr(e); }
+        }, 150);
       }
-
-      window.addEventListener("resize", scheduleRender);
-      window.addEventListener("orientationchange", scheduleRender);
-      if (window.visualViewport){
-        window.visualViewport.addEventListener("resize", scheduleRender);
-        window.visualViewport.addEventListener("scroll", scheduleRender);
-      }
+      window.addEventListener("resize", schedule);
+      window.addEventListener("orientationchange", schedule);
 
       render();
     })();
