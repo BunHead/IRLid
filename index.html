@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 46 (index fix) -->
+<!-- Deploy 47 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,15 +11,16 @@
   <style>
     :root{
       --side-pad:12px;
+      --panel-border:#e5e5e5;
     }
 
     .page-main{
-      padding: 24px var(--side-pad) calc(var(--mobile-nav-h, 0px) + 28px);
+      padding: 24px var(--side-pad) calc(var(--mobile-nav-h) + 28px);
       text-align:center;
     }
 
     .home-wrap{
-      max-width: 900px;
+      max-width: 920px;
       margin: 0 auto;
     }
 
@@ -27,7 +28,7 @@
       display:inline-block;
       padding: 16px;
       background: #fff;
-      border: 1px solid #e5e5e5;
+      border: 1px solid var(--panel-border);
     }
 
     .hint{
@@ -36,11 +37,14 @@
       opacity: .85;
     }
 
-    .hint a{ color:#111; text-decoration:underline; }
+    .hint a{
+      color:#111;
+      text-decoration:underline;
+    }
 
     #qrError{
       display:none;
-      max-width: 900px;
+      max-width: 920px;
       margin: 14px auto 0;
       text-align:left;
       white-space: pre-wrap;
@@ -58,7 +62,12 @@
 <header class="site-header">
   <div class="logo-row">
     <a href="index.html" class="logo-link" aria-label="IRLid Home">
-      <img src="irlid-logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
+      <img
+        src="irlid-logo.png"
+        alt="IRLid"
+        class="logo-img"
+        onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='logo.png';}else{this.style.display='none';}"
+      >
       <span class="logo-text">IRLid</span>
     </a>
   </div>
@@ -84,10 +93,13 @@
 <main class="page-main">
   <div class="home-wrap">
     <h2>Show this QR to the other person</h2>
+
     <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
+
     <div class="hint">
-      If scanning fails, tap: <a id="helloLink" href="application.html">Open Scan</a>
+      If scanning fails, tap: <a id="helloLink" href="application.html">Open handshake link</a>
     </div>
+
     <div id="qrError" role="alert"></div>
   </div>
 </main>
@@ -96,17 +108,17 @@
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 
-<!-- IMPORTANT: use the local qrcode library that exists in this repo -->
-<script src="js/qrcode.min.js"></script>
+<!-- ✅ Local QR encoder (repo root). This is the file that exposes window.QRCode.toCanvas -->
+<script src="qrcode.min.js"></script>
 
-<!-- IMPORTANT: no spaces in cache-busters -->
+<!-- Shared QR helpers -->
 <script src="js/qr.js?v=45"></script>
 
 <script>
 (function(){
   "use strict";
 
-  const qrEl = document.getElementById("helloQr");
+  const qrTarget = document.getElementById("helloQr");
   const linkEl = document.getElementById("helloLink");
   const errEl = document.getElementById("qrError");
 
@@ -136,9 +148,24 @@
     const w = window.innerWidth || 360;
     const h = window.innerHeight || 640;
     const pad = 24;
-    const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
+
+    const isMobile = window.matchMedia && window.matchMedia("(max-width: 720px)").matches;
+    const navH = isMobile ? 124 : 0;
+
     const usable = Math.min(w - pad, h - navH - pad);
-    return Math.max(260, Math.min(usable, 720));
+    return Math.max(260, Math.min(Math.floor(usable), 720));
+  }
+
+  function loadQrCdnIfNeeded(){
+    return new Promise((resolve, reject) => {
+      if (window.QRCode && window.QRCode.toCanvas) return resolve(true);
+
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => reject(new Error("Failed to load QRCode library (local and CDN)."));
+      document.head.appendChild(s);
+    });
   }
 
   let currentUrl = null;
@@ -147,8 +174,11 @@
     try{
       clearErr();
 
+      // Ensure QR library exists (local root file OR CDN fallback)
+      await loadQrCdnIfNeeded();
+
       if (typeof window.makeQR !== "function") {
-        throw new Error("QR renderer unavailable. Ensure js/qrcode.min.js and js/qr.js load correctly.");
+        throw new Error("makeQR() missing. Ensure js/qr.js is loading.");
       }
 
       const url = new URL("application.html", location.href);
@@ -157,7 +187,7 @@
 
       linkEl.href = currentUrl;
 
-      window.makeQR(qrEl, currentUrl, computeQrSize());
+      window.makeQR(qrTarget, currentUrl, computeQrSize());
     }catch(e){
       showErr(e);
     }
@@ -170,7 +200,7 @@
     t = setTimeout(() => {
       try{
         clearErr();
-        window.makeQR(qrEl, currentUrl, computeQrSize());
+        window.makeQR(qrTarget, currentUrl, computeQrSize());
       }catch(e){ showErr(e); }
     }, 150);
   }
