@@ -2,38 +2,48 @@
 // Shared navigation logic for IRLid (static GitHub Pages)
 // - Shows Login when logged out
 // - Shows Name... dropdown (Settings, Receipts, Logout) when logged in
-// Deploy 1
+// Deploy 2
 
 (function () {
   "use strict";
 
-  function closeAllDropdowns(exceptId) {
+  // Close all nav dropdown <details>, except an optional element.
+  // Fix: previously used IDs; <details> without an id would close itself immediately.
+  function closeAllDropdowns(exceptEl) {
     document.querySelectorAll("details.nav-dropdown").forEach((d) => {
-      if (d.id !== exceptId) d.removeAttribute("open");
+      if (exceptEl && d === exceptEl) return;
+      d.removeAttribute("open");
     });
   }
 
   function wireDropdownCloseBehavior() {
+    // Ensure only one dropdown stays open at a time
     document.querySelectorAll("details.nav-dropdown").forEach((d) => {
       d.addEventListener("toggle", () => {
-        if (d.open) closeAllDropdowns(d.id || "__anon__");
+        if (d.open) closeAllDropdowns(d);
       });
     });
 
+    // Close dropdowns when clicking outside any dropdown
     document.addEventListener("click", (e) => {
       const t = e.target;
       const isInside = t && t.closest && t.closest("details.nav-dropdown");
-      if (!isInside) closeAllDropdowns("__none__");
+      if (!isInside) closeAllDropdowns(null);
     });
 
+    // Close dropdowns on Escape
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeAllDropdowns("__none__");
+      if (e.key === "Escape") closeAllDropdowns(null);
     });
   }
 
   function isLoggedIn() {
     try {
-      return !!(window.IRLAuth && typeof window.IRLAuth.isLoggedIn === "function" && window.IRLAuth.isLoggedIn());
+      return !!(
+        window.IRLAuth &&
+        typeof window.IRLAuth.isLoggedIn === "function" &&
+        window.IRLAuth.isLoggedIn()
+      );
     } catch {
       return false;
     }
@@ -76,7 +86,7 @@
             await window.IRLAuth.logout();
           }
         } finally {
-          closeAllDropdowns("__none__");
+          closeAllDropdowns(null);
           window.location.href = "login.html";
         }
       });
