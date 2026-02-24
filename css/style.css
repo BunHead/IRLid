@@ -57,15 +57,16 @@ body{
   color:inherit;
 }
 
+/* ✅ Double the logo size */
 .logo-img{
-  height:34px;
+  height:68px;
   width:auto;
   display:block;
 }
 
+/* ✅ Remove IRLid text after logo (global) */
 .logo-text{
-  font-weight:700;
-  letter-spacing:0.2px;
+  display:none;
 }
 
 /* Desktop: full-width black nav bar */
