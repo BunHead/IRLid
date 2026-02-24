@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 32 -->
+<!-- Deploy 33 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -292,7 +292,7 @@
 <!-- Keep html5-qrcode loaded as fallback -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
-<script src="js/qr.js?v=deploy32"></script>
+<script src="js/qr.js?v=deploy33"></script>
 
 <script>
   // thresholds (as requested)
@@ -309,8 +309,8 @@
   const KEY_DIAG_SIMPLE = "irlid_diagnostics";
 
   const urlParams = new URLSearchParams(location.search);
-  const debugMode = urlParams.get("debug") === "1";        // existing
-  const diagQuery = urlParams.get("diag") === "1";         // explicit toggle
+  const debugMode = urlParams.get("debug") === "1";
+  const diagQuery = urlParams.get("diag") === "1";
 
   const debugEl = document.getElementById("debug");
   if (debugMode) debugEl.style.display = "block";
@@ -342,52 +342,6 @@
   const diagWrap = document.getElementById("diagWrap");
   if (diagnosticsEnabled) diagWrap.style.display = "block";
 
-  // helpers: b64url JSON decode (supports raw b64url JSON or full URL/hash)
-  function b64urlToBytes(str){
-    str = (str || "").replace(/-/g, "+").replace(/_/g, "/");
-    while (str.length % 4) str += "=";
-    const bin = atob(str);
-    const out = new Uint8Array(bin.length);
-    for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
-    return out;
-  }
-  function parseB64urlJson(str){
-    const bytes = b64urlToBytes(str);
-    const json = new TextDecoder().decode(bytes);
-    return JSON.parse(json);
-  }
-
-  function scoreRearLabel(label){
-    const s = (label || "").toLowerCase();
-    let score = 0;
-    if (s.includes("back")) score += 80;
-    if (s.includes("rear")) score += 80;
-    if (s.includes("environment")) score += 80;
-    if (s.includes("wide")) score += 20;
-    if (s.includes("ultra")) score += 10;
-
-    if (s.includes("front")) score -= 120;
-    if (s.includes("user")) score -= 60;
-    if (s.includes("face")) score -= 60;
-    if (s.includes("selfie")) score -= 120;
-    return score;
-  }
-
-  function getStoredPreferredCameraId(){
-    try{
-      const v = localStorage.getItem(KEY_PREF_CAM);
-      return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
-    }
-  }
-
-  function setStoredPreferredCameraId(id){
-    try{
-      localStorage.setItem(KEY_PREF_CAM, id || "");
-    }catch{}
-  }
-
   // HELLO mode
   const hash = location.hash || "";
   const helloMatch = hash.match(/HELLO=([^&]+)/);
@@ -399,19 +353,21 @@
   const responseTitle = document.getElementById("responseTitle");
   const responseHint = document.getElementById("responseHint");
 
-  // If we are in HELLO mode, we should show a return QR immediately (Person B),
-  // but only if qr.js provides makeReturnForHello().
-  if (hello) {
+  // ✅ FIX: HELLO return generation is async (geolocation + crypto).
+  async function initHelloReturnQr(){
+    if (!hello) return;
     try{
       responseArea.style.display = "block";
       responseTitle.textContent = "Your Return QR";
       responseHint.textContent = "Show this to the other person to scan.";
 
-      if (typeof makeReturnForHello !== "function") {
-        // Accurate message: file loaded, function missing.
-        throw new Error("Return generation unavailable: makeReturnForHello() is missing in js/qr.js");
+      if (typeof makeReturnForHelloAsync !== "function") {
+        throw new Error("Return generation unavailable: makeReturnForHelloAsync() is missing in js/qr.js");
       }
-      const returnObj = makeReturnForHello(hello);
+
+      statusEl.textContent = "Getting location & signing…";
+      const returnObj = await makeReturnForHelloAsync(hello);
+
       const encoded = btoa(JSON.stringify(returnObj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
       const url = new URL(location.href);
       url.hash = "RESP=" + encoded;
@@ -423,6 +379,7 @@
       log(e);
     }
   }
+  initHelloReturnQr();
 
   // ---- UI / state ----
   const scannerEl = document.getElementById("scanner");
@@ -454,7 +411,32 @@
   // Diagnostics: what we attempted
   let lastStartAttempt = { engine: "none", mode: "none", detail: "" };
 
-  // ---- camera listing ----
+  function getStoredPreferredCameraId(){
+    try{
+      const v = localStorage.getItem(KEY_PREF_CAM);
+      return v && v.trim() ? v.trim() : null;
+    }catch{
+      return null;
+    }
+  }
+
+  function setStoredPreferredCameraId(id){
+    try{
+      localStorage.setItem(KEY_PREF_CAM, id || "");
+    }catch{}
+  }
+
+  function scoreRearLabel(label){
+    const s = (label || "").toLowerCase();
+    let score = 0;
+    if (s.includes("back")) score += 80;
+    if (s.includes("rear")) score += 80;
+    if (s.includes("environment")) score += 80;
+    if (s.includes("front")) score -= 120;
+    if (s.includes("selfie")) score -= 120;
+    return score;
+  }
+
   async function listCamerasAndSelectDefault(){
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
       throw new Error("enumerateDevices not available.");
@@ -490,61 +472,27 @@
     return devices;
   }
 
-  // ---- scan classification ----
-  function classifyScan(text){
-    const t = (text || "").trim();
-
-    // Full URLs containing fragments
-    const helloUrl = t.match(/(?:#|&|\?)HELLO=([A-Za-z0-9\-_]+)/);
-    if (helloUrl) return { kind: "HELLO", value: helloUrl[1], raw: t };
-
-    const respUrl = t.match(/(?:#|&|\?)RESP=([A-Za-z0-9\-_]+)/);
-    if (respUrl) return { kind: "RESP_B64", value: respUrl[1], raw: t };
-
-    const combUrl = t.match(/(?:#|&|\?)COMB=([A-Za-z0-9\-_]+)/);
-    if (combUrl) return { kind: "COMB_B64", value: combUrl[1], raw: t };
-
-    // Just the hash payloads (raw b64url)
-    if (/^[A-Za-z0-9\-_]+$/.test(t) && t.length > 40) {
-      // Could be RESP/COMB payload; we only know after decoding
-      try {
-        const obj = parseB64urlJson(t);
-        if (obj && obj.type === "response") return { kind: "RESP_OBJ", value: obj, raw: t };
-        if (obj && obj.type === "combined") return { kind: "COMB_OBJ", value: obj, raw: t };
-      } catch {}
-    }
-
-    // Plain JSON
-    if (t.startsWith("{")) {
-      try {
-        const obj = JSON.parse(t);
-        if (obj && obj.type === "response") return { kind: "RESP_OBJ", value: obj, raw: t };
-        if (obj && obj.type === "combined") return { kind: "COMB_OBJ", value: obj, raw: t };
-      } catch {}
-    }
-
-    return { kind: "UNKNOWN", value: null, raw: t };
-  }
-
+  // ---- routing by classification (HELLO / RESP / COMB) ----
   function b64urlFromObj(obj){
     const encoded = btoa(JSON.stringify(obj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
     return encoded;
   }
 
-  // ---- handling decoded text ----
   async function handleDecodedText(decodedText){
-    log("scan:", decodedText);
+    const t = (decodedText || "").trim();
 
-    const c = classifyScan(decodedText);
+    // Prefer shared classifier if present
+    const classifier = (typeof irlidClassifyText === "function") ? irlidClassifyText : null;
+    const c = classifier ? classifier(t) : { kind: "UNKNOWN", raw: t };
 
-    // 1) HELLO: open this page with #HELLO=... so Person B generates return QR
+    // HELLO: open handshake mode
     if (c.kind === "HELLO") {
       setStatus("HELLO detected. Opening handshake…");
       location.href = "application.html#HELLO=" + c.value;
       return;
     }
 
-    // 2) COMB: open receipt page for third-party verification
+    // COMB: open receipt view (third-party verification)
     if (c.kind === "COMB_B64") {
       setStatus("Receipt detected. Opening…");
       location.href = "receipt.html#COMB=" + c.value;
@@ -556,13 +504,22 @@
       return;
     }
 
-    // 3) RESP:
-    // If we are in HELLO mode AND qr.js provides processScannedResponse(), do the mutual-validation flow.
-    // Otherwise, open receipt page with #RESP=... (useful for third-party viewing and future verification).
+    // RESP:
+    // If we are in HELLO mode and processScannedResponse exists, do mutual flow and store.
     if (c.kind === "RESP_B64") {
       if (hello && typeof processScannedResponse === "function") {
         try{
-          const respObj = parseB64urlJson(c.value);
+          const respObj = (typeof irlidDecodeB64urlJson === "function")
+            ? irlidDecodeB64urlJson(c.value)
+            : JSON.parse(new TextDecoder().decode((function(){
+                const s = c.value.replace(/-/g,"+").replace(/_/g,"/");
+                const pad = s + "===".slice((s.length + 3) % 4);
+                const bin = atob(pad);
+                const out = new Uint8Array(bin.length);
+                for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+                return out;
+              })()));
+
           const out = await processScannedResponse(respObj, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
           if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
           if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
@@ -571,7 +528,6 @@
         } catch (e) {
           setStatus("Error processing response: " + e);
           log(e);
-          // fall back to receipt viewer
         }
       }
       setStatus("Response detected. Opening receipt view…");
@@ -590,7 +546,6 @@
         } catch (e) {
           setStatus("Error processing response: " + e);
           log(e);
-          // fall back to receipt viewer
         }
       }
       setStatus("Response detected. Opening receipt view…");
@@ -599,7 +554,7 @@
     }
 
     // Unknown
-    setStatus("QR detected (unrecognized format).");
+    setStatus("QR detected (unrecognized).");
   }
 
   // ---- diagnostics (no-ops unless enabled) ----
@@ -614,12 +569,7 @@
     const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
     if (!tracks.length) return { ok: false, reason: "Native stream has no video tracks." };
     const t = tracks[0];
-    return {
-      ok: true,
-      trackLabel: t.label || "",
-      trackId: t.id || "",
-      settings: (t.getSettings ? t.getSettings() : {})
-    };
+    return { ok: true, trackLabel: t.label || "", settings: (t.getSettings ? t.getSettings() : {}) };
   }
 
   function getActiveHtml5TrackInfo(){
@@ -630,48 +580,24 @@
     const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
     if (!tracks.length) return { ok: false, reason: "html5 stream has no video tracks." };
     const t = tracks[0];
-    return {
-      ok: true,
-      trackLabel: t.label || "",
-      trackId: t.id || "",
-      settings: (t.getSettings ? t.getSettings() : {})
-    };
-  }
-
-  async function getEnumeratedDevices(){
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-      return { ok: false, reason: "enumerateDevices not available." };
-    }
-    try{
-      const all = await navigator.mediaDevices.enumerateDevices();
-      const vids = all.filter(d => d.kind === "videoinput").map(d => ({
-        deviceId: d.deviceId,
-        label: d.label
-      }));
-      return { ok: true, videoinput: vids };
-    }catch(e){
-      return { ok: false, reason: String(e) };
-    }
+    return { ok: true, trackLabel: t.label || "", settings: (t.getSettings ? t.getSettings() : {}) };
   }
 
   async function refreshDiagnostics(){
     if (!diagnosticsEnabled) return null;
-
-    const enumDevs = await getEnumeratedDevices();
     const payload = {
       time: new Date().toISOString(),
       engine,
       isScanning,
-      lastStartAttempt,
       helloMode: !!hello,
       qrJs: {
-        hasMakeReturnForHello: (typeof makeReturnForHello === "function"),
-        hasProcessScannedResponse: (typeof processScannedResponse === "function")
+        hasMakeReturnForHelloAsync: (typeof makeReturnForHelloAsync === "function"),
+        hasProcessScannedResponse: (typeof processScannedResponse === "function"),
+        hasClassifier: (typeof irlidClassifyText === "function")
       },
       activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
-      enumerateDevices: enumDevs
+      lastNativeDecoded: nativeLastText ? nativeLastText.slice(0, 120) : ""
     };
-
     diagTextEl.textContent = safeJson(payload);
     return payload;
   }
