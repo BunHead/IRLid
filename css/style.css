@@ -54,7 +54,7 @@ body{
 
 /* ✅ Double logo size */
 #logo{
-  height:130px;
+  height:68px;
   width:auto;
   display:block;
 }
@@ -172,3 +172,4 @@ body{
     min-width: 0;
   }
 }
+
