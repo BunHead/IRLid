@@ -1,66 +1,19 @@
 <!DOCTYPE html>
-<!-- Deploy 53 -->
+<!-- Deploy 54 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Scan</title>
   <link rel="stylesheet" href="css/style.css">
-
-  <style>
-    :root{
-      --black:#000;
-      --white:#fff;
-      --mobile-nav-h:124px;
-      --side-pad:12px;
-      --top-gap:10px;
-    }
-
-    html,body{height:100%;}
-    .page-main{
-      padding: 18px var(--side-pad) calc(var(--mobile-nav-h) + 22px);
-      text-align:center;
-    }
-
-    .controls{
-      display:flex;
-      gap:10px;
-      justify-content:center;
-      margin: 10px 0 12px;
-      flex-wrap:wrap;
-    }
-
-    #scanner{
-      width: 340px;
-      max-width: 92vw;
-      margin: 12px auto;
-      background:#000;
-    }
-
-    #scanner video, #scanner canvas{
-      width:100% !important;
-      height:auto !important;
-      display:block;
-    }
-
-    .small{font-size:12px; opacity:.85;}
-    #responseArea{display:none; margin: 12px auto 14px; max-width: 480px;}
-    .qr-box{display:inline-block; background:#fff; padding:16px;}
-    .diag-wrap{max-width:860px; margin: 14px auto 0; text-align:left;}
-    .diag-head{display:flex; justify-content:space-between; align-items:center; gap:10px;}
-    .diag-title{font-weight:bold;}
-    #diagText{white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background:#f7f7f7; border:1px solid #e5e5e5; padding:10px 12px;}
-    #debug{display:none; max-width:860px; margin: 14px auto 0; text-align:left; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background:#fffbe6; border:1px solid #ffe58f; padding:10px 12px;}
-  </style>
 </head>
 
 <body>
 
 <header class="site-header">
   <div class="logo-row">
-    <a href="index.html" class="logo-link">
+    <a href="index.html" class="logo-link" aria-label="IRLid Home">
       <img src="logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
-      <span class="logo-text">IRLid</span>
     </a>
   </div>
 
@@ -68,7 +21,7 @@
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
 
-    <details class="nav-dropdown">
+    <details class="nav-dropdown" id="aboutDropdown">
       <summary class="nav-btn">About ▼</summary>
       <div class="dropdown-menu" role="menu" aria-label="About menu">
         <a href="about.html">About</a>
@@ -121,10 +74,7 @@
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-
-<!-- Keep html5-qrcode loaded as fallback -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-
 <script src="js/qr.js?v=deploy45"></script>
 
 <script>
@@ -175,10 +125,13 @@
   const diagWrap = document.getElementById("diagWrap");
   if (diagnosticsEnabled) diagWrap.style.display = "block";
 
-  // HELLO mode
-  const hash = location.hash || "";
-  const helloMatch = hash.match(/HELLO=([^&]+)/);
-  const hello = helloMatch ? helloMatch[1] : null;
+  function getHelloFromHash(){
+    const h = location.hash || "";
+    const m = h.match(/HELLO=([^&]+)/);
+    return m ? m[1] : null;
+  }
+
+  let hello = getHelloFromHash();
 
   const statusEl = document.getElementById("status");
   const responseArea = document.getElementById("responseArea");
@@ -186,9 +139,12 @@
   const responseTitle = document.getElementById("responseTitle");
   const responseHint = document.getElementById("responseHint");
 
-  // ✅ FIX: HELLO return generation is async (geolocation + crypto).
   async function initHelloReturnQr(){
-    if (!hello) return;
+    if (!hello) {
+      responseArea.style.display = "none";
+      return;
+    }
+
     try{
       responseArea.style.display = "block";
       responseTitle.textContent = "Your Return QR";
@@ -215,6 +171,14 @@
       log(e);
     }
   }
+
+  // IMPORTANT: hash-based routing must react on the same page
+  window.addEventListener("hashchange", () => {
+    hello = getHelloFromHash();
+    initHelloReturnQr();
+  });
+
+  // Run once at load
   initHelloReturnQr();
 
   // ---- UI / state ----
@@ -263,7 +227,6 @@
         comb:  /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/
       };
 
-      // Try direct extraction from raw text
       let m = t.match(rx.hello);
       if (m) return { kind: "HELLO", value: m[1] };
 
@@ -273,7 +236,6 @@
       m = t.match(rx.resp);
       if (m) return { kind: "RESP_B64", value: m[1] };
 
-      // If it's a URL, try extraction from its hash
       try{
         const u = new URL(t);
         const h = u.hash || "";
@@ -300,14 +262,9 @@
       previewTail: t.length > 220 ? t.slice(-80) : "",
       looksLikeUrl: false,
       url: null,
-      extracted: {
-        hello: null,
-        resp: null,
-        comb: null
-      }
+      extracted: { hello: null, resp: null, comb: null }
     };
 
-    // Extract tokens from either a full URL or a raw hash payload
     const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
     const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
     const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
@@ -319,18 +276,11 @@
     if (mR) out.extracted.resp  = mR[1];
     if (mC) out.extracted.comb  = mC[1];
 
-    // URL parse (best-effort)
     try{
       const u = new URL(t);
       out.looksLikeUrl = true;
-      out.url = {
-        origin: u.origin,
-        pathname: u.pathname,
-        search: u.search,
-        hash: u.hash
-      };
+      out.url = { origin: u.origin, pathname: u.pathname, search: u.search, hash: u.hash };
 
-      // Try extraction from hash if not already found
       if (!out.extracted.hello) {
         const hm = (u.hash || "").match(rxHello);
         if (hm) out.extracted.hello = hm[1];
@@ -343,20 +293,12 @@
         const cm = (u.hash || "").match(rxComb);
         if (cm) out.extracted.comb = cm[1];
       }
-    }catch{
-      // not a URL; ok
-    }
+    }catch{}
 
-    // Heuristics to spot common “unrecognized” causes
     out.hints = [];
-    if (t.startsWith("http") && !out.looksLikeUrl) out.hints.push("Starts with http but URL() parsing failed (likely invalid characters)." );
     if (!out.extracted.hello && !out.extracted.resp && !out.extracted.comb) {
       out.hints.push("No HELLO/RESP/COMB token found in text/hash.");
     }
-    if (t.includes("HELLO=") && !out.extracted.hello) out.hints.push("Contains HELLO= but regex extraction failed (unexpected characters)." );
-    if (t.includes("RESP=") && !out.extracted.resp) out.hints.push("Contains RESP= but payload not b64url (A–Z a–z 0–9 - _)." );
-    if (t.includes("COMB=") && !out.extracted.comb) out.hints.push("Contains COMB= but payload not b64url (A–Z a–z 0–9 - _)." );
-
     return out;
   }
 
@@ -370,9 +312,7 @@
   }
 
   function setStoredPreferredCameraId(id){
-    try{
-      localStorage.setItem(KEY_PREF_CAM, id || "");
-    }catch{}
+    try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
   }
 
   function scoreRearLabel(label){
@@ -424,36 +364,30 @@
   async function handleDecodedText(decodedText){
     const t = (decodedText || "").trim();
 
-    // Collect as much info as possible for diagnostics (especially when unrecognized)
     lastDecoded = irlidAnalyzeDecodedText(t);
 
-    // Prefer shared classifier if present
     const classifier = (typeof irlidClassifyText === "function") ? irlidClassifyText : null;
     if (lastDecoded) lastDecoded.classifierPresent = !!classifier;
     const c = classifier ? classifier(t) : { kind: "UNKNOWN", value: null };
     if (lastDecoded) lastDecoded.classification = c;
 
-    // HELLO: open handshake mode
     if (c.kind === "HELLO") {
       setStatus("HELLO detected. Opening handshake…");
-      location.href = "application.html#HELLO=" + (c.value || "");
+      // hashchange handler will generate the return QR on this same page
+      location.hash = "HELLO=" + (c.value || "");
       return;
     }
 
-    // COMB: open receipt view (third-party verification)
     if (c.kind === "COMB_B64") {
       setStatus("Receipt detected. Opening…");
       location.href = "receipt.html#COMB=" + (c.value || "");
       return;
     }
 
-    // RESP:
     if (c.kind === "RESP_B64") {
-      // If we are in HELLO mode and processScannedResponse exists, do mutual flow and store.
       if (hello && typeof processScannedResponse === "function" && typeof irlidDecodeB64urlJson === "function") {
         try {
           const otherResp = irlidDecodeB64urlJson(c.value);
-
           const out = await processScannedResponse(otherResp, {
             hello,
             tsTolS: IRLID_TS_TOL_S,
@@ -476,17 +410,14 @@
       return;
     }
 
-    // Unknown
     let msg = "QR detected (unrecognized).";
     if (!classifier) msg += " (classifier missing)";
     if (diagnosticsEnabled) msg += " See Diagnostics.";
     setStatus(msg);
 
-    // Capture the latest decode analysis in diagnostics output
     try { await refreshDiagnostics(); } catch {}
   }
 
-  // ---- diagnostics (no-ops unless enabled) ----
   function safeJson(obj){
     try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
   }
@@ -497,8 +428,8 @@
     if (!stream) return { ok: false, reason: "Native video has no srcObject." };
     const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
     if (!tracks.length) return { ok: false, reason: "Native stream has no video tracks." };
-    const t = tracks[0];
-    return { ok: true, trackLabel: t.label || "", settings: (t.getSettings ? t.getSettings() : {}) };
+    const tr = tracks[0];
+    return { ok: true, trackLabel: tr.label || "", settings: (tr.getSettings ? tr.getSettings() : {}) };
   }
 
   function getActiveHtml5TrackInfo(){
@@ -508,12 +439,13 @@
     if (!stream) return { ok: false, reason: "html5 video has no srcObject." };
     const tracks = stream.getVideoTracks ? stream.getVideoTracks() : [];
     if (!tracks.length) return { ok: false, reason: "html5 stream has no video tracks." };
-    const t = tracks[0];
-    return { ok: true, trackLabel: t.label || "", settings: (t.getSettings ? t.getSettings() : {}) };
+    const tr = tracks[0];
+    return { ok: true, trackLabel: tr.label || "", settings: (tr.getSettings ? tr.getSettings() : {}) };
   }
 
   async function refreshDiagnostics(){
     if (!diagnosticsEnabled) return null;
+
     const payload = {
       time: new Date().toISOString(),
       engine,
@@ -537,7 +469,9 @@
       lastNativeDecoded: nativeLastText || "",
       lastStartAttempt
     };
-    if (diagTextEl) diagTextEl.textContent = safeJson(payload);
+
+    const el = diagTextEl;
+    if (el) el.textContent = safeJson(payload);
     return payload;
   }
 
@@ -569,7 +503,6 @@
     });
   }
 
-  // ---- scanner engines ----
   function ensureNativeVideoEl(){
     if (nativeVideoEl) return;
     nativeVideoEl = document.createElement("video");
@@ -593,7 +526,7 @@
     }
 
     if (nativeStream) {
-      try { for (const t of nativeStream.getTracks()) t.stop(); } catch {}
+      try { for (const tr of nativeStream.getTracks()) tr.stop(); } catch {}
       nativeStream = null;
     }
 
@@ -650,7 +583,6 @@
     nativeRaf = requestAnimationFrame(loop);
   }
 
-  // html5-qrcode fallback
   async function stopHtml5(){
     if (!html5QrCode) return;
     try { await html5QrCode.stop(); } catch {}
@@ -668,10 +600,7 @@
       fps: 10,
       qrbox: { width: 250, height: 250 },
       disableFlip: false,
-      videoConstraints: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
-      }
+      videoConstraints: { width: { ideal: 1920 }, height: { ideal: 1080 } }
     };
 
     await html5QrCode.start(
