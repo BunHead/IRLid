@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 53: Local QR Loader Diagnostic -->
+<!-- Deploy 54: Local QR Loader Diagnostic (fixed candidates array) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -40,7 +40,9 @@
       width:100%;
       padding:10px;
       border:1px solid #ddd;
-      font-family: monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12px;
+      border-radius:0;
     }
 
     #status{
@@ -59,18 +61,19 @@
 
 <header class="site-header">
   <div class="brand-wrap">
-    <a class="brand" href="index.html">
-      <img src="logo.png" alt="IRLid Logo" id="logo">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo"
+           onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='irlid-logo.png';}else{this.style.display='none';}">
     </a>
   </div>
 
-  <nav class="site-nav">
+  <nav class="site-nav" aria-label="Primary">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
 
-    <details class="nav-dropdown">
+    <details class="nav-dropdown" id="aboutDropdown">
       <summary class="nav-btn">About ▼</summary>
-      <div class="dropdown-menu">
+      <div class="dropdown-menu" role="menu" aria-label="About menu">
         <a href="about.html">About</a>
         <a href="features.html">Features</a>
         <a href="contact.html">Contact</a>
@@ -88,6 +91,7 @@
     <div class="qr-host" id="qrHost"></div>
 
     <div class="urlbox">
+      <label for="qrUrl">QR contents (should open in browser)</label>
       <input id="qrUrl" readonly>
     </div>
 
@@ -112,18 +116,23 @@
     return new Promise((resolve, reject)=>{
       const s = document.createElement("script");
       s.src = path;
+      s.async = true;
       s.onload = ()=>resolve(path);
-      s.onerror = ()=>reject(path);
+      s.onerror = ()=>reject(new Error("Failed to load: " + path));
       document.head.appendChild(s);
     });
   }
 
   const candidates = [
+    "js/vendor/qrcode.min.js",
+    "./js/vendor/qrcode.min.js",
+    "js/qrcode.min.js",
+    "./js/qrcode.min.js",
     "qrcode.min.js",
-    "./qrcode.min.js",
-    "js/qrcode.min.js"
-    "js/vendor/qrcode.min.js"
+    "./qrcode.min.js"
   ];
+
+  log("Starting QR lib probe…");
 
   let loadedFrom = null;
 
@@ -131,27 +140,30 @@
     try{
       log("Trying: " + path);
       await loadScript(path);
-      if (window.QRCode && window.QRCode.toCanvas){
+
+      if (window.QRCode && typeof window.QRCode.toCanvas === "function"){
         loadedFrom = path;
-        log("SUCCESS: Loaded QR library from " + path);
+        log("SUCCESS: window.QRCode.toCanvas found from " + path);
         break;
-      } else {
-        log("Loaded script but window.QRCode not found.");
       }
-    } catch(e){
-      log("Failed to load: " + path);
+
+      // Helpful debug if the lib exports differently
+      const globals = Object.keys(window).filter(k => k.toLowerCase().includes("qr"));
+      log("Loaded, but QRCode.toCanvas not found. Window globals containing 'qr': " + (globals.slice(0, 25).join(", ") || "(none)"));
+
+    }catch(e){
+      log(String(e.message || e));
     }
   }
 
   if (!loadedFrom){
-    log("\n❌ Could not find local qrcode.min.js.");
-    log("Check exact filename and folder in your repo.");
+    log("\n❌ Could not find a QR library that exposes window.QRCode.toCanvas.");
+    log("If you open /IRLid/js/vendor/qrcode.min.js directly in the browser, it should show JavaScript text.");
     return;
   }
 
   const base = location.origin + location.pathname.replace(/[^\/]*$/, "");
   const url = base + "application.html";
-
   qrUrl.value = url;
 
   const canvas = document.createElement("canvas");
@@ -160,23 +172,30 @@
   canvas.height = size;
   canvas.style.width = size + "px";
   canvas.style.height = size + "px";
+  canvas.style.display = "block";
+  canvas.style.margin = "0 auto";
+  canvas.style.imageRendering = "pixelated";
+  qrHost.innerHTML = "";
   qrHost.appendChild(canvas);
 
-  window.QRCode.toCanvas(canvas, url, {
-    width: size,
-    margin: 4,
-    errorCorrectionLevel: "L"
-  }, function(err){
-    if (err){
-      log("QR render error: " + err);
-    } else {
-      log("QR rendered successfully.");
-    }
-  });
+  try{
+    window.QRCode.toCanvas(canvas, url, {
+      width: size,
+      margin: 4,
+      errorCorrectionLevel: "L"
+    }, function(err){
+      if (err){
+        log("QR render error: " + err);
+      } else {
+        log("✅ QR rendered successfully.");
+      }
+    });
+  }catch(e){
+    log("QR render threw: " + e);
+  }
 
 })();
 </script>
 
 </body>
 </html>
-
