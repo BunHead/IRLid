@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 33 -->
+<!-- Deploy 45 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -17,217 +17,50 @@
     }
 
     html,body{height:100%;}
-    body{margin:0;background:#fff;overflow-x:hidden;}
-
-    header.site-header{width:100%;background:#fff;}
-    .brand-wrap{padding:10px 14px 0;}
-    .brand{display:inline-flex;text-decoration:none;color:inherit;align-items:center;}
-
-    nav.site-nav{
-      width:100%;
-      background:#000;
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      gap:0;
-      padding:0;
-      margin:0;
-      position:sticky;
-      top:0;
-      z-index:1000;
-    }
-
-    #accountSlot{ display: contents; }
-
-    a.nav-btn,summary.nav-btn{
-      border:0;
-      background:#000;
-      color:#fff;
-      padding:10px 14px;
-      font-weight:700;
-      border-radius:0;
-      text-decoration:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    a.nav-btn:hover,summary.nav-btn:hover{background:#111;}
-
-    details.nav-dropdown{position:relative;}
-    details.nav-dropdown>summary{list-style:none;}
-    details.nav-dropdown>summary::-webkit-details-marker{display:none;}
-
-    .dropdown-menu{
-      position:absolute;
-      top:100%;
-      left:0;
-      min-width:180px;
-      background:#111;
-      border:0;
-      padding:0;
-      margin:0;
-      z-index:1200;
-    }
-    .dropdown-menu a{
-      display:block;
-      width:100%;
-      text-align:left;
-      padding:12px 14px;
-      color:#fff;
-      background:#111;
-      border:0;
-      text-decoration:none;
-      font-weight:700;
-      border-top:1px solid rgba(255,255,255,0.06);
-      box-sizing:border-box;
-    }
-    .dropdown-menu a:hover{ background:#000; }
-
-    main.page-main{
-      max-width:980px;
-      margin:0 auto;
-      padding:var(--top-gap) var(--side-pad) 20px;
-      box-sizing:border-box;
-    }
-
-    .small{text-align:center; margin:8px 0;}
-
-    #responseArea{
-      display:none;
+    .page-main{
+      padding: 18px var(--side-pad) calc(var(--mobile-nav-h) + 22px);
       text-align:center;
-      margin-top:10px;
-      margin-bottom:10px;
-    }
-    #responseQr canvas, #responseQr img{
-      display:block;
-      margin:0 auto;
-      max-width:100%;
-      height:auto;
-      image-rendering: pixelated;
-    }
-
-    #scanner{
-      width:min(92vw,460px);
-      height:min(92vw,460px);
-      margin:10px auto 8px;
-      border:2px dashed #999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      box-sizing:border-box;
-      overflow:hidden;
-      background:#f8f8f8;
-      position:relative;
-    }
-
-    /* Our own video when using BarcodeDetector */
-    #nativeVideo{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      background:#000;
     }
 
     .controls{
       display:flex;
       gap:10px;
       justify-content:center;
-      flex-wrap:wrap;
-      margin:10px 0;
-    }
-
-    /* Diagnostics UI (hidden unless enabled) */
-    .diag-wrap{
-      max-width:980px;
-      margin:12px auto 0;
-      border:1px solid #ddd;
-      padding:10px 12px;
-      box-sizing:border-box;
-    }
-    .diag-head{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
+      margin: 10px 0 12px;
       flex-wrap:wrap;
     }
-    .diag-title{ font-weight:800; }
-    .diag-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    #diagText{
-      margin-top:10px;
-      white-space:pre-wrap;
-      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size:12px;
-      line-height:1.35;
-      background:#fafafa;
-      border:1px solid #eee;
-      padding:10px;
-      overflow:auto;
-      max-height:260px;
+
+    #scanner{
+      width: 340px;
+      max-width: 92vw;
+      margin: 12px auto;
+      background:#000;
     }
 
-    #debug{
-      display:none;
-      white-space:pre-wrap;
-      font-family:monospace;
-      font-size:12px;
-      border:1px solid #ddd;
-      padding:10px;
-      margin-top:12px;
-      box-sizing:border-box;
+    #scanner video, #scanner canvas{
+      width:100% !important;
+      height:auto !important;
+      display:block;
     }
 
-    @media(max-width:720px){
-      .brand-wrap{padding:4px var(--side-pad) 0;}
-      #logo{max-width:72vw;max-height:90px;width:auto;height:auto;display:block;}
-
-      nav.site-nav{
-        position:fixed;
-        top:auto;
-        bottom:env(safe-area-inset-bottom,0);
-        left:0;
-        right:0;
-        height:var(--mobile-nav-h);
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        z-index:2000;
-      }
-
-      a.nav-btn,summary.nav-btn{
-        width:100%;
-        height:100%;
-        padding:0;
-        font-size:18px;
-      }
-
-      .dropdown-menu{
-        position:fixed;
-        left:0;
-        right:0;
-        top:auto;
-        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
-
-      body{
-        padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
-    }
+    .small{font-size:12px; opacity:.85;}
+    #responseArea{display:none; margin: 12px auto 14px; max-width: 480px;}
+    .qr-box{display:inline-block; background:#fff; padding:16px;}
+    .diag-wrap{max-width:860px; margin: 14px auto 0; text-align:left;}
+    .diag-head{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+    .diag-title{font-weight:bold;}
+    #diagText{white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background:#f7f7f7; border:1px solid #e5e5e5; padding:10px 12px;}
+    #debug{display:none; max-width:860px; margin: 14px auto 0; text-align:left; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background:#fffbe6; border:1px solid #ffe58f; padding:10px 12px;}
   </style>
 </head>
 
 <body>
 
 <header class="site-header">
-  <div class="brand-wrap">
-    <a class="brand" href="index.html" aria-label="IRLid Home">
-      <img src="logo.png" alt="IRLid Logo" id="logo">
+  <div class="logo-row">
+    <a href="index.html" class="logo-link">
+      <img src="irlid-logo.png" alt="IRLid" class="logo-img" onerror="this.style.display='none'">
+      <span class="logo-text">IRLid</span>
     </a>
   </div>
 
@@ -292,7 +125,7 @@
 <!-- Keep html5-qrcode loaded as fallback -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
-<script src="js/qr.js?v=deploy 44"></script>
+<script src="js/qr.js?v=deploy45"></script>
 
 <script>
   // thresholds (as requested)
@@ -366,9 +199,12 @@
       }
 
       statusEl.textContent = "Getting location & signing…";
-      const returnObj = await makeReturnForHelloAsync(hello);
+      const respObj = await makeReturnForHelloAsync(hello);
 
-      const encoded = btoa(JSON.stringify(returnObj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+      if (typeof irlidEncodeJsonToB64url !== "function") {
+        throw new Error("Encoding unavailable: irlidEncodeJsonToB64url() missing in js/qr.js");
+      }
+      const encoded = irlidEncodeJsonToB64url(respObj);
       const url = new URL(location.href);
       url.hash = "RESP=" + encoded;
 
@@ -472,57 +308,43 @@
     return devices;
   }
 
-  // ---- routing by classification (HELLO / RESP / COMB) ----
-  function b64urlFromObj(obj){
-    const encoded = btoa(JSON.stringify(obj)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
-    return encoded;
-  }
-
   async function handleDecodedText(decodedText){
     const t = (decodedText || "").trim();
 
     // Prefer shared classifier if present
     const classifier = (typeof irlidClassifyText === "function") ? irlidClassifyText : null;
-    const c = classifier ? classifier(t) : { kind: "UNKNOWN", raw: t };
+    const c = classifier ? classifier(t) : { kind: "UNKNOWN", value: null };
 
     // HELLO: open handshake mode
     if (c.kind === "HELLO") {
       setStatus("HELLO detected. Opening handshake…");
-      location.href = "application.html#HELLO=" + c.value;
+      location.href = "application.html#HELLO=" + (c.value || "");
       return;
     }
 
     // COMB: open receipt view (third-party verification)
     if (c.kind === "COMB_B64") {
       setStatus("Receipt detected. Opening…");
-      location.href = "receipt.html#COMB=" + c.value;
-      return;
-    }
-    if (c.kind === "COMB_OBJ") {
-      setStatus("Receipt detected. Opening…");
-      location.href = "receipt.html#COMB=" + b64urlFromObj(c.value);
+      location.href = "receipt.html#COMB=" + (c.value || "");
       return;
     }
 
     // RESP:
-    // If we are in HELLO mode and processScannedResponse exists, do mutual flow and store.
     if (c.kind === "RESP_B64") {
-      if (hello && typeof processScannedResponse === "function") {
-        try{
-          const respObj = (typeof irlidDecodeB64urlJson === "function")
-            ? irlidDecodeB64urlJson(c.value)
-            : JSON.parse(new TextDecoder().decode((function(){
-                const s = c.value.replace(/-/g,"+").replace(/_/g,"/");
-                const pad = s + "===".slice((s.length + 3) % 4);
-                const bin = atob(pad);
-                const out = new Uint8Array(bin.length);
-                for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
-                return out;
-              })()));
+      // If we are in HELLO mode and processScannedResponse exists, do mutual flow and store.
+      if (hello && typeof processScannedResponse === "function" && typeof irlidDecodeB64urlJson === "function") {
+        try {
+          const otherResp = irlidDecodeB64urlJson(c.value);
 
-          const out = await processScannedResponse(respObj, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
+          const out = await processScannedResponse(otherResp, {
+            hello,
+            tsTolS: IRLID_TS_TOL_S,
+            distTolM: IRLID_DIST_TOL_M
+          });
+
           if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
           if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
+
           location.href = "receipt.html";
           return;
         } catch (e) {
@@ -530,26 +352,9 @@
           log(e);
         }
       }
-      setStatus("Response detected. Opening receipt view…");
-      location.href = "receipt.html#RESP=" + c.value;
-      return;
-    }
 
-    if (c.kind === "RESP_OBJ") {
-      if (hello && typeof processScannedResponse === "function") {
-        try{
-          const out = await processScannedResponse(c.value, { tsTolS: IRLID_TS_TOL_S, distTolM: IRLID_DIST_TOL_M });
-          if (out && out.self) localStorage.setItem(KEY_SELF, JSON.stringify(out.self));
-          if (out && out.other) localStorage.setItem(KEY_OTHER, JSON.stringify(out.other));
-          location.href = "receipt.html";
-          return;
-        } catch (e) {
-          setStatus("Error processing response: " + e);
-          log(e);
-        }
-      }
       setStatus("Response detected. Opening receipt view…");
-      location.href = "receipt.html#RESP=" + b64urlFromObj(c.value);
+      location.href = "receipt.html#RESP=" + (c.value || "");
       return;
     }
 
@@ -596,22 +401,25 @@
         hasClassifier: (typeof irlidClassifyText === "function")
       },
       activeVideoTrack: (engine === "native") ? getActiveNativeTrackInfo() : getActiveHtml5TrackInfo(),
-      lastNativeDecoded: nativeLastText ? nativeLastText.slice(0, 120) : ""
+      lastNativeDecoded: nativeLastText || "",
+      lastStartAttempt
     };
-    diagTextEl.textContent = safeJson(payload);
+    if (diagTextEl) diagTextEl.textContent = safeJson(payload);
     return payload;
   }
 
-  if (diagnosticsEnabled) {
+  if (diagnosticsEnabled && diagRefreshBtn) {
     diagRefreshBtn.addEventListener("click", async () => {
-      try{ await refreshDiagnostics(); } catch (e) { diagTextEl.textContent = "Diagnostics error: " + e; }
+      try{ await refreshDiagnostics(); setStatus("Diagnostics refreshed."); }catch(e){ log(e); }
     });
+  }
 
+  if (diagnosticsEnabled && diagCopyBtn) {
     diagCopyBtn.addEventListener("click", async () => {
       try{
-        const text = diagTextEl.textContent || "";
+        const txt = diagTextEl ? diagTextEl.textContent : "";
         if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(text);
+          await navigator.clipboard.writeText(txt);
           setStatus("Diagnostics copied.");
         } else {
           const range = document.createRange();
@@ -840,4 +648,3 @@
 
 </body>
 </html>
-
