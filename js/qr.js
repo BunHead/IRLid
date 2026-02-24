@@ -1,4 +1,4 @@
-// /js/qr.js — Deploy 57
+// /js/qr.js — Deploy 63
 // Robust QR rendering for GitHub Pages:
 // - Tries to load QR library from multiple CDNs (no local qrcode.min.js required)
 // - Uses QRCode.toCanvas when available
@@ -67,14 +67,30 @@
     img.src = url;
     img.style.width = px + "px";
     img.style.height = px + "px";
+    img.style.maxWidth = "100%";
+    img.style.height = "auto";
     img.style.imageRendering = "pixelated";
     img.decoding = "async";
     img.loading = "eager";
     return img;
   }
 
+  function clampQrCssSize(requestedCssPx) {
+    const req = Math.max(180, Math.floor(Number(requestedCssPx) || 0));
+    // Keep a safe margin for padding and avoid overlapping UI on mobile.
+    const vw = Math.max(320, (window.innerWidth || 360));
+    const vh = Math.max(480, (window.innerHeight || 640));
+
+    // Conservative clamp: fit within viewport width, and also not exceed ~55% of height.
+    const maxByW = Math.max(180, vw - 64);
+    const maxByH = Math.max(180, Math.floor(vh * 0.55));
+    const max = Math.min(maxByW, maxByH, 520);
+    return Math.max(180, Math.min(req, max));
+  }
+
   function makeCanvasHiDpi(sizeCssPx) {
-    const css = Math.max(220, Math.floor(sizeCssPx));
+    // IMPORTANT: Keep HiDPI crispness but clamp CSS display size to viewport.
+    const css = clampQrCssSize(sizeCssPx);
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
     const px = Math.floor(css * dpr);
 
@@ -95,14 +111,14 @@
     const el = elById(elId);
     clear(el);
 
-    // Never let CSS rescale the canvas; scroll instead.
-    el.style.overflowX = "auto";
+    // Fit on screen: prefer clamping rather than forcing horizontal scroll.
+    el.style.overflowX = "hidden";
     el.style.maxWidth = "100%";
 
     const ok = await ensureQrLib();
 
     if (ok && window.QRCode && typeof window.QRCode.toCanvas === "function") {
-      const { canvas, px } = makeCanvasHiDpi(size);
+      const { canvas, px, css } = makeCanvasHiDpi(size);
 
       // Lowest density + generous quiet zone
       const opts = {
@@ -119,6 +135,10 @@
             el.appendChild(makeRemoteImg(data, size));
             return;
           }
+          // Ensure the canvas display size stays clamped (some browsers can mutate styles).
+          canvas.style.width = css + "px";
+          canvas.style.height = css + "px";
+          canvas.style.maxWidth = "100%";
           el.appendChild(canvas);
         });
         return;
@@ -128,7 +148,7 @@
     }
 
     // Final fallback
-    el.appendChild(makeRemoteImg(data, size));
+    el.appendChild(makeRemoteImg(data, clampQrCssSize(size)));
   };
 
   // Keep existing scan helper (unchanged)
