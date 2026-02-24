@@ -2,21 +2,13 @@
   --black:#000;
   --white:#fff;
 
-  /* nav */
   --border:rgba(255,255,255,0.18);
   --mobile-nav-h:124px;
 
-  /* layout */
   --side-pad:12px;
-  --top-gap:10px;
 
-  /* logo sizing */
   --logo-h-desktop:40px;
   --logo-h-mobile:28px;
-
-  /* common panels */
-  --panel:#f7f7f7;
-  --panel-border:#e5e5e5;
 }
 
 *{ box-sizing:border-box; }
@@ -32,7 +24,7 @@ body{
   overflow-x:hidden;
 }
 
-/* Shared buttons (square corners, minimal padding) */
+/* Square buttons */
 .btn{
   background:#000;
   color:#fff;
@@ -47,77 +39,41 @@ body{
   color:#000;
 }
 
-/* -------------------------
-   Header (supports BOTH markups)
-   ------------------------- */
-
+/* Header */
 .site-header{
   width:100%;
   background:#fff;
 }
 
-/* Legacy header markup (most pages) */
-.brand-wrap{
-  width:100%;
-  padding:10px 14px 0 14px;
-}
-.brand{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-}
-
-/* Modern header markup (receipt/scan pages) */
 .logo-row{
   width:100%;
   padding:10px 14px 0 14px;
 }
-.logo-link{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-}
-.logo-text{
-  font-weight:bold;
-  letter-spacing:0.2px;
-}
 
-/* Remove “hyperlink look” around the brand/logo across all states */
-.brand,
-.brand:link,
-.brand:visited,
-.brand:hover,
-.brand:active,
 .logo-link,
 .logo-link:link,
 .logo-link:visited,
 .logo-link:hover,
 .logo-link:active{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
   text-decoration:none;
   color:#000;
 }
 
-/* Constrain ALL logo images consistently */
-#logo,
 .logo-img{
   height: var(--logo-h-desktop);
   width:auto;
   display:block;
-  max-width: 100%;
+  max-width:100%;
 }
 
-/* Mobile logo sizing */
 @media (max-width: 720px){
-  #logo,
-  .logo-img{
-    height: var(--logo-h-mobile);
-  }
+  .logo-img{ height: var(--logo-h-mobile); }
 }
 
-/* -------------------------
-   Desktop nav: full-width black bar
-   ------------------------- */
-
+/* Desktop nav: full-width black bar */
 .site-nav{
   width:100%;
   background:#000;
@@ -175,13 +131,9 @@ body{
 .dropdown-menu a:hover{ background:#111; }
 .dropdown-menu a:active{ background:#222; }
 
-/* Account slot behaves like nav items */
 #accountSlot{ display:contents; }
 
-/* -------------------------
-   Common page helpers
-   ------------------------- */
-
+/* Common page layout */
 .page-main{
   padding: 18px var(--side-pad) calc(var(--mobile-nav-h) + 22px);
   text-align:center;
@@ -197,13 +149,19 @@ body{
   flex-wrap:wrap;
 }
 
+#responseArea{
+  display:none;
+  margin: 12px auto 14px;
+  max-width: 480px;
+}
+
 .qr-box{
   display:inline-block;
   background:#fff;
   padding:16px;
 }
 
-/* Scanner container used on Scan page */
+/* Scanner container */
 #scanner{
   width: 340px;
   max-width: 92vw;
@@ -217,18 +175,32 @@ body{
   display:block;
 }
 
-.panel{
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  padding: 14px 16px;
-  text-align: left;
-  margin: 10px 0;
+/* Diagnostics */
+.diag-wrap{ max-width:860px; margin: 14px auto 0; text-align:left; }
+.diag-head{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.diag-title{ font-weight:bold; }
+#diagText{
+  white-space:pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  background:#f7f7f7;
+  border:1px solid #e5e5e5;
+  padding:10px 12px;
+}
+#debug{
+  display:none;
+  max-width:860px;
+  margin: 14px auto 0;
+  text-align:left;
+  white-space:pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  background:#fffbe6;
+  border:1px solid #ffe58f;
+  padding:10px 12px;
 }
 
-/* -------------------------
-   Mobile nav: fixed bottom, 2 cols × 2 rows, safe-area aware
-   ------------------------- */
-
+/* Mobile nav: fixed bottom, 2 cols × 2 rows */
 @media (max-width: 720px){
   body{
     padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0));
@@ -270,7 +242,7 @@ body{
     height:100%;
   }
 
-  /* Dropdown opens upward and stays above the fixed nav */
+  /* About dropdown opens upward */
   .dropdown-menu{
     position: fixed;
     left: 0;
