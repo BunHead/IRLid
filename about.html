@@ -1,180 +1,57 @@
+<!-- about.html -->
 <!DOCTYPE html>
-<!-- Deploy 26 -->
+<!-- Deploy 61 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — About</title>
   <link rel="stylesheet" href="css/style.css">
-
-  <style>
-    :root{
-      --black:#000;
-      --white:#fff;
-      --mobile-nav-h:124px;
-      --side-pad:12px;
-      --top-gap:10px;
-    }
-
-    html,body{height:100%;}
-    body{margin:0;background:#fff;overflow-x:hidden;}
-
-    header.site-header{width:100%;background:#fff;}
-    .brand-wrap{padding:10px 14px 0;}
-    .brand{display:inline-flex;text-decoration:none;color:inherit;align-items:center;}
-
-    nav.site-nav{
-      width:100%;
-      background:#000;
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      gap:0;
-      padding:0;
-      margin:0;
-      position:sticky;
-      top:0;
-      z-index:1000;
-    }
-
-    #accountSlot{ display: contents; }
-
-    a.nav-btn,summary.nav-btn{
-      border:0;
-      background:#000;
-      color:#fff;
-      padding:10px 14px;
-      font-weight:700;
-      border-radius:0;
-      text-decoration:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
-      white-space:nowrap;
-    }
-    a.nav-btn:hover,summary.nav-btn:hover{background:#111;}
-
-    details.nav-dropdown{position:relative;}
-    details.nav-dropdown>summary{list-style:none;}
-    details.nav-dropdown>summary::-webkit-details-marker{display:none;}
-
-    .dropdown-menu{
-      position:absolute;
-      top:100%;
-      left:0;
-      min-width:180px;
-      background:#111;
-      border:0;
-      padding:0;
-      margin:0;
-      z-index:1200;
-    }
-    .dropdown-menu a{
-      display:block;
-      width:100%;
-      text-align:left;
-      padding:12px 14px;
-      color:#fff;
-      background:#111;
-      border:0;
-      text-decoration:none;
-      font-weight:700;
-      border-top:1px solid rgba(255,255,255,0.06);
-      box-sizing:border-box;
-    }
-    .dropdown-menu a:hover{ background:#000; }
-
-    main.page-main{
-      max-width:980px;
-      margin:0 auto;
-      padding:var(--top-gap) var(--side-pad) 20px;
-      box-sizing:border-box;
-    }
-
-    @media(max-width:720px){
-      .brand-wrap{padding:4px var(--side-pad) 0;}
-      #logo{max-width:72vw;max-height:90px;width:auto;height:auto;display:block;}
-
-      nav.site-nav{
-        position:fixed;
-        top:auto;
-        bottom:env(safe-area-inset-bottom,0);
-        left:0;
-        right:0;
-        height:var(--mobile-nav-h);
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        z-index:2000;
-      }
-
-      a.nav-btn,summary.nav-btn{
-        width:100%;
-        height:100%;
-        padding:0;
-        font-size:18px;
-      }
-
-      .dropdown-menu{
-        position:fixed;
-        left:0;
-        right:0;
-        top:auto;
-        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
-
-      body{
-        padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
-      }
-    }
-  </style>
 </head>
 
 <body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo">
+      </a>
+    </div>
 
-<header class="site-header">
-  <div class="brand-wrap">
-    <a class="brand" href="index.html" aria-label="IRLid Home">
-      <img src="logo.png" alt="IRLid Logo" id="logo">
-    </a>
-  </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
 
-  <nav class="site-nav" aria-label="Primary">
-    <a class="nav-btn" href="index.html">Home</a>
-    <a class="nav-btn" href="application.html">Scan</a>
+      <details class="nav-dropdown" id="aboutDropdown">
+        <summary class="nav-btn">About ▼</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
 
-    <details class="nav-dropdown">
-      <summary class="nav-btn">About ▼</summary>
-      <div class="dropdown-menu" role="menu" aria-label="About menu">
-        <a href="about.html">About</a>
-        <a href="features.html">Features</a>
-        <a href="contact.html">Contact</a>
-      </div>
-    </details>
+      <span id="accountSlot"></span>
+    </nav>
+  </header>
 
-    <span id="accountSlot"></span>
-  </nav>
-</header>
+  <main class="page-main page-content">
+    <h2>Proof of Personhood</h2>
+    <p>
+      Proof of personhood is a method to verify that a digital identity belongs to a unique human, not a bot or duplicate account.
+    </p>
 
-<main class="page-main">
-  <h2>Proof of Personhood</h2>
-  <p>
-    Proof of personhood is a method to verify that a digital identity belongs to a unique human, not a bot or duplicate account.
-  </p>
+    <h2>Why It's Important</h2>
+    <p>
+      Distinguishing real users from automated entities helps defend against fraud and enables fair participation online.
+    </p>
 
-  <h2>Why It's Important</h2>
-  <p>
-    Distinguishing real users from automated entities helps defend against fraud and enables fair participation online.
-  </p>
+    <h2>The IRLid Solution</h2>
+    <p>
+      IRLid enables two people to meet and mutually confirm co-presence via QR scans, producing a signed receipt without requiring a backend.
+    </p>
+  </main>
 
-  <h2>The IRLid Solution</h2>
-  <p>
-    IRLid enables two people to meet and mutually confirm co-presence via QR scans, producing a signed receipt without requiring a backend.
-  </p>
-</main>
-
-<script src="js/auth.js"></script>
-<script src="js/nav.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/nav.js"></script>
 </body>
 </html>
