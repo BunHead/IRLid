@@ -10,7 +10,7 @@
   --side-pad:12px;
   --top-gap:10px;
 
-  /* logo sizing (fix “logo too big”) */
+  /* logo sizing */
   --logo-h-desktop:40px;
   --logo-h-mobile:28px;
 
@@ -65,11 +65,9 @@ body{
   display:inline-flex;
   align-items:center;
   gap:10px;
-  text-decoration:none;
-  color:inherit;
 }
 
-/* Modern header markup (receipt/scan pages in your repo) */
+/* Modern header markup (receipt/scan pages) */
 .logo-row{
   width:100%;
   padding:10px 14px 0 14px;
@@ -78,12 +76,25 @@ body{
   display:inline-flex;
   align-items:center;
   gap:10px;
-  text-decoration:none;
-  color:inherit;
 }
 .logo-text{
   font-weight:bold;
   letter-spacing:0.2px;
+}
+
+/* Remove “hyperlink look” around the brand/logo across all states */
+.brand,
+.brand:link,
+.brand:visited,
+.brand:hover,
+.brand:active,
+.logo-link,
+.logo-link:link,
+.logo-link:visited,
+.logo-link:hover,
+.logo-link:active{
+  text-decoration:none;
+  color:#000;
 }
 
 /* Constrain ALL logo images consistently */
@@ -168,7 +179,7 @@ body{
 #accountSlot{ display:contents; }
 
 /* -------------------------
-   Common page helpers (move page styling out of inline <style> blocks)
+   Common page helpers
    ------------------------- */
 
 .page-main{
@@ -186,7 +197,6 @@ body{
   flex-wrap:wrap;
 }
 
-/* QR box used in multiple pages */
 .qr-box{
   display:inline-block;
   background:#fff;
@@ -207,7 +217,6 @@ body{
   display:block;
 }
 
-/* Generic panel styling (Receipt / Diagnostics style blocks can rely on this) */
 .panel{
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -218,7 +227,6 @@ body{
 
 /* -------------------------
    Mobile nav: fixed bottom, 2 cols × 2 rows, safe-area aware
-   HARD REQUIREMENT preserved
    ------------------------- */
 
 @media (max-width: 720px){
@@ -229,7 +237,7 @@ body{
   .site-nav{
     position: fixed;
     top: auto;
-    bottom: env(safe-area-inset-bottom, 0); /* HARD REQUIREMENT */
+    bottom: env(safe-area-inset-bottom, 0);
     left:0;
     right:0;
     height: var(--mobile-nav-h);
