@@ -1,15 +1,15 @@
 // /js/qr.js
-// Deploy 26
+// Deploy 27
 // QR rendering tuned for weak cameras / webcams:
 // - errorCorrectionLevel: "L" (lowest density)
 // - larger quiet zone (margin)
 // - remote image fallback uses same settings
 // Also keeps scanQR() helper.
 //
-// Rear-camera fix:
-// - Prefer an actual rear camera deviceId via Html5Qrcode.getCameras()
-// - Fall back to facingMode: "environment"
-// - Avoid constraint combos that cause browsers to pick the front camera
+// Rear-camera + dropdown fix:
+// - Prefer passing a cameraId STRING to Html5Qrcode.start() (most reliable)
+// - Provide globals to list cameras + set a preferred camera id
+// - scanQR() uses preferred camera when set; otherwise auto-picks best rear
 
 (function () {
   "use strict";
@@ -25,7 +25,6 @@
   }
 
   function makeRemoteImg(data, size) {
-    // Larger quiet zone helps cheap/older cameras lock on.
     const margin = 12;
     const url = `https://api.qrserver.com/v1/create-qr-code/?ecc=L&margin=${margin}&size=${size}x${size}&data=${encodeURIComponent(
       data
@@ -43,7 +42,6 @@
     const el = elById(elId);
     clear(el);
 
-    // Larger quiet zone helps scanners more than most other tweaks.
     const margin = 12;
 
     if (typeof window.QRCode !== "undefined" && typeof window.QRCode.toCanvas === "function") {
@@ -75,41 +73,67 @@
     el.appendChild(makeRemoteImg(data, size));
   };
 
+  // ----- Camera helpers -----
+
+  // Preferred camera id set by UI (dropdown).
+  // application.html can call window.IRLID_setPreferredCamera(id)
+  let preferredCameraId = null;
+
+  window.IRLID_setPreferredCamera = function IRLID_setPreferredCamera(id) {
+    preferredCameraId = typeof id === "string" && id.trim() ? id.trim() : null;
+    try {
+      localStorage.setItem("irlid_preferred_camera_id", preferredCameraId || "");
+    } catch {}
+  };
+
+  function loadPreferredFromStorage() {
+    try {
+      const v = localStorage.getItem("irlid_preferred_camera_id");
+      if (v && v.trim()) preferredCameraId = v.trim();
+    } catch {}
+  }
+
   function scoreRearCameraLabel(label) {
     const s = (label || "").toLowerCase();
 
-    // Strong signals (rear/back/environment) score high.
     let score = 0;
-    if (s.includes("back")) score += 50;
-    if (s.includes("rear")) score += 50;
-    if (s.includes("environment")) score += 50;
+    if (s.includes("back")) score += 80;
+    if (s.includes("rear")) score += 80;
+    if (s.includes("environment")) score += 80;
 
     // Often indicates rear lenses
-    if (s.includes("wide")) score += 15;
+    if (s.includes("wide")) score += 20;
     if (s.includes("ultra")) score += 10;
 
     // De-prioritize obvious front/selfie cameras.
-    if (s.includes("front")) score -= 80;
-    if (s.includes("user")) score -= 40;
-    if (s.includes("face")) score -= 40;
-    if (s.includes("selfie")) score -= 80;
+    if (s.includes("front")) score -= 120;
+    if (s.includes("user")) score -= 60;
+    if (s.includes("face")) score -= 60;
+    if (s.includes("selfie")) score -= 120;
 
     return score;
   }
 
-  async function pickBestCameraId() {
-    if (typeof Html5Qrcode === "undefined" || typeof Html5Qrcode.getCameras !== "function") return null;
-
-    let cameras = [];
+  async function getCamerasSafe() {
+    if (typeof Html5Qrcode === "undefined" || typeof Html5Qrcode.getCameras !== "function") return [];
     try {
-      cameras = await Html5Qrcode.getCameras();
+      const cams = await Html5Qrcode.getCameras();
+      return Array.isArray(cams) ? cams : [];
     } catch {
-      return null;
+      return [];
     }
+  }
 
-    if (!Array.isArray(cameras) || cameras.length === 0) return null;
+  // Expose to application.html to populate dropdown
+  window.IRLID_listCameras = async function IRLID_listCameras() {
+    const cams = await getCamerasSafe();
+    return cams.map((c) => ({ id: c.id, label: c.label || "" }));
+  };
 
-    // Prefer the camera with the best “rear” label score.
+  async function pickBestRearCameraId() {
+    const cameras = await getCamerasSafe();
+    if (!cameras.length) return null;
+
     const ranked = cameras
       .map((c, idx) => ({
         id: c.id,
@@ -119,20 +143,33 @@
       }))
       .sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        // Tie-break: on many devices, the rear camera tends to appear later.
+        // Tie-break: rear often appears later
         return b.idx - a.idx;
       });
 
-    // If all scores are terrible (e.g., labels hidden), pick the last camera.
     const best = ranked[0];
     if (!best) return cameras[cameras.length - 1].id;
 
-    if (best.score <= 0) {
-      return cameras[cameras.length - 1].id;
-    }
+    // If labels are useless, take the last camera (often rear).
+    if (best.score <= 0) return cameras[cameras.length - 1].id;
 
     return best.id;
   }
+
+  function makeConfig() {
+    // Keep constraints light; avoid combos that trigger “front” selection.
+    return {
+      fps: 12,
+      qrbox: { width: 320, height: 320 },
+      disableFlip: false,
+      videoConstraints: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    };
+  }
+
+  // ----- Scanner -----
 
   window.scanQR = function scanQR(targetElId) {
     return new Promise(async (resolve, reject) => {
@@ -141,73 +178,63 @@
         return;
       }
 
+      loadPreferredFromStorage();
+
       const qr = new Html5Qrcode(targetElId);
+      const config = makeConfig();
 
-      // Config: keep scan box stable; use higher-res frames where possible.
-      // IMPORTANT: We keep videoConstraints lightweight to avoid overriding the chosen camera.
-      const config = {
-        fps: 12,
-        qrbox: { width: 320, height: 320 },
-        disableFlip: false,
-        // Keep only resolution-ish ideals here; do NOT put facingMode here because
-        // some browsers treat it differently and can end up choosing the front camera.
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 30 }
-        }
+      const onScanSuccess = async (text) => {
+        try {
+          await qr.stop();
+        } catch {}
+        try {
+          await qr.clear();
+        } catch {}
+        resolve(text);
       };
-
-      // 1) Best effort: pick an actual rear camera id.
-      let cameraChoice = null;
-      try {
-        const bestId = await pickBestCameraId();
-        if (bestId) cameraChoice = { deviceId: { exact: bestId } };
-      } catch {
-        cameraChoice = null;
-      }
-
-      // 2) Fallback: facingMode environment.
-      if (!cameraChoice) {
-        cameraChoice = { facingMode: "environment" };
-      }
-
-      function cleanupAndResolve(text) {
-        (async () => {
-          try {
-            await qr.stop();
-          } catch {}
-          try {
-            await qr.clear();
-          } catch {}
-          resolve(text);
-        })();
-      }
-
-      // Start, with an additional fallback retry path:
-      // If deviceId exact fails (rare on some browsers), retry with facingMode.
-      const onScanSuccess = async (text) => cleanupAndResolve(text);
 
       const onScanFailure = () => {};
 
-      try {
-        await qr.start(cameraChoice, config, onScanSuccess, onScanFailure);
-      } catch (err1) {
-        // If we tried deviceId exact and it failed, retry with facingMode.
-        const triedDeviceId =
-          cameraChoice && typeof cameraChoice === "object" && "deviceId" in cameraChoice;
-
-        if (triedDeviceId) {
-          try {
-            await qr.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
-            return;
-          } catch (err2) {
-            reject(err2);
-            return;
-          }
+      // 1) If UI has selected a camera, use it as a STRING cameraId.
+      if (preferredCameraId) {
+        try {
+          await qr.start(preferredCameraId, config, onScanSuccess, onScanFailure);
+          return;
+        } catch (errPreferred) {
+          // If that fails, fall through to auto-pick rear
+          // (this can happen if device ids change).
         }
+      }
 
-        reject(err1);
+      // 2) Auto-pick best rear camera id and start with cameraId STRING.
+      const bestRearId = await pickBestRearCameraId();
+      if (bestRearId) {
+        try {
+          await qr.start(bestRearId, config, onScanSuccess, onScanFailure);
+          return;
+        } catch (errRear) {
+          // Fall through to facingMode attempts
+        }
+      }
+
+      // 3) Fallback: facingMode environment (some browsers only accept this)
+      try {
+        await qr.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+        return;
+      } catch (errEnv) {}
+
+      // 4) Last fallback: some iOS versions require exact (and some reject exact)
+      // Try exact then ideal.
+      try {
+        await qr.start({ facingMode: { exact: "environment" } }, config, onScanSuccess, onScanFailure);
+        return;
+      } catch (errExact) {}
+
+      try {
+        await qr.start({ facingMode: { ideal: "environment" } }, config, onScanSuccess, onScanFailure);
+        return;
+      } catch (errFinal) {
+        reject(errFinal);
       }
     });
   };
