@@ -1,77 +1,63 @@
 <!DOCTYPE html>
-<!-- Deploy 26 -->
+<!-- Deploy 35 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Proof of Personhood</title>
+  <title>IRLid — Home</title>
   <link rel="stylesheet" href="css/style.css">
 
   <style>
     :root{
       --black:#000;
       --white:#fff;
-
-      --mobile-nav-h: 124px;
-      --side-pad: 12px;
-      --qr-top-gap: 8px;
+      --mobile-nav-h:124px;
+      --side-pad:12px;
+      --top-gap:10px;
     }
 
-    html, body { height: 100%; }
-    body{
-      margin: 0;
-      background: #fff;
-      overflow-x: hidden;
-    }
+    html,body{height:100%;}
+    body{margin:0;background:#fff;overflow-x:hidden;}
 
-    header.site-header{ width:100%; background:#fff; }
-    .brand-wrap{ width:100%; padding:10px 14px 0 14px; }
-    .brand{ display:inline-flex; align-items:center; text-decoration:none; color:inherit; }
+    header.site-header{width:100%;background:#fff;}
+    .brand-wrap{padding:10px 14px 0;}
+    .brand{display:inline-flex;text-decoration:none;color:inherit;align-items:center;}
 
     nav.site-nav{
-      width: 100%;
-      background: var(--black);
+      width:100%;
+      background:#000;
       display:flex;
       align-items:center;
       justify-content:flex-start;
       gap:0;
       padding:0;
       margin:0;
-      position: sticky;
+      position:sticky;
       top:0;
       z-index:1000;
     }
 
     #accountSlot{ display: contents; }
 
-    a.nav-btn, summary.nav-btn{
-      appearance:none;
-      -webkit-appearance:none;
-      border: 0;
-      background: var(--black);
-      color: var(--white);
+    a.nav-btn,summary.nav-btn{
+      border:0;
+      background:#000;
+      color:#fff;
+      padding:10px 14px;
+      font-weight:700;
+      border-radius:0;
       text-decoration:none;
-      font: inherit;
-      font-weight: 700;
-      border-radius: 0;
-      margin: 0;
-      padding: 10px 12px;
-      line-height: 1;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      user-select: none;
-      white-space: nowrap;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      white-space:nowrap;
     }
+    a.nav-btn:hover,summary.nav-btn:hover{background:#111;}
 
-    a.nav-btn:hover, summary.nav-btn:hover{ background:#111; }
-    a.nav-btn:active, summary.nav-btn:active{ background:#222; }
-    a.nav-btn:focus, summary.nav-btn:focus{ outline: 2px solid #555; outline-offset: -2px; }
-
-    details.nav-dropdown{ position: relative; }
-    details.nav-dropdown > summary{ list-style:none; }
-    details.nav-dropdown > summary::-webkit-details-marker{ display:none; }
+    details.nav-dropdown{position:relative;}
+    details.nav-dropdown>summary{list-style:none;}
+    details.nav-dropdown>summary::-webkit-details-marker{display:none;}
 
     .dropdown-menu{
       position:absolute;
@@ -99,210 +85,197 @@
     }
     .dropdown-menu a:hover{ background:#000; }
 
-    main.home-main{
-      width: 100%;
-      box-sizing: border-box;
-      padding: var(--qr-top-gap) var(--side-pad) 0 var(--side-pad);
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
+    main.page-main{
+      max-width:980px;
+      margin:0 auto;
+      padding:var(--top-gap) var(--side-pad) 20px;
+      box-sizing:border-box;
+      text-align:center;
     }
 
-    .qr-box{
-      width: 100%;
-      max-width: 720px;
-      margin: 0 auto;
-      box-sizing: border-box;
+    .small{ text-align:center; margin:8px 0; }
+
+    .hero{
+      margin-top:10px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
     }
-    .qr-box canvas, .qr-box img{
-      display: block;
-      margin: 0 auto;
-      max-width: 100%;
-      height: auto;
+
+    .qr-wrap{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      margin-top:6px;
+    }
+
+    #helloQr canvas, #helloQr img{
+      display:block;
+      margin:0 auto;
+      max-width:100%;
+      height:auto;
       image-rendering: pixelated;
     }
 
-    #qrError{
-      display:none;
-      margin: 8px var(--side-pad) 0 var(--side-pad);
-      padding: 10px;
-      border: 1px solid #f3c0c0;
-      background: #fff3f3;
-      color: #600;
-      font-family: ui-monospace, monospace;
-      white-space: pre-wrap;
-      box-sizing: border-box;
+    .btn-row{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-top:10px;
     }
 
-    @media (max-width: 720px){
-      :root{ --qr-top-gap: 2px; }
+    .hint{
+      max-width:720px;
+      margin:10px auto 0;
+      line-height:1.35;
+    }
 
-      .brand-wrap{
-        padding: 4px var(--side-pad) 0 var(--side-pad);
-      }
-      #logo{
-        max-width: 72vw;
-        max-height: 90px;
-        width: auto;
-        height: auto;
-        display: block;
-      }
+    /* Mobile nav rules (must match your requirement) */
+    @media(max-width:720px){
+      .brand-wrap{padding:4px var(--side-pad) 0;}
+      #logo{max-width:72vw;max-height:90px;width:auto;height:auto;display:block;}
 
       nav.site-nav{
-        position: fixed;
-        top: auto; /* IMPORTANT */
-        bottom: env(safe-area-inset-bottom, 0px);
-        left: 0;
-        right: 0;
-        height: var(--mobile-nav-h);
-
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 0;
-        margin: 0;
-        padding: 0;
-        background: var(--black);
-        z-index: 2000;
+        position:fixed;
+        top:auto;
+        bottom:env(safe-area-inset-bottom,0);
+        left:0;
+        right:0;
+        height:var(--mobile-nav-h);
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        grid-template-rows:1fr 1fr;
+        z-index:2000;
       }
 
-      a.nav-btn, summary.nav-btn{
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        border-radius: 0;
-        font-size: 18px;
+      a.nav-btn,summary.nav-btn{
+        width:100%;
+        height:100%;
+        padding:0;
+        font-size:18px;
       }
 
       .dropdown-menu{
-        position: fixed;
-        left: 0;
-        right: 0;
-        top: auto;
-        bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
-        border-radius: 0;
+        position:fixed;
+        left:0;
+        right:0;
+        top:auto;
+        bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
       }
 
       body{
-        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px));
-      }
-
-      main.home-main{
-        min-height: calc(100vh - (var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px)));
+        padding-bottom:calc(var(--mobile-nav-h) + env(safe-area-inset-bottom,0));
       }
     }
   </style>
 </head>
 
 <body>
-  <header class="site-header">
-    <div class="brand-wrap">
-      <a class="brand" href="index.html" aria-label="IRLid Home">
-        <img src="logo.png" alt="IRLid Logo" id="logo">
-      </a>
+
+<header class="site-header">
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo">
+    </a>
+  </div>
+
+  <nav class="site-nav" aria-label="Primary">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="application.html">Scan</a>
+
+    <details class="nav-dropdown">
+      <summary class="nav-btn">About ▼</summary>
+      <div class="dropdown-menu" role="menu" aria-label="About menu">
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </details>
+
+    <span id="accountSlot"></span>
+  </nav>
+</header>
+
+<main class="page-main">
+  <div class="hero">
+    <h2 style="margin:6px 0 0;">In-person proof, instantly.</h2>
+    <p class="hint small" style="margin-top:0;">
+      Show this QR to the other person. They scan it to start the handshake.
+    </p>
+
+    <div class="qr-wrap">
+      <div class="qr-box" id="helloQr" aria-label="HELLO QR"></div>
+      <div class="small" id="helloText"></div>
     </div>
 
-    <nav class="site-nav" aria-label="Primary">
-      <a class="nav-btn" href="index.html">Home</a>
-      <a class="nav-btn" href="application.html">Scan</a>
+    <div class="btn-row">
+      <button class="btn" id="regenBtn" type="button">New QR</button>
+      <a class="btn secondary" id="openBtn" href="application.html">Open Scan</a>
+    </div>
 
-      <details class="nav-dropdown" id="aboutDropdown">
-        <summary class="nav-btn">About ▼</summary>
-        <div class="dropdown-menu" role="menu" aria-label="About menu">
-          <a href="about.html">About</a>
-          <a href="features.html">Features</a>
-          <a href="contact.html">Contact</a>
-        </div>
-      </details>
+    <p class="hint small">
+      Tip: if a third party scans a combined receipt QR later, it should open the receipt page for verification.
+    </p>
+  </div>
+</main>
 
-      <span id="accountSlot"></span>
-    </nav>
-  </header>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
 
-  <main class="home-main">
-    <div class="qr-box" id="helloQr"></div>
-  </main>
+<!-- QRCode lib must be loaded BEFORE js/qr.js so makeQR() can render locally -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-  <div id="qrError"></div>
+<!-- This defines window.makeQR -->
+<script src="js/qr.js?v=deploy28"></script>
 
-  <script src="js/auth.js"></script>
-  <script src="js/nav.js"></script>
-  <script src="js/sign.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-  <script src="js/qr.js?v=deploy19"></script>
+<script>
+  (function(){
+    "use strict";
 
-  <script>
-    // --- QR-first home: create a HELLO link and render as QR, auto-size to viewport ---
-    const qrElId = "helloQr";
-    const errEl = document.getElementById("qrError");
+    const helloQrId = "helloQr";
+    const helloTextEl = document.getElementById("helloText");
+    const regenBtn = document.getElementById("regenBtn");
+    const openBtn = document.getElementById("openBtn");
 
-    function showErr(e){
-      errEl.style.display = "block";
-      errEl.textContent = String(e && e.stack ? e.stack : e);
+    function b64urlFromBytes(bytes){
+      const b64 = btoa(String.fromCharCode(...bytes));
+      return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
     }
 
-    function b64url(bytes){
-      let bin = "";
-      for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
-      return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"");
+    function newHelloToken(){
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return b64urlFromBytes(bytes);
     }
-
-    function makeHello(){
-      // payload content is handled by application.html; keep as existing behavior.
-      const hello = b64url(crypto.getRandomValues(new Uint8Array(24)));
-      const url = new URL("application.html", location.href);
-      url.hash = "HELLO=" + hello;
-      return url.toString();
-    }
-
-    function vp(){
-      return (window.visualViewport && window.visualViewport.width && window.visualViewport.height)
-        ? { w: window.visualViewport.width, h: window.visualViewport.height }
-        : { w: window.innerWidth, h: window.innerHeight };
-    }
-
-    function computeQrSize(){
-      const { w, h } = vp();
-
-      // Account for padding + fixed bottom nav on mobile
-      const pad = 2 * 12;
-      const navH = (window.matchMedia && window.matchMedia("(max-width: 720px)").matches) ? 124 : 0;
-      const safeB = parseFloat(getComputedStyle(document.body).paddingBottom || "0") || 0;
-
-      const usableH = Math.max(200, h - navH - safeB - 20);
-      const usableW = Math.max(200, w - pad);
-
-      const size = Math.floor(Math.min(usableW, usableH));
-      return Math.max(220, Math.min(size, 720));
-    }
-
-    let currentUrl = makeHello();
 
     function render(){
-      try{
-        errEl.style.display = "none";
-        const size = computeQrSize();
-        if (typeof makeQR !== "function") throw new Error("makeQR() missing (js/qr.js not loaded)");
-        makeQR(qrElId, currentUrl, size);
-      }catch(e){
-        showErr(e);
+      if (typeof window.makeQR !== "function") {
+        throw new Error("makeQR() missing (js/qr.js not loaded)");
       }
+
+      const hello = newHelloToken();
+      const url = new URL(location.href);
+      url.pathname = url.pathname.replace(/\/index\.html$/i, "/application.html").replace(/\/$/, "/application.html");
+      url.hash = "HELLO=" + hello;
+
+      window.makeQR(helloQrId, url.toString(), 360);
+      helloTextEl.textContent = url.hash;
+
+      // Open Scan should preserve the HELLO for convenience if user taps it
+      openBtn.href = "application.html#HELLO=" + hello;
     }
 
-    render();
+    regenBtn.addEventListener("click", () => {
+      try { render(); } catch (e) { helloTextEl.textContent = "Error: " + e; }
+    });
 
-    // Resize/orientation: use visualViewport when available
-    let rAF = null;
-    function scheduleRender(){
-      if (rAF) cancelAnimationFrame(rAF);
-      rAF = requestAnimationFrame(render);
-    }
-    window.addEventListener("resize", scheduleRender);
-    window.addEventListener("orientationchange", scheduleRender);
-    if (window.visualViewport){
-      window.visualViewport.addEventListener("resize", scheduleRender);
-      window.visualViewport.addEventListener("scroll", scheduleRender);
-    }
-  </script>
+    // initial render
+    try { render(); } catch (e) { helloTextEl.textContent = "Error: " + e; }
+  })();
+</script>
+
 </body>
 </html>
