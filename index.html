@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 60 -->
+<!-- Deploy 66 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -36,8 +36,12 @@
   <div id="qrError" aria-live="polite"></div>
 
   <main class="home-main">
-    <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid HELLO QR"></div>
-  </main>
+    <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid Signed HELLO (Offer) QR"></div>
+  
+    <div class="controls" style="justify-content:center; margin-top:12px;">
+      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    </div>
+</main>
 
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
@@ -81,14 +85,22 @@
         if (typeof b64urlEncode !== "function") throw new Error("b64urlEncode() missing in js/sign.js");
         if (typeof makeQR !== "function") throw new Error("makeQR() missing in js/qr.js");
 
-        const pub = await getPublicJwk();
-        const hello = {
-          v: 1,
-          type: "hello",
-          pub,
-          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-          ts: Math.floor(Date.now() / 1000)
-        };
+        let hello = null;
+
+        if (typeof makeSignedHelloAsync === "function") {
+          // v2 Signed HELLO (Offer): includes signed geo+time proof to enable 2-scan handshake
+          hello = await makeSignedHelloAsync({ tsTolS: 90 });
+        } else {
+          // Back-compat: unsigned v1 HELLO
+          const pub = await getPublicJwk();
+          hello = {
+            v: 1,
+            type: "hello",
+            pub,
+            nonce: crypto.getRandomValues(new Uint32Array(1))[0],
+            ts: Math.floor(Date.now() / 1000)
+          };
+        }
 
         const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
 
@@ -115,6 +127,29 @@
     window.addEventListener("resize", rerender);
     window.addEventListener("orientationchange", rerender);
     if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
-  </script>
+  
+
+    // Mobile-friendly clear: removes saved HELLO/receipts without needing DevTools.
+    const clearLocalBtn = document.getElementById("clearLocalBtn");
+    if (clearLocalBtn) {
+      clearLocalBtn.addEventListener("click", () => {
+        try{
+          const keys = [
+            "irlid_last_hello_b64",
+            "irlid_last_self_response",
+            "irlid_resp_self",
+            "irlid_resp_other",
+            "irlid_receipts",
+            "irlid_receipt_last",
+            "irlid_preferred_camera_id"
+          ];
+          for (const k of keys) localStorage.removeItem(k);
+        }catch{}
+        location.hash = "";
+        location.reload();
+      });
+    }
+
+</script>
 </body>
 </html>
