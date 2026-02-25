@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 65 -->
+<!-- Deploy 66 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -49,13 +49,17 @@
     <button class="btn secondary" id="stopBtn">Stop</button>
   </div>
 
+  <div class="controls" style="justify-content:flex-start; gap:10px;">
+    <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+  </div>
+
   <div id="responseArea">
-    <h3 id="responseTitle">Your Return QR</h3>
+    <h3 id="responseTitle">Your Accept QR</h3>
     <div class="qr-box" id="responseQr"></div>
     <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
 
     <div class="controls" style="margin-top:10px;">
-      <button class="btn" id="scanTheirRespBtn">Scan their Response</button>
+      <button class="btn" id="scanTheirRespBtn">Scan their Accept</button>
       <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
     </div>
   </div>
@@ -94,8 +98,33 @@
   const responseArea = document.getElementById("responseArea");
   const scanTheirRespBtn = document.getElementById("scanTheirRespBtn");
   const showReceiptBtn = document.getElementById("showReceiptBtn");
+  const clearLocalBtn = document.getElementById("clearLocalBtn");
 
   let lastCombinedUrl = null;
+
+
+  function clearLocalData(){
+    try{
+      const keys = [
+        KEY_LAST_HELLO_B64,
+        KEY_LAST_SELF_RESP,
+        KEY_SELF,
+        KEY_GUEST,
+        KEY_RECEIPTS,
+        "irlid_receipt_last",
+        KEY_PREF_CAM
+      ];
+      for (const k of keys) localStorage.removeItem(k);
+    }catch{}
+    hello = null;
+    lastCombinedUrl = null;
+    try{ delete window.__irlid_last_self_response; }catch{}
+    location.hash = "";
+    initHelloReturnQr();
+    // Ensure QR panel hides if HELLO cleared
+    if (!hello) responseArea.style.display = "none";
+    setStatus("Cleared local data.");
+  }
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -148,7 +177,7 @@
   async function initHelloReturnQr(){
     if (!hello) {
       responseArea.style.display = "none";
-      setStatus("Ready. Scan a HELLO to begin.");
+      setStatus("Ready. Scan a Signed HELLO (Offer) to begin.");
       return;
     }
 
@@ -183,8 +212,8 @@
 
       const fromHash = !!getHelloFromHash();
       setStatus(fromHash
-        ? "Ready (HELLO mode)."
-        : "Ready (saved HELLO)."
+        ? "Accept ready (from HELLO link)."
+        : "Accept ready (from saved HELLO)."
       );
 
       showReceiptBtn.style.display = "none";
@@ -391,9 +420,14 @@
         const c = classify(text);
 
         if (c.kind === "HELLO") {
-          setStatus("HELLO detected. Opening handshake…");
-          saveHello(c.v || "");
-          location.hash = "HELLO=" + (c.v || "");
+          const v = (c.v || "").trim();
+          hello = v || null;
+          if (hello) saveHello(hello);
+          setStatus("HELLO (Offer) detected. Creating your Accept QR…");
+          // Update URL for shareable state, but don't rely on hashchange for runtime state.
+          location.hash = "HELLO=" + (v || "");
+          // Immediately regenerate Accept QR in this runtime session.
+          initHelloReturnQr();
           return;
         }
 
@@ -406,7 +440,7 @@
         if (c.kind === "RESP") {
           if (hello) {
             try{
-              setStatus("Response detected. Verifying…");
+              setStatus("Accept detected. Verifying…");
               await handleScannedResponseB64(c.v || "");
               if (lastCombinedUrl) location.href = lastCombinedUrl;
               return;
@@ -445,6 +479,13 @@
   showReceiptBtn.addEventListener("click", () => {
     if (lastCombinedUrl) location.href = lastCombinedUrl;
   });
+
+  if (clearLocalBtn) {
+    clearLocalBtn.addEventListener("click", () => {
+      clearLocalData();
+    });
+  }
+
 
   startBtn.addEventListener("click", async () => {
     try{
