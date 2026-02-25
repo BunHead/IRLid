@@ -1,5 +1,5 @@
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 59
+//  Deploy 66
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -179,13 +179,101 @@ function irlidGetPosition(opts){
   });
 }
 
-async function makeReturnForHelloAsync(helloB64url){
+
+async function makeSignedHelloAsync(opts){
+  // Creates a HELLO object that already contains a signed, replay-resistant "offer"
+  // so the other party can verify you immediately (2-scan handshake).
+  const pos = await irlidGetPosition({
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 12000
+  });
+
+  const lat = Number(pos.coords.latitude);
+  const lon = Number(pos.coords.longitude);
+  const acc = Number(pos.coords.accuracy || 0);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error("Invalid geolocation coordinates.");
+  }
+
+  const ts = Math.floor(Date.now() / 1000);
+  const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
+
+  // Offer payload is what gets hashed+signed.
+  // Keep fields tight + deterministic ordering.
+  const offerPayload = {
+    v: 1,
+    type: "offerPayload",
+    lat,
+    lon,
+    acc,
+    ts,
+    nonce: nonceA
+  };
+
+  const pub = await getPublicJwk();
+  const offerHash = await hashPayloadToB64url(offerPayload);
+  const offerSig = await signHashB64url(offerHash);
+
+  const hello = {
+    v: 2,
+    type: "hello",
+    pub,
+    nonce: nonceA,
+    ts,
+    offer: {
+      payload: offerPayload,
+      hash: offerHash,
+      sig: offerSig
+    }
+  };
+
+  return hello;
+}
+
+async function verifyHelloOfferAsync(helloObj, opts){
+  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
+
+  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
+  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub).");
+
+  // Back-compat: unsigned HELLO v1
+  if (!helloObj.offer) return { ok: true, mode: "unsigned-v1", offerHash: null };
+
+  const offer = helloObj.offer;
+  if (!offer || !offer.payload || !offer.hash || !offer.sig) {
+    throw new Error("Invalid HELLO (bad offer structure).");
+  }
+
+  const computed = await hashPayloadToB64url(offer.payload);
+  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch.");
+
+  const sigOk = await verifySig(offer.hash, offer.sig, helloObj.pub);
+  if (!sigOk) throw new Error("HELLO offer signature invalid.");
+
+  const now = Math.floor(Date.now() / 1000);
+  const ts = Number(offer.payload.ts);
+  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing.");
+  const dt = Math.abs(now - ts);
+  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
+
+  return { ok: true, mode: "signed-v2", offerHash: offer.hash };
+}
+
+
+async function makeReturnForHelloAsync(helloB64url, opts){
   if (!helloB64url) throw new Error("HELLO missing.");
+
+  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
 
   const helloObj = irlidDecodeB64urlJson(helloB64url);
   if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) {
     throw new Error("Invalid HELLO (bad structure).");
   }
+
+  // If this HELLO contains a signed offer, verify it before proceeding.
+  const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
 
   const helloHash = await irlidHelloHashB64url(helloObj);
 
@@ -204,23 +292,30 @@ async function makeReturnForHelloAsync(helloB64url){
   }
 
   const ts = Math.floor(Date.now() / 1000);
+  const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
+  // Accept payload (response) binds to the HELLO hash, and (if present) the signed offer hash.
   const payload = {
     v: 1,
     type: "payload",
     helloHash,
+    offerHash: offerInfo.offerHash || undefined,
     lat,
     lon,
     acc,
-    ts
+    ts,
+    nonce: nonceB
   };
+
+  // Remove undefined to keep hashes stable
+  if (payload.offerHash === undefined) delete payload.offerHash;
 
   const pub = await getPublicJwk();
   const hash = await hashPayloadToB64url(payload);
   const sig = await signHashB64url(hash);
 
   const resp = {
-    v: 1,
+    v: 2,
     type: "response",
     payload,
     hash,
@@ -234,6 +329,8 @@ async function makeReturnForHelloAsync(helloB64url){
   return resp;
 }
 
+
+
 async function processScannedResponse(otherRespObj, opts){
   const helloB64url = opts && opts.hello ? opts.hello : null;
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
@@ -243,6 +340,9 @@ async function processScannedResponse(otherRespObj, opts){
 
   const helloObj = irlidDecodeB64urlJson(helloB64url);
   if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
+
+  // Verify signed offer if present (v2). Back-compat allows unsigned v1.
+  const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
 
   const helloHash = await irlidHelloHashB64url(helloObj);
 
@@ -257,10 +357,19 @@ async function processScannedResponse(otherRespObj, opts){
   const sigOk = await verifySig(other.hash, other.sig, other.pub);
   if (!sigOk) throw new Error("Signature invalid.");
 
+  // Binding checks:
+  // - Always bind to the HELLO hash (legacy + new)
   if (!other.payload.helloHash || other.payload.helloHash !== helloHash) {
     throw new Error("HELLO binding mismatch.");
   }
+  // - If HELLO has a signed offer, require the response to bind to that offer hash too.
+  if (offerInfo.offerHash) {
+    if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) {
+      throw new Error("Offer binding mismatch.");
+    }
+  }
 
+  // Timestamp tolerance (response freshness)
   const now = Math.floor(Date.now() / 1000);
   const ts = Number(other.payload.ts);
   if (!Number.isFinite(ts)) throw new Error("Response timestamp missing.");
@@ -271,6 +380,7 @@ async function processScannedResponse(otherRespObj, opts){
 
   const self = window.__irlid_last_self_response || null;
 
+  // Distance tolerance check (if self present)
   if (self && self.payload && Number.isFinite(self.payload.lat) && Number.isFinite(self.payload.lon)) {
     const d = irlidHaversineMeters(
       { lat: self.payload.lat, lon: self.payload.lon },
@@ -282,9 +392,10 @@ async function processScannedResponse(otherRespObj, opts){
   }
 
   const combined = {
-    v: 1,
+    v: 2,
     type: "combined",
     tol: { dist_m: distTolM, ts_s: tsTolS },
+    hello: helloObj,
     a: self,
     b: other
   };
