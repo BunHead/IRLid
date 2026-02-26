@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 73 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -38,7 +38,7 @@
   <!-- Force column layout only on this page so debug button sits UNDER QR -->
   <main class="home-main" style="flex-direction:column; align-items:center;">
     <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid Signed HELLO (Offer) QR"></div>
-  
+
     <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
       <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
     </div>
@@ -47,7 +47,7 @@
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/sign.js?v=72"></script>
-  <script src="js/qr.js?v=59"></script>
+  <script src="js/qr.js?v=71"></script>
 
   <script>
     const qrErrorEl = document.getElementById("qrError");
@@ -80,31 +80,24 @@
       return Math.max(260, Math.min(size, 980));
     }
 
+    function appBase(){
+      // Robust base URL for GH Pages and local runs: ".../IRLid/"
+      return location.href.replace(/\/[^\/?#]*([?#].*)?$/, "/");
+    }
+
     async function renderHelloQr(){
       try {
-        if (typeof getPublicJwk !== "function") throw new Error("getPublicJwk() missing in js/sign.js");
-        if (typeof b64urlEncode !== "function") throw new Error("b64urlEncode() missing in js/sign.js");
+        if (typeof makeSignedHelloAsync !== "function") throw new Error("makeSignedHelloAsync() missing in js/sign.js");
+        if (typeof irlidEncodeJsonToB64url !== "function") throw new Error("irlidEncodeJsonToB64url() missing in js/sign.js");
         if (typeof makeQR !== "function") throw new Error("makeQR() missing in js/qr.js");
 
-        let hello = null;
+        // Always generate a signed HELLO (Offer)
+        const hello = await makeSignedHelloAsync();
 
-        if (typeof makeSignedHelloAsync === "function") {
-          hello = await makeSignedHelloAsync({ tsTolS: 90 });
-        } else {
-          const pub = await getPublicJwk();
-          hello = {
-            v: 1,
-            type: "hello",
-            pub,
-            nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-            ts: Math.floor(Date.now() / 1000)
-          };
-        }
+        // Encode HELLO using exported helper (no dependency on internal b64urlEncode)
+        const encodedHello = irlidEncodeJsonToB64url(hello);
 
-        const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-
-        const baseUrl = location.origin + "/IRLid";
-        const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+        const url = appBase() + "application.html#HELLO=" + encodedHello;
 
         const size = computeQrSize();
         await makeQR("myQr", url, size);
@@ -167,5 +160,3 @@
   </script>
 </body>
 </html>
-
-
