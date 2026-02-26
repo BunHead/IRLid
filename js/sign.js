@@ -1,6 +1,6 @@
 // js/sign.js
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-// Deploy 70
+// Deploy 71
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -31,6 +31,112 @@ async function sha256Bytes(str) {
   const enc = new TextEncoder().encode(str);
   const hash = await crypto.subtle.digest("SHA-256", enc);
   return new Uint8Array(hash);
+}
+
+/* =========================================================
+   Compression helpers (deflate) for QR payloads
+   - Uses native CompressionStream / DecompressionStream when available.
+   - Falls back to uncompressed JSON if unavailable.
+   ========================================================= */
+
+async function irlidCompressDeflate(bytes) {
+  if (typeof CompressionStream === "undefined") return null;
+  try {
+    const cs = new CompressionStream("deflate");
+    const writer = cs.writable.getWriter();
+    await writer.write(bytes);
+    await writer.close();
+    const ab = await new Response(cs.readable).arrayBuffer();
+    return new Uint8Array(ab);
+  } catch {
+    return null;
+  }
+}
+
+async function irlidDecompressDeflate(bytes) {
+  if (typeof DecompressionStream === "undefined") return null;
+  try {
+    const ds = new DecompressionStream("deflate");
+    const writer = ds.writable.getWriter();
+    await writer.write(bytes);
+    await writer.close();
+    const ab = await new Response(ds.readable).arrayBuffer();
+    return new Uint8Array(ab);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * QR-safe encoding for objects.
+ * Returns a short string that can be placed in URL hash params.
+ *
+ * Format:
+ *   "Z" + b64url(deflate(JSONbytes))  when compression available and helps
+ *   "J" + b64url(JSONbytes)           fallback / legacy
+ *   (also supports decoding plain legacy b64url JSON with no prefix)
+ */
+async function irlidEncodeForQR(obj) {
+  const json = JSON.stringify(obj);
+  const raw = new TextEncoder().encode(json);
+
+  const deflated = await irlidCompressDeflate(raw);
+  if (deflated && deflated.length > 0) {
+    // Only use compression when it's actually smaller.
+    // (Usually it is, but don't assume.)
+    const z = b64urlEncode(deflated);
+    const j = b64urlEncode(raw);
+    if (z.length + 1 < j.length + 1) return "Z" + z;
+  }
+
+  return "J" + b64urlEncode(raw);
+}
+
+async function irlidDecodeFromQR(str) {
+  const s = String(str || "");
+  if (!s) throw new Error("Empty QR payload.");
+
+  const prefix = s[0];
+  const body = s.slice(1);
+
+  if (prefix === "Z") {
+    const comp = b64urlDecode(body);
+    const raw = await irlidDecompressDeflate(comp);
+    if (!raw) throw new Error("Cannot decompress payload on this browser.");
+    const txt = new TextDecoder().decode(raw);
+    return JSON.parse(txt);
+  }
+
+  if (prefix === "J") {
+    const raw = b64urlDecode(body);
+    const txt = new TextDecoder().decode(raw);
+    return JSON.parse(txt);
+  }
+
+  // Back-compat: old payloads were plain b64url(JSONbytes)
+  // (No prefix)
+  try {
+    const raw = b64urlDecode(s);
+    const txt = new TextDecoder().decode(raw);
+    return JSON.parse(txt);
+  } catch (e) {
+    throw new Error("Unrecognized receipt encoding.");
+  }
+}
+
+/* =========================================================
+   Legacy JSON b64 helpers (still used internally/back-compat)
+   ========================================================= */
+
+function irlidEncodeJsonToB64url(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  return b64urlEncode(bytes);
+}
+
+function irlidDecodeB64urlJson(b64url) {
+  const bytes = b64urlDecode(String(b64url || ""));
+  const txt = new TextDecoder().decode(bytes);
+  return JSON.parse(txt);
 }
 
 /* =========================================================
@@ -146,7 +252,6 @@ async function pubKeyId(pubAny) {
   } else if (pubAny && typeof pubAny === "object" && typeof pubAny.spki === "string") {
     material = "spki." + pubAny.spki;
   } else if (pubAny && typeof pubAny === "object") {
-    // JWK
     material = `${pubAny.kty}.${pubAny.crv}.${pubAny.x}.${pubAny.y}`;
   } else {
     material = String(pubAny);
@@ -177,21 +282,6 @@ async function signHashB64url(hashB64url) {
   );
 
   return b64urlEncode(new Uint8Array(sig));
-}
-
-/* =========================================================
-   IRLid encode/decode
-   ========================================================= */
-
-function irlidEncodeJsonToB64url(obj) {
-  const bytes = new TextEncoder().encode(JSON.stringify(obj));
-  return b64urlEncode(bytes);
-}
-
-function irlidDecodeB64urlJson(b64url) {
-  const bytes = b64urlDecode(String(b64url || ""));
-  const txt = new TextDecoder().decode(bytes);
-  return JSON.parse(txt);
 }
 
 /* =========================================================
@@ -278,7 +368,6 @@ async function makeSignedHelloAsync(opts) {
 }
 
 async function irlidHelloHashB64url(helloObj) {
-  // v2 behavior: deterministic hash of the original HELLO object as encoded by index.html
   const bytes = new TextEncoder().encode(JSON.stringify(helloObj));
   const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
   return b64urlEncode(new Uint8Array(hashBuf));
@@ -288,44 +377,32 @@ async function verifyHelloOfferAsync(helloObj, opts) {
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
 
   if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
-  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub)." );
+  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub).");
 
-  // Back-compat: unsigned HELLO v1
   if (!helloObj.offer) return { ok: true, mode: "unsigned-v1", offerHash: null };
 
   const offer = helloObj.offer;
   if (!offer || !offer.payload || !offer.hash || !offer.sig) {
-    throw new Error("Invalid HELLO (bad offer structure)." );
+    throw new Error("Invalid HELLO (bad offer structure).");
   }
 
   const computed = await hashPayloadToB64url(offer.payload);
-  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch." );
+  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch.");
 
   const sigOk = await verifySigFlexible(offer.hash, offer.sig, helloObj.pub);
-  if (!sigOk) throw new Error("HELLO offer signature invalid." );
+  if (!sigOk) throw new Error("HELLO offer signature invalid.");
 
   const now = Math.floor(Date.now() / 1000);
   const ts = Number(offer.payload.ts);
-  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing." );
+  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing.");
   const dt = Math.abs(now - ts);
-  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
+  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
 
   return { ok: true, mode: "signed-v2", offerHash: offer.hash };
 }
 
 /* =========================================================
    Protocol v3 (COMB-Lite)
-
-   - Response QR object (RESPv3):
-       { v:3, pk:<spkiB64>, pl:{hh, oh?, la, lo, ac, t, n}, s:<sig> }
-     Signature covers SHA256(JSON.stringify(pl)).
-
-   - Combined QR object (COMBv3):
-       { v:3, t:"c", tol:{d,s}, h:<helloLite>, a:<RESPv3>, b:<RESPv3> }
-
-   - helloHash (hh) binds to helloLite (not full v2 HELLO JSON):
-       helloLite = { v:3, pk:<spkiB64>, off:{pl:<offerPayload>, s:<offerSig>} }
-     where offerPayload is the original v2 offer payload.
    ========================================================= */
 
 function irlidIsRespV3(obj) {
@@ -352,12 +429,7 @@ async function irlidHelloLiteFromHelloAsync(helloObj) {
     };
   }
 
-  // Unsigned legacy HELLO: include minimal fields so hh remains stable.
-  const lite = {
-    v: 3,
-    pk,
-    u: 1
-  };
+  const lite = { v: 3, pk, u: 1 };
   if (Number.isFinite(Number(helloObj.ts))) lite.ts = Number(helloObj.ts);
   if (Number.isFinite(Number(helloObj.nonce))) lite.n = Number(helloObj.nonce);
   return lite;
@@ -394,22 +466,10 @@ function irlidPayloadLatLonAny(payload) {
   return null;
 }
 
-function irlidPayloadAccAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const a = (typeof payload.ac === "number") ? payload.ac : payload.acc;
-  return Number.isFinite(Number(a)) ? Number(a) : null;
-}
-
 function irlidPayloadTsAny(payload) {
   if (!payload || typeof payload !== "object") return null;
   const t = (typeof payload.t === "number") ? payload.t : payload.ts;
   return Number.isFinite(Number(t)) ? Number(t) : null;
-}
-
-function irlidPayloadNonceAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const n = (typeof payload.n === "number") ? payload.n : payload.nonce;
-  return Number.isFinite(Number(n)) ? Number(n) : null;
 }
 
 function irlidPayloadOfferHashAny(payload) {
@@ -422,45 +482,19 @@ function irlidPayloadHelloHashAny(payload) {
   return payload.hh || payload.helloHash || null;
 }
 
-function irlidRespV3ToDisplayResp(respV3) {
-  // Convert RESPv3 to a v2-like shape for UI consumption.
-  const pl = respV3 && respV3.pl ? respV3.pl : null;
-  if (!pl) return null;
-
-  const payload = {
-    v: 1,
-    type: "payload",
-    helloHash: pl.hh,
-    offerHash: pl.oh,
-    lat: pl.la,
-    lon: pl.lo,
-    acc: pl.ac,
-    ts: pl.t,
-    nonce: pl.n
-  };
-  if (payload.offerHash === undefined) delete payload.offerHash;
-
-  return {
-    v: 3,
-    type: "response",
-    payload,
-    sig: respV3.s,
-    pub: { spki: respV3.pk }
-  };
-}
-
 /* =========================================================
    Create v3 response for a given HELLO
    ========================================================= */
 
 async function makeReturnForHelloAsync(helloB64url, opts) {
-  if (!helloB64url) throw new Error("HELLO missing." );
+  if (!helloB64url) throw new Error("HELLO missing.");
 
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
 
+  // HELLO remains legacy: base64url(JSON)
   const helloObj = irlidDecodeB64urlJson(helloB64url);
   if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) {
-    throw new Error("Invalid HELLO (bad structure)." );
+    throw new Error("Invalid HELLO (bad structure).");
   }
 
   const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
@@ -477,7 +511,7 @@ async function makeReturnForHelloAsync(helloB64url, opts) {
   const lon = Number(pos.coords.longitude);
   const acc = Number(pos.coords.accuracy || 0);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error("Invalid geolocation coordinates." );
+    throw new Error("Invalid geolocation coordinates.");
   }
 
   const ts = Math.floor(Date.now() / 1000);
@@ -515,42 +549,42 @@ async function processScannedResponse(otherRespObj, opts) {
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
   const distTolM = (opts && Number.isFinite(opts.distTolM)) ? opts.distTolM : 12;
 
-  if (!helloB64url) throw new Error("HELLO missing for verification." );
+  if (!helloB64url) throw new Error("HELLO missing for verification.");
 
   const helloObj = irlidDecodeB64urlJson(helloB64url);
-  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO." );
+  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
 
   const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
   const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
 
   const other = otherRespObj;
   if (!irlidIsRespV3(other) && !(other && other.type === "response")) {
-    throw new Error("Invalid response (bad structure)." );
+    throw new Error("Invalid response (bad structure).");
   }
 
   const selfAny = window.__irlid_last_self_response || null;
 
-  // --- Legacy v2 path (kept for backward compat) ---
+  // Legacy v2 response verification (kept)
   if (!irlidIsRespV3(other)) {
-    if (!other.payload || !other.hash || !other.sig || !other.pub) throw new Error("Invalid response (bad structure)." );
+    if (!other.payload || !other.hash || !other.sig || !other.pub) throw new Error("Invalid response (bad structure).");
 
     const computed = await hashPayloadToB64url(other.payload);
-    if (computed !== other.hash) throw new Error("Hash mismatch." );
+    if (computed !== other.hash) throw new Error("Hash mismatch.");
 
     const sigOk = await verifySigFlexible(other.hash, other.sig, other.pub);
-    if (!sigOk) throw new Error("Signature invalid." );
+    if (!sigOk) throw new Error("Signature invalid.");
 
     const helloHashV2 = await irlidHelloHashB64url(helloObj);
-    if (!other.payload.helloHash || other.payload.helloHash !== helloHashV2) throw new Error("HELLO binding mismatch." );
+    if (!other.payload.helloHash || other.payload.helloHash !== helloHashV2) throw new Error("HELLO binding mismatch.");
     if (offerInfo.offerHash) {
-      if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
+      if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) throw new Error("Offer binding mismatch.");
     }
 
     const now = Math.floor(Date.now() / 1000);
     const ts = Number(other.payload.ts);
-    if (!Number.isFinite(ts)) throw new Error("Response timestamp missing." );
+    if (!Number.isFinite(ts)) throw new Error("Response timestamp missing.");
     const dt = Math.abs(now - ts);
-    if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
+    if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
 
     if (selfAny) {
       const selfPayload = irlidIsRespV3(selfAny) ? selfAny.pl : (selfAny.payload || null);
@@ -558,7 +592,7 @@ async function processScannedResponse(otherRespObj, opts) {
       const b = irlidPayloadLatLonAny(other.payload);
       if (a && b) {
         const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
-        if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
+        if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m).");
       }
     }
 
@@ -574,33 +608,32 @@ async function processScannedResponse(otherRespObj, opts) {
     return { self: selfAny, other, combined: combinedV2 };
   }
 
-  // --- RESPv3 verification ---
+  // RESPv3 verification
   const otherPayload = other.pl;
   const computedOtherHash = await hashPayloadToB64url(otherPayload);
   const sigOk = await verifySigFlexible(computedOtherHash, other.s, other.pk);
-  if (!sigOk) throw new Error("Signature invalid." );
+  if (!sigOk) throw new Error("Signature invalid.");
 
   const otherHh = irlidPayloadHelloHashAny(otherPayload);
-  if (!otherHh || otherHh !== hh) throw new Error("HELLO binding mismatch." );
+  if (!otherHh || otherHh !== hh) throw new Error("HELLO binding mismatch.");
 
   if (offerInfo.offerHash) {
     const oh = irlidPayloadOfferHashAny(otherPayload);
-    if (!oh || oh !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
+    if (!oh || oh !== offerInfo.offerHash) throw new Error("Offer binding mismatch.");
   }
 
   const now = Math.floor(Date.now() / 1000);
   const tsOther = irlidPayloadTsAny(otherPayload);
-  if (!Number.isFinite(tsOther)) throw new Error("Response timestamp missing." );
+  if (!Number.isFinite(tsOther)) throw new Error("Response timestamp missing.");
   const dt = Math.abs(now - tsOther);
-  if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
+  if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
 
-  // Distance tolerance (v3) if self present (and v3)
   if (selfAny && irlidIsRespV3(selfAny)) {
     const a = irlidPayloadLatLonAny(selfAny.pl);
     const b = irlidPayloadLatLonAny(otherPayload);
     if (a && b) {
       const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
-      if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
+      if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m).");
     }
   }
 
