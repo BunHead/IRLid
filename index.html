@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 67 -->
+<!-- Deploy 68 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -35,13 +35,14 @@
 
   <div id="qrError" aria-live="polite"></div>
 
-  <main class="home-main">
+  <!-- Force column layout only on this page so debug button sits UNDER QR -->
+  <main class="home-main" style="flex-direction:column; align-items:center;">
     <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid Signed HELLO (Offer) QR"></div>
   
     <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
       <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
     </div>
-</main>
+  </main>
 
   <script src="js/auth.js"></script>
   <script src="js/nav.js"></script>
@@ -88,10 +89,8 @@
         let hello = null;
 
         if (typeof makeSignedHelloAsync === "function") {
-          // v2 Signed HELLO (Offer): includes signed geo+time proof to enable 2-scan handshake
           hello = await makeSignedHelloAsync({ tsTolS: 90 });
         } else {
-          // Back-compat: unsigned v1 HELLO
           const pub = await getPublicJwk();
           hello = {
             v: 1,
@@ -104,7 +103,6 @@
 
         const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
 
-        // GitHub Pages base path: /IRLid/
         const baseUrl = location.origin + "/IRLid";
         const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
 
@@ -127,7 +125,6 @@
     window.addEventListener("resize", rerender);
     window.addEventListener("orientationchange", rerender);
     if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
-  
 
     function isDebug(){
       try{
@@ -148,7 +145,6 @@
     const debugControls = document.getElementById("debugControls");
     if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
 
-    // Mobile-friendly clear: removes saved HELLO/receipts without needing DevTools.
     const clearLocalBtn = document.getElementById("clearLocalBtn");
     if (clearLocalBtn) {
       clearLocalBtn.addEventListener("click", () => {
@@ -168,7 +164,6 @@
         location.reload();
       });
     }
-
-</script>
+  </script>
 </body>
 </html>
