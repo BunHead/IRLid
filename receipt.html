@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 66 -->
+<!-- Deploy 70 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -322,12 +322,35 @@
   }
 
   function getGps(resp){
-    if (!resp || !resp.payload) return null;
+    if (!resp) return null;
+
+    // RESPv3: {v:3, pk, pl:{la,lo,ac,...}, s}
+    if (resp.v === 3 && resp.pl && typeof resp.pl === "object") {
+      return extractGpsFromPayload({
+        lat: resp.pl.la,
+        lon: resp.pl.lo,
+        acc: resp.pl.ac
+      });
+    }
+
+    if (!resp.payload) return null;
     return extractGpsFromPayload(resp.payload);
   }
 
   function getTsMs(resp){
-    if (!resp || !resp.payload) return null;
+    if (!resp) return null;
+
+    // RESPv3
+    if (resp.v === 3 && resp.pl && typeof resp.pl === "object") {
+      const ts = resp.pl.t;
+      if (typeof ts === "number" && Number.isFinite(ts)) {
+        if (ts > 1000000000000) return Math.floor(ts);
+        if (ts > 1000000000) return Math.floor(ts * 1000);
+      }
+      return null;
+    }
+
+    if (!resp.payload) return null;
     const ts = resp.payload.ts;
     if (typeof ts === "number" && Number.isFinite(ts)) {
       if (ts > 1000000000000) return Math.floor(ts);
@@ -393,6 +416,22 @@
       computedHash: null
     };
 
+    // RESPv3
+    if (resp && resp.v === 3 && resp.pk && resp.pl && resp.s) {
+      results.okStructure = true;
+      try {
+        const computed = await hashPayloadToB64url(resp.pl);
+        results.computedHash = computed;
+        results.okHash = true; // RESPv3 carries no explicit hash
+        results.okSig = await verifySigFlexible(computed, resp.s, resp.pk);
+      } catch {
+        results.okHash = false;
+        results.okSig = false;
+      }
+      return results;
+    }
+
+    // Legacy v2
     if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
       return results;
     }
@@ -407,7 +446,7 @@
     }
 
     try {
-      results.okSig = await verifySig(resp.hash, resp.sig, resp.pub);
+      results.okSig = await verifySigFlexible(resp.hash, resp.sig, resp.pub);
     } catch {
       results.okSig = false;
     }
@@ -432,8 +471,8 @@
       const entry = arr[i];
 
       const combined =
-        (entry && entry.type === "combined") ? entry :
-        (entry && entry.combined && entry.combined.type === "combined") ? entry.combined :
+        (entry && (entry.type === "combined" || (entry.v === 3 && (entry.t === "c" || entry.h)))) ? entry :
+        (entry && entry.combined && (entry.combined.type === "combined" || (entry.combined.v === 3 && (entry.combined.t === "c" || entry.combined.h)))) ? entry.combined :
         null;
 
       const resp =
@@ -538,11 +577,11 @@
 
     const fromHash = parseFromHash();
 
-    if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj && (fromHash.obj.type === "response" || (fromHash.obj.v === 3 && fromHash.obj.pk && fromHash.obj.pl))) {
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
 
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj && (fromHash.obj.type === "combined" || (fromHash.obj.v === 3 && (fromHash.obj.t === "c" || fromHash.obj.h)))) {
       localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
     }
 
@@ -553,28 +592,26 @@
     let comb = null;
     let resp = null;
 
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj && (fromHash.obj.type === "combined" || (fromHash.obj.v === 3 && (fromHash.obj.t === "c" || fromHash.obj.h)))) {
       comb = fromHash.obj;
-    } else if (last && last.type === "combined") {
+    } else if (last && (last.type === "combined" || (last.v === 3 && (last.t === "c" || last.h)))) {
       comb = last;
     } else {
       // If no combined, show most recent single response (or last response)
-      if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+      if (fromHash && fromHash.kind === "resp" && fromHash.obj && (fromHash.obj.type === "response" || (fromHash.obj.v === 3 && fromHash.obj.pk && fromHash.obj.pl))) {
         resp = fromHash.obj;
-      } else if (last && last.type === "response") {
+      } else if (last && (last.type === "response" || (last.v === 3 && last.pk && last.pl))) {
         resp = last;
       }
     }
 
     // If we have separate self/guest stored, render as combined.
     if (!comb && self && guest) {
-      comb = {
-        v: 1,
-        type: "combined",
-        a: self,
-        b: guest,
-        tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S }
-      };
+      // Prefer COMBv3 if stored receipts look like v3.
+      const looksV3 = (self && self.v === 3 && self.pl) || (guest && guest.v === 3 && guest.pl);
+      comb = looksV3
+        ? { v: 3, t: "c", a: self, b: guest, tol: { d: DIST_TOL_M, s: TS_TOL_S } }
+        : { v: 1, type: "combined", a: self, b: guest, tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S } };
     }
 
     if (!comb && !resp) {
@@ -634,36 +671,80 @@
         addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
       }
 
-      // --- Protocol v2 checks: Signed HELLO (Offer) + Signed Response (Accept) ---
-      const helloObj = comb.hello || null;
-      if (helloObj) {
+      // --- Protocol checks ---
+      // v3: comb.h (helloLite) binds both responses (pl.hh) and allows verifying offer signature.
+      if (comb.v === 3 && comb.h) {
         try{
-          const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
-          addCheck("HELLO offer: structure+hash+sig", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
-        }catch(e){
-          addCheck("HELLO offer: structure+hash+sig", false, String(e));
-        }
+          const helloLite = comb.h;
+          const hh = await irlidHelloHashV3FromHelloLiteAsync(helloLite);
+          addCheck("HELLO-Lite present", true);
 
-        try{
-          const helloHash = await irlidHelloHashB64url(helloObj);
-
-          if (respA && respA.payload) {
-            addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
-          }
-          if (respB && respB.payload) {
-            addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
+          // Verify offer signature if present
+          if (helloLite.off && helloLite.off.pl && helloLite.off.s) {
+            const offerHash = await hashPayloadToB64url(helloLite.off.pl);
+            const ok = await verifySigFlexible(offerHash, helloLite.off.s, helloLite.pk);
+            addCheck("Offer signature valid", !!ok);
+          } else {
+            addCheck("Offer signature present", false, "Missing helloLite.off (unsigned HELLO).");
           }
 
-          if (helloObj.offer && helloObj.offer.hash) {
-            const oh = helloObj.offer.hash;
-            if (respA && respA.payload) addCheck("Self binds to offerHash", respA.payload.offerHash === oh);
-            if (respB && respB.payload) addCheck("Guest binds to offerHash", respB.payload.offerHash === oh);
+          // Binding checks against hh
+          const getHhFromResp = (r) => {
+            if (!r) return null;
+            if (r.v === 3 && r.pl) return r.pl.hh;
+            if (r.payload) return r.payload.helloHash;
+            return null;
+          };
+          addCheck("Self binds to HELLO", getHhFromResp(respA) === hh);
+          addCheck("Guest binds to HELLO", getHhFromResp(respB) === hh);
+
+          // OfferHash binding (if offer exists)
+          if (helloLite.off && helloLite.off.pl) {
+            const offerHash = await hashPayloadToB64url(helloLite.off.pl);
+            const getOhFromResp = (r) => {
+              if (!r) return null;
+              if (r.v === 3 && r.pl) return r.pl.oh || null;
+              if (r.payload) return r.payload.offerHash || null;
+              return null;
+            };
+            addCheck("Self binds to offerHash", getOhFromResp(respA) === offerHash);
+            addCheck("Guest binds to offerHash", getOhFromResp(respB) === offerHash);
           }
-        }catch(e){
-          addCheck("HELLO binding checks", false, String(e));
+        } catch (e) {
+          addCheck("HELLO-Lite checks", false, String(e));
         }
       } else {
-        addCheck("HELLO present in combined", false, "Missing comb.hello (cannot verify offer/bindings).");
+        // v2 combined includes full hello
+        const helloObj = comb.hello || null;
+        if (helloObj) {
+          try{
+            const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
+            addCheck("HELLO offer: structure+hash+sig", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
+          }catch(e){
+            addCheck("HELLO offer: structure+hash+sig", false, String(e));
+          }
+
+          try{
+            const helloHash = await irlidHelloHashB64url(helloObj);
+
+            if (respA && respA.payload) {
+              addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
+            }
+            if (respB && respB.payload) {
+              addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
+            }
+
+            if (helloObj.offer && helloObj.offer.hash) {
+              const oh = helloObj.offer.hash;
+              if (respA && respA.payload) addCheck("Self binds to offerHash", respA.payload.offerHash === oh);
+              if (respB && respB.payload) addCheck("Guest binds to offerHash", respB.payload.offerHash === oh);
+            }
+          }catch(e){
+            addCheck("HELLO binding checks", false, String(e));
+          }
+        } else {
+          addCheck("HELLO present in combined", false, "Missing comb.hello/comb.h (cannot verify offer/bindings)." );
+        }
       }
 
       // --- Mutual tolerances (client-side) ---
