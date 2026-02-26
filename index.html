@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 66 -->
+<!-- Deploy 67 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -38,7 +38,7 @@
   <main class="home-main">
     <div class="qr-box home-qr" id="myQr" aria-label="Your IRLid Signed HELLO (Offer) QR"></div>
   
-    <div class="controls" style="justify-content:center; margin-top:12px;">
+    <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
       <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
     </div>
 </main>
@@ -128,6 +128,25 @@
     window.addEventListener("orientationchange", rerender);
     if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
   
+
+    function isDebug(){
+      try{
+        const qs = new URLSearchParams(location.search || "");
+        if (qs.get("debug") === "1" || qs.get("debug") === "true") return true;
+      }catch{}
+      try{
+        const v = localStorage.getItem("irlid_debug");
+        if (v === "1" || v === "true") return true;
+      }catch{}
+      try{
+        const h = location.hash || "";
+        if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
+      }catch{}
+      return false;
+    }
+
+    const debugControls = document.getElementById("debugControls");
+    if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
 
     // Mobile-friendly clear: removes saved HELLO/receipts without needing DevTools.
     const clearLocalBtn = document.getElementById("clearLocalBtn");
