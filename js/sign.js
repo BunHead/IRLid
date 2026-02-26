@@ -148,6 +148,7 @@
     } catch {}
   }
 
+  // ✅ index.html depends on this
   async function getPublicJwk() {
     await ensureKeys();
     return JSON.parse(localStorage.getItem("irlid_pub_jwk"));
@@ -372,11 +373,7 @@
     const pk = await jwkToSpkiB64url(helloObj.pub);
 
     if (helloObj.offer && helloObj.offer.payload && helloObj.offer.sig) {
-      return {
-        v: 3,
-        pk,
-        off: { pl: helloObj.offer.payload, s: helloObj.offer.sig }
-      };
+      return { v: 3, pk, off: { pl: helloObj.offer.payload, s: helloObj.offer.sig } };
     }
 
     const lite = { v: 3, pk, u: 1 };
@@ -397,14 +394,7 @@
   }
 
   function irlidCompactPayloadFromGpsTsNonce(binding) {
-    const pl = {
-      hh: binding.hh,
-      la: binding.lat,
-      lo: binding.lon,
-      ac: binding.acc,
-      t: binding.ts,
-      n: binding.nonce
-    };
+    const pl = { hh: binding.hh, la: binding.lat, lo: binding.lon, ac: binding.acc, t: binding.ts, n: binding.nonce };
     if (binding.oh) pl.oh = binding.oh;
     return pl;
   }
@@ -426,18 +416,11 @@
     const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
     const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
 
-    const pos = await irlidGetPosition({
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 12000
-    });
-
+    const pos = await irlidGetPosition({ enableHighAccuracy: true, maximumAge: 0, timeout: 12000 });
     const lat = Number(pos.coords.latitude);
     const lon = Number(pos.coords.longitude);
     const acc = Number(pos.coords.accuracy || 0);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      throw new Error("Invalid geolocation coordinates.");
-    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error("Invalid geolocation coordinates.");
 
     const ts = Math.floor(Date.now() / 1000);
     const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
@@ -457,10 +440,8 @@
     const s = await signHashB64url(h);
 
     const respV3 = { v: 3, pk, pl, s };
-
     window.__irlid_last_self_response = respV3;
     window.__irlid_last_hello_lite = helloLite;
-
     return respV3;
   }
 
@@ -508,6 +489,7 @@
       if (!Number.isFinite(ts)) throw new Error("Response timestamp missing.");
       if (Math.abs(now - ts) > tsTolS) throw new Error("Timestamp outside tolerance.");
 
+      // distance check if self present
       if (selfAny && selfAny.payload) {
         const a = { lat: Number(selfAny.payload.lat), lon: Number(selfAny.payload.lon) };
         const b = { lat: Number(other.payload.lat), lon: Number(other.payload.lon) };
@@ -544,6 +526,7 @@
     if (!Number.isFinite(otherPayload.t)) throw new Error("Response timestamp missing.");
     if (Math.abs(now - Number(otherPayload.t)) > tsTolS) throw new Error("Timestamp outside tolerance.");
 
+    // distance check if self present
     if (selfAny && irlidIsRespV3(selfAny)) {
       const a = { lat: Number(selfAny.pl.la), lon: Number(selfAny.pl.lo) };
       const b = { lat: Number(otherPayload.la), lon: Number(otherPayload.lo) };
@@ -566,12 +549,16 @@
   }
 
   // =========================================================
-  // Export globals explicitly (fixes your ReferenceError)
+  // Export globals explicitly (fixes ReferenceErrors)
   // =========================================================
   Object.assign(window, {
     // QR encoding helpers
     irlidEncodeForQR,
     irlidDecodeFromQR,
+
+    // key helpers used by index.html
+    ensureKeys,
+    getPublicJwk,
 
     // legacy helpers used elsewhere
     irlidEncodeJsonToB64url,
