@@ -1,185 +1,381 @@
-// /js/qr.js — Deploy 63
-// Robust QR rendering for GitHub Pages:
-// - Tries to load QR library from multiple CDNs (no local qrcode.min.js required)
-// - Uses QRCode.toCanvas when available
-// - Falls back to remote PNG QR image if library is unavailable or render fails
-// - Renders crisp on HiDPI to avoid “vibrate but no link” decode failures
-//
-// Exposes:
-//   window.makeQR(elId, data, sizePx)
-//   window.scanQR(targetElId)  (unchanged; requires Html5Qrcode elsewhere)
+/* /js/qr.js
+   IRLid QR rendering pipeline (redesigned for scan reliability)
+   - Multi-CDN loader for `QRCode` (soldair/node-qrcode-style API)
+   - Uses `QRCode.toCanvas` when available
+   - HiDPI crisp canvas with integer module sizing + generous quiet zone
+   - Error correction level fixed to "L"
+   - Fallback to api.qrserver.com if library unavailable or canvas render fails
+   - Adds optional “tap to fullscreen” overlay for large / dense codes (no layout redesign required)
+   Deploy71
+
+   Public API (kept stable):
+     makeQR(targetId, text, sizePx) -> Promise<void>
+
+   Notes:
+   - Does NOT depend on any framework/build tooling.
+   - Safe to include on pages that already call makeQR().
+*/
 
 (function () {
   "use strict";
 
-  function elById(id) {
-    const el = document.getElementById(id);
-    if (!el) throw new Error("qr.js: element not found: " + id);
+  // ------------------------------------------------------------
+  // Config
+  // ------------------------------------------------------------
+  const ECC_LEVEL = "L";          // requirement
+  const DEFAULT_SIZE = 360;       // if caller passes null/0
+  const MAX_FULLSCREEN = 640;     // overlay QR max size
+  const MIN_FULLSCREEN = 320;
+  const QUIET_ZONE_MODULES = 8;   // larger than spec minimum to aid camera recognition
+  const MAX_RENDER_RETRIES = 1;   // if render fails, try once with looser params then fallback image
+
+  // Multi-CDN URLs for the QRCode library
+  // We expect a global `QRCode` with .toCanvas and (optionally) .create
+  const CDN_URLS = [
+    "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js",
+    "https://unpkg.com/qrcode@1.5.4/build/qrcode.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.4/qrcode.min.js"
+  ];
+
+  // ------------------------------------------------------------
+  // Utilities
+  // ------------------------------------------------------------
+  function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+  function isProbablyUrl(s) {
+    try { new URL(s); return true; } catch { return false; }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function ensureTargetEl(targetId) {
+    const el = (typeof targetId === "string") ? document.getElementById(targetId) : targetId;
+    if (!el) throw new Error("QR target not found: " + targetId);
     return el;
   }
 
-  function clear(el) {
+  function clearEl(el) {
     while (el.firstChild) el.removeChild(el.firstChild);
   }
 
-  function loadScript(url) {
+  function loadScriptOnce(url) {
     return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-irlid-qr="' + url + '"]');
+      if (existing) {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", () => reject(new Error("Script load failed: " + url)), { once: true });
+        // If already loaded, resolve immediately
+        if (existing.getAttribute("data-loaded") === "1") resolve();
+        return;
+      }
       const s = document.createElement("script");
       s.src = url;
       s.async = true;
-      s.onload = () => resolve(url);
-      s.onerror = () => reject(new Error("Failed to load: " + url));
+      s.defer = true;
+      s.setAttribute("data-irlid-qr", url);
+      s.onload = () => { s.setAttribute("data-loaded", "1"); resolve(); };
+      s.onerror = () => reject(new Error("Script load failed: " + url));
       document.head.appendChild(s);
     });
   }
 
-  async function ensureQrLib() {
-    if (window.QRCode && typeof window.QRCode.toCanvas === "function") return true;
+  async function ensureQRCodeLib() {
+    if (window.QRCode && typeof window.QRCode.toCanvas === "function") return window.QRCode;
 
-    const cdns = [
-      "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js",
-      "https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.3/qrcode.min.js"
-    ];
-
-    for (const url of cdns) {
+    let lastErr = null;
+    for (const url of CDN_URLS) {
       try {
-        await loadScript(url);
-        if (window.QRCode && typeof window.QRCode.toCanvas === "function") return true;
-      } catch (_) {
-        // try next
+        await loadScriptOnce(url);
+        if (window.QRCode && typeof window.QRCode.toCanvas === "function") return window.QRCode;
+      } catch (e) {
+        lastErr = e;
       }
     }
-    return false;
+    throw lastErr || new Error("QRCode library unavailable.");
   }
 
-  function makeRemoteImg(data, sizeCssPx) {
-    // Keep your original remote fallback idea, but make it bigger and with margin.
-    // NOTE: If your network blocks this domain, we still attempt it as a last resort.
-    const px = Math.max(240, Math.floor(sizeCssPx));
-    const url =
-      "https://api.qrserver.com/v1/create-qr-code/" +
-      "?ecc=L&margin=10&size=" + px + "x" + px +
-      "&data=" + encodeURIComponent(String(data));
+  // Try to estimate module count using QRCode.create if available.
+  // If unavailable, we still render, but we won't be able to perfect integer module size.
+  function tryGetModuleCount(QRCodeLib, text) {
+    try {
+      if (!QRCodeLib || typeof QRCodeLib.create !== "function") return null;
+      // Margin does not affect module count; ECC and version do.
+      const qr = QRCodeLib.create(text, { errorCorrectionLevel: ECC_LEVEL });
+      const size = qr && qr.modules && typeof qr.modules.size === "number" ? qr.modules.size : null;
+      return (size && size > 0) ? size : null;
+    } catch {
+      return null;
+    }
+  }
 
+  // Compute a canvas pixel size that results in integer pixels per module.
+  // totalModules = modules + 2*quietZoneModules
+  function computeIntegerCanvasSize(modules, desiredCssSize, quietZoneModules) {
+    if (!modules || modules <= 0) return { css: desiredCssSize, px: desiredCssSize };
+
+    const total = modules + 2 * quietZoneModules;
+    // Choose integer scale so css size is close to desired.
+    const targetScale = Math.max(1, Math.round(desiredCssSize / total));
+    const css = total * targetScale;
+    return { css, px: css };
+  }
+
+  // Add click-to-fullscreen overlay for easier scanning.
+  function attachFullscreen(el, text, preferredSize) {
+    // Avoid double-binding
+    if (el && el.__irlid_fs_bound) return;
+    el.__irlid_fs_bound = true;
+
+    // Only enable fullscreen if it looks like a URL or long payload (dense)
+    const enable = (typeof text === "string" && (text.length > 600 || isProbablyUrl(text)));
+    if (!enable) return;
+
+    const handler = async (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      try {
+        await showFullscreenQR(text, preferredSize);
+      } catch {
+        // ignore
+      }
+    };
+
+    // Bind to container; canvas/img inside will bubble.
+    el.style.cursor = "zoom-in";
+    el.addEventListener("click", handler);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") handler(e);
+    });
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", "Open QR fullscreen");
+  }
+
+  function ensureOverlay() {
+    let overlay = document.getElementById("irlidQrOverlay");
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.id = "irlidQrOverlay";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "9999";
+    overlay.style.display = "none";
+    overlay.style.background = "rgba(0,0,0,0.72)";
+    overlay.style.padding = "16px";
+    overlay.style.boxSizing = "border-box";
+
+    overlay.innerHTML = `
+      <div id="irlidQrOverlayInner" style="
+        position:absolute; inset:0;
+        display:flex; align-items:center; justify-content:center;
+        padding:16px; box-sizing:border-box;">
+        <div style="
+          background:#fff; border-radius:12px;
+          padding:14px 14px 10px;
+          max-width: 92vw; max-height: 92vh;
+          box-sizing:border-box;
+          display:flex; flex-direction:column; gap:10px;
+          align-items:center;">
+          <div style="width:100%; display:flex; justify-content:space-between; gap:10px; align-items:center;">
+            <div style="font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial; color:#111;">
+              QR (tap outside to close)
+            </div>
+            <button id="irlidQrOverlayClose" type="button" style="
+              appearance:none; border:1px solid #ddd; background:#fff;
+              border-radius:10px; padding:6px 10px;
+              font: 600 13px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+              cursor:pointer;">Close</button>
+          </div>
+          <div id="irlidQrOverlayBox" style="display:flex; align-items:center; justify-content:center;"></div>
+          <div id="irlidQrOverlayHint" style="
+            font: 12px system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            color:#444; text-align:center; max-width: 72ch;">
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector("#irlidQrOverlayClose");
+    closeBtn.addEventListener("click", () => hideOverlay());
+
+    overlay.addEventListener("click", (e) => {
+      // close when clicking outside the white card
+      const inner = overlay.querySelector("#irlidQrOverlayInner");
+      if (e.target === overlay || e.target === inner) hideOverlay();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideOverlay();
+    });
+
+    return overlay;
+  }
+
+  function hideOverlay() {
+    const overlay = document.getElementById("irlidQrOverlay");
+    if (!overlay) return;
+    overlay.style.display = "none";
+    const box = overlay.querySelector("#irlidQrOverlayBox");
+    if (box) box.innerHTML = "";
+  }
+
+  async function showFullscreenQR(text, preferredSize) {
+    const overlay = ensureOverlay();
+    const box = overlay.querySelector("#irlidQrOverlayBox");
+    const hint = overlay.querySelector("#irlidQrOverlayHint");
+    if (!box) return;
+
+    box.innerHTML = "";
+    overlay.style.display = "block";
+
+    const size = clamp(
+      Math.min(window.innerWidth, window.innerHeight) - 80,
+      MIN_FULLSCREEN,
+      MAX_FULLSCREEN
+    );
+
+    // Hint text
+    hint.textContent = (text.length > 800)
+      ? "Tip: hold steady and fill the scanner view. This receipt is data-dense."
+      : "Tip: increase screen brightness for faster scanning.";
+
+    // Render QR into overlay
+    const tmp = document.createElement("div");
+    box.appendChild(tmp);
+    await renderQRInto(tmp, text, size, { fullscreen: true });
+  }
+
+  // ------------------------------------------------------------
+  // Fallback image rendering (api.qrserver.com)
+  // ------------------------------------------------------------
+  function renderFallbackImage(container, text, sizeCss) {
+    clearEl(container);
     const img = document.createElement("img");
-    img.alt = "QR";
-    img.src = url;
-    img.style.width = px + "px";
-    img.style.height = px + "px";
-    img.style.maxWidth = "100%";
-    img.style.height = "auto";
-    img.style.imageRendering = "pixelated";
+    img.alt = "QR code";
     img.decoding = "async";
     img.loading = "eager";
-    return img;
+    img.style.display = "block";
+    img.style.margin = "0 auto";
+    img.style.maxWidth = "100%";
+    img.style.height = "auto";
+
+    // Use large pixel size to aid scanning; QR server generates crisp raster.
+    const px = Math.max(256, Math.min(1200, Math.floor(sizeCss * (window.devicePixelRatio || 1))));
+    const url =
+      "https://api.qrserver.com/v1/create-qr-code/" +
+      "?size=" + px + "x" + px +
+      "&ecc=" + encodeURIComponent(ECC_LEVEL) +
+      "&margin=" + encodeURIComponent(QUIET_ZONE_MODULES) +
+      "&data=" + encodeURIComponent(text);
+
+    img.src = url;
+    container.appendChild(img);
   }
 
-  function clampQrCssSize(requestedCssPx) {
-    const req = Math.max(180, Math.floor(Number(requestedCssPx) || 0));
-    // Keep a safe margin for padding and avoid overlapping UI on mobile.
-    const vw = Math.max(320, (window.innerWidth || 360));
-    const vh = Math.max(480, (window.innerHeight || 640));
+  // ------------------------------------------------------------
+  // Canvas rendering via QRCode.toCanvas
+  // ------------------------------------------------------------
+  async function renderQRInto(container, text, sizeCss, opts) {
+    const QRCodeLib = await ensureQRCodeLib();
+    clearEl(container);
 
-    // Conservative clamp: fit within viewport width, and also not exceed ~55% of height.
-    const maxByW = Math.max(180, vw - 64);
-    const maxByH = Math.max(180, Math.floor(vh * 0.55));
-    const max = Math.min(maxByW, maxByH, 520);
-    return Math.max(180, Math.min(req, max));
-  }
+    // Compute module count if possible to get integer pixels/module
+    const modules = tryGetModuleCount(QRCodeLib, text);
 
-  function makeCanvasHiDpi(sizeCssPx) {
-    // IMPORTANT: Keep HiDPI crispness but clamp CSS display size to viewport.
-    const css = clampQrCssSize(sizeCssPx);
-    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const px = Math.floor(css * dpr);
+    const desired = Math.max(220, Number(sizeCss) || DEFAULT_SIZE);
+    const sizing = computeIntegerCanvasSize(modules, desired, QUIET_ZONE_MODULES);
 
+    const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1)); // cap DPR to avoid huge canvases
     const canvas = document.createElement("canvas");
-    canvas.width = px;
-    canvas.height = px;
 
-    canvas.style.width = css + "px";
-    canvas.style.height = css + "px";
-    canvas.style.imageRendering = "pixelated";
+    // CSS size (layout)
+    canvas.style.width = sizing.css + "px";
+    canvas.style.height = sizing.css + "px";
     canvas.style.display = "block";
     canvas.style.margin = "0 auto";
 
-    return { canvas, css, px, dpr };
-  }
+    // Physical pixels (crisp)
+    canvas.width = Math.floor(sizing.px * dpr);
+    canvas.height = Math.floor(sizing.px * dpr);
 
-  window.makeQR = async function makeQR(elId, data, size = 320) {
-    const el = elById(elId);
-    clear(el);
+    // Ensure the QR library renders into full pixel grid
+    const optionsBase = {
+      errorCorrectionLevel: ECC_LEVEL,
+      margin: QUIET_ZONE_MODULES,
+      // qrcode library uses `scale` OR `width`. We set width to physical pixels.
+      width: canvas.width,
+      // Do not set colors; leave default (black on white) for best scanning
+    };
 
-    // Fit on screen: prefer clamping rather than forcing horizontal scroll.
-    el.style.overflowX = "hidden";
-    el.style.maxWidth = "100%";
+    let lastErr = null;
 
-    const ok = await ensureQrLib();
-
-    if (ok && window.QRCode && typeof window.QRCode.toCanvas === "function") {
-      const { canvas, px, css } = makeCanvasHiDpi(size);
-
-      // Lowest density + generous quiet zone
-      const opts = {
-        errorCorrectionLevel: "L",
-        margin: 10,
-        width: px,
-        color: { dark: "#000000", light: "#ffffff" }
-      };
-
+    for (let attempt = 0; attempt <= MAX_RENDER_RETRIES; attempt++) {
       try {
-        window.QRCode.toCanvas(canvas, String(data), opts, (err) => {
-          if (err) {
-            clear(el);
-            el.appendChild(makeRemoteImg(data, size));
-            return;
-          }
-          // Ensure the canvas display size stays clamped (some browsers can mutate styles).
-          canvas.style.width = css + "px";
-          canvas.style.height = css + "px";
-          canvas.style.maxWidth = "100%";
-          el.appendChild(canvas);
-        });
+        const options = Object.assign({}, optionsBase);
+
+        // If first attempt fails (rare), reduce width to avoid memory or edge issues.
+        if (attempt === 1) {
+          const shrink = Math.max(256, Math.floor(canvas.width * 0.85));
+          options.width = shrink;
+        }
+
+        await QRCodeLib.toCanvas(canvas, text, options);
+        container.appendChild(canvas);
+
+        // Optional fullscreen binding on container (not on overlay itself)
+        if (!opts || !opts.fullscreen) attachFullscreen(container, text, sizing.css);
+
         return;
-      } catch (_) {
-        // fall through to remote
+      } catch (e) {
+        lastErr = e;
       }
     }
 
-    // Final fallback
-    el.appendChild(makeRemoteImg(data, clampQrCssSize(size)));
-  };
+    // If canvas render fails, fallback image
+    // (Still benefits from big margin & higher pixel size)
+    renderFallbackImage(container, text, desired);
+    if (!opts || !opts.fullscreen) attachFullscreen(container, text, desired);
 
-  // Keep existing scan helper (unchanged)
-  window.scanQR = function scanQR(targetElId) {
-    return new Promise((resolve, reject) => {
-      if (typeof Html5Qrcode === "undefined") {
-        reject(new Error("Html5Qrcode not loaded."));
-        return;
+    // Surface failure for debug console only
+    if (lastErr) console.warn("QR canvas render failed; used fallback image.", lastErr);
+  }
+
+  // ------------------------------------------------------------
+  // Public API
+  // ------------------------------------------------------------
+  async function makeQR(targetId, text, sizePx) {
+    const container = ensureTargetEl(targetId);
+    const size = Number(sizePx) || DEFAULT_SIZE;
+
+    // Improve odds by ensuring container background is white and not clipped
+    try {
+      const cs = getComputedStyle(container);
+      if (!cs.backgroundColor || cs.backgroundColor === "rgba(0, 0, 0, 0)" || cs.backgroundColor === "transparent") {
+        container.style.background = "#fff";
       }
+      container.style.overflow = "visible"; // avoid clipping quiet zone
+      container.style.display = "block";
+    } catch {}
 
-      const qr = new Html5Qrcode(targetElId);
+    // Render (canvas preferred; image fallback)
+    try {
+      await renderQRInto(container, String(text || ""), size, { fullscreen: false });
+    } catch (e) {
+      // If library load fails, fallback image
+      renderFallbackImage(container, String(text || ""), size);
+      attachFullscreen(container, String(text || ""), size);
+      console.warn("QR render used fallback image:", e);
+    }
+  }
 
-      qr.start(
-        { facingMode: "environment" },
-        {
-          fps: 12,
-          qrbox: { width: 320, height: 320 },
-          disableFlip: false,
-          videoConstraints: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 30 }
-          }
-        },
-        async (text) => {
-          try { await qr.stop(); } catch {}
-          try { await qr.clear(); } catch {}
-          resolve(text);
-        },
-        () => {}
-      ).catch(err => reject(err));
-    });
-  };
+  // expose globally
+  window.makeQR = makeQR;
+
 })();
