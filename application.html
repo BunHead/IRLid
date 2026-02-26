@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 68 -->
+<!-- Deploy 69 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -53,7 +53,7 @@
     <h3 id="responseTitle">Your Accept QR</h3>
     <div class="qr-box" id="responseQr"></div>
 
-    <!-- Camera now lives HERE so it replaces the QR area -->
+    <!-- Camera lives here so it replaces the QR area (no scrolling) -->
     <div id="scanner"></div>
 
     <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
@@ -185,7 +185,15 @@
 
   async function initHelloReturnQr(){
     if (!hello) {
-      responseArea.style.display = "none";
+      // Keep page usable after clearing data: scanner must remain accessible.
+      responseArea.style.display = "block";
+      const qrBox = document.getElementById("responseQr");
+      if (qrBox) {
+        qrBox.innerHTML = "";
+        qrBox.style.display = "none";
+      }
+      showReceiptBtn.style.display = "none";
+      lastCombinedUrl = null;
       setStatus("Ready. Scan a Signed HELLO (Offer) to begin.");
       return;
     }
