@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 70 -->
+<!-- Deploy 71 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,6 @@
   <title>IRLid — Scan</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Keep content visible above the fixed mobile bottom nav */
     #responseArea { margin-top: 8px; }
     #responseTitle { margin: 10px 0 10px; }
     #responseHint { display: none; }
@@ -53,7 +52,6 @@
     <h3 id="responseTitle">Your Accept QR</h3>
     <div class="qr-box" id="responseQr"></div>
 
-    <!-- Camera lives here so it replaces the QR area (no scrolling) -->
     <div id="scanner"></div>
 
     <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
@@ -116,7 +114,6 @@
     return false;
   }
 
-  // Debug-only recovery controls
   if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
 
   function setStatus(msg){ statusEl.textContent = msg; }
@@ -187,7 +184,6 @@
 
   async function initHelloReturnQr(){
     if (!hello) {
-      // Keep page usable after clearing data: scanner must remain accessible.
       responseArea.style.display = "block";
       const qrBox = document.getElementById("responseQr");
       if (qrBox) {
@@ -209,7 +205,8 @@
       const respObj = await makeReturnForHelloAsync(hello);
       saveSelfResp(respObj);
 
-      const encoded = irlidEncodeJsonToB64url(respObj);
+      // ✅ compressed encoding for RESP
+      const encoded = await irlidEncodeForQR(respObj);
 
       const url = new URL(location.href);
       url.hash = "RESP=" + encoded;
@@ -358,7 +355,8 @@
 
     await ensureSelfResponseForHello();
 
-    const otherRespObj = irlidDecodeB64urlJson(respB64);
+    // ✅ decode supports compressed+legacy
+    const otherRespObj = await irlidDecodeFromQR(respB64);
 
     const out = await processScannedResponse(otherRespObj, {
       hello,
@@ -366,7 +364,9 @@
       distTolM: IRLID_DIST_TOL_M
     });
 
-    const combEncoded = irlidEncodeJsonToB64url(out.combined);
+    // ✅ compressed encoding for COMB
+    const combEncoded = await irlidEncodeForQR(out.combined);
+
     lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
     storeCombinedReceipt(out.combined);
 
@@ -453,7 +453,7 @@
   scanTheirRespBtn.addEventListener("click", async () => {
     try{
       if (!hello) {
-        setStatus("Scan a HELLO first (Home generates a HELLO QR)." );
+        setStatus("Scan a HELLO first (Home generates a HELLO QR).");
         return;
       }
       await listCamerasAndSelectDefault();
