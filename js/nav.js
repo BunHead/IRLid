@@ -2,7 +2,7 @@
 // Shared navigation logic for IRLid (static GitHub Pages)
 // - Shows Login when logged out
 // - Shows Name... dropdown (Settings, Receipts, Logout) when logged in
-// Deploy 2
+// Deploy 68
 
 (function () {
   "use strict";
@@ -62,20 +62,12 @@
       <details class="nav-dropdown" id="accountDropdown">
         <summary class="nav-btn">Name... ▼</summary>
         <div class="dropdown-menu" role="menu" aria-label="Account menu">
-          <a href="#" id="acctSettingsLink">Settings</a>
+          <a href="settings.html" id="acctSettingsLink">Settings</a>
           <a href="receipt.html">Receipts</a>
           <a href="login.html" id="acctLogoutLink">Logout</a>
         </div>
       </details>
     `;
-
-    const settings = document.getElementById("acctSettingsLink");
-    if (settings) {
-      settings.addEventListener("click", (e) => {
-        e.preventDefault();
-        alert("Settings page not added yet.");
-      });
-    }
 
     const logout = document.getElementById("acctLogoutLink");
     if (logout) {
