@@ -1,5 +1,6 @@
+// js/sign.js
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 67
+// Deploy 70
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -20,17 +21,10 @@ function b64urlEncode(bytes) {
 }
 
 function b64urlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
+  str = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
   while (str.length % 4) str += "=";
   const bin = atob(str);
   return Uint8Array.from(bin, c => c.charCodeAt(0));
-}
-
-function canonical(obj) {
-  const keys = Object.keys(obj).sort();
-  const o = {};
-  for (const k of keys) o[k] = obj[k];
-  return JSON.stringify(o);
 }
 
 async function sha256Bytes(str) {
@@ -38,6 +32,10 @@ async function sha256Bytes(str) {
   const hash = await crypto.subtle.digest("SHA-256", enc);
   return new Uint8Array(hash);
 }
+
+/* =========================================================
+   Key management
+   ========================================================= */
 
 async function ensureKeys() {
   if (localStorage.getItem("irlid_priv_jwk") && localStorage.getItem("irlid_pub_jwk")) return;
@@ -53,6 +51,12 @@ async function ensureKeys() {
 
   localStorage.setItem("irlid_priv_jwk", JSON.stringify(privJwk));
   localStorage.setItem("irlid_pub_jwk", JSON.stringify(pubJwk));
+
+  // Best-effort: cache compact public key for QR payloads
+  try {
+    const spkiBuf = await crypto.subtle.exportKey("spki", kp.publicKey);
+    localStorage.setItem("irlid_pub_spki_b64", b64urlEncode(new Uint8Array(spkiBuf)));
+  } catch {}
 }
 
 async function getPublicJwk() {
@@ -72,7 +76,7 @@ async function getPrivateKey() {
   );
 }
 
-async function importPublicKey(pubJwk) {
+async function importPublicKeyJwk(pubJwk) {
   return crypto.subtle.importKey(
     "jwk",
     pubJwk,
@@ -82,28 +86,77 @@ async function importPublicKey(pubJwk) {
   );
 }
 
-async function verifySig(midB64url, sigB64url, pubJwk) {
-  const pub = await importPublicKey(pubJwk);
+async function importPublicKeySpkiB64(spkiB64url) {
+  const spkiBytes = b64urlDecode(spkiB64url);
+  return crypto.subtle.importKey(
+    "spki",
+    spkiBytes,
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["verify"]
+  );
+}
+
+async function getPublicSpkiB64url() {
+  await ensureKeys();
+  const cached = localStorage.getItem("irlid_pub_spki_b64");
+  if (cached && cached.trim()) return cached.trim();
+
+  // Compute from stored JWK
+  const pubJwk = await getPublicJwk();
+  const pubKey = await importPublicKeyJwk(pubJwk);
+  const spkiBuf = await crypto.subtle.exportKey("spki", pubKey);
+  const spkiB64 = b64urlEncode(new Uint8Array(spkiBuf));
+  try { localStorage.setItem("irlid_pub_spki_b64", spkiB64); } catch {}
+  return spkiB64;
+}
+
+async function jwkToSpkiB64url(pubJwk) {
+  const pubKey = await importPublicKeyJwk(pubJwk);
+  const spkiBuf = await crypto.subtle.exportKey("spki", pubKey);
+  return b64urlEncode(new Uint8Array(spkiBuf));
+}
+
+async function verifySigFlexible(midB64url, sigB64url, pubAny) {
   const midBytes = b64urlDecode(midB64url);
   const sigBytes = b64urlDecode(sigB64url);
 
+  let pubKey;
+  if (typeof pubAny === "string") {
+    pubKey = await importPublicKeySpkiB64(pubAny);
+  } else if (pubAny && typeof pubAny === "object" && typeof pubAny.spki === "string") {
+    pubKey = await importPublicKeySpkiB64(pubAny.spki);
+  } else {
+    pubKey = await importPublicKeyJwk(pubAny);
+  }
+
   return crypto.subtle.verify(
     { name: "ECDSA", hash: "SHA-256" },
-    pub,
+    pubKey,
     sigBytes,
     midBytes
   );
 }
 
-async function pubKeyId(pubJwk) {
-  const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
-  const h = await sha256Bytes(s);
+async function pubKeyId(pubAny) {
+  // Short stable ID for display (not security-critical)
+  let material;
+  if (typeof pubAny === "string") {
+    material = "spki." + pubAny;
+  } else if (pubAny && typeof pubAny === "object" && typeof pubAny.spki === "string") {
+    material = "spki." + pubAny.spki;
+  } else if (pubAny && typeof pubAny === "object") {
+    // JWK
+    material = `${pubAny.kty}.${pubAny.crv}.${pubAny.x}.${pubAny.y}`;
+  } else {
+    material = String(pubAny);
+  }
+  const h = await sha256Bytes(material);
   return b64urlEncode(h).slice(0, 18);
 }
 
 /* =========================================================
-   Added helpers for mutual validation / consistent signing
-   (No backend; used by application.html and receipt.html)
+   Hashing + signing helpers
    ========================================================= */
 
 async function hashPayloadToB64url(payloadObj) {
@@ -114,7 +167,6 @@ async function hashPayloadToB64url(payloadObj) {
 
 async function signHashB64url(hashB64url) {
   // Signs the hash bytes directly
-  // Uses ECDSA P-256 with SHA-256.
   const priv = await getPrivateKey();
   const hashBytes = b64urlDecode(hashB64url);
 
@@ -128,31 +180,25 @@ async function signHashB64url(hashB64url) {
 }
 
 /* =========================================================
-   IRLid handshake helpers (static, no backend)
-   - Encode/decode b64url JSON
-   - Create signed "response" object for a given HELLO
-   - Validate a scanned response against HELLO + optional self response
+   IRLid encode/decode
    ========================================================= */
 
-function irlidEncodeJsonToB64url(obj){
+function irlidEncodeJsonToB64url(obj) {
   const bytes = new TextEncoder().encode(JSON.stringify(obj));
   return b64urlEncode(bytes);
 }
 
-function irlidDecodeB64urlJson(b64url){
+function irlidDecodeB64urlJson(b64url) {
   const bytes = b64urlDecode(String(b64url || ""));
   const txt = new TextDecoder().decode(bytes);
   return JSON.parse(txt);
 }
 
-async function irlidHelloHashB64url(helloObj){
-  // Deterministic hash of the original HELLO object as encoded by index.html
-  const bytes = new TextEncoder().encode(JSON.stringify(helloObj));
-  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
+/* =========================================================
+   Geo + time
+   ========================================================= */
 
-function irlidHaversineMeters(a, b){
+function irlidHaversineMeters(a, b) {
   const R = 6371000;
   const toRad = (d) => d * Math.PI / 180;
   const lat1 = toRad(a.lat), lon1 = toRad(a.lon);
@@ -160,14 +206,14 @@ function irlidHaversineMeters(a, b){
   const dLat = lat2 - lat1;
   const dLon = lon2 - lon1;
   const s =
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1) * Math.cos(lat2) *
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
   return R * c;
 }
 
-function irlidGetPosition(opts){
+function irlidGetPosition(opts) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error("Geolocation unavailable."));
@@ -179,10 +225,11 @@ function irlidGetPosition(opts){
   });
 }
 
+/* =========================================================
+   Protocol v2 HELLO (unchanged)
+   ========================================================= */
 
-async function makeSignedHelloAsync(opts){
-  // Creates a HELLO object that already contains a signed, replay-resistant "offer"
-  // so the other party can verify you immediately (2-scan handshake).
+async function makeSignedHelloAsync(opts) {
   const pos = await irlidGetPosition({
     enableHighAccuracy: true,
     maximumAge: 0,
@@ -200,8 +247,6 @@ async function makeSignedHelloAsync(opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Offer payload is what gets hashed+signed.
-  // Keep fields tight + deterministic ordering.
   const offerPayload = {
     v: 1,
     type: "offerPayload",
@@ -232,50 +277,195 @@ async function makeSignedHelloAsync(opts){
   return hello;
 }
 
-async function verifyHelloOfferAsync(helloObj, opts){
+async function irlidHelloHashB64url(helloObj) {
+  // v2 behavior: deterministic hash of the original HELLO object as encoded by index.html
+  const bytes = new TextEncoder().encode(JSON.stringify(helloObj));
+  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
+  return b64urlEncode(new Uint8Array(hashBuf));
+}
+
+async function verifyHelloOfferAsync(helloObj, opts) {
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
 
   if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
-  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub).");
+  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub)." );
 
   // Back-compat: unsigned HELLO v1
   if (!helloObj.offer) return { ok: true, mode: "unsigned-v1", offerHash: null };
 
   const offer = helloObj.offer;
   if (!offer || !offer.payload || !offer.hash || !offer.sig) {
-    throw new Error("Invalid HELLO (bad offer structure).");
+    throw new Error("Invalid HELLO (bad offer structure)." );
   }
 
   const computed = await hashPayloadToB64url(offer.payload);
-  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch.");
+  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch." );
 
-  const sigOk = await verifySig(offer.hash, offer.sig, helloObj.pub);
-  if (!sigOk) throw new Error("HELLO offer signature invalid.");
+  const sigOk = await verifySigFlexible(offer.hash, offer.sig, helloObj.pub);
+  if (!sigOk) throw new Error("HELLO offer signature invalid." );
 
   const now = Math.floor(Date.now() / 1000);
   const ts = Number(offer.payload.ts);
-  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing.");
+  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing." );
   const dt = Math.abs(now - ts);
-  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
+  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
 
   return { ok: true, mode: "signed-v2", offerHash: offer.hash };
 }
 
+/* =========================================================
+   Protocol v3 (COMB-Lite)
 
-async function makeReturnForHelloAsync(helloB64url, opts){
-  if (!helloB64url) throw new Error("HELLO missing.");
+   - Response QR object (RESPv3):
+       { v:3, pk:<spkiB64>, pl:{hh, oh?, la, lo, ac, t, n}, s:<sig> }
+     Signature covers SHA256(JSON.stringify(pl)).
+
+   - Combined QR object (COMBv3):
+       { v:3, t:"c", tol:{d,s}, h:<helloLite>, a:<RESPv3>, b:<RESPv3> }
+
+   - helloHash (hh) binds to helloLite (not full v2 HELLO JSON):
+       helloLite = { v:3, pk:<spkiB64>, off:{pl:<offerPayload>, s:<offerSig>} }
+     where offerPayload is the original v2 offer payload.
+   ========================================================= */
+
+function irlidIsRespV3(obj) {
+  return !!(obj && obj.v === 3 && typeof obj.pk === "string" && obj.pl && typeof obj.s === "string");
+}
+
+function irlidIsCombV3(obj) {
+  return !!(obj && obj.v === 3 && (obj.t === "c" || obj.type === "combined") && obj.a && obj.b);
+}
+
+async function irlidHelloLiteFromHelloAsync(helloObj) {
+  if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) throw new Error("Invalid HELLO.");
+
+  const pk = await jwkToSpkiB64url(helloObj.pub);
+
+  if (helloObj.offer && helloObj.offer.payload && helloObj.offer.sig) {
+    return {
+      v: 3,
+      pk,
+      off: {
+        pl: helloObj.offer.payload,
+        s: helloObj.offer.sig
+      }
+    };
+  }
+
+  // Unsigned legacy HELLO: include minimal fields so hh remains stable.
+  const lite = {
+    v: 3,
+    pk,
+    u: 1
+  };
+  if (Number.isFinite(Number(helloObj.ts))) lite.ts = Number(helloObj.ts);
+  if (Number.isFinite(Number(helloObj.nonce))) lite.n = Number(helloObj.nonce);
+  return lite;
+}
+
+async function irlidHelloHashV3FromHelloLiteAsync(helloLite) {
+  const h = await sha256Bytes(JSON.stringify(helloLite));
+  return b64urlEncode(h);
+}
+
+async function irlidHelloHashV3FromHelloAsync(helloObj) {
+  const helloLite = await irlidHelloLiteFromHelloAsync(helloObj);
+  const hh = await irlidHelloHashV3FromHelloLiteAsync(helloLite);
+  return { helloLite, hh };
+}
+
+function irlidCompactPayloadFromGpsTsNonce(binding) {
+  const pl = {
+    hh: binding.hh,
+    la: binding.lat,
+    lo: binding.lon,
+    ac: binding.acc,
+    t: binding.ts,
+    n: binding.nonce
+  };
+  if (binding.oh) pl.oh = binding.oh;
+  return pl;
+}
+
+function irlidPayloadLatLonAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  if (Number.isFinite(payload.la) && Number.isFinite(payload.lo)) return { lat: Number(payload.la), lon: Number(payload.lo) };
+  if (Number.isFinite(payload.lat) && Number.isFinite(payload.lon)) return { lat: Number(payload.lat), lon: Number(payload.lon) };
+  return null;
+}
+
+function irlidPayloadAccAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const a = (typeof payload.ac === "number") ? payload.ac : payload.acc;
+  return Number.isFinite(Number(a)) ? Number(a) : null;
+}
+
+function irlidPayloadTsAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const t = (typeof payload.t === "number") ? payload.t : payload.ts;
+  return Number.isFinite(Number(t)) ? Number(t) : null;
+}
+
+function irlidPayloadNonceAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const n = (typeof payload.n === "number") ? payload.n : payload.nonce;
+  return Number.isFinite(Number(n)) ? Number(n) : null;
+}
+
+function irlidPayloadOfferHashAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  return payload.oh || payload.offerHash || null;
+}
+
+function irlidPayloadHelloHashAny(payload) {
+  if (!payload || typeof payload !== "object") return null;
+  return payload.hh || payload.helloHash || null;
+}
+
+function irlidRespV3ToDisplayResp(respV3) {
+  // Convert RESPv3 to a v2-like shape for UI consumption.
+  const pl = respV3 && respV3.pl ? respV3.pl : null;
+  if (!pl) return null;
+
+  const payload = {
+    v: 1,
+    type: "payload",
+    helloHash: pl.hh,
+    offerHash: pl.oh,
+    lat: pl.la,
+    lon: pl.lo,
+    acc: pl.ac,
+    ts: pl.t,
+    nonce: pl.n
+  };
+  if (payload.offerHash === undefined) delete payload.offerHash;
+
+  return {
+    v: 3,
+    type: "response",
+    payload,
+    sig: respV3.s,
+    pub: { spki: respV3.pk }
+  };
+}
+
+/* =========================================================
+   Create v3 response for a given HELLO
+   ========================================================= */
+
+async function makeReturnForHelloAsync(helloB64url, opts) {
+  if (!helloB64url) throw new Error("HELLO missing." );
 
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
 
   const helloObj = irlidDecodeB64urlJson(helloB64url);
   if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) {
-    throw new Error("Invalid HELLO (bad structure).");
+    throw new Error("Invalid HELLO (bad structure)." );
   }
 
-  // If this HELLO contains a signed offer, verify it before proceeding.
   const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
 
-  const helloHash = await irlidHelloHashB64url(helloObj);
+  const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
 
   const pos = await irlidGetPosition({
     enableHighAccuracy: true,
@@ -286,119 +476,142 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const lat = Number(pos.coords.latitude);
   const lon = Number(pos.coords.longitude);
   const acc = Number(pos.coords.accuracy || 0);
-
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error("Invalid geolocation coordinates.");
+    throw new Error("Invalid geolocation coordinates." );
   }
 
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Accept payload (response) binds to the HELLO hash, and (if present) the signed offer hash.
-  const payload = {
-    v: 1,
-    type: "payload",
-    helloHash,
-    offerHash: offerInfo.offerHash || undefined,
+  const pl = irlidCompactPayloadFromGpsTsNonce({
+    hh,
+    oh: offerInfo.offerHash || undefined,
     lat,
     lon,
     acc,
     ts,
     nonce: nonceB
-  };
+  });
 
-  // Remove undefined to keep hashes stable
-  if (payload.offerHash === undefined) delete payload.offerHash;
+  const pk = await getPublicSpkiB64url();
+  const h = await hashPayloadToB64url(pl);
+  const s = await signHashB64url(h);
 
-  const pub = await getPublicJwk();
-  const hash = await hashPayloadToB64url(payload);
-  const sig = await signHashB64url(hash);
+  const respV3 = { v: 3, pk, pl, s };
 
-  const resp = {
-    v: 2,
-    type: "response",
-    payload,
-    hash,
-    sig,
-    pub
-  };
+  window.__irlid_last_self_response = respV3;
+  window.__irlid_last_hello_lite = helloLite;
 
-  // Cache for application.html to use in mutual verification
-  window.__irlid_last_self_response = resp;
-
-  return resp;
+  return respV3;
 }
 
+/* =========================================================
+   Verify scanned response + build combined receipt
+   - Supports RESPv3 + legacy v2 response objects
+   ========================================================= */
 
-
-async function processScannedResponse(otherRespObj, opts){
+async function processScannedResponse(otherRespObj, opts) {
   const helloB64url = opts && opts.hello ? opts.hello : null;
   const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
   const distTolM = (opts && Number.isFinite(opts.distTolM)) ? opts.distTolM : 12;
 
-  if (!helloB64url) throw new Error("HELLO missing for verification.");
+  if (!helloB64url) throw new Error("HELLO missing for verification." );
 
   const helloObj = irlidDecodeB64urlJson(helloB64url);
-  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
+  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO." );
 
-  // Verify signed offer if present (v2). Back-compat allows unsigned v1.
   const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
-
-  const helloHash = await irlidHelloHashB64url(helloObj);
+  const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
 
   const other = otherRespObj;
-  if (!other || other.type !== "response" || !other.payload || !other.hash || !other.sig || !other.pub) {
-    throw new Error("Invalid response (bad structure).");
+  if (!irlidIsRespV3(other) && !(other && other.type === "response")) {
+    throw new Error("Invalid response (bad structure)." );
   }
 
-  const computed = await hashPayloadToB64url(other.payload);
-  if (computed !== other.hash) throw new Error("Hash mismatch.");
+  const selfAny = window.__irlid_last_self_response || null;
 
-  const sigOk = await verifySig(other.hash, other.sig, other.pub);
-  if (!sigOk) throw new Error("Signature invalid.");
+  // --- Legacy v2 path (kept for backward compat) ---
+  if (!irlidIsRespV3(other)) {
+    if (!other.payload || !other.hash || !other.sig || !other.pub) throw new Error("Invalid response (bad structure)." );
 
-  // Binding checks:
-  // - Always bind to the HELLO hash (legacy + new)
-  if (!other.payload.helloHash || other.payload.helloHash !== helloHash) {
-    throw new Error("HELLO binding mismatch.");
-  }
-  // - If HELLO has a signed offer, require the response to bind to that offer hash too.
-  if (offerInfo.offerHash) {
-    if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) {
-      throw new Error("Offer binding mismatch.");
+    const computed = await hashPayloadToB64url(other.payload);
+    if (computed !== other.hash) throw new Error("Hash mismatch." );
+
+    const sigOk = await verifySigFlexible(other.hash, other.sig, other.pub);
+    if (!sigOk) throw new Error("Signature invalid." );
+
+    const helloHashV2 = await irlidHelloHashB64url(helloObj);
+    if (!other.payload.helloHash || other.payload.helloHash !== helloHashV2) throw new Error("HELLO binding mismatch." );
+    if (offerInfo.offerHash) {
+      if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
     }
+
+    const now = Math.floor(Date.now() / 1000);
+    const ts = Number(other.payload.ts);
+    if (!Number.isFinite(ts)) throw new Error("Response timestamp missing." );
+    const dt = Math.abs(now - ts);
+    if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
+
+    if (selfAny) {
+      const selfPayload = irlidIsRespV3(selfAny) ? selfAny.pl : (selfAny.payload || null);
+      const a = irlidPayloadLatLonAny(selfPayload);
+      const b = irlidPayloadLatLonAny(other.payload);
+      if (a && b) {
+        const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
+        if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
+      }
+    }
+
+    const combinedV2 = {
+      v: 2,
+      type: "combined",
+      tol: { dist_m: distTolM, ts_s: tsTolS },
+      hello: helloObj,
+      a: (selfAny && selfAny.type === "response") ? selfAny : null,
+      b: other
+    };
+
+    return { self: selfAny, other, combined: combinedV2 };
   }
 
-  // Timestamp tolerance (response freshness)
+  // --- RESPv3 verification ---
+  const otherPayload = other.pl;
+  const computedOtherHash = await hashPayloadToB64url(otherPayload);
+  const sigOk = await verifySigFlexible(computedOtherHash, other.s, other.pk);
+  if (!sigOk) throw new Error("Signature invalid." );
+
+  const otherHh = irlidPayloadHelloHashAny(otherPayload);
+  if (!otherHh || otherHh !== hh) throw new Error("HELLO binding mismatch." );
+
+  if (offerInfo.offerHash) {
+    const oh = irlidPayloadOfferHashAny(otherPayload);
+    if (!oh || oh !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
+  }
+
   const now = Math.floor(Date.now() / 1000);
-  const ts = Number(other.payload.ts);
-  if (!Number.isFinite(ts)) throw new Error("Response timestamp missing.");
-  const dt = Math.abs(now - ts);
-  if (dt > tsTolS) {
-    throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s).");
-  }
+  const tsOther = irlidPayloadTsAny(otherPayload);
+  if (!Number.isFinite(tsOther)) throw new Error("Response timestamp missing." );
+  const dt = Math.abs(now - tsOther);
+  if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
 
-  const self = window.__irlid_last_self_response || null;
-
-  // Distance tolerance check (if self present)
-  if (self && self.payload && Number.isFinite(self.payload.lat) && Number.isFinite(self.payload.lon)) {
-    const d = irlidHaversineMeters(
-      { lat: self.payload.lat, lon: self.payload.lon },
-      { lat: other.payload.lat, lon: other.payload.lon }
-    );
-    if (d > distTolM) {
-      throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m).");
+  // Distance tolerance (v3) if self present (and v3)
+  if (selfAny && irlidIsRespV3(selfAny)) {
+    const a = irlidPayloadLatLonAny(selfAny.pl);
+    const b = irlidPayloadLatLonAny(otherPayload);
+    if (a && b) {
+      const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
+      if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
     }
   }
 
   const combined = {
-    v: 2,
-    type: "combined",
-    tol: { dist_m: distTolM, ts_s: tsTolS },
-    hello: helloObj,
-    a: self,
+    v: 3,
+    t: "c",
+    tol: { d: distTolM, s: tsTolS },
+    h: helloLite,
+    a: selfAny,
     b: other
   };
 
-  return { self, other, combined };
+  return { self: selfAny, other, combined };
 }
