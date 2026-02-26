@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 73 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -50,8 +50,8 @@
 
   <div id="responseArea">
     <h3 id="responseTitle">Your Accept QR</h3>
-    <div class="qr-box" id="responseQr"></div>
 
+    <div class="qr-box" id="responseQr"></div>
     <div id="scanner"></div>
 
     <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
@@ -74,9 +74,11 @@
 
 <script src="js/auth.js"></script>
 <script src="js/nav.js"></script>
+
+<!-- IMPORTANT: keep these versions consistent across all pages -->
 <script src="js/sign.js?v=72"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="js/qr.js?v=72"></script>
+<script src="js/qr.js?v=71"></script>
 
 <script>
   const IRLID_TS_TOL_S = 90;
@@ -96,7 +98,31 @@
   const clearLocalBtn = document.getElementById("clearLocalBtn");
   const debugControls = document.getElementById("debugControls");
 
+  const scannerEl = document.getElementById("scanner");
+  const responseQrEl = document.getElementById("responseQr");
+
   let lastCombinedUrl = null;
+  let html5QrCode = null;
+
+  function setStatus(msg){
+    statusEl.style.whiteSpace = "";
+    statusEl.style.color = "";
+    statusEl.textContent = msg;
+  }
+
+  function setError(msg){
+    statusEl.style.whiteSpace = "pre-wrap";
+    statusEl.style.color = "#8b0000";
+    statusEl.textContent = msg;
+  }
+
+  window.addEventListener("error", (e) => {
+    setError("JS Error:\n" + (e.error && e.error.stack ? e.error.stack : (e.message || String(e))));
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e.reason;
+    setError("Promise Error:\n" + (r && r.stack ? r.stack : String(r)));
+  });
 
   function isDebug(){
     try{
@@ -115,8 +141,6 @@
   }
 
   if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
-
-  function setStatus(msg){ statusEl.textContent = msg; }
 
   function getHelloFromHash(){
     const h = location.hash || "";
@@ -155,6 +179,25 @@
     }catch{}
   }
 
+  function showScannerInPlace(){
+    if (responseQrEl) responseQrEl.style.display = "none";
+    if (scannerEl) {
+      scannerEl.style.display = "block";
+      try{ scannerEl.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{}
+    }
+  }
+
+  function showQrInPlace(){
+    if (responseQrEl) responseQrEl.style.display = "";
+    if (scannerEl) scannerEl.style.display = "none";
+  }
+
+  // Prefer hiding scanner until user starts it
+  if (scannerEl) scannerEl.style.display = "none";
+
+  // ------------------------
+  // Generate Accept QR (RESP)
+  // ------------------------
   let hello = getHelloFromHash() || getSavedHello();
 
   if (!window.__irlid_last_self_response) {
@@ -164,63 +207,54 @@
     }
   }
 
-  const scannerEl = document.getElementById("scanner");
-  if (scannerEl) scannerEl.style.display = "none";
-
-  function showScannerInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "none";
-    if (scannerEl) {
-      scannerEl.style.display = "block";
-      try{ scannerEl.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{}
-    }
-  }
-
-  function showQrInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "";
-    if (scannerEl) scannerEl.style.display = "none";
-  }
-
   async function initHelloReturnQr(){
+    if (typeof makeReturnForHelloAsync !== "function") {
+      setError("Error: makeReturnForHelloAsync() missing.\nCheck js/sign.js is loading (and versions match).");
+      return;
+    }
+    if (typeof irlidEncodeForQR !== "function") {
+      setError("Error: irlidEncodeForQR() missing.\nThis usually means an old cached js/sign.js is still being served.\nBump ?v= in all pages.");
+      return;
+    }
+    if (typeof makeQR !== "function") {
+      setError("Error: makeQR() missing.\nCheck js/qr.js is loading.");
+      return;
+    }
+
     if (!hello) {
-      responseArea.style.display = "block";
-      const qrBox = document.getElementById("responseQr");
-      if (qrBox) {
-        qrBox.innerHTML = "";
-        qrBox.style.display = "none";
+      if (responseQrEl) {
+        responseQrEl.innerHTML = "";
+        responseQrEl.style.display = "none";
       }
       showReceiptBtn.style.display = "none";
       lastCombinedUrl = null;
-      setStatus("Ready. Scan a Signed HELLO (Offer) to begin.");
+      setStatus("Ready. Scan a Signed HELLO (Offer) from Home to begin.");
       return;
     }
 
     saveHello(hello);
 
     try{
-      responseArea.style.display = "block";
       setStatus("Getting location & signing…");
 
-      const respObj = await makeReturnForHelloAsync(hello);
+      const respObj = await makeReturnForHelloAsync(hello, { tsTolS: IRLID_TS_TOL_S });
       saveSelfResp(respObj);
 
-      // ✅ compressed encoding for RESP
       const encoded = await irlidEncodeForQR(respObj);
-
       const url = new URL(location.href);
       url.hash = "RESP=" + encoded;
 
       await makeQR("responseQr", url.toString(), 360);
       showQrInPlace();
 
-      const fromHash = !!getHelloFromHash();
-      setStatus(fromHash ? "Accept ready (from HELLO link)." : "Accept ready (from saved HELLO).");
-
+      setStatus("Accept ready. Show this QR to the other person.");
       showReceiptBtn.style.display = "none";
       lastCombinedUrl = null;
     }catch(e){
-      setStatus("Error: " + e + "\n\nIf location is blocked, enable location permission for this site and try again.");
+      setError(
+        "Error: " + (e && e.message ? e.message : String(e)) +
+        "\n\nIf location is blocked:\n• Enable location permission for this site\n• Reload and try again"
+      );
       console.error(e);
     }
   }
@@ -238,39 +272,18 @@
 
   initHelloReturnQr();
 
-  // ---- Scanner ----
+  // ------------------------
+  // Camera selection
+  // ------------------------
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
   const cameraSelect = document.getElementById("cameraSelect");
-
-  function classify(text){
-    const t = (text || "").trim();
-    const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
-    const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
-    const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
-
-    let m = t.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
-    m = t.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
-    m = t.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
-
-    try{
-      const u = new URL(t);
-      const h = u.hash || "";
-      m = h.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
-      m = h.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
-      m = h.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
-    }catch{}
-
-    return { kind:"UNKNOWN", v:null };
-  }
 
   function getStoredPreferredCameraId(){
     try{
       const v = localStorage.getItem(KEY_PREF_CAM);
       return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
-    }
+    }catch{ return null; }
   }
   function setStoredPreferredCameraId(id){
     try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
@@ -316,7 +329,29 @@
     setStoredPreferredCameraId(chosenId);
   }
 
-  let html5QrCode = null;
+  // ------------------------
+  // Scanner logic
+  // ------------------------
+  function classify(text){
+    const t = (text || "").trim();
+    const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
+    const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
+    const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
+
+    let m = t.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
+    m = t.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
+    m = t.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
+
+    try{
+      const u = new URL(t);
+      const h = u.hash || "";
+      m = h.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
+      m = h.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
+      m = h.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
+    }catch{}
+
+    return { kind:"UNKNOWN", v:null };
+  }
 
   function storeCombinedReceipt(combinedObj){
     try{
@@ -327,8 +362,7 @@
     try{
       const raw = localStorage.getItem(KEY_RECEIPTS);
       const list = raw ? JSON.parse(raw) : [];
-      const entry = { ts: Date.now(), combined: combinedObj };
-      list.unshift(entry);
+      list.unshift({ ts: Date.now(), combined: combinedObj });
       localStorage.setItem(KEY_RECEIPTS, JSON.stringify(list.slice(0, 200)));
     }catch{}
   }
@@ -344,18 +378,19 @@
 
     if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
 
-    setStatus("Creating self receipt (location + time)…");
-    const selfResp = await makeReturnForHelloAsync(hello);
+    setStatus("Creating self Accept (location + time)…");
+    const selfResp = await makeReturnForHelloAsync(hello, { tsTolS: IRLID_TS_TOL_S });
     window.__irlid_last_self_response = selfResp;
     saveSelfResp(selfResp);
   }
 
   async function handleScannedResponseB64(respB64){
     if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
+    if (typeof irlidDecodeFromQR !== "function") throw new Error("irlidDecodeFromQR() missing (sign.js mismatch).");
+    if (typeof processScannedResponse !== "function") throw new Error("processScannedResponse() missing (sign.js mismatch).");
 
     await ensureSelfResponseForHello();
 
-    // ✅ decode supports compressed+legacy
     const otherRespObj = await irlidDecodeFromQR(respB64);
 
     const out = await processScannedResponse(otherRespObj, {
@@ -364,14 +399,13 @@
       distTolM: IRLID_DIST_TOL_M
     });
 
-    // ✅ compressed encoding for COMB
     const combEncoded = await irlidEncodeForQR(out.combined);
-
     lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
+
     storeCombinedReceipt(out.combined);
 
     showReceiptBtn.style.display = "inline-flex";
-    setStatus("Verified. Combined receipt ready.");
+    setStatus("Verified. Opening combined receipt…");
   }
 
   async function stopScanner(){
@@ -380,20 +414,21 @@
     try { await html5QrCode.clear(); } catch {}
     html5QrCode = null;
     setStatus("Stopped.");
-
     if (hello) showQrInPlace();
   }
 
   async function startScanner(){
     await stopScanner();
-    setStatus("Starting camera…");
 
+    if (!cameraSelect.value) {
+      await listCamerasAndSelectDefault();
+    }
     const camId = cameraSelect.value;
     if (!camId) throw new Error("No camera selected.");
     setStoredPreferredCameraId(camId);
 
     setStatus("Scanning…");
-    scannerEl.innerHTML = "";
+    if (scannerEl) scannerEl.innerHTML = "";
     html5QrCode = new Html5Qrcode("scanner");
 
     const config = {
@@ -413,9 +448,8 @@
           const v = (c.v || "").trim();
           hello = v || null;
           if (hello) saveHello(hello);
-          setStatus("HELLO (Offer) detected. Creating your Accept QR…");
+          setStatus("HELLO detected. Creating your Accept QR…");
           location.hash = "HELLO=" + (v || "");
-          initHelloReturnQr();
           return;
         }
 
@@ -433,12 +467,11 @@
               if (lastCombinedUrl) location.href = lastCombinedUrl;
               return;
             }catch(e){
-              setStatus("Response verify failed: " + e);
+              setError("Response verify failed:\n" + (e && e.message ? e.message : String(e)));
               console.error(e);
               return;
             }
           }
-
           setStatus("Response detected (no HELLO loaded). Opening single receipt…");
           location.href = "receipt.html#RESP=" + (c.v || "");
           return;
@@ -450,6 +483,7 @@
     );
   }
 
+  // Buttons
   scanTheirRespBtn.addEventListener("click", async () => {
     try{
       if (!hello) {
@@ -460,7 +494,7 @@
       showScannerInPlace();
       await startScanner();
     }catch(e){
-      setStatus("Camera error: " + e);
+      setError("Camera error:\n" + (e && e.message ? e.message : String(e)));
       console.error(e);
     }
   });
@@ -472,7 +506,7 @@
   if (clearLocalBtn) {
     clearLocalBtn.addEventListener("click", () => {
       try{
-        const keys = [
+        [
           KEY_LAST_HELLO_B64,
           KEY_LAST_SELF_RESP,
           KEY_SELF,
@@ -480,15 +514,17 @@
           KEY_RECEIPTS,
           "irlid_receipt_last",
           KEY_PREF_CAM
-        ];
-        for (const k of keys) localStorage.removeItem(k);
+        ].forEach(k => localStorage.removeItem(k));
       }catch{}
       hello = null;
       lastCombinedUrl = null;
       try{ delete window.__irlid_last_self_response; }catch{}
       location.hash = "";
-      initHelloReturnQr();
+      if (responseQrEl) { responseQrEl.innerHTML = ""; responseQrEl.style.display = "none"; }
+      if (scannerEl) { scannerEl.innerHTML = ""; scannerEl.style.display = "none"; }
+      showReceiptBtn.style.display = "none";
       setStatus("Cleared local data.");
+      initHelloReturnQr();
     });
   }
 
@@ -498,7 +534,7 @@
       showScannerInPlace();
       await startScanner();
     }catch(e){
-      setStatus("Camera error: " + e);
+      setError("Camera error:\n" + (e && e.message ? e.message : String(e)));
       console.error(e);
     }
   });
@@ -507,17 +543,15 @@
     try{ await stopScanner(); }catch(e){ console.error(e); }
   });
 
-  cameraSelect.addEventListener("change", async () => {
+  cameraSelect.addEventListener("change", () => {
     setStoredPreferredCameraId(cameraSelect.value);
   });
 
+  // Populate camera list
   (async () => {
-    try{ await listCamerasAndSelectDefault(); } catch {}
+    try { await listCamerasAndSelectDefault(); } catch {}
   })();
 </script>
 
 </body>
 </html>
-
-
-
