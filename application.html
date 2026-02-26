@@ -1,617 +1,520 @@
-// js/sign.js
-// IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-// Deploy 70
+<!-- application.html -->
+<!DOCTYPE html>
+<!-- Deploy 70 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid — Scan</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Keep content visible above the fixed mobile bottom nav */
+    #responseArea { margin-top: 8px; }
+    #responseTitle { margin: 10px 0 10px; }
+    #responseHint { display: none; }
+  </style>
+</head>
 
-(function () {
-  if (!window.crypto || !window.crypto.subtle) {
-    throw new Error(
-      "Secure crypto unavailable.\n\n" +
-      "This feature requires WebCrypto, which is usually only available on HTTPS or localhost.\n\n" +
-      "Fix:\n" +
-      "• Use GitHub Pages (HTTPS) OR\n" +
-      "• Test on localhost OR\n" +
-      "• (Dev only) enable Chrome flag: Insecure origins treated as secure for this URL."
-    );
-  }
-})();
+<body>
 
-function b64urlEncode(bytes) {
-  const b64 = btoa(String.fromCharCode(...bytes));
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
+<header class="site-header">
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+    </a>
+  </div>
 
-function b64urlDecode(str) {
-  str = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) str += "=";
-  const bin = atob(str);
-  return Uint8Array.from(bin, c => c.charCodeAt(0));
-}
+  <nav class="site-nav" aria-label="Primary">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="application.html">Scan</a>
 
-async function sha256Bytes(str) {
-  const enc = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", enc);
-  return new Uint8Array(hash);
-}
+    <details class="nav-dropdown" id="aboutDropdown">
+      <summary class="nav-btn">About ▼</summary>
+      <div class="dropdown-menu" role="menu" aria-label="About menu">
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </details>
 
-/* =========================================================
-   Key management
-   ========================================================= */
+    <span id="accountSlot"></span>
+  </nav>
+</header>
 
-async function ensureKeys() {
-  if (localStorage.getItem("irlid_priv_jwk") && localStorage.getItem("irlid_pub_jwk")) return;
+<main class="page-main">
+  <p id="status" class="small">Ready.</p>
 
-  const kp = await crypto.subtle.generateKey(
-    { name: "ECDSA", namedCurve: "P-256" },
-    true,
-    ["sign", "verify"]
-  );
+  <div class="controls">
+    <button class="btn" id="startBtn">Start Scanner</button>
+    <button class="btn secondary" id="stopBtn">Stop</button>
+  </div>
 
-  const privJwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
-  const pubJwk  = await crypto.subtle.exportKey("jwk", kp.publicKey);
+  <div id="responseArea">
+    <h3 id="responseTitle">Your Accept QR</h3>
+    <div class="qr-box" id="responseQr"></div>
 
-  localStorage.setItem("irlid_priv_jwk", JSON.stringify(privJwk));
-  localStorage.setItem("irlid_pub_jwk", JSON.stringify(pubJwk));
+    <!-- Camera lives here so it replaces the QR area (no scrolling) -->
+    <div id="scanner"></div>
 
-  // Best-effort: cache compact public key for QR payloads
-  try {
-    const spkiBuf = await crypto.subtle.exportKey("spki", kp.publicKey);
-    localStorage.setItem("irlid_pub_spki_b64", b64urlEncode(new Uint8Array(spkiBuf)));
-  } catch {}
-}
+    <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
+      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    </div>
 
-async function getPublicJwk() {
-  await ensureKeys();
-  return JSON.parse(localStorage.getItem("irlid_pub_jwk"));
-}
+    <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
 
-async function getPrivateKey() {
-  await ensureKeys();
-  const privJwk = JSON.parse(localStorage.getItem("irlid_priv_jwk"));
-  return crypto.subtle.importKey(
-    "jwk",
-    privJwk,
-    { name: "ECDSA", namedCurve: "P-256" },
-    false,
-    ["sign"]
-  );
-}
+    <div class="controls" style="margin-top:10px;">
+      <button class="btn" id="scanTheirRespBtn">Scan their Accept</button>
+      <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
+    </div>
+  </div>
 
-async function importPublicKeyJwk(pubJwk) {
-  return crypto.subtle.importKey(
-    "jwk",
-    pubJwk,
-    { name: "ECDSA", namedCurve: "P-256" },
-    true,
-    ["verify"]
-  );
-}
+  <div class="small">
+    <label for="cameraSelect"><b>Camera:</b></label><br>
+    <select id="cameraSelect"></select>
+  </div>
+</main>
 
-async function importPublicKeySpkiB64(spkiB64url) {
-  const spkiBytes = b64urlDecode(spkiB64url);
-  return crypto.subtle.importKey(
-    "spki",
-    spkiBytes,
-    { name: "ECDSA", namedCurve: "P-256" },
-    true,
-    ["verify"]
-  );
-}
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/sign.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="js/qr.js?v=63"></script>
 
-async function getPublicSpkiB64url() {
-  await ensureKeys();
-  const cached = localStorage.getItem("irlid_pub_spki_b64");
-  if (cached && cached.trim()) return cached.trim();
+<script>
+  const IRLID_TS_TOL_S = 90;
+  const IRLID_DIST_TOL_M = 12;
 
-  // Compute from stored JWK
-  const pubJwk = await getPublicJwk();
-  const pubKey = await importPublicKeyJwk(pubJwk);
-  const spkiBuf = await crypto.subtle.exportKey("spki", pubKey);
-  const spkiB64 = b64urlEncode(new Uint8Array(spkiBuf));
-  try { localStorage.setItem("irlid_pub_spki_b64", spkiB64); } catch {}
-  return spkiB64;
-}
+  const KEY_PREF_CAM = "irlid_preferred_camera_id";
+  const KEY_RECEIPTS = "irlid_receipts";
+  const KEY_SELF  = "irlid_resp_self";
+  const KEY_GUEST = "irlid_resp_other";
+  const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
+  const KEY_LAST_SELF_RESP = "irlid_last_self_response";
 
-async function jwkToSpkiB64url(pubJwk) {
-  const pubKey = await importPublicKeyJwk(pubJwk);
-  const spkiBuf = await crypto.subtle.exportKey("spki", pubKey);
-  return b64urlEncode(new Uint8Array(spkiBuf));
-}
+  const statusEl = document.getElementById("status");
+  const responseArea = document.getElementById("responseArea");
+  const scanTheirRespBtn = document.getElementById("scanTheirRespBtn");
+  const showReceiptBtn = document.getElementById("showReceiptBtn");
+  const clearLocalBtn = document.getElementById("clearLocalBtn");
+  const debugControls = document.getElementById("debugControls");
 
-async function verifySigFlexible(midB64url, sigB64url, pubAny) {
-  const midBytes = b64urlDecode(midB64url);
-  const sigBytes = b64urlDecode(sigB64url);
+  let lastCombinedUrl = null;
 
-  let pubKey;
-  if (typeof pubAny === "string") {
-    pubKey = await importPublicKeySpkiB64(pubAny);
-  } else if (pubAny && typeof pubAny === "object" && typeof pubAny.spki === "string") {
-    pubKey = await importPublicKeySpkiB64(pubAny.spki);
-  } else {
-    pubKey = await importPublicKeyJwk(pubAny);
+  function isDebug(){
+    try{
+      const qs = new URLSearchParams(location.search || "");
+      if (qs.get("debug") === "1" || qs.get("debug") === "true") return true;
+    }catch{}
+    try{
+      const v = localStorage.getItem("irlid_debug");
+      if (v === "1" || v === "true") return true;
+    }catch{}
+    try{
+      const h = location.hash || "";
+      if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
+    }catch{}
+    return false;
   }
 
-  return crypto.subtle.verify(
-    { name: "ECDSA", hash: "SHA-256" },
-    pubKey,
-    sigBytes,
-    midBytes
-  );
-}
+  // Debug-only recovery controls
+  if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
 
-async function pubKeyId(pubAny) {
-  // Short stable ID for display (not security-critical)
-  let material;
-  if (typeof pubAny === "string") {
-    material = "spki." + pubAny;
-  } else if (pubAny && typeof pubAny === "object" && typeof pubAny.spki === "string") {
-    material = "spki." + pubAny.spki;
-  } else if (pubAny && typeof pubAny === "object") {
-    // JWK
-    material = `${pubAny.kty}.${pubAny.crv}.${pubAny.x}.${pubAny.y}`;
-  } else {
-    material = String(pubAny);
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  function getHelloFromHash(){
+    const h = location.hash || "";
+    const m = h.match(/HELLO=([^&]+)/);
+    return m ? m[1] : null;
   }
-  const h = await sha256Bytes(material);
-  return b64urlEncode(h).slice(0, 18);
-}
 
-/* =========================================================
-   Hashing + signing helpers
-   ========================================================= */
+  function getSavedHello(){
+    try{
+      const v = localStorage.getItem(KEY_LAST_HELLO_B64);
+      return v && v.trim() ? v.trim() : null;
+    }catch{
+      return null;
+    }
+  }
 
-async function hashPayloadToB64url(payloadObj) {
-  const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
-  const hashBuf = await crypto.subtle.digest("SHA-256", payloadBytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
+  function saveHello(b64){
+    try{
+      if (b64 && b64.trim()) localStorage.setItem(KEY_LAST_HELLO_B64, b64.trim());
+    }catch{}
+  }
 
-async function signHashB64url(hashB64url) {
-  // Signs the hash bytes directly
-  const priv = await getPrivateKey();
-  const hashBytes = b64urlDecode(hashB64url);
+  function loadSavedSelfResp(){
+    try{
+      const raw = localStorage.getItem(KEY_LAST_SELF_RESP);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    }catch{
+      return null;
+    }
+  }
 
-  const sig = await crypto.subtle.sign(
-    { name: "ECDSA", hash: "SHA-256" },
-    priv,
-    hashBytes
-  );
+  function saveSelfResp(resp){
+    try{
+      localStorage.setItem(KEY_LAST_SELF_RESP, JSON.stringify(resp));
+    }catch{}
+  }
 
-  return b64urlEncode(new Uint8Array(sig));
-}
+  let hello = getHelloFromHash() || getSavedHello();
 
-/* =========================================================
-   IRLid encode/decode
-   ========================================================= */
+  if (!window.__irlid_last_self_response) {
+    const saved = loadSavedSelfResp();
+    if (saved && (saved.type === "response" || (saved.v === 3 && saved.pk && saved.pl && saved.s))) {
+      window.__irlid_last_self_response = saved;
+    }
+  }
 
-function irlidEncodeJsonToB64url(obj) {
-  const bytes = new TextEncoder().encode(JSON.stringify(obj));
-  return b64urlEncode(bytes);
-}
+  const scannerEl = document.getElementById("scanner");
+  if (scannerEl) scannerEl.style.display = "none";
 
-function irlidDecodeB64urlJson(b64url) {
-  const bytes = b64urlDecode(String(b64url || ""));
-  const txt = new TextDecoder().decode(bytes);
-  return JSON.parse(txt);
-}
+  function showScannerInPlace(){
+    const qrBox = document.getElementById("responseQr");
+    if (qrBox) qrBox.style.display = "none";
+    if (scannerEl) {
+      scannerEl.style.display = "block";
+      try{ scannerEl.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{}
+    }
+  }
 
-/* =========================================================
-   Geo + time
-   ========================================================= */
+  function showQrInPlace(){
+    const qrBox = document.getElementById("responseQr");
+    if (qrBox) qrBox.style.display = "";
+    if (scannerEl) scannerEl.style.display = "none";
+  }
 
-function irlidHaversineMeters(a, b) {
-  const R = 6371000;
-  const toRad = (d) => d * Math.PI / 180;
-  const lat1 = toRad(a.lat), lon1 = toRad(a.lon);
-  const lat2 = toRad(b.lat), lon2 = toRad(b.lon);
-  const dLat = lat2 - lat1;
-  const dLon = lon2 - lon1;
-  const s =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-  return R * c;
-}
-
-function irlidGetPosition(opts) {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation unavailable."));
+  async function initHelloReturnQr(){
+    if (!hello) {
+      // Keep page usable after clearing data: scanner must remain accessible.
+      responseArea.style.display = "block";
+      const qrBox = document.getElementById("responseQr");
+      if (qrBox) {
+        qrBox.innerHTML = "";
+        qrBox.style.display = "none";
+      }
+      showReceiptBtn.style.display = "none";
+      lastCombinedUrl = null;
+      setStatus("Ready. Scan a Signed HELLO (Offer) to begin.");
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, (err) => {
-      reject(new Error(err && err.message ? err.message : "Geolocation error."));
-    }, opts);
-  });
-}
 
-/* =========================================================
-   Protocol v2 HELLO (unchanged)
-   ========================================================= */
+    saveHello(hello);
 
-async function makeSignedHelloAsync(opts) {
-  const pos = await irlidGetPosition({
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 12000
-  });
+    try{
+      responseArea.style.display = "block";
+      setStatus("Getting location & signing…");
 
-  const lat = Number(pos.coords.latitude);
-  const lon = Number(pos.coords.longitude);
-  const acc = Number(pos.coords.accuracy || 0);
+      const respObj = await makeReturnForHelloAsync(hello);
+      saveSelfResp(respObj);
 
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error("Invalid geolocation coordinates.");
-  }
+      const encoded = irlidEncodeJsonToB64url(respObj);
 
-  const ts = Math.floor(Date.now() / 1000);
-  const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
+      const url = new URL(location.href);
+      url.hash = "RESP=" + encoded;
 
-  const offerPayload = {
-    v: 1,
-    type: "offerPayload",
-    lat,
-    lon,
-    acc,
-    ts,
-    nonce: nonceA
-  };
+      await makeQR("responseQr", url.toString(), 360);
+      showQrInPlace();
 
-  const pub = await getPublicJwk();
-  const offerHash = await hashPayloadToB64url(offerPayload);
-  const offerSig = await signHashB64url(offerHash);
+      const fromHash = !!getHelloFromHash();
+      setStatus(fromHash ? "Accept ready (from HELLO link)." : "Accept ready (from saved HELLO).");
 
-  const hello = {
-    v: 2,
-    type: "hello",
-    pub,
-    nonce: nonceA,
-    ts,
-    offer: {
-      payload: offerPayload,
-      hash: offerHash,
-      sig: offerSig
+      showReceiptBtn.style.display = "none";
+      lastCombinedUrl = null;
+    }catch(e){
+      setStatus("Error: " + e + "\n\nIf location is blocked, enable location permission for this site and try again.");
+      console.error(e);
     }
-  };
-
-  return hello;
-}
-
-async function irlidHelloHashB64url(helloObj) {
-  // v2 behavior: deterministic hash of the original HELLO object as encoded by index.html
-  const bytes = new TextEncoder().encode(JSON.stringify(helloObj));
-  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
-
-async function verifyHelloOfferAsync(helloObj, opts) {
-  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
-
-  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO.");
-  if (!helloObj.pub) throw new Error("Invalid HELLO (missing pub)." );
-
-  // Back-compat: unsigned HELLO v1
-  if (!helloObj.offer) return { ok: true, mode: "unsigned-v1", offerHash: null };
-
-  const offer = helloObj.offer;
-  if (!offer || !offer.payload || !offer.hash || !offer.sig) {
-    throw new Error("Invalid HELLO (bad offer structure)." );
   }
 
-  const computed = await hashPayloadToB64url(offer.payload);
-  if (computed !== offer.hash) throw new Error("HELLO offer hash mismatch." );
-
-  const sigOk = await verifySigFlexible(offer.hash, offer.sig, helloObj.pub);
-  if (!sigOk) throw new Error("HELLO offer signature invalid." );
-
-  const now = Math.floor(Date.now() / 1000);
-  const ts = Number(offer.payload.ts);
-  if (!Number.isFinite(ts)) throw new Error("HELLO offer timestamp missing." );
-  const dt = Math.abs(now - ts);
-  if (dt > tsTolS) throw new Error("HELLO offer timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
-
-  return { ok: true, mode: "signed-v2", offerHash: offer.hash };
-}
-
-/* =========================================================
-   Protocol v3 (COMB-Lite)
-
-   - Response QR object (RESPv3):
-       { v:3, pk:<spkiB64>, pl:{hh, oh?, la, lo, ac, t, n}, s:<sig> }
-     Signature covers SHA256(JSON.stringify(pl)).
-
-   - Combined QR object (COMBv3):
-       { v:3, t:"c", tol:{d,s}, h:<helloLite>, a:<RESPv3>, b:<RESPv3> }
-
-   - helloHash (hh) binds to helloLite (not full v2 HELLO JSON):
-       helloLite = { v:3, pk:<spkiB64>, off:{pl:<offerPayload>, s:<offerSig>} }
-     where offerPayload is the original v2 offer payload.
-   ========================================================= */
-
-function irlidIsRespV3(obj) {
-  return !!(obj && obj.v === 3 && typeof obj.pk === "string" && obj.pl && typeof obj.s === "string");
-}
-
-function irlidIsCombV3(obj) {
-  return !!(obj && obj.v === 3 && (obj.t === "c" || obj.type === "combined") && obj.a && obj.b);
-}
-
-async function irlidHelloLiteFromHelloAsync(helloObj) {
-  if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) throw new Error("Invalid HELLO.");
-
-  const pk = await jwkToSpkiB64url(helloObj.pub);
-
-  if (helloObj.offer && helloObj.offer.payload && helloObj.offer.sig) {
-    return {
-      v: 3,
-      pk,
-      off: {
-        pl: helloObj.offer.payload,
-        s: helloObj.offer.sig
-      }
-    };
-  }
-
-  // Unsigned legacy HELLO: include minimal fields so hh remains stable.
-  const lite = {
-    v: 3,
-    pk,
-    u: 1
-  };
-  if (Number.isFinite(Number(helloObj.ts))) lite.ts = Number(helloObj.ts);
-  if (Number.isFinite(Number(helloObj.nonce))) lite.n = Number(helloObj.nonce);
-  return lite;
-}
-
-async function irlidHelloHashV3FromHelloLiteAsync(helloLite) {
-  const h = await sha256Bytes(JSON.stringify(helloLite));
-  return b64urlEncode(h);
-}
-
-async function irlidHelloHashV3FromHelloAsync(helloObj) {
-  const helloLite = await irlidHelloLiteFromHelloAsync(helloObj);
-  const hh = await irlidHelloHashV3FromHelloLiteAsync(helloLite);
-  return { helloLite, hh };
-}
-
-function irlidCompactPayloadFromGpsTsNonce(binding) {
-  const pl = {
-    hh: binding.hh,
-    la: binding.lat,
-    lo: binding.lon,
-    ac: binding.acc,
-    t: binding.ts,
-    n: binding.nonce
-  };
-  if (binding.oh) pl.oh = binding.oh;
-  return pl;
-}
-
-function irlidPayloadLatLonAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  if (Number.isFinite(payload.la) && Number.isFinite(payload.lo)) return { lat: Number(payload.la), lon: Number(payload.lo) };
-  if (Number.isFinite(payload.lat) && Number.isFinite(payload.lon)) return { lat: Number(payload.lat), lon: Number(payload.lon) };
-  return null;
-}
-
-function irlidPayloadAccAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const a = (typeof payload.ac === "number") ? payload.ac : payload.acc;
-  return Number.isFinite(Number(a)) ? Number(a) : null;
-}
-
-function irlidPayloadTsAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const t = (typeof payload.t === "number") ? payload.t : payload.ts;
-  return Number.isFinite(Number(t)) ? Number(t) : null;
-}
-
-function irlidPayloadNonceAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  const n = (typeof payload.n === "number") ? payload.n : payload.nonce;
-  return Number.isFinite(Number(n)) ? Number(n) : null;
-}
-
-function irlidPayloadOfferHashAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  return payload.oh || payload.offerHash || null;
-}
-
-function irlidPayloadHelloHashAny(payload) {
-  if (!payload || typeof payload !== "object") return null;
-  return payload.hh || payload.helloHash || null;
-}
-
-function irlidRespV3ToDisplayResp(respV3) {
-  // Convert RESPv3 to a v2-like shape for UI consumption.
-  const pl = respV3 && respV3.pl ? respV3.pl : null;
-  if (!pl) return null;
-
-  const payload = {
-    v: 1,
-    type: "payload",
-    helloHash: pl.hh,
-    offerHash: pl.oh,
-    lat: pl.la,
-    lon: pl.lo,
-    acc: pl.ac,
-    ts: pl.t,
-    nonce: pl.n
-  };
-  if (payload.offerHash === undefined) delete payload.offerHash;
-
-  return {
-    v: 3,
-    type: "response",
-    payload,
-    sig: respV3.s,
-    pub: { spki: respV3.pk }
-  };
-}
-
-/* =========================================================
-   Create v3 response for a given HELLO
-   ========================================================= */
-
-async function makeReturnForHelloAsync(helloB64url, opts) {
-  if (!helloB64url) throw new Error("HELLO missing." );
-
-  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
-
-  const helloObj = irlidDecodeB64urlJson(helloB64url);
-  if (!helloObj || helloObj.type !== "hello" || !helloObj.pub) {
-    throw new Error("Invalid HELLO (bad structure)." );
-  }
-
-  const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
-
-  const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
-
-  const pos = await irlidGetPosition({
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 12000
+  window.addEventListener("hashchange", () => {
+    const h = getHelloFromHash();
+    if (h) {
+      hello = h;
+      saveHello(hello);
+    } else {
+      hello = getSavedHello();
+    }
+    initHelloReturnQr();
   });
 
-  const lat = Number(pos.coords.latitude);
-  const lon = Number(pos.coords.longitude);
-  const acc = Number(pos.coords.accuracy || 0);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error("Invalid geolocation coordinates." );
+  initHelloReturnQr();
+
+  // ---- Scanner ----
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const cameraSelect = document.getElementById("cameraSelect");
+
+  function classify(text){
+    const t = (text || "").trim();
+    const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
+    const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
+    const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
+
+    let m = t.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
+    m = t.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
+    m = t.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
+
+    try{
+      const u = new URL(t);
+      const h = u.hash || "";
+      m = h.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
+      m = h.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
+      m = h.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
+    }catch{}
+
+    return { kind:"UNKNOWN", v:null };
   }
 
-  const ts = Math.floor(Date.now() / 1000);
-  const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
-
-  const pl = irlidCompactPayloadFromGpsTsNonce({
-    hh,
-    oh: offerInfo.offerHash || undefined,
-    lat,
-    lon,
-    acc,
-    ts,
-    nonce: nonceB
-  });
-
-  const pk = await getPublicSpkiB64url();
-  const h = await hashPayloadToB64url(pl);
-  const s = await signHashB64url(h);
-
-  const respV3 = { v: 3, pk, pl, s };
-
-  window.__irlid_last_self_response = respV3;
-  window.__irlid_last_hello_lite = helloLite;
-
-  return respV3;
-}
-
-/* =========================================================
-   Verify scanned response + build combined receipt
-   - Supports RESPv3 + legacy v2 response objects
-   ========================================================= */
-
-async function processScannedResponse(otherRespObj, opts) {
-  const helloB64url = opts && opts.hello ? opts.hello : null;
-  const tsTolS = (opts && Number.isFinite(opts.tsTolS)) ? opts.tsTolS : 90;
-  const distTolM = (opts && Number.isFinite(opts.distTolM)) ? opts.distTolM : 12;
-
-  if (!helloB64url) throw new Error("HELLO missing for verification." );
-
-  const helloObj = irlidDecodeB64urlJson(helloB64url);
-  if (!helloObj || helloObj.type !== "hello") throw new Error("Invalid HELLO." );
-
-  const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS });
-  const { helloLite, hh } = await irlidHelloHashV3FromHelloAsync(helloObj);
-
-  const other = otherRespObj;
-  if (!irlidIsRespV3(other) && !(other && other.type === "response")) {
-    throw new Error("Invalid response (bad structure)." );
+  function getStoredPreferredCameraId(){
+    try{
+      const v = localStorage.getItem(KEY_PREF_CAM);
+      return v && v.trim() ? v.trim() : null;
+    }catch{
+      return null;
+    }
+  }
+  function setStoredPreferredCameraId(id){
+    try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
   }
 
-  const selfAny = window.__irlid_last_self_response || null;
+  function scoreRearLabel(label){
+    const s = (label || "").toLowerCase();
+    let score = 0;
+    if (s.includes("back")) score += 80;
+    if (s.includes("rear")) score += 80;
+    if (s.includes("environment")) score += 80;
+    if (s.includes("front")) score -= 120;
+    if (s.includes("selfie")) score -= 120;
+    return score;
+  }
 
-  // --- Legacy v2 path (kept for backward compat) ---
-  if (!irlidIsRespV3(other)) {
-    if (!other.payload || !other.hash || !other.sig || !other.pub) throw new Error("Invalid response (bad structure)." );
+  async function listCamerasAndSelectDefault(){
+    const all = await navigator.mediaDevices.enumerateDevices();
+    const devices = all.filter(d => d.kind === "videoinput");
 
-    const computed = await hashPayloadToB64url(other.payload);
-    if (computed !== other.hash) throw new Error("Hash mismatch." );
+    cameraSelect.innerHTML = "";
+    for (const d of devices){
+      const opt = document.createElement("option");
+      opt.value = d.deviceId;
+      opt.textContent = d.label || d.deviceId;
+      cameraSelect.appendChild(opt);
+    }
+    if (!devices.length) return;
 
-    const sigOk = await verifySigFlexible(other.hash, other.sig, other.pub);
-    if (!sigOk) throw new Error("Signature invalid." );
-
-    const helloHashV2 = await irlidHelloHashB64url(helloObj);
-    if (!other.payload.helloHash || other.payload.helloHash !== helloHashV2) throw new Error("HELLO binding mismatch." );
-    if (offerInfo.offerHash) {
-      if (!other.payload.offerHash || other.payload.offerHash !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
+    const stored = getStoredPreferredCameraId();
+    if (stored && devices.some(d => d.deviceId === stored)){
+      cameraSelect.value = stored;
+      return;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const ts = Number(other.payload.ts);
-    if (!Number.isFinite(ts)) throw new Error("Response timestamp missing." );
-    const dt = Math.abs(now - ts);
-    if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
+    const ranked = devices
+      .map((d, idx) => ({ id: d.deviceId, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
+      .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
 
-    if (selfAny) {
-      const selfPayload = irlidIsRespV3(selfAny) ? selfAny.pl : (selfAny.payload || null);
-      const a = irlidPayloadLatLonAny(selfPayload);
-      const b = irlidPayloadLatLonAny(other.payload);
-      if (a && b) {
-        const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
-        if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
-      }
+    const best = ranked[0];
+    const chosenId = (best && best.score > 0) ? best.id : devices[devices.length - 1].deviceId;
+    cameraSelect.value = chosenId;
+    setStoredPreferredCameraId(chosenId);
+  }
+
+  let html5QrCode = null;
+
+  function storeCombinedReceipt(combinedObj){
+    try{
+      if (combinedObj && combinedObj.a) localStorage.setItem(KEY_SELF, JSON.stringify(combinedObj.a));
+      if (combinedObj && combinedObj.b) localStorage.setItem(KEY_GUEST, JSON.stringify(combinedObj.b));
+    }catch{}
+
+    try{
+      const raw = localStorage.getItem(KEY_RECEIPTS);
+      const list = raw ? JSON.parse(raw) : [];
+      const entry = { ts: Date.now(), combined: combinedObj };
+      list.unshift(entry);
+      localStorage.setItem(KEY_RECEIPTS, JSON.stringify(list.slice(0, 200)));
+    }catch{}
+  }
+
+  async function ensureSelfResponseForHello(){
+    if (window.__irlid_last_self_response && (window.__irlid_last_self_response.type === "response" || (window.__irlid_last_self_response.v === 3 && window.__irlid_last_self_response.pk))) return;
+
+    const saved = loadSavedSelfResp();
+    if (saved && (saved.type === "response" || (saved.v === 3 && saved.pk && saved.pl && saved.s))) {
+      window.__irlid_last_self_response = saved;
+      return;
     }
 
-    const combinedV2 = {
-      v: 2,
-      type: "combined",
-      tol: { dist_m: distTolM, ts_s: tsTolS },
-      hello: helloObj,
-      a: (selfAny && selfAny.type === "response") ? selfAny : null,
-      b: other
+    if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
+
+    setStatus("Creating self receipt (location + time)…");
+    const selfResp = await makeReturnForHelloAsync(hello);
+    window.__irlid_last_self_response = selfResp;
+    saveSelfResp(selfResp);
+  }
+
+  async function handleScannedResponseB64(respB64){
+    if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
+
+    await ensureSelfResponseForHello();
+
+    const otherRespObj = irlidDecodeB64urlJson(respB64);
+
+    const out = await processScannedResponse(otherRespObj, {
+      hello,
+      tsTolS: IRLID_TS_TOL_S,
+      distTolM: IRLID_DIST_TOL_M
+    });
+
+    const combEncoded = irlidEncodeJsonToB64url(out.combined);
+    lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
+    storeCombinedReceipt(out.combined);
+
+    showReceiptBtn.style.display = "inline-flex";
+    setStatus("Verified. Combined receipt ready.");
+  }
+
+  async function stopScanner(){
+    if (!html5QrCode) { setStatus("Stopped."); return; }
+    try { await html5QrCode.stop(); } catch {}
+    try { await html5QrCode.clear(); } catch {}
+    html5QrCode = null;
+    setStatus("Stopped.");
+
+    if (hello) showQrInPlace();
+  }
+
+  async function startScanner(){
+    await stopScanner();
+    setStatus("Starting camera…");
+
+    const camId = cameraSelect.value;
+    if (!camId) throw new Error("No camera selected.");
+    setStoredPreferredCameraId(camId);
+
+    setStatus("Scanning…");
+    scannerEl.innerHTML = "";
+    html5QrCode = new Html5Qrcode("scanner");
+
+    const config = {
+      fps: 12,
+      qrbox: { width: 280, height: 280 },
+      disableFlip: false
     };
 
-    return { self: selfAny, other, combined: combinedV2 };
+    await html5QrCode.start(
+      camId,
+      config,
+      async (text) => {
+        await stopScanner();
+        const c = classify(text);
+
+        if (c.kind === "HELLO") {
+          const v = (c.v || "").trim();
+          hello = v || null;
+          if (hello) saveHello(hello);
+          setStatus("HELLO (Offer) detected. Creating your Accept QR…");
+          location.hash = "HELLO=" + (v || "");
+          initHelloReturnQr();
+          return;
+        }
+
+        if (c.kind === "COMB") {
+          setStatus("Combined receipt detected. Opening…");
+          location.href = "receipt.html#COMB=" + (c.v || "");
+          return;
+        }
+
+        if (c.kind === "RESP") {
+          if (hello) {
+            try{
+              setStatus("Accept detected. Verifying…");
+              await handleScannedResponseB64(c.v || "");
+              if (lastCombinedUrl) location.href = lastCombinedUrl;
+              return;
+            }catch(e){
+              setStatus("Response verify failed: " + e);
+              console.error(e);
+              return;
+            }
+          }
+
+          setStatus("Response detected (no HELLO loaded). Opening single receipt…");
+          location.href = "receipt.html#RESP=" + (c.v || "");
+          return;
+        }
+
+        setStatus("QR detected (unrecognized).");
+      },
+      () => {}
+    );
   }
 
-  // --- RESPv3 verification ---
-  const otherPayload = other.pl;
-  const computedOtherHash = await hashPayloadToB64url(otherPayload);
-  const sigOk = await verifySigFlexible(computedOtherHash, other.s, other.pk);
-  if (!sigOk) throw new Error("Signature invalid." );
-
-  const otherHh = irlidPayloadHelloHashAny(otherPayload);
-  if (!otherHh || otherHh !== hh) throw new Error("HELLO binding mismatch." );
-
-  if (offerInfo.offerHash) {
-    const oh = irlidPayloadOfferHashAny(otherPayload);
-    if (!oh || oh !== offerInfo.offerHash) throw new Error("Offer binding mismatch." );
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const tsOther = irlidPayloadTsAny(otherPayload);
-  if (!Number.isFinite(tsOther)) throw new Error("Response timestamp missing." );
-  const dt = Math.abs(now - tsOther);
-  if (dt > tsTolS) throw new Error("Timestamp outside tolerance (" + dt + "s > " + tsTolS + "s)." );
-
-  // Distance tolerance (v3) if self present (and v3)
-  if (selfAny && irlidIsRespV3(selfAny)) {
-    const a = irlidPayloadLatLonAny(selfAny.pl);
-    const b = irlidPayloadLatLonAny(otherPayload);
-    if (a && b) {
-      const d = irlidHaversineMeters({ lat: a.lat, lon: a.lon }, { lat: b.lat, lon: b.lon });
-      if (d > distTolM) throw new Error("Distance outside tolerance (" + Math.round(d) + "m > " + distTolM + "m)." );
+  scanTheirRespBtn.addEventListener("click", async () => {
+    try{
+      if (!hello) {
+        setStatus("Scan a HELLO first (Home generates a HELLO QR)." );
+        return;
+      }
+      await listCamerasAndSelectDefault();
+      showScannerInPlace();
+      await startScanner();
+    }catch(e){
+      setStatus("Camera error: " + e);
+      console.error(e);
     }
+  });
+
+  showReceiptBtn.addEventListener("click", () => {
+    if (lastCombinedUrl) location.href = lastCombinedUrl;
+  });
+
+  if (clearLocalBtn) {
+    clearLocalBtn.addEventListener("click", () => {
+      try{
+        const keys = [
+          KEY_LAST_HELLO_B64,
+          KEY_LAST_SELF_RESP,
+          KEY_SELF,
+          KEY_GUEST,
+          KEY_RECEIPTS,
+          "irlid_receipt_last",
+          KEY_PREF_CAM
+        ];
+        for (const k of keys) localStorage.removeItem(k);
+      }catch{}
+      hello = null;
+      lastCombinedUrl = null;
+      try{ delete window.__irlid_last_self_response; }catch{}
+      location.hash = "";
+      initHelloReturnQr();
+      setStatus("Cleared local data.");
+    });
   }
 
-  const combined = {
-    v: 3,
-    t: "c",
-    tol: { d: distTolM, s: tsTolS },
-    h: helloLite,
-    a: selfAny,
-    b: other
-  };
+  startBtn.addEventListener("click", async () => {
+    try{
+      await listCamerasAndSelectDefault();
+      showScannerInPlace();
+      await startScanner();
+    }catch(e){
+      setStatus("Camera error: " + e);
+      console.error(e);
+    }
+  });
 
-  return { self: selfAny, other, combined };
-}
+  stopBtn.addEventListener("click", async () => {
+    try{ await stopScanner(); }catch(e){ console.error(e); }
+  });
+
+  cameraSelect.addEventListener("change", async () => {
+    setStoredPreferredCameraId(cameraSelect.value);
+  });
+
+  (async () => {
+    try{ await listCamerasAndSelectDefault(); } catch {}
+  })();
+</script>
+
+</body>
+</html>
