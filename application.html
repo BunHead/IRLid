@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 66 -->
+<!-- Deploy 67 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -49,14 +49,13 @@
     <button class="btn secondary" id="stopBtn">Stop</button>
   </div>
 
-  <div class="controls" style="justify-content:flex-start; gap:10px;">
-    <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
-  </div>
-
   <div id="responseArea">
     <h3 id="responseTitle">Your Accept QR</h3>
     <div class="qr-box" id="responseQr"></div>
-    <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
+        <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
+      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    </div>
+<p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
 
     <div class="controls" style="margin-top:10px;">
       <button class="btn" id="scanTheirRespBtn">Scan their Accept</button>
@@ -100,7 +99,26 @@
   const showReceiptBtn = document.getElementById("showReceiptBtn");
   const clearLocalBtn = document.getElementById("clearLocalBtn");
 
+  const debugControls = document.getElementById("debugControls");
+  if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
+
   let lastCombinedUrl = null;
+
+  function isDebug(){
+    try{
+      const qs = new URLSearchParams(location.search || "");
+      if (qs.get("debug") === "1" || qs.get("debug") === "true") return true;
+    }catch{}
+    try{
+      const v = localStorage.getItem("irlid_debug");
+      if (v === "1" || v === "true") return true;
+    }catch{}
+    try{
+      const h = location.hash || "";
+      if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
+    }catch{}
+    return false;
+  }
 
 
   function clearLocalData(){
