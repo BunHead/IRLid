@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 70 -->
+<!-- Deploy 71 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,7 +8,6 @@
   <title>IRLid — Receipt</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Receipt page: keep final combined fit cleanly on mobile without touching global nav/CSS */
     .receipt-wrap{ max-width: 860px; margin: 0 auto; }
     .receipt-qr{ text-align:center; }
     .receipt-qr canvas, .receipt-qr img{
@@ -25,10 +24,7 @@
       flex-wrap: wrap;
     }
     .receipt-headerline h3{ margin: 0; }
-    .receipt-mini{
-      font-size: 12px;
-      opacity: .85;
-    }
+    .receipt-mini{ font-size: 12px; opacity: .85; }
     .receipt-kv{
       display:grid;
       grid-template-columns: 120px 1fr;
@@ -38,7 +34,6 @@
     }
     .receipt-kv .k{ opacity:.8; }
     .receipt-kv .v{ word-break: break-word; }
-    .receipt-kv a{ color:#111; text-decoration: underline; }
     .receipt-two{
       display:grid;
       grid-template-columns: 1fr;
@@ -216,31 +211,12 @@
     return Math.max(260, Math.floor(w));
   }
 
-  function normalizeEpochMs(v){
-    if (typeof v !== "number" || !Number.isFinite(v)) return null;
-    if (v > 1000000000000) return Math.floor(v);
-    if (v > 1000000000) return Math.floor(v * 1000);
-    return null;
-  }
-
   function parseFromHash(){
     const h = location.hash || "";
     const mComb = h.match(/COMB=([A-Za-z0-9\-_]+)/);
     const mResp = h.match(/RESP=([A-Za-z0-9\-_]+)/);
-    if (mComb) {
-      try{
-        return { kind: "comb", raw: mComb[1], obj: irlidDecodeB64urlJson(mComb[1]) };
-      }catch{
-        return { kind: "comb", raw: mComb[1], obj: null };
-      }
-    }
-    if (mResp) {
-      try{
-        return { kind: "resp", raw: mResp[1], obj: irlidDecodeB64urlJson(mResp[1]) };
-      }catch{
-        return { kind: "resp", raw: mResp[1], obj: null };
-      }
-    }
+    if (mComb) return { kind: "comb", raw: mComb[1] };
+    if (mResp) return { kind: "resp", raw: mResp[1] };
     return null;
   }
 
@@ -263,14 +239,9 @@
     return n.toFixed(6);
   }
 
-  function formatTimeNoTs(tsMs){
+  function formatTime(tsMs){
     if (!tsMs) return null;
-    try {
-      const d = new Date(tsMs);
-      return d.toLocaleString();
-    } catch {
-      return null;
-    }
+    try { return new Date(tsMs).toLocaleString(); } catch { return null; }
   }
 
   function addCheck(label, ok, detail){
@@ -292,70 +263,27 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  function safeParseAny(raw){
-    if (!raw) return null;
-    if (typeof raw !== "string") return raw;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
-  // GPS extraction:
-  // Supports both:
-  //  - payload.gps.{lat,lon,acc}  (nested)
-  //  - payload.{lat,lon,acc}      (flat — your current data)
-  // Also supports lon/lng and accuracy fields.
   function extractGpsFromPayload(payload){
     if (!payload || typeof payload !== "object") return null;
 
-    if (payload.gps && typeof payload.gps === "object") {
-      const lat = Number(payload.gps.lat ?? payload.gps.latitude);
-      const lon = Number(payload.gps.lon ?? payload.gps.lng ?? payload.gps.longitude);
-      const acc = Number(payload.gps.acc ?? payload.gps.accuracy);
-      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
-    }
-
-    const lat = Number(payload.lat ?? payload.latitude);
-    const lon = Number(payload.lon ?? payload.lng ?? payload.longitude);
-    const acc = Number(payload.acc ?? payload.accuracy);
+    const lat = Number(payload.lat ?? payload.latitude ?? payload.la);
+    const lon = Number(payload.lon ?? payload.lng ?? payload.longitude ?? payload.lo);
+    const acc = Number(payload.acc ?? payload.accuracy ?? payload.ac);
     if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
-
     return null;
   }
 
   function getGps(resp){
     if (!resp) return null;
-
-    // RESPv3: {v:3, pk, pl:{la,lo,ac,...}, s}
-    if (resp.v === 3 && resp.pl && typeof resp.pl === "object") {
-      return extractGpsFromPayload({
-        lat: resp.pl.la,
-        lon: resp.pl.lo,
-        acc: resp.pl.ac
-      });
-    }
-
-    if (!resp.payload) return null;
-    return extractGpsFromPayload(resp.payload);
+    if (resp.v === 3 && resp.pl) return extractGpsFromPayload({ la: resp.pl.la, lo: resp.pl.lo, ac: resp.pl.ac });
+    if (resp.payload) return extractGpsFromPayload(resp.payload);
+    return null;
   }
 
   function getTsMs(resp){
     if (!resp) return null;
-
-    // RESPv3
-    if (resp.v === 3 && resp.pl && typeof resp.pl === "object") {
-      const ts = resp.pl.t;
-      if (typeof ts === "number" && Number.isFinite(ts)) {
-        if (ts > 1000000000000) return Math.floor(ts);
-        if (ts > 1000000000) return Math.floor(ts * 1000);
-      }
-      return null;
-    }
-
-    if (!resp.payload) return null;
-    const ts = resp.payload.ts;
-    if (typeof ts === "number" && Number.isFinite(ts)) {
-      if (ts > 1000000000000) return Math.floor(ts);
-      if (ts > 1000000000) return Math.floor(ts * 1000);
-    }
+    if (resp.v === 3 && resp.pl && Number.isFinite(resp.pl.t)) return Math.floor(resp.pl.t * 1000);
+    if (resp.payload && Number.isFinite(resp.payload.ts)) return Math.floor(resp.payload.ts * 1000);
     return null;
   }
 
@@ -365,23 +293,19 @@
   }
 
   function makeDualMapsUrl(gA, gB){
-    if (gA && gB) {
-      const midLat = (gA.lat + gB.lat) / 2;
-      const midLon = (gA.lon + gB.lon) / 2;
-      return makeMapsUrl(midLat, midLon);
-    }
+    if (gA && gB) return makeMapsUrl((gA.lat + gB.lat)/2, (gA.lon + gB.lon)/2);
     if (gA) return makeMapsUrl(gA.lat, gA.lon);
     if (gB) return makeMapsUrl(gB.lat, gB.lon);
     return "#";
   }
 
-  function makeReceiptUrlForResponse(resp){
-    const enc = irlidEncodeJsonToB64url(resp);
+  async function makeReceiptUrlForResponse(resp){
+    const enc = await irlidEncodeForQR(resp);
     return baseReceiptUrl() + "#RESP=" + enc;
   }
 
-  function makeReceiptUrlForCombined(comb){
-    const enc = irlidEncodeJsonToB64url(comb);
+  async function makeReceiptUrlForCombined(comb){
+    const enc = await irlidEncodeForQR(comb);
     return baseReceiptUrl() + "#COMB=" + enc;
   }
 
@@ -404,158 +328,43 @@
       elAcc.textContent = "";
     }
 
-    const t = formatTimeNoTs(tsMs);
+    const t = formatTime(tsMs);
     elTime.textContent = t ? `Time: ${t}` : "Time: (missing)";
   }
 
   async function validateResponse(resp){
-    const results = {
-      okStructure: false,
-      okHash: false,
-      okSig: false,
-      computedHash: null
-    };
+    const results = { okStructure:false, okHash:false, okSig:false, computedHash:null };
 
-    // RESPv3
     if (resp && resp.v === 3 && resp.pk && resp.pl && resp.s) {
       results.okStructure = true;
-      try {
+      try{
         const computed = await hashPayloadToB64url(resp.pl);
         results.computedHash = computed;
-        results.okHash = true; // RESPv3 carries no explicit hash
+        results.okHash = true;
         results.okSig = await verifySigFlexible(computed, resp.s, resp.pk);
-      } catch {
+      }catch{
         results.okHash = false;
         results.okSig = false;
       }
       return results;
     }
 
-    // Legacy v2
-    if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
-      return results;
-    }
-    results.okStructure = true;
+    if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) return results;
 
-    try {
+    results.okStructure = true;
+    try{
       const computed = await hashPayloadToB64url(resp.payload);
       results.computedHash = computed;
       results.okHash = (computed === resp.hash);
-    } catch {
+    }catch{
       results.okHash = false;
     }
-
-    try {
+    try{
       results.okSig = await verifySigFlexible(resp.hash, resp.sig, resp.pub);
-    } catch {
+    }catch{
       results.okSig = false;
     }
-
     return results;
-  }
-
-  function pickLatestFromReceiptsKey(){
-    const raw = localStorage.getItem(KEY_LIST);
-    if (!raw) return null;
-
-    const parsed = safeParseAny(raw);
-    if (!parsed) return null;
-
-    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : null);
-    if (!arr || !arr.length) return null;
-
-    let best = null;
-    let bestScore = -Infinity;
-
-    for (let i = 0; i < arr.length; i++) {
-      const entry = arr[i];
-
-      const combined =
-        (entry && (entry.type === "combined" || (entry.v === 3 && (entry.t === "c" || entry.h)))) ? entry :
-        (entry && entry.combined && (entry.combined.type === "combined" || (entry.combined.v === 3 && (entry.combined.t === "c" || entry.combined.h)))) ? entry.combined :
-        null;
-
-      const resp =
-        (entry && entry.type === "response") ? entry :
-        null;
-
-      const url =
-        (typeof entry === "string") ? entry :
-        (entry && typeof entry.url === "string") ? entry.url :
-        (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
-        null;
-
-      let score = null;
-      if (entry && typeof entry.ts !== "undefined") score = normalizeEpochMs(entry.ts);
-
-      if (score === null && combined) {
-        const ta = combined.a ? getTsMs(combined.a) : null;
-        const tb = combined.b ? getTsMs(combined.b) : null;
-        const t = Math.max(ta || -Infinity, tb || -Infinity);
-        score = Number.isFinite(t) ? t : null;
-      }
-      if (score === null && resp) score = getTsMs(resp);
-
-      if (score === null) score = 0;
-      score = score + (i / 1000000);
-
-      if (score > bestScore) {
-        bestScore = score;
-        best = { entry, combined, resp, url, score };
-      }
-    }
-
-    return best;
-  }
-
-  function setSummary(comb){
-    summaryKv.style.display = "grid";
-
-    const respA = comb && comb.a ? comb.a : null;
-    const respB = comb && comb.b ? comb.b : null;
-
-    const tsA = respA ? getTsMs(respA) : null;
-    const tsB = respB ? getTsMs(respB) : null;
-
-    let timeLine = "(missing)";
-    if (tsA && tsB) {
-      const lo = new Date(Math.min(tsA, tsB));
-      const hi = new Date(Math.max(tsA, tsB));
-      const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
-      timeLine = `${lo.toLocaleString()} — ${hi.toLocaleTimeString()} (Δ ${deltaS}s)`;
-    } else if (tsA) {
-      timeLine = `${new Date(tsA).toLocaleString()} (self)`;
-    } else if (tsB) {
-      timeLine = `${new Date(tsB).toLocaleString()} (guest)`;
-    }
-    sumTime.textContent = timeLine;
-
-    const gA = respA ? getGps(respA) : null;
-    const gB = respB ? getGps(respB) : null;
-
-    let distLine = "(missing)";
-    if (gA && gB) {
-      const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-      distLine = `${d.toFixed(2)} m`;
-    }
-    sumDistance.textContent = distLine;
-
-    const mapsUrl = makeDualMapsUrl(gA, gB);
-    sumMap.innerHTML = mapsUrl && mapsUrl !== "#"
-      ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Open map</a>`
-      : "(missing)";
-  }
-
-  function setMissingHint(comb){
-    const missingBits = [];
-
-    if (!comb || comb.type !== "combined") missingBits.push("combined");
-
-    if (!comb || !comb.a) missingBits.push("self");
-    if (!comb || !comb.b) missingBits.push("guest");
-
-    receiptHint.style.display = missingBits.length ? "block" : "none";
-    if (missingBits.length) receiptHint.textContent = "Missing: " + missingBits.join(", ");
   }
 
   clearBtn.onclick = () => {
@@ -563,7 +372,6 @@
     localStorage.removeItem(KEY_GUEST);
     localStorage.removeItem(KEY_LAST);
     localStorage.removeItem(KEY_LIST);
-    // also clear handshake state so mobile users can recover without DevTools
     try{
       localStorage.removeItem("irlid_last_hello_b64");
       localStorage.removeItem("irlid_last_self_response");
@@ -577,48 +385,29 @@
 
     const fromHash = parseFromHash();
 
-    if (fromHash && fromHash.kind === "resp" && fromHash.obj && (fromHash.obj.type === "response" || (fromHash.obj.v === 3 && fromHash.obj.pk && fromHash.obj.pl))) {
-      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
-    }
-
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && (fromHash.obj.type === "combined" || (fromHash.obj.v === 3 && (fromHash.obj.t === "c" || fromHash.obj.h)))) {
-      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
-    }
-
-    const last = readJson(KEY_LAST);
-    const self = readJson(KEY_SELF);
-    const guest = readJson(KEY_GUEST);
-
     let comb = null;
     let resp = null;
 
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && (fromHash.obj.type === "combined" || (fromHash.obj.v === 3 && (fromHash.obj.t === "c" || fromHash.obj.h)))) {
-      comb = fromHash.obj;
-    } else if (last && (last.type === "combined" || (last.v === 3 && (last.t === "c" || last.h)))) {
-      comb = last;
-    } else {
-      // If no combined, show most recent single response (or last response)
-      if (fromHash && fromHash.kind === "resp" && fromHash.obj && (fromHash.obj.type === "response" || (fromHash.obj.v === 3 && fromHash.obj.pk && fromHash.obj.pl))) {
-        resp = fromHash.obj;
-      } else if (last && (last.type === "response" || (last.v === 3 && last.pk && last.pl))) {
-        resp = last;
-      }
-    }
-
-    // If we have separate self/guest stored, render as combined.
-    if (!comb && self && guest) {
-      // Prefer COMBv3 if stored receipts look like v3.
-      const looksV3 = (self && self.v === 3 && self.pl) || (guest && guest.v === 3 && guest.pl);
-      comb = looksV3
-        ? { v: 3, t: "c", a: self, b: guest, tol: { d: DIST_TOL_M, s: TS_TOL_S } }
-        : { v: 1, type: "combined", a: self, b: guest, tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S } };
+    if (fromHash && fromHash.kind === "comb") {
+      try { comb = await irlidDecodeFromQR(fromHash.raw); } catch (e) { comb = null; }
+      if (comb) localStorage.setItem(KEY_LAST, JSON.stringify(comb));
+    } else if (fromHash && fromHash.kind === "resp") {
+      try { resp = await irlidDecodeFromQR(fromHash.raw); } catch (e) { resp = null; }
+      if (resp) localStorage.setItem(KEY_LAST, JSON.stringify(resp));
     }
 
     if (!comb && !resp) {
-      const best = pickLatestFromReceiptsKey();
-      if (best && best.combined) comb = best.combined;
-      else if (best && best.resp) resp = best.resp;
-      else if (best && best.url) location.href = best.url;
+      const last = readJson(KEY_LAST);
+      if (last && (last.type === "combined" || (last.v === 3 && (last.t === "c" || last.h)))) comb = last;
+      else if (last && (last.type === "response" || (last.v === 3 && last.pk && last.pl))) resp = last;
+    }
+
+    if (!comb && !resp) {
+      const self = readJson(KEY_SELF);
+      const guest = readJson(KEY_GUEST);
+      if (self && guest) comb = (self.v === 3 || guest.v === 3)
+        ? { v: 3, t: "c", a: self, b: guest, tol: { d: DIST_TOL_M, s: TS_TOL_S } }
+        : { v: 1, type: "combined", a: self, b: guest, tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S } };
     }
 
     if (!comb && !resp) {
@@ -637,26 +426,51 @@
       peopleGrid.style.display = "grid";
       checksEl.innerHTML = "";
 
-      const url = makeReceiptUrlForCombined(comb);
+      const url = await makeReceiptUrlForCombined(comb);
       if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
       rawJson.textContent = JSON.stringify(comb, null, 2);
 
-      setSummary(comb);
-      setMissingHint(comb);
+      summaryKv.style.display = "grid";
 
       const respA = comb.a || null;
       const respB = comb.b || null;
 
-      const mapsUrl = makeDualMapsUrl(getGps(respA), getGps(respB));
-      setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
-      setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
+      const tsA = respA ? getTsMs(respA) : null;
+      const tsB = respB ? getTsMs(respB) : null;
+      if (tsA && tsB) {
+        const lo = new Date(Math.min(tsA, tsB));
+        const hi = new Date(Math.max(tsA, tsB));
+        const deltaS = Math.round(Math.abs(tsA - tsB)/1000);
+        sumTime.textContent = `${lo.toLocaleString()} — ${hi.toLocaleTimeString()} (Δ ${deltaS}s)`;
+      } else {
+        sumTime.textContent = "(missing)";
+      }
 
-      // ---- Checks ----
+      const gA = respA ? getGps(respA) : null;
+      const gB = respB ? getGps(respB) : null;
+
+      if (gA && gB) {
+        const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+        sumDistance.textContent = `${d.toFixed(2)} m`;
+      } else {
+        sumDistance.textContent = "(missing)";
+      }
+
+      const mapsUrl = makeDualMapsUrl(gA, gB);
+      sumMap.innerHTML = mapsUrl && mapsUrl !== "#"
+        ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Open map</a>`
+        : "(missing)";
+
+      const mapsUrlPeople = makeDualMapsUrl(getGps(respA), getGps(respB));
+      setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrlPeople);
+      setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrlPeople);
+
+      // Checks
       if (respA) {
         const vr = await validateResponse(respA);
         addCheck("Self: structure", vr.okStructure);
-        addCheck("Self: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Self: hash", vr.okHash);
         addCheck("Self: signature", vr.okSig);
       } else {
         addCheck("Self receipt present", false, "Missing Self response in combined object.");
@@ -665,21 +479,19 @@
       if (respB) {
         const vr = await validateResponse(respB);
         addCheck("Guest: structure", vr.okStructure);
-        addCheck("Guest: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Guest: hash", vr.okHash);
         addCheck("Guest: signature", vr.okSig);
       } else {
         addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
       }
 
-      // --- Protocol checks ---
-      // v3: comb.h (helloLite) binds both responses (pl.hh) and allows verifying offer signature.
+      // v3 HELLO-Lite checks
       if (comb.v === 3 && comb.h) {
         try{
           const helloLite = comb.h;
           const hh = await irlidHelloHashV3FromHelloLiteAsync(helloLite);
           addCheck("HELLO-Lite present", true);
 
-          // Verify offer signature if present
           if (helloLite.off && helloLite.off.pl && helloLite.off.s) {
             const offerHash = await hashPayloadToB64url(helloLite.off.pl);
             const ok = await verifySigFlexible(offerHash, helloLite.off.s, helloLite.pk);
@@ -688,101 +500,49 @@
             addCheck("Offer signature present", false, "Missing helloLite.off (unsigned HELLO).");
           }
 
-          // Binding checks against hh
-          const getHhFromResp = (r) => {
-            if (!r) return null;
-            if (r.v === 3 && r.pl) return r.pl.hh;
-            if (r.payload) return r.payload.helloHash;
-            return null;
-          };
-          addCheck("Self binds to HELLO", getHhFromResp(respA) === hh);
-          addCheck("Guest binds to HELLO", getHhFromResp(respB) === hh);
+          const hhA = respA && respA.v === 3 && respA.pl ? respA.pl.hh : (respA && respA.payload ? respA.payload.helloHash : null);
+          const hhB = respB && respB.v === 3 && respB.pl ? respB.pl.hh : (respB && respB.payload ? respB.payload.helloHash : null);
+          addCheck("Self binds to HELLO", hhA === hh);
+          addCheck("Guest binds to HELLO", hhB === hh);
 
-          // OfferHash binding (if offer exists)
           if (helloLite.off && helloLite.off.pl) {
             const offerHash = await hashPayloadToB64url(helloLite.off.pl);
-            const getOhFromResp = (r) => {
-              if (!r) return null;
-              if (r.v === 3 && r.pl) return r.pl.oh || null;
-              if (r.payload) return r.payload.offerHash || null;
-              return null;
-            };
-            addCheck("Self binds to offerHash", getOhFromResp(respA) === offerHash);
-            addCheck("Guest binds to offerHash", getOhFromResp(respB) === offerHash);
+            const ohA = respA && respA.v === 3 && respA.pl ? (respA.pl.oh || null) : (respA && respA.payload ? (respA.payload.offerHash || null) : null);
+            const ohB = respB && respB.v === 3 && respB.pl ? (respB.pl.oh || null) : (respB && respB.payload ? (respB.payload.offerHash || null) : null);
+            addCheck("Self binds to offerHash", ohA === offerHash);
+            addCheck("Guest binds to offerHash", ohB === offerHash);
           }
         } catch (e) {
           addCheck("HELLO-Lite checks", false, String(e));
         }
       } else {
-        // v2 combined includes full hello
-        const helloObj = comb.hello || null;
-        if (helloObj) {
-          try{
-            const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
-            addCheck("HELLO offer: structure+hash+sig", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
-          }catch(e){
-            addCheck("HELLO offer: structure+hash+sig", false, String(e));
-          }
-
-          try{
-            const helloHash = await irlidHelloHashB64url(helloObj);
-
-            if (respA && respA.payload) {
-              addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
-            }
-            if (respB && respB.payload) {
-              addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
-            }
-
-            if (helloObj.offer && helloObj.offer.hash) {
-              const oh = helloObj.offer.hash;
-              if (respA && respA.payload) addCheck("Self binds to offerHash", respA.payload.offerHash === oh);
-              if (respB && respB.payload) addCheck("Guest binds to offerHash", respB.payload.offerHash === oh);
-            }
-          }catch(e){
-            addCheck("HELLO binding checks", false, String(e));
-          }
-        } else {
-          addCheck("HELLO present in combined", false, "Missing comb.hello/comb.h (cannot verify offer/bindings)." );
-        }
+        addCheck("HELLO-Lite present", false, "Missing comb.h (cannot verify offer/bindings).");
       }
 
-      // --- Mutual tolerances (client-side) ---
+      // Mutual tolerances
       try{
-        const tsAms = respA ? getTsMs(respA) : null;
-        const tsBms = respB ? getTsMs(respB) : null;
-        if (tsAms && tsBms) {
-          const deltaS = Math.abs(tsAms - tsBms) / 1000;
+        if (tsA && tsB) {
+          const deltaS = Math.abs(tsA - tsB)/1000;
           addCheck("Time delta ≤ tolerance", deltaS <= TS_TOL_S, `Δ ${Math.round(deltaS)}s (limit ${TS_TOL_S}s)`);
-        } else {
-          addCheck("Time delta ≤ tolerance", false, "Missing timestamps.");
-        }
-      }catch(e){
-        addCheck("Time delta ≤ tolerance", false, String(e));
-      }
+        } else addCheck("Time delta ≤ tolerance", false, "Missing timestamps.");
+      }catch(e){ addCheck("Time delta ≤ tolerance", false, String(e)); }
 
       try{
-        const gA = respA ? getGps(respA) : null;
-        const gB = respB ? getGps(respB) : null;
         if (gA && gB) {
           const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
           addCheck("Distance ≤ tolerance", d <= DIST_TOL_M, `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`);
-        } else {
-          addCheck("Distance ≤ tolerance", false, "Missing locations.");
-        }
-      }catch(e){
-        addCheck("Distance ≤ tolerance", false, String(e));
-      }
+        } else addCheck("Distance ≤ tolerance", false, "Missing locations.");
+      }catch(e){ addCheck("Distance ≤ tolerance", false, String(e)); }
+
     } else if (resp) {
       metaTitle.textContent = "Receipt";
       peopleGrid.style.display = "grid";
       checksEl.innerHTML = "";
 
-      const url = makeReceiptUrlForResponse(resp);
+      const url = await makeReceiptUrlForResponse(resp);
       if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
       rawJson.textContent = JSON.stringify(resp, null, 2);
-
       summaryKv.style.display = "none";
       receiptHint.style.display = "none";
 
@@ -792,7 +552,7 @@
 
       const vr = await validateResponse(resp);
       addCheck("Receipt structure", vr.okStructure);
-      addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Hash matches payload", vr.okHash);
       addCheck("Signature valid", vr.okSig);
 
       addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person to open this receipt.");
