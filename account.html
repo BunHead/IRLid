@@ -1,0 +1,386 @@
+<!-- account.html -->
+<!DOCTYPE html>
+<!-- Deploy 72 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid — Account</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .field-row { margin-bottom: 10px; }
+    .field-row label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+    .field-row input { padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; width: 100%; max-width: 340px; }
+    .device-list { margin-top: 10px; }
+    .device-card { border: 1px solid #e5e5e5; background: #fff; padding: 12px; margin-bottom: 8px; }
+    .device-card.current { border-left: 4px solid #000; }
+    .device-card.revoked { opacity: 0.5; }
+    .device-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .device-name { font-weight: 700; }
+    .device-meta { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+    .device-badge { font-size: 11px; padding: 2px 8px; background: #eee; display: inline-block; margin-left: 4px; }
+    .device-badge.current { background: #000; color: #fff; }
+    .device-badge.revoked { background: #c00; color: #fff; }
+    .device-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .device-actions button { font-size: 12px; padding: 4px 12px; }
+    .link-code-display { font-family: monospace; font-size: 32px; letter-spacing: 8px; text-align: center; padding: 16px; background: #f5f5f5; border: 1px solid #ddd; margin: 10px 0; }
+    .link-code-timer { text-align: center; font-size: 13px; opacity: 0.7; }
+    .rename-input { padding: 4px 8px; font-size: 13px; border: 1px solid #ccc; width: 160px; }
+  </style>
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+      </a>
+    </div>
+
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="application.html">Scan</a>
+
+      <details class="nav-dropdown" id="aboutDropdown">
+        <summary class="nav-btn">About ▼</summary>
+        <div class="dropdown-menu" role="menu" aria-label="About menu">
+          <a href="about.html">About</a>
+          <a href="features.html">Features</a>
+          <a href="contact.html">Contact</a>
+        </div>
+      </details>
+
+      <span id="accountSlot"></span>
+    </nav>
+  </header>
+
+  <main class="page-main">
+
+    <!-- Not logged in -->
+    <div class="card" id="notLoggedIn" style="display:none;">
+      <h2 style="margin:0 0 8px;">Account</h2>
+      <p>You need to <a href="login.html">log in</a> to manage your account.</p>
+    </div>
+
+    <!-- ===== Profile ===== -->
+    <div class="card" id="profileCard" style="display:none;">
+      <h2 style="margin:0 0 12px;">Profile</h2>
+
+      <div class="field-row">
+        <label for="firstName">First name</label>
+        <input type="text" id="firstName" placeholder="e.g. Spencer">
+      </div>
+
+      <div class="field-row">
+        <label for="middleNames">Middle name(s)</label>
+        <input type="text" id="middleNames" placeholder="e.g. Robert">
+      </div>
+
+      <div class="field-row">
+        <label for="surname">Surname</label>
+        <input type="text" id="surname" placeholder="e.g. Austin">
+      </div>
+
+      <div class="field-row">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="e.g. you@example.com">
+      </div>
+
+      <div class="field-row">
+        <label for="displayName">Display name <span style="font-weight:400; opacity:0.7;">(shown in nav & receipts)</span></label>
+        <input type="text" id="displayName" placeholder="e.g. SRAustin">
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn" id="saveProfileBtn">Save profile</button>
+      </div>
+
+      <div class="statusBox" id="profileStatus" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- ===== Link a new device ===== -->
+    <div class="card" id="linkCard" style="display:none;">
+      <h2 style="margin:0 0 8px;">Link another device</h2>
+      <p class="mt0">
+        Generate a temporary 6-digit code, then enter it on your other device's Login page to link it to this account.
+      </p>
+
+      <div class="btnrow">
+        <button class="btn" id="generateCodeBtn">Generate link code</button>
+      </div>
+
+      <div id="linkCodeArea" style="display:none;">
+        <div class="link-code-display" id="linkCodeDisplay">------</div>
+        <div class="link-code-timer" id="linkCodeTimer">Expires in 5:00</div>
+      </div>
+    </div>
+
+    <!-- ===== Linked devices ===== -->
+    <div class="card" id="devicesCard" style="display:none;">
+      <h2 style="margin:0 0 8px;">Linked devices</h2>
+      <p class="mt0" style="font-size:14px;">
+        Each device has its own key. You can rename devices for easy identification.
+        Revoking a device prevents it from logging in or uploading receipts.
+      </p>
+      <div class="device-list" id="deviceList">Loading…</div>
+    </div>
+
+    <div class="statusBox" id="statusBox" style="margin-top:12px;"></div>
+
+  </main>
+
+  <script src="js/sign.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/nav.js"></script>
+
+  <script>
+    var statusBox = document.getElementById("statusBox");
+    var notLoggedIn = document.getElementById("notLoggedIn");
+    var profileCard = document.getElementById("profileCard");
+    var linkCard = document.getElementById("linkCard");
+    var devicesCard = document.getElementById("devicesCard");
+    var deviceList = document.getElementById("deviceList");
+    var profileStatus = document.getElementById("profileStatus");
+
+    // Profile fields
+    var firstNameInput = document.getElementById("firstName");
+    var middleNamesInput = document.getElementById("middleNames");
+    var surnameInput = document.getElementById("surname");
+    var emailInput = document.getElementById("email");
+    var displayNameInput = document.getElementById("displayName");
+    var saveProfileBtn = document.getElementById("saveProfileBtn");
+
+    // Link code
+    var generateCodeBtn = document.getElementById("generateCodeBtn");
+    var linkCodeArea = document.getElementById("linkCodeArea");
+    var linkCodeDisplay = document.getElementById("linkCodeDisplay");
+    var linkCodeTimer = document.getElementById("linkCodeTimer");
+    var countdownInterval = null;
+
+    function formatDate(epoch) {
+      if (!epoch) return "—";
+      var d = new Date(epoch * 1000);
+      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+    }
+
+    // ===== Devices =====
+
+    function renderDevices(devices, currentDeviceId) {
+      if (!devices || !devices.length) {
+        deviceList.textContent = "No devices found.";
+        return;
+      }
+
+      deviceList.innerHTML = "";
+
+      devices.forEach(function (dev) {
+        var isCurrent = dev.id === currentDeviceId;
+        var isRevoked = !!dev.revoked;
+
+        var card = document.createElement("div");
+        card.className = "device-card" + (isCurrent ? " current" : "") + (isRevoked ? " revoked" : "");
+
+        // Header row
+        var header = document.createElement("div");
+        header.className = "device-header";
+
+        var name = document.createElement("span");
+        name.className = "device-name";
+        name.textContent = dev.label || ("Device " + dev.pub_key_id.slice(0, 8));
+        header.appendChild(name);
+
+        var badges = document.createElement("span");
+        if (isCurrent) {
+          var b = document.createElement("span");
+          b.className = "device-badge current";
+          b.textContent = "This device";
+          badges.appendChild(b);
+        }
+        if (isRevoked) {
+          var b2 = document.createElement("span");
+          b2.className = "device-badge revoked";
+          b2.textContent = "Revoked";
+          badges.appendChild(b2);
+        }
+        header.appendChild(badges);
+        card.appendChild(header);
+
+        // Meta
+        var meta = document.createElement("div");
+        meta.className = "device-meta";
+        meta.textContent = "Key: " + dev.pub_key_id + "  •  Added: " + formatDate(dev.created_at);
+        card.appendChild(meta);
+
+        // Actions
+        if (!isRevoked) {
+          var actions = document.createElement("div");
+          actions.className = "device-actions";
+
+          // Rename
+          var renameInput = document.createElement("input");
+          renameInput.type = "text";
+          renameInput.className = "rename-input";
+          renameInput.placeholder = "New name…";
+          renameInput.value = dev.label || "";
+          actions.appendChild(renameInput);
+
+          var renameBtn = document.createElement("button");
+          renameBtn.className = "btn secondary";
+          renameBtn.textContent = "Rename";
+          renameBtn.addEventListener("click", function () {
+            renameDevice(dev.id, renameInput.value.trim());
+          });
+          actions.appendChild(renameBtn);
+
+          // Revoke (not current device)
+          if (!isCurrent) {
+            var revokeBtn = document.createElement("button");
+            revokeBtn.className = "btn secondary";
+            revokeBtn.style.color = "#c00";
+            revokeBtn.textContent = "Revoke";
+            revokeBtn.addEventListener("click", function () {
+              revokeDevice(dev.id, dev.pub_key_id);
+            });
+            actions.appendChild(revokeBtn);
+          }
+
+          card.appendChild(actions);
+        }
+
+        deviceList.appendChild(card);
+      });
+    }
+
+    async function renameDevice(deviceId, newLabel) {
+      if (!newLabel) {
+        statusBox.textContent = "Enter a name for the device.";
+        return;
+      }
+
+      statusBox.textContent = "Renaming…";
+      var result = await window.IRLBackend.renameDevice(deviceId, newLabel);
+
+      if (result.ok) {
+        statusBox.textContent = "Device renamed.";
+        await loadAccount();
+      } else {
+        statusBox.textContent = "Error: " + (result.error || "Failed to rename.");
+      }
+    }
+
+    async function revokeDevice(deviceId, pubKeyId) {
+      if (!confirm("Revoke device " + pubKeyId.slice(0, 8) + "…? It will no longer be able to log in.")) return;
+
+      statusBox.textContent = "Revoking…";
+      var result = await window.IRLBackend.revokeDevice(deviceId);
+
+      if (result.ok) {
+        statusBox.textContent = "Device revoked.";
+        await loadAccount();
+      } else {
+        statusBox.textContent = "Error: " + (result.error || "Failed to revoke.");
+      }
+    }
+
+    // ===== Profile =====
+
+    saveProfileBtn.addEventListener("click", async function () {
+      profileStatus.textContent = "Saving…";
+
+      var result = await window.IRLBackend.updateProfile({
+        first_name: firstNameInput.value.trim() || null,
+        middle_names: middleNamesInput.value.trim() || null,
+        surname: surnameInput.value.trim() || null,
+        email: emailInput.value.trim() || null,
+        display_name: displayNameInput.value.trim() || null
+      });
+
+      if (result.ok) {
+        profileStatus.textContent = "Profile saved.";
+        if (typeof refreshNav === "function") refreshNav();
+      } else {
+        profileStatus.textContent = "Error: " + (result.error || "Failed to save.");
+      }
+    });
+
+    // ===== Link code =====
+
+    generateCodeBtn.addEventListener("click", async function () {
+      statusBox.textContent = "Generating link code…";
+      var result = await window.IRLBackend.createLinkCode();
+
+      if (!result.ok) {
+        statusBox.textContent = "Error: " + (result.error || "Failed to generate code.");
+        return;
+      }
+
+      var code = result.data.code;
+      var expiresAt = result.data.expires_at;
+
+      linkCodeArea.style.display = "block";
+      linkCodeDisplay.textContent = code;
+      statusBox.textContent = "Enter this code on your other device's Login page.";
+
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      function updateTimer() {
+        var remaining = expiresAt - Math.floor(Date.now() / 1000);
+        if (remaining <= 0) {
+          linkCodeTimer.textContent = "Expired — generate a new code.";
+          linkCodeDisplay.style.opacity = "0.3";
+          clearInterval(countdownInterval);
+          return;
+        }
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        linkCodeTimer.textContent = "Expires in " + mins + ":" + (secs < 10 ? "0" : "") + secs;
+      }
+
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
+    });
+
+    // ===== Load everything =====
+
+    async function loadAccount() {
+      if (!window.IRLBackend || !window.IRLBackend.hasSession()) {
+        notLoggedIn.style.display = "block";
+        profileCard.style.display = "none";
+        linkCard.style.display = "none";
+        devicesCard.style.display = "none";
+        return;
+      }
+
+      var result = await window.IRLBackend.me();
+
+      if (!result.ok || !result.data || !result.data.logged_in) {
+        notLoggedIn.style.display = "block";
+        profileCard.style.display = "none";
+        linkCard.style.display = "none";
+        devicesCard.style.display = "none";
+        return;
+      }
+
+      var data = result.data;
+      notLoggedIn.style.display = "none";
+      profileCard.style.display = "block";
+      linkCard.style.display = "block";
+      devicesCard.style.display = "block";
+
+      // Populate profile fields
+      var u = data.user || {};
+      firstNameInput.value = u.first_name || "";
+      middleNamesInput.value = u.middle_names || "";
+      surnameInput.value = u.surname || "";
+      emailInput.value = u.email || "";
+      displayNameInput.value = u.display_name || "";
+
+      // Devices
+      renderDevices(data.devices || [], data.current_device_id);
+    }
+
+    loadAccount();
+  </script>
+</body>
+</html>
