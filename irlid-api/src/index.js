@@ -1,6 +1,6 @@
-// irlid-api/src/index.js
+// irlid-api/src/index.js — v2
 // IRLid Backend — Cloudflare Worker + D1
-// Handles: user registration, login, receipt upload & retrieval
+// Auth, receipt storage, device linking, device revocation
 
 // =====================
 //  HELPERS
@@ -41,6 +41,13 @@ function err(message, status = 400) {
 
 function randomToken() {
   return b64urlEncode(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+/** Generate a 6-digit numeric code. */
+function randomCode6() {
+  const bytes = crypto.getRandomValues(new Uint8Array(4));
+  const num = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+  return String(num % 1000000).padStart(6, "0");
 }
 
 // =====================
@@ -103,9 +110,7 @@ async function verifyReceipt(comb) {
     checks.a_hash = (await hashPayloadToB64url(a.payload)) === a.hash;
     checks.a_sig = await verifySig(a.hash, a.sig, a.pub);
   } else {
-    checks.a_structure = false;
-    checks.a_hash = false;
-    checks.a_sig = false;
+    checks.a_structure = false; checks.a_hash = false; checks.a_sig = false;
   }
 
   const b = comb.b;
@@ -114,9 +119,7 @@ async function verifyReceipt(comb) {
     checks.b_hash = (await hashPayloadToB64url(b.payload)) === b.hash;
     checks.b_sig = await verifySig(b.hash, b.sig, b.pub);
   } else {
-    checks.b_structure = false;
-    checks.b_hash = false;
-    checks.b_sig = false;
+    checks.b_structure = false; checks.b_hash = false; checks.b_sig = false;
   }
 
   const hello = comb.hello;
@@ -138,20 +141,14 @@ async function verifyReceipt(comb) {
   if (typeof tsA === "number" && typeof tsB === "number") {
     checks.time_delta_s = Math.abs(tsA - tsB);
     checks.time_delta_ok = checks.time_delta_s <= TS_TOL;
-  } else {
-    checks.time_delta_ok = false;
-  }
+  } else { checks.time_delta_ok = false; }
 
-  const latA = a?.payload?.lat;
-  const lonA = a?.payload?.lon;
-  const latB = b?.payload?.lat;
-  const lonB = b?.payload?.lon;
+  const latA = a?.payload?.lat; const lonA = a?.payload?.lon;
+  const latB = b?.payload?.lat; const lonB = b?.payload?.lon;
   if (latA != null && lonA != null && latB != null && lonB != null) {
     checks.distance_m = Math.round(haversineMeters(latA, lonA, latB, lonB) * 100) / 100;
     checks.distance_ok = checks.distance_m <= DIST_TOL;
-  } else {
-    checks.distance_ok = false;
-  }
+  } else { checks.distance_ok = false; }
 
   checks.valid = !!(
     checks.a_structure && checks.a_hash && checks.a_sig &&
@@ -181,7 +178,6 @@ async function getSession(request, env) {
     await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(token).run();
     return null;
   }
-
   return { userId: row.user_id, deviceId: row.device_id, token };
 }
 
@@ -198,10 +194,8 @@ function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
   const allowed = [
     env.CORS_ORIGIN || "https://bunhead.github.io",
-    "http://localhost:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8000"
+    "http://localhost:3000", "http://localhost:8000",
+    "http://127.0.0.1:3000", "http://127.0.0.1:8000"
   ];
   const match = allowed.includes(origin);
   return {
@@ -219,24 +213,21 @@ function addCors(response, env, request) {
 }
 
 // =====================
-//  ROUTE HANDLERS
+//  AUTH HANDLERS
 // =====================
 
 // POST /auth/register
 async function register(request, env) {
   let body;
-  try { body = await request.json(); }
-  catch { return err("Invalid JSON body"); }
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
 
   const { display_name, pub_jwk } = body;
-
   if (!pub_jwk || !pub_jwk.kty || !pub_jwk.crv || !pub_jwk.x || !pub_jwk.y) {
-    return err("pub_jwk is required (your ECDSA P-256 public key)");
+    return err("pub_jwk is required");
   }
 
   const pkId = await pubKeyId(pub_jwk);
 
-  // If device already registered, just create a new session
   const existing = await env.DB.prepare(
     "SELECT d.id as device_id, d.user_id FROM devices d WHERE d.pub_key_id = ?"
   ).bind(pkId).first();
@@ -247,64 +238,31 @@ async function register(request, env) {
     await env.DB.prepare(
       "INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
     ).bind(token, existing.user_id, existing.device_id, ts, ts + 30 * 86400).run();
-
-    return json({
-      user_id: existing.user_id,
-      device_id: existing.device_id,
-      pub_key_id: pkId,
-      session_token: token,
-      existing: true
-    });
+    return json({ user_id: existing.user_id, device_id: existing.device_id, pub_key_id: pkId, session_token: token, existing: true });
   }
 
-  const userId = uuid();
-  const deviceId = uuid();
-  const ts = now();
-  const token = randomToken();
-
+  const userId = uuid(); const deviceId = uuid(); const ts = now(); const token = randomToken();
   await env.DB.batch([
-    env.DB.prepare(
-      "INSERT INTO users (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)"
-    ).bind(userId, display_name || null, ts, ts),
-    env.DB.prepare(
-      "INSERT INTO devices (id, user_id, pub_key_id, pub_jwk, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(deviceId, userId, pkId, JSON.stringify(pub_jwk), ts),
-    env.DB.prepare(
-      "INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(token, userId, deviceId, ts, ts + 30 * 86400)
+    env.DB.prepare("INSERT INTO users (id, display_name, created_at, updated_at) VALUES (?, ?, ?, ?)").bind(userId, display_name || null, ts, ts),
+    env.DB.prepare("INSERT INTO devices (id, user_id, pub_key_id, pub_jwk, created_at) VALUES (?, ?, ?, ?, ?)").bind(deviceId, userId, pkId, JSON.stringify(pub_jwk), ts),
+    env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, userId, deviceId, ts, ts + 30 * 86400)
   ]);
-
-  return json({
-    user_id: userId,
-    device_id: deviceId,
-    pub_key_id: pkId,
-    session_token: token,
-    existing: false
-  }, 201);
+  return json({ user_id: userId, device_id: deviceId, pub_key_id: pkId, session_token: token, existing: false }, 201);
 }
 
 // POST /auth/login
 async function login(request, env) {
   let body;
-  try { body = await request.json(); }
-  catch { return err("Invalid JSON body"); }
-
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
   const { pub_key_id } = body;
   if (!pub_key_id) return err("pub_key_id required");
 
-  const device = await env.DB.prepare(
-    "SELECT id, user_id, revoked_at FROM devices WHERE pub_key_id = ?"
-  ).bind(pub_key_id).first();
-
+  const device = await env.DB.prepare("SELECT id, user_id, revoked_at FROM devices WHERE pub_key_id = ?").bind(pub_key_id).first();
   if (!device) return err("Device not found. Register first.", 404);
   if (device.revoked_at) return err("This device key has been revoked.", 403);
 
-  const token = randomToken();
-  const ts = now();
-  await env.DB.prepare(
-    "INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)"
-  ).bind(token, device.user_id, device.id, ts, ts + 30 * 86400).run();
-
+  const token = randomToken(); const ts = now();
+  await env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, device.user_id, device.id, ts, ts + 30 * 86400).run();
   return json({ session_token: token, user_id: device.user_id, device_id: device.id });
 }
 
@@ -313,7 +271,6 @@ async function logout(request, env) {
   const session = await getSession(request, env);
   const denied = requireAuth(session);
   if (denied) return denied;
-
   await env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(session.token).run();
   return json({ ok: true });
 }
@@ -323,18 +280,11 @@ async function me(request, env) {
   const session = await getSession(request, env);
   if (!session) return json({ logged_in: false });
 
-  const user = await env.DB.prepare(
-    "SELECT id, display_name, created_at FROM users WHERE id = ?"
-  ).bind(session.userId).first();
+  const user = await env.DB.prepare("SELECT id, display_name, created_at FROM users WHERE id = ?").bind(session.userId).first();
   if (!user) return json({ logged_in: false });
 
-  const devices = await env.DB.prepare(
-    "SELECT id, pub_key_id, label, created_at, revoked_at FROM devices WHERE user_id = ?"
-  ).bind(session.userId).all();
-
-  const countRow = await env.DB.prepare(
-    "SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?"
-  ).bind(session.userId).first();
+  const devices = await env.DB.prepare("SELECT id, pub_key_id, label, created_at, revoked_at FROM devices WHERE user_id = ?").bind(session.userId).all();
+  const countRow = await env.DB.prepare("SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?").bind(session.userId).first();
 
   return json({
     logged_in: true,
@@ -348,6 +298,128 @@ async function me(request, env) {
   });
 }
 
+// =====================
+//  DEVICE LINKING
+// =====================
+
+// POST /auth/link/create — generate a 6-digit code (logged-in device)
+async function linkCreate(request, env) {
+  const session = await getSession(request, env);
+  const denied = requireAuth(session);
+  if (denied) return denied;
+
+  // Delete any existing unused codes for this user
+  await env.DB.prepare("DELETE FROM link_codes WHERE user_id = ? AND claimed = 0").bind(session.userId).run();
+
+  const code = randomCode6();
+  const ts = now();
+  const expiresAt = ts + 300; // 5 minutes
+
+  await env.DB.prepare(
+    "INSERT INTO link_codes (code, user_id, created_at, expires_at, claimed) VALUES (?, ?, ?, ?, 0)"
+  ).bind(code, session.userId, ts, expiresAt).run();
+
+  return json({ code: code, expires_at: expiresAt });
+}
+
+// POST /auth/link/claim — new device claims a code and registers under that account
+async function linkClaim(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
+
+  const { code, pub_jwk } = body;
+  if (!code || !pub_jwk) return err("code and pub_jwk required");
+
+  // Look up the code
+  const row = await env.DB.prepare(
+    "SELECT code, user_id, expires_at, claimed FROM link_codes WHERE code = ?"
+  ).bind(code).first();
+
+  if (!row) return err("Invalid code.", 404);
+  if (row.claimed) return err("Code already used.", 410);
+  if (row.expires_at < now()) return err("Code expired. Generate a new one.", 410);
+
+  const userId = row.user_id;
+  const pkId = await pubKeyId(pub_jwk);
+
+  // Check if this device key is already registered
+  const existingDevice = await env.DB.prepare(
+    "SELECT id, user_id FROM devices WHERE pub_key_id = ?"
+  ).bind(pkId).first();
+
+  if (existingDevice) {
+    if (existingDevice.user_id === userId) {
+      // Already linked to this account — just create session
+      const token = randomToken(); const ts = now();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE link_codes SET claimed = 1 WHERE code = ?").bind(code),
+        env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, userId, existingDevice.id, ts, ts + 30 * 86400)
+      ]);
+      // Fetch display name
+      const user = await env.DB.prepare("SELECT display_name FROM users WHERE id = ?").bind(userId).first();
+      return json({ session_token: token, user_id: userId, device_id: existingDevice.id, display_name: user ? user.display_name : null, already_linked: true });
+    } else {
+      return err("This device key is already registered under a different account.", 409);
+    }
+  }
+
+  // Register new device under this account
+  const deviceId = uuid(); const ts = now(); const token = randomToken();
+
+  await env.DB.batch([
+    env.DB.prepare("UPDATE link_codes SET claimed = 1 WHERE code = ?").bind(code),
+    env.DB.prepare("INSERT INTO devices (id, user_id, pub_key_id, pub_jwk, created_at) VALUES (?, ?, ?, ?, ?)").bind(deviceId, userId, pkId, JSON.stringify(pub_jwk), ts),
+    env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, userId, deviceId, ts, ts + 30 * 86400)
+  ]);
+
+  const user = await env.DB.prepare("SELECT display_name FROM users WHERE id = ?").bind(userId).first();
+  return json({ session_token: token, user_id: userId, device_id: deviceId, display_name: user ? user.display_name : null, linked: true }, 201);
+}
+
+// =====================
+//  DEVICE REVOCATION
+// =====================
+
+// POST /auth/device/revoke
+async function revokeDevice(request, env) {
+  const session = await getSession(request, env);
+  const denied = requireAuth(session);
+  if (denied) return denied;
+
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
+
+  const { device_id } = body;
+  if (!device_id) return err("device_id required");
+
+  // Verify the device belongs to this user
+  const device = await env.DB.prepare(
+    "SELECT id, user_id, revoked_at FROM devices WHERE id = ? AND user_id = ?"
+  ).bind(device_id, session.userId).first();
+
+  if (!device) return err("Device not found or not yours.", 404);
+  if (device.revoked_at) return err("Already revoked.", 409);
+
+  // Don't allow revoking current device
+  if (device_id === session.deviceId) {
+    return err("Cannot revoke your current device. Log out instead.", 400);
+  }
+
+  const ts = now();
+  await env.DB.batch([
+    // Mark device as revoked
+    env.DB.prepare("UPDATE devices SET revoked_at = ? WHERE id = ?").bind(ts, device_id),
+    // Delete all sessions for that device
+    env.DB.prepare("DELETE FROM sessions WHERE device_id = ?").bind(device_id)
+  ]);
+
+  return json({ ok: true, revoked_at: ts });
+}
+
+// =====================
+//  RECEIPT HANDLERS
+// =====================
+
 // POST /receipts
 async function uploadReceipt(request, env) {
   const session = await getSession(request, env);
@@ -355,22 +427,15 @@ async function uploadReceipt(request, env) {
   if (denied) return denied;
 
   let body;
-  try { body = await request.json(); }
-  catch { return err("Invalid JSON body"); }
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
 
   const { combined } = body;
-  if (!combined || combined.type !== "combined") {
-    return err("Body must include 'combined' with type:'combined'");
-  }
+  if (!combined || combined.type !== "combined") return err("Body must include 'combined' with type:'combined'");
 
   const receiptHash = await sha256B64url(canonical(combined));
 
-  const dup = await env.DB.prepare(
-    "SELECT id FROM receipts WHERE receipt_hash = ?"
-  ).bind(receiptHash).first();
-  if (dup) {
-    return json({ receipt_id: dup.id, receipt_hash: receiptHash, duplicate: true });
-  }
+  const dup = await env.DB.prepare("SELECT id FROM receipts WHERE receipt_hash = ?").bind(receiptHash).first();
+  if (dup) return json({ receipt_id: dup.id, receipt_hash: receiptHash, duplicate: true });
 
   const checks = await verifyReceipt(combined);
 
@@ -383,12 +448,7 @@ async function uploadReceipt(request, env) {
   await env.DB.prepare(
     `INSERT INTO receipts (id, uploader_id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(
-    receiptId, session.userId, receiptHash,
-    pkA, pkB, tsA, tsB,
-    JSON.stringify(combined),
-    checks.valid ? 1 : 0, now()
-  ).run();
+  ).bind(receiptId, session.userId, receiptHash, pkA, pkB, tsA, tsB, JSON.stringify(combined), checks.valid ? 1 : 0, now()).run();
 
   return json({ receipt_id: receiptId, receipt_hash: receiptHash, verified: checks.valid, checks }, 201);
 }
@@ -406,19 +466,11 @@ async function listReceipts(request, env) {
 
   const rows = await env.DB.prepare(
     `SELECT id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, verified, created_at
-     FROM receipts WHERE uploader_id = ?
-     ORDER BY created_at DESC LIMIT ? OFFSET ?`
+     FROM receipts WHERE uploader_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`
   ).bind(session.userId, limit, offset).all();
 
-  const countRow = await env.DB.prepare(
-    "SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?"
-  ).bind(session.userId).first();
-
-  return json({
-    receipts: rows.results || [],
-    total: countRow ? countRow.cnt : 0,
-    page, limit
-  });
+  const countRow = await env.DB.prepare("SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?").bind(session.userId).first();
+  return json({ receipts: rows.results || [], total: countRow ? countRow.cnt : 0, page, limit });
 }
 
 // GET /receipts/:hash
@@ -426,22 +478,16 @@ async function getReceipt(request, env, receiptHash) {
   const row = await env.DB.prepare(
     "SELECT id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at FROM receipts WHERE receipt_hash = ?"
   ).bind(receiptHash).first();
-
   if (!row) return err("Receipt not found", 404);
 
   let combined = null;
   try { combined = JSON.parse(row.receipt_json); } catch {}
 
   return json({
-    receipt_id: row.id,
-    receipt_hash: row.receipt_hash,
-    pub_key_a: row.pub_key_a,
-    pub_key_b: row.pub_key_b,
-    ts_a: row.ts_a,
-    ts_b: row.ts_b,
-    verified: !!row.verified,
-    created_at: row.created_at,
-    combined
+    receipt_id: row.id, receipt_hash: row.receipt_hash,
+    pub_key_a: row.pub_key_a, pub_key_b: row.pub_key_b,
+    ts_a: row.ts_a, ts_b: row.ts_b,
+    verified: !!row.verified, created_at: row.created_at, combined
   });
 }
 
@@ -472,16 +518,27 @@ export default {
 
     let response;
     try {
-      if (path === "/" || path === "/health") {
-        response = json({ status: "ok", service: "irlid-api" });
-      }
-      else if (method === "POST" && path === "/auth/register") response = await register(request, env);
-      else if (method === "POST" && path === "/auth/login")    response = await login(request, env);
-      else if (method === "POST" && path === "/auth/logout")   response = await logout(request, env);
-      else if (method === "GET"  && path === "/auth/me")        response = await me(request, env);
-      else if (method === "POST" && path === "/receipts")       response = await uploadReceipt(request, env);
-      else if (method === "GET"  && path === "/receipts")        response = await listReceipts(request, env);
-      else if (method === "POST" && path === "/verify")         response = await verify(request, env);
+      if (path === "/" || path === "/health")
+        response = json({ status: "ok", service: "irlid-api", version: 2 });
+
+      // Auth
+      else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
+      else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
+      else if (method === "POST" && path === "/auth/logout")         response = await logout(request, env);
+      else if (method === "GET"  && path === "/auth/me")              response = await me(request, env);
+
+      // Device linking
+      else if (method === "POST" && path === "/auth/link/create")    response = await linkCreate(request, env);
+      else if (method === "POST" && path === "/auth/link/claim")     response = await linkClaim(request, env);
+
+      // Device management
+      else if (method === "POST" && path === "/auth/device/revoke")  response = await revokeDevice(request, env);
+
+      // Receipts
+      else if (method === "POST" && path === "/receipts")            response = await uploadReceipt(request, env);
+      else if (method === "GET"  && path === "/receipts")             response = await listReceipts(request, env);
+      else if (method === "POST" && path === "/verify")              response = await verify(request, env);
+
       else {
         const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
         if (method === "GET" && m) response = await getReceipt(request, env, m[1]);
