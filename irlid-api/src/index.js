@@ -1,6 +1,6 @@
-// irlid-api/src/index.js — v3
+// irlid-api/src/index.js — v4
 // IRLid Backend — Cloudflare Worker + D1
-// Auth, profile, receipts, device linking, device management
+// Auth (device key + Google), profile, receipts, device linking
 
 // =====================
 //  HELPERS
@@ -68,6 +68,39 @@ async function pubKeyId(pubJwk) {
   const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
   const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return b64urlEncode(new Uint8Array(h)).slice(0, 18);
+}
+
+// =====================
+//  GOOGLE TOKEN VERIFY
+// =====================
+
+const GOOGLE_CLIENT_ID = "1027068182677-b69k36slkhjr0ltjbde7q6ktopjscmeq.apps.googleusercontent.com";
+
+async function verifyGoogleToken(idToken) {
+  // Use Google's tokeninfo endpoint to verify
+  const resp = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken));
+  if (!resp.ok) return null;
+
+  const payload = await resp.json();
+
+  // Verify audience matches our client ID
+  if (payload.aud !== GOOGLE_CLIENT_ID) return null;
+
+  // Verify issuer
+  if (payload.iss !== "accounts.google.com" && payload.iss !== "https://accounts.google.com") return null;
+
+  // Verify not expired
+  if (payload.exp && Number(payload.exp) < now()) return null;
+
+  return {
+    sub: payload.sub,           // Unique Google user ID
+    email: payload.email,
+    email_verified: payload.email_verified === "true",
+    name: payload.name || null,
+    given_name: payload.given_name || null,
+    family_name: payload.family_name || null,
+    picture: payload.picture || null
+  };
 }
 
 // =====================
@@ -205,6 +238,98 @@ async function register(request, env) {
   return json({ user_id: userId, device_id: deviceId, pub_key_id: pkId, session_token: token, existing: false }, 201);
 }
 
+// =====================
+//  GOOGLE AUTH
+// =====================
+
+async function googleAuth(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
+  const { id_token, pub_jwk } = body;
+  if (!id_token) return err("id_token required");
+
+  // Verify the Google token
+  const gUser = await verifyGoogleToken(id_token);
+  if (!gUser) return err("Invalid or expired Google token.", 401);
+
+  const ts = now();
+
+  // Check if we already have a user with this google_sub
+  let user = await env.DB.prepare("SELECT id, display_name FROM users WHERE google_sub = ?").bind(gUser.sub).first();
+  let existing = !!user;
+
+  if (!user) {
+    // Check if there's a user with matching email (link Google to existing email-based account)
+    if (gUser.email) {
+      user = await env.DB.prepare("SELECT id, display_name FROM users WHERE email = ?").bind(gUser.email).first();
+    }
+  }
+
+  let userId;
+  let displayName;
+
+  if (user) {
+    // Existing user — update their Google info
+    userId = user.id;
+    displayName = user.display_name;
+    await env.DB.prepare(
+      "UPDATE users SET google_sub = ?, google_email = ?, google_name = ?, google_picture = ?, updated_at = ? WHERE id = ?"
+    ).bind(gUser.sub, gUser.email, gUser.name, gUser.picture, ts, userId).run();
+
+    // Fill in profile fields if they're empty
+    if (!displayName && gUser.name) {
+      displayName = gUser.name;
+      await env.DB.prepare("UPDATE users SET display_name = ? WHERE id = ? AND display_name IS NULL").bind(displayName, userId).run();
+    }
+    await env.DB.prepare("UPDATE users SET first_name = COALESCE(first_name, ?), surname = COALESCE(surname, ?), email = COALESCE(email, ?) WHERE id = ?")
+      .bind(gUser.given_name, gUser.family_name, gUser.email, userId).run();
+
+  } else {
+    // New user
+    userId = uuid();
+    displayName = gUser.name || gUser.email;
+    await env.DB.prepare(
+      "INSERT INTO users (id, display_name, first_name, surname, email, google_sub, google_email, google_name, google_picture, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(userId, displayName, gUser.given_name, gUser.family_name, gUser.email, gUser.sub, gUser.email, gUser.name, gUser.picture, ts, ts).run();
+  }
+
+  // If a device pub_jwk was provided, link it to this account
+  let deviceId = null;
+  if (pub_jwk && pub_jwk.kty && pub_jwk.x && pub_jwk.y) {
+    const pkId = await pubKeyId(pub_jwk);
+    const existingDevice = await env.DB.prepare("SELECT id, user_id FROM devices WHERE pub_key_id = ?").bind(pkId).first();
+
+    if (existingDevice) {
+      if (existingDevice.user_id === userId) {
+        deviceId = existingDevice.id;
+      }
+      // If device belongs to different user, don't touch it — just skip
+    } else {
+      deviceId = uuid();
+      await env.DB.prepare("INSERT INTO devices (id, user_id, pub_key_id, pub_jwk, created_at) VALUES (?, ?, ?, ?, ?)")
+        .bind(deviceId, userId, pkId, JSON.stringify(pub_jwk), ts).run();
+    }
+  }
+
+  // Create session
+  const token = randomToken();
+  await env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(token, userId, deviceId, ts, ts + 30 * 86400).run();
+
+  return json({
+    user_id: userId,
+    display_name: displayName,
+    session_token: token,
+    device_id: deviceId,
+    existing: existing,
+    google_email: gUser.email
+  });
+}
+
+// =====================
+//  OTHER AUTH
+// =====================
+
 async function login(request, env) {
   let body;
   try { body = await request.json(); } catch { return err("Invalid JSON body"); }
@@ -226,13 +351,12 @@ async function logout(request, env) {
   return json({ ok: true });
 }
 
-// GET /auth/me — returns full profile + devices
 async function me(request, env) {
   const session = await getSession(request, env);
   if (!session) return json({ logged_in: false });
 
   const user = await env.DB.prepare(
-    "SELECT id, display_name, first_name, middle_names, surname, email, created_at FROM users WHERE id = ?"
+    "SELECT id, display_name, first_name, middle_names, surname, email, google_sub, google_email, google_picture, created_at FROM users WHERE id = ?"
   ).bind(session.userId).first();
   if (!user) return json({ logged_in: false });
 
@@ -248,6 +372,9 @@ async function me(request, env) {
       middle_names: user.middle_names,
       surname: user.surname,
       email: user.email,
+      google_linked: !!user.google_sub,
+      google_email: user.google_email,
+      google_picture: user.google_picture,
       created_at: user.created_at
     },
     devices: (devices.results || []).map(d => ({
@@ -263,7 +390,6 @@ async function me(request, env) {
 //  PROFILE
 // =====================
 
-// POST /auth/profile — update profile fields
 async function updateProfile(request, env) {
   const session = await getSession(request, env);
   const denied = requireAuth(session);
@@ -355,7 +481,6 @@ async function linkClaim(request, env) {
 //  DEVICE MANAGEMENT
 // =====================
 
-// POST /auth/device/rename
 async function renameDevice(request, env) {
   const session = await getSession(request, env);
   const denied = requireAuth(session);
@@ -374,7 +499,6 @@ async function renameDevice(request, env) {
   return json({ ok: true });
 }
 
-// POST /auth/device/revoke
 async function revokeDevice(request, env) {
   const session = await getSession(request, env);
   const denied = requireAuth(session);
@@ -481,13 +605,14 @@ export default {
 
     let response;
     try {
-      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 3 });
+      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 4 });
 
       else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
       else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
       else if (method === "POST" && path === "/auth/logout")         response = await logout(request, env);
       else if (method === "GET"  && path === "/auth/me")              response = await me(request, env);
       else if (method === "POST" && path === "/auth/profile")        response = await updateProfile(request, env);
+      else if (method === "POST" && path === "/auth/google")         response = await googleAuth(request, env);
 
       else if (method === "POST" && path === "/auth/link/create")    response = await linkCreate(request, env);
       else if (method === "POST" && path === "/auth/link/claim")     response = await linkClaim(request, env);
