@@ -1,17 +1,17 @@
 <!-- login.html -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 73 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Login</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     .login-wrap { max-width: 520px; margin: 0 auto; }
     .login-wrap .panel { margin-bottom: 16px; }
-    .login-wrap input[type="text"],
-    .login-wrap input[type="number"] {
+    .login-wrap input[type="text"] {
       padding: 10px 12px; font-size: 15px; border: 1px solid #ccc; width: 100%; max-width: 300px;
     }
     .or-divider { text-align: center; margin: 20px 0; font-size: 13px; opacity: 0.6; }
@@ -21,6 +21,7 @@
       border: 2px solid #ccc; padding: 0;
     }
     .link-code-inputs input:focus { border-color: #000; outline: none; }
+    #googleBtnWrap { display: flex; justify-content: center; margin: 12px 0; }
   </style>
 </head>
 
@@ -59,21 +60,45 @@
         </div>
       </div>
 
-      <!-- Create account / Login -->
+      <!-- Auth panel -->
       <div id="authPanel">
+
+        <!-- Google Sign-In -->
         <div class="panel">
-          <h2 style="margin:0 0 8px;">Create account or log in</h2>
+          <h2 style="margin:0 0 8px;">Sign in</h2>
+          <p class="small" style="margin:0 0 12px;">
+            Sign in with Google to sync your account across all your devices.
+          </p>
+          <div id="googleBtnWrap">
+            <div id="g_id_onload"
+              data-client_id="1027068182677-b69k36slkhjr0ltjbde7q6ktopjscmeq.apps.googleusercontent.com"
+              data-callback="handleGoogleSignIn"
+              data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin"
+              data-type="standard"
+              data-shape="rectangular"
+              data-theme="outline"
+              data-text="signin_with"
+              data-size="large"
+              data-logo_alignment="left">
+            </div>
+          </div>
+          <div class="statusBox" id="googleStatus" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="or-divider">— or use device key —</div>
+
+        <div class="panel">
+          <h3 style="margin:0 0 8px;">Device key login</h3>
           <p class="small" style="margin:0 0 12px;">
             Your device's cryptographic key identifies you. Choose a display name for your first visit.
           </p>
-
           <div style="margin-bottom:10px;">
             <label for="displayNameInput" style="font-weight:700; font-size:13px; display:block; margin-bottom:4px;">Display name</label>
             <input type="text" id="displayNameInput" placeholder="e.g. SRAustin" />
           </div>
-
           <button class="btn" id="registerBtn">Create account / Log in</button>
-
           <div class="statusBox" id="authStatus" style="margin-top:10px;"></div>
         </div>
 
@@ -82,9 +107,8 @@
         <div class="panel">
           <h3 style="margin:0 0 8px;">Enter link code</h3>
           <p class="small" style="margin:0 0 12px;">
-            Got a 6-digit code from your other device? Enter it below to link this device to that account.
+            Got a 6-digit code from your other device? Enter it below.
           </p>
-
           <div class="link-code-inputs" id="codeInputs">
             <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="0" />
             <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="1" />
@@ -93,15 +117,12 @@
             <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="4" />
             <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="5" />
           </div>
-
           <div style="text-align:center; margin-top:10px;">
             <button class="btn" id="claimCodeBtn" disabled>Link device</button>
           </div>
-
           <div class="statusBox" id="linkStatus" style="margin-top:10px;"></div>
         </div>
       </div>
-
     </div>
   </main>
 
@@ -119,17 +140,38 @@
     var registerBtn = document.getElementById("registerBtn");
     var displayNameInput = document.getElementById("displayNameInput");
     var authStatus = document.getElementById("authStatus");
+    var googleStatus = document.getElementById("googleStatus");
     var claimCodeBtn = document.getElementById("claimCodeBtn");
     var linkStatus = document.getElementById("linkStatus");
 
-    // ===== Check if already logged in =====
+    // ===== Google Sign-In callback =====
+    async function handleGoogleSignIn(response) {
+      googleStatus.textContent = "Signing in with Google…";
+      try {
+        var pubJwk = null;
+        if (typeof getPublicJwk === "function") {
+          try { pubJwk = await getPublicJwk(); } catch (e) { console.warn("No device key:", e); }
+        }
+        var result = await window.IRLBackend.googleLogin(response.credential, pubJwk);
+        if (result.ok) {
+          googleStatus.textContent = result.data.existing ? "Welcome back!" : "Account created!";
+          if (typeof refreshNav === "function") refreshNav();
+          setTimeout(function () { checkSession(); }, 500);
+        } else {
+          googleStatus.textContent = "Error: " + (result.error || "Google sign-in failed.");
+        }
+      } catch (e) {
+        googleStatus.textContent = "Error: " + e.message;
+      }
+    }
+    window.handleGoogleSignIn = handleGoogleSignIn;
+
     async function checkSession() {
       if (!window.IRLBackend || !window.IRLBackend.hasSession()) {
         authPanel.style.display = "block";
         loggedInPanel.style.display = "none";
         return;
       }
-
       var result = await window.IRLBackend.me();
       if (result.ok && result.data && result.data.logged_in) {
         authPanel.style.display = "none";
@@ -144,30 +186,23 @@
       }
     }
 
-    // ===== Register / Login =====
     registerBtn.addEventListener("click", async function () {
       var name = displayNameInput.value.trim();
       authStatus.textContent = "Connecting…";
       registerBtn.disabled = true;
-
       try {
         var result = await window.IRLBackend.register(name || null);
         if (result.ok) {
-          authStatus.textContent = result.data.existing
-            ? "Welcome back! Logging you in…"
-            : "Account created!";
+          authStatus.textContent = result.data.existing ? "Welcome back!" : "Account created!";
           if (typeof refreshNav === "function") refreshNav();
           setTimeout(function () { checkSession(); }, 500);
         } else {
           authStatus.textContent = "Error: " + (result.error || "Registration failed.");
         }
-      } catch (e) {
-        authStatus.textContent = "Error: " + e.message;
-      }
+      } catch (e) { authStatus.textContent = "Error: " + e.message; }
       registerBtn.disabled = false;
     });
 
-    // ===== Logout =====
     logoutBtn.addEventListener("click", async function () {
       await window.IRLBackend.logout();
       if (typeof refreshNav === "function") refreshNav();
@@ -175,9 +210,7 @@
       loggedInPanel.style.display = "none";
     });
 
-    // ===== Link code input handling =====
     var codeBoxes = document.querySelectorAll("#codeInputs input");
-
     codeBoxes.forEach(function (box, i) {
       box.addEventListener("input", function () {
         box.value = box.value.replace(/[^0-9]/g, "");
@@ -185,9 +218,7 @@
         updateClaimBtn();
       });
       box.addEventListener("keydown", function (e) {
-        if (e.key === "Backspace" && !box.value && i > 0) {
-          codeBoxes[i - 1].focus();
-        }
+        if (e.key === "Backspace" && !box.value && i > 0) codeBoxes[i - 1].focus();
       });
       box.addEventListener("paste", function (e) {
         var text = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
@@ -205,22 +236,16 @@
       codeBoxes.forEach(function (b) { code += b.value; });
       return code;
     }
-
-    function updateClaimBtn() {
-      claimCodeBtn.disabled = getCode().length !== 6;
-    }
+    function updateClaimBtn() { claimCodeBtn.disabled = getCode().length !== 6; }
 
     claimCodeBtn.addEventListener("click", async function () {
       var code = getCode();
       if (code.length !== 6) return;
-
       linkStatus.textContent = "Linking…";
       claimCodeBtn.disabled = true;
-
       try {
         var pubJwk = null;
         if (typeof getPublicJwk === "function") pubJwk = await getPublicJwk();
-
         var result = await window.IRLBackend.claimLinkCode(code, pubJwk);
         if (result.ok) {
           linkStatus.textContent = "Device linked! Welcome, " + (result.data.display_name || "User") + ".";
@@ -230,13 +255,9 @@
           linkStatus.textContent = "Error: " + (result.error || "Failed to link.");
           claimCodeBtn.disabled = false;
         }
-      } catch (e) {
-        linkStatus.textContent = "Error: " + e.message;
-        claimCodeBtn.disabled = false;
-      }
+      } catch (e) { linkStatus.textContent = "Error: " + e.message; claimCodeBtn.disabled = false; }
     });
 
-    // Init
     checkSession();
   </script>
 </body>
