@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 70 -->
+<!-- Deploy 72 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -76,7 +76,7 @@
 
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
-<script src="js/nav.js"></script>
+  <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="js/qr.js?v=63"></script>
@@ -368,11 +368,6 @@
     const combEncoded = irlidEncodeJsonToB64url(out.combined);
     lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
     storeCombinedReceipt(out.combined);
-
-    // Upload to backend (non-blocking, best-effort)
-    if (window.IRLBackend && window.IRLBackend.hasSession()) {
-      window.IRLBackend.uploadReceipt(out.combined).catch(function(e){ console.warn("Backend sync:", e); });
-    }
 
     showReceiptBtn.style.display = "inline-flex";
     setStatus("Verified. Combined receipt ready.");
