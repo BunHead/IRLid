@@ -1,7 +1,5 @@
-// /js/backend.js — Deploy 2
+// /js/backend.js — Deploy 3
 // API client for IRLid backend (Cloudflare Workers + D1).
-// All functions fail silently if backend is unreachable.
-//
 // Requires: js/sign.js (for getPublicJwk)
 // Exposes: window.IRLBackend
 
@@ -62,16 +60,13 @@
 
     // ===== Auth =====
 
-    /** Register or log in with this device's ECDSA key. */
     register: async function (displayName) {
       if (typeof getPublicJwk !== "function") return { ok: false, error: "sign.js not loaded" };
-
       var pub = await getPublicJwk();
       var result = await api("POST", "/auth/register", {
         display_name: displayName || null,
         pub_jwk: pub
       });
-
       if (result.ok && result.data && result.data.session_token) {
         setToken(result.data.session_token);
         setUserInfo(result.data.user_id, displayName || null);
@@ -79,7 +74,6 @@
       return result;
     },
 
-    /** Check current session. */
     me: async function () {
       var result = await api("GET", "/auth/me");
       if (result.ok && result.data) {
@@ -94,31 +88,42 @@
       return result;
     },
 
-    /** Log out (server + local). */
     logout: async function () {
       await api("POST", "/auth/logout");
       setToken(null);
       setUserInfo(null, null);
     },
 
+    // ===== Profile =====
+
+    /** Update profile fields. */
+    updateProfile: async function (fields) {
+      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      var result = await api("POST", "/auth/profile", fields);
+      // Update local display name cache
+      if (result.ok && fields.display_name) {
+        setUserInfo(null, fields.display_name);
+        // Re-read user ID from localStorage (setUserInfo only sets if non-null)
+        try {
+          var uid = localStorage.getItem(LS_USER_ID);
+          if (uid) localStorage.setItem(LS_USER_ID, uid);
+        } catch {}
+        try { localStorage.setItem(LS_DISPLAY_NAME, fields.display_name); } catch {}
+      }
+      return result;
+    },
+
     // ===== Device linking =====
 
-    /** Generate a 6-digit link code (called from logged-in device). */
     createLinkCode: async function () {
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       return await api("POST", "/auth/link/create");
     },
 
-    /** Claim a link code from a new device. Registers this device's key under the existing account. */
     claimLinkCode: async function (code, pubJwk) {
       if (!pubJwk && typeof getPublicJwk === "function") pubJwk = await getPublicJwk();
       if (!pubJwk) return { ok: false, error: "No public key available" };
-
-      var result = await api("POST", "/auth/link/claim", {
-        code: code,
-        pub_jwk: pubJwk
-      });
-
+      var result = await api("POST", "/auth/link/claim", { code: code, pub_jwk: pubJwk });
       if (result.ok && result.data && result.data.session_token) {
         setToken(result.data.session_token);
         setUserInfo(result.data.user_id, result.data.display_name || null);
@@ -128,7 +133,11 @@
 
     // ===== Device management =====
 
-    /** Revoke a device (by device ID). */
+    renameDevice: async function (deviceId, label) {
+      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      return await api("POST", "/auth/device/rename", { device_id: deviceId, label: label });
+    },
+
     revokeDevice: async function (deviceId) {
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       return await api("POST", "/auth/device/revoke", { device_id: deviceId });
@@ -136,19 +145,16 @@
 
     // ===== Receipts =====
 
-    /** Upload a combined receipt. */
     uploadReceipt: async function (combinedObj) {
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       return await api("POST", "/receipts", { combined: combinedObj });
     },
 
-    /** List the logged-in user's receipts. */
     listReceipts: async function (page) {
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       return await api("GET", "/receipts?page=" + (page || 1));
     },
 
-    /** Get a specific receipt by hash. */
     getReceipt: async function (hash) {
       return await api("GET", "/receipts/" + encodeURIComponent(hash));
     }
