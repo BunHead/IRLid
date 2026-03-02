@@ -1,5 +1,6 @@
+<!-- settings.html -->
 <!DOCTYPE html>
-<!-- Deploy 67 -->
+<!-- Deploy 71 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -7,11 +8,47 @@
   <title>IRLid — Settings</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .settings-wrap{ max-width: 860px; margin: 0 auto; }
-    .settings-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .settings-row label{ display:flex; gap:10px; align-items:center; }
-    .settings-kv{ font-size: 13px; opacity: .9; margin-top: 8px; }
-    .settings-kv code{ font-size: 12px; }
+    .device-list { margin-top: 10px; }
+    .device-card {
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .device-card.current { border-left: 4px solid #000; }
+    .device-card.revoked { opacity: 0.5; }
+    .device-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .device-name { font-weight: 700; }
+    .device-meta { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+    .device-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      background: #eee;
+      display: inline-block;
+    }
+    .device-badge.current { background: #000; color: #fff; }
+    .device-badge.revoked { background: #c00; color: #fff; }
+    .link-code-display {
+      font-family: monospace;
+      font-size: 32px;
+      letter-spacing: 8px;
+      text-align: center;
+      padding: 16px;
+      background: #f5f5f5;
+      border: 1px solid #ddd;
+      margin: 10px 0;
+    }
+    .link-code-timer {
+      text-align: center;
+      font-size: 13px;
+      opacity: 0.7;
+    }
   </style>
 </head>
 
@@ -19,7 +56,7 @@
   <header class="site-header">
     <div class="brand-wrap">
       <a class="brand" href="index.html" aria-label="IRLid Home">
-        <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+        <img src="logo.png" alt="IRLid Logo" id="logo">
       </a>
     </div>
 
@@ -41,184 +78,231 @@
   </header>
 
   <main class="page-main">
-    <div class="settings-wrap">
-      <h2 style="margin: 6px 0 10px;">Settings</h2>
 
-      <div class="panel">
-        <div class="settings-row">
-          <label for="debugToggle">
-            <input type="checkbox" id="debugToggle" />
-            <span><b>Debug mode</b></span>
-          </label>
-        </div>
+    <!-- Not logged in -->
+    <div class="card" id="notLoggedIn" style="display:none;">
+      <h2 style="margin:0 0 8px;">Settings</h2>
+      <p>You need to <a href="login.html">log in</a> to view settings.</p>
+    </div>
 
-        <div class="settings-kv" id="debugHelp">
-          When enabled, extra recovery controls appear (like <i>Clear local data</i> buttons).
-        </div>
+    <!-- Account info -->
+    <div class="card" id="accountCard" style="display:none;">
+      <h2 style="margin:0 0 8px;">Account</h2>
+      <p class="mt0" id="accountInfo">Loading…</p>
+    </div>
 
-        <div class="settings-kv" id="debugState"></div>
+    <!-- Link a new device -->
+    <div class="card" id="linkCard" style="display:none;">
+      <h2 style="margin:0 0 8px;">Link another device</h2>
+      <p class="mt0">
+        Generate a temporary 6-digit code, then enter it on your other device's Login page
+        to link it to this account.
+      </p>
+
+      <div class="btnrow">
+        <button class="btn" id="generateCodeBtn">Generate link code</button>
       </div>
 
-      <div class="panel">
-        <h3 style="margin: 0 0 8px;">Data</h3>
-        <p class="small" style="margin: 0 0 10px;">
-          All data is stored locally in your browser (no backend). Clearing data cannot be undone.
-        </p>
-        <div class="controls" style="justify-content:flex-start; gap:10px;">
-          <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
-          <button class="btn secondary" id="clearReceiptsBtn" type="button">Clear receipts only</button>
-        </div>
-      </div>
-
-      <div class="panel" id="identityPanel">
-        <h3 style="margin: 0 0 8px;">Identity</h3>
-        <p class="small" style="margin: 0 0 8px;">
-          Your signing key is stored on-device. This page shows a short identifier for debugging.
-        </p>
-        <div class="settings-kv" id="pubKeyIdLine">Loading…</div>
-      </div>
-
-      <div class="panel" id="loginHint" style="display:none;">
-        <b>Note:</b> You appear to be logged out. Some UI (like the account menu) may differ.
-        <div style="margin-top:10px;">
-          <a class="btn" href="login.html">Login</a>
-        </div>
+      <div id="linkCodeArea" style="display:none;">
+        <div class="link-code-display" id="linkCodeDisplay">------</div>
+        <div class="link-code-timer" id="linkCodeTimer">Expires in 5:00</div>
       </div>
     </div>
+
+    <!-- Devices -->
+    <div class="card" id="devicesCard" style="display:none;">
+      <h2 style="margin:0 0 8px;">Linked devices</h2>
+      <p class="mt0" style="font-size:14px;">
+        Each device has its own key. Revoking a device prevents it from logging in
+        or uploading receipts. Existing receipts remain valid but will show "key revoked" on verification.
+      </p>
+      <div class="device-list" id="deviceList">Loading…</div>
+    </div>
+
+    <div class="statusBox" id="statusBox" style="margin-top:12px;"></div>
+
   </main>
 
-  <script src="js/auth.js"></script>
-  <script src="js/nav.js"></script>
   <script src="js/sign.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/nav.js"></script>
 
   <script>
-    const KEY_DEBUG = "irlid_debug";
-    const debugToggle = document.getElementById("debugToggle");
-    const debugState = document.getElementById("debugState");
-    const clearLocalBtn = document.getElementById("clearLocalBtn");
-    const clearReceiptsBtn = document.getElementById("clearReceiptsBtn");
-    const pubKeyIdLine = document.getElementById("pubKeyIdLine");
-    const loginHint = document.getElementById("loginHint");
+    var statusBox = document.getElementById("statusBox");
+    var notLoggedIn = document.getElementById("notLoggedIn");
+    var accountCard = document.getElementById("accountCard");
+    var accountInfo = document.getElementById("accountInfo");
+    var linkCard = document.getElementById("linkCard");
+    var devicesCard = document.getElementById("devicesCard");
+    var deviceList = document.getElementById("deviceList");
+    var generateCodeBtn = document.getElementById("generateCodeBtn");
+    var linkCodeArea = document.getElementById("linkCodeArea");
+    var linkCodeDisplay = document.getElementById("linkCodeDisplay");
+    var linkCodeTimer = document.getElementById("linkCodeTimer");
 
-    function isDebug(){
-      try{
-        const qs = new URLSearchParams(location.search || "");
-        const qd = qs.get("debug");
-        if (qd === "1" || qd === "true") return true;
-      }catch{}
-      try{
-        const v = localStorage.getItem(KEY_DEBUG);
-        if (v === "1" || v === "true") return true;
-      }catch{}
-      try{
-        const h = location.hash || "";
-        if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
-      }catch{}
-      return false;
+    var countdownInterval = null;
+
+    function formatDate(epoch) {
+      if (!epoch) return "—";
+      var d = new Date(epoch * 1000);
+      return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
     }
 
-    function setDebug(on){
-      try{ localStorage.setItem(KEY_DEBUG, on ? "1" : "0"); }catch{}
+    function renderDevices(devices, currentDeviceId) {
+      if (!devices || !devices.length) {
+        deviceList.textContent = "No devices found.";
+        return;
+      }
+
+      deviceList.innerHTML = "";
+
+      devices.forEach(function (dev) {
+        var isCurrent = dev.id === currentDeviceId;
+        var isRevoked = !!dev.revoked;
+
+        var card = document.createElement("div");
+        card.className = "device-card" + (isCurrent ? " current" : "") + (isRevoked ? " revoked" : "");
+
+        var header = document.createElement("div");
+        header.className = "device-header";
+
+        var name = document.createElement("span");
+        name.className = "device-name";
+        name.textContent = dev.label || ("Device " + dev.pub_key_id.slice(0, 8));
+        header.appendChild(name);
+
+        var badges = document.createElement("span");
+        if (isCurrent) {
+          var b = document.createElement("span");
+          b.className = "device-badge current";
+          b.textContent = "This device";
+          badges.appendChild(b);
+        }
+        if (isRevoked) {
+          var b2 = document.createElement("span");
+          b2.className = "device-badge revoked";
+          b2.textContent = "Revoked";
+          badges.appendChild(b2);
+        }
+        header.appendChild(badges);
+
+        card.appendChild(header);
+
+        var meta = document.createElement("div");
+        meta.className = "device-meta";
+        meta.textContent = "Key: " + dev.pub_key_id + "  •  Added: " + formatDate(dev.created_at);
+        card.appendChild(meta);
+
+        // Revoke button (not for current device, not already revoked)
+        if (!isCurrent && !isRevoked) {
+          var revokeBtn = document.createElement("button");
+          revokeBtn.className = "btn secondary";
+          revokeBtn.style.marginTop = "8px";
+          revokeBtn.style.fontSize = "12px";
+          revokeBtn.style.padding = "4px 12px";
+          revokeBtn.textContent = "Revoke this device";
+          revokeBtn.addEventListener("click", function () {
+            revokeDevice(dev.id, dev.pub_key_id);
+          });
+          card.appendChild(revokeBtn);
+        }
+
+        deviceList.appendChild(card);
+      });
     }
 
-    function renderDebugState(){
-      const on = isDebug();
-      if (debugToggle) debugToggle.checked = on;
-      const mode = on ? "ON" : "OFF";
-      const urlHint = on
-        ? "Tip: You can also use ?debug=1 in the URL."
-        : "Tip: Turn this on to show recovery buttons across the app.";
-      debugState.innerHTML = `Debug mode: <b>${mode}</b><br><span style="opacity:.85;">${urlHint}</span>`;
-    }
+    async function revokeDevice(deviceId, pubKeyId) {
+      if (!confirm("Revoke device " + pubKeyId.slice(0, 8) + "…? This device will no longer be able to log in.")) {
+        return;
+      }
 
-    function clearLocalData(){
-      const keys = [
-        // handshake/session
-        "irlid_last_hello_b64",
-        "irlid_last_self_response",
-        "irlid_preferred_camera_id",
+      statusBox.textContent = "Revoking…";
+      var result = await window.IRLBackend.revokeDevice(deviceId);
 
-        // receipts
-        "irlid_resp_self",
-        "irlid_resp_other",
-        "irlid_receipts",
-        "irlid_receipt_last",
-
-        // auth/session
-        "irl_auth",
-        "irl_auth_user",
-
-        // NOTE: leave debug flag alone (so you don't lose recovery UI)
-      ];
-      for (const k of keys) {
-        try{ localStorage.removeItem(k); }catch{}
+      if (result.ok) {
+        statusBox.textContent = "Device revoked.";
+        await loadSettings();
+      } else {
+        statusBox.textContent = "Error: " + (result.error || "Failed to revoke.");
       }
     }
 
-    function clearReceiptsOnly(){
-      const keys = [
-        "irlid_resp_self",
-        "irlid_resp_other",
-        "irlid_receipts",
-        "irlid_receipt_last"
-      ];
-      for (const k of keys) {
-        try{ localStorage.removeItem(k); }catch{}
+    async function loadSettings() {
+      if (!window.IRLBackend || !window.IRLBackend.hasSession()) {
+        notLoggedIn.style.display = "block";
+        accountCard.style.display = "none";
+        linkCard.style.display = "none";
+        devicesCard.style.display = "none";
+        return;
       }
+
+      var result = await window.IRLBackend.me();
+
+      if (!result.ok || !result.data || !result.data.logged_in) {
+        notLoggedIn.style.display = "block";
+        accountCard.style.display = "none";
+        linkCard.style.display = "none";
+        devicesCard.style.display = "none";
+        return;
+      }
+
+      var data = result.data;
+      notLoggedIn.style.display = "none";
+
+      // Account info
+      accountCard.style.display = "block";
+      var name = (data.user && data.user.display_name) || "—";
+      var created = (data.user && data.user.created_at) ? formatDate(data.user.created_at) : "—";
+      accountInfo.textContent = "Name: " + name + "  •  Joined: " + created +
+        "  •  Receipts: " + (data.receipt_count || 0) +
+        "  •  Devices: " + (data.devices ? data.devices.length : 0);
+
+      // Link section
+      linkCard.style.display = "block";
+
+      // Devices section
+      devicesCard.style.display = "block";
+      renderDevices(data.devices || [], data.current_device_id);
     }
 
-    async function renderKeyId(){
-      try{
-        if (typeof getPublicJwk !== "function" || typeof pubKeyId !== "function") {
-          pubKeyIdLine.textContent = "Public key ID unavailable (missing sign.js helpers).";
+    generateCodeBtn.addEventListener("click", async function () {
+      statusBox.textContent = "Generating link code…";
+      var result = await window.IRLBackend.createLinkCode();
+
+      if (!result.ok) {
+        statusBox.textContent = "Error: " + (result.error || "Failed to generate code.");
+        return;
+      }
+
+      var code = result.data.code;
+      var expiresAt = result.data.expires_at;
+
+      linkCodeArea.style.display = "block";
+      linkCodeDisplay.textContent = code;
+      statusBox.textContent = "Show this code on your other device's Login page.";
+
+      // Countdown timer
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      function updateTimer() {
+        var remaining = expiresAt - Math.floor(Date.now() / 1000);
+        if (remaining <= 0) {
+          linkCodeTimer.textContent = "Expired — generate a new code.";
+          linkCodeDisplay.style.opacity = "0.3";
+          clearInterval(countdownInterval);
           return;
         }
-        const pub = await getPublicJwk();
-        const id = await pubKeyId(pub);
-        pubKeyIdLine.innerHTML = `Key ID: <code>${id}</code>`;
-      } catch (e) {
-        pubKeyIdLine.textContent = "Key ID unavailable.";
-        console.error(e);
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        linkCodeTimer.textContent = "Expires in " + mins + ":" + (secs < 10 ? "0" : "") + secs;
       }
-    }
 
-    // Wire UI
-    renderDebugState();
-    renderKeyId();
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
+    });
 
-    if (debugToggle) {
-      debugToggle.addEventListener("change", () => {
-        setDebug(!!debugToggle.checked);
-        renderDebugState();
-      });
-    }
-
-    if (clearLocalBtn) {
-      clearLocalBtn.addEventListener("click", () => {
-        const ok = confirm("Clear local data on this device? This cannot be undone.");
-        if (!ok) return;
-        clearLocalData();
-        alert("Local data cleared.");
-      });
-    }
-
-    if (clearReceiptsBtn) {
-      clearReceiptsBtn.addEventListener("click", () => {
-        const ok = confirm("Clear stored receipts on this device? This cannot be undone.");
-        if (!ok) return;
-        clearReceiptsOnly();
-        alert("Receipts cleared.");
-      });
-    }
-
-    // Soft hint if logged out
-    (function(){
-      try{
-        if (window.IRLAuth && typeof window.IRLAuth.isLoggedIn === "function") {
-          if (!window.IRLAuth.isLoggedIn()) loginHint.style.display = "block";
-        }
-      }catch{}
-    })();
+    loadSettings();
   </script>
 </body>
 </html>

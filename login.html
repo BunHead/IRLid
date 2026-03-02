@@ -1,6 +1,6 @@
 <!-- login.html -->
 <!DOCTYPE html>
-<!-- Deploy 70 -->
+<!-- Deploy 71 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -30,22 +30,20 @@
         </div>
       </details>
 
-      <!-- Account slot: becomes Login (logged out) OR Name... dropdown (logged in) -->
       <span id="accountSlot"></span>
     </nav>
   </header>
 
   <main class="page-main">
 
-    <!-- ===== Backend Account (primary) ===== -->
-    <div class="card" id="backendCard">
+    <div class="card" id="accountCard">
       <h2 style="margin:0 0 8px;">Account</h2>
 
       <!-- Logged-out state -->
       <div id="loggedOutView">
         <p class="mt0">
           Create an account to sync your receipts across devices.
-          Your existing device key is used as your identity — no password needed.
+          Your device key is used as your identity — no password needed.
         </p>
 
         <div style="margin-bottom:10px;">
@@ -55,7 +53,21 @@
         </div>
 
         <div class="btnrow">
-          <button class="btn" id="backendRegisterBtn">Create account / Log in</button>
+          <button class="btn" id="registerBtn">Create account / Log in</button>
+        </div>
+
+        <!-- Link device section (for logging in on a second device) -->
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #e5e5e5;">
+          <p style="margin:0 0 8px; font-size:14px;">
+            <b>Already have an account on another device?</b><br>
+            Enter the 6-digit link code from your other device's Settings page.
+          </p>
+
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="linkCodeInput" placeholder="000000" maxlength="6"
+                   style="padding:8px 10px; font-size:18px; font-family:monospace; letter-spacing:4px; border:1px solid #ccc; width:120px; text-align:center;">
+            <button class="btn secondary" id="linkDeviceBtn">Link this device</button>
+          </div>
         </div>
       </div>
 
@@ -65,29 +77,13 @@
 
         <div class="btnrow">
           <button class="btn" id="viewReceiptsBtn">View receipts</button>
-          <button class="btn secondary" id="backendLogoutBtn">Log out</button>
+          <a class="btn secondary" href="settings.html">Settings</a>
+          <button class="btn secondary" id="logoutBtn">Log out</button>
         </div>
       </div>
 
-      <div class="statusBox" id="backendStatus">Checking…</div>
+      <div class="statusBox" id="statusBox">Checking…</div>
     </div>
-
-    <!-- ===== Device Passkey (secondary — collapsed) ===== -->
-    <details class="card" style="cursor:pointer;">
-      <summary style="font-weight:700;">Device passkey (advanced)</summary>
-      <p style="margin-top:10px;">
-        This is a <b>device-local</b> passkey (WebAuthn). It uses Face ID / Touch ID / Windows Hello
-        and keeps a local "logged in" flag. This is separate from the backend account above.
-      </p>
-
-      <div class="btnrow">
-        <button class="btn" id="createBtn">Create passkey</button>
-        <button class="btn" id="loginBtn">Login with passkey</button>
-        <button class="btn secondary" id="logoutBtn">Logout passkey</button>
-      </div>
-
-      <div class="statusBox" id="statusBox">Status: Checking…</div>
-    </details>
 
   </main>
 
@@ -97,83 +93,104 @@
   <script src="js/nav.js"></script>
 
   <script>
-    // ===== Backend account UI =====
-    var backendStatus = document.getElementById("backendStatus");
+    var statusBox = document.getElementById("statusBox");
     var loggedOutView = document.getElementById("loggedOutView");
     var loggedInView = document.getElementById("loggedInView");
     var welcomeMsg = document.getElementById("welcomeMsg");
     var nameInput = document.getElementById("nameInput");
-    var backendRegisterBtn = document.getElementById("backendRegisterBtn");
-    var backendLogoutBtn = document.getElementById("backendLogoutBtn");
+    var registerBtn = document.getElementById("registerBtn");
+    var logoutBtn = document.getElementById("logoutBtn");
     var viewReceiptsBtn = document.getElementById("viewReceiptsBtn");
+    var linkCodeInput = document.getElementById("linkCodeInput");
+    var linkDeviceBtn = document.getElementById("linkDeviceBtn");
 
-    function showBackendState(loggedIn, info) {
+    function showState(loggedIn, info) {
       if (loggedIn) {
         loggedOutView.style.display = "none";
         loggedInView.style.display = "block";
         var name = (info && info.display_name) ? info.display_name : "User";
         var count = (info && typeof info.receipt_count === "number") ? info.receipt_count : 0;
-        welcomeMsg.textContent = "Welcome, " + name + ". You have " + count + " receipt" + (count !== 1 ? "s" : "") + " stored.";
-        backendStatus.textContent = "Logged in to backend.";
+        welcomeMsg.textContent = "Welcome, " + name + ". You have " + count +
+          " receipt" + (count !== 1 ? "s" : "") + " stored.";
+        statusBox.textContent = "Logged in.";
       } else {
         loggedOutView.style.display = "block";
         loggedInView.style.display = "none";
-        backendStatus.textContent = "Not logged in.";
+        statusBox.textContent = "Not logged in.";
       }
     }
 
-    async function checkBackend() {
-      if (!window.IRLBackend) {
-        backendStatus.textContent = "Backend module not loaded.";
+    async function checkSession() {
+      if (!window.IRLBackend || !window.IRLBackend.hasSession()) {
+        showState(false);
         return;
       }
 
-      if (!window.IRLBackend.hasSession()) {
-        showBackendState(false);
-        return;
-      }
-
-      backendStatus.textContent = "Checking session…";
+      statusBox.textContent = "Checking session…";
       var result = await window.IRLBackend.me();
 
       if (result.ok && result.data && result.data.logged_in) {
-        showBackendState(true, {
+        showState(true, {
           display_name: result.data.user.display_name,
           receipt_count: result.data.receipt_count
         });
       } else {
-        showBackendState(false);
+        showState(false);
       }
     }
 
-    backendRegisterBtn.addEventListener("click", async function () {
+    registerBtn.addEventListener("click", async function () {
       try {
-        backendStatus.textContent = "Registering…";
+        statusBox.textContent = "Registering…";
         var name = (nameInput.value || "").trim() || null;
         var result = await window.IRLBackend.register(name);
 
         if (result.ok) {
-          backendStatus.textContent = result.data.existing
+          statusBox.textContent = result.data.existing
             ? "Logged in (existing account)."
             : "Account created.";
-          await checkBackend();
+          await checkSession();
           if (typeof refreshNav === "function") refreshNav();
         } else {
-          backendStatus.textContent = "Error: " + (result.error || "Unknown error");
+          statusBox.textContent = "Error: " + (result.error || "Unknown error");
         }
       } catch (e) {
-        backendStatus.textContent = "Error: " + String(e);
+        statusBox.textContent = "Error: " + String(e);
       }
     });
 
-    backendLogoutBtn.addEventListener("click", async function () {
+    linkDeviceBtn.addEventListener("click", async function () {
+      var code = (linkCodeInput.value || "").trim();
+      if (code.length !== 6) {
+        statusBox.textContent = "Enter the 6-digit code from your other device.";
+        return;
+      }
+
       try {
-        backendStatus.textContent = "Logging out…";
+        statusBox.textContent = "Linking device…";
+        var pub = await getPublicJwk();
+        var result = await window.IRLBackend.claimLinkCode(code, pub);
+
+        if (result.ok) {
+          statusBox.textContent = "Device linked to existing account.";
+          await checkSession();
+          if (typeof refreshNav === "function") refreshNav();
+        } else {
+          statusBox.textContent = "Error: " + (result.error || "Invalid or expired code.");
+        }
+      } catch (e) {
+        statusBox.textContent = "Error: " + String(e);
+      }
+    });
+
+    logoutBtn.addEventListener("click", async function () {
+      try {
+        statusBox.textContent = "Logging out…";
         await window.IRLBackend.logout();
-        showBackendState(false);
+        showState(false);
         if (typeof refreshNav === "function") refreshNav();
       } catch (e) {
-        backendStatus.textContent = "Error: " + String(e);
+        statusBox.textContent = "Error: " + String(e);
       }
     });
 
@@ -181,52 +198,12 @@
       location.href = "receipt.html";
     });
 
-    checkBackend();
-
-    // ===== Passkey UI (unchanged logic) =====
-    var statusBox = document.getElementById("statusBox");
-    var createBtn = document.getElementById("createBtn");
-    var loginBtn = document.getElementById("loginBtn");
-    var logoutBtn = document.getElementById("logoutBtn");
-
-    function showStatus(objOrStr) {
-      if (typeof objOrStr === "string") { statusBox.textContent = objOrStr; return; }
-      statusBox.textContent = "Status: " + (objOrStr && objOrStr.isLoggedIn ? "Logged in" : "Logged out") + "\n\n" +
-        "webauthnSupported: " + (objOrStr ? objOrStr.webauthnSupported : "?") + "\n" +
-        "platformAuthenticatorAvailable: " + (objOrStr ? objOrStr.platformAuthenticatorAvailable : "?") + "\n" +
-        "hasPasskey: " + (objOrStr ? objOrStr.hasPasskey : "?") + "\n" +
-        "isLoggedIn: " + (objOrStr ? objOrStr.isLoggedIn : "?") + "\n" +
-        "credentialId: " + (objOrStr ? (objOrStr.credentialId || "") : "");
-    }
-
-    async function refresh() {
-      try {
-        if (!window.IRLAuth) throw new Error("IRLAuth missing");
-        showStatus(await window.IRLAuth.getStatus());
-      } catch (e) {
-        showStatus("Status: Error\n\n" + String(e));
-      }
-    }
-
-    createBtn.addEventListener("click", async function () {
-      try { showStatus("Creating passkey…"); await window.IRLAuth.registerPasskey(); }
-      catch (e) { showStatus("Error: " + String(e)); }
-      finally { await refresh(); }
+    // Only allow digits in link code input
+    linkCodeInput.addEventListener("input", function () {
+      this.value = this.value.replace(/[^0-9]/g, "").slice(0, 6);
     });
 
-    loginBtn.addEventListener("click", async function () {
-      try { showStatus("Logging in…"); await window.IRLAuth.loginWithPasskey(); }
-      catch (e) { showStatus("Error: " + String(e)); }
-      finally { await refresh(); }
-    });
-
-    logoutBtn.addEventListener("click", async function () {
-      try { showStatus("Logging out…"); await window.IRLAuth.logout(); }
-      catch (e) { showStatus("Error: " + String(e)); }
-      finally { await refresh(); }
-    });
-
-    refresh();
+    checkSession();
   </script>
 </body>
 </html>
