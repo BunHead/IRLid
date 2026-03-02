@@ -2,42 +2,40 @@
 // Shared navigation logic for IRLid (static GitHub Pages)
 // - Shows Login when logged out
 // - Shows Name... dropdown (Settings, Receipts, Logout) when logged in
-// Deploy 68
+// Deploy 70
 
 (function () {
   "use strict";
 
-  // Close all nav dropdown <details>, except an optional element.
-  // Fix: previously used IDs; <details> without an id would close itself immediately.
   function closeAllDropdowns(exceptEl) {
-    document.querySelectorAll("details.nav-dropdown").forEach((d) => {
+    document.querySelectorAll("details.nav-dropdown").forEach(function (d) {
       if (exceptEl && d === exceptEl) return;
       d.removeAttribute("open");
     });
   }
 
   function wireDropdownCloseBehavior() {
-    // Ensure only one dropdown stays open at a time
-    document.querySelectorAll("details.nav-dropdown").forEach((d) => {
-      d.addEventListener("toggle", () => {
+    document.querySelectorAll("details.nav-dropdown").forEach(function (d) {
+      d.addEventListener("toggle", function () {
         if (d.open) closeAllDropdowns(d);
       });
     });
 
-    // Close dropdowns when clicking outside any dropdown
-    document.addEventListener("click", (e) => {
-      const t = e.target;
-      const isInside = t && t.closest && t.closest("details.nav-dropdown");
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      var isInside = t && t.closest && t.closest("details.nav-dropdown");
       if (!isInside) closeAllDropdowns(null);
     });
 
-    // Close dropdowns on Escape
-    document.addEventListener("keydown", (e) => {
+    document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") closeAllDropdowns(null);
     });
   }
 
   function isLoggedIn() {
+    // Check backend session first (preferred)
+    if (window.IRLBackend && window.IRLBackend.hasSession()) return true;
+    // Fall back to local passkey login
     try {
       return !!(
         window.IRLAuth &&
@@ -49,8 +47,17 @@
     }
   }
 
+  function getDisplayName() {
+    // Try backend display name first
+    if (window.IRLBackend && typeof window.IRLBackend.getDisplayName === "function") {
+      var name = window.IRLBackend.getDisplayName();
+      if (name) return name;
+    }
+    return null;
+  }
+
   function renderAccountNav(loggedIn) {
-    const slot = document.getElementById("accountSlot");
+    var slot = document.getElementById("accountSlot");
     if (!slot) return;
 
     if (!loggedIn) {
@@ -58,22 +65,28 @@
       return;
     }
 
-    slot.innerHTML = `
-      <details class="nav-dropdown" id="accountDropdown">
-        <summary class="nav-btn">Name... ▼</summary>
-        <div class="dropdown-menu" role="menu" aria-label="Account menu">
-          <a href="settings.html" id="acctSettingsLink">Settings</a>
-          <a href="receipt.html">Receipts</a>
-          <a href="login.html" id="acctLogoutLink">Logout</a>
-        </div>
-      </details>
-    `;
+    var displayName = getDisplayName() || "Account";
 
-    const logout = document.getElementById("acctLogoutLink");
+    slot.innerHTML =
+      '<details class="nav-dropdown" id="accountDropdown">' +
+        '<summary class="nav-btn">' + displayName + ' ▼</summary>' +
+        '<div class="dropdown-menu" role="menu" aria-label="Account menu">' +
+          '<a href="settings.html" id="acctSettingsLink">Settings</a>' +
+          '<a href="receipt.html">Receipts</a>' +
+          '<a href="login.html" id="acctLogoutLink">Logout</a>' +
+        '</div>' +
+      '</details>';
+
+    var logout = document.getElementById("acctLogoutLink");
     if (logout) {
-      logout.addEventListener("click", async (e) => {
+      logout.addEventListener("click", async function (e) {
         e.preventDefault();
         try {
+          // Log out of backend
+          if (window.IRLBackend && typeof window.IRLBackend.logout === "function") {
+            await window.IRLBackend.logout();
+          }
+          // Log out of local passkey
           if (window.IRLAuth && typeof window.IRLAuth.logout === "function") {
             await window.IRLAuth.logout();
           }
@@ -89,6 +102,11 @@
     renderAccountNav(isLoggedIn());
     wireDropdownCloseBehavior();
   }
+
+  // Expose refreshNav globally so login.html can call it after registration
+  window.refreshNav = function () {
+    renderAccountNav(isLoggedIn());
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNav);
