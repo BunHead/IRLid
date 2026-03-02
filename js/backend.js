@@ -1,7 +1,5 @@
-// /js/backend.js — Deploy 3
+// /js/backend.js — Deploy 73
 // API client for IRLid backend (Cloudflare Workers + D1).
-// Requires: js/sign.js (for getPublicJwk)
-// Exposes: window.IRLBackend
 
 (function () {
   "use strict";
@@ -39,10 +37,8 @@
     try {
       var opts = { method: method, headers: headers };
       if (body && method !== "GET") opts.body = JSON.stringify(body);
-
       var resp = await fetch(BACKEND_URL + path, opts);
       var data = await resp.json();
-
       if (!resp.ok) return { ok: false, status: resp.status, error: data.error || resp.statusText, data: data };
       return { ok: true, status: resp.status, data: data };
     } catch (e) {
@@ -63,13 +59,19 @@
     register: async function (displayName) {
       if (typeof getPublicJwk !== "function") return { ok: false, error: "sign.js not loaded" };
       var pub = await getPublicJwk();
-      var result = await api("POST", "/auth/register", {
-        display_name: displayName || null,
-        pub_jwk: pub
-      });
+      var result = await api("POST", "/auth/register", { display_name: displayName || null, pub_jwk: pub });
       if (result.ok && result.data && result.data.session_token) {
         setToken(result.data.session_token);
         setUserInfo(result.data.user_id, displayName || null);
+      }
+      return result;
+    },
+
+    googleLogin: async function (idToken, pubJwk) {
+      var result = await api("POST", "/auth/google", { id_token: idToken, pub_jwk: pubJwk || null });
+      if (result.ok && result.data && result.data.session_token) {
+        setToken(result.data.session_token);
+        setUserInfo(result.data.user_id, result.data.display_name || null);
       }
       return result;
     },
@@ -80,10 +82,7 @@
         if (result.data.logged_in && result.data.user) {
           setUserInfo(result.data.user.id, result.data.user.display_name);
         }
-        if (!result.data.logged_in) {
-          setToken(null);
-          setUserInfo(null, null);
-        }
+        if (!result.data.logged_in) { setToken(null); setUserInfo(null, null); }
       }
       return result;
     },
@@ -96,18 +95,10 @@
 
     // ===== Profile =====
 
-    /** Update profile fields. */
     updateProfile: async function (fields) {
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       var result = await api("POST", "/auth/profile", fields);
-      // Update local display name cache
       if (result.ok && fields.display_name) {
-        setUserInfo(null, fields.display_name);
-        // Re-read user ID from localStorage (setUserInfo only sets if non-null)
-        try {
-          var uid = localStorage.getItem(LS_USER_ID);
-          if (uid) localStorage.setItem(LS_USER_ID, uid);
-        } catch {}
         try { localStorage.setItem(LS_DISPLAY_NAME, fields.display_name); } catch {}
       }
       return result;
@@ -159,5 +150,4 @@
       return await api("GET", "/receipts/" + encodeURIComponent(hash));
     }
   };
-
 })();
