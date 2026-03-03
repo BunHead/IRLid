@@ -1,17 +1,140 @@
-<!-- application.html -->
+<!-- receipt.html -->
 <!DOCTYPE html>
 <!-- Deploy 74 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Scan</title>
+  <title>IRLid — Receipts</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Keep content visible above the fixed mobile bottom nav */
-    #responseArea { margin-top: 8px; }
-    #responseTitle { margin: 10px 0 10px; }
-    #responseHint { display: none; }
+    .receipt-wrap{ max-width: 860px; margin: 0 auto; }
+    .receipt-qr{ text-align:center; }
+    .receipt-qr canvas, .receipt-qr img{
+      max-width: min(92vw, 420px);
+      height: auto !important;
+      display:block;
+      margin: 0 auto;
+    }
+    .receipt-headerline{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .receipt-headerline h3{ margin: 0; }
+    .receipt-mini{ font-size: 12px; opacity: .85; }
+    .receipt-kv{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap: 6px 10px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .receipt-kv .k{ opacity:.8; }
+    .receipt-kv .v{ word-break: break-word; }
+    .receipt-kv a{ color:#111; text-decoration: underline; }
+    .receipt-two{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @media (min-width: 760px){
+      .receipt-two{ grid-template-columns: 1fr 1fr; }
+    }
+    .person-panel{
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      padding: 12px 12px;
+    }
+    .person-title{ font-weight: 700; margin-bottom: 6px; }
+    .person-row{ margin: 2px 0; }
+    .person-note{ font-size: 12px; opacity: .85; margin-top: 6px; }
+    .checks{ margin-top: 10px; }
+    .check{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding:10px 0;
+      border-top:1px solid #e5e5e5;
+    }
+    .check:first-child{ border-top:0; }
+    .badge{
+      width: 64px;
+      text-align:center;
+      font-weight:700;
+      font-size:12px;
+      padding: 6px 0;
+      border:1px solid #e5e5e5;
+      background:#fff;
+      flex: 0 0 auto;
+    }
+    .badge.pass{ background:#eaffea; border-color:#c8f2c8; }
+    .badge.fail{ background:#ffecec; border-color:#ffd0d0; }
+    details.raw{ text-align:left; margin-top: 10px; }
+    pre{
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      padding: 12px 12px;
+      font-size: 12px;
+    }
+
+    /* ---- List view styles ---- */
+    .receipt-list{ list-style: none; padding: 0; margin: 10px 0 0; text-align: left; }
+    .receipt-item{
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .receipt-item:hover{ background: #f9f9f9; }
+    .receipt-item-row{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .receipt-item-time{ font-size: 14px; font-weight: 600; }
+    .receipt-item-sub{ font-size: 12px; opacity: .7; margin-top: 3px; }
+    .receipt-item-badge{
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border: 1px solid #e5e5e5;
+      flex-shrink: 0;
+    }
+    .receipt-item-badge.verified{ background: #eaffea; border-color: #c8f2c8; color: #1a6e1a; }
+    .receipt-item-badge.unverified{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
+    .receipt-item-badge.local-badge{ background: #f7f7f7; border-color: #ddd; color: #555; }
+
+    .pagination{
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin: 14px 0;
+    }
+    .pagination .btn{ min-width: 80px; }
+    .page-info{ font-size: 13px; opacity: .7; }
+
+    .back-link{
+      display: inline-block;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #111;
+    }
+    .loading-msg{
+      padding: 20px;
+      text-align: center;
+      opacity: .6;
+      font-size: 14px;
+    }
   </style>
 </head>
 
@@ -42,501 +165,821 @@
 </header>
 
 <main class="page-main">
-  <p id="status" class="small">Ready.</p>
+  <div class="receipt-wrap">
 
-  <div class="controls">
-    <button class="btn" id="startBtn">Start Scanner</button>
-    <button class="btn secondary" id="stopBtn">Stop</button>
-  </div>
-
-  <div id="responseArea">
-    <h3 id="responseTitle">Your Accept QR</h3>
-    <div class="qr-box" id="responseQr"></div>
-
-    <!-- Camera lives here so it replaces the QR area (no scrolling) -->
-    <div id="scanner"></div>
-
-    <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
-      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    <!-- ===== LIST VIEW ===== -->
+    <div id="listView" style="display:none;">
+      <h3 style="margin:0 0 4px; text-align:left;">My Receipts</h3>
+      <div id="listLoading" class="loading-msg">Loading receipts…</div>
+      <div id="listEmpty" class="panel" style="display:none;">
+        No receipts yet. Use <a href="application.html">Scan</a> to exchange QRs with someone.
+      </div>
+      <ul class="receipt-list" id="receiptList"></ul>
+      <div class="pagination" id="paginationBar" style="display:none;">
+        <button class="btn secondary" id="prevPageBtn">&larr; Prev</button>
+        <span class="page-info" id="pageInfo"></span>
+        <button class="btn secondary" id="nextPageBtn">Next &rarr;</button>
+      </div>
+      <div class="btnrow" id="listFooter" style="display:none;">
+        <button class="btn secondary" id="clearBtn">Clear local receipts</button>
+      </div>
     </div>
 
-    <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
+    <!-- ===== DETAIL VIEW ===== -->
+    <div id="detailView" style="display:none;">
+      <a href="#" class="back-link" id="backToList">&larr; Back to receipts</a>
 
-    <div class="controls" style="margin-top:10px;">
-      <button class="btn" id="scanTheirRespBtn">Scan their Accept</button>
-      <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
+      <div class="qr-box receipt-qr" id="topQr" aria-label="Receipt QR"></div>
+
+      <div class="panel" id="metaPanel" style="display:none;">
+        <div class="receipt-headerline">
+          <h3 id="metaTitle">Receipt</h3>
+          <div class="receipt-mini" id="receiptHint" style="display:none;"></div>
+        </div>
+
+        <div class="receipt-kv" id="summaryKv" style="display:none;">
+          <div class="k">Time</div><div class="v" id="sumTime"></div>
+          <div class="k">Distance</div><div class="v" id="sumDistance"></div>
+          <div class="k">Map</div><div class="v" id="sumMap"></div>
+        </div>
+
+        <div class="receipt-two" id="peopleGrid" style="display:none;">
+          <div class="person-panel">
+            <div class="person-title">Self</div>
+            <div class="person-row" id="aCoords"></div>
+            <div class="person-row" id="aTime"></div>
+            <div class="person-note" id="aAcc"></div>
+          </div>
+
+          <div class="person-panel">
+            <div class="person-title">Guest</div>
+            <div class="person-row" id="bCoords"></div>
+            <div class="person-row" id="bTime"></div>
+            <div class="person-note" id="bAcc"></div>
+          </div>
+        </div>
+
+        <div class="checks" id="checks"></div>
+
+        <div class="person-note" style="margin-top:10px;">
+          The QR above is a URL. Any QR scanner can open this receipt page.
+        </div>
+      </div>
+
+      <details class="raw" id="rawWrap" style="display:none;">
+        <summary>Show stored JSON</summary>
+        <pre id="rawJson"></pre>
+      </details>
     </div>
-  </div>
 
-  <div class="small">
-    <label for="cameraSelect"><b>Camera:</b></label><br>
-    <select id="cameraSelect"></select>
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
-  <script src="js/nav.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="js/qr.js?v=63"></script>
 
 <script>
-  const IRLID_TS_TOL_S = 90;
-  const IRLID_DIST_TOL_M = 12;
+  const TS_TOL_S = 90;
+  const DIST_TOL_M = 12;
 
-  const KEY_PREF_CAM = "irlid_preferred_camera_id";
-  const KEY_RECEIPTS = "irlid_receipts";
-  const KEY_SELF  = "irlid_resp_self";
+  const KEY_SELF = "irlid_resp_self";
   const KEY_GUEST = "irlid_resp_other";
-  const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
-  const KEY_LAST_SELF_RESP = "irlid_last_self_response";
+  const KEY_LAST = "irlid_receipt_last";
+  const KEY_LIST = "irlid_receipts";
 
-  const statusEl = document.getElementById("status");
-  const responseArea = document.getElementById("responseArea");
-  const scanTheirRespBtn = document.getElementById("scanTheirRespBtn");
-  const showReceiptBtn = document.getElementById("showReceiptBtn");
-  const clearLocalBtn = document.getElementById("clearLocalBtn");
-  const debugControls = document.getElementById("debugControls");
+  // ---- DOM refs: list ----
+  const listView = document.getElementById("listView");
+  const listLoading = document.getElementById("listLoading");
+  const listEmpty = document.getElementById("listEmpty");
+  const receiptListEl = document.getElementById("receiptList");
+  const paginationBar = document.getElementById("paginationBar");
+  const prevPageBtn = document.getElementById("prevPageBtn");
+  const nextPageBtn = document.getElementById("nextPageBtn");
+  const pageInfo = document.getElementById("pageInfo");
+  const listFooter = document.getElementById("listFooter");
+  const clearBtn = document.getElementById("clearBtn");
 
-  let lastCombinedUrl = null;
+  // ---- DOM refs: detail ----
+  const detailView = document.getElementById("detailView");
+  const backToList = document.getElementById("backToList");
+  const metaPanel = document.getElementById("metaPanel");
+  const metaTitle = document.getElementById("metaTitle");
+  const receiptHint = document.getElementById("receiptHint");
+  const summaryKv = document.getElementById("summaryKv");
+  const sumTime = document.getElementById("sumTime");
+  const sumDistance = document.getElementById("sumDistance");
+  const sumMap = document.getElementById("sumMap");
+  const peopleGrid = document.getElementById("peopleGrid");
+  const aCoords = document.getElementById("aCoords");
+  const aTime = document.getElementById("aTime");
+  const aAcc = document.getElementById("aAcc");
+  const bCoords = document.getElementById("bCoords");
+  const bTime = document.getElementById("bTime");
+  const bAcc = document.getElementById("bAcc");
+  const checksEl = document.getElementById("checks");
+  const rawWrap = document.getElementById("rawWrap");
+  const rawJson = document.getElementById("rawJson");
 
-  function isDebug(){
-    try{
-      const qs = new URLSearchParams(location.search || "");
-      if (qs.get("debug") === "1" || qs.get("debug") === "true") return true;
-    }catch{}
-    try{
-      const v = localStorage.getItem("irlid_debug");
-      if (v === "1" || v === "true") return true;
-    }catch{}
-    try{
-      const h = location.hash || "";
-      if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
-    }catch{}
-    return false;
+  let currentPage = 1;
+  let totalReceipts = 0;
+  let pageLimit = 20;
+
+  // =========================
+  //  UTILITY FUNCTIONS
+  // =========================
+
+  function baseReceiptUrl(){
+    return location.origin + location.pathname.replace(/\/[^\/]*$/, "/receipt.html");
   }
 
-  // Debug-only recovery controls
-  if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
-
-  function setStatus(msg){ statusEl.textContent = msg; }
-
-  function getHelloFromHash(){
-    const h = location.hash || "";
-    const m = h.match(/HELLO=([^&]+)/);
-    return m ? m[1] : null;
+  function qrSize(){
+    const max = 420;
+    const w = Math.min(window.innerWidth * 0.92, max);
+    return Math.max(260, Math.floor(w));
   }
 
-  function getSavedHello(){
-    try{
-      const v = localStorage.getItem(KEY_LAST_HELLO_B64);
-      return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
+  function normalizeEpochMs(v){
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    if (v > 1000000000000) return Math.floor(v);
+    if (v > 1000000000) return Math.floor(v * 1000);
+    return null;
+  }
+
+  function readJson(key){
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function safeParseAny(raw){
+    if (!raw) return null;
+    if (typeof raw !== "string") return raw;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function haversineMeters(lat1, lon1, lat2, lon2){
+    const R = 6371000;
+    const toRad = (d) => d * Math.PI / 180;
+    const a1 = toRad(lat1), a2 = toRad(lat2);
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const s = Math.sin(dLat/2)**2 + Math.cos(a1)*Math.cos(a2)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function fmtNum(n){
+    if (typeof n !== "number" || !Number.isFinite(n)) return "?";
+    return n.toFixed(6);
+  }
+
+  function formatTimeNoTs(tsMs){
+    if (!tsMs) return null;
+    try { return new Date(tsMs).toLocaleString(); } catch { return null; }
+  }
+
+  function formatTimeShort(tsMs){
+    if (!tsMs) return "Unknown time";
+    try {
+      const d = new Date(tsMs);
+      return d.toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) +
+             " " + d.toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+    } catch { return "Unknown time"; }
+  }
+
+  function extractGpsFromPayload(payload){
+    if (!payload || typeof payload !== "object") return null;
+    if (payload.gps && typeof payload.gps === "object") {
+      const lat = Number(payload.gps.lat ?? payload.gps.latitude);
+      const lon = Number(payload.gps.lon ?? payload.gps.lng ?? payload.gps.longitude);
+      const acc = Number(payload.gps.acc ?? payload.gps.accuracy);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
     }
+    const lat = Number(payload.lat ?? payload.latitude);
+    const lon = Number(payload.lon ?? payload.lng ?? payload.longitude);
+    const acc = Number(payload.acc ?? payload.accuracy);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
+    return null;
   }
 
-  function saveHello(b64){
-    try{
-      if (b64 && b64.trim()) localStorage.setItem(KEY_LAST_HELLO_B64, b64.trim());
-    }catch{}
+  function getGps(resp){
+    if (!resp || !resp.payload) return null;
+    return extractGpsFromPayload(resp.payload);
   }
 
-  function loadSavedSelfResp(){
-    try{
-      const raw = localStorage.getItem(KEY_LAST_SELF_RESP);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    }catch{
-      return null;
+  function getTsMs(resp){
+    if (!resp || !resp.payload) return null;
+    const ts = resp.payload.ts;
+    if (typeof ts === "number" && Number.isFinite(ts)) {
+      if (ts > 1000000000000) return Math.floor(ts);
+      if (ts > 1000000000) return Math.floor(ts * 1000);
     }
+    return null;
   }
 
-  function saveSelfResp(resp){
-    try{
-      localStorage.setItem(KEY_LAST_SELF_RESP, JSON.stringify(resp));
-    }catch{}
+  function makeMapsUrl(lat, lon){
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return `https://www.google.com/maps?q=${encodeURIComponent(lat + "," + lon)}`;
   }
 
-  let hello = getHelloFromHash() || getSavedHello();
-
-  if (!window.__irlid_last_self_response) {
-    const saved = loadSavedSelfResp();
-    if (saved && saved.type === "response") window.__irlid_last_self_response = saved;
+  function makeDualMapsUrl(gA, gB){
+    if (gA && gB) return makeMapsUrl((gA.lat+gB.lat)/2, (gA.lon+gB.lon)/2);
+    if (gA) return makeMapsUrl(gA.lat, gA.lon);
+    if (gB) return makeMapsUrl(gB.lat, gB.lon);
+    return "#";
   }
 
-  const scannerEl = document.getElementById("scanner");
-  if (scannerEl) scannerEl.style.display = "none";
-
-  function showScannerInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "none";
-    if (scannerEl) {
-      scannerEl.style.display = "block";
-      try{ scannerEl.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{}
-    }
+  function makeReceiptUrlForResponse(resp){
+    return baseReceiptUrl() + "#RESP=" + irlidEncodeJsonToB64url(resp);
   }
 
-  function showQrInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "";
-    if (scannerEl) scannerEl.style.display = "none";
+  function makeReceiptUrlForCombined(comb){
+    return baseReceiptUrl() + "#COMB=" + irlidEncodeJsonToB64url(comb);
   }
 
-  async function initHelloReturnQr(){
-    if (!hello) {
-      // Keep page usable after clearing data: scanner must remain accessible.
-      responseArea.style.display = "block";
-      const qrBox = document.getElementById("responseQr");
-      if (qrBox) {
-        qrBox.innerHTML = "";
-        qrBox.style.display = "none";
-      }
-      showReceiptBtn.style.display = "none";
-      lastCombinedUrl = null;
-      setStatus("Ready. Scan a Signed HELLO (Offer) to begin.");
+  // Deploy 74: short server-hash receipt URL (QR version 5 vs 36).
+  function makeReceiptUrlForHash(hash){
+    return baseReceiptUrl() + "#receipt=" + hash;
+  }
+
+  function addCheck(label, ok, detail){
+    const div = document.createElement("div");
+    div.className = "check";
+    const badge = document.createElement("div");
+    badge.className = "badge " + (ok ? "pass" : "fail");
+    badge.textContent = ok ? "PASS" : "FAIL";
+    const txt = document.createElement("div");
+    txt.innerHTML = `${label}${detail ? `<div class="person-note">${detail}</div>` : ""}`;
+    div.appendChild(badge);
+    div.appendChild(txt);
+    checksEl.appendChild(div);
+  }
+
+  function setPersonPanel(elCoords, elTime, elAcc, resp, mapsUrl){
+    if (!resp) {
+      elCoords.textContent = "Location: (missing)";
+      elTime.textContent = "Time: (missing)";
+      elAcc.textContent = "";
       return;
     }
-
-    saveHello(hello);
-
-    try{
-      responseArea.style.display = "block";
-      setStatus("Getting location & signing…");
-
-      const respObj = await makeReturnForHelloAsync(hello);
-      saveSelfResp(respObj);
-
-      const encoded = irlidEncodeJsonToB64url(respObj);
-
-      // Deploy 74: compact non-URL format for response QR.
-      // Only scanned by in-app scanner, not generic QR readers.
-      // Saves ~54 chars vs full URL → smaller QR → easier to scan.
-      const qrData = "R:" + encoded;
-
-      await makeQR("responseQr", qrData, 360);
-      showQrInPlace();
-
-      const fromHash = !!getHelloFromHash();
-      setStatus(fromHash ? "Accept ready (from HELLO link)." : "Accept ready (from saved HELLO).");
-
-      showReceiptBtn.style.display = "none";
-      lastCombinedUrl = null;
-    }catch(e){
-      setStatus("Error: " + e + "\n\nIf location is blocked, enable location permission for this site and try again.");
-      console.error(e);
-    }
-  }
-
-  window.addEventListener("hashchange", () => {
-    const h = getHelloFromHash();
-    if (h) {
-      hello = h;
-      saveHello(hello);
+    const gps = getGps(resp);
+    const tsMs = getTsMs(resp);
+    if (gps) {
+      elCoords.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
+      elAcc.textContent = (typeof gps.acc === "number" && Number.isFinite(gps.acc)) ? `Accuracy: \u00b1${Math.round(gps.acc)} m` : "";
     } else {
-      hello = getSavedHello();
+      elCoords.textContent = "Location: (not captured)";
+      elAcc.textContent = "";
     }
-    initHelloReturnQr();
-  });
-
-  initHelloReturnQr();
-
-  // ---- Scanner ----
-  const startBtn = document.getElementById("startBtn");
-  const stopBtn = document.getElementById("stopBtn");
-  const cameraSelect = document.getElementById("cameraSelect");
-
-  function classify(text){
-    const t = (text || "").trim();
-
-    // Deploy 74: compact non-URL prefixes (scanned within app only)
-    if (t.startsWith("R:")) return { kind:"RESP", v: t.slice(2) };
-    if (t.startsWith("H:")) return { kind:"HELLO", v: t.slice(2) };
-
-    const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
-    const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
-    const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
-
-    let m = t.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
-    m = t.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
-    m = t.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
-
-    try{
-      const u = new URL(t);
-      const h = u.hash || "";
-      m = h.match(rxHello); if (m) return { kind:"HELLO", v:m[1] };
-      m = h.match(rxComb); if (m) return { kind:"COMB", v:m[1] };
-      m = h.match(rxResp); if (m) return { kind:"RESP", v:m[1] };
-    }catch{}
-
-    return { kind:"UNKNOWN", v:null };
+    const t = formatTimeNoTs(tsMs);
+    elTime.textContent = t ? `Time: ${t}` : "Time: (missing)";
   }
 
-  function getStoredPreferredCameraId(){
-    try{
-      const v = localStorage.getItem(KEY_PREF_CAM);
-      return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
+  async function validateResponse(resp){
+    const results = { okStructure: false, okHash: false, okSig: false, computedHash: null };
+    if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) return results;
+    results.okStructure = true;
+    try {
+      const computed = await hashPayloadToB64url(resp.payload);
+      results.computedHash = computed;
+      results.okHash = (computed === resp.hash);
+    } catch { results.okHash = false; }
+    try { results.okSig = await verifySig(resp.hash, resp.sig, resp.pub); } catch { results.okSig = false; }
+    return results;
+  }
+
+  function setSummary(comb){
+    summaryKv.style.display = "grid";
+    const respA = comb && comb.a ? comb.a : null;
+    const respB = comb && comb.b ? comb.b : null;
+    const tsA = respA ? getTsMs(respA) : null;
+    const tsB = respB ? getTsMs(respB) : null;
+
+    let timeLine = "(missing)";
+    if (tsA && tsB) {
+      const lo = new Date(Math.min(tsA, tsB));
+      const hi = new Date(Math.max(tsA, tsB));
+      const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
+      timeLine = `${lo.toLocaleString()} \u2014 ${hi.toLocaleTimeString()} (\u0394 ${deltaS}s)`;
+    } else if (tsA) {
+      timeLine = `${new Date(tsA).toLocaleString()} (self)`;
+    } else if (tsB) {
+      timeLine = `${new Date(tsB).toLocaleString()} (guest)`;
     }
-  }
-  function setStoredPreferredCameraId(id){
-    try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
-  }
+    sumTime.textContent = timeLine;
 
-  function scoreRearLabel(label){
-    const s = (label || "").toLowerCase();
-    let score = 0;
-    if (s.includes("back")) score += 80;
-    if (s.includes("rear")) score += 80;
-    if (s.includes("environment")) score += 80;
-    if (s.includes("front")) score -= 120;
-    if (s.includes("selfie")) score -= 120;
-    return score;
+    const gA = respA ? getGps(respA) : null;
+    const gB = respB ? getGps(respB) : null;
+    let distLine = "(missing)";
+    if (gA && gB) distLine = `${haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon).toFixed(2)} m`;
+    sumDistance.textContent = distLine;
+
+    const mapsUrl = makeDualMapsUrl(gA, gB);
+    sumMap.innerHTML = mapsUrl && mapsUrl !== "#"
+      ? `<a href="${mapsUrl}" target="_blank" rel="noopener noreferrer">Open map</a>`
+      : "(missing)";
   }
 
-  async function listCamerasAndSelectDefault(){
-    const all = await navigator.mediaDevices.enumerateDevices();
-    const devices = all.filter(d => d.kind === "videoinput");
+  function setMissingHint(comb){
+    const missing = [];
+    if (!comb || comb.type !== "combined") missing.push("combined");
+    if (!comb || !comb.a) missing.push("self");
+    if (!comb || !comb.b) missing.push("guest");
+    receiptHint.style.display = missing.length ? "block" : "none";
+    if (missing.length) receiptHint.textContent = "Missing: " + missing.join(", ");
+  }
 
-    cameraSelect.innerHTML = "";
-    for (const d of devices){
-      const opt = document.createElement("option");
-      opt.value = d.deviceId;
-      opt.textContent = d.label || d.deviceId;
-      cameraSelect.appendChild(opt);
+  // =========================
+  //  HASH PARSING
+  // =========================
+
+  function parseFromHash(){
+    const h = location.hash || "";
+    // Server receipt hash: #receipt=HASH
+    const mReceipt = h.match(/receipt=([A-Za-z0-9\-_]+)/);
+    if (mReceipt) return { kind: "server", hash: mReceipt[1] };
+
+    const mComb = h.match(/COMB=([A-Za-z0-9\-_]+)/);
+    if (mComb) {
+      try { return { kind: "comb", raw: mComb[1], obj: irlidDecodeB64urlJson(mComb[1]) }; }
+      catch { return { kind: "comb", raw: mComb[1], obj: null }; }
     }
-    if (!devices.length) return;
+    const mResp = h.match(/RESP=([A-Za-z0-9\-_]+)/);
+    if (mResp) {
+      try { return { kind: "resp", raw: mResp[1], obj: irlidDecodeB64urlJson(mResp[1]) }; }
+      catch { return { kind: "resp", raw: mResp[1], obj: null }; }
+    }
+    return null;
+  }
 
-    const stored = getStoredPreferredCameraId();
-    if (stored && devices.some(d => d.deviceId === stored)){
-      cameraSelect.value = stored;
-      return;
+  // =========================
+  //  LIST VIEW
+  // =========================
+
+  function showListView(){
+    listView.style.display = "block";
+    detailView.style.display = "none";
+  }
+
+  function showDetailView(){
+    listView.style.display = "none";
+    detailView.style.display = "block";
+  }
+
+  function renderReceiptItem(item, onClick){
+    const li = document.createElement("li");
+    li.className = "receipt-item";
+    li.addEventListener("click", onClick);
+
+    const row = document.createElement("div");
+    row.className = "receipt-item-row";
+
+    const left = document.createElement("div");
+
+    // Figure out time from ts_a / ts_b (epoch seconds from server)
+    let tsMs = null;
+    if (item.ts_a) tsMs = normalizeEpochMs(item.ts_a);
+    if (!tsMs && item.ts_b) tsMs = normalizeEpochMs(item.ts_b);
+    if (!tsMs && item.created_at) tsMs = normalizeEpochMs(item.created_at);
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "receipt-item-time";
+    timeDiv.textContent = formatTimeShort(tsMs);
+    left.appendChild(timeDiv);
+
+    const subDiv = document.createElement("div");
+    subDiv.className = "receipt-item-sub";
+    subDiv.textContent = item.receipt_hash ? item.receipt_hash.substring(0, 16) + "\u2026" : "";
+    left.appendChild(subDiv);
+
+    row.appendChild(left);
+
+    const badge = document.createElement("div");
+    badge.className = "receipt-item-badge " + (item.verified ? "verified" : "unverified");
+    badge.textContent = item.verified ? "VERIFIED" : "UNVERIFIED";
+    row.appendChild(badge);
+
+    li.appendChild(row);
+    return li;
+  }
+
+  function renderLocalReceiptItem(entry, index){
+    const li = document.createElement("li");
+    li.className = "receipt-item";
+
+    const row = document.createElement("div");
+    row.className = "receipt-item-row";
+
+    const left = document.createElement("div");
+
+    let tsMs = null;
+    if (entry.ts) tsMs = normalizeEpochMs(entry.ts);
+    if (!tsMs && entry.combined) {
+      const ta = entry.combined.a ? getTsMs(entry.combined.a) : null;
+      const tb = entry.combined.b ? getTsMs(entry.combined.b) : null;
+      tsMs = Math.max(ta || 0, tb || 0) || null;
     }
 
-    const ranked = devices
-      .map((d, idx) => ({ id: d.deviceId, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
-      .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "receipt-item-time";
+    timeDiv.textContent = formatTimeShort(tsMs);
+    left.appendChild(timeDiv);
 
-    const best = ranked[0];
-    const chosenId = (best && best.score > 0) ? best.id : devices[devices.length - 1].deviceId;
-    cameraSelect.value = chosenId;
-    setStoredPreferredCameraId(chosenId);
-  }
+    const subDiv = document.createElement("div");
+    subDiv.className = "receipt-item-sub";
+    subDiv.textContent = "Local receipt";
+    left.appendChild(subDiv);
 
-  let html5QrCode = null;
+    row.appendChild(left);
 
-  function storeCombinedReceipt(combinedObj){
-    try{
-      if (combinedObj && combinedObj.a) localStorage.setItem(KEY_SELF, JSON.stringify(combinedObj.a));
-      if (combinedObj && combinedObj.b) localStorage.setItem(KEY_GUEST, JSON.stringify(combinedObj.b));
-    }catch{}
+    const badge = document.createElement("div");
+    badge.className = "receipt-item-badge local-badge";
+    badge.textContent = "LOCAL";
+    row.appendChild(badge);
 
-    try{
-      const raw = localStorage.getItem(KEY_RECEIPTS);
-      const list = raw ? JSON.parse(raw) : [];
-      const entry = { ts: Date.now(), combined: combinedObj };
-      list.unshift(entry);
-      localStorage.setItem(KEY_RECEIPTS, JSON.stringify(list.slice(0, 200)));
-    }catch{}
-  }
+    li.appendChild(row);
 
-  async function ensureSelfResponseForHello(){
-    if (window.__irlid_last_self_response && window.__irlid_last_self_response.type === "response") return;
-
-    const saved = loadSavedSelfResp();
-    if (saved && saved.type === "response") {
-      window.__irlid_last_self_response = saved;
-      return;
-    }
-
-    if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
-
-    setStatus("Creating self receipt (location + time)…");
-    const selfResp = await makeReturnForHelloAsync(hello);
-    window.__irlid_last_self_response = selfResp;
-    saveSelfResp(selfResp);
-  }
-
-  async function handleScannedResponseB64(respB64){
-    if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
-
-    await ensureSelfResponseForHello();
-
-    const otherRespObj = irlidDecodeB64urlJson(respB64);
-
-    const out = await processScannedResponse(otherRespObj, {
-      hello,
-      tsTolS: IRLID_TS_TOL_S,
-      distTolM: IRLID_DIST_TOL_M
+    li.addEventListener("click", () => {
+      if (entry.combined && entry.combined.type === "combined") {
+        location.hash = "COMB=" + irlidEncodeJsonToB64url(entry.combined);
+      } else if (entry.type === "response") {
+        location.hash = "RESP=" + irlidEncodeJsonToB64url(entry);
+      } else if (typeof entry === "string") {
+        location.href = entry;
+      }
     });
 
-    const combEncoded = irlidEncodeJsonToB64url(out.combined);
-    lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
-    storeCombinedReceipt(out.combined);
+    return li;
+  }
 
-    // Auto-upload to server if logged in
+  async function loadServerReceipts(page){
+    currentPage = page || 1;
+    listLoading.style.display = "block";
+    listEmpty.style.display = "none";
+    receiptListEl.innerHTML = "";
+    paginationBar.style.display = "none";
+
+    const result = await window.IRLBackend.listReceipts(currentPage);
+
+    listLoading.style.display = "none";
+
+    if (!result.ok || !result.data) {
+      // Fall back to local on error
+      loadLocalReceipts();
+      return;
+    }
+
+    const receipts = result.data.receipts || [];
+    totalReceipts = result.data.total || 0;
+    pageLimit = result.data.limit || 20;
+
+    if (receipts.length === 0 && currentPage === 1) {
+      const localCount = getLocalReceiptList().length;
+      if (localCount > 0) {
+        loadLocalReceipts();
+      } else {
+        listEmpty.style.display = "block";
+      }
+      listFooter.style.display = "flex";
+      return;
+    }
+
+    for (const r of receipts) {
+      const li = renderReceiptItem(r, () => {
+        location.hash = "receipt=" + r.receipt_hash;
+      });
+      receiptListEl.appendChild(li);
+    }
+
+    // Pagination
+    const totalPages = Math.ceil(totalReceipts / pageLimit);
+    if (totalPages > 1) {
+      paginationBar.style.display = "flex";
+      pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalReceipts} total)`;
+      prevPageBtn.disabled = currentPage <= 1;
+      nextPageBtn.disabled = currentPage >= totalPages;
+    }
+
+    listFooter.style.display = "flex";
+  }
+
+  function getLocalReceiptList(){
+    const raw = localStorage.getItem(KEY_LIST);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : []);
+    } catch { return []; }
+  }
+
+  function loadLocalReceipts(){
+    listLoading.style.display = "none";
+    receiptListEl.innerHTML = "";
+
+    const items = getLocalReceiptList();
+
+    const last = readJson(KEY_LAST);
+    const selfResp = readJson(KEY_SELF);
+    const guestResp = readJson(KEY_GUEST);
+
+    // Synthesize a receipt from self+guest if no list items
+    if (items.length === 0 && selfResp && guestResp) {
+      items.push({ ts: Date.now(), combined: { v:1, type:"combined", a:selfResp, b:guestResp, tol:{dist_m:DIST_TOL_M, ts_s:TS_TOL_S} } });
+    } else if (items.length === 0 && last) {
+      if (last.type === "combined") items.push({ ts: Date.now(), combined: last });
+      else if (last.type === "response") items.push(last);
+    }
+
+    if (items.length === 0) {
+      listEmpty.style.display = "block";
+      listFooter.style.display = "flex";
+      return;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const li = renderLocalReceiptItem(items[i], i);
+      receiptListEl.appendChild(li);
+    }
+
+    listFooter.style.display = "flex";
+  }
+
+  prevPageBtn.addEventListener("click", () => {
+    if (currentPage > 1) loadServerReceipts(currentPage - 1);
+  });
+
+  nextPageBtn.addEventListener("click", () => {
+    const totalPages = Math.ceil(totalReceipts / pageLimit);
+    if (currentPage < totalPages) loadServerReceipts(currentPage + 1);
+  });
+
+  clearBtn.onclick = () => {
+    localStorage.removeItem(KEY_SELF);
+    localStorage.removeItem(KEY_GUEST);
+    localStorage.removeItem(KEY_LAST);
+    localStorage.removeItem(KEY_LIST);
+    try {
+      localStorage.removeItem("irlid_last_hello_b64");
+      localStorage.removeItem("irlid_last_self_response");
+      localStorage.removeItem("irlid_preferred_camera_id");
+    } catch {}
+    location.href = baseReceiptUrl();
+  };
+
+  backToList.addEventListener("click", (e) => {
+    e.preventDefault();
+    // Use replaceState to clear hash without triggering hashchange loop
+    history.replaceState(null, "", location.pathname);
+    showListView();
     if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      loadServerReceipts(1);
+    } else {
+      loadLocalReceipts();
+    }
+  });
+
+  // =========================
+  //  DETAIL VIEW
+  // =========================
+
+  async function renderDetail(comb, resp, serverHash){
+    showDetailView();
+    metaPanel.style.display = "block";
+    rawWrap.style.display = "block";
+    checksEl.innerHTML = "";
+
+    if (comb) {
+      metaTitle.textContent = "Combined Receipt";
+      peopleGrid.style.display = "grid";
+
+      // Deploy 74: prefer short server-hash URL for QR (version 5 vs 36).
+      let qrUrl = null;
+      if (serverHash) {
+        qrUrl = makeReceiptUrlForHash(serverHash);
+      } else if (window.IRLBackend && window.IRLBackend.hasSession()) {
+        // Try uploading to get the hash
+        try {
+          const upRes = await window.IRLBackend.uploadReceipt(comb);
+          if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
+            qrUrl = makeReceiptUrlForHash(upRes.data.receipt_hash);
+          }
+        } catch(_){}
+      }
+      if (!qrUrl) qrUrl = makeReceiptUrlForCombined(comb);
+
+      if (typeof makeQR === "function") makeQR("topQr", qrUrl, qrSize());
+
+      rawJson.textContent = JSON.stringify(comb, null, 2);
+      setSummary(comb);
+      setMissingHint(comb);
+
+      const respA = comb.a || null;
+      const respB = comb.b || null;
+
+      const mapsUrl = makeDualMapsUrl(getGps(respA), getGps(respB));
+      setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
+      setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
+
+      // ---- Signature & structure checks ----
+      if (respA) {
+        const vr = await validateResponse(respA);
+        addCheck("Self: structure", vr.okStructure);
+        addCheck("Self: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Self: signature", vr.okSig);
+      } else {
+        addCheck("Self receipt present", false, "Missing Self response in combined object.");
+      }
+
+      if (respB) {
+        const vr = await validateResponse(respB);
+        addCheck("Guest: structure", vr.okStructure);
+        addCheck("Guest: hash", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+        addCheck("Guest: signature", vr.okSig);
+      } else {
+        addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
+      }
+
+      // --- Protocol v2 checks: HELLO offer ---
+      const helloObj = comb.hello || null;
+      if (helloObj) {
+        try {
+          const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
+          addCheck("HELLO offer: structure+hash+sig", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
+        } catch(e) {
+          addCheck("HELLO offer: structure+hash+sig", false, String(e));
+        }
+
+        try {
+          const helloHash = await irlidHelloHashB64url(helloObj);
+          if (respA && respA.payload) addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
+          if (respB && respB.payload) addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
+          if (helloObj.offer && helloObj.offer.hash) {
+            const oh = helloObj.offer.hash;
+            if (respA && respA.payload) addCheck("Self binds to offerHash", respA.payload.offerHash === oh);
+            if (respB && respB.payload) addCheck("Guest binds to offerHash", respB.payload.offerHash === oh);
+          }
+        } catch(e) {
+          addCheck("HELLO binding checks", false, String(e));
+        }
+      } else {
+        addCheck("HELLO present in combined", false, "Missing comb.hello (cannot verify offer/bindings).");
+      }
+
+      // --- Mutual tolerances ---
       try {
-        const upRes = await window.IRLBackend.uploadReceipt(out.combined);
-        if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
-          // Deploy 74: use short server hash URL for receipt page.
-          // Produces a tiny QR (version 5) vs inline data (version 36).
-          lastCombinedUrl = "receipt.html#receipt=" + upRes.data.receipt_hash;
-          console.log("Receipt uploaded:", upRes.data.receipt_hash, upRes.data.duplicate ? "(duplicate)" : "");
+        const tsAms = respA ? getTsMs(respA) : null;
+        const tsBms = respB ? getTsMs(respB) : null;
+        if (tsAms && tsBms) {
+          const deltaS = Math.abs(tsAms - tsBms) / 1000;
+          addCheck("Time delta \u2264 tolerance", deltaS <= TS_TOL_S, `\u0394 ${Math.round(deltaS)}s (limit ${TS_TOL_S}s)`);
         } else {
-          console.warn("Receipt upload failed:", upRes.error || "unknown");
+          addCheck("Time delta \u2264 tolerance", false, "Missing timestamps.");
         }
       } catch(e) {
-        console.warn("Receipt upload error:", e);
+        addCheck("Time delta \u2264 tolerance", false, String(e));
       }
-    }
 
-    showReceiptBtn.style.display = "inline-flex";
-    setStatus("Verified. Combined receipt ready.");
-  }
-
-  async function stopScanner(){
-    if (!html5QrCode) { setStatus("Stopped."); return; }
-    try { await html5QrCode.stop(); } catch {}
-    try { await html5QrCode.clear(); } catch {}
-    html5QrCode = null;
-    setStatus("Stopped.");
-
-    if (hello) showQrInPlace();
-  }
-
-  async function startScanner(){
-    await stopScanner();
-    setStatus("Starting camera…");
-
-    const camId = cameraSelect.value;
-    if (!camId) throw new Error("No camera selected.");
-    setStoredPreferredCameraId(camId);
-
-    setStatus("Scanning…");
-    scannerEl.innerHTML = "";
-    html5QrCode = new Html5Qrcode("scanner");
-
-    const config = {
-      fps: 12,
-      qrbox: { width: 280, height: 280 },
-      disableFlip: false
-    };
-
-    await html5QrCode.start(
-      camId,
-      config,
-      async (text) => {
-        await stopScanner();
-        const c = classify(text);
-
-        if (c.kind === "HELLO") {
-          const v = (c.v || "").trim();
-          hello = v || null;
-          if (hello) saveHello(hello);
-          setStatus("HELLO (Offer) detected. Creating your Accept QR…");
-          location.hash = "HELLO=" + (v || "");
-          initHelloReturnQr();
-          return;
+      try {
+        const gA = respA ? getGps(respA) : null;
+        const gB = respB ? getGps(respB) : null;
+        if (gA && gB) {
+          const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
+          addCheck("Distance \u2264 tolerance", d <= DIST_TOL_M, `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`);
+        } else {
+          addCheck("Distance \u2264 tolerance", false, "Missing locations.");
         }
-
-        if (c.kind === "COMB") {
-          setStatus("Combined receipt detected. Opening…");
-          location.href = "receipt.html#COMB=" + (c.v || "");
-          return;
-        }
-
-        if (c.kind === "RESP") {
-          if (hello) {
-            try{
-              setStatus("Accept detected. Verifying…");
-              await handleScannedResponseB64(c.v || "");
-              if (lastCombinedUrl) location.href = lastCombinedUrl;
-              return;
-            }catch(e){
-              setStatus("Response verify failed: " + e);
-              console.error(e);
-              return;
-            }
-          }
-
-          setStatus("Response detected (no HELLO loaded). Opening single receipt…");
-          location.href = "receipt.html#RESP=" + (c.v || "");
-          return;
-        }
-
-        setStatus("QR detected (unrecognized).");
-      },
-      () => {}
-    );
-  }
-
-  scanTheirRespBtn.addEventListener("click", async () => {
-    try{
-      if (!hello) {
-        setStatus("Scan a HELLO first (Home generates a HELLO QR)." );
-        return;
+      } catch(e) {
+        addCheck("Distance \u2264 tolerance", false, String(e));
       }
-      await listCamerasAndSelectDefault();
-      showScannerInPlace();
-      await startScanner();
-    }catch(e){
-      setStatus("Camera error: " + e);
-      console.error(e);
+
+    } else if (resp) {
+      metaTitle.textContent = "Receipt";
+      peopleGrid.style.display = "grid";
+
+      const url = makeReceiptUrlForResponse(resp);
+      if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
+
+      rawJson.textContent = JSON.stringify(resp, null, 2);
+      summaryKv.style.display = "none";
+      receiptHint.style.display = "none";
+
+      const mapsUrl = makeDualMapsUrl(getGps(resp), null);
+      setPersonPanel(aCoords, aTime, aAcc, resp, mapsUrl);
+      setPersonPanel(bCoords, bTime, bAcc, null, mapsUrl);
+
+      const vr = await validateResponse(resp);
+      addCheck("Receipt structure", vr.okStructure);
+      addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
+      addCheck("Signature valid", vr.okSig);
+      addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person to open this receipt.");
     }
-  });
-
-  showReceiptBtn.addEventListener("click", () => {
-    if (lastCombinedUrl) location.href = lastCombinedUrl;
-  });
-
-  if (clearLocalBtn) {
-    clearLocalBtn.addEventListener("click", () => {
-      try{
-        const keys = [
-          KEY_LAST_HELLO_B64,
-          KEY_LAST_SELF_RESP,
-          KEY_SELF,
-          KEY_GUEST,
-          KEY_RECEIPTS,
-          "irlid_receipt_last",
-          KEY_PREF_CAM
-        ];
-        for (const k of keys) localStorage.removeItem(k);
-      }catch{}
-      hello = null;
-      lastCombinedUrl = null;
-      try{ delete window.__irlid_last_self_response; }catch{}
-      location.hash = "";
-      initHelloReturnQr();
-      setStatus("Cleared local data.");
-    });
   }
 
-  startBtn.addEventListener("click", async () => {
-    try{
-      await listCamerasAndSelectDefault();
-      showScannerInPlace();
-      await startScanner();
-    }catch(e){
-      setStatus("Camera error: " + e);
-      console.error(e);
+  async function loadServerReceiptByHash(hash){
+    showDetailView();
+    metaPanel.style.display = "none";
+    rawWrap.style.display = "none";
+    document.getElementById("topQr").innerHTML = '<div class="loading-msg">Loading receipt\u2026</div>';
+
+    const result = await window.IRLBackend.getReceipt(hash);
+
+    if (!result.ok || !result.data) {
+      document.getElementById("topQr").innerHTML = '<div class="panel">Receipt not found.</div>';
+      return;
     }
-  });
 
-  stopBtn.addEventListener("click", async () => {
-    try{ await stopScanner(); }catch(e){ console.error(e); }
-  });
+    const data = result.data;
+    if (data.combined && data.combined.type === "combined") {
+      await renderDetail(data.combined, null, hash);
+    } else {
+      // No combined JSON — show basic server record
+      document.getElementById("topQr").innerHTML = "";
+      metaPanel.style.display = "block";
+      metaTitle.textContent = "Receipt (server record)";
+      summaryKv.style.display = "grid";
 
-  cameraSelect.addEventListener("change", async () => {
-    setStoredPreferredCameraId(cameraSelect.value);
-  });
+      const tsMs = normalizeEpochMs(data.ts_a) || normalizeEpochMs(data.ts_b);
+      sumTime.textContent = tsMs ? formatTimeNoTs(tsMs) : "(unknown)";
+      sumDistance.textContent = "(not available from summary)";
+      sumMap.textContent = "(not available from summary)";
+
+      peopleGrid.style.display = "none";
+      checksEl.innerHTML = "";
+      addCheck("Server verified", !!data.verified);
+      rawJson.textContent = JSON.stringify(data, null, 2);
+      rawWrap.style.display = "block";
+    }
+  }
+
+  // =========================
+  //  MAIN INIT
+  // =========================
 
   (async () => {
-    try{ await listCamerasAndSelectDefault(); } catch {}
+    if (typeof refreshNav === "function") await refreshNav();
+
+    const fromHash = parseFromHash();
+
+    // ---- DETAIL: server receipt by hash ----
+    if (fromHash && fromHash.kind === "server") {
+      await loadServerReceiptByHash(fromHash.hash);
+      return;
+    }
+
+    // ---- DETAIL: inline combined from hash ----
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      await renderDetail(fromHash.obj, null);
+      return;
+    }
+
+    // ---- DETAIL: inline response from hash ----
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      await renderDetail(null, fromHash.obj);
+      return;
+    }
+
+    // ---- LIST VIEW ----
+    showListView();
+
+    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      await loadServerReceipts(1);
+    } else {
+      loadLocalReceipts();
+    }
   })();
+
+  // Handle hash changes (back button, clicking items)
+  window.addEventListener("hashchange", async () => {
+    const fromHash = parseFromHash();
+
+    if (fromHash && fromHash.kind === "server") {
+      await loadServerReceiptByHash(fromHash.hash);
+      return;
+    }
+
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj) {
+      await renderDetail(fromHash.obj, null);
+      return;
+    }
+
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj) {
+      await renderDetail(null, fromHash.obj);
+      return;
+    }
+
+    // No hash = show list
+    if (!location.hash || location.hash === "#") {
+      showListView();
+      if (window.IRLBackend && window.IRLBackend.hasSession()) {
+        await loadServerReceipts(currentPage);
+      } else {
+        loadLocalReceipts();
+      }
+    }
+  });
 </script>
 
 </body>
