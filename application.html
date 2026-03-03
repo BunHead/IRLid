@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 76 -->
+<!-- Deploy 77 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -16,7 +16,7 @@
       align-items: center;
     }
 
-    /* === Viewport: the main visual area (scanner / QR / idle) === */
+    /* === Viewport === */
     .scan-viewport {
       position: relative;
       width: 100%;
@@ -26,67 +26,135 @@
       overflow: hidden;
     }
 
-    /* Idle state — crosshair target */
-    .scan-viewport .idle-overlay {
+    /* --- Idle: translucent QR finder patterns --- */
+    .scan-finders {
       position: absolute;
       inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       z-index: 2;
       pointer-events: none;
     }
-    .scan-viewport.state-idle .idle-overlay { display: flex; }
-    .scan-viewport.state-scanning .idle-overlay,
-    .scan-viewport.state-qr .idle-overlay { display: none; }
+    .scan-viewport.state-scanning .scan-finders,
+    .scan-viewport.state-qr .scan-finders { display: none; }
 
-    .idle-crosshair {
-      width: 120px;
-      height: 120px;
-      position: relative;
-    }
-    .idle-crosshair::before,
-    .idle-crosshair::after {
-      content: '';
+    /* Each finder pattern: 3 concentric squares */
+    .finder {
       position: absolute;
-      background: rgba(255,255,255,0.18);
+      width: 72px;
+      height: 72px;
     }
-    .idle-crosshair::before {
-      width: 1px; height: 100%;
-      left: 50%; top: 0;
+    .finder.tl { top: 10%; left: 10%; }
+    .finder.tr { top: 10%; right: 10%; }
+    .finder.bl { bottom: 10%; left: 10%; }
+    /* No bottom-right — just like a real QR code */
+
+    .finder .f-outer {
+      position: absolute;
+      inset: 0;
+      border: 5px solid rgba(255,255,255,0.12);
     }
-    .idle-crosshair::after {
-      height: 1px; width: 100%;
-      top: 50%; left: 0;
+    .finder .f-inner {
+      position: absolute;
+      inset: 14px;
+      border: 5px solid rgba(255,255,255,0.12);
     }
-    /* Corner brackets */
-    .idle-crosshair .c { position: absolute; width: 24px; height: 24px; }
-    .idle-crosshair .c::before, .idle-crosshair .c::after {
-      content: ''; position: absolute; background: rgba(255,255,255,0.35);
+    .finder .f-core {
+      position: absolute;
+      inset: 24px;
+      background: rgba(255,255,255,0.12);
     }
-    .c.tl { top:0; left:0; }
-    .c.tl::before { width:24px; height:2px; top:0; left:0; }
-    .c.tl::after  { width:2px; height:24px; top:0; left:0; }
-    .c.tr { top:0; right:0; }
-    .c.tr::before { width:24px; height:2px; top:0; right:0; }
-    .c.tr::after  { width:2px; height:24px; top:0; right:0; }
-    .c.bl { bottom:0; left:0; }
-    .c.bl::before { width:24px; height:2px; bottom:0; left:0; }
-    .c.bl::after  { width:2px; height:24px; bottom:0; left:0; }
-    .c.br { bottom:0; right:0; }
-    .c.br::before { width:24px; height:2px; bottom:0; right:0; }
-    .c.br::after  { width:2px; height:24px; bottom:0; right:0; }
 
     .idle-label {
-      color: rgba(255,255,255,0.4);
-      font-size: 13px;
-      letter-spacing: 0.08em;
+      position: absolute;
+      bottom: 12%;
+      left: 0; right: 0;
+      text-align: center;
+      color: rgba(255,255,255,0.3);
+      font-size: 12px;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      margin-top: 18px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .scan-viewport.state-scanning .idle-label,
+    .scan-viewport.state-qr .idle-label { display: none; }
+
+    /* --- Scanning: finder targets that lock on --- */
+    .scan-targets {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .scan-viewport.state-scanning .scan-targets { display: block; }
+
+    .target {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      /* Start very faint, pulse clearer */
+      animation: targetPulse 2.8s ease-in-out infinite;
+    }
+    .target.tl { top: 8%; left: 8%; animation-delay: 0s; }
+    .target.tr { top: 8%; right: 8%; animation-delay: 0.3s; }
+    .target.bl { bottom: 8%; left: 8%; animation-delay: 0.6s; }
+
+    .target .t-outer {
+      position: absolute;
+      inset: 0;
+      border: 4px solid rgba(255,255,255,0.15);
+      animation: targetPulse 2.8s ease-in-out infinite;
+    }
+    .target.tl .t-outer { animation-delay: 0s; }
+    .target.tr .t-outer { animation-delay: 0.3s; }
+    .target.bl .t-outer { animation-delay: 0.6s; }
+
+    .target .t-inner {
+      position: absolute;
+      inset: 11px;
+      border: 4px solid rgba(255,255,255,0.15);
+      animation: targetPulse 2.8s ease-in-out infinite;
+    }
+    .target.tl .t-inner { animation-delay: 0.15s; }
+    .target.tr .t-inner { animation-delay: 0.45s; }
+    .target.bl .t-inner { animation-delay: 0.75s; }
+
+    .target .t-core {
+      position: absolute;
+      inset: 20px;
+      background: rgba(255,255,255,0.15);
+      animation: targetPulse 2.8s ease-in-out infinite;
+    }
+    .target.tl .t-core { animation-delay: 0.3s; }
+    .target.tr .t-core { animation-delay: 0.6s; }
+    .target.bl .t-core { animation-delay: 0.9s; }
+
+    @keyframes targetPulse {
+      0%   { opacity: 0.3; }
+      40%  { opacity: 1; }
+      60%  { opacity: 1; }
+      100% { opacity: 0.3; }
     }
 
-    /* Scanner container (camera feed) */
+    /* Thin crosshair lines during scan */
+    .scan-cross {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 9;
+      pointer-events: none;
+    }
+    .scan-viewport.state-scanning .scan-cross { display: block; }
+    .scan-cross::before,
+    .scan-cross::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.08);
+    }
+    .scan-cross::before { width: 1px; height: 100%; left: 50%; top: 0; }
+    .scan-cross::after  { height: 1px; width: 100%; top: 50%; left: 0; }
+
+    /* Scanner container */
     .scan-viewport #scanner {
       position: absolute;
       inset: 0;
@@ -101,59 +169,7 @@
       object-fit: cover !important;
     }
 
-    /* === Red laser scanning line === */
-    .scan-laser {
-      display: none;
-      position: absolute;
-      left: 8%;
-      right: 8%;
-      height: 2px;
-      z-index: 10;
-      pointer-events: none;
-      background: #ff2222;
-      box-shadow:
-        0 0 8px 2px rgba(255, 34, 34, 0.6),
-        0 0 24px 4px rgba(255, 34, 34, 0.25);
-      animation: laserSweep 2.2s ease-in-out infinite;
-    }
-    .scan-viewport.state-scanning .scan-laser { display: block; }
-
-    @keyframes laserSweep {
-      0%   { top: 12%; opacity: 0.4; }
-      10%  { opacity: 1; }
-      50%  { top: 86%; opacity: 1; }
-      90%  { opacity: 1; }
-      100% { top: 12%; opacity: 0.4; }
-    }
-
-    /* Corner brackets overlaid on scanner */
-    .scan-corners {
-      display: none;
-      position: absolute;
-      inset: 10%;
-      z-index: 9;
-      pointer-events: none;
-    }
-    .scan-viewport.state-scanning .scan-corners { display: block; }
-
-    .scan-corners .c { position: absolute; width: 28px; height: 28px; }
-    .scan-corners .c::before, .scan-corners .c::after {
-      content: ''; position: absolute; background: rgba(255,255,255,0.55);
-    }
-    .scan-corners .c.tl { top:0; left:0; }
-    .scan-corners .c.tl::before { width:28px; height:2px; top:0; left:0; }
-    .scan-corners .c.tl::after  { width:2px; height:28px; top:0; left:0; }
-    .scan-corners .c.tr { top:0; right:0; }
-    .scan-corners .c.tr::before { width:28px; height:2px; top:0; right:0; }
-    .scan-corners .c.tr::after  { width:2px; height:28px; top:0; right:0; }
-    .scan-corners .c.bl { bottom:0; left:0; }
-    .scan-corners .c.bl::before { width:28px; height:2px; bottom:0; left:0; }
-    .scan-corners .c.bl::after  { width:2px; height:28px; bottom:0; left:0; }
-    .scan-corners .c.br { bottom:0; right:0; }
-    .scan-corners .c.br::before { width:28px; height:2px; bottom:0; right:0; }
-    .scan-corners .c.br::after  { width:2px; height:28px; bottom:0; right:0; }
-
-    /* QR response display inside viewport */
+    /* QR response inside viewport */
     .scan-viewport #responseQr {
       position: absolute;
       inset: 0;
@@ -164,35 +180,49 @@
       background: #fff;
       padding: 12px;
     }
-    .scan-viewport.state-qr #responseQr {
-      display: flex;
-    }
-    #responseQr canvas, #responseQr img {
-      max-width: 100%;
-      max-height: 100%;
-    }
+    .scan-viewport.state-qr #responseQr { display: flex; }
+    #responseQr canvas, #responseQr img { max-width: 100%; max-height: 100%; }
 
-    /* === Controls bar === */
-    .scan-controls {
+    /* === Below viewport: everything centered === */
+    .scan-below {
       width: 100%;
       max-width: 480px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 0;
-      background: #000;
+      text-align: center;
+    }
+
+    /* QR hint */
+    .qr-hint {
+      display: none;
+      width: 100%;
+      padding: 8px 14px 0;
+      font-size: 12px;
+      color: #888;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .scan-viewport.state-qr ~ .scan-below .qr-hint { display: block; }
+
+    /* Controls row */
+    .scan-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 14px 0;
+      flex-wrap: wrap;
     }
 
     .scan-controls .btn {
-      flex: 1;
-      padding: 14px 10px;
+      padding: 12px 28px;
       font-size: 15px;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      border: none;
-      border-right: 1px solid rgba(255,255,255,0.18);
     }
-    .scan-controls .btn:last-child { border-right: none; }
 
     .scan-controls .btn.active-scan {
       background: #ff2222;
@@ -200,31 +230,21 @@
       border-color: #ff2222;
     }
 
-    .scan-controls .cam-select-wrap {
-      flex: 0 0 auto;
-      padding: 0 10px;
-      display: flex;
-      align-items: center;
-    }
     .scan-controls select {
-      background: #000;
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.25);
-      padding: 8px 6px;
-      font-size: 12px;
-      max-width: 110px;
+      background: #fff;
+      color: #000;
+      border: 1px solid #000;
+      padding: 10px 8px;
+      font-size: 13px;
+      max-width: 140px;
     }
 
-    /* === Status bar === */
+    /* Status */
     .scan-status {
-      width: 100%;
-      max-width: 480px;
-      padding: 12px 14px;
+      padding: 10px 14px 0;
       font-size: 13px;
-      text-align: left;
       color: #555;
-      min-height: 40px;
-      line-height: 1.4;
+      text-align: center;
     }
     .scan-status.scanning {
       color: #ff2222;
@@ -243,42 +263,21 @@
       100% { content: ''; }
     }
 
-    /* Receipt button below status */
-    .scan-footer {
-      width: 100%;
-      max-width: 480px;
-      padding: 0 14px 14px;
+    /* Receipt button */
+    .scan-receipt-btn {
+      display: none;
+      padding: 8px 14px 0;
     }
-    .scan-footer .btn {
-      width: 100%;
-      padding: 14px;
+    .scan-receipt-btn .btn {
+      padding: 12px 28px;
       font-size: 15px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
 
-    /* QR hint label */
-    .qr-hint {
-      display: none;
-      width: 100%;
-      max-width: 480px;
-      padding: 6px 14px 2px;
-      font-size: 12px;
-      color: #888;
-      text-align: center;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-    .scan-viewport.state-qr ~ .qr-hint { display: block; }
-
-    /* Debug controls */
-    #debugControls {
-      display: none;
-      width: 100%;
-      max-width: 480px;
-      padding: 8px 14px;
-    }
+    /* Debug */
+    #debugControls { display: none; padding: 8px 14px 0; }
   </style>
 </head>
 
@@ -310,60 +309,56 @@
 
 <main class="scan-main">
 
-  <!-- Viewport: shows idle state, camera feed, or QR response -->
+  <!-- Viewport -->
   <div class="scan-viewport state-idle" id="scanViewport">
 
-    <!-- Idle overlay -->
-    <div class="idle-overlay">
-      <div class="idle-crosshair">
-        <div class="c tl"></div><div class="c tr"></div>
-        <div class="c bl"></div><div class="c br"></div>
-      </div>
-      <div class="idle-label">Point at any IRLid QR</div>
+    <!-- Idle: translucent QR finder patterns (3 corners like a real QR) -->
+    <div class="scan-finders">
+      <div class="finder tl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
+      <div class="finder tr"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
+      <div class="finder bl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
+    </div>
+    <div class="idle-label">Point at any IRLid QR</div>
+
+    <!-- Scanning: pulsing finder targets that "lock on" -->
+    <div class="scan-targets">
+      <div class="target tl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
+      <div class="target tr"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
+      <div class="target bl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
     </div>
 
-    <!-- Scanner (camera feed injected here by Html5Qrcode) -->
+    <!-- Subtle crosshair during scan -->
+    <div class="scan-cross"></div>
+
+    <!-- Camera feed -->
     <div id="scanner"></div>
 
-    <!-- Red laser line -->
-    <div class="scan-laser"></div>
-
-    <!-- Corner brackets during scan -->
-    <div class="scan-corners">
-      <div class="c tl"></div><div class="c tr"></div>
-      <div class="c bl"></div><div class="c br"></div>
-    </div>
-
-    <!-- QR response shown here -->
+    <!-- Accept QR display -->
     <div class="qr-box" id="responseQr"></div>
   </div>
 
-  <!-- Hint shown when QR is displayed -->
-  <div class="qr-hint" id="qrHint">&#8593; Show this Accept QR to the other person</div>
+  <!-- Everything below viewport: centered column -->
+  <div class="scan-below">
 
-  <!-- Controls bar -->
-  <div class="scan-controls">
-    <button class="btn" id="scanBtn">Scan</button>
-    <button class="btn active-scan" id="stopBtn" style="display:none;">Stop</button>
-    <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
-    <div class="cam-select-wrap">
+    <div class="qr-hint" id="qrHint">&#8593; Show this Accept QR to the other person</div>
+
+    <div class="scan-controls">
+      <button class="btn" id="scanBtn">Scan</button>
+      <button class="btn active-scan" id="stopBtn" style="display:none;">Stop</button>
       <select id="cameraSelect" aria-label="Camera"></select>
     </div>
+
+    <div class="scan-status" id="status">Ready</div>
+
+    <div class="scan-receipt-btn" id="receiptWrap">
+      <button class="btn" id="showReceiptBtn">Open Receipt</button>
+    </div>
+
+    <div id="debugControls">
+      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    </div>
+
   </div>
-
-  <!-- Status text -->
-  <div class="scan-status" id="status">Ready</div>
-
-  <!-- Receipt button -->
-  <div class="scan-footer" id="receiptFooter" style="display:none;">
-    <button class="btn" id="showReceiptBtn2">Open Receipt</button>
-  </div>
-
-  <!-- Debug -->
-  <div id="debugControls" style="display:none; text-align:center;">
-    <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
-  </div>
-
 </main>
 
 <script src="js/auth.js"></script>
@@ -384,30 +379,23 @@
   const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
   const KEY_LAST_SELF_RESP = "irlid_last_self_response";
 
-  const statusEl     = document.getElementById("status");
-  const scanViewport = document.getElementById("scanViewport");
-  const scanBtn      = document.getElementById("scanBtn");
-  const stopBtn      = document.getElementById("stopBtn");
-  const showReceiptBtn  = document.getElementById("showReceiptBtn");
-  const showReceiptBtn2 = document.getElementById("showReceiptBtn2");
-  const receiptFooter   = document.getElementById("receiptFooter");
-  const clearLocalBtn   = document.getElementById("clearLocalBtn");
-  const debugControls   = document.getElementById("debugControls");
-  const qrHint          = document.getElementById("qrHint");
+  const statusEl      = document.getElementById("status");
+  const scanViewport  = document.getElementById("scanViewport");
+  const scanBtn       = document.getElementById("scanBtn");
+  const stopBtn       = document.getElementById("stopBtn");
+  const showReceiptBtn = document.getElementById("showReceiptBtn");
+  const receiptWrap   = document.getElementById("receiptWrap");
+  const clearLocalBtn = document.getElementById("clearLocalBtn");
+  const debugControls = document.getElementById("debugControls");
+  const qrHint        = document.getElementById("qrHint");
 
   let lastCombinedUrl = null;
 
-  // ---- Viewport state management ----
   function setViewportState(state) {
-    // state: 'idle' | 'scanning' | 'qr'
     scanViewport.className = "scan-viewport state-" + state;
-
-    // Update qr-hint visibility (CSS sibling selector handles display,
-    // but we also toggle for safety)
     qrHint.style.display = (state === "qr") ? "block" : "none";
   }
 
-  // ---- Status helpers ----
   function setStatus(msg, isScanning) {
     if (isScanning) {
       statusEl.className = "scan-status scanning";
@@ -483,7 +471,6 @@
 
   const scannerEl = document.getElementById("scanner");
 
-  // ---- Init: show QR if we have a HELLO, else idle ----
   async function initHelloReturnQr(){
     const fromHash = getHelloFromHash();
     if (fromHash) {
@@ -498,8 +485,7 @@
 
     if (!hello) {
       setViewportState("idle");
-      showReceiptBtn.style.display = "none";
-      receiptFooter.style.display = "none";
+      receiptWrap.style.display = "none";
       lastCombinedUrl = null;
       setStatus("Ready \u2014 tap Scan to scan any IRLid QR code.");
       return;
@@ -524,8 +510,7 @@
 
       setStatus("Accept ready \u2014 show your QR, then tap Scan to read theirs.");
 
-      showReceiptBtn.style.display = "none";
-      receiptFooter.style.display = "none";
+      receiptWrap.style.display = "none";
       lastCombinedUrl = null;
     } catch(e) {
       setStatus("Error: " + e);
@@ -680,8 +665,7 @@
       }
     }
 
-    showReceiptBtn.style.display = "";
-    receiptFooter.style.display = "";
+    receiptWrap.style.display = "";
     setStatus("Verified \u2714 Combined receipt ready.");
   }
 
@@ -693,7 +677,6 @@
     try { await html5QrCode.clear(); } catch {}
     html5QrCode = null;
 
-    // Return to QR or idle
     if (hello && document.querySelector("#responseQr canvas, #responseQr img")) {
       setViewportState("qr");
     } else {
@@ -712,14 +695,12 @@
     scanBtn.style.display = "none";
     stopBtn.style.display = "";
 
-    // Switch viewport to scanning state (shows laser + corners)
     setViewportState("scanning");
     setStatus("Scanning", true);
 
     scannerEl.innerHTML = "";
     html5QrCode = new Html5Qrcode("scanner");
 
-    // Use full viewport — no qrbox restriction for better detection
     const config = {
       fps: 12,
       qrbox: function(vw, vh) {
@@ -799,7 +780,6 @@
     );
   }
 
-  // ---- Event handlers ----
   scanBtn.addEventListener("click", async () => {
     try{
       await listCamerasAndSelectDefault();
@@ -815,11 +795,9 @@
     setStatus(hello ? "Stopped \u2014 your Accept QR is shown." : "Stopped.");
   });
 
-  function openReceipt() {
+  showReceiptBtn.addEventListener("click", () => {
     if (lastCombinedUrl) location.href = lastCombinedUrl;
-  }
-  showReceiptBtn.addEventListener("click", openReceipt);
-  showReceiptBtn2.addEventListener("click", openReceipt);
+  });
 
   if (clearLocalBtn) {
     clearLocalBtn.addEventListener("click", () => {
@@ -833,8 +811,7 @@
       try{ delete window.__irlid_last_self_response; }catch{}
       location.hash = "";
       setViewportState("idle");
-      showReceiptBtn.style.display = "none";
-      receiptFooter.style.display = "none";
+      receiptWrap.style.display = "none";
       setStatus("Cleared local data.");
     });
   }
