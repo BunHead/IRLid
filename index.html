@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 74 -->
+<!-- Deploy 75 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -102,10 +102,17 @@
           };
         }
 
-        const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-
+        // Deploy 75: compress HELLO for smaller QR (v17 → v13).
+        // Use HZ= prefix for compressed, HELLO= fallback if compression unavailable.
         const baseUrl = location.origin + "/IRLid";
-        const url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+        let url;
+        if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
+          const compressed = await irlidCompressToB64url(hello);
+          url = `${baseUrl}/application.html#HZ=${compressed}`;
+        } else {
+          const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+          url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+        }
 
         const size = computeQrSize();
         await makeQR("myQr", url, size);
