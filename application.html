@@ -210,10 +210,12 @@
 
       const encoded = irlidEncodeJsonToB64url(respObj);
 
-      const url = new URL(location.href);
-      url.hash = "RESP=" + encoded;
+      // Deploy 74: compact non-URL format for response QR.
+      // Only scanned by in-app scanner, not generic QR readers.
+      // Saves ~54 chars vs full URL → smaller QR → easier to scan.
+      const qrData = "R:" + encoded;
 
-      await makeQR("responseQr", url.toString(), 360);
+      await makeQR("responseQr", qrData, 360);
       showQrInPlace();
 
       const fromHash = !!getHelloFromHash();
@@ -247,6 +249,11 @@
 
   function classify(text){
     const t = (text || "").trim();
+
+    // Deploy 74: compact non-URL prefixes (scanned within app only)
+    if (t.startsWith("R:")) return { kind:"RESP", v: t.slice(2) };
+    if (t.startsWith("H:")) return { kind:"HELLO", v: t.slice(2) };
+
     const rxHello = /(?:^|[#&])HELLO=([^&]+)/;
     const rxResp  = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
     const rxComb  = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
@@ -373,10 +380,13 @@
     if (window.IRLBackend && window.IRLBackend.hasSession()) {
       try {
         const upRes = await window.IRLBackend.uploadReceipt(out.combined);
-        if (upRes.ok) {
+        if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
+          // Deploy 74: use short server hash URL for receipt page.
+          // Produces a tiny QR (version 5) vs inline data (version 36).
+          lastCombinedUrl = "receipt.html#receipt=" + upRes.data.receipt_hash;
           console.log("Receipt uploaded:", upRes.data.receipt_hash, upRes.data.duplicate ? "(duplicate)" : "");
         } else {
-          console.warn("Receipt upload failed:", upRes.error);
+          console.warn("Receipt upload failed:", upRes.error || "unknown");
         }
       } catch(e) {
         console.warn("Receipt upload error:", e);
