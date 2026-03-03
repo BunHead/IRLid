@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 80 -->
+<!-- Deploy 80-3 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -679,49 +679,34 @@
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
-    // Determine which side is "me" by checking device keys
+    // Determine which side is "me" by checking my device keys
     const myKeyIds = (cachedDevices || []).map(d => d.pub_key_id);
     const aIsMe = keyIdA && myKeyIds.includes(keyIdA);
     const bIsMe = keyIdB && myKeyIds.includes(keyIdB);
 
-    // Look up info for both parties via backend
-    // Only update UI if we actually get real data back — never overwrite with null
-    if (window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
-      // --- Side A ---
+    // Self panel (side A): already set from initial render if aIsMe.
+    // Only look up if A is NOT me — i.e. viewing someone else's receipt.
+    if (!aIsMe && keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
       try {
-        if (keyIdA) {
-          const res = await window.IRLBackend.lookupByKey(keyIdA);
-          if (res.ok && res.data && res.data.found) {
-            if (res.data.display_name) selfNameEl.textContent = res.data.display_name;
-            if (res.data.google_picture) renderAvatar(selfAvatarWrap, res.data.google_picture);
-          }
-        }
-      } catch{}
-
-      // --- Side B ---
-      try {
-        if (keyIdB) {
-          const res = await window.IRLBackend.lookupByKey(keyIdB);
-          if (res.ok && res.data && res.data.found) {
-            if (res.data.display_name) guestNameEl.textContent = res.data.display_name;
-            if (res.data.google_picture) renderAvatar(guestAvatarWrap, res.data.google_picture);
-          }
+        const res = await window.IRLBackend.lookupByKey(keyIdA);
+        if (res.ok && res.data && res.data.found) {
+          if (res.data.display_name) selfNameEl.textContent = res.data.display_name;
+          if (res.data.google_picture) renderAvatar(selfAvatarWrap, res.data.google_picture);
         }
       } catch{}
     }
 
-    // Fallback: if "me" side still shows default and we have userInfo, apply it
-    if (aIsMe && cachedUserInfo) {
-      if (selfNameEl.textContent === "You" && cachedUserInfo.display_name)
-        selfNameEl.textContent = cachedUserInfo.display_name;
-      if (cachedUserInfo.google_picture && !selfAvatarWrap.querySelector("img"))
-        renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
-    }
-    if (bIsMe && cachedUserInfo) {
-      if (guestNameEl.textContent === "Guest" && cachedUserInfo.display_name)
-        guestNameEl.textContent = cachedUserInfo.display_name;
-      if (cachedUserInfo.google_picture && !guestAvatarWrap.querySelector("img"))
-        renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
+    // Guest panel (side B): only look up if B is NOT me.
+    // If bIsMe (self-scan), leave Guest as "Guest" — the user already sees
+    // themselves on the Self side, no point repeating.
+    if (!bIsMe && keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+      try {
+        const res = await window.IRLBackend.lookupByKey(keyIdB);
+        if (res.ok && res.data && res.data.found) {
+          if (res.data.display_name) guestNameEl.textContent = res.data.display_name;
+          if (res.data.google_picture) renderAvatar(guestAvatarWrap, res.data.google_picture);
+        }
+      } catch{}
     }
   }
 
