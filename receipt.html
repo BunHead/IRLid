@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 78c -->
+<!-- Deploy 78d -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -671,19 +671,33 @@
   // =========================
 
   async function resolvePartyInfo(comb){
-    // Compute pubKeyIds for both parties
     const pubA = comb.a && comb.a.pub ? comb.a.pub : null;
     const pubB = comb.b && comb.b.pub ? comb.b.pub : null;
+
+    // Get this device's local public key to identify which side is "me"
+    let localPub = null;
+    try {
+      const raw = localStorage.getItem("irlid_pub_jwk");
+      if (raw) localPub = JSON.parse(raw);
+    } catch{}
+
+    function jwkMatch(a, b) {
+      return a && b && a.x === b.x && a.y === b.y;
+    }
+
+    const aIsLocal = jwkMatch(pubA, localPub);
+    const bIsLocal = jwkMatch(pubB, localPub);
 
     let keyIdA = null, keyIdB = null;
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
-    if (!window.IRLBackend || typeof window.IRLBackend.lookupByKey !== "function") return;
-
-    // Always look up both sides. Show whatever the server returns.
-    // Side A
-    if (keyIdA) {
+    // Side A: if this device's key matches, use current session info (authoritative).
+    // Otherwise look up from server.
+    if (aIsLocal && cachedUserInfo) {
+      if (cachedUserInfo.display_name) selfNameEl.textContent = cachedUserInfo.display_name;
+      if (cachedUserInfo.google_picture) renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
+    } else if (keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdA);
         if (res.ok && res.data && res.data.found) {
@@ -693,8 +707,11 @@
       } catch{}
     }
 
-    // Side B
-    if (keyIdB) {
+    // Side B: same logic — local key match uses session, otherwise server lookup.
+    if (bIsLocal && cachedUserInfo) {
+      if (cachedUserInfo.display_name) guestNameEl.textContent = cachedUserInfo.display_name;
+      if (cachedUserInfo.google_picture) renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
+    } else if (keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdB);
         if (res.ok && res.data && res.data.found) {
