@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 74 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -96,7 +96,7 @@
           hello = {
             v: 1,
             type: "hello",
-            pub,
+            pub: (typeof compactJwk === "function") ? compactJwk(pub) : pub,
             nonce: crypto.getRandomValues(new Uint32Array(1))[0],
             ts: Math.floor(Date.now() / 1000)
           };
