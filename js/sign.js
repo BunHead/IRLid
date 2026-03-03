@@ -1,5 +1,5 @@
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 75 — compact payloads for smaller QR codes
+//  Deploy 76 — compact payloads for smaller QR codes
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -157,7 +157,7 @@ function irlidDecodeB64urlJson(b64url){
   return JSON.parse(txt);
 }
 
-// Deploy 75: deflate compression for smaller QR codes.
+// Deploy 76: deflate compression for smaller QR codes.
 // Uses browser-native CompressionStream (Chrome 80+, Safari 16.4+, Firefox 113+).
 
 function irlidHasCompression() {
@@ -245,7 +245,7 @@ function irlidGetPosition(opts){
 async function makeSignedHelloAsync(opts){
   // Creates a HELLO object that already contains a signed, replay-resistant "offer"
   // so the other party can verify you immediately (2-scan handshake).
-  // Deploy 75: compact format — stripped JWK, no redundant top-level nonce/ts,
+  // Deploy 76: compact format — stripped JWK, no redundant top-level nonce/ts,
   // no type/v in offer payload, GPS rounded to 5dp.
   const pos = await irlidGetPosition({
     enableHighAccuracy: true,
@@ -355,7 +355,7 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Deploy 75: no type/v in payload (saves ~22 chars).
+  // Deploy 76: no type/v in payload (saves ~22 chars).
   const payload = {
     helloHash,
     offerHash: offerInfo.offerHash || undefined,
@@ -373,7 +373,7 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const hash = await hashPayloadToB64url(payload);
   const sig = await signHashB64url(hash);
 
-  // Deploy 75: stripped JWK (saves ~25 chars).
+  // Deploy 76: stripped JWK (saves ~25 chars).
   const resp = {
     v: 2,
     type: "response",
