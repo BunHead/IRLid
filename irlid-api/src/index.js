@@ -1,6 +1,6 @@
-// irlid-api/src/index.js — v4
+// irlid-api/src/index.js — v5
 // IRLid Backend — Cloudflare Worker + D1
-// Auth (device key + Google), profile, receipts, device linking
+// Auth (device key + Google), profile, receipts, device linking, user lookup
 
 // =====================
 //  HELPERS
@@ -361,7 +361,14 @@ async function me(request, env) {
   if (!user) return json({ logged_in: false });
 
   const devices = await env.DB.prepare("SELECT id, pub_key_id, label, created_at, revoked_at FROM devices WHERE user_id = ?").bind(session.userId).all();
-  const countRow = await env.DB.prepare("SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?").bind(session.userId).first();
+  const countRow = await env.DB.prepare(
+    `SELECT COUNT(*) as cnt FROM (
+       SELECT DISTINCT r.id FROM receipts r
+       WHERE r.uploader_id = ?
+          OR r.pub_key_a IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+          OR r.pub_key_b IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+     )`
+  ).bind(session.userId, session.userId, session.userId).first();
 
   return json({
     logged_in: true,
@@ -563,11 +570,24 @@ async function listReceipts(request, env) {
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20")));
   const offset = (page - 1) * limit;
 
+  // Include receipts where user uploaded OR where user's device key is party a or b
   const rows = await env.DB.prepare(
-    "SELECT id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, verified, created_at FROM receipts WHERE uploader_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
-  ).bind(session.userId, limit, offset).all();
+    `SELECT DISTINCT r.id, r.receipt_hash, r.pub_key_a, r.pub_key_b, r.ts_a, r.ts_b, r.verified, r.created_at
+     FROM receipts r
+     WHERE r.uploader_id = ?
+        OR r.pub_key_a IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+        OR r.pub_key_b IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+     ORDER BY r.created_at DESC LIMIT ? OFFSET ?`
+  ).bind(session.userId, session.userId, session.userId, limit, offset).all();
 
-  const countRow = await env.DB.prepare("SELECT COUNT(*) as cnt FROM receipts WHERE uploader_id = ?").bind(session.userId).first();
+  const countRow = await env.DB.prepare(
+    `SELECT COUNT(*) as cnt FROM (
+       SELECT DISTINCT r.id FROM receipts r
+       WHERE r.uploader_id = ?
+          OR r.pub_key_a IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+          OR r.pub_key_b IN (SELECT pub_key_id FROM devices WHERE user_id = ?)
+     )`
+  ).bind(session.userId, session.userId, session.userId).first();
   return json({ receipts: rows.results || [], total: countRow ? countRow.cnt : 0, page, limit });
 }
 
@@ -592,6 +612,22 @@ async function verify(request, env) {
 }
 
 // =====================
+//  USER LOOKUP BY KEY
+// =====================
+
+async function lookupByKey(request, env, pubKeyIdParam) {
+  const device = await env.DB.prepare(
+    "SELECT user_id FROM devices WHERE pub_key_id = ? AND revoked_at IS NULL"
+  ).bind(pubKeyIdParam).first();
+  if (!device) return json({ found: false });
+  const user = await env.DB.prepare(
+    "SELECT display_name, google_picture FROM users WHERE id = ?"
+  ).bind(device.user_id).first();
+  if (!user) return json({ found: false });
+  return json({ found: true, display_name: user.display_name || null, google_picture: user.google_picture || null });
+}
+
+// =====================
 //  ROUTER
 // =====================
 
@@ -605,7 +641,7 @@ export default {
 
     let response;
     try {
-      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 4 });
+      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 5 });
 
       else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
       else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
@@ -627,7 +663,11 @@ export default {
       else {
         const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
         if (method === "GET" && m) response = await getReceipt(request, env, m[1]);
-        else response = err("Not found", 404);
+        else {
+          const mKey = path.match(/^\/users\/by-key\/([A-Za-z0-9\-_]+)$/);
+          if (method === "GET" && mKey) response = await lookupByKey(request, env, mKey[1]);
+          else response = err("Not found", 404);
+        }
       }
     } catch (e) {
       console.error("Unhandled:", e);
