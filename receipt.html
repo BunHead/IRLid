@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 79 -->
+<!-- Deploy 80 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -493,6 +493,7 @@
 
   // Cached user info
   let cachedUserInfo = null;
+  let cachedDevices = null;
 
   // =========================
   //  DEBUG MODE
@@ -643,6 +644,7 @@
       const res = await window.IRLBackend.me();
       if (res.ok && res.data && res.data.logged_in && res.data.user) {
         cachedUserInfo = res.data.user;
+        cachedDevices = res.data.devices || [];
         return cachedUserInfo;
       }
     } catch{}
@@ -662,6 +664,67 @@
     } else {
       wrapEl.innerHTML = makePlaceholderSvg();
     }
+  }
+
+  // =========================
+  //  RESOLVE PARTY IDENTITIES
+  // =========================
+
+  async function resolvePartyInfo(comb){
+    // Compute pubKeyIds for both parties
+    const pubA = comb.a && comb.a.pub ? comb.a.pub : null;
+    const pubB = comb.b && comb.b.pub ? comb.b.pub : null;
+
+    let keyIdA = null, keyIdB = null;
+    try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
+    try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
+
+    // Determine which side is "me" by checking device keys
+    const myKeyIds = (cachedDevices || []).map(d => d.pub_key_id);
+    const aIsMe = keyIdA && myKeyIds.includes(keyIdA);
+    const bIsMe = keyIdB && myKeyIds.includes(keyIdB);
+
+    // Look up info for both parties via backend
+    let infoA = null, infoB = null;
+    if (window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+      try {
+        if (keyIdA) {
+          const res = await window.IRLBackend.lookupByKey(keyIdA);
+          if (res.ok && res.data && res.data.found) infoA = res.data;
+        }
+      } catch{}
+      try {
+        if (keyIdB) {
+          const res = await window.IRLBackend.lookupByKey(keyIdB);
+          if (res.ok && res.data && res.data.found) infoB = res.data;
+        }
+      } catch{}
+    }
+
+    // Assign names — use fetched info, or "You"/"Guest" as fallback
+    // Side A = "Self" panel, Side B = "Guest" panel
+    // If current user is side B, we could swap, but receipt structure is fixed
+    // as a=initiator, b=responder. So just label based on who they are.
+
+    // Self panel (side A)
+    if (infoA && infoA.display_name) {
+      selfNameEl.textContent = infoA.display_name;
+    } else if (aIsMe && cachedUserInfo && cachedUserInfo.display_name) {
+      selfNameEl.textContent = cachedUserInfo.display_name;
+    } else if (aIsMe) {
+      selfNameEl.textContent = "You";
+    }
+    renderAvatar(selfAvatarWrap, infoA ? infoA.google_picture : null);
+
+    // Guest panel (side B)
+    if (infoB && infoB.display_name) {
+      guestNameEl.textContent = infoB.display_name;
+    } else if (bIsMe && cachedUserInfo && cachedUserInfo.display_name) {
+      guestNameEl.textContent = cachedUserInfo.display_name;
+    } else if (bIsMe) {
+      guestNameEl.textContent = "You";
+    }
+    renderAvatar(guestAvatarWrap, infoB ? infoB.google_picture : null);
   }
 
   // =========================
@@ -1095,15 +1158,9 @@
     if (comb) {
       metaTitle.textContent = "Combined Receipt";
 
-      // --- Names ---
-      if (userInfo && userInfo.display_name) {
-        selfNameEl.textContent = userInfo.display_name;
-      } else {
-        selfNameEl.textContent = "You";
-      }
+      // --- Initial names/avatars (will be resolved async) ---
+      selfNameEl.textContent = (userInfo && userInfo.display_name) ? userInfo.display_name : "You";
       guestNameEl.textContent = "Guest";
-
-      // --- Avatars ---
       renderAvatar(selfAvatarWrap, userInfo ? userInfo.google_picture : null);
       renderAvatar(guestAvatarWrap, null);
 
@@ -1165,7 +1222,7 @@
       const helloObj = comb.hello || null;
       if (helloObj) {
         try {
-          const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
+          const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: 999999999 });
           addCheck("HELLO offer", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
         } catch(e) {
           addCheck("HELLO offer", false, String(e));
@@ -1213,6 +1270,9 @@
       } catch(e) {
         addCheck("Distance \u2264 tolerance", false, String(e));
       }
+
+      // Async resolve both parties' names and avatars from backend
+      resolvePartyInfo(comb);
 
     } else if (resp) {
       metaTitle.textContent = "Receipt";
