@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 78 -->
+<!-- Deploy 78c -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -679,14 +679,11 @@
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
-    // Determine which side is "me" by checking my device keys
-    const myKeyIds = (cachedDevices || []).map(d => d.pub_key_id);
-    const aIsMe = keyIdA && myKeyIds.includes(keyIdA);
-    const bIsMe = keyIdB && myKeyIds.includes(keyIdB);
+    if (!window.IRLBackend || typeof window.IRLBackend.lookupByKey !== "function") return;
 
-    // Self panel (side A): already set from initial render if aIsMe.
-    // Only look up if A is NOT me — i.e. viewing someone else's receipt.
-    if (!aIsMe && keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+    // Always look up both sides. Show whatever the server returns.
+    // Side A
+    if (keyIdA) {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdA);
         if (res.ok && res.data && res.data.found) {
@@ -696,10 +693,8 @@
       } catch{}
     }
 
-    // Guest panel (side B): only look up if B is NOT me.
-    // If bIsMe (self-scan), leave Guest as "Guest" — the user already sees
-    // themselves on the Self side, no point repeating.
-    if (!bIsMe && keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+    // Side B
+    if (keyIdB) {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdB);
         if (res.ok && res.data && res.data.found) {
