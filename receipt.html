@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 75 -->
+<!-- Deploy 76 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -398,7 +398,7 @@
     return baseReceiptUrl() + "#COMB=" + irlidEncodeJsonToB64url(comb);
   }
 
-  // Deploy 74: short server-hash receipt URL (QR version 5 vs 36).
+  // Deploy 76: short server-hash receipt URL (QR version 5 vs 36).
   function makeReceiptUrlForHash(hash){
     return baseReceiptUrl() + "#receipt=" + hash;
   }
@@ -753,7 +753,7 @@
       metaTitle.textContent = "Combined Receipt";
       peopleGrid.style.display = "grid";
 
-      // Deploy 75: prefer short server-hash URL for QR (version 5 vs 36).
+      // Deploy 76: prefer short server-hash URL for QR (version 5 vs 36).
       // NEVER render the giant inline COMB= QR — it's unscannable.
       let qrUrl = null;
       if (serverHash) {
