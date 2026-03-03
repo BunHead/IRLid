@@ -1,14 +1,13 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 74 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Receipt</title>
+  <title>IRLid — Receipts</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    /* Receipt page: keep final combined fit cleanly on mobile without touching global nav/CSS */
     .receipt-wrap{ max-width: 860px; margin: 0 auto; }
     .receipt-qr{ text-align:center; }
     .receipt-qr canvas, .receipt-qr img{
@@ -25,10 +24,7 @@
       flex-wrap: wrap;
     }
     .receipt-headerline h3{ margin: 0; }
-    .receipt-mini{
-      font-size: 12px;
-      opacity: .85;
-    }
+    .receipt-mini{ font-size: 12px; opacity: .85; }
     .receipt-kv{
       display:grid;
       grid-template-columns: 120px 1fr;
@@ -86,6 +82,59 @@
       padding: 12px 12px;
       font-size: 12px;
     }
+
+    /* ---- List view styles ---- */
+    .receipt-list{ list-style: none; padding: 0; margin: 10px 0 0; text-align: left; }
+    .receipt-item{
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .receipt-item:hover{ background: #f9f9f9; }
+    .receipt-item-row{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .receipt-item-time{ font-size: 14px; font-weight: 600; }
+    .receipt-item-sub{ font-size: 12px; opacity: .7; margin-top: 3px; }
+    .receipt-item-badge{
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border: 1px solid #e5e5e5;
+      flex-shrink: 0;
+    }
+    .receipt-item-badge.verified{ background: #eaffea; border-color: #c8f2c8; color: #1a6e1a; }
+    .receipt-item-badge.unverified{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
+    .receipt-item-badge.local-badge{ background: #f7f7f7; border-color: #ddd; color: #555; }
+
+    .pagination{
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      margin: 14px 0;
+    }
+    .pagination .btn{ min-width: 80px; }
+    .page-info{ font-size: 13px; opacity: .7; }
+
+    .back-link{
+      display: inline-block;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #111;
+    }
+    .loading-msg{
+      padding: 20px;
+      text-align: center;
+      opacity: .6;
+      font-size: 14px;
+    }
   </style>
 </head>
 
@@ -118,62 +167,77 @@
 <main class="page-main">
   <div class="receipt-wrap">
 
-    <div class="panel" id="emptyState" style="display:none;">
-      No receipts yet. Use <a href="application.html">Scan</a> to exchange accept QRs.
-    </div>
-
-    <div class="qr-box receipt-qr" id="topQr" aria-label="Receipt QR"></div>
-
-    <div class="panel" id="metaPanel" style="display:none;">
-      <div class="receipt-headerline">
-        <h3 id="metaTitle">Receipt</h3>
-        <div class="receipt-mini" id="receiptHint" style="display:none;"></div>
+    <!-- ===== LIST VIEW ===== -->
+    <div id="listView" style="display:none;">
+      <h3 style="margin:0 0 4px; text-align:left;">My Receipts</h3>
+      <div id="listLoading" class="loading-msg">Loading receipts…</div>
+      <div id="listEmpty" class="panel" style="display:none;">
+        No receipts yet. Use <a href="application.html">Scan</a> to exchange QRs with someone.
       </div>
-
-      <div class="receipt-kv" id="summaryKv" style="display:none;">
-        <div class="k">Time</div><div class="v" id="sumTime"></div>
-        <div class="k">Distance</div><div class="v" id="sumDistance"></div>
-        <div class="k">Map</div><div class="v" id="sumMap"></div>
+      <ul class="receipt-list" id="receiptList"></ul>
+      <div class="pagination" id="paginationBar" style="display:none;">
+        <button class="btn secondary" id="prevPageBtn">&larr; Prev</button>
+        <span class="page-info" id="pageInfo"></span>
+        <button class="btn secondary" id="nextPageBtn">Next &rarr;</button>
       </div>
-
-      <div class="receipt-two" id="peopleGrid" style="display:none;">
-        <div class="person-panel">
-          <div class="person-title">Self</div>
-          <div class="person-row" id="aCoords"></div>
-          <div class="person-row" id="aTime"></div>
-          <div class="person-note" id="aAcc"></div>
-        </div>
-
-        <div class="person-panel">
-          <div class="person-title">Guest</div>
-          <div class="person-row" id="bCoords"></div>
-          <div class="person-row" id="bTime"></div>
-          <div class="person-note" id="bAcc"></div>
-        </div>
-      </div>
-
-      <div class="checks" id="checks"></div>
-
-      <div class="btnrow">
-        <button class="btn secondary" id="clearBtn">Clear stored receipts</button>
-      </div>
-
-      <div class="person-note" style="margin-top:10px;">
-        The QR above is a URL. Any QR scanner can open this receipt page.
+      <div class="btnrow" id="listFooter" style="display:none;">
+        <button class="btn secondary" id="clearBtn">Clear local receipts</button>
       </div>
     </div>
 
-    <details class="raw" id="rawWrap" style="display:none;">
-      <summary>Show stored JSON</summary>
-      <pre id="rawJson"></pre>
-    </details>
+    <!-- ===== DETAIL VIEW ===== -->
+    <div id="detailView" style="display:none;">
+      <a href="#" class="back-link" id="backToList">&larr; Back to receipts</a>
+
+      <div class="qr-box receipt-qr" id="topQr" aria-label="Receipt QR"></div>
+
+      <div class="panel" id="metaPanel" style="display:none;">
+        <div class="receipt-headerline">
+          <h3 id="metaTitle">Receipt</h3>
+          <div class="receipt-mini" id="receiptHint" style="display:none;"></div>
+        </div>
+
+        <div class="receipt-kv" id="summaryKv" style="display:none;">
+          <div class="k">Time</div><div class="v" id="sumTime"></div>
+          <div class="k">Distance</div><div class="v" id="sumDistance"></div>
+          <div class="k">Map</div><div class="v" id="sumMap"></div>
+        </div>
+
+        <div class="receipt-two" id="peopleGrid" style="display:none;">
+          <div class="person-panel">
+            <div class="person-title">Self</div>
+            <div class="person-row" id="aCoords"></div>
+            <div class="person-row" id="aTime"></div>
+            <div class="person-note" id="aAcc"></div>
+          </div>
+
+          <div class="person-panel">
+            <div class="person-title">Guest</div>
+            <div class="person-row" id="bCoords"></div>
+            <div class="person-row" id="bTime"></div>
+            <div class="person-note" id="bAcc"></div>
+          </div>
+        </div>
+
+        <div class="checks" id="checks"></div>
+
+        <div class="person-note" style="margin-top:10px;">
+          The QR above is a URL. Any QR scanner can open this receipt page.
+        </div>
+      </div>
+
+      <details class="raw" id="rawWrap" style="display:none;">
+        <summary>Show stored JSON</summary>
+        <pre id="rawJson"></pre>
+      </details>
+    </div>
 
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
-  <script src="js/nav.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="js/qr.js?v=63"></script>
 
@@ -186,7 +250,21 @@
   const KEY_LAST = "irlid_receipt_last";
   const KEY_LIST = "irlid_receipts";
 
-  const emptyState = document.getElementById("emptyState");
+  // ---- DOM refs: list ----
+  const listView = document.getElementById("listView");
+  const listLoading = document.getElementById("listLoading");
+  const listEmpty = document.getElementById("listEmpty");
+  const receiptListEl = document.getElementById("receiptList");
+  const paginationBar = document.getElementById("paginationBar");
+  const prevPageBtn = document.getElementById("prevPageBtn");
+  const nextPageBtn = document.getElementById("nextPageBtn");
+  const pageInfo = document.getElementById("pageInfo");
+  const listFooter = document.getElementById("listFooter");
+  const clearBtn = document.getElementById("clearBtn");
+
+  // ---- DOM refs: detail ----
+  const detailView = document.getElementById("detailView");
+  const backToList = document.getElementById("backToList");
   const metaPanel = document.getElementById("metaPanel");
   const metaTitle = document.getElementById("metaTitle");
   const receiptHint = document.getElementById("receiptHint");
@@ -204,11 +282,17 @@
   const checksEl = document.getElementById("checks");
   const rawWrap = document.getElementById("rawWrap");
   const rawJson = document.getElementById("rawJson");
-  const clearBtn = document.getElementById("clearBtn");
+
+  let currentPage = 1;
+  let totalReceipts = 0;
+  let pageLimit = 20;
+
+  // =========================
+  //  UTILITY FUNCTIONS
+  // =========================
 
   function baseReceiptUrl(){
-    const base = location.origin + location.pathname.replace(/\/[^\/]*$/, "/receipt.html");
-    return base;
+    return location.origin + location.pathname.replace(/\/[^\/]*$/, "/receipt.html");
   }
 
   function qrSize(){
@@ -224,69 +308,6 @@
     return null;
   }
 
-  function parseFromHash(){
-    const h = location.hash || "";
-    const mComb = h.match(/COMB=([A-Za-z0-9\-_]+)/);
-    const mResp = h.match(/RESP=([A-Za-z0-9\-_]+)/);
-    if (mComb) {
-      try{
-        return { kind: "comb", raw: mComb[1], obj: irlidDecodeB64urlJson(mComb[1]) };
-      }catch{
-        return { kind: "comb", raw: mComb[1], obj: null };
-      }
-    }
-    if (mResp) {
-      try{
-        return { kind: "resp", raw: mResp[1], obj: irlidDecodeB64urlJson(mResp[1]) };
-      }catch{
-        return { kind: "resp", raw: mResp[1], obj: null };
-      }
-    }
-    return null;
-  }
-
-  function haversineMeters(lat1, lon1, lat2, lon2){
-    const R = 6371000;
-    const toRad = (d) => d * Math.PI / 180;
-    const a1 = toRad(lat1);
-    const a2 = toRad(lat2);
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const s =
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(a1) * Math.cos(a2) * Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
-    return R * c;
-  }
-
-  function fmtNum(n){
-    if (typeof n !== "number" || !Number.isFinite(n)) return "?";
-    return n.toFixed(6);
-  }
-
-  function formatTimeNoTs(tsMs){
-    if (!tsMs) return null;
-    try {
-      const d = new Date(tsMs);
-      return d.toLocaleString();
-    } catch {
-      return null;
-    }
-  }
-
-  function addCheck(label, ok, detail){
-    const div = document.createElement("div");
-    div.className = "check";
-    const badge = document.createElement("div");
-    badge.className = "badge " + (ok ? "pass" : "fail");
-    badge.textContent = ok ? "PASS" : "FAIL";
-    const txt = document.createElement("div");
-    txt.innerHTML = `${label}${detail ? `<div class="person-note">${detail}</div>` : ""}`;
-    div.appendChild(badge);
-    div.appendChild(txt);
-    checksEl.appendChild(div);
-  }
-
   function readJson(key){
     const raw = localStorage.getItem(key);
     if (!raw) return null;
@@ -299,26 +320,46 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  // GPS extraction:
-  // Supports both:
-  //  - payload.gps.{lat,lon,acc}  (nested)
-  //  - payload.{lat,lon,acc}      (flat — your current data)
-  // Also supports lon/lng and accuracy fields.
+  function haversineMeters(lat1, lon1, lat2, lon2){
+    const R = 6371000;
+    const toRad = (d) => d * Math.PI / 180;
+    const a1 = toRad(lat1), a2 = toRad(lat2);
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const s = Math.sin(dLat/2)**2 + Math.cos(a1)*Math.cos(a2)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function fmtNum(n){
+    if (typeof n !== "number" || !Number.isFinite(n)) return "?";
+    return n.toFixed(6);
+  }
+
+  function formatTimeNoTs(tsMs){
+    if (!tsMs) return null;
+    try { return new Date(tsMs).toLocaleString(); } catch { return null; }
+  }
+
+  function formatTimeShort(tsMs){
+    if (!tsMs) return "Unknown time";
+    try {
+      const d = new Date(tsMs);
+      return d.toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) +
+             " " + d.toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+    } catch { return "Unknown time"; }
+  }
+
   function extractGpsFromPayload(payload){
     if (!payload || typeof payload !== "object") return null;
-
     if (payload.gps && typeof payload.gps === "object") {
       const lat = Number(payload.gps.lat ?? payload.gps.latitude);
       const lon = Number(payload.gps.lon ?? payload.gps.lng ?? payload.gps.longitude);
       const acc = Number(payload.gps.acc ?? payload.gps.accuracy);
       if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
     }
-
     const lat = Number(payload.lat ?? payload.latitude);
     const lon = Number(payload.lon ?? payload.lng ?? payload.longitude);
     const acc = Number(payload.acc ?? payload.accuracy);
     if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon, acc: Number.isFinite(acc) ? acc : null };
-
     return null;
   }
 
@@ -343,24 +384,31 @@
   }
 
   function makeDualMapsUrl(gA, gB){
-    if (gA && gB) {
-      const midLat = (gA.lat + gB.lat) / 2;
-      const midLon = (gA.lon + gB.lon) / 2;
-      return makeMapsUrl(midLat, midLon);
-    }
+    if (gA && gB) return makeMapsUrl((gA.lat+gB.lat)/2, (gA.lon+gB.lon)/2);
     if (gA) return makeMapsUrl(gA.lat, gA.lon);
     if (gB) return makeMapsUrl(gB.lat, gB.lon);
     return "#";
   }
 
   function makeReceiptUrlForResponse(resp){
-    const enc = irlidEncodeJsonToB64url(resp);
-    return baseReceiptUrl() + "#RESP=" + enc;
+    return baseReceiptUrl() + "#RESP=" + irlidEncodeJsonToB64url(resp);
   }
 
   function makeReceiptUrlForCombined(comb){
-    const enc = irlidEncodeJsonToB64url(comb);
-    return baseReceiptUrl() + "#COMB=" + enc;
+    return baseReceiptUrl() + "#COMB=" + irlidEncodeJsonToB64url(comb);
+  }
+
+  function addCheck(label, ok, detail){
+    const div = document.createElement("div");
+    div.className = "check";
+    const badge = document.createElement("div");
+    badge.className = "badge " + (ok ? "pass" : "fail");
+    badge.textContent = ok ? "PASS" : "FAIL";
+    const txt = document.createElement("div");
+    txt.innerHTML = `${label}${detail ? `<div class="person-note">${detail}</div>` : ""}`;
+    div.appendChild(badge);
+    div.appendChild(txt);
+    checksEl.appendChild(div);
   }
 
   function setPersonPanel(elCoords, elTime, elAcc, resp, mapsUrl){
@@ -370,112 +418,36 @@
       elAcc.textContent = "";
       return;
     }
-
     const gps = getGps(resp);
     const tsMs = getTsMs(resp);
-
     if (gps) {
       elCoords.innerHTML = `Location: <a class="maplink" href="${mapsUrl}" target="_blank" rel="noopener noreferrer">${fmtNum(gps.lat)}, ${fmtNum(gps.lon)}</a>`;
-      elAcc.textContent = (typeof gps.acc === "number" && Number.isFinite(gps.acc)) ? `Accuracy: ±${Math.round(gps.acc)} m` : "";
+      elAcc.textContent = (typeof gps.acc === "number" && Number.isFinite(gps.acc)) ? `Accuracy: \u00b1${Math.round(gps.acc)} m` : "";
     } else {
       elCoords.textContent = "Location: (not captured)";
       elAcc.textContent = "";
     }
-
     const t = formatTimeNoTs(tsMs);
     elTime.textContent = t ? `Time: ${t}` : "Time: (missing)";
   }
 
   async function validateResponse(resp){
-    const results = {
-      okStructure: false,
-      okHash: false,
-      okSig: false,
-      computedHash: null
-    };
-
-    if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
-      return results;
-    }
+    const results = { okStructure: false, okHash: false, okSig: false, computedHash: null };
+    if (!resp || resp.type !== "response" || !resp.payload || !resp.hash || !resp.sig || !resp.pub) return results;
     results.okStructure = true;
-
     try {
       const computed = await hashPayloadToB64url(resp.payload);
       results.computedHash = computed;
       results.okHash = (computed === resp.hash);
-    } catch {
-      results.okHash = false;
-    }
-
-    try {
-      results.okSig = await verifySig(resp.hash, resp.sig, resp.pub);
-    } catch {
-      results.okSig = false;
-    }
-
+    } catch { results.okHash = false; }
+    try { results.okSig = await verifySig(resp.hash, resp.sig, resp.pub); } catch { results.okSig = false; }
     return results;
-  }
-
-  function pickLatestFromReceiptsKey(){
-    const raw = localStorage.getItem(KEY_LIST);
-    if (!raw) return null;
-
-    const parsed = safeParseAny(raw);
-    if (!parsed) return null;
-
-    const arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : null);
-    if (!arr || !arr.length) return null;
-
-    let best = null;
-    let bestScore = -Infinity;
-
-    for (let i = 0; i < arr.length; i++) {
-      const entry = arr[i];
-
-      const combined =
-        (entry && entry.type === "combined") ? entry :
-        (entry && entry.combined && entry.combined.type === "combined") ? entry.combined :
-        null;
-
-      const resp =
-        (entry && entry.type === "response") ? entry :
-        null;
-
-      const url =
-        (typeof entry === "string") ? entry :
-        (entry && typeof entry.url === "string") ? entry.url :
-        (entry && typeof entry.receiptUrl === "string") ? entry.receiptUrl :
-        null;
-
-      let score = null;
-      if (entry && typeof entry.ts !== "undefined") score = normalizeEpochMs(entry.ts);
-
-      if (score === null && combined) {
-        const ta = combined.a ? getTsMs(combined.a) : null;
-        const tb = combined.b ? getTsMs(combined.b) : null;
-        const t = Math.max(ta || -Infinity, tb || -Infinity);
-        score = Number.isFinite(t) ? t : null;
-      }
-      if (score === null && resp) score = getTsMs(resp);
-
-      if (score === null) score = 0;
-      score = score + (i / 1000000);
-
-      if (score > bestScore) {
-        bestScore = score;
-        best = { entry, combined, resp, url, score };
-      }
-    }
-
-    return best;
   }
 
   function setSummary(comb){
     summaryKv.style.display = "grid";
-
     const respA = comb && comb.a ? comb.a : null;
     const respB = comb && comb.b ? comb.b : null;
-
     const tsA = respA ? getTsMs(respA) : null;
     const tsB = respB ? getTsMs(respB) : null;
 
@@ -484,7 +456,7 @@
       const lo = new Date(Math.min(tsA, tsB));
       const hi = new Date(Math.max(tsA, tsB));
       const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
-      timeLine = `${lo.toLocaleString()} — ${hi.toLocaleTimeString()} (Δ ${deltaS}s)`;
+      timeLine = `${lo.toLocaleString()} \u2014 ${hi.toLocaleTimeString()} (\u0394 ${deltaS}s)`;
     } else if (tsA) {
       timeLine = `${new Date(tsA).toLocaleString()} (self)`;
     } else if (tsB) {
@@ -494,12 +466,8 @@
 
     const gA = respA ? getGps(respA) : null;
     const gB = respB ? getGps(respB) : null;
-
     let distLine = "(missing)";
-    if (gA && gB) {
-      const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-      distLine = `${d.toFixed(2)} m`;
-    }
+    if (gA && gB) distLine = `${haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon).toFixed(2)} m`;
     sumDistance.textContent = distLine;
 
     const mapsUrl = makeDualMapsUrl(gA, gB);
@@ -509,103 +477,281 @@
   }
 
   function setMissingHint(comb){
-    const missingBits = [];
-
-    if (!comb || comb.type !== "combined") missingBits.push("combined");
-
-    if (!comb || !comb.a) missingBits.push("self");
-    if (!comb || !comb.b) missingBits.push("guest");
-
-    receiptHint.style.display = missingBits.length ? "block" : "none";
-    if (missingBits.length) receiptHint.textContent = "Missing: " + missingBits.join(", ");
+    const missing = [];
+    if (!comb || comb.type !== "combined") missing.push("combined");
+    if (!comb || !comb.a) missing.push("self");
+    if (!comb || !comb.b) missing.push("guest");
+    receiptHint.style.display = missing.length ? "block" : "none";
+    if (missing.length) receiptHint.textContent = "Missing: " + missing.join(", ");
   }
+
+  // =========================
+  //  HASH PARSING
+  // =========================
+
+  function parseFromHash(){
+    const h = location.hash || "";
+    // Server receipt hash: #receipt=HASH
+    const mReceipt = h.match(/receipt=([A-Za-z0-9\-_]+)/);
+    if (mReceipt) return { kind: "server", hash: mReceipt[1] };
+
+    const mComb = h.match(/COMB=([A-Za-z0-9\-_]+)/);
+    if (mComb) {
+      try { return { kind: "comb", raw: mComb[1], obj: irlidDecodeB64urlJson(mComb[1]) }; }
+      catch { return { kind: "comb", raw: mComb[1], obj: null }; }
+    }
+    const mResp = h.match(/RESP=([A-Za-z0-9\-_]+)/);
+    if (mResp) {
+      try { return { kind: "resp", raw: mResp[1], obj: irlidDecodeB64urlJson(mResp[1]) }; }
+      catch { return { kind: "resp", raw: mResp[1], obj: null }; }
+    }
+    return null;
+  }
+
+  // =========================
+  //  LIST VIEW
+  // =========================
+
+  function showListView(){
+    listView.style.display = "block";
+    detailView.style.display = "none";
+  }
+
+  function showDetailView(){
+    listView.style.display = "none";
+    detailView.style.display = "block";
+  }
+
+  function renderReceiptItem(item, onClick){
+    const li = document.createElement("li");
+    li.className = "receipt-item";
+    li.addEventListener("click", onClick);
+
+    const row = document.createElement("div");
+    row.className = "receipt-item-row";
+
+    const left = document.createElement("div");
+
+    // Figure out time from ts_a / ts_b (epoch seconds from server)
+    let tsMs = null;
+    if (item.ts_a) tsMs = normalizeEpochMs(item.ts_a);
+    if (!tsMs && item.ts_b) tsMs = normalizeEpochMs(item.ts_b);
+    if (!tsMs && item.created_at) tsMs = normalizeEpochMs(item.created_at);
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "receipt-item-time";
+    timeDiv.textContent = formatTimeShort(tsMs);
+    left.appendChild(timeDiv);
+
+    const subDiv = document.createElement("div");
+    subDiv.className = "receipt-item-sub";
+    subDiv.textContent = item.receipt_hash ? item.receipt_hash.substring(0, 16) + "\u2026" : "";
+    left.appendChild(subDiv);
+
+    row.appendChild(left);
+
+    const badge = document.createElement("div");
+    badge.className = "receipt-item-badge " + (item.verified ? "verified" : "unverified");
+    badge.textContent = item.verified ? "VERIFIED" : "UNVERIFIED";
+    row.appendChild(badge);
+
+    li.appendChild(row);
+    return li;
+  }
+
+  function renderLocalReceiptItem(entry, index){
+    const li = document.createElement("li");
+    li.className = "receipt-item";
+
+    const row = document.createElement("div");
+    row.className = "receipt-item-row";
+
+    const left = document.createElement("div");
+
+    let tsMs = null;
+    if (entry.ts) tsMs = normalizeEpochMs(entry.ts);
+    if (!tsMs && entry.combined) {
+      const ta = entry.combined.a ? getTsMs(entry.combined.a) : null;
+      const tb = entry.combined.b ? getTsMs(entry.combined.b) : null;
+      tsMs = Math.max(ta || 0, tb || 0) || null;
+    }
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "receipt-item-time";
+    timeDiv.textContent = formatTimeShort(tsMs);
+    left.appendChild(timeDiv);
+
+    const subDiv = document.createElement("div");
+    subDiv.className = "receipt-item-sub";
+    subDiv.textContent = "Local receipt";
+    left.appendChild(subDiv);
+
+    row.appendChild(left);
+
+    const badge = document.createElement("div");
+    badge.className = "receipt-item-badge local-badge";
+    badge.textContent = "LOCAL";
+    row.appendChild(badge);
+
+    li.appendChild(row);
+
+    li.addEventListener("click", () => {
+      if (entry.combined && entry.combined.type === "combined") {
+        location.hash = "COMB=" + irlidEncodeJsonToB64url(entry.combined);
+      } else if (entry.type === "response") {
+        location.hash = "RESP=" + irlidEncodeJsonToB64url(entry);
+      } else if (typeof entry === "string") {
+        location.href = entry;
+      }
+    });
+
+    return li;
+  }
+
+  async function loadServerReceipts(page){
+    currentPage = page || 1;
+    listLoading.style.display = "block";
+    listEmpty.style.display = "none";
+    receiptListEl.innerHTML = "";
+    paginationBar.style.display = "none";
+
+    const result = await window.IRLBackend.listReceipts(currentPage);
+
+    listLoading.style.display = "none";
+
+    if (!result.ok || !result.data) {
+      // Fall back to local on error
+      loadLocalReceipts();
+      return;
+    }
+
+    const receipts = result.data.receipts || [];
+    totalReceipts = result.data.total || 0;
+    pageLimit = result.data.limit || 20;
+
+    if (receipts.length === 0 && currentPage === 1) {
+      const localCount = getLocalReceiptList().length;
+      if (localCount > 0) {
+        loadLocalReceipts();
+      } else {
+        listEmpty.style.display = "block";
+      }
+      listFooter.style.display = "flex";
+      return;
+    }
+
+    for (const r of receipts) {
+      const li = renderReceiptItem(r, () => {
+        location.hash = "receipt=" + r.receipt_hash;
+      });
+      receiptListEl.appendChild(li);
+    }
+
+    // Pagination
+    const totalPages = Math.ceil(totalReceipts / pageLimit);
+    if (totalPages > 1) {
+      paginationBar.style.display = "flex";
+      pageInfo.textContent = `Page ${currentPage} of ${totalPages} (${totalReceipts} total)`;
+      prevPageBtn.disabled = currentPage <= 1;
+      nextPageBtn.disabled = currentPage >= totalPages;
+    }
+
+    listFooter.style.display = "flex";
+  }
+
+  function getLocalReceiptList(){
+    const raw = localStorage.getItem(KEY_LIST);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : []);
+    } catch { return []; }
+  }
+
+  function loadLocalReceipts(){
+    listLoading.style.display = "none";
+    receiptListEl.innerHTML = "";
+
+    const items = getLocalReceiptList();
+
+    const last = readJson(KEY_LAST);
+    const selfResp = readJson(KEY_SELF);
+    const guestResp = readJson(KEY_GUEST);
+
+    // Synthesize a receipt from self+guest if no list items
+    if (items.length === 0 && selfResp && guestResp) {
+      items.push({ ts: Date.now(), combined: { v:1, type:"combined", a:selfResp, b:guestResp, tol:{dist_m:DIST_TOL_M, ts_s:TS_TOL_S} } });
+    } else if (items.length === 0 && last) {
+      if (last.type === "combined") items.push({ ts: Date.now(), combined: last });
+      else if (last.type === "response") items.push(last);
+    }
+
+    if (items.length === 0) {
+      listEmpty.style.display = "block";
+      listFooter.style.display = "flex";
+      return;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const li = renderLocalReceiptItem(items[i], i);
+      receiptListEl.appendChild(li);
+    }
+
+    listFooter.style.display = "flex";
+  }
+
+  prevPageBtn.addEventListener("click", () => {
+    if (currentPage > 1) loadServerReceipts(currentPage - 1);
+  });
+
+  nextPageBtn.addEventListener("click", () => {
+    const totalPages = Math.ceil(totalReceipts / pageLimit);
+    if (currentPage < totalPages) loadServerReceipts(currentPage + 1);
+  });
 
   clearBtn.onclick = () => {
     localStorage.removeItem(KEY_SELF);
     localStorage.removeItem(KEY_GUEST);
     localStorage.removeItem(KEY_LAST);
     localStorage.removeItem(KEY_LIST);
-    // also clear handshake state so mobile users can recover without DevTools
-    try{
+    try {
       localStorage.removeItem("irlid_last_hello_b64");
       localStorage.removeItem("irlid_last_self_response");
       localStorage.removeItem("irlid_preferred_camera_id");
-    }catch{}
+    } catch {}
     location.href = baseReceiptUrl();
   };
 
-  (async () => {
-    if (typeof refreshNav === "function") await refreshNav();
-
-    const fromHash = parseFromHash();
-
-    if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
-      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
-    }
-
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
-      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
-    }
-
-    const last = readJson(KEY_LAST);
-    const self = readJson(KEY_SELF);
-    const guest = readJson(KEY_GUEST);
-
-    let comb = null;
-    let resp = null;
-
-    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
-      comb = fromHash.obj;
-    } else if (last && last.type === "combined") {
-      comb = last;
+  backToList.addEventListener("click", (e) => {
+    e.preventDefault();
+    // Use replaceState to clear hash without triggering hashchange loop
+    history.replaceState(null, "", location.pathname);
+    showListView();
+    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      loadServerReceipts(1);
     } else {
-      // If no combined, show most recent single response (or last response)
-      if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
-        resp = fromHash.obj;
-      } else if (last && last.type === "response") {
-        resp = last;
-      }
+      loadLocalReceipts();
     }
+  });
 
-    // If we have separate self/guest stored, render as combined.
-    if (!comb && self && guest) {
-      comb = {
-        v: 1,
-        type: "combined",
-        a: self,
-        b: guest,
-        tol: { dist_m: DIST_TOL_M, ts_s: TS_TOL_S }
-      };
-    }
+  // =========================
+  //  DETAIL VIEW
+  // =========================
 
-    if (!comb && !resp) {
-      const best = pickLatestFromReceiptsKey();
-      if (best && best.combined) comb = best.combined;
-      else if (best && best.resp) resp = best.resp;
-      else if (best && best.url) location.href = best.url;
-    }
-
-    if (!comb && !resp) {
-      emptyState.style.display = "block";
-      metaPanel.style.display = "none";
-      rawWrap.style.display = "none";
-      return;
-    }
-
-    emptyState.style.display = "none";
+  async function renderDetail(comb, resp){
+    showDetailView();
     metaPanel.style.display = "block";
     rawWrap.style.display = "block";
+    checksEl.innerHTML = "";
 
     if (comb) {
       metaTitle.textContent = "Combined Receipt";
       peopleGrid.style.display = "grid";
-      checksEl.innerHTML = "";
 
       const url = makeReceiptUrlForCombined(comb);
       if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
       rawJson.textContent = JSON.stringify(comb, null, 2);
-
       setSummary(comb);
       setMissingHint(comb);
 
@@ -616,7 +762,7 @@
       setPersonPanel(aCoords, aTime, aAcc, respA, mapsUrl);
       setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
 
-      // ---- Checks ----
+      // ---- Signature & structure checks ----
       if (respA) {
         const vr = await validateResponse(respA);
         addCheck("Self: structure", vr.okStructure);
@@ -635,74 +781,67 @@
         addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
       }
 
-      // --- Protocol v2 checks: Signed HELLO (Offer) + Signed Response (Accept) ---
+      // --- Protocol v2 checks: HELLO offer ---
       const helloObj = comb.hello || null;
       if (helloObj) {
-        try{
+        try {
           const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: TS_TOL_S });
           addCheck("HELLO offer: structure+hash+sig", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
-        }catch(e){
+        } catch(e) {
           addCheck("HELLO offer: structure+hash+sig", false, String(e));
         }
 
-        try{
+        try {
           const helloHash = await irlidHelloHashB64url(helloObj);
-
-          if (respA && respA.payload) {
-            addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
-          }
-          if (respB && respB.payload) {
-            addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
-          }
-
+          if (respA && respA.payload) addCheck("Self binds to HELLO", respA.payload.helloHash === helloHash);
+          if (respB && respB.payload) addCheck("Guest binds to HELLO", respB.payload.helloHash === helloHash);
           if (helloObj.offer && helloObj.offer.hash) {
             const oh = helloObj.offer.hash;
             if (respA && respA.payload) addCheck("Self binds to offerHash", respA.payload.offerHash === oh);
             if (respB && respB.payload) addCheck("Guest binds to offerHash", respB.payload.offerHash === oh);
           }
-        }catch(e){
+        } catch(e) {
           addCheck("HELLO binding checks", false, String(e));
         }
       } else {
         addCheck("HELLO present in combined", false, "Missing comb.hello (cannot verify offer/bindings).");
       }
 
-      // --- Mutual tolerances (client-side) ---
-      try{
+      // --- Mutual tolerances ---
+      try {
         const tsAms = respA ? getTsMs(respA) : null;
         const tsBms = respB ? getTsMs(respB) : null;
         if (tsAms && tsBms) {
           const deltaS = Math.abs(tsAms - tsBms) / 1000;
-          addCheck("Time delta ≤ tolerance", deltaS <= TS_TOL_S, `Δ ${Math.round(deltaS)}s (limit ${TS_TOL_S}s)`);
+          addCheck("Time delta \u2264 tolerance", deltaS <= TS_TOL_S, `\u0394 ${Math.round(deltaS)}s (limit ${TS_TOL_S}s)`);
         } else {
-          addCheck("Time delta ≤ tolerance", false, "Missing timestamps.");
+          addCheck("Time delta \u2264 tolerance", false, "Missing timestamps.");
         }
-      }catch(e){
-        addCheck("Time delta ≤ tolerance", false, String(e));
+      } catch(e) {
+        addCheck("Time delta \u2264 tolerance", false, String(e));
       }
 
-      try{
+      try {
         const gA = respA ? getGps(respA) : null;
         const gB = respB ? getGps(respB) : null;
         if (gA && gB) {
           const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-          addCheck("Distance ≤ tolerance", d <= DIST_TOL_M, `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`);
+          addCheck("Distance \u2264 tolerance", d <= DIST_TOL_M, `${d.toFixed(2)} m (limit ${DIST_TOL_M} m)`);
         } else {
-          addCheck("Distance ≤ tolerance", false, "Missing locations.");
+          addCheck("Distance \u2264 tolerance", false, "Missing locations.");
         }
-      }catch(e){
-        addCheck("Distance ≤ tolerance", false, String(e));
+      } catch(e) {
+        addCheck("Distance \u2264 tolerance", false, String(e));
       }
+
     } else if (resp) {
       metaTitle.textContent = "Receipt";
       peopleGrid.style.display = "grid";
-      checksEl.innerHTML = "";
 
       const url = makeReceiptUrlForResponse(resp);
       if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
 
       rawJson.textContent = JSON.stringify(resp, null, 2);
-
       summaryKv.style.display = "none";
       receiptHint.style.display = "none";
 
@@ -714,10 +853,114 @@
       addCheck("Receipt structure", vr.okStructure);
       addCheck("Hash matches payload", vr.okHash, vr.okHash ? "" : `computed=${vr.computedHash || "?"}`);
       addCheck("Signature valid", vr.okSig);
-
       addCheck("Waiting for both parties (need two receipts)", false, "Have one receipt only. Show the URL QR above to the other person to open this receipt.");
     }
+  }
+
+  async function loadServerReceiptByHash(hash){
+    showDetailView();
+    metaPanel.style.display = "none";
+    rawWrap.style.display = "none";
+    document.getElementById("topQr").innerHTML = '<div class="loading-msg">Loading receipt\u2026</div>';
+
+    const result = await window.IRLBackend.getReceipt(hash);
+
+    if (!result.ok || !result.data) {
+      document.getElementById("topQr").innerHTML = '<div class="panel">Receipt not found.</div>';
+      return;
+    }
+
+    const data = result.data;
+    if (data.combined && data.combined.type === "combined") {
+      await renderDetail(data.combined, null);
+    } else {
+      // No combined JSON — show basic server record
+      document.getElementById("topQr").innerHTML = "";
+      metaPanel.style.display = "block";
+      metaTitle.textContent = "Receipt (server record)";
+      summaryKv.style.display = "grid";
+
+      const tsMs = normalizeEpochMs(data.ts_a) || normalizeEpochMs(data.ts_b);
+      sumTime.textContent = tsMs ? formatTimeNoTs(tsMs) : "(unknown)";
+      sumDistance.textContent = "(not available from summary)";
+      sumMap.textContent = "(not available from summary)";
+
+      peopleGrid.style.display = "none";
+      checksEl.innerHTML = "";
+      addCheck("Server verified", !!data.verified);
+      rawJson.textContent = JSON.stringify(data, null, 2);
+      rawWrap.style.display = "block";
+    }
+  }
+
+  // =========================
+  //  MAIN INIT
+  // =========================
+
+  (async () => {
+    if (typeof refreshNav === "function") await refreshNav();
+
+    const fromHash = parseFromHash();
+
+    // ---- DETAIL: server receipt by hash ----
+    if (fromHash && fromHash.kind === "server") {
+      await loadServerReceiptByHash(fromHash.hash);
+      return;
+    }
+
+    // ---- DETAIL: inline combined from hash ----
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj && fromHash.obj.type === "combined") {
+      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      await renderDetail(fromHash.obj, null);
+      return;
+    }
+
+    // ---- DETAIL: inline response from hash ----
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj && fromHash.obj.type === "response") {
+      localStorage.setItem(KEY_LAST, JSON.stringify(fromHash.obj));
+      await renderDetail(null, fromHash.obj);
+      return;
+    }
+
+    // ---- LIST VIEW ----
+    showListView();
+
+    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      await loadServerReceipts(1);
+    } else {
+      loadLocalReceipts();
+    }
   })();
+
+  // Handle hash changes (back button, clicking items)
+  window.addEventListener("hashchange", async () => {
+    const fromHash = parseFromHash();
+
+    if (fromHash && fromHash.kind === "server") {
+      await loadServerReceiptByHash(fromHash.hash);
+      return;
+    }
+
+    if (fromHash && fromHash.kind === "comb" && fromHash.obj) {
+      await renderDetail(fromHash.obj, null);
+      return;
+    }
+
+    if (fromHash && fromHash.kind === "resp" && fromHash.obj) {
+      await renderDetail(null, fromHash.obj);
+      return;
+    }
+
+    // No hash = show list
+    if (!location.hash || location.hash === "#") {
+      showListView();
+      if (window.IRLBackend && window.IRLBackend.hasSession()) {
+        await loadServerReceipts(currentPage);
+      } else {
+        loadLocalReceipts();
+      }
+    }
+  });
 </script>
 
 </body>
