@@ -1,5 +1,5 @@
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 67
+//  Deploy 74 — compact payloads for smaller QR codes
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -101,6 +101,18 @@ async function pubKeyId(pubJwk) {
   return b64urlEncode(h).slice(0, 18);
 }
 
+// Strip WebCrypto metadata (key_ops, ext) not needed for import/verify.
+// Saves ~25 chars per key in QR data.
+function compactJwk(jwk) {
+  if (!jwk || !jwk.kty) return jwk;
+  return { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
+}
+
+// Round GPS to 5 decimal places (~1.1 m precision — well within 12 m tolerance).
+function roundGps(n) {
+  return Math.round(n * 1e5) / 1e5;
+}
+
 /* =========================================================
    Added helpers for mutual validation / consistent signing
    (No backend; used by application.html and receipt.html)
@@ -183,15 +195,17 @@ function irlidGetPosition(opts){
 async function makeSignedHelloAsync(opts){
   // Creates a HELLO object that already contains a signed, replay-resistant "offer"
   // so the other party can verify you immediately (2-scan handshake).
+  // Deploy 74: compact format — stripped JWK, no redundant top-level nonce/ts,
+  // no type/v in offer payload, GPS rounded to 5dp.
   const pos = await irlidGetPosition({
     enableHighAccuracy: true,
     maximumAge: 0,
     timeout: 12000
   });
 
-  const lat = Number(pos.coords.latitude);
-  const lon = Number(pos.coords.longitude);
-  const acc = Number(pos.coords.accuracy || 0);
+  const lat = roundGps(Number(pos.coords.latitude));
+  const lon = roundGps(Number(pos.coords.longitude));
+  const acc = Math.round(Number(pos.coords.accuracy || 0));
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     throw new Error("Invalid geolocation coordinates.");
@@ -200,11 +214,8 @@ async function makeSignedHelloAsync(opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Offer payload is what gets hashed+signed.
-  // Keep fields tight + deterministic ordering.
+  // Offer payload: lean — no type/v fields (saves ~27 chars).
   const offerPayload = {
-    v: 1,
-    type: "offerPayload",
     lat,
     lon,
     acc,
@@ -216,12 +227,12 @@ async function makeSignedHelloAsync(opts){
   const offerHash = await hashPayloadToB64url(offerPayload);
   const offerSig = await signHashB64url(offerHash);
 
+  // Hello: no top-level nonce/ts (they're in offer.payload, saves ~30 chars).
+  // JWK stripped of ext/key_ops (saves ~25 chars).
   const hello = {
     v: 2,
     type: "hello",
-    pub,
-    nonce: nonceA,
-    ts,
+    pub: compactJwk(pub),
     offer: {
       payload: offerPayload,
       hash: offerHash,
@@ -283,9 +294,9 @@ async function makeReturnForHelloAsync(helloB64url, opts){
     timeout: 12000
   });
 
-  const lat = Number(pos.coords.latitude);
-  const lon = Number(pos.coords.longitude);
-  const acc = Number(pos.coords.accuracy || 0);
+  const lat = roundGps(Number(pos.coords.latitude));
+  const lon = roundGps(Number(pos.coords.longitude));
+  const acc = Math.round(Number(pos.coords.accuracy || 0));
 
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     throw new Error("Invalid geolocation coordinates.");
@@ -294,10 +305,8 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Accept payload (response) binds to the HELLO hash, and (if present) the signed offer hash.
+  // Deploy 74: no type/v in payload (saves ~22 chars).
   const payload = {
-    v: 1,
-    type: "payload",
     helloHash,
     offerHash: offerInfo.offerHash || undefined,
     lat,
@@ -314,13 +323,14 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const hash = await hashPayloadToB64url(payload);
   const sig = await signHashB64url(hash);
 
+  // Deploy 74: stripped JWK (saves ~25 chars).
   const resp = {
     v: 2,
     type: "response",
     payload,
     hash,
     sig,
-    pub
+    pub: compactJwk(pub)
   };
 
   // Cache for application.html to use in mutual verification
@@ -399,6 +409,14 @@ async function processScannedResponse(otherRespObj, opts){
     a: self,
     b: other
   };
+
+  // Deploy 74: compact JWKs in combined to reduce receipt size.
+  // (Strip only in the combined copy — originals are untouched.)
+  try {
+    if (combined.hello && combined.hello.pub) combined.hello.pub = compactJwk(combined.hello.pub);
+    if (combined.a && combined.a.pub) combined.a.pub = compactJwk(combined.a.pub);
+    if (combined.b && combined.b.pub) combined.b.pub = compactJwk(combined.b.pub);
+  } catch(_) {}
 
   return { self, other, combined };
 }
