@@ -685,46 +685,44 @@
     const bIsMe = keyIdB && myKeyIds.includes(keyIdB);
 
     // Look up info for both parties via backend
-    let infoA = null, infoB = null;
+    // Only update UI if we actually get real data back — never overwrite with null
     if (window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+      // --- Side A ---
       try {
         if (keyIdA) {
           const res = await window.IRLBackend.lookupByKey(keyIdA);
-          if (res.ok && res.data && res.data.found) infoA = res.data;
+          if (res.ok && res.data && res.data.found) {
+            if (res.data.display_name) selfNameEl.textContent = res.data.display_name;
+            if (res.data.google_picture) renderAvatar(selfAvatarWrap, res.data.google_picture);
+          }
         }
       } catch{}
+
+      // --- Side B ---
       try {
         if (keyIdB) {
           const res = await window.IRLBackend.lookupByKey(keyIdB);
-          if (res.ok && res.data && res.data.found) infoB = res.data;
+          if (res.ok && res.data && res.data.found) {
+            if (res.data.display_name) guestNameEl.textContent = res.data.display_name;
+            if (res.data.google_picture) renderAvatar(guestAvatarWrap, res.data.google_picture);
+          }
         }
       } catch{}
     }
 
-    // Assign names — use fetched info, or "You"/"Guest" as fallback
-    // Side A = "Self" panel, Side B = "Guest" panel
-    // If current user is side B, we could swap, but receipt structure is fixed
-    // as a=initiator, b=responder. So just label based on who they are.
-
-    // Self panel (side A)
-    if (infoA && infoA.display_name) {
-      selfNameEl.textContent = infoA.display_name;
-    } else if (aIsMe && cachedUserInfo && cachedUserInfo.display_name) {
-      selfNameEl.textContent = cachedUserInfo.display_name;
-    } else if (aIsMe) {
-      selfNameEl.textContent = "You";
+    // Fallback: if "me" side still shows default and we have userInfo, apply it
+    if (aIsMe && cachedUserInfo) {
+      if (selfNameEl.textContent === "You" && cachedUserInfo.display_name)
+        selfNameEl.textContent = cachedUserInfo.display_name;
+      if (cachedUserInfo.google_picture && !selfAvatarWrap.querySelector("img"))
+        renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
     }
-    renderAvatar(selfAvatarWrap, infoA ? infoA.google_picture : null);
-
-    // Guest panel (side B)
-    if (infoB && infoB.display_name) {
-      guestNameEl.textContent = infoB.display_name;
-    } else if (bIsMe && cachedUserInfo && cachedUserInfo.display_name) {
-      guestNameEl.textContent = cachedUserInfo.display_name;
-    } else if (bIsMe) {
-      guestNameEl.textContent = "You";
+    if (bIsMe && cachedUserInfo) {
+      if (guestNameEl.textContent === "Guest" && cachedUserInfo.display_name)
+        guestNameEl.textContent = cachedUserInfo.display_name;
+      if (cachedUserInfo.google_picture && !guestAvatarWrap.querySelector("img"))
+        renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
     }
-    renderAvatar(guestAvatarWrap, infoB ? infoB.google_picture : null);
   }
 
   // =========================
@@ -1272,7 +1270,7 @@
       }
 
       // Async resolve both parties' names and avatars from backend
-      resolvePartyInfo(comb);
+      await resolvePartyInfo(comb);
 
     } else if (resp) {
       metaTitle.textContent = "Receipt";
