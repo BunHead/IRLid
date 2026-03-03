@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 75 -->
+<!-- Deploy 76 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,9 +8,277 @@
   <title>IRLid — Scan</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    #responseArea { margin-top: 8px; }
-    #responseTitle { margin: 10px 0 10px; }
-    #responseHint { display: none; }
+    .scan-main {
+      padding: 0 0 calc(var(--mobile-nav-h) + 22px);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* === Viewport: the main visual area (scanner / QR / idle) === */
+    .scan-viewport {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 1 / 1;
+      background: #0a0a0a;
+      overflow: hidden;
+    }
+
+    /* Idle state — crosshair target */
+    .scan-viewport .idle-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .scan-viewport.state-idle .idle-overlay { display: flex; }
+    .scan-viewport.state-scanning .idle-overlay,
+    .scan-viewport.state-qr .idle-overlay { display: none; }
+
+    .idle-crosshair {
+      width: 120px;
+      height: 120px;
+      position: relative;
+    }
+    .idle-crosshair::before,
+    .idle-crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.18);
+    }
+    .idle-crosshair::before {
+      width: 1px; height: 100%;
+      left: 50%; top: 0;
+    }
+    .idle-crosshair::after {
+      height: 1px; width: 100%;
+      top: 50%; left: 0;
+    }
+    /* Corner brackets */
+    .idle-crosshair .c { position: absolute; width: 24px; height: 24px; }
+    .idle-crosshair .c::before, .idle-crosshair .c::after {
+      content: ''; position: absolute; background: rgba(255,255,255,0.35);
+    }
+    .c.tl { top:0; left:0; }
+    .c.tl::before { width:24px; height:2px; top:0; left:0; }
+    .c.tl::after  { width:2px; height:24px; top:0; left:0; }
+    .c.tr { top:0; right:0; }
+    .c.tr::before { width:24px; height:2px; top:0; right:0; }
+    .c.tr::after  { width:2px; height:24px; top:0; right:0; }
+    .c.bl { bottom:0; left:0; }
+    .c.bl::before { width:24px; height:2px; bottom:0; left:0; }
+    .c.bl::after  { width:2px; height:24px; bottom:0; left:0; }
+    .c.br { bottom:0; right:0; }
+    .c.br::before { width:24px; height:2px; bottom:0; right:0; }
+    .c.br::after  { width:2px; height:24px; bottom:0; right:0; }
+
+    .idle-label {
+      color: rgba(255,255,255,0.4);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 18px;
+    }
+
+    /* Scanner container (camera feed) */
+    .scan-viewport #scanner {
+      position: absolute;
+      inset: 0;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0;
+      z-index: 1;
+    }
+    .scan-viewport #scanner video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+
+    /* === Red laser scanning line === */
+    .scan-laser {
+      display: none;
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      height: 2px;
+      z-index: 10;
+      pointer-events: none;
+      background: #ff2222;
+      box-shadow:
+        0 0 8px 2px rgba(255, 34, 34, 0.6),
+        0 0 24px 4px rgba(255, 34, 34, 0.25);
+      animation: laserSweep 2.2s ease-in-out infinite;
+    }
+    .scan-viewport.state-scanning .scan-laser { display: block; }
+
+    @keyframes laserSweep {
+      0%   { top: 12%; opacity: 0.4; }
+      10%  { opacity: 1; }
+      50%  { top: 86%; opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: 12%; opacity: 0.4; }
+    }
+
+    /* Corner brackets overlaid on scanner */
+    .scan-corners {
+      display: none;
+      position: absolute;
+      inset: 10%;
+      z-index: 9;
+      pointer-events: none;
+    }
+    .scan-viewport.state-scanning .scan-corners { display: block; }
+
+    .scan-corners .c { position: absolute; width: 28px; height: 28px; }
+    .scan-corners .c::before, .scan-corners .c::after {
+      content: ''; position: absolute; background: rgba(255,255,255,0.55);
+    }
+    .scan-corners .c.tl { top:0; left:0; }
+    .scan-corners .c.tl::before { width:28px; height:2px; top:0; left:0; }
+    .scan-corners .c.tl::after  { width:2px; height:28px; top:0; left:0; }
+    .scan-corners .c.tr { top:0; right:0; }
+    .scan-corners .c.tr::before { width:28px; height:2px; top:0; right:0; }
+    .scan-corners .c.tr::after  { width:2px; height:28px; top:0; right:0; }
+    .scan-corners .c.bl { bottom:0; left:0; }
+    .scan-corners .c.bl::before { width:28px; height:2px; bottom:0; left:0; }
+    .scan-corners .c.bl::after  { width:2px; height:28px; bottom:0; left:0; }
+    .scan-corners .c.br { bottom:0; right:0; }
+    .scan-corners .c.br::before { width:28px; height:2px; bottom:0; right:0; }
+    .scan-corners .c.br::after  { width:2px; height:28px; bottom:0; right:0; }
+
+    /* QR response display inside viewport */
+    .scan-viewport #responseQr {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      background: #fff;
+      padding: 12px;
+    }
+    .scan-viewport.state-qr #responseQr {
+      display: flex;
+    }
+    #responseQr canvas, #responseQr img {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    /* === Controls bar === */
+    .scan-controls {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: #000;
+    }
+
+    .scan-controls .btn {
+      flex: 1;
+      padding: 14px 10px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: none;
+      border-right: 1px solid rgba(255,255,255,0.18);
+    }
+    .scan-controls .btn:last-child { border-right: none; }
+
+    .scan-controls .btn.active-scan {
+      background: #ff2222;
+      color: #fff;
+      border-color: #ff2222;
+    }
+
+    .scan-controls .cam-select-wrap {
+      flex: 0 0 auto;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+    }
+    .scan-controls select {
+      background: #000;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 8px 6px;
+      font-size: 12px;
+      max-width: 110px;
+    }
+
+    /* === Status bar === */
+    .scan-status {
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 14px;
+      font-size: 13px;
+      text-align: left;
+      color: #555;
+      min-height: 40px;
+      line-height: 1.4;
+    }
+    .scan-status.scanning {
+      color: #ff2222;
+      font-weight: 700;
+    }
+
+    .scan-status .dot-pulse::after {
+      content: '';
+      animation: dots 1.4s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      25%  { content: '.'; }
+      50%  { content: '..'; }
+      75%  { content: '...'; }
+      100% { content: ''; }
+    }
+
+    /* Receipt button below status */
+    .scan-footer {
+      width: 100%;
+      max-width: 480px;
+      padding: 0 14px 14px;
+    }
+    .scan-footer .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* QR hint label */
+    .qr-hint {
+      display: none;
+      width: 100%;
+      max-width: 480px;
+      padding: 6px 14px 2px;
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .scan-viewport.state-qr ~ .qr-hint { display: block; }
+
+    /* Debug controls */
+    #debugControls {
+      display: none;
+      width: 100%;
+      max-width: 480px;
+      padding: 8px 14px;
+    }
   </style>
 </head>
 
@@ -40,32 +308,62 @@
   </nav>
 </header>
 
-<main class="page-main">
-  <p id="status" class="small">Ready.</p>
+<main class="scan-main">
 
-  <div class="controls">
-    <button class="btn" id="scanBtn">Scan</button>
-    <button class="btn secondary" id="stopBtn" style="display:none;">Stop</button>
-    <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
-  </div>
+  <!-- Viewport: shows idle state, camera feed, or QR response -->
+  <div class="scan-viewport state-idle" id="scanViewport">
 
-  <div id="responseArea">
-    <h3 id="responseTitle" style="display:none;">Your Accept QR</h3>
-    <div class="qr-box" id="responseQr"></div>
-
-    <div id="scanner"></div>
-
-    <div id="debugControls" style="display:none; text-align:center; margin-top:12px;">
-      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    <!-- Idle overlay -->
+    <div class="idle-overlay">
+      <div class="idle-crosshair">
+        <div class="c tl"></div><div class="c tr"></div>
+        <div class="c bl"></div><div class="c br"></div>
+      </div>
+      <div class="idle-label">Point at any IRLid QR</div>
     </div>
 
-    <p class="small" id="responseHint" style="margin-top:8px;">Show this to the other person to scan.</p>
+    <!-- Scanner (camera feed injected here by Html5Qrcode) -->
+    <div id="scanner"></div>
+
+    <!-- Red laser line -->
+    <div class="scan-laser"></div>
+
+    <!-- Corner brackets during scan -->
+    <div class="scan-corners">
+      <div class="c tl"></div><div class="c tr"></div>
+      <div class="c bl"></div><div class="c br"></div>
+    </div>
+
+    <!-- QR response shown here -->
+    <div class="qr-box" id="responseQr"></div>
   </div>
 
-  <div class="small">
-    <label for="cameraSelect"><b>Camera:</b></label><br>
-    <select id="cameraSelect"></select>
+  <!-- Hint shown when QR is displayed -->
+  <div class="qr-hint" id="qrHint">&#8593; Show this Accept QR to the other person</div>
+
+  <!-- Controls bar -->
+  <div class="scan-controls">
+    <button class="btn" id="scanBtn">Scan</button>
+    <button class="btn active-scan" id="stopBtn" style="display:none;">Stop</button>
+    <button class="btn secondary" id="showReceiptBtn" style="display:none;">Open Receipt</button>
+    <div class="cam-select-wrap">
+      <select id="cameraSelect" aria-label="Camera"></select>
+    </div>
   </div>
+
+  <!-- Status text -->
+  <div class="scan-status" id="status">Ready</div>
+
+  <!-- Receipt button -->
+  <div class="scan-footer" id="receiptFooter" style="display:none;">
+    <button class="btn" id="showReceiptBtn2">Open Receipt</button>
+  </div>
+
+  <!-- Debug -->
+  <div id="debugControls" style="display:none; text-align:center;">
+    <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+  </div>
+
 </main>
 
 <script src="js/auth.js"></script>
@@ -86,17 +384,39 @@
   const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
   const KEY_LAST_SELF_RESP = "irlid_last_self_response";
 
-  const statusEl = document.getElementById("status");
-  const responseArea = document.getElementById("responseArea");
-  const scanBtn = document.getElementById("scanBtn");
-  const stopBtn = document.getElementById("stopBtn");
-  const showReceiptBtn = document.getElementById("showReceiptBtn");
-  const clearLocalBtn = document.getElementById("clearLocalBtn");
-  const debugControls = document.getElementById("debugControls");
-  const responseTitleEl = document.getElementById("responseTitle");
-  const responseHintEl = document.getElementById("responseHint");
+  const statusEl     = document.getElementById("status");
+  const scanViewport = document.getElementById("scanViewport");
+  const scanBtn      = document.getElementById("scanBtn");
+  const stopBtn      = document.getElementById("stopBtn");
+  const showReceiptBtn  = document.getElementById("showReceiptBtn");
+  const showReceiptBtn2 = document.getElementById("showReceiptBtn2");
+  const receiptFooter   = document.getElementById("receiptFooter");
+  const clearLocalBtn   = document.getElementById("clearLocalBtn");
+  const debugControls   = document.getElementById("debugControls");
+  const qrHint          = document.getElementById("qrHint");
 
   let lastCombinedUrl = null;
+
+  // ---- Viewport state management ----
+  function setViewportState(state) {
+    // state: 'idle' | 'scanning' | 'qr'
+    scanViewport.className = "scan-viewport state-" + state;
+
+    // Update qr-hint visibility (CSS sibling selector handles display,
+    // but we also toggle for safety)
+    qrHint.style.display = (state === "qr") ? "block" : "none";
+  }
+
+  // ---- Status helpers ----
+  function setStatus(msg, isScanning) {
+    if (isScanning) {
+      statusEl.className = "scan-status scanning";
+      statusEl.innerHTML = msg + '<span class="dot-pulse"></span>';
+    } else {
+      statusEl.className = "scan-status";
+      statusEl.textContent = msg;
+    }
+  }
 
   function isDebug(){
     try{
@@ -116,24 +436,16 @@
 
   if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
 
-  function setStatus(msg){ statusEl.textContent = msg; }
-
   // ---- HELLO handling ----
-  // `hello` is always stored/passed as an UNCOMPRESSED b64url string.
-  // Compressed formats (HZ=) are decoded on arrival and re-encoded as plain b64url.
-
   function getHelloFromHash(){
     const h = location.hash || "";
-    // Compressed: #HZ=...
     const mz = h.match(/HZ=([^&]+)/);
     if (mz) return { raw: mz[1], compressed: true };
-    // Uncompressed: #HELLO=...
     const m = h.match(/HELLO=([^&]+)/);
     if (m) return { raw: m[1], compressed: false };
     return null;
   }
 
-  // Decompress HZ value → plain b64url (async)
   async function decompressHelloToB64url(raw) {
     const obj = await irlidDecompressFromB64url(raw);
     return irlidEncodeJsonToB64url(obj);
@@ -143,15 +455,11 @@
     try{
       const v = localStorage.getItem(KEY_LAST_HELLO_B64);
       return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
-    }
+    }catch{ return null; }
   }
 
   function saveHello(b64){
-    try{
-      if (b64 && b64.trim()) localStorage.setItem(KEY_LAST_HELLO_B64, b64.trim());
-    }catch{}
+    try{ if (b64 && b64.trim()) localStorage.setItem(KEY_LAST_HELLO_B64, b64.trim()); }catch{}
   }
 
   function loadSavedSelfResp(){
@@ -159,18 +467,13 @@
       const raw = localStorage.getItem(KEY_LAST_SELF_RESP);
       if (!raw) return null;
       return JSON.parse(raw);
-    }catch{
-      return null;
-    }
+    }catch{ return null; }
   }
 
   function saveSelfResp(resp){
-    try{
-      localStorage.setItem(KEY_LAST_SELF_RESP, JSON.stringify(resp));
-    }catch{}
+    try{ localStorage.setItem(KEY_LAST_SELF_RESP, JSON.stringify(resp)); }catch{}
   }
 
-  // hello is always an uncompressed b64url string (set async in init)
   let hello = getSavedHello();
 
   if (!window.__irlid_last_self_response) {
@@ -179,29 +482,9 @@
   }
 
   const scannerEl = document.getElementById("scanner");
-  if (scannerEl) scannerEl.style.display = "none";
 
-  function showScannerInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "none";
-    responseTitleEl.style.display = "none";
-    responseHintEl.style.display = "none";
-    if (scannerEl) {
-      scannerEl.style.display = "block";
-      try{ scannerEl.scrollIntoView({ behavior: "smooth", block: "start" }); }catch{}
-    }
-  }
-
-  function showQrInPlace(){
-    const qrBox = document.getElementById("responseQr");
-    if (qrBox) qrBox.style.display = "";
-    responseTitleEl.style.display = "";
-    responseHintEl.style.display = "";
-    if (scannerEl) scannerEl.style.display = "none";
-  }
-
+  // ---- Init: show QR if we have a HELLO, else idle ----
   async function initHelloReturnQr(){
-    // Resolve hello from hash (may need async decompression)
     const fromHash = getHelloFromHash();
     if (fromHash) {
       try {
@@ -209,33 +492,25 @@
           ? await decompressHelloToB64url(fromHash.raw)
           : fromHash.raw;
         saveHello(hello);
-      } catch(e) {
-        console.error("HELLO decode error:", e);
-      }
+      } catch(e) { console.error("HELLO decode error:", e); }
     }
     if (!hello) hello = getSavedHello();
 
     if (!hello) {
-      responseArea.style.display = "block";
-      const qrBox = document.getElementById("responseQr");
-      if (qrBox) { qrBox.innerHTML = ""; qrBox.style.display = "none"; }
-      responseTitleEl.style.display = "none";
-      responseHintEl.style.display = "none";
+      setViewportState("idle");
       showReceiptBtn.style.display = "none";
+      receiptFooter.style.display = "none";
       lastCombinedUrl = null;
-      setStatus("Ready. Tap Scan to scan any IRLid QR code.");
+      setStatus("Ready \u2014 tap Scan to scan any IRLid QR code.");
       return;
     }
 
-    try{
-      responseArea.style.display = "block";
+    try {
       setStatus("Getting location & signing\u2026");
 
       const respObj = await makeReturnForHelloAsync(hello);
       saveSelfResp(respObj);
 
-      // Deploy 75: compressed non-URL format for response QR.
-      // RZ: prefix = deflate-compressed. Fallback to R: if no compression.
       let qrData;
       if (irlidHasCompression()) {
         const compressed = await irlidCompressToB64url(respObj);
@@ -245,36 +520,33 @@
       }
 
       await makeQR("responseQr", qrData, 360);
-      showQrInPlace();
+      setViewportState("qr");
 
-      setStatus("Accept ready. Show this QR to the other person, then tap Scan.");
+      setStatus("Accept ready \u2014 show your QR, then tap Scan to read theirs.");
 
       showReceiptBtn.style.display = "none";
+      receiptFooter.style.display = "none";
       lastCombinedUrl = null;
-    }catch(e){
-      setStatus("Error: " + e + "\n\nIf location is blocked, enable location permission for this site and try again.");
+    } catch(e) {
+      setStatus("Error: " + e);
       console.error(e);
     }
   }
 
   window.addEventListener("hashchange", () => { initHelloReturnQr(); });
-
   initHelloReturnQr();
 
   // ---- Scanner ----
   const cameraSelect = document.getElementById("cameraSelect");
 
-  // Deploy 75: unified classify — detects all IRLid QR types including compressed.
   function classify(text){
     const t = (text || "").trim();
 
-    // Compact non-URL prefixes (in-app only)
     if (t.startsWith("RZ:")) return { kind:"RESP_Z", v: t.slice(3) };
     if (t.startsWith("R:"))  return { kind:"RESP",   v: t.slice(2) };
     if (t.startsWith("HZ:")) return { kind:"HELLO_Z", v: t.slice(3) };
     if (t.startsWith("H:"))  return { kind:"HELLO",  v: t.slice(2) };
 
-    // URL-based patterns
     const rxHelloZ  = /(?:^|[#&])HZ=([^&]+)/;
     const rxHello   = /(?:^|[#&])HELLO=([^&]+)/;
     const rxResp    = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
@@ -282,7 +554,6 @@
     const rxReceipt = /(?:^|[#&])receipt=([A-Za-z0-9\-_]+)/;
 
     let m;
-    // Check text directly and as URL hash
     const sources = [t];
     try { sources.push(new URL(t).hash || ""); } catch {}
 
@@ -301,9 +572,7 @@
     try{
       const v = localStorage.getItem(KEY_PREF_CAM);
       return v && v.trim() ? v.trim() : null;
-    }catch{
-      return null;
-    }
+    }catch{ return null; }
   }
   function setStoredPreferredCameraId(id){
     try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
@@ -356,7 +625,6 @@
       if (combinedObj && combinedObj.a) localStorage.setItem(KEY_SELF, JSON.stringify(combinedObj.a));
       if (combinedObj && combinedObj.b) localStorage.setItem(KEY_GUEST, JSON.stringify(combinedObj.b));
     }catch{}
-
     try{
       const raw = localStorage.getItem(KEY_RECEIPTS);
       const list = raw ? JSON.parse(raw) : [];
@@ -368,15 +636,12 @@
 
   async function ensureSelfResponseForHello(){
     if (window.__irlid_last_self_response && window.__irlid_last_self_response.type === "response") return;
-
     const saved = loadSavedSelfResp();
     if (saved && saved.type === "response") {
       window.__irlid_last_self_response = saved;
       return;
     }
-
     if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
-
     setStatus("Creating self receipt (location + time)\u2026");
     const selfResp = await makeReturnForHelloAsync(hello);
     window.__irlid_last_self_response = selfResp;
@@ -385,10 +650,8 @@
 
   async function handleScannedResponseB64(respB64, isCompressed){
     if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
-
     await ensureSelfResponseForHello();
 
-    // Decode response (compressed or plain)
     const otherRespObj = isCompressed
       ? await irlidDecompressFromB64url(respB64)
       : irlidDecodeB64urlJson(respB64);
@@ -403,7 +666,6 @@
     lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
     storeCombinedReceipt(out.combined);
 
-    // Auto-upload to server if logged in — use server hash URL for tiny receipt QR
     if (window.IRLBackend && window.IRLBackend.hasSession()) {
       try {
         const upRes = await window.IRLBackend.uploadReceipt(out.combined);
@@ -418,8 +680,9 @@
       }
     }
 
-    showReceiptBtn.style.display = "inline-flex";
-    setStatus("Verified. Combined receipt ready.");
+    showReceiptBtn.style.display = "";
+    receiptFooter.style.display = "";
+    setStatus("Verified \u2714 Combined receipt ready.");
   }
 
   async function stopScanner(){
@@ -430,10 +693,11 @@
     try { await html5QrCode.clear(); } catch {}
     html5QrCode = null;
 
-    if (hello) showQrInPlace();
-    else {
-      const qrBox = document.getElementById("responseQr");
-      if (qrBox) qrBox.style.display = "none";
+    // Return to QR or idle
+    if (hello && document.querySelector("#responseQr canvas, #responseQr img")) {
+      setViewportState("qr");
+    } else {
+      setViewportState("idle");
     }
   }
 
@@ -448,13 +712,20 @@
     scanBtn.style.display = "none";
     stopBtn.style.display = "";
 
-    setStatus("Scanning\u2026 Point at any IRLid QR code.");
+    // Switch viewport to scanning state (shows laser + corners)
+    setViewportState("scanning");
+    setStatus("Scanning", true);
+
     scannerEl.innerHTML = "";
     html5QrCode = new Html5Qrcode("scanner");
 
+    // Use full viewport — no qrbox restriction for better detection
     const config = {
       fps: 12,
-      qrbox: { width: 280, height: 280 },
+      qrbox: function(vw, vh) {
+        const s = Math.min(vw, vh);
+        return { width: Math.floor(s * 0.8), height: Math.floor(s * 0.8) };
+      },
       disableFlip: false
     };
 
@@ -465,10 +736,8 @@
         await stopScanner();
         const c = classify(text);
 
-        // ---- HELLO (offer) ----
         if (c.kind === "HELLO" || c.kind === "HELLO_Z") {
           try {
-            // Decompress if needed, always store as plain b64url
             if (c.kind === "HELLO_Z") {
               hello = await decompressHelloToB64url(c.v);
             } else {
@@ -476,7 +745,6 @@
             }
             if (hello) saveHello(hello);
             setStatus("Offer detected. Creating your Accept QR\u2026");
-            // Clear hash to avoid stale HELLO in URL, then re-render
             history.replaceState(null, "", location.pathname);
             initHelloReturnQr();
           } catch(e) {
@@ -486,21 +754,18 @@
           return;
         }
 
-        // ---- COMBINED receipt ----
         if (c.kind === "COMB") {
           setStatus("Receipt detected. Opening\u2026");
           location.href = "receipt.html#COMB=" + (c.v || "");
           return;
         }
 
-        // ---- Server receipt hash ----
         if (c.kind === "RECEIPT") {
           setStatus("Receipt detected. Opening\u2026");
           location.href = "receipt.html#receipt=" + (c.v || "");
           return;
         }
 
-        // ---- RESPONSE (accept) — compressed or plain ----
         if (c.kind === "RESP" || c.kind === "RESP_Z") {
           if (hello) {
             try{
@@ -515,11 +780,9 @@
             }
           }
 
-          // No HELLO context — open as single receipt
           try {
             let respB64 = c.v;
             if (c.kind === "RESP_Z") {
-              // Decompress to plain b64url for the receipt page
               const obj = await irlidDecompressFromB64url(c.v);
               respB64 = irlidEncodeJsonToB64url(obj);
             }
@@ -536,11 +799,10 @@
     );
   }
 
-  // Single Scan button handles all QR types
+  // ---- Event handlers ----
   scanBtn.addEventListener("click", async () => {
     try{
       await listCamerasAndSelectDefault();
-      showScannerInPlace();
       await startScanner();
     }catch(e){
       setStatus("Camera error: " + e);
@@ -550,32 +812,29 @@
 
   stopBtn.addEventListener("click", async () => {
     try{ await stopScanner(); }catch(e){ console.error(e); }
-    setStatus(hello ? "Stopped. Your Accept QR is shown." : "Stopped.");
+    setStatus(hello ? "Stopped \u2014 your Accept QR is shown." : "Stopped.");
   });
 
-  showReceiptBtn.addEventListener("click", () => {
+  function openReceipt() {
     if (lastCombinedUrl) location.href = lastCombinedUrl;
-  });
+  }
+  showReceiptBtn.addEventListener("click", openReceipt);
+  showReceiptBtn2.addEventListener("click", openReceipt);
 
   if (clearLocalBtn) {
     clearLocalBtn.addEventListener("click", () => {
       try{
-        const keys = [
-          KEY_LAST_HELLO_B64,
-          KEY_LAST_SELF_RESP,
-          KEY_SELF,
-          KEY_GUEST,
-          KEY_RECEIPTS,
-          "irlid_receipt_last",
-          KEY_PREF_CAM
-        ];
+        const keys = [KEY_LAST_HELLO_B64, KEY_LAST_SELF_RESP, KEY_SELF, KEY_GUEST,
+                      KEY_RECEIPTS, "irlid_receipt_last", KEY_PREF_CAM];
         for (const k of keys) localStorage.removeItem(k);
       }catch{}
       hello = null;
       lastCombinedUrl = null;
       try{ delete window.__irlid_last_self_response; }catch{}
       location.hash = "";
-      initHelloReturnQr();
+      setViewportState("idle");
+      showReceiptBtn.style.display = "none";
+      receiptFooter.style.display = "none";
       setStatus("Cleared local data.");
     });
   }
