@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 74 -->
+<!-- Deploy 75 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -398,6 +398,11 @@
     return baseReceiptUrl() + "#COMB=" + irlidEncodeJsonToB64url(comb);
   }
 
+  // Deploy 74: short server-hash receipt URL (QR version 5 vs 36).
+  function makeReceiptUrlForHash(hash){
+    return baseReceiptUrl() + "#receipt=" + hash;
+  }
+
   function addCheck(label, ok, detail){
     const div = document.createElement("div");
     div.className = "check";
@@ -738,7 +743,7 @@
   //  DETAIL VIEW
   // =========================
 
-  async function renderDetail(comb, resp){
+  async function renderDetail(comb, resp, serverHash){
     showDetailView();
     metaPanel.style.display = "block";
     rawWrap.style.display = "block";
@@ -748,8 +753,32 @@
       metaTitle.textContent = "Combined Receipt";
       peopleGrid.style.display = "grid";
 
-      const url = makeReceiptUrlForCombined(comb);
-      if (typeof makeQR === "function") makeQR("topQr", url, qrSize());
+      // Deploy 75: prefer short server-hash URL for QR (version 5 vs 36).
+      // NEVER render the giant inline COMB= QR — it's unscannable.
+      let qrUrl = null;
+      if (serverHash) {
+        qrUrl = makeReceiptUrlForHash(serverHash);
+      } else if (window.IRLBackend && window.IRLBackend.hasSession()) {
+        // Try uploading to get the hash
+        try {
+          const upRes = await window.IRLBackend.uploadReceipt(comb);
+          if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
+            qrUrl = makeReceiptUrlForHash(upRes.data.receipt_hash);
+          }
+        } catch(_){}
+      }
+
+      const topQrEl = document.getElementById("topQr");
+      if (qrUrl) {
+        if (typeof makeQR === "function") makeQR("topQr", qrUrl, qrSize());
+      } else {
+        // No server hash available — show message instead of unscannable QR
+        topQrEl.innerHTML =
+          '<div style="padding:16px 12px; border:1px solid #e5e5e5; background:#f7f7f7; font-size:13px; text-align:center;">' +
+          '<b>Receipt QR not available</b><br>' +
+          '<a href="login.html">Log in</a> to generate a scannable receipt QR code.' +
+          '</div>';
+      }
 
       rawJson.textContent = JSON.stringify(comb, null, 2);
       setSummary(comb);
@@ -872,7 +901,7 @@
 
     const data = result.data;
     if (data.combined && data.combined.type === "combined") {
-      await renderDetail(data.combined, null);
+      await renderDetail(data.combined, null, hash);
     } else {
       // No combined JSON — show basic server record
       document.getElementById("topQr").innerHTML = "";
