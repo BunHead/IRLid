@@ -1,4 +1,4 @@
-// /js/backend.js — Deploy 73
+// /js/backend.js — Deploy 80
 // API client for IRLid backend (Cloudflare Workers + D1).
 
 (function () {
@@ -148,6 +148,12 @@
 
     getReceipt: async function (hash) {
       return await api("GET", "/receipts/" + encodeURIComponent(hash));
+    },
+
+    // ===== User Lookup =====
+
+    lookupByKey: async function (pubKeyId) {
+      return await api("GET", "/users/by-key/" + encodeURIComponent(pubKeyId));
     }
   };
 })();
