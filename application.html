@@ -1,6 +1,6 @@
 <!-- application.html -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 74 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -368,6 +368,20 @@
     const combEncoded = irlidEncodeJsonToB64url(out.combined);
     lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
     storeCombinedReceipt(out.combined);
+
+    // Auto-upload to server if logged in
+    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      try {
+        const upRes = await window.IRLBackend.uploadReceipt(out.combined);
+        if (upRes.ok) {
+          console.log("Receipt uploaded:", upRes.data.receipt_hash, upRes.data.duplicate ? "(duplicate)" : "");
+        } else {
+          console.warn("Receipt upload failed:", upRes.error);
+        }
+      } catch(e) {
+        console.warn("Receipt upload error:", e);
+      }
+    }
 
     showReceiptBtn.style.display = "inline-flex";
     setStatus("Verified. Combined receipt ready.");
