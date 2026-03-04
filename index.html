@@ -117,6 +117,12 @@
         const size = computeQrSize();
         await makeQR("myQr", url, size);
 
+        // Save the HELLO so application.html can use it when scanning the Accept QR
+        try {
+          const helloB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
+          localStorage.setItem("irlid_last_hello_b64", helloB64);
+        } catch(e) { console.warn("Could not save HELLO:", e); }
+
         qrErrorEl.style.display = "none";
         qrErrorEl.textContent = "";
       } catch (e) {
