@@ -559,10 +559,30 @@ async function uploadReceipt(request, env) {
   const tsB = combined.b?.payload?.ts || null;
   const receiptId = uuid();
 
+  // Look up user info for both parties at upload time (snapshot)
+  let partyA = null, partyB = null;
+  if (pkA) {
+    const devA = await env.DB.prepare("SELECT user_id FROM devices WHERE pub_key_id = ? AND revoked_at IS NULL").bind(pkA).first();
+    if (devA) {
+      const uA = await env.DB.prepare("SELECT display_name, google_picture FROM users WHERE id = ?").bind(devA.user_id).first();
+      if (uA) partyA = { display_name: uA.display_name || null, google_picture: uA.google_picture || null };
+    }
+  }
+  if (pkB) {
+    const devB = await env.DB.prepare("SELECT user_id FROM devices WHERE pub_key_id = ? AND revoked_at IS NULL").bind(pkB).first();
+    if (devB) {
+      const uB = await env.DB.prepare("SELECT display_name, google_picture FROM users WHERE id = ?").bind(devB.user_id).first();
+      if (uB) partyB = { display_name: uB.display_name || null, google_picture: uB.google_picture || null };
+    }
+  }
+
+  // Store party info as JSON metadata alongside the receipt
+  const partyInfo = JSON.stringify({ a: partyA, b: partyB });
+
   await env.DB.prepare(
-    `INSERT INTO receipts (id, uploader_id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(receiptId, session.userId, receiptHash, pkA, pkB, tsA, tsB, JSON.stringify(combined), checks.valid ? 1 : 0, now()).run();
-  return json({ receipt_id: receiptId, receipt_hash: receiptHash, verified: checks.valid, checks }, 201);
+    `INSERT INTO receipts (id, uploader_id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at, party_info) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(receiptId, session.userId, receiptHash, pkA, pkB, tsA, tsB, JSON.stringify(combined), checks.valid ? 1 : 0, now(), partyInfo).run();
+  return json({ receipt_id: receiptId, receipt_hash: receiptHash, verified: checks.valid, checks, party_info: { a: partyA, b: partyB } }, 201);
 }
 
 async function listReceipts(request, env) {
@@ -598,12 +618,14 @@ async function listReceipts(request, env) {
 
 async function getReceipt(request, env, receiptHash) {
   const row = await env.DB.prepare(
-    "SELECT id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at FROM receipts WHERE receipt_hash = ?"
+    "SELECT id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at, party_info FROM receipts WHERE receipt_hash = ?"
   ).bind(receiptHash).first();
   if (!row) return err("Receipt not found", 404);
   let combined = null;
   try { combined = JSON.parse(row.receipt_json); } catch {}
-  return json({ receipt_id: row.id, receipt_hash: row.receipt_hash, pub_key_a: row.pub_key_a, pub_key_b: row.pub_key_b, ts_a: row.ts_a, ts_b: row.ts_b, verified: !!row.verified, created_at: row.created_at, combined });
+  let partyInfo = null;
+  try { if (row.party_info) partyInfo = JSON.parse(row.party_info); } catch {}
+  return json({ receipt_id: row.id, receipt_hash: row.receipt_hash, pub_key_a: row.pub_key_a, pub_key_b: row.pub_key_b, ts_a: row.ts_a, ts_b: row.ts_b, verified: !!row.verified, created_at: row.created_at, combined, party_info: partyInfo });
 }
 
 async function verify(request, env) {

@@ -672,7 +672,7 @@
   //  RESOLVE PARTY IDENTITIES
   // =========================
 
-  async function resolvePartyInfo(comb){
+  async function resolvePartyInfo(comb, serverPartyInfo){
     const pubA = comb.a && comb.a.pub ? comb.a.pub : null;
     const pubB = comb.b && comb.b.pub ? comb.b.pub : null;
 
@@ -694,13 +694,35 @@
     roleAEl.textContent = aIsLocal ? "You (Initiator):" : "Initiator:";
     roleBEl.textContent = bIsLocal ? "You (Collaborator):" : "Collaborator:";
 
+    // Prefer server-stored party info (snapshot from upload time) over live lookups
+    const spA = serverPartyInfo && serverPartyInfo.a ? serverPartyInfo.a : null;
+    const spB = serverPartyInfo && serverPartyInfo.b ? serverPartyInfo.b : null;
+
+    // Side A: use server snapshot if available, otherwise fall through to lookup
+    if (!aIsLocal && spA) {
+      if (spA.display_name) selfNameEl.textContent = spA.display_name;
+      if (spA.google_picture) renderAvatar(selfAvatarWrap, spA.google_picture);
+    }
+    // Side B: use server snapshot if available
+    if (!bIsLocal && spB) {
+      if (spB.display_name) guestNameEl.textContent = spB.display_name;
+      if (spB.google_picture) renderAvatar(guestAvatarWrap, spB.google_picture);
+    }
+
+    // If server snapshots filled both sides, we're done (skip lookups)
+    const aResolved = aIsLocal || (spA && spA.display_name);
+    const bResolved = bIsLocal || (spB && spB.display_name);
+    if (aResolved && bResolved) return;
+
     let keyIdA = null, keyIdB = null;
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
     // Side A: if this device's key matches, use current session info (authoritative).
-    // Otherwise look up from server.
-    if (aIsLocal && cachedUserInfo) {
+    // Otherwise look up from server (only if not already resolved from snapshot).
+    if (aResolved) {
+      // Already handled above
+    } else if (aIsLocal && cachedUserInfo) {
       if (cachedUserInfo.display_name) selfNameEl.textContent = cachedUserInfo.display_name;
       if (cachedUserInfo.google_picture) renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
     } else if (keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
@@ -713,8 +735,10 @@
       } catch{}
     }
 
-    // Side B: same logic — local key match uses session, otherwise server lookup.
-    if (bIsLocal && cachedUserInfo) {
+    // Side B: same logic.
+    if (bResolved) {
+      // Already handled above
+    } else if (bIsLocal && cachedUserInfo) {
       if (cachedUserInfo.display_name) guestNameEl.textContent = cachedUserInfo.display_name;
       if (cachedUserInfo.google_picture) renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
     } else if (keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
@@ -1143,7 +1167,7 @@
   //  DETAIL VIEW
   // =========================
 
-  async function renderDetail(comb, resp, serverHash){
+  async function renderDetail(comb, resp, serverHash, serverPartyInfo){
     showDetailView();
     checksGrid.innerHTML = "";
     checksVerbose.innerHTML = "";
@@ -1275,7 +1299,7 @@
       }
 
       // Async resolve both parties' names and avatars from backend
-      await resolvePartyInfo(comb);
+      await resolvePartyInfo(comb, serverPartyInfo);
 
     } else if (resp) {
       metaTitle.textContent = "Receipt";
@@ -1336,7 +1360,7 @@
 
     const data = result.data;
     if (data.combined && data.combined.type === "combined") {
-      await renderDetail(data.combined, null, hash);
+      await renderDetail(data.combined, null, hash, data.party_info || null);
     } else {
       // No combined JSON — show basic server record
       document.getElementById("topQr").innerHTML = "";
