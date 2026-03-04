@@ -479,11 +479,16 @@
           ? await decompressHelloToB64url(fromHash.raw)
           : fromHash.raw;
         saveHello(hello);
+        console.log("[IRLid DEBUG] initHello: loaded from hash");
       } catch(e) { console.error("HELLO decode error:", e); }
     }
-    if (!hello) hello = getSavedHello();
+    if (!hello) {
+      hello = getSavedHello();
+      if (hello) console.log("[IRLid DEBUG] initHello: loaded from localStorage");
+    }
 
     if (!hello) {
+      console.log("[IRLid DEBUG] initHello: NO HELLO found, going idle");
       setViewportState("idle");
       receiptWrap.style.display = "none";
       lastCombinedUrl = null;
@@ -493,9 +498,11 @@
 
     try {
       setStatus("Getting location & signing\u2026");
+      console.log("[IRLid DEBUG] initHello: creating Accept QR response");
 
       const respObj = await makeReturnForHelloAsync(hello);
       saveSelfResp(respObj);
+      console.log("[IRLid DEBUG] initHello: self response pub key x:", respObj.pub ? respObj.pub.x.substring(0,10) + "..." : "NONE");
 
       let qrData;
       if (irlidHasCompression()) {
@@ -620,13 +627,18 @@
   }
 
   async function ensureSelfResponseForHello(){
-    if (window.__irlid_last_self_response && window.__irlid_last_self_response.type === "response") return;
+    if (window.__irlid_last_self_response && window.__irlid_last_self_response.type === "response") {
+      console.log("[IRLid DEBUG] ensureSelf: using in-memory cached response");
+      return;
+    }
     const saved = loadSavedSelfResp();
     if (saved && saved.type === "response") {
+      console.log("[IRLid DEBUG] ensureSelf: using localStorage cached response");
       window.__irlid_last_self_response = saved;
       return;
     }
     if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
+    console.log("[IRLid DEBUG] ensureSelf: creating FRESH self response");
     setStatus("Creating self receipt (location + time)\u2026");
     const selfResp = await makeReturnForHelloAsync(hello);
     window.__irlid_last_self_response = selfResp;
@@ -637,9 +649,16 @@
     if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
     await ensureSelfResponseForHello();
 
+    // Debug: log the keys being used
+    const selfResp = window.__irlid_last_self_response;
+    console.log("[IRLid DEBUG] Self pub key x:", selfResp && selfResp.pub ? selfResp.pub.x.substring(0,10) + "..." : "NONE");
+
     const otherRespObj = isCompressed
       ? await irlidDecompressFromB64url(respB64)
       : irlidDecodeB64urlJson(respB64);
+
+    console.log("[IRLid DEBUG] Other pub key x:", otherRespObj && otherRespObj.pub ? otherRespObj.pub.x.substring(0,10) + "..." : "NONE");
+    console.log("[IRLid DEBUG] Keys match:", selfResp && otherRespObj && selfResp.pub && otherRespObj.pub && selfResp.pub.x === otherRespObj.pub.x);
 
     const out = await processScannedResponse(otherRespObj, {
       hello,
