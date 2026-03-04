@@ -87,6 +87,12 @@
         if (typeof b64urlEncode !== "function") throw new Error("b64urlEncode() missing in js/sign.js");
         if (typeof makeQR !== "function") throw new Error("makeQR() missing in js/qr.js");
 
+        // Clear stale handshake data from any previous session
+        try {
+          localStorage.removeItem("irlid_last_self_response");
+          delete window.__irlid_last_self_response;
+        } catch(e){}
+
         let hello = null;
 
         if (typeof makeSignedHelloAsync === "function") {
