@@ -1,4 +1,4 @@
-// irlid-api/src/index.js — v5
+// irlid-api/src/index.js — v5.2
 // IRLid Backend — Cloudflare Worker + D1
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 
@@ -302,8 +302,13 @@ async function googleAuth(request, env) {
     if (existingDevice) {
       if (existingDevice.user_id === userId) {
         deviceId = existingDevice.id;
+      } else {
+        // Device was registered to a different user — reassign to current user.
+        // This happens when a new person logs in on a device previously used by someone else.
+        deviceId = existingDevice.id;
+        await env.DB.prepare("UPDATE devices SET user_id = ? WHERE id = ?")
+          .bind(userId, deviceId).run();
       }
-      // If device belongs to different user, don't touch it — just skip
     } else {
       deviceId = uuid();
       await env.DB.prepare("INSERT INTO devices (id, user_id, pub_key_id, pub_jwk, created_at) VALUES (?, ?, ?, ?, ?)")
