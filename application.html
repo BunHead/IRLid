@@ -377,21 +377,36 @@
   const KEY_SELF  = "irlid_resp_self";
   const KEY_GUEST = "irlid_resp_other";
   // ===== ON-SCREEN DEBUG PANEL =====
+  function isDebugMode() {
+    try {
+      if (new URLSearchParams(location.search).get("debug") === "1") return true;
+      if (localStorage.getItem("irlid_debug") === "1") return true;
+      if (location.hash.indexOf("DEBUG=1") !== -1) return true;
+    } catch(e){}
+    return false;
+  }
   const debugPanel = document.createElement("div");
   debugPanel.id = "debugPanel";
-  debugPanel.style.cssText = "position:fixed;bottom:80px;left:0;right:0;max-height:200px;overflow-y:auto;background:#111;color:#0f0;font:11px monospace;padding:8px;z-index:9999;display:none;";
+  debugPanel.style.cssText = "position:fixed;top:50px;left:0;right:0;max-height:250px;overflow-y:auto;background:rgba(0,0,0,0.92);color:#0f0;font:13px monospace;padding:10px;z-index:9999;display:none;";
   document.body.appendChild(debugPanel);
   const debugToggle = document.createElement("button");
-  debugToggle.textContent = "Debug";
-  debugToggle.style.cssText = "position:fixed;bottom:60px;right:8px;z-index:10000;background:#333;color:#0f0;border:1px solid #0f0;padding:4px 8px;font:11px monospace;";
+  debugToggle.textContent = "DBG";
+  debugToggle.style.cssText = "position:fixed;top:50px;right:8px;z-index:10000;background:#222;color:#0f0;border:2px solid #0f0;padding:6px 12px;font:bold 14px monospace;border-radius:4px;display:none;";
   debugToggle.onclick = () => { debugPanel.style.display = debugPanel.style.display === "none" ? "block" : "none"; };
   document.body.appendChild(debugToggle);
+  if (isDebugMode()) debugToggle.style.display = "block";
   function dbg(msg) {
     console.log(msg);
     const line = document.createElement("div");
     line.textContent = new Date().toLocaleTimeString() + " " + msg;
     debugPanel.appendChild(line);
     debugPanel.scrollTop = debugPanel.scrollHeight;
+    // Also save to sessionStorage so receipt page can show it
+    try {
+      const logs = JSON.parse(sessionStorage.getItem("irlid_debug_log") || "[]");
+      logs.push(new Date().toLocaleTimeString() + " " + msg);
+      sessionStorage.setItem("irlid_debug_log", JSON.stringify(logs));
+    } catch(e){}
   }
 
   const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
@@ -789,7 +804,14 @@
             try{
               setStatus("Accept detected. Verifying\u2026");
               await handleScannedResponseB64(c.v || "", c.kind === "RESP_Z");
-              if (lastCombinedUrl) location.href = lastCombinedUrl;
+              if (lastCombinedUrl) {
+                if (isDebugMode()) {
+                  dbg("Redirecting to receipt in 5s...");
+                  dbg("URL: " + lastCombinedUrl);
+                  await new Promise(r => setTimeout(r, 5000));
+                }
+                location.href = lastCombinedUrl;
+              }
               return;
             }catch(e){
               setStatus("Verify failed: " + e);
