@@ -81,53 +81,61 @@
       return Math.max(260, Math.min(size, 980));
     }
 
+    let cachedHello = null;
+    let cachedHelloUrl = null;
+
+    async function generateHello(){
+      if (typeof makeSignedHelloAsync === "function") {
+        return await makeSignedHelloAsync({ tsTolS: 90 });
+      } else {
+        const pub = await getPublicJwk();
+        return {
+          v: 1,
+          type: "hello",
+          pub: (typeof compactJwk === "function") ? compactJwk(pub) : pub,
+          nonce: crypto.getRandomValues(new Uint32Array(1))[0],
+          ts: Math.floor(Date.now() / 1000)
+        };
+      }
+    }
+
     async function renderHelloQr(){
       try {
         if (typeof getPublicJwk !== "function") throw new Error("getPublicJwk() missing in js/sign.js");
         if (typeof b64urlEncode !== "function") throw new Error("b64urlEncode() missing in js/sign.js");
         if (typeof makeQR !== "function") throw new Error("makeQR() missing in js/qr.js");
 
-        // Clear stale handshake data from any previous session
-        try {
-          localStorage.removeItem("irlid_last_self_response");
-          delete window.__irlid_last_self_response;
-        } catch(e){}
-
-        let hello = null;
-
-        if (typeof makeSignedHelloAsync === "function") {
-          hello = await makeSignedHelloAsync({ tsTolS: 90 });
-        } else {
-          const pub = await getPublicJwk();
-          hello = {
-            v: 1,
-            type: "hello",
-            pub: (typeof compactJwk === "function") ? compactJwk(pub) : pub,
-            nonce: crypto.getRandomValues(new Uint32Array(1))[0],
-            ts: Math.floor(Date.now() / 1000)
-          };
+        // Clear stale handshake data from any previous session (only on first render)
+        if (!cachedHello) {
+          try {
+            localStorage.removeItem("irlid_last_self_response");
+            delete window.__irlid_last_self_response;
+          } catch(e){}
         }
 
-        // Deploy 76: compress HELLO for smaller QR (v17 → v13).
-        // Use HZ= prefix for compressed, HELLO= fallback if compression unavailable.
-        const baseUrl = location.origin + "/IRLid";
-        let url;
-        if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
-          const compressed = await irlidCompressToB64url(hello);
-          url = `${baseUrl}/application.html#HZ=${compressed}`;
-        } else {
-          const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-          url = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+        // Generate HELLO only once per page load
+        if (!cachedHello) {
+          cachedHello = await generateHello();
+
+          const baseUrl = location.origin + "/IRLid";
+          if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
+            const compressed = await irlidCompressToB64url(cachedHello);
+            cachedHelloUrl = `${baseUrl}/application.html#HZ=${compressed}`;
+          } else {
+            const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(cachedHello)));
+            cachedHelloUrl = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+          }
+
+          // Save to localStorage for application.html Scan page
+          try {
+            const helloB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(cachedHello)));
+            localStorage.setItem("irlid_last_hello_b64", helloB64);
+          } catch(e) { console.warn("Could not save HELLO:", e); }
         }
 
+        // Re-render QR at current size (same HELLO)
         const size = computeQrSize();
-        await makeQR("myQr", url, size);
-
-        // Save the HELLO so application.html can use it when scanning the Accept QR
-        try {
-          const helloB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(hello)));
-          localStorage.setItem("irlid_last_hello_b64", helloB64);
-        } catch(e) { console.warn("Could not save HELLO:", e); }
+        await makeQR("myQr", cachedHelloUrl, size);
 
         qrErrorEl.style.display = "none";
         qrErrorEl.textContent = "";

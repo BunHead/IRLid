@@ -340,7 +340,7 @@
   <!-- Everything below viewport: centered column -->
   <div class="scan-below">
 
-    <div class="qr-hint" id="qrHint">&#8593; Show this Accept QR to the other person</div>
+    <div class="qr-hint" id="qrHint">&#8593; SHOW THIS ACCEPT QR TO THE OTHER PERSON</div>
 
     <div class="scan-controls">
       <button class="btn" id="scanBtn">Scan</button>
@@ -548,7 +548,17 @@
       await makeQR("responseQr", qrData, 360);
       setViewportState("qr");
 
-      setStatus("Accept ready \u2014 show your QR, then tap Scan to read theirs.");
+      // Hide scan button while Accept QR is showing — 4a doesn't need to scan anything
+      scanBtn.style.display = "none";
+      setStatus("Show this QR to the other person. They scan it to complete the handshake.");
+
+      // Show a link to check receipts after a moment
+      setTimeout(() => {
+        const statusEl = document.getElementById("statusMsg");
+        if (statusEl && !lastCombinedUrl) {
+          statusEl.innerHTML = 'Waiting for the other person to scan your QR.<br><a href="account.html" style="color:#00e0ff;">Check your receipts \u2192</a>';
+        }
+      }, 5000);
 
       receiptWrap.style.display = "none";
       lastCombinedUrl = null;
