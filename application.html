@@ -1,6 +1,5 @@
-<!-- application.html -->
+<!-- application.html — Pure Scanner -->
 <!DOCTYPE html>
-<!-- Deploy 77 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -16,7 +15,6 @@
       align-items: center;
     }
 
-    /* === Viewport === */
     .scan-viewport {
       position: relative;
       width: 100%;
@@ -26,17 +24,14 @@
       overflow: hidden;
     }
 
-    /* --- Idle: translucent QR finder patterns --- */
     .scan-finders {
       position: absolute;
       inset: 0;
       z-index: 2;
       pointer-events: none;
     }
-    .scan-viewport.state-scanning .scan-finders,
-    .scan-viewport.state-qr .scan-finders { display: none; }
+    .scan-viewport.state-scanning .scan-finders { display: none; }
 
-    /* Each finder pattern: 3 concentric squares */
     .finder {
       position: absolute;
       width: 72px;
@@ -45,238 +40,107 @@
     .finder.tl { top: 10%; left: 10%; }
     .finder.tr { top: 10%; right: 10%; }
     .finder.bl { bottom: 10%; left: 10%; }
-    /* No bottom-right — just like a real QR code */
 
     .finder .f-outer {
-      position: absolute;
-      inset: 0;
-      border: 5px solid rgba(255,255,255,0.12);
+      position: absolute; inset: 0;
+      border: 3px solid rgba(255,255,255,.18);
     }
     .finder .f-inner {
-      position: absolute;
-      inset: 14px;
-      border: 5px solid rgba(255,255,255,0.12);
+      position: absolute; inset: 18%; 
+      border: 2px solid rgba(255,255,255,.12);
     }
     .finder .f-core {
-      position: absolute;
-      inset: 24px;
-      background: rgba(255,255,255,0.12);
+      position: absolute; inset: 30%;
+      background: rgba(255,255,255,.10);
     }
 
     .idle-label {
       position: absolute;
-      bottom: 12%;
-      left: 0; right: 0;
+      bottom: 18%;
+      width: 100%;
       text-align: center;
-      color: rgba(255,255,255,0.3);
-      font-size: 12px;
-      letter-spacing: 0.1em;
+      color: rgba(255,255,255,.45);
+      font: 600 14px/1.3 system-ui, sans-serif;
       text-transform: uppercase;
+      letter-spacing: .08em;
       z-index: 2;
-      pointer-events: none;
     }
-    .scan-viewport.state-scanning .idle-label,
-    .scan-viewport.state-qr .idle-label { display: none; }
+    .scan-viewport.state-scanning .idle-label { display: none; }
 
-    /* --- Scanning: finder targets that lock on --- */
     .scan-targets {
+      position: absolute; inset: 0;
+      z-index: 3; pointer-events: none;
       display: none;
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none;
     }
     .scan-viewport.state-scanning .scan-targets { display: block; }
 
-    .target {
-      position: absolute;
-      width: 60px;
-      height: 60px;
-      /* Start very faint, pulse clearer */
-      animation: targetPulse 2.8s ease-in-out infinite;
-    }
-    .target.tl { top: 8%; left: 8%; animation-delay: 0s; }
-    .target.tr { top: 8%; right: 8%; animation-delay: 0.3s; }
-    .target.bl { bottom: 8%; left: 8%; animation-delay: 0.6s; }
+    .target { position: absolute; width: 72px; height: 72px; }
+    .target.tl { top: 10%; left: 10%; }
+    .target.tr { top: 10%; right: 10%; }
+    .target.bl { bottom: 10%; left: 10%; }
 
     .target .t-outer {
-      position: absolute;
-      inset: 0;
-      border: 4px solid rgba(255,255,255,0.15);
-      animation: targetPulse 2.8s ease-in-out infinite;
+      position: absolute; inset: 0;
+      border: 3px solid rgba(0,230,118,.55);
+      animation: pulse-out 1.8s ease-in-out infinite;
     }
-    .target.tl .t-outer { animation-delay: 0s; }
-    .target.tr .t-outer { animation-delay: 0.3s; }
-    .target.bl .t-outer { animation-delay: 0.6s; }
-
     .target .t-inner {
-      position: absolute;
-      inset: 11px;
-      border: 4px solid rgba(255,255,255,0.15);
-      animation: targetPulse 2.8s ease-in-out infinite;
+      position: absolute; inset: 18%;
+      border: 2px solid rgba(0,230,118,.35);
     }
-    .target.tl .t-inner { animation-delay: 0.15s; }
-    .target.tr .t-inner { animation-delay: 0.45s; }
-    .target.bl .t-inner { animation-delay: 0.75s; }
-
     .target .t-core {
-      position: absolute;
-      inset: 20px;
-      background: rgba(255,255,255,0.15);
-      animation: targetPulse 2.8s ease-in-out infinite;
+      position: absolute; inset: 30%;
+      background: rgba(0,230,118,.18);
+      animation: pulse-core 1.8s ease-in-out infinite;
     }
-    .target.tl .t-core { animation-delay: 0.3s; }
-    .target.tr .t-core { animation-delay: 0.6s; }
-    .target.bl .t-core { animation-delay: 0.9s; }
+    @keyframes pulse-out { 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
+    @keyframes pulse-core { 0%,100%{ transform:scale(.85); opacity:.4; } 50%{ transform:scale(1); opacity:.7; } }
 
-    @keyframes targetPulse {
-      0%   { opacity: 0.3; }
-      40%  { opacity: 1; }
-      60%  { opacity: 1; }
-      100% { opacity: 0.3; }
-    }
-
-    /* Thin crosshair lines during scan */
     .scan-cross {
       display: none;
-      position: absolute;
-      inset: 0;
-      z-index: 9;
-      pointer-events: none;
+      position: absolute; inset: 0;
+      z-index: 3; pointer-events: none;
     }
     .scan-viewport.state-scanning .scan-cross { display: block; }
-    .scan-cross::before,
-    .scan-cross::after {
-      content: '';
-      position: absolute;
-      background: rgba(255,255,255,0.08);
+    .scan-cross::before, .scan-cross::after {
+      content: ''; position: absolute;
+      background: rgba(0,230,118,.18);
     }
     .scan-cross::before { width: 1px; height: 100%; left: 50%; top: 0; }
     .scan-cross::after  { height: 1px; width: 100%; top: 50%; left: 0; }
 
-    /* Scanner container */
-    .scan-viewport #scanner {
-      position: absolute;
-      inset: 0;
-      width: 100% !important;
-      height: 100% !important;
-      margin: 0;
-      z-index: 1;
-    }
-    .scan-viewport #scanner video {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover !important;
-    }
+    #scanner { position: absolute; inset: 0; z-index: 1; }
+    #scanner video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 
-    /* QR response inside viewport */
-    .scan-viewport #responseQr {
-      position: absolute;
-      inset: 0;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 3;
-      background: #fff;
-      padding: 12px;
-    }
-    .scan-viewport.state-qr #responseQr { display: flex; }
-    #responseQr canvas, #responseQr img { max-width: 100%; max-height: 100%; }
-
-    /* === Below viewport: everything centered === */
     .scan-below {
       width: 100%;
       max-width: 480px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      text-align: center;
     }
 
-    /* QR hint */
-    .qr-hint {
-      display: none;
-      width: 100%;
-      padding: 8px 14px 0;
-      font-size: 12px;
-      color: #888;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      text-align: center;
-    }
-    .scan-viewport.state-qr ~ .scan-below .qr-hint { display: block; }
-
-    /* Controls row */
     .scan-controls {
       display: flex;
       align-items: center;
-      justify-content: center;
       gap: 10px;
-      padding: 12px 14px 0;
-      flex-wrap: wrap;
+      margin: 14px 0;
     }
 
-    .scan-controls .btn {
-      padding: 12px 28px;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .scan-controls .btn.active-scan {
-      background: #ff2222;
-      color: #fff;
-      border-color: #ff2222;
-    }
-
-    .scan-controls select {
-      background: #fff;
-      color: #000;
-      border: 1px solid #000;
-      padding: 10px 8px;
-      font-size: 13px;
-      max-width: 140px;
-    }
-
-    /* Status */
     .scan-status {
-      padding: 10px 14px 0;
-      font-size: 13px;
-      color: #555;
-      text-align: center;
+      font-size: 14px;
+      color: #888;
+      min-height: 22px;
+      padding: 0 14px;
     }
-    .scan-status.scanning {
-      color: #ff2222;
-      font-weight: 700;
+    .scan-status.active { color: #e00; font-weight: 600; }
+
+    .active-scan {
+      background: #e00 !important;
+      border-color: #e00 !important;
+      color: #fff !important;
     }
 
-    .scan-status .dot-pulse::after {
-      content: '';
-      animation: dots 1.4s steps(4, end) infinite;
-    }
-    @keyframes dots {
-      0%   { content: ''; }
-      25%  { content: '.'; }
-      50%  { content: '..'; }
-      75%  { content: '...'; }
-      100% { content: ''; }
-    }
-
-    /* Receipt button */
-    .scan-receipt-btn {
-      display: none;
-      padding: 8px 14px 0;
-    }
-    .scan-receipt-btn .btn {
-      padding: 12px 28px;
-      font-size: 15px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    /* Debug */
     #debugControls { display: none; padding: 8px 14px 0; }
   </style>
 </head>
@@ -289,11 +153,9 @@
       <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
     </a>
   </div>
-
   <nav class="site-nav" aria-label="Primary">
     <a class="nav-btn" href="index.html">Home</a>
     <a class="nav-btn" href="application.html">Scan</a>
-
     <details class="nav-dropdown" id="aboutDropdown">
       <summary class="nav-btn">About &#9660;</summary>
       <div class="dropdown-menu" role="menu" aria-label="About menu">
@@ -302,68 +164,43 @@
         <a href="contact.html">Contact</a>
       </div>
     </details>
-
     <span id="accountSlot"></span>
   </nav>
 </header>
 
 <main class="scan-main">
-
-  <!-- Viewport -->
   <div class="scan-viewport state-idle" id="scanViewport">
-
-    <!-- Idle: translucent QR finder patterns (3 corners like a real QR) -->
     <div class="scan-finders">
       <div class="finder tl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
       <div class="finder tr"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
       <div class="finder bl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
     </div>
     <div class="idle-label">Point at any IRLid QR</div>
-
-    <!-- Scanning: pulsing finder targets that "lock on" -->
     <div class="scan-targets">
       <div class="target tl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
       <div class="target tr"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
       <div class="target bl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
     </div>
-
-    <!-- Subtle crosshair during scan -->
     <div class="scan-cross"></div>
-
-    <!-- Camera feed -->
     <div id="scanner"></div>
-
-    <!-- Accept QR display -->
-    <div class="qr-box" id="responseQr"></div>
   </div>
 
-  <!-- Everything below viewport: centered column -->
   <div class="scan-below">
-
-    <div class="qr-hint" id="qrHint">&#8593; SHOW THIS ACCEPT QR TO THE OTHER PERSON</div>
-
     <div class="scan-controls">
       <button class="btn" id="scanBtn">Scan</button>
       <button class="btn active-scan" id="stopBtn" style="display:none;">Stop</button>
       <select id="cameraSelect" aria-label="Camera"></select>
     </div>
-
-    <div class="scan-status" id="status">Ready</div>
-
-    <div class="scan-receipt-btn" id="receiptWrap">
-      <button class="btn" id="showReceiptBtn">Open Receipt</button>
-    </div>
-
+    <div class="scan-status" id="status">Ready — tap Scan to scan any IRLid QR code.</div>
     <div id="debugControls">
       <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
     </div>
-
   </div>
 </main>
 
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
-  <script src="js/nav.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="js/qr.js?v=63"></script>
@@ -371,17 +208,13 @@
 <script>
   const IRLID_TS_TOL_S = 90;
   const IRLID_DIST_TOL_M = 12;
-
   const KEY_PREF_CAM = "irlid_preferred_camera_id";
-  const KEY_RECEIPTS = "irlid_receipts";
-  const KEY_SELF  = "irlid_resp_self";
-  const KEY_GUEST = "irlid_resp_other";
-  // ===== ON-SCREEN DEBUG PANEL =====
+
+  // Debug panel
   function isDebugMode() {
     try {
       if (new URLSearchParams(location.search).get("debug") === "1") return true;
       if (localStorage.getItem("irlid_debug") === "1") return true;
-      if (location.hash.indexOf("DEBUG=1") !== -1) return true;
     } catch(e){}
     return false;
   }
@@ -396,187 +229,35 @@
   document.body.appendChild(debugToggle);
   if (isDebugMode()) debugToggle.style.display = "block";
   function dbg(msg) {
-    console.log(msg);
+    console.log("[IRLid]", msg);
     const line = document.createElement("div");
     line.textContent = new Date().toLocaleTimeString() + " " + msg;
     debugPanel.appendChild(line);
     debugPanel.scrollTop = debugPanel.scrollHeight;
-    // Also save to sessionStorage so receipt page can show it
-    try {
-      const logs = JSON.parse(sessionStorage.getItem("irlid_debug_log") || "[]");
-      logs.push(new Date().toLocaleTimeString() + " " + msg);
-      sessionStorage.setItem("irlid_debug_log", JSON.stringify(logs));
-    } catch(e){}
   }
 
-  const KEY_LAST_HELLO_B64 = "irlid_last_hello_b64";
-  const KEY_LAST_SELF_RESP = "irlid_last_self_response";
-
-  const statusEl      = document.getElementById("status");
-  const scanViewport  = document.getElementById("scanViewport");
-  const scanBtn       = document.getElementById("scanBtn");
-  const stopBtn       = document.getElementById("stopBtn");
-  const showReceiptBtn = document.getElementById("showReceiptBtn");
-  const receiptWrap   = document.getElementById("receiptWrap");
+  const statusEl     = document.getElementById("status");
+  const scanViewport = document.getElementById("scanViewport");
+  const scanBtn      = document.getElementById("scanBtn");
+  const stopBtn      = document.getElementById("stopBtn");
+  const scannerEl    = document.getElementById("scanner");
   const clearLocalBtn = document.getElementById("clearLocalBtn");
-  const debugControls = document.getElementById("debugControls");
-  const qrHint        = document.getElementById("qrHint");
-
-  let lastCombinedUrl = null;
-
-  function setViewportState(state) {
-    scanViewport.className = "scan-viewport state-" + state;
-    qrHint.style.display = (state === "qr") ? "block" : "none";
-  }
-
-  function setStatus(msg, isScanning) {
-    if (isScanning) {
-      statusEl.className = "scan-status scanning";
-      statusEl.innerHTML = msg + '<span class="dot-pulse"></span>';
-    } else {
-      statusEl.className = "scan-status";
-      statusEl.textContent = msg;
-    }
-  }
-
-  function isDebug(){
-    try{
-      const qs = new URLSearchParams(location.search || "");
-      if (qs.get("debug") === "1" || qs.get("debug") === "true") return true;
-    }catch{}
-    try{
-      const v = localStorage.getItem("irlid_debug");
-      if (v === "1" || v === "true") return true;
-    }catch{}
-    try{
-      const h = location.hash || "";
-      if (/(?:^|[#&])DEBUG=(1|true)(?:&|$)/i.test(h)) return true;
-    }catch{}
-    return false;
-  }
-
-  if (debugControls) debugControls.style.display = isDebug() ? "block" : "none";
-
-  // ---- HELLO handling ----
-  function getHelloFromHash(){
-    const h = location.hash || "";
-    const mz = h.match(/HZ=([^&]+)/);
-    if (mz) return { raw: mz[1], compressed: true };
-    const m = h.match(/HELLO=([^&]+)/);
-    if (m) return { raw: m[1], compressed: false };
-    return null;
-  }
-
-  async function decompressHelloToB64url(raw) {
-    const obj = await irlidDecompressFromB64url(raw);
-    return irlidEncodeJsonToB64url(obj);
-  }
-
-  function getSavedHello(){
-    try{
-      const v = localStorage.getItem(KEY_LAST_HELLO_B64);
-      return v && v.trim() ? v.trim() : null;
-    }catch{ return null; }
-  }
-
-  function saveHello(b64){
-    try{ if (b64 && b64.trim()) localStorage.setItem(KEY_LAST_HELLO_B64, b64.trim()); }catch{}
-  }
-
-  function loadSavedSelfResp(){
-    try{
-      const raw = localStorage.getItem(KEY_LAST_SELF_RESP);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    }catch{ return null; }
-  }
-
-  function saveSelfResp(resp){
-    try{ localStorage.setItem(KEY_LAST_SELF_RESP, JSON.stringify(resp)); }catch{}
-  }
-
-  let hello = getSavedHello();
-
-  if (!window.__irlid_last_self_response) {
-    const saved = loadSavedSelfResp();
-    if (saved && saved.type === "response") window.__irlid_last_self_response = saved;
-  }
-
-  const scannerEl = document.getElementById("scanner");
-
-  async function initHelloReturnQr(){
-    const fromHash = getHelloFromHash();
-    if (fromHash) {
-      try {
-        hello = fromHash.compressed
-          ? await decompressHelloToB64url(fromHash.raw)
-          : fromHash.raw;
-        saveHello(hello);
-        dbg("initHello: loaded from hash");
-      } catch(e) { console.error("HELLO decode error:", e); }
-    }
-    if (!hello) {
-      hello = getSavedHello();
-      if (hello) dbg("initHello: loaded from localStorage");
-    }
-
-    if (!hello) {
-      dbg("initHello: NO HELLO found, going idle");
-      setViewportState("idle");
-      receiptWrap.style.display = "none";
-      lastCombinedUrl = null;
-      setStatus("Ready \u2014 tap Scan to scan any IRLid QR code.");
-      return;
-    }
-
-    try {
-      setStatus("Getting location & signing\u2026");
-      dbg("initHello: creating Accept QR response");
-
-      const respObj = await makeReturnForHelloAsync(hello);
-      saveSelfResp(respObj);
-      dbg("initHello: self response pub key x: " + (respObj.pub ? respObj.pub.x.substring(0,12) : "NONE"));
-
-      let qrData;
-      if (irlidHasCompression()) {
-        const compressed = await irlidCompressToB64url(respObj);
-        qrData = "RZ:" + compressed;
-      } else {
-        qrData = "R:" + irlidEncodeJsonToB64url(respObj);
-      }
-
-      await makeQR("responseQr", qrData, 360);
-      setViewportState("qr");
-
-      // Hide scan button while Accept QR is showing — 4a doesn't need to scan anything
-      scanBtn.style.display = "none";
-      setStatus("Show this QR to the other person. They scan it to complete the handshake.");
-
-      // Show a link to check receipts after a moment
-      setTimeout(() => {
-        const statusEl = document.getElementById("statusMsg");
-        if (statusEl && !lastCombinedUrl) {
-          statusEl.innerHTML = 'Waiting for the other person to scan your QR.<br><a href="account.html" style="color:#00e0ff;">Check your receipts \u2192</a>';
-        }
-      }, 5000);
-
-      receiptWrap.style.display = "none";
-      lastCombinedUrl = null;
-    } catch(e) {
-      setStatus("Error: " + e);
-      console.error(e);
-    }
-  }
-
-  window.addEventListener("hashchange", () => { initHelloReturnQr(); });
-  initHelloReturnQr();
-
-  // ---- Scanner ----
   const cameraSelect = document.getElementById("cameraSelect");
 
+  let html5QrCode = null;
+
+  function setStatus(msg, active) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("active", !!active);
+  }
+
+  function setViewportState(s) {
+    scanViewport.className = "scan-viewport state-" + s;
+  }
+
+  // ---- QR Classify ----
   function classify(text){
     const t = (text || "").trim();
-
     if (t.startsWith("RZ:")) return { kind:"RESP_Z", v: t.slice(3) };
     if (t.startsWith("R:"))  return { kind:"RESP",   v: t.slice(2) };
     if (t.startsWith("HZ:")) return { kind:"HELLO_Z", v: t.slice(3) };
@@ -599,15 +280,12 @@
       m = s.match(rxResp);    if (m) return { kind:"RESP",    v:m[1] };
       m = s.match(rxReceipt); if (m) return { kind:"RECEIPT", v:m[1] };
     }
-
     return { kind:"UNKNOWN", v:null };
   }
 
+  // ---- Camera selection ----
   function getStoredPreferredCameraId(){
-    try{
-      const v = localStorage.getItem(KEY_PREF_CAM);
-      return v && v.trim() ? v.trim() : null;
-    }catch{ return null; }
+    try{ const v = localStorage.getItem(KEY_PREF_CAM); return v && v.trim() ? v.trim() : null; }catch{ return null; }
   }
   function setStoredPreferredCameraId(id){
     try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
@@ -618,90 +296,56 @@
     let score = 0;
     if (s.includes("back")) score += 80;
     if (s.includes("rear")) score += 80;
-    if (s.includes("environment")) score += 80;
-    if (s.includes("front")) score -= 120;
-    if (s.includes("selfie")) score -= 120;
+    if (s.includes("environment")) score += 60;
+    if (/camera\s*0/.test(s)) score += 30;
+    if (s.includes("facing back")) score += 100;
     return score;
   }
 
   async function listCamerasAndSelectDefault(){
-    const all = await navigator.mediaDevices.enumerateDevices();
-    const devices = all.filter(d => d.kind === "videoinput");
+    if (!Html5Qrcode || !Html5Qrcode.getCameras) return;
+    const cams = await Html5Qrcode.getCameras();
+    if (!cams || !cams.length) throw new Error("No cameras found.");
 
     cameraSelect.innerHTML = "";
-    for (const d of devices){
+    cams.forEach((c, i) => {
       const opt = document.createElement("option");
-      opt.value = d.deviceId;
-      opt.textContent = d.label || d.deviceId;
+      opt.value = c.id;
+      opt.textContent = c.label || ("Camera " + i);
       cameraSelect.appendChild(opt);
+    });
+
+    const pref = getStoredPreferredCameraId();
+    if (pref && cams.some(c => c.id === pref)) {
+      cameraSelect.value = pref;
+    } else {
+      let bestIdx = 0, bestScore = -1;
+      cams.forEach((c, i) => {
+        const sc = scoreRearLabel(c.label);
+        if (sc > bestScore) { bestScore = sc; bestIdx = i; }
+      });
+      cameraSelect.value = cams[bestIdx].id;
     }
-    if (!devices.length) return;
-
-    const stored = getStoredPreferredCameraId();
-    if (stored && devices.some(d => d.deviceId === stored)){
-      cameraSelect.value = stored;
-      return;
-    }
-
-    const ranked = devices
-      .map((d, idx) => ({ id: d.deviceId, label: d.label || "", idx, score: scoreRearLabel(d.label || "") }))
-      .sort((a,b) => (b.score !== a.score ? b.score - a.score : b.idx - a.idx));
-
-    const best = ranked[0];
-    const chosenId = (best && best.score > 0) ? best.id : devices[devices.length - 1].deviceId;
-    cameraSelect.value = chosenId;
-    setStoredPreferredCameraId(chosenId);
   }
 
-  let html5QrCode = null;
+  // ---- Handle scanned Accept QR → create combined receipt ----
+  async function handleScannedAcceptQR(respB64, isCompressed) {
+    const helloB64 = localStorage.getItem("irlid_last_hello_b64");
+    if (!helloB64) throw new Error("No HELLO found. Show your HELLO QR on the Home page first.");
 
-  function storeCombinedReceipt(combinedObj){
-    try{
-      if (combinedObj && combinedObj.a) localStorage.setItem(KEY_SELF, JSON.stringify(combinedObj.a));
-      if (combinedObj && combinedObj.b) localStorage.setItem(KEY_GUEST, JSON.stringify(combinedObj.b));
-    }catch{}
-    try{
-      const raw = localStorage.getItem(KEY_RECEIPTS);
-      const list = raw ? JSON.parse(raw) : [];
-      const entry = { ts: Date.now(), combined: combinedObj };
-      list.unshift(entry);
-      localStorage.setItem(KEY_RECEIPTS, JSON.stringify(list.slice(0, 200)));
-    }catch{}
-  }
+    dbg("Creating fresh self-response for HELLO...");
 
-  async function ensureSelfResponseForHello(){
-    if (window.__irlid_last_self_response && window.__irlid_last_self_response.type === "response") {
-      dbg("ensureSelf: using in-memory cached response");
-      return;
-    }
-    const saved = loadSavedSelfResp();
-    if (saved && saved.type === "response") {
-      dbg("ensureSelf: using localStorage cached response");
-      window.__irlid_last_self_response = saved;
-      return;
-    }
-    if (!hello) throw new Error("HELLO missing. Scan a HELLO first.");
-    dbg("ensureSelf: creating FRESH self response");
-    setStatus("Creating self receipt (location + time)\u2026");
-    const selfResp = await makeReturnForHelloAsync(hello);
-    window.__irlid_last_self_response = selfResp;
-    saveSelfResp(selfResp);
-  }
-
-  async function handleScannedResponseB64(respB64, isCompressed){
-    if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
-
-    // Always create a FRESH self-response when scanning an Accept QR.
-    // Don't reuse the cached one — it may be bound to a different HELLO.
-    dbg("handleScanned: clearing cache, creating fresh self-response");
+    // Clear any stale cached response
     try { delete window.__irlid_last_self_response; } catch(e){}
     try { localStorage.removeItem("irlid_last_self_response"); } catch(e){}
 
-    const freshSelf = await makeReturnForHelloAsync(hello);
+    // Create fresh self-response bound to the saved HELLO
+    const freshSelf = await makeReturnForHelloAsync(helloB64);
     window.__irlid_last_self_response = freshSelf;
 
     dbg("Self pub key x: " + (freshSelf.pub ? freshSelf.pub.x.substring(0,12) : "NONE"));
 
+    // Decode the other party's Accept response
     const otherRespObj = isCompressed
       ? await irlidDecompressFromB64url(respB64)
       : irlidDecodeB64urlJson(respB64);
@@ -709,34 +353,43 @@
     dbg("Other pub key x: " + (otherRespObj && otherRespObj.pub ? otherRespObj.pub.x.substring(0,12) : "NONE"));
     dbg("Keys match: " + String(freshSelf.pub && otherRespObj && otherRespObj.pub && freshSelf.pub.x === otherRespObj.pub.x));
 
+    if (freshSelf.pub && otherRespObj && otherRespObj.pub && freshSelf.pub.x === otherRespObj.pub.x) {
+      throw new Error("Both sides have the same key. You may have scanned your own QR.");
+    }
+
+    // Create combined receipt
     const out = await processScannedResponse(otherRespObj, {
-      hello,
+      hello: helloB64,
       tsTolS: IRLID_TS_TOL_S,
       distTolM: IRLID_DIST_TOL_M
     });
 
-    const combEncoded = irlidEncodeJsonToB64url(out.combined);
-    lastCombinedUrl = "receipt.html#COMB=" + combEncoded;
-    storeCombinedReceipt(out.combined);
+    // Upload to server
+    let receiptUrl = "receipt.html#COMB=" + irlidEncodeJsonToB64url(out.combined);
 
     if (window.IRLBackend && window.IRLBackend.hasSession()) {
       try {
         const upRes = await window.IRLBackend.uploadReceipt(out.combined);
         if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
-          lastCombinedUrl = "receipt.html#receipt=" + upRes.data.receipt_hash;
-          console.log("Receipt uploaded:", upRes.data.receipt_hash, upRes.data.duplicate ? "(duplicate)" : "");
+          receiptUrl = "receipt.html#receipt=" + upRes.data.receipt_hash;
+          dbg("Receipt uploaded: " + upRes.data.receipt_hash);
         } else {
-          console.warn("Receipt upload failed:", upRes.error || "unknown");
+          dbg("Upload failed: " + (upRes.error || "unknown"));
         }
       } catch(e) {
-        console.warn("Receipt upload error:", e);
+        dbg("Upload error: " + e);
       }
     }
 
-    receiptWrap.style.display = "";
-    setStatus("Verified \u2714 Combined receipt ready.");
+    // Clear the HELLO — handshake is complete
+    try { localStorage.removeItem("irlid_last_hello_b64"); } catch(e){}
+    try { localStorage.removeItem("irlid_last_self_response"); } catch(e){}
+    try { delete window.__irlid_last_self_response; } catch(e){}
+
+    return receiptUrl;
   }
 
+  // ---- Scanner ----
   async function stopScanner(){
     stopBtn.style.display = "none";
     scanBtn.style.display = "";
@@ -744,12 +397,7 @@
     try { await html5QrCode.stop(); } catch {}
     try { await html5QrCode.clear(); } catch {}
     html5QrCode = null;
-
-    if (hello && document.querySelector("#responseQr canvas, #responseQr img")) {
-      setViewportState("qr");
-    } else {
-      setViewportState("idle");
-    }
+    setViewportState("idle");
   }
 
   async function startScanner(){
@@ -762,7 +410,6 @@
 
     scanBtn.style.display = "none";
     stopBtn.style.display = "";
-
     setViewportState("scanning");
     setStatus("Scanning", true);
 
@@ -784,67 +431,44 @@
       async (text) => {
         await stopScanner();
         const c = classify(text);
+        dbg("Scanned: " + c.kind);
 
+        // HELLO → redirect to accept.html to show Accept QR
         if (c.kind === "HELLO" || c.kind === "HELLO_Z") {
-          try {
-            if (c.kind === "HELLO_Z") {
-              hello = await decompressHelloToB64url(c.v);
-            } else {
-              hello = (c.v || "").trim() || null;
-            }
-            if (hello) saveHello(hello);
-            setStatus("Offer detected. Creating your Accept QR\u2026");
-            history.replaceState(null, "", location.pathname);
-            initHelloReturnQr();
-          } catch(e) {
-            setStatus("HELLO decode error: " + e);
-            console.error(e);
+          setStatus("HELLO detected. Redirecting to Accept page\u2026");
+          if (c.kind === "HELLO_Z") {
+            location.href = "accept.html#HZ=" + c.v;
+          } else {
+            location.href = "accept.html#HELLO=" + c.v;
           }
           return;
         }
 
+        // Combined receipt → open receipt page
         if (c.kind === "COMB") {
           setStatus("Receipt detected. Opening\u2026");
           location.href = "receipt.html#COMB=" + (c.v || "");
           return;
         }
 
+        // Server receipt hash → open receipt page
         if (c.kind === "RECEIPT") {
           setStatus("Receipt detected. Opening\u2026");
           location.href = "receipt.html#receipt=" + (c.v || "");
           return;
         }
 
+        // Accept response → create combined receipt (Initiator scanning Collaborator's QR)
         if (c.kind === "RESP" || c.kind === "RESP_Z") {
-          if (hello) {
-            try{
-              setStatus("Accept detected. Verifying\u2026");
-              await handleScannedResponseB64(c.v || "", c.kind === "RESP_Z");
-              if (lastCombinedUrl) {
-                if (isDebugMode()) {
-                  dbg("Redirecting to receipt in 5s...");
-                  dbg("URL: " + lastCombinedUrl);
-                  await new Promise(r => setTimeout(r, 5000));
-                }
-                location.href = lastCombinedUrl;
-              }
-              return;
-            }catch(e){
-              setStatus("Verify failed: " + e);
-              console.error(e);
-              return;
-            }
-          }
-
           try {
-            let respB64 = c.v;
-            if (c.kind === "RESP_Z") {
-              const obj = await irlidDecompressFromB64url(c.v);
-              respB64 = irlidEncodeJsonToB64url(obj);
-            }
-            location.href = "receipt.html#RESP=" + respB64;
+            setStatus("Accept QR detected. Creating combined receipt\u2026");
+            const receiptUrl = await handleScannedAcceptQR(c.v || "", c.kind === "RESP_Z");
+            dbg("Redirecting to receipt...");
+            location.href = receiptUrl;
           } catch(e) {
-            setStatus("Decode error: " + e);
+            setStatus("Error: " + e.message);
+            dbg("Error: " + e.message);
+            console.error(e);
           }
           return;
         }
@@ -855,38 +479,32 @@
     );
   }
 
+  // ---- Button handlers ----
   scanBtn.addEventListener("click", async () => {
-    try{
+    try {
       await listCamerasAndSelectDefault();
       await startScanner();
-    }catch(e){
+    } catch(e) {
       setStatus("Camera error: " + e);
       console.error(e);
     }
   });
 
   stopBtn.addEventListener("click", async () => {
-    try{ await stopScanner(); }catch(e){ console.error(e); }
-    setStatus(hello ? "Stopped \u2014 your Accept QR is shown." : "Stopped.");
-  });
-
-  showReceiptBtn.addEventListener("click", () => {
-    if (lastCombinedUrl) location.href = lastCombinedUrl;
+    try { await stopScanner(); } catch(e) { console.error(e); }
+    setStatus("Stopped.");
   });
 
   if (clearLocalBtn) {
     clearLocalBtn.addEventListener("click", () => {
-      try{
-        const keys = [KEY_LAST_HELLO_B64, KEY_LAST_SELF_RESP, KEY_SELF, KEY_GUEST,
-                      KEY_RECEIPTS, "irlid_receipt_last", KEY_PREF_CAM];
+      try {
+        const keys = ["irlid_last_hello_b64", "irlid_last_self_response",
+                      "irlid_resp_self", "irlid_resp_other", "irlid_receipts",
+                      "irlid_receipt_last", KEY_PREF_CAM];
         for (const k of keys) localStorage.removeItem(k);
-      }catch{}
-      hello = null;
-      lastCombinedUrl = null;
-      try{ delete window.__irlid_last_self_response; }catch{}
-      location.hash = "";
+      } catch{}
+      try { delete window.__irlid_last_self_response; } catch{}
       setViewportState("idle");
-      receiptWrap.style.display = "none";
       setStatus("Cleared local data.");
     });
   }
@@ -895,8 +513,22 @@
     setStoredPreferredCameraId(cameraSelect.value);
   });
 
+  // Show debug controls in debug mode
+  if (isDebugMode()) {
+    const dc = document.getElementById("debugControls");
+    if (dc) dc.style.display = "";
+  }
+
+  // Pre-load cameras
+  (async () => { try { await listCamerasAndSelectDefault(); } catch {} })();
+
+  // Auto-start scanner if coming from Home page (HELLO is in localStorage)
   (async () => {
-    try{ await listCamerasAndSelectDefault(); } catch {}
+    const hasHello = localStorage.getItem("irlid_last_hello_b64");
+    if (hasHello) {
+      dbg("HELLO found in localStorage — ready to scan Accept QR");
+      setStatus("Ready to scan the other person's Accept QR.");
+    }
   })();
 </script>
 
