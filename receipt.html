@@ -367,10 +367,10 @@
       <!-- 3-column: Self | QR+Status | Guest -->
       <div class="detail-top">
 
-        <!-- LEFT: Self -->
+        <!-- LEFT: Initiator (person A — started the handshake) -->
         <div class="person-panel" id="selfPanel">
           <div class="person-header">
-            <span class="person-role">Self:</span>
+            <span class="person-role" id="roleA">Initiator:</span>
             <span class="person-name" id="selfName">—</span>
           </div>
           <div class="person-row" id="aCoords"></div>
@@ -386,10 +386,10 @@
           <a href="#" class="back-btn" id="backToList">Back to Receipts</a>
         </div>
 
-        <!-- RIGHT: Guest -->
+        <!-- RIGHT: Collaborator (person B — responded to the handshake) -->
         <div class="person-panel" id="guestPanel">
           <div class="person-header">
-            <span class="person-role">Guest:</span>
+            <span class="person-role" id="roleB">Collaborator:</span>
             <span class="person-name" id="guestName">—</span>
           </div>
           <div class="person-row" id="bCoords"></div>
@@ -483,6 +483,8 @@
   const guestNameEl = document.getElementById("guestName");
   const selfAvatarWrap = document.getElementById("selfAvatarWrap");
   const guestAvatarWrap = document.getElementById("guestAvatarWrap");
+  const roleAEl = document.getElementById("roleA");
+  const roleBEl = document.getElementById("roleB");
 
   let currentPage = 1;
   let totalReceipts = 0;
@@ -687,6 +689,10 @@
 
     const aIsLocal = jwkMatch(pubA, localPub);
     const bIsLocal = jwkMatch(pubB, localPub);
+
+    // Set role labels — mark which side is "You"
+    roleAEl.textContent = aIsLocal ? "You (Initiator):" : "Initiator:";
+    roleBEl.textContent = bIsLocal ? "You (Collaborator):" : "Collaborator:";
 
     let keyIdA = null, keyIdB = null;
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
@@ -1154,8 +1160,10 @@
       metaTitle.textContent = "Combined Receipt";
 
       // --- Initial names/avatars (will be resolved async) ---
-      selfNameEl.textContent = (userInfo && userInfo.display_name) ? userInfo.display_name : "You";
-      guestNameEl.textContent = "Guest";
+      selfNameEl.textContent = (userInfo && userInfo.display_name) ? userInfo.display_name : "Unknown";
+      guestNameEl.textContent = "Unknown";
+      roleAEl.textContent = "Initiator:";
+      roleBEl.textContent = "Collaborator:";
       renderAvatar(selfAvatarWrap, userInfo ? userInfo.google_picture : null);
       renderAvatar(guestAvatarWrap, null);
 
@@ -1274,6 +1282,8 @@
 
       selfNameEl.textContent = "Sender";
       guestNameEl.textContent = "(waiting)";
+      roleAEl.textContent = "Initiator:";
+      roleBEl.textContent = "Collaborator:";
 
       renderAvatar(selfAvatarWrap, null);
       renderAvatar(guestAvatarWrap, null);
@@ -1340,6 +1350,8 @@
 
       selfNameEl.textContent = "Party A";
       guestNameEl.textContent = "Party B";
+      roleAEl.textContent = "Initiator:";
+      roleBEl.textContent = "Collaborator:";
       renderAvatar(selfAvatarWrap, null);
       renderAvatar(guestAvatarWrap, null);
 
