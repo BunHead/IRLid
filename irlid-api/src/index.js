@@ -1,4 +1,4 @@
-// irlid-api/src/index.js — v5.2
+// irlid-api/src/index.js — v5
 // IRLid Backend — Cloudflare Worker + D1
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 
