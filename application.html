@@ -535,7 +535,7 @@
 
       const respObj = await makeReturnForHelloAsync(hello);
       saveSelfResp(respObj);
-      dbg("initHello: self response pub key x:", respObj.pub ? respObj.pub.x.substring(0,10) + "..." : "NONE");
+      dbg("initHello: self response pub key x: " + (respObj.pub ? respObj.pub.x.substring(0,12) : "NONE"));
 
       let qrData;
       if (irlidHasCompression()) {
@@ -680,18 +680,24 @@
 
   async function handleScannedResponseB64(respB64, isCompressed){
     if (!hello) throw new Error("No HELLO loaded. Scan a HELLO first.");
-    await ensureSelfResponseForHello();
 
-    // Debug: log the keys being used
-    const selfResp = window.__irlid_last_self_response;
-    dbg("Self pub key x:", selfResp && selfResp.pub ? selfResp.pub.x.substring(0,10) + "..." : "NONE");
+    // Always create a FRESH self-response when scanning an Accept QR.
+    // Don't reuse the cached one — it may be bound to a different HELLO.
+    dbg("handleScanned: clearing cache, creating fresh self-response");
+    try { delete window.__irlid_last_self_response; } catch(e){}
+    try { localStorage.removeItem("irlid_last_self_response"); } catch(e){}
+
+    const freshSelf = await makeReturnForHelloAsync(hello);
+    window.__irlid_last_self_response = freshSelf;
+
+    dbg("Self pub key x: " + (freshSelf.pub ? freshSelf.pub.x.substring(0,12) : "NONE"));
 
     const otherRespObj = isCompressed
       ? await irlidDecompressFromB64url(respB64)
       : irlidDecodeB64urlJson(respB64);
 
-    dbg("Other pub key x:", otherRespObj && otherRespObj.pub ? otherRespObj.pub.x.substring(0,10) + "..." : "NONE");
-    dbg("Keys match:", selfResp && otherRespObj && selfResp.pub && otherRespObj.pub && selfResp.pub.x === otherRespObj.pub.x);
+    dbg("Other pub key x: " + (otherRespObj && otherRespObj.pub ? otherRespObj.pub.x.substring(0,12) : "NONE"));
+    dbg("Keys match: " + String(freshSelf.pub && otherRespObj && otherRespObj.pub && freshSelf.pub.x === otherRespObj.pub.x));
 
     const out = await processScannedResponse(otherRespObj, {
       hello,
