@@ -174,9 +174,21 @@
       width: 100px;
     }
 
-    /* Checks grid */
+    /* Checks dropdown */
+    .checks-dropdown {
+      border-top: 1px solid #eee;
+    }
+    .checks-summary {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #888;
+      cursor: pointer;
+      user-select: none;
+    }
+    .checks-summary:hover { color: #555; }
     .checks-grid {
-      padding: 12px 16px 16px;
+      padding: 4px 16px 16px;
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
@@ -301,7 +313,10 @@
       </table>
     </div>
     <div class="db-status" id="dbStatus"></div>
-    <div class="checks-grid" id="checksGrid"></div>
+    <details class="checks-dropdown" id="checksDropdown">
+      <summary class="checks-summary" id="checksSummary">Verification checks</summary>
+      <div class="checks-grid" id="checksGrid"></div>
+    </details>
   </div>
 </main>
 
@@ -460,8 +475,8 @@
     document.getElementById("metaHash").textContent = hash;
 
     // DB status
-    dbStatus.innerHTML = '<span class="db-found">\u2714 This receipt exists in the IRLid database and was stored on ' +
-      (data.created_at ? new Date(data.created_at).toLocaleDateString() : "unknown date") + '.</span>';
+    dbStatus.innerHTML = '<span class="db-found">\u2714 This receipt exists in the IRLid database' +
+      (data.created_at ? ' and was stored on ' + new Date(data.created_at.includes("T") ? data.created_at : data.created_at * 1000).toLocaleDateString() : '') + '.</span>';
 
     // --- Cryptographic verification ---
     let passCount = 0;
@@ -532,14 +547,23 @@
     const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
     confirmBar.textContent = pct + " % Verified";
 
+    // Confirmation bar — match receipt page gradient colors
     if (pct >= 95) {
       confirmBar.style.background = "linear-gradient(135deg, #00b894, #00cec9)";
     } else if (pct >= 90) {
-      confirmBar.style.background = "linear-gradient(135deg, #fdcb6e, #e17055)";
+      confirmBar.style.background = "linear-gradient(135deg, #f9ca24, #f0932b)";
     } else if (pct >= 75) {
       confirmBar.style.background = "linear-gradient(135deg, #e17055, #d63031)";
     } else {
-      confirmBar.style.background = "#1a1a1a";
+      confirmBar.style.background = "linear-gradient(135deg, #2d3436, #000000)";
+    }
+
+    // Update checks dropdown summary and auto-open if not 100%
+    const checksDropdown = document.getElementById("checksDropdown");
+    const checksSummary = document.getElementById("checksSummary");
+    checksSummary.textContent = passCount + "/" + totalCount + " checks passed";
+    if (pct < 100) {
+      checksDropdown.open = true;
     }
   }
 
