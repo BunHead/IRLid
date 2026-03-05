@@ -552,19 +552,30 @@
       addCheck("Verification error", false);
     }
 
-    // Always set the confirmation bar
+    // Always set the confirmation bar — use same color scale as receipt page
     const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
     confirmBar.textContent = pct + " % Verified";
 
-    if (pct >= 95) {
-      confirmBar.style.background = "linear-gradient(135deg, #00b894, #00cec9)";
-    } else if (pct >= 90) {
-      confirmBar.style.background = "linear-gradient(135deg, #f9ca24, #f0932b)";
-    } else if (pct >= 75) {
-      confirmBar.style.background = "linear-gradient(135deg, #e17055, #d63031)";
-    } else {
-      confirmBar.style.background = "linear-gradient(135deg, #2d3436, #000000)";
+    function getConfirmColor(p) {
+      p = Math.max(0, Math.min(100, p));
+      let r, g, b;
+      if (p >= 95) {
+        const t = (p - 95) / 5;
+        r = Math.round(132 + (34 - 132) * t); g = Math.round(204 + (197 - 204) * t); b = Math.round(22 + (94 - 22) * t);
+      } else if (p >= 90) {
+        const t = (p - 90) / 5;
+        r = Math.round(234 + (132 - 234) * t); g = Math.round(179 + (204 - 179) * t); b = Math.round(8 + (22 - 8) * t);
+      } else if (p >= 75) {
+        const t = (p - 75) / 15;
+        r = Math.round(220 + (234 - 220) * t); g = Math.round(80 + (179 - 80) * t); b = Math.round(20 + (8 - 20) * t);
+      } else {
+        const t = p / 75;
+        r = Math.round(25 + (220 - 25) * t); g = Math.round(4 + (80 - 4) * t); b = Math.round(4 + (20 - 4) * t);
+      }
+      return "rgb(" + r + "," + g + "," + b + ")";
     }
+    confirmBar.style.background = getConfirmColor(pct);
+    confirmBar.style.color = pct >= 75 ? "#000" : "#fff";
 
     // Update checks dropdown summary and auto-open if not 100%
     const checksDropdown = document.getElementById("checksDropdown");
