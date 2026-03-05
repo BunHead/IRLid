@@ -698,34 +698,46 @@
     const spA = serverPartyInfo && serverPartyInfo.a ? serverPartyInfo.a : null;
     const spB = serverPartyInfo && serverPartyInfo.b ? serverPartyInfo.b : null;
 
-    // Side A: use server snapshot if available, otherwise fall through to lookup
-    if (!aIsLocal && spA) {
-      if (spA.display_name) selfNameEl.textContent = spA.display_name;
-      if (spA.google_picture) renderAvatar(selfAvatarWrap, spA.google_picture);
-    }
-    // Side B: use server snapshot if available
-    if (!bIsLocal && spB) {
-      if (spB.display_name) guestNameEl.textContent = spB.display_name;
-      if (spB.google_picture) renderAvatar(guestAvatarWrap, spB.google_picture);
+    // Resolve Side A: prefer cachedUserInfo if local, then server snapshot, then live lookup
+    function resolveA() {
+      if (aIsLocal && cachedUserInfo && cachedUserInfo.display_name) {
+        selfNameEl.textContent = cachedUserInfo.display_name;
+        if (cachedUserInfo.google_picture) renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
+        return true;
+      }
+      if (spA && spA.display_name) {
+        selfNameEl.textContent = spA.display_name;
+        if (spA.google_picture) renderAvatar(selfAvatarWrap, spA.google_picture);
+        return true;
+      }
+      return false;
     }
 
-    // If server snapshots filled both sides, we're done (skip lookups)
-    const aResolved = aIsLocal || (spA && spA.display_name);
-    const bResolved = bIsLocal || (spB && spB.display_name);
+    // Resolve Side B: same priority
+    function resolveB() {
+      if (bIsLocal && cachedUserInfo && cachedUserInfo.display_name) {
+        guestNameEl.textContent = cachedUserInfo.display_name;
+        if (cachedUserInfo.google_picture) renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
+        return true;
+      }
+      if (spB && spB.display_name) {
+        guestNameEl.textContent = spB.display_name;
+        if (spB.google_picture) renderAvatar(guestAvatarWrap, spB.google_picture);
+        return true;
+      }
+      return false;
+    }
+
+    const aResolved = resolveA();
+    const bResolved = resolveB();
     if (aResolved && bResolved) return;
 
+    // Fall through to live lookups for any unresolved sides
     let keyIdA = null, keyIdB = null;
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
-    // Side A: if this device's key matches, use current session info (authoritative).
-    // Otherwise look up from server (only if not already resolved from snapshot).
-    if (aResolved) {
-      // Already handled above
-    } else if (aIsLocal && cachedUserInfo) {
-      if (cachedUserInfo.display_name) selfNameEl.textContent = cachedUserInfo.display_name;
-      if (cachedUserInfo.google_picture) renderAvatar(selfAvatarWrap, cachedUserInfo.google_picture);
-    } else if (keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+    if (!aResolved && keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdA);
         if (res.ok && res.data && res.data.found) {
@@ -735,13 +747,7 @@
       } catch{}
     }
 
-    // Side B: same logic.
-    if (bResolved) {
-      // Already handled above
-    } else if (bIsLocal && cachedUserInfo) {
-      if (cachedUserInfo.display_name) guestNameEl.textContent = cachedUserInfo.display_name;
-      if (cachedUserInfo.google_picture) renderAvatar(guestAvatarWrap, cachedUserInfo.google_picture);
-    } else if (keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
+    if (!bResolved && keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
       try {
         const res = await window.IRLBackend.lookupByKey(keyIdB);
         if (res.ok && res.data && res.data.found) {
