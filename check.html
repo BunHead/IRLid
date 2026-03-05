@@ -490,64 +490,72 @@
       }
       totalCount++; if (addCheck(label + ": structure", true)) passCount++;
 
-      const computed = await hashPayloadToB64url(resp.payload);
-      totalCount++; if (addCheck(label + ": hash", computed === resp.hash)) passCount++;
+      try {
+        const computed = await hashPayloadToB64url(resp.payload);
+        totalCount++; if (addCheck(label + ": hash", computed === resp.hash)) passCount++;
+      } catch(e) { totalCount++; addCheck(label + ": hash", false); }
 
-      const sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
-      totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
+      try {
+        const sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
+        totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
+      } catch(e) { totalCount++; addCheck(label + ": signature", false); }
 
-      return { okStructure: true, okHash: computed === resp.hash, okSig: sigOk };
+      return true;
     }
 
-    // Verify both responses
-    await verifyResponse(respA, "Initiator");
-    await verifyResponse(respB, "Collaborator");
+    try {
+      // Verify both responses
+      await verifyResponse(respA, "Initiator");
+      await verifyResponse(respB, "Collaborator");
 
-    // HELLO verification
-    if (comb.hello) {
-      try {
-        const offerInfo = await verifyHelloOfferAsync(comb.hello, { tsTolS: 999999999 });
-        totalCount++; if (addCheck("HELLO offer", true)) passCount++;
+      // HELLO verification
+      if (comb.hello) {
+        try {
+          const offerInfo = await verifyHelloOfferAsync(comb.hello, { tsTolS: 999999999 });
+          totalCount++; if (addCheck("HELLO offer", true)) passCount++;
 
-        const helloHash = await irlidHelloHashB64url(comb.hello);
+          const helloHash = await irlidHelloHashB64url(comb.hello);
 
-        if (respA && respA.payload) {
-          totalCount++; if (addCheck("Initiator binds HELLO", respA.payload.helloHash === helloHash)) passCount++;
-        }
-        if (respB && respB.payload) {
-          totalCount++; if (addCheck("Collaborator binds HELLO", respB.payload.helloHash === helloHash)) passCount++;
-        }
-
-        if (offerInfo.offerHash) {
           if (respA && respA.payload) {
-            totalCount++; if (addCheck("Initiator binds offer", respA.payload.offerHash === offerInfo.offerHash)) passCount++;
+            totalCount++; if (addCheck("Initiator binds HELLO", respA.payload.helloHash === helloHash)) passCount++;
           }
           if (respB && respB.payload) {
-            totalCount++; if (addCheck("Collaborator binds offer", respB.payload.offerHash === offerInfo.offerHash)) passCount++;
+            totalCount++; if (addCheck("Collaborator binds HELLO", respB.payload.helloHash === helloHash)) passCount++;
           }
+
+          if (offerInfo.offerHash) {
+            if (respA && respA.payload) {
+              totalCount++; if (addCheck("Initiator binds offer", respA.payload.offerHash === offerInfo.offerHash)) passCount++;
+            }
+            if (respB && respB.payload) {
+              totalCount++; if (addCheck("Collaborator binds offer", respB.payload.offerHash === offerInfo.offerHash)) passCount++;
+            }
+          }
+        } catch(e) {
+          totalCount++; addCheck("HELLO offer", false);
         }
-      } catch(e) {
-        totalCount++; addCheck("HELLO offer", false);
       }
+
+      // Time tolerance
+      if (tsA && tsB) {
+        const delta = Math.abs(tsA - tsB);
+        totalCount++; if (addCheck("Time \u2264 tolerance", delta <= TS_TOL_S)) passCount++;
+      }
+
+      // Different keys check
+      if (respA && respA.pub && respB && respB.pub) {
+        const keysAreDifferent = respA.pub.x !== respB.pub.x || respA.pub.y !== respB.pub.y;
+        totalCount++; if (addCheck("Different devices", keysAreDifferent)) passCount++;
+      }
+    } catch(e) {
+      console.error("Verification error:", e);
+      addCheck("Verification error", false);
     }
 
-    // Time tolerance
-    if (tsA && tsB) {
-      const delta = Math.abs(tsA - tsB);
-      totalCount++; if (addCheck("Time \u2264 tolerance", delta <= TS_TOL_S)) passCount++;
-    }
-
-    // Different keys check
-    if (respA && respA.pub && respB && respB.pub) {
-      const keysAreDifferent = respA.pub.x !== respB.pub.x || respA.pub.y !== respB.pub.y;
-      totalCount++; if (addCheck("Different devices", keysAreDifferent)) passCount++;
-    }
-
-    // Confirmation bar
+    // Always set the confirmation bar
     const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
     confirmBar.textContent = pct + " % Verified";
 
-    // Confirmation bar — match receipt page gradient colors
     if (pct >= 95) {
       confirmBar.style.background = "linear-gradient(135deg, #00b894, #00cec9)";
     } else if (pct >= 90) {
