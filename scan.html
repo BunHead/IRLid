@@ -1,65 +1,537 @@
-<!-- scan.html -->
+<!-- scan.html — Pure Scanner -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>IRLid — Scan (Legacy)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid — Scan</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .scan-main {
+      padding: 0 0 calc(var(--mobile-nav-h) + 22px);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .scan-viewport {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      aspect-ratio: 1 / 1;
+      background: #0a0a0a;
+      overflow: hidden;
+    }
+
+    .scan-finders {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .scan-viewport.state-scanning .scan-finders { display: none; }
+
+    .finder {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+    }
+    .finder.tl { top: 10%; left: 10%; }
+    .finder.tr { top: 10%; right: 10%; }
+    .finder.bl { bottom: 10%; left: 10%; }
+
+    .finder .f-outer {
+      position: absolute; inset: 0;
+      border: 3px solid rgba(255,255,255,.18);
+    }
+    .finder .f-inner {
+      position: absolute; inset: 18%; 
+      border: 2px solid rgba(255,255,255,.12);
+    }
+    .finder .f-core {
+      position: absolute; inset: 30%;
+      background: rgba(255,255,255,.10);
+    }
+
+    .idle-label {
+      position: absolute;
+      bottom: 18%;
+      width: 100%;
+      text-align: center;
+      color: rgba(255,255,255,.45);
+      font: 600 14px/1.3 system-ui, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      z-index: 2;
+    }
+    .scan-viewport.state-scanning .idle-label { display: none; }
+
+    .scan-targets {
+      position: absolute; inset: 0;
+      z-index: 3; pointer-events: none;
+      display: none;
+    }
+    .scan-viewport.state-scanning .scan-targets { display: block; }
+
+    .target { position: absolute; width: 72px; height: 72px; }
+    .target.tl { top: 10%; left: 10%; }
+    .target.tr { top: 10%; right: 10%; }
+    .target.bl { bottom: 10%; left: 10%; }
+
+    .target .t-outer {
+      position: absolute; inset: 0;
+      border: 3px solid rgba(0,230,118,.55);
+      animation: pulse-out 1.8s ease-in-out infinite;
+    }
+    .target .t-inner {
+      position: absolute; inset: 18%;
+      border: 2px solid rgba(0,230,118,.35);
+    }
+    .target .t-core {
+      position: absolute; inset: 30%;
+      background: rgba(0,230,118,.18);
+      animation: pulse-core 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse-out { 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
+    @keyframes pulse-core { 0%,100%{ transform:scale(.85); opacity:.4; } 50%{ transform:scale(1); opacity:.7; } }
+
+    .scan-cross {
+      display: none;
+      position: absolute; inset: 0;
+      z-index: 3; pointer-events: none;
+    }
+    .scan-viewport.state-scanning .scan-cross { display: block; }
+    .scan-cross::before, .scan-cross::after {
+      content: ''; position: absolute;
+      background: rgba(0,230,118,.18);
+    }
+    .scan-cross::before { width: 1px; height: 100%; left: 50%; top: 0; }
+    .scan-cross::after  { height: 1px; width: 100%; top: 50%; left: 0; }
+
+    #scanner { position: absolute; inset: 0; z-index: 1; }
+    #scanner video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+    .scan-below {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .scan-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    .scan-status {
+      font-size: 14px;
+      color: #888;
+      min-height: 22px;
+      padding: 0 14px;
+    }
+    .scan-status.active { color: #e00; font-weight: 600; }
+
+    .active-scan {
+      background: #e00 !important;
+      border-color: #e00 !important;
+      color: #fff !important;
+    }
+
+    #debugControls { display: none; padding: 8px 14px 0; }
+  </style>
 </head>
 
 <body>
-  <header class="site-header">
-    <div class="brand-wrap">
-      <a class="brand" href="index.html" aria-label="IRLid Home">
-        <img src="logo.png" alt="IRLid Logo" id="logo">
-      </a>
+
+<header class="site-header">
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+    </a>
+  </div>
+  <nav class="site-nav" aria-label="Primary">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="scan.html">Scan</a>
+    <details class="nav-dropdown" id="aboutDropdown">
+      <summary class="nav-btn">Info >About &#9660;<#9660;</summary>
+      <div class="dropdown-menu" role="menu" aria-label="Info menu">
+        <a href="check.html">Check</a>
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </details>
+    <span id="accountSlot"></span>
+  </nav>
+</header>
+
+<main class="scan-main">
+  <div class="scan-viewport state-idle" id="scanViewport">
+    <div class="scan-finders">
+      <div class="finder tl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
+      <div class="finder tr"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
+      <div class="finder bl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
     </div>
-
-    <nav class="site-nav" aria-label="Primary">
-      <a class="nav-btn" href="index.html">Home</a>
-      <a class="nav-btn" href="application.html">Scan</a>
-
-      <details class="nav-dropdown" id="aboutDropdown">
-        <summary class="nav-btn">About ▼</summary>
-        <div class="dropdown-menu" role="menu" aria-label="About menu">
-          <a href="about.html">About</a>
-          <a href="features.html">Features</a>
-          <a href="contact.html">Contact</a>
-        </div>
-      </details>
-
-      <span id="accountSlot"></span>
-    </nav>
-  </header>
-
-  <main class="page-main">
-    <h2>Scan the other person</h2>
-    <p id="status">This is a legacy page. Use the main <a href="application.html">Scan</a> flow.</p>
-
+    <div class="idle-label">Point at any IRLid QR</div>
+    <div class="scan-targets">
+      <div class="target tl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
+      <div class="target tr"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
+      <div class="target bl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
+    </div>
+    <div class="scan-cross"></div>
     <div id="scanner"></div>
+  </div>
 
-    <div id="responseArea" style="display:none;">
-      <h3>Your Response QR</h3>
-      <div class="qr-box" id="responseQr"></div>
-      <button class="btn secondary" id="scanResponseBtn">Scan Their Response</button>
+  <div class="scan-below">
+    <div class="scan-controls">
+      <button class="btn" id="scanBtn">Scan</button>
+      <button class="btn active-scan" id="stopBtn" style="display:none;">Stop</button>
+      <select id="cameraSelect" aria-label="Camera"></select>
     </div>
+    <div class="scan-status" id="status">Ready — tap Scan to scan any IRLid QR code.</div>
+    <div id="debugControls">
+      <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
+    </div>
+  </div>
+</main>
 
-    <p class="small" style="margin-top:12px;">
-      Note: This page is kept for backwards compatibility. The supported handshake flow is in <b>application.html</b>.
-    </p>
-  </main>
+<script src="js/auth.js"></script>
+<script src="js/backend.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/sign.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="js/qr.js?v=63"></script>
 
-  <footer class="small" style="text-align:center; padding: 10px 0;">
-    IRLid — Proof of Personhood (Demo)
-  </footer>
+<script>
+  const IRLID_TS_TOL_S = 90;
+  const IRLID_DIST_TOL_M = 12;
+  const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
-  <script src="js/auth.js"></script>
-  <script src="js/backend.js"></script>
-  <script src="js/nav.js"></script>
-  <script src="js/sign.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-  <script src="js/qr.js?v=59"></script>
+  // Debug panel
+  function isDebugMode() {
+    try {
+      if (new URLSearchParams(location.search).get("debug") === "1") return true;
+      if (localStorage.getItem("irlid_debug") === "1") return true;
+    } catch(e){}
+    return false;
+  }
+  const debugPanel = document.createElement("div");
+  debugPanel.id = "debugPanel";
+  debugPanel.style.cssText = "position:fixed;top:50px;left:0;right:0;max-height:250px;overflow-y:auto;background:rgba(0,0,0,0.92);color:#0f0;font:13px monospace;padding:10px;z-index:9999;display:none;";
+  document.body.appendChild(debugPanel);
+  const debugToggle = document.createElement("button");
+  debugToggle.textContent = "DBG";
+  debugToggle.style.cssText = "position:fixed;top:50px;right:8px;z-index:10000;background:#222;color:#0f0;border:2px solid #0f0;padding:6px 12px;font:bold 14px monospace;border-radius:4px;display:none;";
+  debugToggle.onclick = () => { debugPanel.style.display = debugPanel.style.display === "none" ? "block" : "none"; };
+  document.body.appendChild(debugToggle);
+  if (isDebugMode()) debugToggle.style.display = "block";
+  function dbg(msg) {
+    console.log("[IRLid]", msg);
+    const line = document.createElement("div");
+    line.textContent = new Date().toLocaleTimeString() + " " + msg;
+    debugPanel.appendChild(line);
+    debugPanel.scrollTop = debugPanel.scrollHeight;
+  }
+
+  const statusEl     = document.getElementById("status");
+  const scanViewport = document.getElementById("scanViewport");
+  const scanBtn      = document.getElementById("scanBtn");
+  const stopBtn      = document.getElementById("stopBtn");
+  const scannerEl    = document.getElementById("scanner");
+  const clearLocalBtn = document.getElementById("clearLocalBtn");
+  const cameraSelect = document.getElementById("cameraSelect");
+
+  let html5QrCode = null;
+
+  function setStatus(msg, active) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle("active", !!active);
+  }
+
+  function setViewportState(s) {
+    scanViewport.className = "scan-viewport state-" + s;
+  }
+
+  // ---- QR Classify ----
+  function classify(text){
+    const t = (text || "").trim();
+    if (t.startsWith("RZ:")) return { kind:"RESP_Z", v: t.slice(3) };
+    if (t.startsWith("R:"))  return { kind:"RESP",   v: t.slice(2) };
+    if (t.startsWith("HZ:")) return { kind:"HELLO_Z", v: t.slice(3) };
+    if (t.startsWith("H:"))  return { kind:"HELLO",  v: t.slice(2) };
+
+    const rxHelloZ  = /(?:^|[#&])HZ=([^&]+)/;
+    const rxHello   = /(?:^|[#&])HELLO=([^&]+)/;
+    const rxResp    = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
+    const rxComb    = /(?:^|[#&])COMB=([A-Za-z0-9\-_]+)/;
+    const rxReceipt = /(?:^|[#&])receipt=([A-Za-z0-9\-_]+)/;
+
+    let m;
+    const sources = [t];
+    try { sources.push(new URL(t).hash || ""); } catch {}
+
+    for (const s of sources) {
+      m = s.match(rxHelloZ);  if (m) return { kind:"HELLO_Z", v:m[1] };
+      m = s.match(rxHello);   if (m) return { kind:"HELLO",   v:m[1] };
+      m = s.match(rxComb);    if (m) return { kind:"COMB",    v:m[1] };
+      m = s.match(rxResp);    if (m) return { kind:"RESP",    v:m[1] };
+      m = s.match(rxReceipt); if (m) return { kind:"RECEIPT", v:m[1] };
+    }
+    return { kind:"UNKNOWN", v:null };
+  }
+
+  // ---- Camera selection ----
+  function getStoredPreferredCameraId(){
+    try{ const v = localStorage.getItem(KEY_PREF_CAM); return v && v.trim() ? v.trim() : null; }catch{ return null; }
+  }
+  function setStoredPreferredCameraId(id){
+    try{ localStorage.setItem(KEY_PREF_CAM, id || ""); }catch{}
+  }
+
+  function scoreRearLabel(label){
+    const s = (label || "").toLowerCase();
+    let score = 0;
+    if (s.includes("back")) score += 80;
+    if (s.includes("rear")) score += 80;
+    if (s.includes("environment")) score += 60;
+    if (/camera\s*0/.test(s)) score += 30;
+    if (s.includes("facing back")) score += 100;
+    return score;
+  }
+
+  async function listCamerasAndSelectDefault(){
+    if (!Html5Qrcode || !Html5Qrcode.getCameras) return;
+    const cams = await Html5Qrcode.getCameras();
+    if (!cams || !cams.length) throw new Error("No cameras found.");
+
+    cameraSelect.innerHTML = "";
+    cams.forEach((c, i) => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.label || ("Camera " + i);
+      cameraSelect.appendChild(opt);
+    });
+
+    const pref = getStoredPreferredCameraId();
+    if (pref && cams.some(c => c.id === pref)) {
+      cameraSelect.value = pref;
+    } else {
+      let bestIdx = 0, bestScore = -1;
+      cams.forEach((c, i) => {
+        const sc = scoreRearLabel(c.label);
+        if (sc > bestScore) { bestScore = sc; bestIdx = i; }
+      });
+      cameraSelect.value = cams[bestIdx].id;
+    }
+  }
+
+  // ---- Handle scanned Accept QR → create combined receipt ----
+  async function handleScannedAcceptQR(respB64, isCompressed) {
+    const helloB64 = localStorage.getItem("irlid_last_hello_b64");
+    if (!helloB64) throw new Error("No HELLO found. Show your HELLO QR on the Home page first.");
+
+    dbg("Creating fresh self-response for HELLO...");
+
+    // Clear any stale cached response
+    try { delete window.__irlid_last_self_response; } catch(e){}
+    try { localStorage.removeItem("irlid_last_self_response"); } catch(e){}
+
+    // Create fresh self-response bound to the saved HELLO
+    const freshSelf = await makeReturnForHelloAsync(helloB64);
+    window.__irlid_last_self_response = freshSelf;
+
+    dbg("Self pub key x: " + (freshSelf.pub ? freshSelf.pub.x.substring(0,12) : "NONE"));
+
+    // Decode the other party's Accept response
+    const otherRespObj = isCompressed
+      ? await irlidDecompressFromB64url(respB64)
+      : irlidDecodeB64urlJson(respB64);
+
+    dbg("Other pub key x: " + (otherRespObj && otherRespObj.pub ? otherRespObj.pub.x.substring(0,12) : "NONE"));
+    dbg("Keys match: " + String(freshSelf.pub && otherRespObj && otherRespObj.pub && freshSelf.pub.x === otherRespObj.pub.x));
+
+    if (freshSelf.pub && otherRespObj && otherRespObj.pub && freshSelf.pub.x === otherRespObj.pub.x) {
+      throw new Error("Both sides have the same key. You may have scanned your own QR.");
+    }
+
+    // Create combined receipt
+    const out = await processScannedResponse(otherRespObj, {
+      hello: helloB64,
+      tsTolS: IRLID_TS_TOL_S,
+      distTolM: IRLID_DIST_TOL_M
+    });
+
+    // Upload to server
+    let receiptUrl = "receipt.html#COMB=" + irlidEncodeJsonToB64url(out.combined);
+
+    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+      try {
+        const upRes = await window.IRLBackend.uploadReceipt(out.combined);
+        if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
+          receiptUrl = "receipt.html#receipt=" + upRes.data.receipt_hash;
+          dbg("Receipt uploaded: " + upRes.data.receipt_hash);
+        } else {
+          dbg("Upload failed: " + (upRes.error || "unknown"));
+        }
+      } catch(e) {
+        dbg("Upload error: " + e);
+      }
+    }
+
+    // Clear the HELLO — handshake is complete
+    try { localStorage.removeItem("irlid_last_hello_b64"); } catch(e){}
+    try { localStorage.removeItem("irlid_last_self_response"); } catch(e){}
+    try { delete window.__irlid_last_self_response; } catch(e){}
+
+    return receiptUrl;
+  }
+
+  // ---- Scanner ----
+  async function stopScanner(){
+    stopBtn.style.display = "none";
+    scanBtn.style.display = "";
+    if (!html5QrCode) return;
+    try { await html5QrCode.stop(); } catch {}
+    try { await html5QrCode.clear(); } catch {}
+    html5QrCode = null;
+    setViewportState("idle");
+  }
+
+  async function startScanner(){
+    await stopScanner();
+    setStatus("Starting camera\u2026");
+
+    const camId = cameraSelect.value;
+    if (!camId) throw new Error("No camera selected.");
+    setStoredPreferredCameraId(camId);
+
+    scanBtn.style.display = "none";
+    stopBtn.style.display = "";
+    setViewportState("scanning");
+    setStatus("Scanning", true);
+
+    scannerEl.innerHTML = "";
+    html5QrCode = new Html5Qrcode("scanner");
+
+    const config = {
+      fps: 12,
+      qrbox: function(vw, vh) {
+        const s = Math.min(vw, vh);
+        return { width: Math.floor(s * 0.8), height: Math.floor(s * 0.8) };
+      },
+      disableFlip: false
+    };
+
+    await html5QrCode.start(
+      camId,
+      config,
+      async (text) => {
+        await stopScanner();
+        const c = classify(text);
+        dbg("Scanned: " + c.kind);
+
+        // HELLO → redirect to accept.html to show Accept QR
+        if (c.kind === "HELLO" || c.kind === "HELLO_Z") {
+          setStatus("HELLO detected. Redirecting to Accept page\u2026");
+          if (c.kind === "HELLO_Z") {
+            location.href = "accept.html#HZ=" + c.v;
+          } else {
+            location.href = "accept.html#HELLO=" + c.v;
+          }
+          return;
+        }
+
+        // Combined receipt → open receipt page
+        if (c.kind === "COMB") {
+          setStatus("Receipt detected. Opening\u2026");
+          location.href = "receipt.html#COMB=" + (c.v || "");
+          return;
+        }
+
+        // Server receipt hash → open receipt page
+        if (c.kind === "RECEIPT") {
+          setStatus("Receipt detected. Opening\u2026");
+          location.href = "receipt.html#receipt=" + (c.v || "");
+          return;
+        }
+
+        // Accept response → create combined receipt (Initiator scanning Collaborator's QR)
+        if (c.kind === "RESP" || c.kind === "RESP_Z") {
+          try {
+            setStatus("Accept QR detected. Creating combined receipt\u2026");
+            const receiptUrl = await handleScannedAcceptQR(c.v || "", c.kind === "RESP_Z");
+            dbg("Redirecting to receipt...");
+            location.href = receiptUrl;
+          } catch(e) {
+            setStatus("Error: " + e.message);
+            dbg("Error: " + e.message);
+            console.error(e);
+          }
+          return;
+        }
+
+        setStatus("QR detected but not recognized as IRLid.");
+      },
+      () => {}
+    );
+  }
+
+  // ---- Button handlers ----
+  scanBtn.addEventListener("click", async () => {
+    try {
+      await listCamerasAndSelectDefault();
+      await startScanner();
+    } catch(e) {
+      setStatus("Camera error: " + e);
+      console.error(e);
+    }
+  });
+
+  stopBtn.addEventListener("click", async () => {
+    try { await stopScanner(); } catch(e) { console.error(e); }
+    setStatus("Stopped.");
+  });
+
+  if (clearLocalBtn) {
+    clearLocalBtn.addEventListener("click", () => {
+      try {
+        const keys = ["irlid_last_hello_b64", "irlid_last_self_response",
+                      "irlid_resp_self", "irlid_resp_other", "irlid_receipts",
+                      "irlid_receipt_last", KEY_PREF_CAM];
+        for (const k of keys) localStorage.removeItem(k);
+      } catch{}
+      try { delete window.__irlid_last_self_response; } catch{}
+      setViewportState("idle");
+      setStatus("Cleared local data.");
+    });
+  }
+
+  cameraSelect.addEventListener("change", async () => {
+    setStoredPreferredCameraId(cameraSelect.value);
+  });
+
+  // Show debug controls in debug mode
+  if (isDebugMode()) {
+    const dc = document.getElementById("debugControls");
+    if (dc) dc.style.display = "";
+  }
+
+  // Pre-load cameras
+  (async () => { try { await listCamerasAndSelectDefault(); } catch {} })();
+
+  // Auto-start scanner if coming from Home page (HELLO is in localStorage)
+  (async () => {
+    const hasHello = localStorage.getItem("irlid_last_hello_b64");
+    if (hasHello) {
+      dbg("HELLO found in localStorage — ready to scan Accept QR");
+      setStatus("Ready to scan the other person's Accept QR.");
+    }
+  })();
+</script>
+
 </body>
 </html>

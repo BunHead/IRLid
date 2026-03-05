@@ -123,16 +123,16 @@
 
     <nav class="site-nav" aria-label="Primary">
       <a class="nav-btn" href="index.html">Home</a>
-      <a class="nav-btn" href="application.html">Scan</a>
+      <a class="nav-btn" href="scan.html">Scan</a>
 
       <details class="nav-dropdown" id="aboutDropdown">
-        <summary class="nav-btn">About ▼</summary>
-        <div class="dropdown-menu" role="menu" aria-label="About menu">
-          <a href="about.html">About</a>
-          <a href="features.html">Features</a>
-          <a href="check.html">Check</a>
-          <a href="contact.html">Contact</a>
-        </div>
+        <summary class="nav-btn">Info ▼</summary>
+        <div class="dropdown-menu" role="menu" aria-label="Info menu">
+        <a href="check.html">Check</a>
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
       </details>
 
       <span id="accountSlot"></span>
@@ -144,8 +144,7 @@
     <div class="about-hero">
       <h1>Proof of Personhood</h1>
       <p class="subtitle">
-        IRLid lets two people prove they met in the real world — no centralised authority, no biometrics, no personal data collected.
-        Just two phones, two scans, and a cryptographic receipt.
+        IRLid lets two people prove they met in the real world — currently requiring nothing more than two phones, two scans, and a cryptographic receipt.
       </p>
     </div>
 
@@ -159,8 +158,8 @@
         As online systems become increasingly automated, the ability to distinguish genuine human participation from synthetic activity is becoming a fundamental challenge.
       </p>
       <p>
-        Existing solutions often require invasive biometric scans, centralised identity providers, or trust in a single company.
-        IRLid takes a different approach: instead of asking <em>who</em> you are, it proves <em>that</em> you were physically present with another person at a specific time and place.
+        Existing solutions often rely on biometric scans, centralised identity providers, or trust in a single company — approaches that can work, but come with trade-offs around privacy, accessibility, and vendor lock-in.
+        IRLid starts from a different angle: instead of asking <em>who</em> you are, it proves <em>that</em> you were physically present with another person at a specific time and place.
       </p>
     </div>
 
@@ -227,19 +226,30 @@
 
     <hr class="divider">
 
-    <!-- Privacy Model -->
+    <!-- Privacy & Data -->
     <div class="about-section">
-      <h2>Privacy Model</h2>
+      <h2>Privacy &amp; Data</h2>
       <p>
-        IRLid is designed to prove presence, not identity. Your device generates a random key pair — there is no registration form, no email required, and no biometric data collected.
-        Optionally, you can link a Google account to associate a name and profile picture with your receipts, but this is entirely voluntary.
+        Right now, IRLid works without biometrics and without requiring any personal information.
+        Your device generates a random key pair — there is no registration form and no email needed just to complete a handshake.
+        This is a deliberate starting point: prove the cryptographic model works before adding layers on top.
       </p>
       <p>
-        Receipts are stored with the public keys of both parties. They do not contain names, emails, or any personally identifiable information unless you choose to link an account.
-        The receipt JSON is fully transparent — anyone can inspect exactly what data is stored.
+        That said, biometrics and personal data are not off the table. In future, incorporating them could significantly
+        strengthen the system — for example, making it harder to spoof a handshake by passing a phone to someone else,
+        or tying a device key to a verified identity for higher-stakes use cases. These are improvements, not requirements.
       </p>
       <p>
-        The core handshake works entirely between two browsers. The backend server is used only for optional features: account linking, receipt storage, and third-party verification. If the server were to disappear, every receipt already issued would remain independently verifiable using the cryptographic data embedded within it.
+        Even today, linking a Google account (and soon, a direct email login) improves the experience in practical ways:
+        your name and profile picture appear on receipts, making it easy to see who you met at a glance.
+        Account linking is entirely optional — the core handshake works the same either way.
+      </p>
+      <p>
+        Receipts are stored with the public keys of both parties. The receipt JSON is fully transparent — anyone can
+        inspect exactly what data is stored. The core handshake works entirely between two browsers; the backend server
+        is used only for optional features like account linking, receipt storage, and third-party verification.
+        If the server were to disappear, every receipt already issued would remain independently verifiable
+        using the cryptographic data embedded within it.
       </p>
     </div>
 
