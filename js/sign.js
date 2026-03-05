@@ -115,7 +115,7 @@ function roundGps(n) {
 
 /* =========================================================
    Added helpers for mutual validation / consistent signing
-   (No backend; used by application.html and receipt.html)
+   (No backend; used by scan.html and receipt.html)
    ========================================================= */
 
 async function hashPayloadToB64url(payloadObj) {
@@ -383,7 +383,7 @@ async function makeReturnForHelloAsync(helloB64url, opts){
     pub: compactJwk(pub)
   };
 
-  // Cache for application.html to use in mutual verification
+  // Cache for scan.html to use in mutual verification
   window.__irlid_last_self_response = resp;
 
   return resp;

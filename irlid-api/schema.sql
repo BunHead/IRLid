@@ -1,8 +1,19 @@
+-- IRLid D1 Schema (Deploy 93)
+-- Matches irlid-api/src/index.js v5
+
 CREATE TABLE IF NOT EXISTS users (
-  id            TEXT PRIMARY KEY,
-  display_name  TEXT,
-  created_at    INTEGER NOT NULL,
-  updated_at    INTEGER NOT NULL
+  id              TEXT PRIMARY KEY,
+  display_name    TEXT,
+  first_name      TEXT,
+  middle_names    TEXT,
+  surname         TEXT,
+  email           TEXT,
+  google_sub      TEXT,
+  google_email    TEXT,
+  google_name     TEXT,
+  google_picture  TEXT,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS devices (
@@ -36,8 +47,17 @@ CREATE TABLE IF NOT EXISTS receipts (
   ts_b          INTEGER,
   receipt_json  TEXT NOT NULL,
   verified      INTEGER DEFAULT 0,
-  created_at    INTEGER NOT NULL
+  created_at    INTEGER NOT NULL,
+  party_info    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_receipts_uploader ON receipts(uploader_id);
 CREATE INDEX IF NOT EXISTS idx_receipts_keys ON receipts(pub_key_a, pub_key_b);
 CREATE INDEX IF NOT EXISTS idx_receipts_hash ON receipts(receipt_hash);
+
+CREATE TABLE IF NOT EXISTS link_codes (
+  code          TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id),
+  created_at    INTEGER NOT NULL,
+  expires_at    INTEGER NOT NULL,
+  claimed       INTEGER DEFAULT 0
+);

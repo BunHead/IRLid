@@ -143,7 +143,7 @@
             cachedHelloUrl = `${baseUrl}/accept.html#HELLO=${encodedHello}`;
           }
 
-          // Save to localStorage for application.html Scan page
+          // Save to localStorage for scan.html Scan page
           try {
             const helloB64 = b64urlEncode(new TextEncoder().encode(JSON.stringify(cachedHello)));
             localStorage.setItem("irlid_last_hello_b64", helloB64);
