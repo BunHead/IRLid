@@ -1,12 +1,116 @@
 <!-- about.html -->
 <!DOCTYPE html>
-<!-- Deploy 72 -->
+<!-- Deploy 90 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — About</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .about-section {
+      margin: 0 0 32px;
+    }
+    .about-section h2 {
+      font-size: 22px;
+      margin: 0 0 10px;
+      letter-spacing: -0.02em;
+    }
+    .about-section p {
+      font-size: 15px;
+      line-height: 1.65;
+      color: #333;
+      margin: 0 0 12px;
+    }
+    .about-hero {
+      text-align: center;
+      padding: 28px 0 8px;
+    }
+    .about-hero h1 {
+      font-size: 32px;
+      margin: 0 0 8px;
+      letter-spacing: -0.03em;
+    }
+    .about-hero .subtitle {
+      font-size: 17px;
+      color: #555;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid #E5E5E5;
+      margin: 28px 0;
+    }
+    .guarantee-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      margin: 16px 0;
+    }
+    @media (min-width: 600px) {
+      .guarantee-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .guarantee-card {
+      border: 1px solid #E5E5E5;
+      padding: 16px 18px;
+      background: #FAFAFA;
+    }
+    .guarantee-card .card-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #888;
+      margin: 0 0 6px;
+    }
+    .guarantee-card h3 {
+      font-size: 16px;
+      margin: 0 0 6px;
+    }
+    .guarantee-card p {
+      font-size: 14px;
+      line-height: 1.55;
+      color: #444;
+      margin: 0;
+    }
+    .use-case-list {
+      margin: 12px 0;
+      padding: 0;
+      list-style: none;
+    }
+    .use-case-list li {
+      padding: 10px 0;
+      border-top: 1px solid #E5E5E5;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #333;
+    }
+    .use-case-list li:first-child { border-top: none; }
+    .use-case-list li strong {
+      display: block;
+      font-size: 15px;
+      color: #000;
+      margin-bottom: 2px;
+    }
+    .cta-bar {
+      text-align: center;
+      padding: 24px 0;
+      margin: 16px 0 0;
+      border-top: 1px solid #E5E5E5;
+    }
+    .cta-bar p {
+      font-size: 15px;
+      color: #555;
+      margin: 0 0 14px;
+    }
+    .cta-bar .btn {
+      display: inline-block;
+      text-decoration: none;
+      font-size: 15px;
+      padding: 12px 28px;
+    }
+  </style>
 </head>
 
 <body>
@@ -26,6 +130,7 @@
         <div class="dropdown-menu" role="menu" aria-label="About menu">
           <a href="about.html">About</a>
           <a href="features.html">Features</a>
+          <a href="check.html">Check</a>
           <a href="contact.html">Contact</a>
         </div>
       </details>
@@ -35,20 +140,158 @@
   </header>
 
   <main class="page-main page-content">
-    <h2>Proof of Personhood</h2>
-    <p>
-      Proof of personhood is a method to verify that a digital identity belongs to a unique human, not a bot or duplicate account.
-    </p>
 
-    <h2>Why It's Important</h2>
-    <p>
-      Distinguishing real users from automated entities helps defend against fraud and enables fair participation online.
-    </p>
+    <div class="about-hero">
+      <h1>Proof of Personhood</h1>
+      <p class="subtitle">
+        IRLid lets two people prove they met in the real world — no centralised authority, no biometrics, no personal data collected.
+        Just two phones, two scans, and a cryptographic receipt.
+      </p>
+    </div>
 
-    <h2>The IRLid Solution</h2>
-    <p>
-      IRLid enables two people to meet and mutually confirm co-presence via QR scans, producing a signed receipt without requiring a backend.
-    </p>
+    <hr class="divider">
+
+    <!-- What is Proof of Personhood? -->
+    <div class="about-section">
+      <h2>What is Proof of Personhood?</h2>
+      <p>
+        Proof of personhood is a way to verify that a digital identity belongs to a unique, real human being rather than a bot, an AI agent, or a duplicate account.
+        As online systems become increasingly automated, the ability to distinguish genuine human participation from synthetic activity is becoming a fundamental challenge.
+      </p>
+      <p>
+        Existing solutions often require invasive biometric scans, centralised identity providers, or trust in a single company.
+        IRLid takes a different approach: instead of asking <em>who</em> you are, it proves <em>that</em> you were physically present with another person at a specific time and place.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- How IRLid Works -->
+    <div class="about-section">
+      <h2>How IRLid Works</h2>
+      <p>
+        When two people meet, they complete a short QR-code handshake using their phones. Each device holds a unique ECDSA P-256 key pair generated in the browser.
+        The handshake binds both parties' cryptographic signatures to a shared timestamp and GPS location, producing a receipt that can be independently verified by anyone.
+      </p>
+      <p>
+        The whole process takes about ten seconds and requires no app download — IRLid runs entirely in the browser. The three steps are:
+      </p>
+    </div>
+
+    <img class="responsive" src="img/how-it-works-overview.svg" alt="How IRLid works — three-step overview showing the HELLO, Accept, and Receipt flow">
+
+    <div class="about-section">
+      <p>
+        <strong>Step 1 — Show:</strong> Person A opens IRLid. Their phone generates a signed HELLO QR code containing their public key, GPS coordinates, a timestamp, and a random nonce. This is displayed on screen.
+      </p>
+      <p>
+        <strong>Step 2 — Scan &amp; Accept:</strong> Person B scans A's QR using their phone camera. IRLid opens and automatically creates a signed response that is cryptographically bound to A's specific HELLO. Person B's Accept QR is displayed on their screen.
+      </p>
+      <p>
+        <strong>Step 3 — Verify:</strong> Person A opens the Scan page and scans B's Accept QR. The app validates both signatures, checks that timestamps are within 90 seconds of each other, confirms GPS locations are within 12 metres, and combines everything into a single signed receipt. The receipt is uploaded and immediately available to both parties.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Cryptographic Guarantees -->
+    <div class="about-section">
+      <h2>Cryptographic Guarantees</h2>
+      <p>
+        Every receipt undergoes multiple verification checks. Here is what each check proves:
+      </p>
+
+      <div class="guarantee-grid">
+        <div class="guarantee-card">
+          <div class="card-label">Signatures</div>
+          <h3>ECDSA P-256</h3>
+          <p>Each party signs their payload with a private key that never leaves the device. The receipt contains both signatures, verifiable by anyone using the corresponding public keys.</p>
+        </div>
+        <div class="guarantee-card">
+          <div class="card-label">Binding</div>
+          <h3>Hash Chaining</h3>
+          <p>Person B's response contains a SHA-256 hash of Person A's HELLO. This prevents replay attacks — a response is only valid for the exact HELLO it was created for.</p>
+        </div>
+        <div class="guarantee-card">
+          <div class="card-label">Freshness</div>
+          <h3>90-Second Window</h3>
+          <p>Both timestamps must be within 90 seconds of each other. This ensures the exchange happened in real time, not replayed from an old recording.</p>
+        </div>
+        <div class="guarantee-card">
+          <div class="card-label">Proximity</div>
+          <h3>12-Metre Tolerance</h3>
+          <p>GPS coordinates from both devices must be within 12 metres. Combined with the time constraint, this provides strong evidence of physical co-presence.</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Privacy Model -->
+    <div class="about-section">
+      <h2>Privacy Model</h2>
+      <p>
+        IRLid is designed to prove presence, not identity. Your device generates a random key pair — there is no registration form, no email required, and no biometric data collected.
+        Optionally, you can link a Google account to associate a name and profile picture with your receipts, but this is entirely voluntary.
+      </p>
+      <p>
+        Receipts are stored with the public keys of both parties. They do not contain names, emails, or any personally identifiable information unless you choose to link an account.
+        The receipt JSON is fully transparent — anyone can inspect exactly what data is stored.
+      </p>
+      <p>
+        The core handshake works entirely between two browsers. The backend server is used only for optional features: account linking, receipt storage, and third-party verification. If the server were to disappear, every receipt already issued would remain independently verifiable using the cryptographic data embedded within it.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Use Cases -->
+    <div class="about-section">
+      <h2>Use Cases</h2>
+      <ul class="use-case-list">
+        <li>
+          <strong>Sybil Resistance</strong>
+          Prove that online accounts belong to distinct real people. Useful for DAOs, voting systems, airdrops, or any platform that needs to prevent one person operating many accounts.
+        </li>
+        <li>
+          <strong>Event Attendance</strong>
+          Generate verifiable proof that someone attended a conference, meetup, or workshop — without relying on a centralised check-in system.
+        </li>
+        <li>
+          <strong>Trust Networks</strong>
+          Build a web-of-trust where each connection represents a verified in-person meeting. Over time, this creates a social graph grounded in real-world relationships.
+        </li>
+        <li>
+          <strong>Marketplace Verification</strong>
+          Confirm that a buyer and seller actually met for a handover. The receipt serves as timestamped, location-stamped proof of the exchange.
+        </li>
+        <li>
+          <strong>Compliance &amp; Audit</strong>
+          For regulated environments that require proof of physical presence — site visits, inspections, or witness verification — IRLid provides a tamper-evident digital record.
+        </li>
+      </ul>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Open & Verifiable -->
+    <div class="about-section">
+      <h2>Open &amp; Verifiable</h2>
+      <p>
+        IRLid is open source. The entire codebase — frontend, backend, and database schema — is publicly available on
+        <a href="https://github.com/BunHead/IRLid" style="color:#000; text-decoration:underline;">GitHub</a>.
+        Anyone can audit the cryptographic logic, verify that the signing process is sound, or run their own instance.
+      </p>
+      <p>
+        Receipts can be independently verified on the <a href="check.html" style="color:#000; text-decoration:underline;">Check</a> page by pasting a receipt hash. All cryptographic checks are re-run in the browser — no trust in the server is required.
+      </p>
+    </div>
+
+    <div class="cta-bar">
+      <p>Ready to try it? All you need is two phones and a friend.</p>
+      <a class="btn" href="index.html">Open IRLid</a>
+    </div>
+
   </main>
 
   <script src="js/auth.js"></script>
