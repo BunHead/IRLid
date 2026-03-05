@@ -15,6 +15,7 @@
       align-items: center;
     }
 
+    /* Viewport: square camera area */
     .scan-viewport {
       position: relative;
       width: 100%;
@@ -24,6 +25,7 @@
       overflow: hidden;
     }
 
+    /* Idle state: ghost QR finder patterns */
     .scan-finders {
       position: absolute;
       inset: 0;
@@ -67,51 +69,33 @@
     }
     .scan-viewport.state-scanning .idle-label { display: none; }
 
-    .scan-targets {
-      position: absolute; inset: 0;
-      z-index: 3; pointer-events: none;
-      display: none;
-    }
-    .scan-viewport.state-scanning .scan-targets { display: block; }
-
-    .target { position: absolute; width: 72px; height: 72px; }
-    .target.tl { top: 10%; left: 10%; }
-    .target.tr { top: 10%; right: 10%; }
-    .target.bl { bottom: 10%; left: 10%; }
-
-    .target .t-outer {
-      position: absolute; inset: 0;
-      border: 3px solid rgba(0,230,118,.55);
-      animation: pulse-out 1.8s ease-in-out infinite;
-    }
-    .target .t-inner {
-      position: absolute; inset: 18%;
-      border: 2px solid rgba(0,230,118,.35);
-    }
-    .target .t-core {
-      position: absolute; inset: 30%;
-      background: rgba(0,230,118,.18);
-      animation: pulse-core 1.8s ease-in-out infinite;
-    }
-    @keyframes pulse-out { 0%,100%{ opacity:.6; } 50%{ opacity:1; } }
-    @keyframes pulse-core { 0%,100%{ transform:scale(.85); opacity:.4; } 50%{ transform:scale(1); opacity:.7; } }
-
-    .scan-cross {
-      display: none;
-      position: absolute; inset: 0;
-      z-index: 3; pointer-events: none;
-    }
-    .scan-viewport.state-scanning .scan-cross { display: block; }
-    .scan-cross::before, .scan-cross::after {
-      content: ''; position: absolute;
-      background: rgba(0,230,118,.18);
-    }
-    .scan-cross::before { width: 1px; height: 100%; left: 50%; top: 0; }
-    .scan-cross::after  { height: 1px; width: 100%; top: 50%; left: 0; }
-
+    /* Scanner video (html5-qrcode renders here) */
     #scanner { position: absolute; inset: 0; z-index: 1; }
     #scanner video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 
+    /* QR tracking overlay canvas — sits on top of video */
+    #trackingCanvas {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+    .scan-viewport.state-scanning #trackingCanvas { display: block; }
+
+    /* Dim overlay with clear centre cutout (scanning state) */
+    .scan-dim {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      display: none;
+    }
+    .scan-viewport.state-scanning .scan-dim { display: block; }
+
+    /* Controls below the viewport */
     .scan-below {
       width: 100%;
       max-width: 480px;
@@ -171,18 +155,21 @@
 
 <main class="scan-main">
   <div class="scan-viewport state-idle" id="scanViewport">
+    <!-- Idle state: ghost finder patterns -->
     <div class="scan-finders">
       <div class="finder tl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
       <div class="finder tr"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
       <div class="finder bl"><div class="f-outer"></div><div class="f-inner"></div><div class="f-core"></div></div>
     </div>
     <div class="idle-label">Point at any IRLid QR</div>
-    <div class="scan-targets">
-      <div class="target tl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
-      <div class="target tr"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
-      <div class="target bl"><div class="t-outer"></div><div class="t-inner"></div><div class="t-core"></div></div>
-    </div>
-    <div class="scan-cross"></div>
+
+    <!-- Dim overlay (scanning state) -->
+    <div class="scan-dim" id="scanDim"></div>
+
+    <!-- Real-time QR tracking overlay -->
+    <canvas id="trackingCanvas"></canvas>
+
+    <!-- html5-qrcode renders the video here -->
     <div id="scanner"></div>
   </div>
 
@@ -204,6 +191,7 @@
 <script src="js/nav.js"></script>
 <script src="js/sign.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="js/qr.js?v=63"></script>
 
 <script>
@@ -211,7 +199,7 @@
   const IRLID_DIST_TOL_M = 12;
   const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
-  // Debug panel
+  // ========== Debug panel ==========
   function isDebugMode() {
     try {
       if (new URLSearchParams(location.search).get("debug") === "1") return true;
@@ -237,15 +225,22 @@
     debugPanel.scrollTop = debugPanel.scrollHeight;
   }
 
-  const statusEl     = document.getElementById("status");
-  const scanViewport = document.getElementById("scanViewport");
-  const scanBtn      = document.getElementById("scanBtn");
-  const stopBtn      = document.getElementById("stopBtn");
-  const scannerEl    = document.getElementById("scanner");
+  // ========== DOM refs ==========
+  const statusEl      = document.getElementById("status");
+  const scanViewport  = document.getElementById("scanViewport");
+  const scanBtn       = document.getElementById("scanBtn");
+  const stopBtn       = document.getElementById("stopBtn");
+  const scannerEl     = document.getElementById("scanner");
   const clearLocalBtn = document.getElementById("clearLocalBtn");
-  const cameraSelect = document.getElementById("cameraSelect");
+  const cameraSelect  = document.getElementById("cameraSelect");
+  const trackingCanvas = document.getElementById("trackingCanvas");
+  const trackingCtx   = trackingCanvas.getContext("2d");
 
   let html5QrCode = null;
+  let trackingRAF = null;
+  let lastQrCorners = null;       // smoothed corners {tl, tr, br, bl}
+  let lastQrTime = 0;             // when we last saw a QR
+  let qrDetectedCount = 0;        // consecutive frames with QR
 
   function setStatus(msg, active) {
     statusEl.textContent = msg;
@@ -256,7 +251,7 @@
     scanViewport.className = "scan-viewport state-" + s;
   }
 
-  // ---- QR Classify ----
+  // ========== QR Classify ==========
   function classify(text){
     const t = (text || "").trim();
     if (t.startsWith("RZ:")) return { kind:"RESP_Z", v: t.slice(3) };
@@ -284,7 +279,7 @@
     return { kind:"UNKNOWN", v:null };
   }
 
-  // ---- Camera selection ----
+  // ========== Camera selection ==========
   function getStoredPreferredCameraId(){
     try{ const v = localStorage.getItem(KEY_PREF_CAM); return v && v.trim() ? v.trim() : null; }catch{ return null; }
   }
@@ -329,7 +324,216 @@
     }
   }
 
-  // ---- Handle scanned Accept QR → create combined receipt ----
+  // ========== Real-time QR tracking overlay ==========
+
+  // Smooth interpolation for corner positions
+  function lerpPt(a, b, t) {
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+
+  // Draw a corner bracket (like Google Authenticator)
+  function drawCornerBracket(ctx, pt, angle, len, color, lineWidth) {
+    ctx.save();
+    ctx.translate(pt.x, pt.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(len, 0);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(0, len);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Draw a small filled dot at a point
+  function drawDot(ctx, pt, radius, color) {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function drawTrackingFrame() {
+    const video = scannerEl.querySelector("video");
+    if (!video || video.readyState < 2) {
+      trackingRAF = requestAnimationFrame(drawTrackingFrame);
+      return;
+    }
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) {
+      trackingRAF = requestAnimationFrame(drawTrackingFrame);
+      return;
+    }
+
+    // Size canvas to viewport element (display pixels)
+    const rect = scanViewport.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cw = Math.floor(rect.width * dpr);
+    const ch = Math.floor(rect.height * dpr);
+    if (trackingCanvas.width !== cw || trackingCanvas.height !== ch) {
+      trackingCanvas.width = cw;
+      trackingCanvas.height = ch;
+    }
+
+    // Sample video into an offscreen canvas for jsQR
+    const sampleSize = 480; // downsample for performance
+    if (!drawTrackingFrame._sampleCanvas) {
+      drawTrackingFrame._sampleCanvas = document.createElement("canvas");
+      drawTrackingFrame._sampleCanvas.width = sampleSize;
+      drawTrackingFrame._sampleCanvas.height = sampleSize;
+    }
+    const sc = drawTrackingFrame._sampleCanvas;
+    const sctx = sc.getContext("2d", { willReadFrequently: true });
+    sctx.drawImage(video, 0, 0, vw, vh, 0, 0, sampleSize, sampleSize);
+    const imgData = sctx.getImageData(0, 0, sampleSize, sampleSize);
+
+    // Run jsQR to get QR location
+    const qr = (typeof jsQR === "function") ? jsQR(imgData.data, sampleSize, sampleSize) : null;
+
+    const now = performance.now();
+
+    if (qr && qr.location) {
+      // Map jsQR coordinates (in sample space) to canvas coordinates
+      const mapPt = (p) => ({
+        x: (p.x / sampleSize) * cw,
+        y: (p.y / sampleSize) * ch
+      });
+
+      const newCorners = {
+        tl: mapPt(qr.location.topLeftCorner),
+        tr: mapPt(qr.location.topRightCorner),
+        br: mapPt(qr.location.bottomRightCorner),
+        bl: mapPt(qr.location.bottomLeftCorner)
+      };
+
+      // Smooth: interpolate towards new position
+      const smoothing = lastQrCorners ? 0.35 : 1.0;
+      if (lastQrCorners) {
+        lastQrCorners = {
+          tl: lerpPt(lastQrCorners.tl, newCorners.tl, smoothing),
+          tr: lerpPt(lastQrCorners.tr, newCorners.tr, smoothing),
+          br: lerpPt(lastQrCorners.br, newCorners.br, smoothing),
+          bl: lerpPt(lastQrCorners.bl, newCorners.bl, smoothing)
+        };
+      } else {
+        lastQrCorners = newCorners;
+      }
+      lastQrTime = now;
+      qrDetectedCount = Math.min(qrDetectedCount + 1, 30);
+    } else {
+      // Fade out: after 300ms with no detection, start fading
+      if (now - lastQrTime > 500) {
+        qrDetectedCount = Math.max(0, qrDetectedCount - 2);
+      }
+    }
+
+    // Clear and draw
+    trackingCtx.clearRect(0, 0, cw, ch);
+
+    if (lastQrCorners && qrDetectedCount > 0) {
+      const c = lastQrCorners;
+      const alpha = Math.min(1, qrDetectedCount / 6);
+      const isLocked = qrDetectedCount > 8;
+      const color = isLocked ? `rgba(0, 230, 118, ${alpha})` : `rgba(255, 255, 255, ${alpha * 0.7})`;
+      const fillColor = isLocked ? `rgba(0, 230, 118, ${alpha * 0.08})` : `rgba(255, 255, 255, ${alpha * 0.04})`;
+
+      // Draw semi-transparent fill over QR area
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tl.x, c.tl.y);
+      trackingCtx.lineTo(c.tr.x, c.tr.y);
+      trackingCtx.lineTo(c.br.x, c.br.y);
+      trackingCtx.lineTo(c.bl.x, c.bl.y);
+      trackingCtx.closePath();
+      trackingCtx.fillStyle = fillColor;
+      trackingCtx.fill();
+
+      // Draw connecting lines (thin)
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tl.x, c.tl.y);
+      trackingCtx.lineTo(c.tr.x, c.tr.y);
+      trackingCtx.lineTo(c.br.x, c.br.y);
+      trackingCtx.lineTo(c.bl.x, c.bl.y);
+      trackingCtx.closePath();
+      trackingCtx.strokeStyle = color;
+      trackingCtx.lineWidth = 1.5 * dpr;
+      trackingCtx.stroke();
+
+      // Corner bracket length scales with QR size
+      const dx = c.tr.x - c.tl.x;
+      const dy = c.tr.y - c.tl.y;
+      const sideLen = Math.sqrt(dx * dx + dy * dy);
+      const bracketLen = Math.max(12 * dpr, sideLen * 0.2);
+      const lw = (isLocked ? 3.5 : 2.5) * dpr;
+
+      // Calculate angles for each corner from the QR shape
+      const angleTL = Math.atan2(c.tr.y - c.tl.y, c.tr.x - c.tl.x);
+      const angleTR = Math.atan2(c.bl.y - c.tl.y, c.bl.x - c.tl.x) + Math.PI * 0.5;
+      const angleBR = Math.atan2(c.tl.y - c.tr.y, c.tl.x - c.tr.x) + Math.PI;
+      const angleBL = Math.atan2(c.tl.y - c.bl.y, c.tl.x - c.bl.x);
+
+      // Draw corner brackets
+      drawCornerBracket(trackingCtx, c.tl, angleTL, bracketLen, color, lw);
+      drawCornerBracket(trackingCtx, c.tr, angleTR, bracketLen, color, lw);
+      drawCornerBracket(trackingCtx, c.br, angleBR, bracketLen, color, lw);
+      drawCornerBracket(trackingCtx, c.bl, angleBL, bracketLen, color, lw);
+
+      // Draw corner dots when locked on
+      if (isLocked) {
+        const dotR = 3 * dpr;
+        drawDot(trackingCtx, c.tl, dotR, color);
+        drawDot(trackingCtx, c.tr, dotR, color);
+        drawDot(trackingCtx, c.br, dotR, color);
+        drawDot(trackingCtx, c.bl, dotR, color);
+      }
+    } else if (qrDetectedCount === 0) {
+      // No QR visible: draw subtle scan-line animation
+      const period = 3000;
+      const t = (now % period) / period;
+      const y = t * ch;
+      const grad = trackingCtx.createLinearGradient(0, y - 2 * dpr, 0, y + 2 * dpr);
+      grad.addColorStop(0, "rgba(0, 230, 118, 0)");
+      grad.addColorStop(0.5, "rgba(0, 230, 118, 0.25)");
+      grad.addColorStop(1, "rgba(0, 230, 118, 0)");
+      trackingCtx.fillStyle = grad;
+      trackingCtx.fillRect(0, y - 30 * dpr, cw, 60 * dpr);
+
+      // Subtle centre crosshair
+      trackingCtx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+      trackingCtx.lineWidth = 1 * dpr;
+      const cx = cw / 2, cy = ch / 2;
+      const chLen = 20 * dpr;
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(cx - chLen, cy); trackingCtx.lineTo(cx + chLen, cy);
+      trackingCtx.moveTo(cx, cy - chLen); trackingCtx.lineTo(cx, cy + chLen);
+      trackingCtx.stroke();
+    }
+
+    trackingRAF = requestAnimationFrame(drawTrackingFrame);
+  }
+
+  function startTracking() {
+    lastQrCorners = null;
+    lastQrTime = 0;
+    qrDetectedCount = 0;
+    if (trackingRAF) cancelAnimationFrame(trackingRAF);
+    trackingRAF = requestAnimationFrame(drawTrackingFrame);
+  }
+
+  function stopTracking() {
+    if (trackingRAF) {
+      cancelAnimationFrame(trackingRAF);
+      trackingRAF = null;
+    }
+    trackingCtx.clearRect(0, 0, trackingCanvas.width, trackingCanvas.height);
+    lastQrCorners = null;
+    qrDetectedCount = 0;
+  }
+
+  // ========== Handle scanned Accept QR → create combined receipt ==========
   async function handleScannedAcceptQR(respB64, isCompressed) {
     const helloB64 = localStorage.getItem("irlid_last_hello_b64");
     if (!helloB64) throw new Error("No HELLO found. Show your HELLO QR on the Home page first.");
@@ -390,10 +594,11 @@
     return receiptUrl;
   }
 
-  // ---- Scanner ----
+  // ========== Scanner ==========
   async function stopScanner(){
     stopBtn.style.display = "none";
     scanBtn.style.display = "";
+    stopTracking();
     if (!html5QrCode) return;
     try { await html5QrCode.stop(); } catch {}
     try { await html5QrCode.clear(); } catch {}
@@ -459,7 +664,7 @@
           return;
         }
 
-        // Accept response → create combined receipt (Initiator scanning Collaborator's QR)
+        // Accept response → create combined receipt
         if (c.kind === "RESP" || c.kind === "RESP_Z") {
           try {
             setStatus("Accept QR detected. Creating combined receipt\u2026");
@@ -478,9 +683,12 @@
       },
       () => {}
     );
+
+    // Start tracking overlay after a short delay (let video element mount)
+    setTimeout(startTracking, 300);
   }
 
-  // ---- Button handlers ----
+  // ========== Button handlers ==========
   scanBtn.addEventListener("click", async () => {
     try {
       await listCamerasAndSelectDefault();
