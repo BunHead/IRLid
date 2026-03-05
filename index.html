@@ -113,17 +113,33 @@
           } catch(e){}
         }
 
-        // Generate HELLO only once per page load
+        // Check if there's a still-fresh HELLO in localStorage we should reuse
+        if (!cachedHello) {
+          try {
+            const existingB64 = localStorage.getItem("irlid_last_hello_b64");
+            if (existingB64) {
+              const existingObj = JSON.parse(new TextDecoder().decode(
+                Uint8Array.from(atob(existingB64.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0))
+              ));
+              // Reuse if it's less than 60 seconds old
+              if (existingObj && existingObj.ts && (Math.floor(Date.now()/1000) - existingObj.ts) < 60) {
+                cachedHello = existingObj;
+              }
+            }
+          } catch(e) {}
+        }
+
+        // Generate new HELLO only if we don't have a fresh one
         if (!cachedHello) {
           cachedHello = await generateHello();
 
           const baseUrl = location.origin + "/IRLid";
           if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
             const compressed = await irlidCompressToB64url(cachedHello);
-            cachedHelloUrl = `${baseUrl}/application.html#HZ=${compressed}`;
+            cachedHelloUrl = `${baseUrl}/accept.html#HZ=${compressed}`;
           } else {
             const encodedHello = b64urlEncode(new TextEncoder().encode(JSON.stringify(cachedHello)));
-            cachedHelloUrl = `${baseUrl}/application.html#HELLO=${encodedHello}`;
+            cachedHelloUrl = `${baseUrl}/accept.html#HELLO=${encodedHello}`;
           }
 
           // Save to localStorage for application.html Scan page
