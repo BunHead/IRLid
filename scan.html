@@ -24,6 +24,10 @@
       background: #0a0a0a;
       overflow: hidden;
     }
+    /* Mobile: smaller viewport like the original */
+    @media (max-width: 720px) {
+      .scan-viewport { max-width: 480px; }
+    }
     /* When scanning, let the video dictate the height */
     .scan-viewport.state-scanning {
       aspect-ratio: auto;
