@@ -15,14 +15,22 @@
       align-items: center;
     }
 
-    /* Viewport: camera area — fills width, 4:3 ratio for better coverage */
+    /* Viewport: camera area — responsive to actual video feed */
     .scan-viewport {
       position: relative;
       width: 100%;
       max-width: 720px;
-      aspect-ratio: 4 / 3;
+      min-height: 280px;
       background: #0a0a0a;
       overflow: hidden;
+    }
+    /* When scanning, let the video dictate the height */
+    .scan-viewport.state-scanning {
+      aspect-ratio: auto;
+    }
+    /* When idle, keep a reasonable placeholder shape */
+    .scan-viewport.state-idle {
+      aspect-ratio: 4 / 3;
     }
 
     /* Idle state: ghost QR finder patterns */
@@ -70,17 +78,21 @@
     .scan-viewport.state-scanning .idle-label { display: none; }
 
     /* Scanner video (html5-qrcode renders here) */
-    #scanner { position: absolute; inset: 0; z-index: 1; }
-    #scanner video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+    #scanner { position: relative; width: 100%; z-index: 1; }
+    #scanner video { width: 100% !important; height: auto !important; display: block !important; }
+    /* Override html5-qrcode's internal scan region shading */
+    #scanner > div { max-width: 100% !important; }
+    #qr-shaded-region { display: none !important; }
 
     /* QR tracking overlay canvas — sits on top of video */
     #trackingCanvas {
       position: absolute;
-      inset: 0;
-      z-index: 4;
-      pointer-events: none;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
+      z-index: 4;
+      pointer-events: none;
       display: none;
     }
     .scan-viewport.state-scanning #trackingCanvas { display: block; }
@@ -369,8 +381,12 @@
       return;
     }
 
-    // Size canvas to viewport element (display pixels)
-    const rect = scanViewport.getBoundingClientRect();
+    // Size canvas to the scanner element (which holds the video)
+    const rect = scannerEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) {
+      trackingRAF = requestAnimationFrame(drawTrackingFrame);
+      return;
+    }
     const dpr = window.devicePixelRatio || 1;
     const cw = Math.floor(rect.width * dpr);
     const ch = Math.floor(rect.height * dpr);
@@ -380,32 +396,35 @@
     }
 
     // Sample video into an offscreen canvas for jsQR
-    // Use higher resolution for better detection with poor cameras
-    const sampleSize = 640;
+    // Use video's actual aspect ratio for accurate corner mapping
+    const sampleW = 640;
+    const sampleH = Math.round(sampleW * (vh / vw));
     if (!drawTrackingFrame._sampleCanvas) {
       drawTrackingFrame._sampleCanvas = document.createElement("canvas");
-      drawTrackingFrame._sampleCanvas.width = sampleSize;
-      drawTrackingFrame._sampleCanvas.height = sampleSize;
     }
     const sc = drawTrackingFrame._sampleCanvas;
+    if (sc.width !== sampleW || sc.height !== sampleH) {
+      sc.width = sampleW;
+      sc.height = sampleH;
+    }
     const sctx = sc.getContext("2d", { willReadFrequently: true });
 
     // Boost contrast slightly for washed-out webcams
     sctx.filter = "contrast(1.15) brightness(1.05)";
-    sctx.drawImage(video, 0, 0, vw, vh, 0, 0, sampleSize, sampleSize);
+    sctx.drawImage(video, 0, 0, vw, vh, 0, 0, sampleW, sampleH);
     sctx.filter = "none";
-    const imgData = sctx.getImageData(0, 0, sampleSize, sampleSize);
+    const imgData = sctx.getImageData(0, 0, sampleW, sampleH);
 
     // Run jsQR to get QR location
-    const qr = (typeof jsQR === "function") ? jsQR(imgData.data, sampleSize, sampleSize) : null;
+    const qr = (typeof jsQR === "function") ? jsQR(imgData.data, sampleW, sampleH) : null;
 
     const now = performance.now();
 
     if (qr && qr.location) {
       // Map jsQR coordinates (in sample space) to canvas coordinates
       const mapPt = (p) => ({
-        x: (p.x / sampleSize) * cw,
-        y: (p.y / sampleSize) * ch
+        x: (p.x / sampleW) * cw,
+        y: (p.y / sampleH) * ch
       });
 
       const newCorners = {
@@ -608,6 +627,7 @@
     try { await html5QrCode.stop(); } catch {}
     try { await html5QrCode.clear(); } catch {}
     html5QrCode = null;
+    scanViewport.style.aspectRatio = "";
     setViewportState("idle");
   }
 
@@ -629,17 +649,13 @@
 
     const config = {
       fps: 15,
-      qrbox: function(vw, vh) {
-        const s = Math.min(vw, vh);
-        return { width: Math.floor(s * 0.85), height: Math.floor(s * 0.85) };
-      },
       disableFlip: false,
       experimentalFeatures: {
         useBarCodeDetectorIfSupported: true
       },
       videoConstraints: {
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
+        width: { ideal: 1280, min: 640 },
+        height: { ideal: 720, min: 480 },
         frameRate: { ideal: 30 },
         focusMode: { ideal: "continuous" }
       }
@@ -698,8 +714,21 @@
       () => {}
     );
 
-    // Start tracking overlay after a short delay (let video element mount)
-    setTimeout(startTracking, 300);
+    // Start tracking overlay after video is ready; also resize viewport to match video
+    function waitForVideoAndStart() {
+      const video = scannerEl.querySelector("video");
+      if (!video || video.readyState < 2 || !video.videoWidth) {
+        setTimeout(waitForVideoAndStart, 100);
+        return;
+      }
+      // Set viewport aspect ratio to match actual video feed
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      scanViewport.style.aspectRatio = vw + " / " + vh;
+      dbg("Video: " + vw + "x" + vh + " → aspect " + (vw/vh).toFixed(2));
+      startTracking();
+    }
+    setTimeout(waitForVideoAndStart, 200);
   }
 
   // ========== Button handlers ==========
