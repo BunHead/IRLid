@@ -652,17 +652,11 @@
       disableFlip: false,
       experimentalFeatures: {
         useBarCodeDetectorIfSupported: true
-      },
-      videoConstraints: {
-        width: { ideal: 1280, min: 640 },
-        height: { ideal: 720, min: 480 },
-        frameRate: { ideal: 30 },
-        focusMode: { ideal: "continuous" }
       }
     };
 
     await html5QrCode.start(
-      camId,
+      { deviceId: { exact: camId } },
       config,
       async (text) => {
         await stopScanner();
@@ -763,6 +757,13 @@
 
   cameraSelect.addEventListener("change", async () => {
     setStoredPreferredCameraId(cameraSelect.value);
+    // If currently scanning, restart with the new camera
+    if (html5QrCode) {
+      try { await startScanner(); } catch(e) {
+        setStatus("Camera error: " + e);
+        console.error(e);
+      }
+    }
   });
 
   // Show debug controls in debug mode
