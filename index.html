@@ -209,6 +209,101 @@
         location.reload();
       });
     }
+
+    // ========== Double-tap fullscreen QR ==========
+    (function(){
+      const qrEl = document.getElementById("myQr");
+      if (!qrEl) return;
+
+      // Fullscreen overlay (CSS fallback for iOS which lacks Fullscreen API)
+      const overlay = document.createElement("div");
+      overlay.id = "qrFullscreenOverlay";
+      overlay.style.cssText = "display:none;position:fixed;inset:0;z-index:99999;background:#000;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;";
+      const qrHolder = document.createElement("div");
+      qrHolder.id = "qrFullscreenHolder";
+      qrHolder.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;";
+      const hint = document.createElement("div");
+      hint.textContent = "Tap to exit";
+      hint.style.cssText = "position:absolute;bottom:max(24px,env(safe-area-inset-bottom,12px));color:rgba(255,255,255,0.35);font:500 13px/1 system-ui,sans-serif;letter-spacing:0.04em;";
+      overlay.appendChild(qrHolder);
+      overlay.appendChild(hint);
+      document.body.appendChild(overlay);
+
+      let isFullscreen = false;
+
+      async function enterFullscreenQr(){
+        if (isFullscreen) return;
+        isFullscreen = true;
+
+        // Try native fullscreen first (works on Android Chrome, desktop)
+        try {
+          if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+          } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+          }
+        } catch(e){}
+
+        overlay.style.display = "flex";
+        document.body.style.overflow = "hidden";
+
+        // Render a large QR into the fullscreen holder
+        const vw = window.innerWidth || screen.width;
+        const vh = window.innerHeight || screen.height;
+        const size = Math.floor(Math.min(vw, vh) - 32);
+        if (cachedHelloUrl && typeof makeQR === "function") {
+          qrHolder.innerHTML = "";
+          await makeQR("qrFullscreenHolder", cachedHelloUrl, size);
+        }
+      }
+
+      function exitFullscreenQr(){
+        if (!isFullscreen) return;
+        isFullscreen = false;
+        overlay.style.display = "none";
+        document.body.style.overflow = "";
+        qrHolder.innerHTML = "";
+
+        try {
+          if (document.exitFullscreen) document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        } catch(e){}
+
+        // Re-render normal QR
+        rerender();
+      }
+
+      // Exit on native fullscreen change (e.g. back button on Android)
+      document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement && isFullscreen) exitFullscreenQr();
+      });
+      document.addEventListener("webkitfullscreenchange", () => {
+        if (!document.webkitFullscreenElement && isFullscreen) exitFullscreenQr();
+      });
+
+      // Tap overlay to exit
+      overlay.addEventListener("click", exitFullscreenQr);
+
+      // Double-tap detection on the QR element
+      let lastTap = 0;
+      qrEl.addEventListener("touchend", function(e){
+        const now = Date.now();
+        if (now - lastTap < 350) {
+          e.preventDefault();
+          enterFullscreenQr();
+          lastTap = 0;
+        } else {
+          lastTap = now;
+        }
+      }, { passive: false });
+
+      // Desktop: double-click
+      qrEl.addEventListener("dblclick", function(e){
+        e.preventDefault();
+        if (isFullscreen) exitFullscreenQr();
+        else enterFullscreenQr();
+      });
+    })();
   </script>
 </body>
 </html>
