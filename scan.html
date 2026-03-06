@@ -15,12 +15,12 @@
       align-items: center;
     }
 
-    /* Viewport: square camera area */
+    /* Viewport: camera area — fills width, 4:3 ratio for better coverage */
     .scan-viewport {
       position: relative;
       width: 100%;
-      max-width: 480px;
-      aspect-ratio: 1 / 1;
+      max-width: 720px;
+      aspect-ratio: 4 / 3;
       background: #0a0a0a;
       overflow: hidden;
     }
@@ -98,7 +98,7 @@
     /* Controls below the viewport */
     .scan-below {
       width: 100%;
-      max-width: 480px;
+      max-width: 720px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -380,7 +380,8 @@
     }
 
     // Sample video into an offscreen canvas for jsQR
-    const sampleSize = 480; // downsample for performance
+    // Use higher resolution for better detection with poor cameras
+    const sampleSize = 640;
     if (!drawTrackingFrame._sampleCanvas) {
       drawTrackingFrame._sampleCanvas = document.createElement("canvas");
       drawTrackingFrame._sampleCanvas.width = sampleSize;
@@ -388,7 +389,11 @@
     }
     const sc = drawTrackingFrame._sampleCanvas;
     const sctx = sc.getContext("2d", { willReadFrequently: true });
+
+    // Boost contrast slightly for washed-out webcams
+    sctx.filter = "contrast(1.15) brightness(1.05)";
     sctx.drawImage(video, 0, 0, vw, vh, 0, 0, sampleSize, sampleSize);
+    sctx.filter = "none";
     const imgData = sctx.getImageData(0, 0, sampleSize, sampleSize);
 
     // Run jsQR to get QR location
@@ -623,12 +628,21 @@
     html5QrCode = new Html5Qrcode("scanner");
 
     const config = {
-      fps: 12,
+      fps: 15,
       qrbox: function(vw, vh) {
         const s = Math.min(vw, vh);
-        return { width: Math.floor(s * 0.8), height: Math.floor(s * 0.8) };
+        return { width: Math.floor(s * 0.85), height: Math.floor(s * 0.85) };
       },
-      disableFlip: false
+      disableFlip: false,
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true
+      },
+      videoConstraints: {
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30 },
+        focusMode: { ideal: "continuous" }
+      }
     };
 
     await html5QrCode.start(
