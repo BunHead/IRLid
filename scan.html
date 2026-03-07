@@ -1,4 +1,4 @@
-<!-- scan.html — Pure Scanner -->
+<!-- scan.html — Pure Scanner DP80 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,9 +24,12 @@
       background: #0a0a0a;
       overflow: hidden;
     }
-    /* Mobile: smaller viewport like the original */
+    /* Mobile: smaller viewport that fits a phone screen */
     @media (max-width: 720px) {
-      .scan-viewport { max-width: 480px; }
+      .scan-viewport {
+        width: calc(100vw - 24px);
+        max-width: calc(100vw - 24px);
+      }
     }
     /* When scanning, let the video dictate the height */
     .scan-viewport.state-scanning {
@@ -637,7 +640,7 @@
 
   async function startScanner(){
     await stopScanner();
-    setStatus("Starting camera\u2026");
+    setStatus("Starting camera…");
 
     const camId = cameraSelect.value;
     if (!camId) throw new Error("No camera selected.");
@@ -669,7 +672,7 @@
 
         // HELLO → redirect to accept.html to show Accept QR
         if (c.kind === "HELLO" || c.kind === "HELLO_Z") {
-          setStatus("HELLO detected. Redirecting to Accept page\u2026");
+          setStatus("HELLO detected. Redirecting to Accept page…");
           if (c.kind === "HELLO_Z") {
             location.href = "accept.html#HZ=" + c.v;
           } else {
@@ -680,14 +683,14 @@
 
         // Combined receipt → open receipt page
         if (c.kind === "COMB") {
-          setStatus("Receipt detected. Opening\u2026");
+          setStatus("Receipt detected. Opening…");
           location.href = "receipt.html#COMB=" + (c.v || "");
           return;
         }
 
         // Server receipt hash → open receipt page
         if (c.kind === "RECEIPT") {
-          setStatus("Receipt detected. Opening\u2026");
+          setStatus("Receipt detected. Opening…");
           location.href = "receipt.html#receipt=" + (c.v || "");
           return;
         }
@@ -695,7 +698,7 @@
         // Accept response → create combined receipt
         if (c.kind === "RESP" || c.kind === "RESP_Z") {
           try {
-            setStatus("Accept QR detected. Creating combined receipt\u2026");
+            setStatus("Accept QR detected. Creating combined receipt…");
             const receiptUrl = await handleScannedAcceptQR(c.v || "", c.kind === "RESP_Z");
             dbg("Redirecting to receipt...");
             location.href = receiptUrl;
