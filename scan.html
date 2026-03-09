@@ -598,53 +598,26 @@
         const lx = (cw - logoW) / 2;
         const ly = (ch - logoH) / 2;
 
-        // Create/cache offscreen canvas to extract letter mask
-        if (!drawTrackingFrame._logoCanvas || drawTrackingFrame._logoCw !== Math.floor(logoW) || drawTrackingFrame._logoCh !== Math.floor(logoH)) {
-          const lc = document.createElement("canvas");
-          lc.width = Math.floor(logoW);
-          lc.height = Math.floor(logoH);
-          const lctx = lc.getContext("2d");
-          lctx.drawImage(logoImg, 0, 0, logoW, logoH);
-          // Extract alpha from darkness: dark pixels → opaque, white pixels → transparent
-          const id = lctx.getImageData(0, 0, lc.width, lc.height);
-          const d = id.data;
-          for (let i = 0; i < d.length; i += 4) {
-            const brightness = (d[i] + d[i+1] + d[i+2]) / 3;
-            // Invert: dark letters become opaque, white bg becomes transparent
-            const letterAlpha = Math.max(0, 255 - brightness);
-            d[i] = 255;    // R (will be tinted by globalCompositeOperation)
-            d[i+1] = 255;  // G
-            d[i+2] = 255;  // B
-            d[i+3] = letterAlpha;  // A — only the letter shapes
-          }
-          lctx.putImageData(id, 0, 0);
-          drawTrackingFrame._logoCanvas = lc;
-          drawTrackingFrame._logoCw = Math.floor(logoW);
-          drawTrackingFrame._logoCh = Math.floor(logoH);
-        }
-
-        // Cycle: white(0) → transparent(0.25) → black(0.5) → transparent(0.75) → white(1)
-        const cycle = (now % 6000) / 6000;  // 6 second full cycle
-        const phase = cycle * Math.PI * 2;
-        // sin: +1 = full white, 0 = transparent, -1 = full black
-        const sinVal = Math.sin(phase);
-        const opacity = Math.abs(sinVal) * 0.35;  // peak opacity 0.35
+        // 6-second cycle: white(0) → transparent → black → transparent → white
+        const cycle = (now % 6000) / 6000;
+        const sinVal = Math.sin(cycle * Math.PI * 2);
+        const opacity = Math.abs(sinVal) * 0.4;
 
         if (opacity > 0.01) {
           trackingCtx.save();
+          trackingCtx.globalAlpha = opacity;
+
           if (sinVal > 0) {
-            // White letters
-            trackingCtx.globalAlpha = opacity;
-            trackingCtx.drawImage(drawTrackingFrame._logoCanvas, lx, ly);
-          } else {
-            // Black letters: draw the mask, then multiply with black
-            trackingCtx.globalAlpha = opacity;
-            trackingCtx.drawImage(drawTrackingFrame._logoCanvas, lx, ly);
-            // Tint to black by drawing black over the letters using source-in
+            // White phase: draw logo then tint white over it
+            trackingCtx.drawImage(logoImg, lx, ly, logoW, logoH);
             trackingCtx.globalCompositeOperation = "source-atop";
-            trackingCtx.fillStyle = "#000000";
+            trackingCtx.fillStyle = "#ffffff";
             trackingCtx.fillRect(lx, ly, logoW, logoH);
+          } else {
+            // Black phase: logo.png is already black letters on transparent
+            trackingCtx.drawImage(logoImg, lx, ly, logoW, logoH);
           }
+
           trackingCtx.restore();
           trackingCtx.globalAlpha = 1;
           trackingCtx.globalCompositeOperation = "source-over";
