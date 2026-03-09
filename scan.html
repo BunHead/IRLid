@@ -347,35 +347,28 @@
     }
   }
 
-  // ========== Real-time QR tracking overlay ==========
+  // ========== Real-time QR tracking overlay (Neon Corners + Glow) ==========
 
-  // Smooth interpolation for corner positions
+  // Preload the logo for drawing on the overlay
+  const logoImg = new Image();
+  logoImg.src = "logo.png";
+  let logoLoaded = false;
+  logoImg.onload = () => { logoLoaded = true; };
+
+  // Smooth interpolation
   function lerpPt(a, b, t) {
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
   }
 
-  // Draw a corner bracket (like Google Authenticator)
-  function drawCornerBracket(ctx, pt, angle, len, color, lineWidth) {
-    ctx.save();
-    ctx.translate(pt.x, pt.y);
-    ctx.rotate(angle);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(len, 0);
-    ctx.lineTo(0, 0);
-    ctx.lineTo(0, len);
-    ctx.stroke();
-    ctx.restore();
-  }
+  // Expanding ring particles on QR detection
+  let detectionRings = [];  // { cx, cy, birth, radius }
 
-  // Draw a small filled dot at a point
-  function drawDot(ctx, pt, radius, color) {
+  function drawNeonCorner(ctx, x, y, lenX, lenY, dpr) {
     ctx.beginPath();
-    ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    ctx.moveTo(x + lenX, y);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x, y + lenY);
+    ctx.stroke();
   }
 
   function drawTrackingFrame() {
@@ -392,7 +385,7 @@
       return;
     }
 
-    // Size canvas to the scanner element (which holds the video)
+    // Size canvas to the scanner element
     const rect = scannerEl.getBoundingClientRect();
     if (!rect.width || !rect.height) {
       trackingRAF = requestAnimationFrame(drawTrackingFrame);
@@ -406,8 +399,7 @@
       trackingCanvas.height = ch;
     }
 
-    // Sample video into an offscreen canvas for jsQR
-    // Use video's actual aspect ratio for accurate corner mapping
+    // Sample video for jsQR
     const sampleW = 640;
     const sampleH = Math.round(sampleW * (vh / vw));
     if (!drawTrackingFrame._sampleCanvas) {
@@ -419,20 +411,17 @@
       sc.height = sampleH;
     }
     const sctx = sc.getContext("2d", { willReadFrequently: true });
-
-    // Boost contrast slightly for washed-out webcams
     sctx.filter = "contrast(1.15) brightness(1.05)";
     sctx.drawImage(video, 0, 0, vw, vh, 0, 0, sampleW, sampleH);
     sctx.filter = "none";
     const imgData = sctx.getImageData(0, 0, sampleW, sampleH);
 
-    // Run jsQR to get QR location
+    // Run jsQR
     const qr = (typeof jsQR === "function") ? jsQR(imgData.data, sampleW, sampleH) : null;
-
     const now = performance.now();
+    const wasDetected = qrDetectedCount > 3;
 
     if (qr && qr.location) {
-      // Map jsQR coordinates (in sample space) to canvas coordinates
       const mapPt = (p) => ({
         x: (p.x / sampleW) * cw,
         y: (p.y / sampleH) * ch
@@ -445,7 +434,6 @@
         bl: mapPt(qr.location.bottomLeftCorner)
       };
 
-      // Smooth: interpolate towards new position
       const smoothing = lastQrCorners ? 0.35 : 1.0;
       if (lastQrCorners) {
         lastQrCorners = {
@@ -458,25 +446,50 @@
         lastQrCorners = newCorners;
       }
       lastQrTime = now;
+
+      // Spawn detection ring on first detection
+      if (!wasDetected && qrDetectedCount <= 3) {
+        const cx = (newCorners.tl.x + newCorners.br.x) / 2;
+        const cy = (newCorners.tl.y + newCorners.br.y) / 2;
+        detectionRings.push({ cx, cy, birth: now, maxR: Math.max(cw, ch) * 0.5 });
+      }
       qrDetectedCount = Math.min(qrDetectedCount + 1, 30);
     } else {
-      // Fade out: after 300ms with no detection, start fading
       if (now - lastQrTime > 500) {
         qrDetectedCount = Math.max(0, qrDetectedCount - 2);
       }
     }
 
-    // Clear and draw
+    // Clear
     trackingCtx.clearRect(0, 0, cw, ch);
 
-    if (lastQrCorners && qrDetectedCount > 0) {
-      const c = lastQrCorners;
-      const alpha = Math.min(1, qrDetectedCount / 6);
-      const isLocked = qrDetectedCount > 8;
-      const color = isLocked ? `rgba(0, 230, 118, ${alpha})` : `rgba(255, 255, 255, ${alpha * 0.7})`;
-      const fillColor = isLocked ? `rgba(0, 230, 118, ${alpha * 0.08})` : `rgba(255, 255, 255, ${alpha * 0.04})`;
+    const isLocked = qrDetectedCount > 8;
+    const alpha = Math.min(1, qrDetectedCount / 6);
+    const pulse = 0.6 + Math.sin(now * 0.004) * 0.4;
 
-      // Draw semi-transparent fill over QR area
+    // ---- Draw detection rings (expanding ripples) ----
+    detectionRings = detectionRings.filter(r => {
+      const age = (now - r.birth) / 1000;
+      if (age > 1.2) return false;
+      const progress = age / 1.2;
+      const ringR = progress * r.maxR;
+      const ringAlpha = (1 - progress) * 0.35;
+      trackingCtx.beginPath();
+      trackingCtx.arc(r.cx, r.cy, ringR, 0, Math.PI * 2);
+      trackingCtx.strokeStyle = `rgba(0, 230, 118, ${ringAlpha})`;
+      trackingCtx.lineWidth = 2 * dpr;
+      trackingCtx.stroke();
+      return true;
+    });
+
+    if (lastQrCorners && qrDetectedCount > 0) {
+      // ---- QR detected: neon corners tracking the QR ----
+      const c = lastQrCorners;
+      const green = `rgba(0, 230, 118, ${alpha})`;
+      const greenGlow = `rgba(0, 230, 118, ${alpha * 0.5})`;
+      const fillColor = `rgba(0, 230, 118, ${alpha * 0.06})`;
+
+      // Subtle fill
       trackingCtx.beginPath();
       trackingCtx.moveTo(c.tl.x, c.tl.y);
       trackingCtx.lineTo(c.tr.x, c.tr.y);
@@ -486,64 +499,146 @@
       trackingCtx.fillStyle = fillColor;
       trackingCtx.fill();
 
-      // Draw connecting lines (thin)
+      // Thin border
       trackingCtx.beginPath();
       trackingCtx.moveTo(c.tl.x, c.tl.y);
       trackingCtx.lineTo(c.tr.x, c.tr.y);
       trackingCtx.lineTo(c.br.x, c.br.y);
       trackingCtx.lineTo(c.bl.x, c.bl.y);
       trackingCtx.closePath();
-      trackingCtx.strokeStyle = color;
-      trackingCtx.lineWidth = 1.5 * dpr;
+      trackingCtx.strokeStyle = `rgba(0, 230, 118, ${alpha * 0.3})`;
+      trackingCtx.lineWidth = 1 * dpr;
       trackingCtx.stroke();
 
-      // Corner bracket length scales with QR size
+      // Corner bracket length
       const dx = c.tr.x - c.tl.x;
       const dy = c.tr.y - c.tl.y;
       const sideLen = Math.sqrt(dx * dx + dy * dy);
-      const bracketLen = Math.max(12 * dpr, sideLen * 0.2);
-      const lw = (isLocked ? 3.5 : 2.5) * dpr;
+      const bracketLen = Math.max(16 * dpr, sideLen * 0.22);
+      const lw = (isLocked ? 4 : 3) * dpr;
 
-      // Calculate angles for each corner from the QR shape
-      const angleTL = Math.atan2(c.tr.y - c.tl.y, c.tr.x - c.tl.x);
-      const angleTR = Math.atan2(c.bl.y - c.tl.y, c.bl.x - c.tl.x) + Math.PI * 0.5;
-      const angleBR = Math.atan2(c.tl.y - c.tr.y, c.tl.x - c.tr.x) + Math.PI;
-      const angleBL = Math.atan2(c.tl.y - c.bl.y, c.tl.x - c.bl.x);
+      // Glow layer (drawn first, thicker + blurred)
+      trackingCtx.save();
+      trackingCtx.strokeStyle = greenGlow;
+      trackingCtx.lineWidth = lw + 6 * dpr;
+      trackingCtx.lineCap = "round";
+      trackingCtx.lineJoin = "round";
+      // TL
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tl.x + bracketLen, c.tl.y); trackingCtx.lineTo(c.tl.x, c.tl.y); trackingCtx.lineTo(c.tl.x, c.tl.y + bracketLen);
+      trackingCtx.stroke();
+      // TR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tr.x - bracketLen, c.tr.y); trackingCtx.lineTo(c.tr.x, c.tr.y); trackingCtx.lineTo(c.tr.x, c.tr.y + bracketLen);
+      trackingCtx.stroke();
+      // BR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.br.x - bracketLen, c.br.y); trackingCtx.lineTo(c.br.x, c.br.y); trackingCtx.lineTo(c.br.x, c.br.y - bracketLen);
+      trackingCtx.stroke();
+      // BL
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.bl.x + bracketLen, c.bl.y); trackingCtx.lineTo(c.bl.x, c.bl.y); trackingCtx.lineTo(c.bl.x, c.bl.y - bracketLen);
+      trackingCtx.stroke();
+      trackingCtx.restore();
 
-      // Draw corner brackets
-      drawCornerBracket(trackingCtx, c.tl, angleTL, bracketLen, color, lw);
-      drawCornerBracket(trackingCtx, c.tr, angleTR, bracketLen, color, lw);
-      drawCornerBracket(trackingCtx, c.br, angleBR, bracketLen, color, lw);
-      drawCornerBracket(trackingCtx, c.bl, angleBL, bracketLen, color, lw);
+      // Sharp corner layer on top
+      trackingCtx.strokeStyle = green;
+      trackingCtx.lineWidth = lw;
+      trackingCtx.lineCap = "round";
+      trackingCtx.lineJoin = "round";
+      // TL
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tl.x + bracketLen, c.tl.y); trackingCtx.lineTo(c.tl.x, c.tl.y); trackingCtx.lineTo(c.tl.x, c.tl.y + bracketLen);
+      trackingCtx.stroke();
+      // TR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.tr.x - bracketLen, c.tr.y); trackingCtx.lineTo(c.tr.x, c.tr.y); trackingCtx.lineTo(c.tr.x, c.tr.y + bracketLen);
+      trackingCtx.stroke();
+      // BR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.br.x - bracketLen, c.br.y); trackingCtx.lineTo(c.br.x, c.br.y); trackingCtx.lineTo(c.br.x, c.br.y - bracketLen);
+      trackingCtx.stroke();
+      // BL
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(c.bl.x + bracketLen, c.bl.y); trackingCtx.lineTo(c.bl.x, c.bl.y); trackingCtx.lineTo(c.bl.x, c.bl.y - bracketLen);
+      trackingCtx.stroke();
 
-      // Draw corner dots when locked on
+      // Pulsing expand ring when locked
       if (isLocked) {
-        const dotR = 3 * dpr;
-        drawDot(trackingCtx, c.tl, dotR, color);
-        drawDot(trackingCtx, c.tr, dotR, color);
-        drawDot(trackingCtx, c.br, dotR, color);
-        drawDot(trackingCtx, c.bl, dotR, color);
+        const ringPhase = (now * 0.001) % 1;
+        const ringAlpha = (1 - ringPhase) * 0.25;
+        const expand = ringPhase * 12 * dpr;
+        const minX = Math.min(c.tl.x, c.bl.x) - expand;
+        const minY = Math.min(c.tl.y, c.tr.y) - expand;
+        const maxX = Math.max(c.tr.x, c.br.x) + expand;
+        const maxY = Math.max(c.bl.y, c.br.y) + expand;
+        trackingCtx.strokeStyle = `rgba(0, 230, 118, ${ringAlpha})`;
+        trackingCtx.lineWidth = 1.5 * dpr;
+        trackingCtx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       }
+
     } else if (qrDetectedCount === 0) {
-      // No QR visible: draw subtle scan-line animation
+      // ---- No QR: show logo fading black ↔ white with scan line ----
+
+      // Scan line
       const period = 3000;
       const t = (now % period) / period;
       const y = t * ch;
-      const grad = trackingCtx.createLinearGradient(0, y - 2 * dpr, 0, y + 2 * dpr);
+      const grad = trackingCtx.createLinearGradient(0, y - 30 * dpr, 0, y + 30 * dpr);
       grad.addColorStop(0, "rgba(0, 230, 118, 0)");
-      grad.addColorStop(0.5, "rgba(0, 230, 118, 0.25)");
+      grad.addColorStop(0.5, "rgba(0, 230, 118, 0.18)");
       grad.addColorStop(1, "rgba(0, 230, 118, 0)");
       trackingCtx.fillStyle = grad;
       trackingCtx.fillRect(0, y - 30 * dpr, cw, 60 * dpr);
 
-      // Subtle centre crosshair
-      trackingCtx.strokeStyle = "rgba(255, 255, 255, 0.12)";
-      trackingCtx.lineWidth = 1 * dpr;
-      const cx = cw / 2, cy = ch / 2;
-      const chLen = 20 * dpr;
+      // Logo fading between black and white
+      if (logoLoaded) {
+        const logoH = ch * 0.28;
+        const logoW = logoH * (logoImg.naturalWidth / logoImg.naturalHeight);
+        const lx = (cw - logoW) / 2;
+        const ly = (ch - logoH) / 2;
+
+        // Fade cycle: 0→1→0 over 4 seconds
+        const fadeCycle = (now % 4000) / 4000;
+        const whiteness = 0.5 + 0.5 * Math.sin(fadeCycle * Math.PI * 2);
+
+        // Draw logo in black, then overlay in white with varying opacity
+        trackingCtx.globalAlpha = 0.15 + whiteness * 0.08;
+        trackingCtx.drawImage(logoImg, lx, ly, logoW, logoH);
+
+        // White version: invert by drawing white rect with the logo as a mask
+        // Since we can't easily invert, draw white logo using composite
+        trackingCtx.save();
+        trackingCtx.globalAlpha = whiteness * 0.2;
+        trackingCtx.globalCompositeOperation = "difference";
+        trackingCtx.fillStyle = "#ffffff";
+        trackingCtx.fillRect(lx, ly, logoW, logoH);
+        trackingCtx.restore();
+        trackingCtx.globalAlpha = 1;
+      }
+
+      // Subtle neon corners around the scan zone (static, dim)
+      const pad = cw * 0.12;
+      const padY = ch * 0.12;
+      const cLen = Math.min(cw, ch) * 0.1;
+      trackingCtx.strokeStyle = `rgba(0, 230, 118, ${0.12 + pulse * 0.08})`;
+      trackingCtx.lineWidth = 2 * dpr;
+      trackingCtx.lineCap = "round";
+      // TL
       trackingCtx.beginPath();
-      trackingCtx.moveTo(cx - chLen, cy); trackingCtx.lineTo(cx + chLen, cy);
-      trackingCtx.moveTo(cx, cy - chLen); trackingCtx.lineTo(cx, cy + chLen);
+      trackingCtx.moveTo(pad + cLen, padY); trackingCtx.lineTo(pad, padY); trackingCtx.lineTo(pad, padY + cLen);
+      trackingCtx.stroke();
+      // TR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(cw - pad - cLen, padY); trackingCtx.lineTo(cw - pad, padY); trackingCtx.lineTo(cw - pad, padY + cLen);
+      trackingCtx.stroke();
+      // BL
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(pad, ch - padY - cLen); trackingCtx.lineTo(pad, ch - padY); trackingCtx.lineTo(pad + cLen, ch - padY);
+      trackingCtx.stroke();
+      // BR
+      trackingCtx.beginPath();
+      trackingCtx.moveTo(cw - pad, ch - padY - cLen); trackingCtx.lineTo(cw - pad, ch - padY); trackingCtx.lineTo(cw - pad - cLen, ch - padY);
       trackingCtx.stroke();
     }
 
@@ -554,6 +649,7 @@
     lastQrCorners = null;
     lastQrTime = 0;
     qrDetectedCount = 0;
+    detectionRings = [];
     if (trackingRAF) cancelAnimationFrame(trackingRAF);
     trackingRAF = requestAnimationFrame(drawTrackingFrame);
   }
