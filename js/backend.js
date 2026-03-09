@@ -1,3 +1,5 @@
+// Copyright 2025 Spencer Austin. All rights reserved.
+// Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // /js/backend.js — Deploy 78
 // API client for IRLid backend (Cloudflare Workers + D1).
 

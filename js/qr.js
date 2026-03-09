@@ -1,3 +1,5 @@
+// Copyright 2025 Spencer Austin. All rights reserved.
+// Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // /js/qr.js — Deploy 63
 // Robust QR rendering for GitHub Pages:
 // - Tries to load QR library from multiple CDNs (no local qrcode.min.js required)

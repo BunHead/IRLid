@@ -1,3 +1,5 @@
+// Copyright 2025 Spencer Austin. All rights reserved.
+// Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // /js/nav.js
 // Shared navigation logic for IRLid
 // Deploy 72

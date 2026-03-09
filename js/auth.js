@@ -1,3 +1,5 @@
+// Copyright 2025 Spencer Austin. All rights reserved.
+// Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // /js/auth.js
 // Passkey (WebAuthn) auth for IRLid (static, device-local)
 // Deploy 1

@@ -394,3 +394,22 @@ pre{
 }
 
 a.maplink{ color: #111; text-decoration: underline; }
+
+/* Site footer */
+.site-footer{
+  text-align: center;
+  padding: 18px 14px;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid #e5e5e5;
+  margin-top: 24px;
+}
+.site-footer a{
+  color: #777;
+  text-decoration: underline;
+}
+@media (max-width: 720px){
+  .site-footer{
+    padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0) + 18px);
+  }
+}

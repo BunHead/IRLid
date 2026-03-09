@@ -1,3 +1,5 @@
+// Copyright 2025 Spencer Austin. All rights reserved.
+// Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
 //  Deploy 76 — compact payloads for smaller QR codes
 
