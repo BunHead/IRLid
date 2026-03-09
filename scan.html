@@ -24,9 +24,15 @@
       background: #0a0a0a;
       overflow: hidden;
     }
-    /* Mobile: smaller viewport like the original */
+    /* Mobile: cap height so it doesn't dominate the screen */
     @media (max-width: 720px) {
-      .scan-viewport { max-width: 480px; }
+      .scan-viewport {
+        max-width: 480px;
+        max-height: 55vh;
+      }
+      #scanner video {
+        object-fit: contain !important;
+      }
     }
     /* When scanning, let the video dictate the height */
     .scan-viewport.state-scanning {
