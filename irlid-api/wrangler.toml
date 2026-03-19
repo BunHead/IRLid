@@ -4,7 +4,7 @@ compatibility_date = "2025-12-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-CORS_ORIGIN = "https://bunhead.github.io"
+CORS_ORIGIN = "https://irlid.co.uk"
 
 [[d1_databases]]
 binding = "DB"

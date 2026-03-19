@@ -1,7 +1,7 @@
-// Copyright 2025 Spencer Austin. All rights reserved.
+﻿// Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
-// irlid-api/src/index.js — v5
-// IRLid Backend — Cloudflare Worker + D1
+// irlid-api/src/index.js â€” v5
+// IRLid Backend â€” Cloudflare Worker + D1
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 
 // =====================
@@ -194,7 +194,7 @@ function requireAuth(session) {
 function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
   const allowed = [
-    env.CORS_ORIGIN || "https://bunhead.github.io",
+    env.CORS_ORIGIN || "https://irlid.co.uk",
     "http://localhost:3000", "http://localhost:8000",
     "http://127.0.0.1:3000", "http://127.0.0.1:8000"
   ];
@@ -271,7 +271,7 @@ async function googleAuth(request, env) {
   let displayName;
 
   if (user) {
-    // Existing user — update their Google info
+    // Existing user â€” update their Google info
     userId = user.id;
     displayName = user.display_name;
     await env.DB.prepare(
@@ -305,7 +305,7 @@ async function googleAuth(request, env) {
       if (existingDevice.user_id === userId) {
         deviceId = existingDevice.id;
       } else {
-        // Device was registered to a different user — reassign to current user.
+        // Device was registered to a different user â€” reassign to current user.
         // This happens when a new person logs in on a device previously used by someone else.
         deviceId = existingDevice.id;
         await env.DB.prepare("UPDATE devices SET user_id = ? WHERE id = ?")
