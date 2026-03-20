@@ -1,6 +1,6 @@
 // Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
-// irlid-api/src/index.js — v5
+// irlid-api/src/index.js — v6
 // IRLid Backend — Cloudflare Worker + D1
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 
@@ -194,10 +194,12 @@ function requireAuth(session) {
 function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
   const allowed = [
-    env.CORS_ORIGIN || "https://bunhead.github.io",
-    "http://localhost:3000", "http://localhost:8000",
-    "http://127.0.0.1:3000", "http://127.0.0.1:8000"
-  ];
+  env.CORS_ORIGIN || "https://irlid.co.uk",
+  "https://bunhead.github.io",
+  "https://irlid.co.uk",
+  "http://localhost:3000", "http://localhost:8000",
+  "http://127.0.0.1:3000", "http://127.0.0.1:8000"
+];
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
