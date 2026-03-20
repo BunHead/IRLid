@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Deploy 76 -->
+<!-- Deploy v1 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -135,7 +135,7 @@
         if (!cachedHello) {
           cachedHello = await generateHello();
 
-          const baseUrl = location.origin + "/IRLid";
+          const baseUrl = location.origin + (location.pathname.includes("/IRLid") ? "/IRLid" : "");
           if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
             const compressed = await irlidCompressToB64url(cachedHello);
             cachedHelloUrl = `${baseUrl}/accept.html#HZ=${compressed}`;
