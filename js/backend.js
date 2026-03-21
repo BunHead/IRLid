@@ -1,6 +1,6 @@
 // Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
-// /js/backend.js — Deploy 78
+// /js/backend.js — Deploy 115
 // API client for IRLid backend (Cloudflare Workers + D1).
 
 (function () {
@@ -139,7 +139,7 @@
     // ===== Receipts =====
 
     uploadReceipt: async function (combinedObj) {
-      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      // No login required — anonymous uploads are allowed (uploader_id stored as null)
       return await api("POST", "/receipts", { combined: combinedObj });
     },
 
