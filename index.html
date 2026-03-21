@@ -164,13 +164,20 @@
 
     renderHelloQr();
 
+    // Debounced rerender — collapses multiple rapid resize/orientationchange events
+    // into a single render, preventing double QR on page load and back-navigation
+    let _rerenderTimer = null;
+    function debouncedRerender() {
+      if (_rerenderTimer) clearTimeout(_rerenderTimer);
+      _rerenderTimer = setTimeout(rerender, 150);
+    }
     const rerender = () => {
       clearTimeout(window.__irlid_qr_t);
       window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
     };
-    window.addEventListener("resize", rerender);
-    window.addEventListener("orientationchange", rerender);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
+    window.addEventListener("resize", debouncedRerender);
+    window.addEventListener("orientationchange", debouncedRerender);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", debouncedRerender);
 
     function isDebug(){
       try{

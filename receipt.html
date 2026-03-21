@@ -1194,11 +1194,11 @@
       metaTitle.textContent = "Combined Receipt";
 
       // --- Initial names/avatars (will be resolved async) ---
-      selfNameEl.textContent = (userInfo && userInfo.display_name) ? userInfo.display_name : "Unknown";
+      selfNameEl.textContent = "Unknown";
       guestNameEl.textContent = "Unknown";
       roleAEl.textContent = "Initiator:";
       roleBEl.textContent = "Collaborator:";
-      renderAvatar(selfAvatarWrap, userInfo ? userInfo.google_picture : null);
+      renderAvatar(selfAvatarWrap, null);
       renderAvatar(guestAvatarWrap, null);
 
       // --- QR ---
