@@ -1,5 +1,5 @@
--- IRLid D1 Schema (Deploy 93)
--- Matches irlid-api/src/index.js v5
+-- IRLid D1 Schema (Deploy 112)
+-- Matches irlid-api/src/index.js v6
 
 CREATE TABLE IF NOT EXISTS users (
   id              TEXT PRIMARY KEY,
@@ -39,7 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 
 CREATE TABLE IF NOT EXISTS receipts (
   id            TEXT PRIMARY KEY,
-  uploader_id   TEXT NOT NULL REFERENCES users(id),
+  uploader_id   TEXT REFERENCES users(id),
   receipt_hash  TEXT NOT NULL UNIQUE,
   pub_key_a     TEXT NOT NULL,
   pub_key_b     TEXT NOT NULL,

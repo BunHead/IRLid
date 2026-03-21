@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 78 -->
+<!-- Deploy 112 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1210,10 +1210,10 @@
       // --- QR ---
       let qrUrl = null;
       if (serverHash) {
-        // Already stored on server — use hash URL directly
+        // Already stored on server — use short hash URL, no re-upload needed
         qrUrl = makeReceiptUrlForHash(serverHash);
-      } else if (window.IRLBackend && window.IRLBackend.hasSession()) {
-        // Logged in — try to upload and get a short hash URL
+      } else {
+        // Try to upload — works for everyone (logged-in and anonymous) since Deploy 112
         try {
           const upRes = await window.IRLBackend.uploadReceipt(comb);
           if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
@@ -1222,8 +1222,7 @@
         } catch(_){}
       }
 
-      // Fallback for non-logged-in users: embed the full receipt in the URL
-      // This is always free — no login required
+      // Fallback only if upload genuinely failed (e.g. network error)
       if (!qrUrl) {
         qrUrl = makeReceiptUrlForCombined(comb);
       }

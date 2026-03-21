@@ -671,7 +671,7 @@ export default {
 
     let response;
     try {
-      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 5 });
+      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 6 });
 
       else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
       else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
