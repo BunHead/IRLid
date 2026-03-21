@@ -1,4 +1,4 @@
-<!-- scan.html — Pure Scanner -->
+<!-- scan.html — Pure Scanner — Deploy 114 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -240,7 +240,10 @@
   debugToggle.style.cssText = "position:fixed;top:50px;right:8px;z-index:10000;background:#222;color:#0f0;border:2px solid #0f0;padding:6px 12px;font:bold 14px monospace;border-radius:4px;display:none;";
   debugToggle.onclick = () => { debugPanel.style.display = debugPanel.style.display === "none" ? "block" : "none"; };
   document.body.appendChild(debugToggle);
-  if (isDebugMode()) debugToggle.style.display = "block";
+  if (isDebugMode()) {
+    debugToggle.style.display = "block";
+    debugPanel.style.display = "block";  // auto-open in debug mode
+  }
   function dbg(msg) {
     console.log("[IRLid]", msg);
     const line = document.createElement("div");
@@ -815,11 +818,23 @@
           try {
             setStatus("Accept QR detected. Creating combined receipt\u2026");
             const receiptUrl = await handleScannedAcceptQR(c.v || "", c.kind === "RESP_Z");
-            dbg("Redirecting to receipt...");
-            location.href = receiptUrl;
+            dbg("Receipt URL: " + receiptUrl);
+            if (isDebugMode()) {
+              // In debug mode: show panel and add clickable link instead of auto-redirecting
+              debugPanel.style.display = "block";
+              const link = document.createElement("a");
+              link.href = receiptUrl;
+              link.textContent = "TAP TO OPEN RECEIPT";
+              link.style.cssText = "display:block;color:#ff0;font-weight:bold;margin-top:8px;font-size:15px;";
+              debugPanel.appendChild(link);
+              setStatus("Debug mode: tap the yellow link in the panel above to open receipt.");
+            } else {
+              location.href = receiptUrl;
+            }
           } catch(e) {
             setStatus("Error: " + e.message);
             dbg("Error: " + e.message);
+            debugPanel.style.display = "block";
             console.error(e);
           }
           return;
