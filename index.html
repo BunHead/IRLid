@@ -162,22 +162,27 @@
       }
     }
 
-    renderHelloQr();
-
-    // Debounced rerender — collapses multiple rapid resize/orientationchange events
-    // into a single render, preventing double QR on page load and back-navigation
-    let _rerenderTimer = null;
-    function debouncedRerender() {
-      if (_rerenderTimer) clearTimeout(_rerenderTimer);
-      _rerenderTimer = setTimeout(rerender, 150);
+    // Guard against concurrent renders (prevents double QR on load and back-navigation)
+    let _qrRendering = false;
+    async function safeRenderHelloQr() {
+      if (_qrRendering) return;
+      _qrRendering = true;
+      try { await renderHelloQr(); } finally { _qrRendering = false; }
     }
+
+    // Debounced rerender — collapses window resize + visualViewport resize
+    // which both fire simultaneously on mobile, into a single render
+    let _rerenderTimer = null;
     const rerender = () => {
-      clearTimeout(window.__irlid_qr_t);
-      window.__irlid_qr_t = setTimeout(renderHelloQr, 120);
+      if (_rerenderTimer) clearTimeout(_rerenderTimer);
+      _rerenderTimer = setTimeout(safeRenderHelloQr, 150);
     };
-    window.addEventListener("resize", debouncedRerender);
-    window.addEventListener("orientationchange", debouncedRerender);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", debouncedRerender);
+    window.addEventListener("resize", rerender);
+    window.addEventListener("orientationchange", rerender);
+    if (window.visualViewport) window.visualViewport.addEventListener("resize", rerender);
+
+    // Initial render — via rerender so it goes through the same debounce path
+    rerender();
 
     function isDebug(){
       try{
