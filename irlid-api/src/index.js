@@ -541,9 +541,9 @@ async function revokeDevice(request, env) {
 // =====================
 
 async function uploadReceipt(request, env) {
+  // Auth is optional — logged-in users get their profile attached,
+  // anonymous users can still store receipts for free verification
   const session = await getSession(request, env);
-  const denied = requireAuth(session);
-  if (denied) return denied;
 
   let body;
   try { body = await request.json(); } catch { return err("Invalid JSON body"); }
@@ -560,6 +560,7 @@ async function uploadReceipt(request, env) {
   const tsA = combined.a?.payload?.ts || null;
   const tsB = combined.b?.payload?.ts || null;
   const receiptId = uuid();
+  const uploaderId = session ? session.userId : null;
 
   // Look up user info for both parties at upload time (snapshot)
   let partyA = null, partyB = null;
@@ -583,7 +584,7 @@ async function uploadReceipt(request, env) {
 
   await env.DB.prepare(
     `INSERT INTO receipts (id, uploader_id, receipt_hash, pub_key_a, pub_key_b, ts_a, ts_b, receipt_json, verified, created_at, party_info) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(receiptId, session.userId, receiptHash, pkA, pkB, tsA, tsB, JSON.stringify(combined), checks.valid ? 1 : 0, now(), partyInfo).run();
+  ).bind(receiptId, uploaderId, receiptHash, pkA, pkB, tsA, tsB, JSON.stringify(combined), checks.valid ? 1 : 0, now(), partyInfo).run();
   return json({ receipt_id: receiptId, receipt_hash: receiptHash, verified: checks.valid, checks, party_info: { a: partyA, b: partyB } }, 201);
 }
 
