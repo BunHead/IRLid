@@ -708,10 +708,11 @@
       distTolM: IRLID_DIST_TOL_M
     });
 
-    // Upload to server
-    let receiptUrl = "receipt.html#COMB=" + irlidEncodeJsonToB64url(out.combined);
+    // Upload to server — always attempt, login not required for storage
+    // Login only affects whether your profile is attached to the receipt
+    let receiptUrl = null;
 
-    if (window.IRLBackend && window.IRLBackend.hasSession()) {
+    if (window.IRLBackend) {
       try {
         const upRes = await window.IRLBackend.uploadReceipt(out.combined);
         if (upRes.ok && upRes.data && upRes.data.receipt_hash) {
@@ -723,6 +724,12 @@
       } catch(e) {
         dbg("Upload error: " + e);
       }
+    }
+
+    // Fallback only if upload genuinely failed
+    if (!receiptUrl) {
+      receiptUrl = "receipt.html#COMB=" + irlidEncodeJsonToB64url(out.combined);
+      dbg("Using local COMB fallback (upload failed)");
     }
 
     // Clear the HELLO — handshake is complete

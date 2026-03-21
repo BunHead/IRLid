@@ -741,24 +741,30 @@
     try { if (pubA) keyIdA = await pubKeyId(pubA); } catch{}
     try { if (pubB) keyIdB = await pubKeyId(pubB); } catch{}
 
-    if (!aResolved && keyIdA && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
-      try {
-        const res = await window.IRLBackend.lookupByKey(keyIdA);
-        if (res.ok && res.data && res.data.found) {
-          if (res.data.display_name) selfNameEl.textContent = res.data.display_name;
-          if (res.data.google_picture) renderAvatar(selfAvatarWrap, res.data.google_picture);
-        }
-      } catch{}
-    }
+    // Only do live key lookups when the user is logged in
+    // Non-logged-in users see serverPartyInfo snapshot only (set at upload time)
+    const isLoggedIn = window.IRLBackend && window.IRLBackend.hasSession();
 
-    if (!bResolved && keyIdB && window.IRLBackend && typeof window.IRLBackend.lookupByKey === "function") {
-      try {
-        const res = await window.IRLBackend.lookupByKey(keyIdB);
-        if (res.ok && res.data && res.data.found) {
-          if (res.data.display_name) guestNameEl.textContent = res.data.display_name;
-          if (res.data.google_picture) renderAvatar(guestAvatarWrap, res.data.google_picture);
-        }
-      } catch{}
+    if (isLoggedIn) {
+      if (!aResolved && keyIdA && typeof window.IRLBackend.lookupByKey === "function") {
+        try {
+          const res = await window.IRLBackend.lookupByKey(keyIdA);
+          if (res.ok && res.data && res.data.found) {
+            if (res.data.display_name) selfNameEl.textContent = res.data.display_name;
+            if (res.data.google_picture) renderAvatar(selfAvatarWrap, res.data.google_picture);
+          }
+        } catch{}
+      }
+
+      if (!bResolved && keyIdB && typeof window.IRLBackend.lookupByKey === "function") {
+        try {
+          const res = await window.IRLBackend.lookupByKey(keyIdB);
+          if (res.ok && res.data && res.data.found) {
+            if (res.data.display_name) guestNameEl.textContent = res.data.display_name;
+            if (res.data.google_picture) renderAvatar(guestAvatarWrap, res.data.google_picture);
+          }
+        } catch{}
+      }
     }
   }
 
