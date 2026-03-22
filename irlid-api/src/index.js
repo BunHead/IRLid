@@ -258,12 +258,15 @@ async function googleAuth(request, env) {
   // =====================
   //  GMAIL ALLOWLIST (Deploy 116)
   // =====================
-  // ALLOWED_EMAILS is a wrangler secret: comma-separated permitted Gmail addresses.
-  // Include grandfathered accounts (SRAustin, KezzyBabeTest) in the list.
-  // Unset or empty = gating disabled (safe for local dev).
-  if (env.ALLOWED_EMAILS && env.ALLOWED_EMAILS.trim()) {
-    const allowed = env.ALLOWED_EMAILS.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
-    if (allowed.length > 0 && !allowed.includes(gUser.email.toLowerCase())) {
+  // Normalise the incoming email — strip all whitespace and control chars
+  const incomingEmail = gUser.email.toLowerCase().replace(/[\s​ ﻿]/g, "");
+  const rawSecret = (env.ALLOWED_EMAILS || "");
+  if (rawSecret.trim()) {
+    const allowed = rawSecret
+      .split(",")
+      .map(e => e.toLowerCase().replace(/[\s​ ﻿]/g, ""))
+      .filter(Boolean);
+    if (allowed.length > 0 && !allowed.includes(incomingEmail)) {
       return err("not_on_allowlist", 403);
     }
   }
