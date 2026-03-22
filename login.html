@@ -1,6 +1,6 @@
 <!-- login.html -->
 <!DOCTYPE html>
-<!-- Deploy 73 -->
+<!-- Deploy 116 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -159,6 +159,10 @@
           googleStatus.textContent = result.data.existing ? "Welcome back!" : "Account created!";
           if (typeof refreshNav === "function") refreshNav();
           setTimeout(function () { checkSession(); }, 500);
+        } else if (result.status === 403 && result.data && result.data.error === "not_on_allowlist") {
+          googleStatus.innerHTML = '<strong>IRLid login is currently for Recognised members.</strong><br>'
+            + '<a href="https://patreon.com/IRLid" target="_blank" rel="noopener">Support on Patreon (from &pound;1/month)</a> to unlock receipt history, login, and trust score.'
+            + '<br><span style="font-size:12px;color:#888;">Anonymous handshakes and receipts are always free &mdash; no login needed.</span>';
         } else {
           googleStatus.textContent = "Error: " + (result.error || "Google sign-in failed.");
         }

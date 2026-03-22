@@ -1,8 +1,9 @@
-﻿// Copyright 2025 Spencer Austin. All rights reserved.
+// Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
-// irlid-api/src/index.js â€” v5
-// IRLid Backend â€” Cloudflare Worker + D1
+// irlid-api/src/index.js -- v7
+// IRLid Backend -- Cloudflare Worker + D1
 // Auth (device key + Google), profile, receipts, device linking, user lookup
+// Deploy 116: Gmail allowlist gating on googleAuth(), GPS strip on getReceipt()
 
 // =====================
 //  HELPERS
@@ -253,6 +254,19 @@ async function googleAuth(request, env) {
   // Verify the Google token
   const gUser = await verifyGoogleToken(id_token);
   if (!gUser) return err("Invalid or expired Google token.", 401);
+
+  // =====================
+  //  GMAIL ALLOWLIST (Deploy 116)
+  // =====================
+  // ALLOWED_EMAILS is a wrangler secret: comma-separated permitted Gmail addresses.
+  // Include grandfathered accounts (SRAustin, KezzyBabeTest) in the list.
+  // Unset or empty = gating disabled (safe for local dev).
+  if (env.ALLOWED_EMAILS && env.ALLOWED_EMAILS.trim()) {
+    const allowed = env.ALLOWED_EMAILS.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+    if (allowed.length > 0 && !allowed.includes(gUser.email.toLowerCase())) {
+      return err("not_on_allowlist", 403);
+    }
+  }
 
   const ts = now();
 
@@ -628,6 +642,12 @@ async function getReceipt(request, env, receiptHash) {
   try { combined = JSON.parse(row.receipt_json); } catch {}
   let partyInfo = null;
   try { if (row.party_info) partyInfo = JSON.parse(row.party_info); } catch {}
+  // Strip GPS coords from public response (Deploy 116)
+  // Coords stay in DB untouched — re-verification still works.
+  // check.html and receipt links are unaffected (they never display raw coords).
+  if (combined?.a?.payload) { delete combined.a.payload.lat; delete combined.a.payload.lon; delete combined.a.payload.acc; }
+  if (combined?.b?.payload) { delete combined.b.payload.lat; delete combined.b.payload.lon; delete combined.b.payload.acc; }
+  if (combined?.hello?.offer?.payload) { delete combined.hello.offer.payload.lat; delete combined.hello.offer.payload.lon; delete combined.hello.offer.payload.acc; }
   return json({ receipt_id: row.id, receipt_hash: row.receipt_hash, pub_key_a: row.pub_key_a, pub_key_b: row.pub_key_b, ts_a: row.ts_a, ts_b: row.ts_b, verified: !!row.verified, created_at: row.created_at, combined, party_info: partyInfo });
 }
 
@@ -671,7 +691,7 @@ export default {
 
     let response;
     try {
-      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 6 });
+      if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 7 });
 
       else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
       else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
