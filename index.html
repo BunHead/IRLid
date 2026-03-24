@@ -55,9 +55,30 @@
   <script>
     const qrErrorEl = document.getElementById("qrError");
     function showErr(e){
-      qrErrorEl.style.display = "block";
-      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
       console.error(e);
+      qrErrorEl.style.display = "block";
+
+      // GPS errors get a clean, human-readable card with fix instructions
+      if (e && e.irlidGeoError) {
+        qrErrorEl.style.fontFamily = "Arial, sans-serif";
+        qrErrorEl.style.whiteSpace = "pre-wrap";
+        const parts = (e.message || "").split("\n\n");
+        const headline = parts[0] || "Location unavailable.";
+        const detail = parts.slice(1).join("\n\n");
+        qrErrorEl.innerHTML =
+          "<strong style='display:block;margin-bottom:8px;font-size:15px;'>" +
+          "\uD83D\uDCCD " + headline.replace(/</g,"&lt;") +
+          "</strong>" +
+          "<span style='font-size:13px;line-height:1.6;'>" +
+          detail.replace(/</g,"&lt;").replace(/\n/g,"<br>") +
+          "</span>";
+        return;
+      }
+
+      // All other errors: keep original monospace stack trace style
+      qrErrorEl.style.fontFamily = "";
+      qrErrorEl.style.whiteSpace = "";
+      qrErrorEl.textContent = String(e && (e.stack || e.message) ? (e.stack || e.message) : e);
     }
     window.addEventListener("error", (e) => showErr(e.error || e.message));
     window.addEventListener("unhandledrejection", (e) => showErr(e.reason || e));

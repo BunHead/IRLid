@@ -234,11 +234,38 @@ function irlidHaversineMeters(a, b){
 function irlidGetPosition(opts){
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation unavailable."));
+      const e = new Error(
+        "Location services are not available in this browser.\n\n" +
+        "IRLid requires GPS to create a verifiable proof of meeting. " +
+        "Please use a supported browser (Safari on iOS 16+, Chrome on Android) with location enabled."
+      );
+      e.irlidGeoError = true;
+      reject(e);
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, (err) => {
-      reject(new Error(err && err.message ? err.message : "Geolocation error."));
+    navigator.geolocation.getCurrentPosition(resolve, (posErr) => {
+      // posErr.code: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+      let msg;
+      if (posErr.code === 1) {
+        msg =
+          "Location permission denied.\n\n" +
+          "IRLid requires your location to create a verifiable proof of meeting.\n\n" +
+          "\u2022 iPhone: Settings \u2192 Privacy & Security \u2192 Location Services \u2192 Safari \u2192 While Using\n" +
+          "\u2022 Android: tap the lock icon in the browser address bar \u2192 Location \u2192 Allow";
+      } else if (posErr.code === 2) {
+        msg =
+          "Location signal unavailable.\n\n" +
+          "IRLid needs a GPS fix to continue. Try moving to an area with better signal, or ensure " +
+          "Location Services are enabled on your device.";
+      } else {
+        msg =
+          "Location request timed out.\n\n" +
+          "IRLid could not get a GPS fix in time. Make sure Location Services are enabled and try again.";
+      }
+      const e = new Error(msg);
+      e.irlidGeoError = true;
+      e.geoCode = posErr.code;
+      reject(e);
     }, opts);
   });
 }
