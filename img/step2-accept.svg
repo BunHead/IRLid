@@ -3,6 +3,9 @@
     <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M2 1L8 5L2 9" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     </marker>
+    <marker id="arrg" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#22aa66" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
     <style>text { font-family: Arial, sans-serif; }</style>
   </defs>
 
@@ -10,67 +13,64 @@
   <rect x="20" y="20" width="168" height="32" rx="6" fill="#000"/>
   <text x="104" y="41" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Step 2 — Scan &amp; Accept</text>
 
-  <!-- A: INACTIVE -->
-  <circle cx="80" cy="110" r="32" fill="none" stroke="#DDD" stroke-width="1.5"/>
-  <text x="80" y="119" text-anchor="middle" fill="#CCC" font-size="26" font-weight="700">A</text>
-  <text x="80" y="158" text-anchor="middle" fill="#BBB" font-size="11">Person A</text>
-  <text x="80" y="173" text-anchor="middle" fill="#CCC" font-size="10">Waiting</text>
+  <!-- A: INACTIVE  cx=72 -->
+  <circle cx="72" cy="110" r="30" fill="none" stroke="#DDD" stroke-width="1.5"/>
+  <text x="72" y="119" text-anchor="middle" fill="#CCC" font-size="24" font-weight="700">A</text>
+  <text x="72" y="152" text-anchor="middle" fill="#BBB" font-size="11">Person A</text>
+  <text x="72" y="166" text-anchor="middle" fill="#CCC" font-size="10">Waiting</text>
 
-  <!-- A's HELLO QR small (what B is scanning) -->
-  <rect x="114" y="82" width="52" height="56" rx="4" fill="#F5F5F5"/>
-  <rect x="120" y="88" width="12" height="12" rx="1" fill="#111" opacity="0.5"/>
-  <rect x="134" y="88" width="12" height="12" rx="1" fill="#111" opacity="0.5"/>
-  <rect x="120" y="102" width="12" height="12" rx="1" fill="#111" opacity="0.5"/>
-  <rect x="134" y="102" width="5" height="5" rx="0.5" fill="#111" opacity="0.35"/>
-  <rect x="141" y="96" width="5" height="5" rx="0.5" fill="#111" opacity="0.35"/>
-  <rect x="148" y="88" width="12" height="12" rx="1" fill="#111" opacity="0.5"/>
-  <text x="140" y="128" text-anchor="middle" fill="#888" font-size="7" font-weight="700">HELLO</text>
+  <!-- A's HELLO QR small -->
+  <rect x="106" y="84" width="44" height="48" rx="3" fill="#F5F5F5"/>
+  <rect x="111" y="89" width="10" height="10" rx="1" fill="#111" opacity="0.45"/>
+  <rect x="123" y="89" width="10" height="10" rx="1" fill="#111" opacity="0.45"/>
+  <rect x="111" y="101" width="10" height="10" rx="1" fill="#111" opacity="0.45"/>
+  <rect x="123" y="101" width="5" height="5" rx="0.5" fill="#111" opacity="0.3"/>
+  <rect x="130" y="95" width="5" height="5" rx="0.5" fill="#111" opacity="0.3"/>
+  <rect x="137" y="89" width="10" height="10" rx="1" fill="#111" opacity="0.45"/>
+  <text x="128" y="122" text-anchor="middle" fill="#888" font-size="7" font-weight="700">HELLO</text>
 
   <!-- Green scan arrow -->
-  <line x1="172" y1="110" x2="196" y2="110" stroke="#22aa66" stroke-width="1.5" marker-end="url(#arr)" opacity="0.7"/>
+  <line x1="154" y1="108" x2="150" y2="108" stroke="#22aa66" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+  <line x1="154" y1="108" x2="166" y2="108" stroke="#22aa66" stroke-width="1.5" marker-end="url(#arrg)" opacity="0.7"/>
 
-  <!-- Phone B scanning -->
-  <rect x="204" y="60" width="120" height="190" rx="12" fill="#111"/>
-  <rect x="214" y="76" width="100" height="158" rx="4" fill="#fff"/>
-  <rect x="236" y="64" width="36" height="8" rx="4" fill="#555" opacity="0.35"/>
+  <!-- Phone: x=174 w=110 -->
+  <rect x="174" y="60" width="110" height="185" rx="11" fill="#111"/>
+  <rect x="183" y="75" width="92" height="154" rx="3" fill="#fff"/>
+  <rect x="202" y="64" width="32" height="7" rx="3.5" fill="#555" opacity="0.35"/>
   <!-- Viewfinder -->
-  <rect x="220" y="84" width="88" height="80" rx="4" fill="#F5F5F5"/>
-  <path d="M225 89 L225 97 M225 89 L233 89" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M303 89 L303 97 M303 89 L295 89" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M225 159 L225 151 M225 159 L233 159" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
-  <path d="M303 159 L303 151 M303 159 L295 159" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <rect x="189" y="82" width="80" height="76" rx="4" fill="#F5F5F5"/>
+  <path d="M194 87 L194 95 M194 87 L202 87" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M264 87 L264 95 M264 87 L256 87" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M194 153 L194 145 M194 153 L202 153" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M264 153 L264 145 M264 153 L256 153" stroke="#22aa66" stroke-width="2" fill="none" stroke-linecap="round"/>
   <!-- Scan line -->
-  <line x1="222" y1="122" x2="302" y2="122" stroke="#22aa66" stroke-width="0.75" opacity="0.45" stroke-dasharray="3,2"/>
+  <line x1="191" y1="118" x2="263" y2="118" stroke="#22aa66" stroke-width="0.75" opacity="0.4" stroke-dasharray="3,2"/>
   <!-- Mini QR in viewfinder -->
-  <rect x="246" y="98" width="10" height="10" rx="1" fill="#111" opacity="0.35"/>
-  <rect x="260" y="98" width="10" height="10" rx="1" fill="#111" opacity="0.35"/>
-  <rect x="246" y="112" width="10" height="10" rx="1" fill="#111" opacity="0.35"/>
+  <rect x="210" y="95" width="9" height="9" rx="1" fill="#111" opacity="0.3"/>
+  <rect x="222" y="95" width="9" height="9" rx="1" fill="#111" opacity="0.3"/>
+  <rect x="210" y="107" width="9" height="9" rx="1" fill="#111" opacity="0.3"/>
   <!-- ACCEPT pill -->
-  <rect x="218" y="174" width="88" height="18" rx="4" fill="#666"/>
-  <text x="262" y="187" text-anchor="middle" fill="#fff" font-size="9" font-weight="700">ACCEPT QR</text>
-  <rect x="222" y="200" width="60" height="3" rx="1.5" fill="#E5E5E5"/>
-  <rect x="222" y="208" width="46" height="3" rx="1.5" fill="#E5E5E5"/>
-  <rect x="222" y="216" width="54" height="3" rx="1.5" fill="#E5E5E5"/>
+  <rect x="183" y="168" width="82" height="16" rx="3" fill="#666"/>
+  <text x="224" y="180" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">ACCEPT QR</text>
+  <rect x="187" y="192" width="54" height="3" rx="1.5" fill="#E5E5E5"/>
+  <rect x="187" y="199" width="42" height="3" rx="1.5" fill="#E5E5E5"/>
+  <rect x="187" y="206" width="50" height="3" rx="1.5" fill="#E5E5E5"/>
 
-  <!-- Arrow phone to B -->
-  <line x1="330" y1="110" x2="562" y2="110" stroke="#888" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr)" opacity="0.4"/>
+  <!-- Description box: x=296 w=296 -->
+  <rect x="296" y="60" width="296" height="185" rx="8" fill="#fff" stroke="#E5E5E5" stroke-width="0.5"/>
+  <text x="444" y="88" text-anchor="middle" fill="#000" font-size="13" font-weight="700">Person B scans &amp; responds</text>
+  <line x1="314" y1="97" x2="574" y2="97" stroke="#E5E5E5" stroke-width="0.5"/>
+  <text x="312" y="116" fill="#555" font-size="11">B scans A's QR. IRLid verifies A's signature</text>
+  <text x="312" y="132" fill="#555" font-size="11">and timestamp, then creates a response.</text>
+  <text x="312" y="156" fill="#555" font-size="11">B's Accept QR contains:</text>
+  <text x="324" y="172" fill="#888" font-size="11">&#x2192;  SHA-256 hash of A's HELLO</text>
+  <text x="324" y="188" fill="#888" font-size="11">&#x2192;  B's GPS + timestamp + nonce</text>
+  <text x="324" y="204" fill="#888" font-size="11">&#x2192;  B's ECDSA signature</text>
+  <text x="324" y="220" fill="#888" font-size="11">&#x2192;  B's public key</text>
 
-  <!-- B: ACTIVE -->
-  <circle cx="600" cy="110" r="32" fill="#000"/>
-  <text x="600" y="119" text-anchor="middle" fill="#fff" font-size="26" font-weight="700">B</text>
-  <text x="600" y="158" text-anchor="middle" fill="#111" font-size="11" font-weight="700">Person B</text>
-  <text x="600" y="173" text-anchor="middle" fill="#555" font-size="10">Collaborator · Active</text>
-
-  <!-- Description box -->
-  <rect x="336" y="60" width="248" height="190" rx="8" fill="#fff" stroke="#E5E5E5" stroke-width="0.5"/>
-  <text x="460" y="90" text-anchor="middle" fill="#000" font-size="13" font-weight="700">Person B scans &amp; responds</text>
-  <line x1="354" y1="100" x2="566" y2="100" stroke="#E5E5E5" stroke-width="0.5"/>
-  <text x="352" y="120" fill="#555" font-size="11">B scans A's QR with their camera.</text>
-  <text x="352" y="136" fill="#555" font-size="11">IRLid verifies A's signature and</text>
-  <text x="352" y="152" fill="#555" font-size="11">timestamp, then creates a response.</text>
-  <text x="352" y="176" fill="#555" font-size="11">B's Accept QR contains:</text>
-  <text x="364" y="192" fill="#888" font-size="11">&#x2192;  SHA-256 hash of A's HELLO</text>
-  <text x="364" y="208" fill="#888" font-size="11">&#x2192;  B's GPS + timestamp + nonce</text>
-  <text x="364" y="224" fill="#888" font-size="11">&#x2192;  B's ECDSA signature</text>
-  <text x="364" y="240" fill="#888" font-size="11">&#x2192;  B's public key</text>
+  <!-- B: ACTIVE  cx=630 — safely right of desc box ending at 592 -->
+  <circle cx="630" cy="110" r="30" fill="#000"/>
+  <text x="630" y="119" text-anchor="middle" fill="#fff" font-size="24" font-weight="700">B</text>
+  <text x="630" y="152" text-anchor="middle" fill="#111" font-size="11" font-weight="700">Person B</text>
+  <text x="630" y="166" text-anchor="middle" fill="#555" font-size="10">Active</text>
 </svg>
