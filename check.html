@@ -847,20 +847,90 @@
     return "rgb(" + r + "," + g + "," + b + ")";
   }
 
+  // Draw an ImageBitmap onto an offscreen canvas and return the canvas
+  function bitmapToCanvas(bitmap, scale) {
+    const w = Math.round(bitmap.width * (scale || 1));
+    const h = Math.round(bitmap.height * (scale || 1));
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return { canvas, ctx, w, h };
+  }
+
+  // Convert canvas to greyscale + high-contrast using raw pixel manipulation
+  function contrastCanvas(canvas, ctx, w, h) {
+    const id = ctx.getImageData(0, 0, w, h);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const grey = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      const v = grey > 128 ? 255 : 0;
+      d[i] = d[i+1] = d[i+2] = v;
+    }
+    ctx.putImageData(id, 0, 0);
+    return canvas;
+  }
+
   // Scan a file for QR using BarcodeDetector (Chrome native) with html5-qrcode fallback
+  // Tries multiple preprocessing strategies to handle screenshots and partial crops
   async function scanFileForQr(file) {
-    // 1. Try Chrome's native BarcodeDetector first — handles dense QRs much better
+    const origBitmap = await createImageBitmap(file);
+
+    // Build a set of canvases to try: original, 2x upscale, high-contrast, central crop
+    async function makeCandidates(bm) {
+      const candidates = [];
+
+      // 1. Original bitmap
+      candidates.push(bm);
+
+      // 2. 2x upscale
+      const { canvas: c2 } = bitmapToCanvas(bm, 2);
+      candidates.push(await createImageBitmap(c2));
+
+      // 3. High-contrast (thresholded)
+      const { canvas: cc, ctx: cctx, w: cw, h: ch } = bitmapToCanvas(bm, 1);
+      contrastCanvas(cc, cctx, cw, ch);
+      candidates.push(await createImageBitmap(cc));
+
+      // 4. High-contrast 2x
+      const { canvas: cc2, ctx: cc2ctx, w: cc2w, h: cc2h } = bitmapToCanvas(bm, 2);
+      contrastCanvas(cc2, cc2ctx, cc2w, cc2h);
+      candidates.push(await createImageBitmap(cc2));
+
+      // 5. Central 80% crop (removes phone UI chrome / dark borders)
+      const cx = Math.round(bm.width * 0.10), cy = Math.round(bm.height * 0.10);
+      const cw2 = Math.round(bm.width * 0.80), ch2 = Math.round(bm.height * 0.80);
+      if (cw2 > 50 && ch2 > 50) {
+        try {
+          const cropped = await createImageBitmap(bm, cx, cy, cw2, ch2);
+          candidates.push(cropped);
+          // Cropped + contrast
+          const { canvas: crcc, ctx: crctx, w: crw, h: crh } = bitmapToCanvas(cropped, 1);
+          contrastCanvas(crcc, crctx, crw, crh);
+          candidates.push(await createImageBitmap(crcc));
+        } catch {}
+      }
+
+      return candidates;
+    }
+
+    const candidates = await makeCandidates(origBitmap);
+
+    // 1. Try BarcodeDetector on each candidate
     if (typeof BarcodeDetector !== "undefined") {
       try {
         const detector = new BarcodeDetector({ formats: ["qr_code"] });
-        const bitmap = await createImageBitmap(file);
-        const barcodes = await detector.detect(bitmap);
-        if (barcodes.length > 0) return barcodes[0].rawValue;
+        for (const bm of candidates) {
+          try {
+            const barcodes = await detector.detect(bm);
+            if (barcodes.length > 0) return barcodes[0].rawValue;
+          } catch {}
+        }
       } catch (e) {
-        console.warn("BarcodeDetector failed, trying fallback:", e);
+        console.warn("BarcodeDetector unavailable:", e);
       }
     }
-    // 2. Fallback: html5-qrcode scanFile
+
+    // 2. Fallback: html5-qrcode scanFile on the original file
     try {
       const tempScanner = new Html5Qrcode("scanner");
       let result = null;
@@ -870,6 +940,22 @@
     } catch (e) {
       console.warn("html5-qrcode fallback failed:", e);
     }
+
+    // 3. Last resort: html5-qrcode on a contrast-enhanced blob
+    try {
+      const { canvas: lc, ctx: lctx, w: lw, h: lh } = bitmapToCanvas(origBitmap, 2);
+      contrastCanvas(lc, lctx, lw, lh);
+      const blob = await lc.convertToBlob({ type: "image/png" });
+      const enhancedFile = new File([blob], "enhanced.png", { type: "image/png" });
+      const tempScanner2 = new Html5Qrcode("scanner");
+      let result2 = null;
+      try { result2 = await tempScanner2.scanFile(enhancedFile, false); } catch {}
+      try { await tempScanner2.clear(); } catch {}
+      if (result2) return result2;
+    } catch (e) {
+      console.warn("html5-qrcode enhanced fallback failed:", e);
+    }
+
     return null;
   }
 
