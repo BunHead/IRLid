@@ -266,7 +266,7 @@
             +   '<div class="receipt-row-meta">' + when + '</div>'
             +   '<div class="receipt-row-hash">' + shortHash + '</div>'
             + '</div>'
-            + (hash ? '<a class="receipt-row-link" href="check.html#receipt=' + encodeURIComponent(hash) + '">View</a>' : '')
+            + (hash ? '<a class="receipt-row-link" href="check.html#' + encodeURIComponent(hash) + '">View</a>' : '')
             + '</div>';
         }
         receiptsList.innerHTML = html;
