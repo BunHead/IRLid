@@ -713,8 +713,15 @@
       return { stage: "unknown_irlid", payload };
     }
 
-    // Compressed: #HZ=<base64url>  (deflate-raw)
-    // Use non-anchored match — QR data is the literal string content
+    // Format 1: RZ:<base64url>  — Response/Accept QR (bare prefix, no URL)
+    let rzMatch = t.match(/^RZ:([A-Za-z0-9+/=_-]+)/);
+    if (rzMatch) {
+      const payload = await tryDecompress(rzMatch[1]);
+      const result = classifyPayload(payload);
+      if (result) return result;
+    }
+
+    // Format 2: URL with #HZ= fragment — HELLO QR (e.g. https://irlid.co.uk/accept.html#HZ=...)
     let hzMatch = t.match(/#HZ=([A-Za-z0-9+/=_-]+)/);
     if (hzMatch) {
       const payload = await tryDecompress(hzMatch[1]);
@@ -722,7 +729,7 @@
       if (result) return result;
     }
 
-    // Plain base64: #HELLO= or #ACCEPT=
+    // Format 3: plain base64 fallbacks
     let helloMatch = t.match(/#HELLO=([A-Za-z0-9+/=_-]+)/);
     if (helloMatch) {
       const payload = tryDecode(helloMatch[1]);
@@ -922,6 +929,18 @@
     // Reset so same file can be re-uploaded
     this.value = "";
   });
+
+  // --- Auto-check from URL hash (e.g. View link from login page) ---
+  function checkFromHash() {
+    const h = (location.hash || "").replace(/^#/, "");
+    const hash = extractHash(h);
+    if (hash) {
+      hashInput.value = hash;
+      checkReceipt(hash);
+    }
+  }
+  checkFromHash();
+  window.addEventListener("hashchange", checkFromHash);
 
   })();
 </script>
