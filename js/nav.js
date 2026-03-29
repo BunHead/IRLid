@@ -62,8 +62,8 @@
       '<details class="nav-dropdown" id="accountDropdown">' +
         '<summary class="nav-btn">' + displayName + ' ▼</summary>' +
         '<div class="dropdown-menu" role="menu" aria-label="Account menu">' +
-          '<a href="account.html">Account</a>' +
           '<a href="receipt.html">Receipts</a>' +
+          '<a href="account.html">Account</a>' +
           '<a href="settings.html">Settings</a>' +
           '<a href="#" id="acctLogoutLink">Logout</a>' +
         '</div>' +
