@@ -23,6 +23,36 @@
     }
     .link-code-inputs input:focus { border-color: #000; outline: none; }
     #googleBtnWrap { display: flex; justify-content: center; margin: 12px 0; }
+
+    /* Recent receipts list */
+    .receipt-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+      gap: 8px;
+    }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-row-meta { color: #888; font-size: 12px; }
+    .receipt-row-hash {
+      font-family: monospace;
+      font-size: 11px;
+      color: #bbb;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 120px;
+    }
+    .receipt-row-link {
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 600;
+      color: #111;
+      text-decoration: underline;
+    }
+    .receipt-empty { font-size: 13px; color: #888; }
   </style>
 </head>
 
@@ -53,16 +83,33 @@
     <div class="login-wrap">
 
       <!-- Already logged in -->
-      <div class="panel" id="loggedInPanel" style="display:none;">
-        <h2 style="margin:0 0 8px;">Welcome, <span id="welcomeName"></span></h2>
-        <p id="welcomeInfo"></p>
-        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:12px;">
+      <div id="loggedInPanel" style="display:none;">
+
+        <!-- Welcome header -->
+        <div class="panel" style="margin-bottom:16px;">
+          <h2 style="margin:0 0 4px;">Welcome, <span id="welcomeName"></span></h2>
+          <p id="welcomeInfo" style="margin:0; font-size:13px; color:#888;"></p>
+        </div>
+
+        <!-- Recent receipts -->
+        <div class="panel" id="receiptsPanel">
+          <h3 style="margin:0 0 12px; font-size:15px;">Recent Receipts</h3>
+          <div id="receiptsList">
+            <p style="font-size:13px; color:#888;">Loading receipts…</p>
+          </div>
+          <div style="margin-top:12px;">
+            <a class="btn" href="account.html" style="font-size:13px;">View all receipts</a>
+          </div>
+        </div>
+
+        <!-- Account / Logout -->
+        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:16px;">
           <a class="btn" href="account.html">Account</a>
           <button class="btn secondary" id="logoutBtn">Logout</button>
         </div>
       </div>
 
-      <!-- Auth panel -->
+      <!-- Auth panel — Google sign-in only when logged out -->
       <div id="authPanel">
 
         <!-- Google Sign-In -->
@@ -89,40 +136,43 @@
           <div class="statusBox" id="googleStatus" style="margin-top:10px;"></div>
         </div>
 
-        <div class="or-divider">— or use device key —</div>
+        <!-- Device key and link code — hidden on login page, accessible from account.html -->
+        <div id="advancedAuthWrap" style="display:none;">
+          <div class="or-divider">— or use device key —</div>
 
-        <div class="panel">
-          <h3 style="margin:0 0 8px;">Device key login</h3>
-          <p class="small" style="margin:0 0 12px;">
-            Your device's cryptographic key identifies you. Choose a display name for your first visit.
-          </p>
-          <div style="margin-bottom:10px;">
-            <label for="displayNameInput" style="font-weight:700; font-size:13px; display:block; margin-bottom:4px;">Display name</label>
-            <input type="text" id="displayNameInput" placeholder="e.g. SRAustin" />
+          <div class="panel">
+            <h3 style="margin:0 0 8px;">Device key login</h3>
+            <p class="small" style="margin:0 0 12px;">
+              Your device's cryptographic key identifies you. Choose a display name for your first visit.
+            </p>
+            <div style="margin-bottom:10px;">
+              <label for="displayNameInput" style="font-weight:700; font-size:13px; display:block; margin-bottom:4px;">Display name</label>
+              <input type="text" id="displayNameInput" placeholder="e.g. SRAustin" />
+            </div>
+            <button class="btn" id="registerBtn">Create account / Log in</button>
+            <div class="statusBox" id="authStatus" style="margin-top:10px;"></div>
           </div>
-          <button class="btn" id="registerBtn">Create account / Log in</button>
-          <div class="statusBox" id="authStatus" style="margin-top:10px;"></div>
-        </div>
 
-        <div class="or-divider">— or link this device to an existing account —</div>
+          <div class="or-divider">— or link this device to an existing account —</div>
 
-        <div class="panel">
-          <h3 style="margin:0 0 8px;">Enter link code</h3>
-          <p class="small" style="margin:0 0 12px;">
-            Got a 6-digit code from your other device? Enter it below.
-          </p>
-          <div class="link-code-inputs" id="codeInputs">
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="0" />
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="1" />
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="2" />
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="3" />
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="4" />
-            <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="5" />
+          <div class="panel">
+            <h3 style="margin:0 0 8px;">Enter link code</h3>
+            <p class="small" style="margin:0 0 12px;">
+              Got a 6-digit code from your other device? Enter it below.
+            </p>
+            <div class="link-code-inputs" id="codeInputs">
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="0" />
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="1" />
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="2" />
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="3" />
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="4" />
+              <input type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="5" />
+            </div>
+            <div style="text-align:center; margin-top:10px;">
+              <button class="btn" id="claimCodeBtn" disabled>Link device</button>
+            </div>
+            <div class="statusBox" id="linkStatus" style="margin-top:10px;"></div>
           </div>
-          <div style="text-align:center; margin-top:10px;">
-            <button class="btn" id="claimCodeBtn" disabled>Link device</button>
-          </div>
-          <div class="statusBox" id="linkStatus" style="margin-top:10px;"></div>
         </div>
       </div>
     </div>
@@ -145,6 +195,7 @@
     var googleStatus = document.getElementById("googleStatus");
     var claimCodeBtn = document.getElementById("claimCodeBtn");
     var linkStatus = document.getElementById("linkStatus");
+    var receiptsList = document.getElementById("receiptsList");
 
     // ===== Google Sign-In callback =====
     async function handleGoogleSignIn(response) {
@@ -172,6 +223,50 @@
     }
     window.handleGoogleSignIn = handleGoogleSignIn;
 
+    // ===== Format timestamp =====
+    function formatDate(ts) {
+      if (!ts) return "—";
+      var d = new Date(typeof ts === "string" ? ts : ts * 1000);
+      var pad = function(n) { return String(n).padStart(2, "0"); };
+      return pad(d.getDate()) + "/" + pad(d.getMonth() + 1) + "/" + d.getFullYear()
+           + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+
+    // ===== Load and render recent receipts =====
+    async function loadRecentReceipts() {
+      receiptsList.innerHTML = '<p style="font-size:13px;color:#888;">Loading receipts…</p>';
+      try {
+        var result = await window.IRLBackend.listReceipts({ limit: 5 });
+        if (!result.ok || !result.data) throw new Error("No data");
+        var receipts = result.data.receipts || result.data || [];
+        if (!Array.isArray(receipts) || receipts.length === 0) {
+          receiptsList.innerHTML = '<p class="receipt-empty">No receipts yet — complete your first handshake to see them here.</p>';
+          return;
+        }
+        var html = "";
+        for (var i = 0; i < Math.min(receipts.length, 5); i++) {
+          var r = receipts[i];
+          var hash = r.hash || r.receipt_hash || "";
+          var shortHash = hash ? hash.slice(0, 12) + "…" : "—";
+          var when = formatDate(r.created_at || r.ts);
+          var other = (r.party_b && r.party_b.display_name) ? r.party_b.display_name
+                    : (r.party_a && r.party_a.display_name) ? r.party_a.display_name : "Unknown";
+          html += '<div class="receipt-row">'
+            + '<div>'
+            +   '<div style="font-weight:600;">' + other + '</div>'
+            +   '<div class="receipt-row-meta">' + when + '</div>'
+            +   '<div class="receipt-row-hash">' + shortHash + '</div>'
+            + '</div>'
+            + (hash ? '<a class="receipt-row-link" href="check.html#receipt=' + encodeURIComponent(hash) + '">View</a>' : '')
+            + '</div>';
+        }
+        receiptsList.innerHTML = html;
+      } catch (e) {
+        receiptsList.innerHTML = '<p class="receipt-empty">Could not load receipts.</p>';
+      }
+    }
+
+    // ===== Session check =====
     async function checkSession() {
       if (!window.IRLBackend || !window.IRLBackend.hasSession()) {
         authPanel.style.display = "block";
@@ -186,28 +281,32 @@
         var info = "You have " + (result.data.receipt_count || 0) + " receipts stored";
         info += " and " + (result.data.devices || []).length + " linked device(s).";
         welcomeInfo.textContent = info;
+        loadRecentReceipts();
       } else {
         authPanel.style.display = "block";
         loggedInPanel.style.display = "none";
       }
     }
 
-    registerBtn.addEventListener("click", async function () {
-      var name = displayNameInput.value.trim();
-      authStatus.textContent = "Connecting…";
-      registerBtn.disabled = true;
-      try {
-        var result = await window.IRLBackend.register(name || null);
-        if (result.ok) {
-          authStatus.textContent = result.data.existing ? "Welcome back!" : "Account created!";
-          if (typeof refreshNav === "function") refreshNav();
-          setTimeout(function () { checkSession(); }, 500);
-        } else {
-          authStatus.textContent = "Error: " + (result.error || "Registration failed.");
-        }
-      } catch (e) { authStatus.textContent = "Error: " + e.message; }
-      registerBtn.disabled = false;
-    });
+    // ===== Device key login (in advancedAuthWrap — accessible if needed) =====
+    if (registerBtn) {
+      registerBtn.addEventListener("click", async function () {
+        var name = displayNameInput.value.trim();
+        authStatus.textContent = "Connecting…";
+        registerBtn.disabled = true;
+        try {
+          var result = await window.IRLBackend.register(name || null);
+          if (result.ok) {
+            authStatus.textContent = result.data.existing ? "Welcome back!" : "Account created!";
+            if (typeof refreshNav === "function") refreshNav();
+            setTimeout(function () { checkSession(); }, 500);
+          } else {
+            authStatus.textContent = "Error: " + (result.error || "Registration failed.");
+          }
+        } catch (e) { authStatus.textContent = "Error: " + e.message; }
+        registerBtn.disabled = false;
+      });
+    }
 
     logoutBtn.addEventListener("click", async function () {
       await window.IRLBackend.logout();
@@ -216,6 +315,7 @@
       loggedInPanel.style.display = "none";
     });
 
+    // ===== Link code inputs =====
     var codeBoxes = document.querySelectorAll("#codeInputs input");
     codeBoxes.forEach(function (box, i) {
       box.addEventListener("input", function () {
@@ -242,27 +342,29 @@
       codeBoxes.forEach(function (b) { code += b.value; });
       return code;
     }
-    function updateClaimBtn() { claimCodeBtn.disabled = getCode().length !== 6; }
+    function updateClaimBtn() { if (claimCodeBtn) claimCodeBtn.disabled = getCode().length !== 6; }
 
-    claimCodeBtn.addEventListener("click", async function () {
-      var code = getCode();
-      if (code.length !== 6) return;
-      linkStatus.textContent = "Linking…";
-      claimCodeBtn.disabled = true;
-      try {
-        var pubJwk = null;
-        if (typeof getPublicJwk === "function") pubJwk = await getPublicJwk();
-        var result = await window.IRLBackend.claimLinkCode(code, pubJwk);
-        if (result.ok) {
-          linkStatus.textContent = "Device linked! Welcome, " + (result.data.display_name || "User") + ".";
-          if (typeof refreshNav === "function") refreshNav();
-          setTimeout(function () { checkSession(); }, 500);
-        } else {
-          linkStatus.textContent = "Error: " + (result.error || "Failed to link.");
-          claimCodeBtn.disabled = false;
-        }
-      } catch (e) { linkStatus.textContent = "Error: " + e.message; claimCodeBtn.disabled = false; }
-    });
+    if (claimCodeBtn) {
+      claimCodeBtn.addEventListener("click", async function () {
+        var code = getCode();
+        if (code.length !== 6) return;
+        linkStatus.textContent = "Linking…";
+        claimCodeBtn.disabled = true;
+        try {
+          var pubJwk = null;
+          if (typeof getPublicJwk === "function") pubJwk = await getPublicJwk();
+          var result = await window.IRLBackend.claimLinkCode(code, pubJwk);
+          if (result.ok) {
+            linkStatus.textContent = "Device linked! Welcome, " + (result.data.display_name || "User") + ".";
+            if (typeof refreshNav === "function") refreshNav();
+            setTimeout(function () { checkSession(); }, 500);
+          } else {
+            linkStatus.textContent = "Error: " + (result.error || "Failed to link.");
+            claimCodeBtn.disabled = false;
+          }
+        } catch (e) { linkStatus.textContent = "Error: " + e.message; claimCodeBtn.disabled = false; }
+      });
+    }
 
     checkSession();
   </script>

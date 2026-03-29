@@ -278,6 +278,12 @@
   </div>
   <div class="check-or">or</div>
   <button class="check-scan-btn" id="scanBtn">Scan a Receipt QR Code</button>
+  <div class="check-or">or</div>
+  <label class="check-scan-btn" id="uploadLabel" style="cursor:pointer; display:block; text-align:center;">
+    📎 Upload Image to Check for QR
+    <input type="file" id="uploadInput" accept="image/*" style="display:none;" />
+  </label>
+  <div id="uploadStatus" style="font-size:13px; color:#888; margin-bottom:8px; min-height:20px;"></div>
 
   <div id="scannerWrap">
     <div id="scanner"></div>
@@ -557,24 +563,6 @@
     const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
     confirmBar.textContent = pct + " % Verified";
 
-    function getConfirmColor(p) {
-      p = Math.max(0, Math.min(100, p));
-      let r, g, b;
-      if (p >= 95) {
-        const t = (p - 95) / 5;
-        r = Math.round(132 + (34 - 132) * t); g = Math.round(204 + (197 - 204) * t); b = Math.round(22 + (94 - 22) * t);
-      } else if (p >= 90) {
-        const t = (p - 90) / 5;
-        r = Math.round(234 + (132 - 234) * t); g = Math.round(179 + (204 - 179) * t); b = Math.round(8 + (22 - 8) * t);
-      } else if (p >= 75) {
-        const t = (p - 75) / 15;
-        r = Math.round(220 + (234 - 220) * t); g = Math.round(80 + (179 - 80) * t); b = Math.round(20 + (8 - 20) * t);
-      } else {
-        const t = p / 75;
-        r = Math.round(25 + (220 - 25) * t); g = Math.round(4 + (80 - 4) * t); b = Math.round(4 + (20 - 4) * t);
-      }
-      return "rgb(" + r + "," + g + "," + b + ")";
-    }
     confirmBar.style.background = getConfirmColor(pct);
     confirmBar.style.color = pct >= 75 ? "#000" : "#fff";
 
@@ -661,18 +649,260 @@
     setStatus("");
   });
 
-  // --- Auto-check from URL hash ---
-  function checkFromHash() {
-    const h = (location.hash || "").replace(/^#/, "");
-    const hash = extractHash(h);
-    if (hash) {
-      hashInput.value = hash;
-      checkReceipt(hash);
+  // --- File upload QR scan ---
+  const uploadInput = document.getElementById("uploadInput");
+  const uploadStatus = document.getElementById("uploadStatus");
+
+  // Decode IRLid QR content: returns { stage, data } or null
+  // stage: 'hello' | 'accept' | 'receipt' | 'unknown'
+  function classifyIrlidQr(text) {
+    if (!text) return null;
+
+    // Receipt URL / hash
+    const receiptHash = extractHash(text);
+
+    // Decompress deflate-raw (#HZ= prefix) or plain base64 (#HELLO= / #ACCEPT=)
+    function tryDecode(raw) {
+      try {
+        const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return JSON.parse(new TextDecoder().decode(bytes));
+      } catch { return null; }
+    }
+
+    async function tryDecompress(raw) {
+      try {
+        const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const ds = new DecompressionStream("deflate-raw");
+        const writer = ds.writable.getWriter();
+        const reader = ds.readable.getReader();
+        writer.write(bytes); writer.close();
+        const chunks = [];
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const total = chunks.reduce((a, c) => a + c.length, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        for (const c of chunks) { out.set(c, offset); offset += c.length; }
+        return JSON.parse(new TextDecoder().decode(out));
+      } catch { return null; }
+    }
+
+    // Return a promise so callers can await
+    return (async () => {
+      // Compressed HELLO/ACCEPT
+      let hzMatch = text.match(/^#HZ=([A-Za-z0-9+/=_-]+)$/);
+      if (hzMatch) {
+        const payload = await tryDecompress(hzMatch[1]);
+        if (payload) {
+          if (payload.type === "HELLO" || (payload.pub && payload.sig && payload.nonce)) {
+            return { stage: "hello", payload };
+          }
+          if (payload.type === "ACCEPT" || (payload.helloHash && payload.sig)) {
+            return { stage: "accept", payload };
+          }
+          return { stage: "unknown_compressed", payload };
+        }
+      }
+
+      // Plain HELLO
+      let helloMatch = text.match(/^#HELLO=([A-Za-z0-9+/=_-]+)$/);
+      if (helloMatch) {
+        const payload = tryDecode(helloMatch[1]);
+        if (payload) return { stage: "hello", payload };
+      }
+
+      // Plain ACCEPT
+      let acceptMatch = text.match(/^#ACCEPT=([A-Za-z0-9+/=_-]+)$/);
+      if (acceptMatch) {
+        const payload = tryDecode(acceptMatch[1]);
+        if (payload) return { stage: "accept", payload };
+      }
+
+      // Receipt URL/hash
+      if (receiptHash) return { stage: "receipt", hash: receiptHash };
+
+      return null;
+    })();
+  }
+
+  // Show an IRLid QR stage result — partial handshake info, no full check needed
+  function showPartialResult(stage, detail) {
+    resultCard.style.display = "block";
+    checksGrid.innerHTML = "";
+    dbStatus.innerHTML = "";
+    document.getElementById("nameA").textContent = "—";
+    document.getElementById("nameB").textContent = "—";
+    document.getElementById("avatarA").innerHTML = "";
+    document.getElementById("avatarB").innerHTML = "";
+    document.getElementById("locA").textContent = "";
+    document.getElementById("timeA").textContent = "";
+    document.getElementById("accA").textContent = "";
+    document.getElementById("locB").textContent = "";
+    document.getElementById("timeB").textContent = "";
+    document.getElementById("accB").textContent = "";
+    document.getElementById("metaTime").textContent = "—";
+    document.getElementById("metaDist").textContent = "—";
+    document.getElementById("metaHash").textContent = "—";
+
+    const checksDropdown = document.getElementById("checksDropdown");
+    const checksSummary = document.getElementById("checksSummary");
+
+    if (stage === "hello") {
+      confirmBar.textContent = "25% Verified — HELLO QR detected";
+      confirmBar.style.background = getConfirmColor(25);
+      confirmBar.style.color = "#fff";
+      checksSummary.textContent = "Handshake stage: HELLO (step 1 of 3)";
+      checksDropdown.open = true;
+      const note = document.createElement("div");
+      note.style.cssText = "padding:8px 16px 12px; font-size:13px; color:#555;";
+      note.innerHTML = "This QR is an IRLid <strong>HELLO</strong> — the opening step of a handshake. "
+        + "It contains a signed public key and GPS location. "
+        + "A full receipt is created once Person B scans and responds, and Person A scans the Accept QR.<br><br>"
+        + "<strong>To get a full receipt, both parties must complete the handshake at <a href='index.html'>irlid.co.uk</a>.</strong>";
+      checksGrid.appendChild(note);
+      if (detail && detail.payload) {
+        if (detail.payload.lat) {
+          document.getElementById("locA").textContent = "Location: " + detail.payload.lat + ", " + detail.payload.lon;
+        }
+        if (detail.payload.ts) {
+          document.getElementById("timeA").textContent = "Time: " + formatTime(detail.payload.ts);
+        }
+      }
+    } else if (stage === "accept") {
+      confirmBar.textContent = "50% Verified — Accept QR detected";
+      confirmBar.style.background = getConfirmColor(50);
+      confirmBar.style.color = "#000";
+      checksSummary.textContent = "Handshake stage: Accept (step 2 of 3)";
+      checksDropdown.open = true;
+      const note = document.createElement("div");
+      note.style.cssText = "padding:8px 16px 12px; font-size:13px; color:#555;";
+      note.innerHTML = "This QR is an IRLid <strong>Accept</strong> — the response from Person B. "
+        + "It is cryptographically bound to a HELLO QR. "
+        + "The handshake becomes a full verified receipt once Person A scans this QR to complete step 3.<br><br>"
+        + "<strong>To complete the receipt, Person A must scan this QR at <a href='scan.html'>irlid.co.uk/scan</a>.</strong>";
+      checksGrid.appendChild(note);
+    } else {
+      confirmBar.textContent = "0% — Not an IRLid QR";
+      confirmBar.style.background = getConfirmColor(0);
+      confirmBar.style.color = "#fff";
+      checksSummary.textContent = "No IRLid data found";
+      checksDropdown.open = true;
+      const note = document.createElement("div");
+      note.style.cssText = "padding:8px 16px 12px; font-size:13px; color:#555;";
+      note.textContent = "A QR code was found in this image but it does not appear to be an IRLid QR code.";
+      checksGrid.appendChild(note);
     }
   }
-  checkFromHash();
-  window.addEventListener("hashchange", checkFromHash);
-})();
+
+  // Reuse confirm color function (duplicate here so it's accessible to showPartialResult)
+  function getConfirmColor(p) {
+    p = Math.max(0, Math.min(100, p));
+    let r, g, b;
+    if (p >= 95) {
+      const t = (p - 95) / 5;
+      r = Math.round(132 + (34 - 132) * t); g = Math.round(204 + (197 - 204) * t); b = Math.round(22 + (94 - 22) * t);
+    } else if (p >= 90) {
+      const t = (p - 90) / 5;
+      r = Math.round(234 + (132 - 234) * t); g = Math.round(179 + (204 - 179) * t); b = Math.round(8 + (22 - 8) * t);
+    } else if (p >= 75) {
+      const t = (p - 75) / 15;
+      r = Math.round(220 + (234 - 220) * t); g = Math.round(80 + (179 - 80) * t); b = Math.round(20 + (8 - 20) * t);
+    } else {
+      const t = p / 75;
+      r = Math.round(25 + (220 - 25) * t); g = Math.round(4 + (80 - 4) * t); b = Math.round(4 + (20 - 4) * t);
+    }
+    return "rgb(" + r + "," + g + "," + b + ")";
+  }
+
+  uploadInput.addEventListener("change", async function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    uploadStatus.textContent = "Scanning image for QR…";
+    resultCard.style.display = "none";
+    checksGrid.innerHTML = "";
+
+    try {
+      // Use html5-qrcode file scan
+      const tempScanner = new Html5Qrcode("scanner");
+      let qrText = null;
+      try {
+        const result = await tempScanner.scanFile(file, false);
+        qrText = result;
+      } catch (scanErr) {
+        // No QR found
+      }
+      try { await tempScanner.clear(); } catch {}
+
+      if (!qrText) {
+        uploadStatus.textContent = "";
+        setStatus("No QR code found in this image.");
+        resultCard.style.display = "block";
+        confirmBar.textContent = "0% — No QR code found";
+        confirmBar.style.background = getConfirmColor(0);
+        confirmBar.style.color = "#fff";
+        checksGrid.innerHTML = "";
+        dbStatus.innerHTML = "";
+        document.getElementById("nameA").textContent = "—";
+        document.getElementById("nameB").textContent = "—";
+        document.getElementById("avatarA").innerHTML = "";
+        document.getElementById("avatarB").innerHTML = "";
+        ["locA","timeA","accA","locB","timeB","accB"].forEach(id => { document.getElementById(id).textContent = ""; });
+        document.getElementById("metaTime").textContent = "—";
+        document.getElementById("metaDist").textContent = "—";
+        document.getElementById("metaHash").textContent = "—";
+        const checksSummary = document.getElementById("checksSummary");
+        checksSummary.textContent = "No QR code detected in image";
+        document.getElementById("checksDropdown").open = false;
+        return;
+      }
+
+      uploadStatus.textContent = "QR found — analysing…";
+
+      // Check if it's a receipt hash/URL first
+      const receiptHash = extractHash(qrText);
+      if (receiptHash) {
+        uploadStatus.textContent = "";
+        setStatus("");
+        hashInput.value = receiptHash;
+        checkReceipt(receiptHash);
+        return;
+      }
+
+      // Otherwise classify as HELLO / ACCEPT / unknown
+      const classification = await classifyIrlidQr(qrText);
+      uploadStatus.textContent = "";
+      setStatus("");
+
+      if (!classification) {
+        showPartialResult("not_irlid", null);
+        return;
+      }
+
+      if (classification.stage === "receipt") {
+        hashInput.value = classification.hash;
+        checkReceipt(classification.hash);
+      } else {
+        showPartialResult(classification.stage, classification);
+      }
+
+    } catch (e) {
+      uploadStatus.textContent = "Error scanning image: " + e.message;
+    }
+
+    // Reset input so the same file can be re-uploaded if needed
+    this.value = "";
+  });
+
+  })();
 </script>
 
 
