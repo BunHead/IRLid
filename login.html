@@ -103,7 +103,7 @@
         </div>
 
         <!-- Account / Logout -->
-        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:16px;">
+        <div class="controls" style="justify-content:center; gap:10px; margin-top:16px;">
           <a class="btn" href="account.html">Account</a>
           <button class="btn secondary" id="logoutBtn">Logout</button>
         </div>
@@ -236,10 +236,16 @@
     async function loadRecentReceipts() {
       receiptsList.innerHTML = '<p style="font-size:13px;color:#888;">Loading receipts…</p>';
       try {
-        var result = await window.IRLBackend.listReceipts({ limit: 5 });
-        if (!result.ok || !result.data) throw new Error("No data");
-        var receipts = result.data.receipts || result.data || [];
-        if (!Array.isArray(receipts) || receipts.length === 0) {
+        // Backend: GET /receipts (Bearer) — returns { receipts: [...] } or array directly
+        var result = await window.IRLBackend.listReceipts();
+        if (!result || !result.ok) throw new Error("Request failed");
+        var data = result.data;
+        // Handle both { receipts: [] } and flat array responses
+        var receipts = Array.isArray(data) ? data
+                     : (data && Array.isArray(data.receipts)) ? data.receipts
+                     : (data && Array.isArray(data.items)) ? data.items
+                     : [];
+        if (receipts.length === 0) {
           receiptsList.innerHTML = '<p class="receipt-empty">No receipts yet — complete your first handshake to see them here.</p>';
           return;
         }
@@ -247,12 +253,15 @@
         for (var i = 0; i < Math.min(receipts.length, 5); i++) {
           var r = receipts[i];
           var hash = r.hash || r.receipt_hash || "";
-          var shortHash = hash ? hash.slice(0, 12) + "…" : "—";
+          var shortHash = hash ? hash.slice(0, 14) + "…" : "—";
           var when = formatDate(r.created_at || r.ts);
+          // Show the other party name if available, else fall back to hash
           var other = (r.party_b && r.party_b.display_name) ? r.party_b.display_name
-                    : (r.party_a && r.party_a.display_name) ? r.party_a.display_name : "Unknown";
+                    : (r.party_a && r.party_a.display_name) ? r.party_a.display_name
+                    : (r.display_name) ? r.display_name
+                    : "Unknown";
           html += '<div class="receipt-row">'
-            + '<div>'
+            + '<div style="min-width:0;">'
             +   '<div style="font-weight:600;">' + other + '</div>'
             +   '<div class="receipt-row-meta">' + when + '</div>'
             +   '<div class="receipt-row-hash">' + shortHash + '</div>'
@@ -262,6 +271,7 @@
         }
         receiptsList.innerHTML = html;
       } catch (e) {
+        console.warn("loadRecentReceipts error:", e);
         receiptsList.innerHTML = '<p class="receipt-empty">Could not load receipts.</p>';
       }
     }

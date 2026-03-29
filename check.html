@@ -653,28 +653,19 @@
   const uploadInput = document.getElementById("uploadInput");
   const uploadStatus = document.getElementById("uploadStatus");
 
-  // Decode IRLid QR content: returns { stage, data } or null
-  // stage: 'hello' | 'accept' | 'receipt' | 'unknown'
-  function classifyIrlidQr(text) {
+  // Decode IRLid QR content: returns Promise<{ stage, payload? } | null>
+  // stage: 'hello' | 'accept' | 'receipt' | 'unknown_irlid'
+  async function classifyIrlidQr(text) {
     if (!text) return null;
+    const t = text.trim();
 
-    // Receipt URL / hash
-    const receiptHash = extractHash(text);
+    // Receipt URL / hash — cheapest check first
+    const receiptHash = extractHash(t);
+    if (receiptHash) return { stage: "receipt", hash: receiptHash };
 
-    // Decompress deflate-raw (#HZ= prefix) or plain base64 (#HELLO= / #ACCEPT=)
-    function tryDecode(raw) {
+    async function tryDecompress(b64raw) {
       try {
-        const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
-        const bin = atob(b64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        return JSON.parse(new TextDecoder().decode(bytes));
-      } catch { return null; }
-    }
-
-    async function tryDecompress(raw) {
-      try {
-        const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+        const b64 = b64raw.replace(/-/g, "+").replace(/_/g, "/");
         const bin = atob(b64);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -693,45 +684,61 @@
         let offset = 0;
         for (const c of chunks) { out.set(c, offset); offset += c.length; }
         return JSON.parse(new TextDecoder().decode(out));
+      } catch (e) {
+        console.warn("IRLid decompress failed:", e);
+        return null;
+      }
+    }
+
+    function tryDecode(b64raw) {
+      try {
+        const b64 = b64raw.replace(/-/g, "+").replace(/_/g, "/");
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return JSON.parse(new TextDecoder().decode(bytes));
       } catch { return null; }
     }
 
-    // Return a promise so callers can await
-    return (async () => {
-      // Compressed HELLO/ACCEPT
-      let hzMatch = text.match(/^#HZ=([A-Za-z0-9+/=_-]+)$/);
-      if (hzMatch) {
-        const payload = await tryDecompress(hzMatch[1]);
-        if (payload) {
-          if (payload.type === "HELLO" || (payload.pub && payload.sig && payload.nonce)) {
-            return { stage: "hello", payload };
-          }
-          if (payload.type === "ACCEPT" || (payload.helloHash && payload.sig)) {
-            return { stage: "accept", payload };
-          }
-          return { stage: "unknown_compressed", payload };
-        }
+    function classifyPayload(payload) {
+      if (!payload) return null;
+      if (payload.type === "HELLO" || (payload.pub && payload.sig && payload.nonce !== undefined)) {
+        return { stage: "hello", payload };
       }
-
-      // Plain HELLO
-      let helloMatch = text.match(/^#HELLO=([A-Za-z0-9+/=_-]+)$/);
-      if (helloMatch) {
-        const payload = tryDecode(helloMatch[1]);
-        if (payload) return { stage: "hello", payload };
+      if (payload.type === "ACCEPT" || (payload.helloHash && payload.sig)) {
+        return { stage: "accept", payload };
       }
+      return { stage: "unknown_irlid", payload };
+    }
 
-      // Plain ACCEPT
-      let acceptMatch = text.match(/^#ACCEPT=([A-Za-z0-9+/=_-]+)$/);
-      if (acceptMatch) {
-        const payload = tryDecode(acceptMatch[1]);
-        if (payload) return { stage: "accept", payload };
-      }
+    // Compressed: #HZ=<base64url>  (deflate-raw)
+    // Use non-anchored match — QR data is the literal string content
+    let hzMatch = t.match(/#HZ=([A-Za-z0-9+/=_-]+)/);
+    if (hzMatch) {
+      const payload = await tryDecompress(hzMatch[1]);
+      const result = classifyPayload(payload);
+      if (result) return result;
+    }
 
-      // Receipt URL/hash
-      if (receiptHash) return { stage: "receipt", hash: receiptHash };
+    // Plain base64: #HELLO= or #ACCEPT=
+    let helloMatch = t.match(/#HELLO=([A-Za-z0-9+/=_-]+)/);
+    if (helloMatch) {
+      const payload = tryDecode(helloMatch[1]);
+      if (payload) return { stage: "hello", payload };
+    }
 
-      return null;
-    })();
+    let acceptMatch = t.match(/#ACCEPT=([A-Za-z0-9+/=_-]+)/);
+    if (acceptMatch) {
+      const payload = tryDecode(acceptMatch[1]);
+      if (payload) return { stage: "accept", payload };
+    }
+
+    // IRLid URL but no extractable data
+    if (t.includes("irlid.co.uk")) {
+      return { stage: "unknown_irlid", payload: null };
+    }
+
+    return null;
   }
 
   // Show an IRLid QR stage result — partial handshake info, no full check needed
