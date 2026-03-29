@@ -665,7 +665,9 @@
 
     async function tryDecompress(b64raw) {
       try {
-        const b64 = b64raw.replace(/-/g, "+").replace(/_/g, "/");
+        let b64 = b64raw.replace(/-/g, "+").replace(/_/g, "/");
+        // Add padding so atob() works for all b64url lengths
+        b64 += "=".repeat((4 - b64.length % 4) % 4);
         const bin = atob(b64);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
