@@ -702,10 +702,12 @@
 
     function classifyPayload(payload) {
       if (!payload) return null;
-      if (payload.type === "HELLO" || (payload.pub && payload.sig && payload.nonce !== undefined)) {
+      // HELLO: type "hello" (v2) or has pub+offer structure (v1 fallback)
+      if (payload.type === "hello" || (payload.pub && payload.offer)) {
         return { stage: "hello", payload };
       }
-      if (payload.type === "ACCEPT" || (payload.helloHash && payload.sig)) {
+      // Accept/Response: type "response" (v2) or has helloHash+sig (v1 fallback)
+      if (payload.type === "response" || (payload.helloHash && payload.sig)) {
         return { stage: "accept", payload };
       }
       return { stage: "unknown_irlid", payload };
@@ -773,30 +775,36 @@
       note.style.cssText = "padding:8px 16px 12px; font-size:13px; color:#555;";
       note.innerHTML = "This QR is an IRLid <strong>HELLO</strong> — the opening step of a handshake. "
         + "It contains a signed public key and GPS location. "
-        + "A full receipt is created once Person B scans and responds, and Person A scans the Accept QR.<br><br>"
+        + "A full receipt is created once the other person scans it and responds, and the initiator scans their Accept QR.<br><br>"
         + "<strong>To get a full receipt, both parties must complete the handshake at <a href='index.html'>irlid.co.uk</a>.</strong>";
       checksGrid.appendChild(note);
-      if (detail && detail.payload) {
-        if (detail.payload.lat) {
-          document.getElementById("locA").textContent = "Location: " + detail.payload.lat + ", " + detail.payload.lon;
-        }
-        if (detail.payload.ts) {
-          document.getElementById("timeA").textContent = "Time: " + formatTime(detail.payload.ts);
-        }
+      // Show offer payload data (GPS + time live inside hello.offer.payload)
+      const op = detail && detail.payload && detail.payload.offer && detail.payload.offer.payload;
+      if (op) {
+        if (op.lat !== undefined) document.getElementById("locA").textContent = "Location: " + op.lat + ", " + op.lon;
+        if (op.ts)  document.getElementById("timeA").textContent = "Time: " + formatTime(op.ts);
+        if (op.acc !== undefined) document.getElementById("accA").textContent = "Accuracy: ±" + op.acc + " m";
       }
     } else if (stage === "accept") {
-      confirmBar.textContent = "50% Verified — Accept QR detected";
+      confirmBar.textContent = "50% Verified — Response QR detected";
       confirmBar.style.background = getConfirmColor(50);
       confirmBar.style.color = "#000";
-      checksSummary.textContent = "Handshake stage: Accept (step 2 of 3)";
+      checksSummary.textContent = "Handshake stage: Response (step 2 of 3)";
       checksDropdown.open = true;
       const note = document.createElement("div");
       note.style.cssText = "padding:8px 16px 12px; font-size:13px; color:#555;";
-      note.innerHTML = "This QR is an IRLid <strong>Accept</strong> — the response from Person B. "
-        + "It is cryptographically bound to a HELLO QR. "
-        + "The handshake becomes a full verified receipt once Person A scans this QR to complete step 3.<br><br>"
-        + "<strong>To complete the receipt, Person A must scan this QR at <a href='scan.html'>irlid.co.uk/scan</a>.</strong>";
+      note.innerHTML = "This QR is an IRLid <strong>Response</strong> — the reply from the collaborator. "
+        + "It is cryptographically bound to the original HELLO QR. "
+        + "The handshake becomes a full verified receipt once the initiator scans this QR to complete step 3.<br><br>"
+        + "<strong>To complete the receipt, the initiator must scan this QR at <a href='scan.html'>irlid.co.uk/scan</a>.</strong>";
       checksGrid.appendChild(note);
+      // Show response payload GPS + time
+      const rp = detail && detail.payload && detail.payload.payload;
+      if (rp) {
+        if (rp.lat !== undefined) document.getElementById("locB").textContent = "Location: " + rp.lat + ", " + rp.lon;
+        if (rp.ts)  document.getElementById("timeB").textContent = "Time: " + formatTime(rp.ts);
+        if (rp.acc !== undefined) document.getElementById("accB").textContent = "Accuracy: ±" + rp.acc + " m";
+      }
     } else {
       confirmBar.textContent = "0% — Not an IRLid QR";
       confirmBar.style.background = getConfirmColor(0);
