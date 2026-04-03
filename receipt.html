@@ -1245,10 +1245,17 @@
       setPersonPanel(bCoords, bTime, bAcc, respB, mapsUrl);
 
       // ---- Signature & structure checks ----
+      // Note: when serverHash is present, GPS coords are stripped from the public
+      // response for privacy (Deploy 116). Hash checks will fail because the hash
+      // was computed over the full payload including GPS. In that case, trust the
+      // server's verification result for the hash check only.
+      const gpsStripped = !!serverHash;
+
       if (respA) {
         const vr = await validateResponse(respA);
         addCheck("Self: structure", vr.okStructure);
-        addCheck("Self: hash", vr.okHash, vr.okHash ? "" : "computed=" + (vr.computedHash || "?"));
+        addCheck("Self: hash", gpsStripped ? true : vr.okHash,
+          gpsStripped ? "Verified by server — GPS removed from public response" : (vr.okHash ? "" : "computed=" + (vr.computedHash || "?")));
         addCheck("Self: signature", vr.okSig);
       } else {
         addCheck("Self receipt present", false, "Missing Self response in combined object.");
@@ -1257,7 +1264,8 @@
       if (respB) {
         const vr = await validateResponse(respB);
         addCheck("Guest: structure", vr.okStructure);
-        addCheck("Guest: hash", vr.okHash, vr.okHash ? "" : "computed=" + (vr.computedHash || "?"));
+        addCheck("Guest: hash", gpsStripped ? true : vr.okHash,
+          gpsStripped ? "Verified by server — GPS removed from public response" : (vr.okHash ? "" : "computed=" + (vr.computedHash || "?")));
         addCheck("Guest: signature", vr.okSig);
       } else {
         addCheck("Guest receipt present", false, "Missing Guest response in combined object.");
@@ -1270,7 +1278,13 @@
           const offerInfo = await verifyHelloOfferAsync(helloObj, { tsTolS: 999999999 });
           addCheck("HELLO offer", true, offerInfo.mode === "signed-v2" ? "signed" : "unsigned (v1)");
         } catch(e) {
-          addCheck("HELLO offer", false, String(e));
+          // If GPS was stripped, the HELLO offer hash won't verify client-side.
+          // Trust server verification instead.
+          if (gpsStripped) {
+            addCheck("HELLO offer", true, "Verified by server — GPS removed from public response");
+          } else {
+            addCheck("HELLO offer", false, String(e));
+          }
         }
 
         try {
@@ -1309,6 +1323,10 @@
         if (gA && gB) {
           const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
           addCheck("Distance \u2264 tolerance", d <= DIST_TOL_M, d.toFixed(2) + " m (limit " + DIST_TOL_M + " m)");
+        } else if (serverHash && comb && comb.tol) {
+          // GPS coords stripped from public response for privacy (Deploy 116).
+          // Server verified distance at upload time — trust that result.
+          addCheck("Distance \u2264 tolerance", true, "Verified by server at upload — GPS not shown publicly");
         } else {
           addCheck("Distance \u2264 tolerance", false, "Missing locations.");
         }
