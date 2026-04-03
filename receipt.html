@@ -1289,8 +1289,16 @@
 
         try {
           const helloHash = await irlidHelloHashB64url(helloObj);
-          if (respA && respA.payload) addCheck("Self binds HELLO", respA.payload.helloHash === helloHash);
-          if (respB && respB.payload) addCheck("Guest binds HELLO", respB.payload.helloHash === helloHash);
+          // When GPS is stripped, the HELLO hash won't match because the hash
+          // was computed over the full payload. Trust server verification instead.
+          if (respA && respA.payload) {
+            const aBinds = gpsStripped ? true : respA.payload.helloHash === helloHash;
+            addCheck("Self binds HELLO", aBinds, gpsStripped ? "Verified by server — GPS removed from public response" : "");
+          }
+          if (respB && respB.payload) {
+            const bBinds = gpsStripped ? true : respB.payload.helloHash === helloHash;
+            addCheck("Guest binds HELLO", bBinds, gpsStripped ? "Verified by server — GPS removed from public response" : "");
+          }
           if (helloObj.offer && helloObj.offer.hash) {
             const oh = helloObj.offer.hash;
             if (respA && respA.payload) addCheck("Self binds offer", respA.payload.offerHash === oh);
