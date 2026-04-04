@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid — Proof-of-Personhood Without Biometrics: A Protocol Writeup</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .article-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+    .article-wrap h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.3em;
+    }
+    .article-meta {
+      font-size: 0.85rem;
+      opacity: 0.65;
+      margin-bottom: 2em;
+    }
+    .article-wrap h2 {
+      margin-top: 2em;
+      font-size: 1.15rem;
+      border-bottom: 1px solid #e5e5e5;
+      padding-bottom: 0.2em;
+    }
+    .article-wrap h3 {
+      margin-top: 1.5em;
+      font-size: 1rem;
+    }
+    .article-wrap pre {
+      background: #f6f6f6;
+      border: 1px solid #e5e5e5;
+      padding: 14px 16px;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: 3px;
+    }
+    .article-wrap code {
+      background: #f0f0f0;
+      padding: 1px 5px;
+      font-size: 0.87em;
+      border-radius: 2px;
+    }
+    .article-wrap pre code {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+    }
+    .callout {
+      border-left: 3px solid #ccc;
+      padding: 10px 16px;
+      background: #fafafa;
+      margin: 1.5em 0;
+      font-size: 0.93rem;
+    }
+    .callout.warn {
+      border-left-color: #e5a000;
+      background: #fffbf0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.9rem;
+      margin: 1.5em 0;
+    }
+    th, td {
+      border: 1px solid #e5e5e5;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f6f6f6;
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand-wrap">
+    <a class="brand" href="index.html" aria-label="IRLid Home">
+      <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+    </a>
+  </div>
+  <nav class="site-nav" aria-label="Primary">
+    <a class="nav-btn" href="index.html">Home</a>
+    <a class="nav-btn" href="application.html">Scan</a>
+    <details class="nav-dropdown" id="aboutDropdown">
+      <summary class="nav-btn">About ▼</summary>
+      <div class="dropdown-menu" role="menu" aria-label="About menu">
+        <a href="about.html">About</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+    </details>
+    <span id="accountSlot"></span>
+  </nav>
+</header>
+
+<main class="page-main page-content">
+<div class="article-wrap">
+
+  <h1>Proof-of-Personhood Without Biometrics: The IRLid Protocol</h1>
+  <div class="article-meta">Published April 2026 · irlid.co.uk</div>
+
+  <p>
+    With Reddit rolling out mandatory human verification and World ID expanding its iris-scanning Orb into Discord, Shopify, and beyond, proof-of-personhood is suddenly a mainstream problem. Most proposed solutions fall into two camps: behavioural analysis (invisible, low-trust) or biometrics (high-trust, high-privacy cost). This writeup describes a third approach — anchoring proof of personhood to a physical real-world interaction between two devices, with no biometric capture and no backend server.
+  </p>
+
+  <div class="callout">
+    This is a technical writeup intended for developers and security researchers. It describes the protocol honestly, including its known limitations and attack surface. Critique is welcome.
+  </div>
+
+  <h2>1. The Problem</h2>
+
+  <p>
+    The core question is: how do you establish that an account is controlled by a unique human, without learning anything else about that human?
+  </p>
+
+  <p>
+    Behavioural analysis (reCAPTCHA, Cloudflare Turnstile, Arkose) answers a weaker question: "does this session look like a human?" It fails against sophisticated bots, leaks behavioural telemetry, and produces a probability score rather than a guarantee. Biometric approaches (World ID's iris scan, Face ID) answer a stronger question but require a trusted hardware device, a central database of biometric proofs, and an implicit trust relationship with whoever operates that database.
+  </p>
+
+  <p>
+    The specific threat model IRLid addresses: <strong>can two parties produce a jointly-signed, time-stamped, location-bound proof that they were physically co-present, using only their existing devices and a QR code exchange?</strong> No proprietary hardware. No biometric capture. No always-online server.
+  </p>
+
+  <h2>2. Protocol Overview</h2>
+
+  <p>
+    IRLid is a two-scan handshake between two devices. Each device generates a local ECDSA P-256 keypair (via the Web Crypto API) on first use. The private key never leaves the device. The handshake proceeds as follows:
+  </p>
+
+  <h3>Step 1 — HELLO (Offer)</h3>
+  <p>
+    Person A opens IRLid. The application acquires A's GPS position and generates a signed HELLO object:
+  </p>
+
+<pre><code>{
+  "v": 2,
+  "type": "hello",
+  "pub": { /* A's ECDSA P-256 public key as JWK */ },
+  "nonce": 3847261049,
+  "ts": 1743750000,
+  "offer": {
+    "payload": {
+      "v": 1,
+      "type": "offerPayload",
+      "lat": 51.509865,
+      "lon": -0.118092,
+      "acc": 8.3,
+      "ts": 1743750000,
+      "nonce": 3847261049
+    },
+    "hash": "base64url(SHA-256(canonical(offerPayload)))",
+    "sig":  "base64url(ECDSA_P256_sign(hash, A_privKey))"
+  }
+}</code></pre>
+
+  <p>
+    This object is base64url-encoded and embedded in a URL, which is rendered as a QR code for B to scan.
+  </p>
+
+  <h3>Step 2 — ACCEPT (Response)</h3>
+  <p>
+    B scans A's QR. B's device first verifies the HELLO: it checks the offer hash, verifies A's signature, and confirms the timestamp is within the 90-second tolerance window. If the HELLO is valid, B's device acquires its own GPS position and constructs a signed response that <em>binds to</em> both the HELLO hash and the signed offer hash:
+  </p>
+
+<pre><code>{
+  "v": 2,
+  "type": "response",
+  "payload": {
+    "v": 1,
+    "type": "payload",
+    "helloHash":  "base64url(SHA-256(HELLO_bytes))",
+    "offerHash":  "base64url(SHA-256(offerPayload_bytes))",
+    "lat": 51.509871,
+    "lon": -0.118085,
+    "acc": 6.1,
+    "ts": 1743750042,
+    "nonce": 2918476305
+  },
+  "hash": "base64url(SHA-256(payload_bytes))",
+  "sig":  "base64url(ECDSA_P256_sign(hash, B_privKey))",
+  "pub":  { /* B's ECDSA P-256 public key as JWK */ }
+}</code></pre>
+
+  <p>B's response is shown as a QR for A to scan.</p>
+
+  <h3>Step 3 — Combined Receipt</h3>
+  <p>
+    A scans B's response. A's device verifies B's signature and payload, then checks mutual tolerances:
+  </p>
+
+  <ul>
+    <li><strong>Time delta:</strong> |ts_A − ts_B| ≤ 90 seconds</li>
+    <li><strong>Distance:</strong> haversine(GPS_A, GPS_B) ≤ 12 metres</li>
+    <li><strong>HELLO binding:</strong> B's <code>helloHash</code> and <code>offerHash</code> match the original HELLO</li>
+    <li><strong>Signature validity:</strong> both ECDSA signatures verify against their respective public keys</li>
+  </ul>
+
+  <p>
+    If all checks pass, a combined receipt is produced:
+  </p>
+
+<pre><code>{
+  "v": 2,
+  "type": "combined",
+  "tol": { "dist_m": 12, "ts_s": 90 },
+  "hello": { /* original signed HELLO from A */ },
+  "a": { /* A's signed response */ },
+  "b": { /* B's signed response */ }
+}</code></pre>
+
+  <p>
+    This combined receipt is itself base64url-encoded and embedded in a URL, rendered as a QR. <strong>Anyone with a QR scanner can open the receipt and verify all signatures client-side</strong> — no server call required.
+  </p>
+
+  <h2>3. Cryptographic Primitives</h2>
+
+  <table>
+    <tr><th>Primitive</th><th>Choice</th><th>Rationale</th></tr>
+    <tr><td>Key algorithm</td><td>ECDSA P-256</td><td>Native WebCrypto support across all modern browsers; hardware-backed on devices with a secure enclave</td></tr>
+    <tr><td>Hash</td><td>SHA-256</td><td>Standard; used for both payload hashing and signature input</td></tr>
+    <tr><td>Key storage</td><td>localStorage (JWK)</td><td>Current approach — see limitations below</td></tr>
+    <tr><td>Encoding</td><td>base64url (RFC 4648 §5)</td><td>URL-safe, no padding issues in QR/hash fragments</td></tr>
+    <tr><td>Distance</td><td>Haversine formula</td><td>Sufficient precision at ≤12m scale</td></tr>
+  </table>
+
+  <h2>4. Security Properties</h2>
+
+  <h3>What the protocol provides</h3>
+  <ul>
+    <li><strong>Co-presence guarantee (conditional):</strong> Both parties must have been at the same GPS location (±12m) within the same 90-second window. A bot cannot satisfy this without physical hardware at the location.</li>
+    <li><strong>Replay resistance:</strong> Each HELLO contains a fresh nonce and a timestamp. Responses bind to both the HELLO hash and the signed offer hash. A replayed HELLO will fail the timestamp check after 90 seconds.</li>
+    <li><strong>Cryptographic binding:</strong> B's response is bound to A's specific signed offer — not just any HELLO. A HELLO cannot be substituted mid-handshake without invalidating B's response.</li>
+    <li><strong>No biometric data:</strong> The receipt proves physical co-presence without capturing any biometric. The verifier learns that two keypairs were at the same place at the same time — nothing else.</li>
+    <li><strong>No backend:</strong> The entire protocol runs in the browser. Verification is fully client-side.</li>
+    <li><strong>Public verifiability:</strong> Any party with the combined receipt URL can verify all signatures without trusting a third party.</li>
+  </ul>
+
+  <h3>Known limitations and attack surface</h3>
+
+  <div class="callout warn">
+    The following are known limitations. This section is here because honest security writeups include them.
+  </div>
+
+  <p><strong>GPS spoofing.</strong> The location data comes from <code>navigator.geolocation</code>, which on desktop is IP-based and on mobile uses GNSS/WiFi. A motivated attacker can spoof GPS coordinates at the OS or app layer. The protocol does not have a mechanism to verify that GPS readings are genuine. On mobile, hardware attestation (SafetyNet / DeviceCheck) could be added as a future layer, but is not currently present.</p>
+
+  <p><strong>Key storage.</strong> Private keys are stored in <code>localStorage</code> as JWK. This means they are accessible to any JavaScript running on the same origin, and are not protected by a secure enclave at rest. A device compromise means key compromise. Using the WebCrypto <code>extractable: false</code> flag for the private key material (storing only the public JWK, and regenerating from an imported private key) would improve this — but the non-extractable key could not then be backed up. The current tradeoff is usability over key confinement.</p>
+
+  <p><strong>Social collusion.</strong> Two colluding parties could manufacture a receipt by simply meeting and scanning. The protocol makes no attempt to prevent this — its goal is to prove physical co-presence, not to assert that the meeting was meaningful or authorised. How a relying party uses receipts (e.g. requiring receipts from multiple independent parties, or from parties with established trust graphs) is an application-layer concern.</p>
+
+  <p><strong>Sybil resistance is partial.</strong> A single person with two phones can produce a receipt. The protocol reduces bot-scale Sybil attacks (you cannot script thousands of receipts without physically moving hardware) but does not prevent a human with multiple devices.</p>
+
+  <p><strong>No identity binding.</strong> The keypairs are device-local and ephemeral. A receipt proves that two keypairs were co-present — it does not prove that a specific human controls those keypairs, unless that binding is established by a higher-level system.</p>
+
+  <p><strong>No key revocation.</strong> There is currently no mechanism to revoke a key or invalidate receipts issued by a compromised keypair.</p>
+
+  <h2>5. Comparison to Alternatives</h2>
+
+  <table>
+    <tr>
+      <th>Approach</th>
+      <th>Biometric data</th>
+      <th>Backend required</th>
+      <th>Hardware required</th>
+      <th>Bot resistance</th>
+    </tr>
+    <tr>
+      <td>reCAPTCHA / Turnstile</td>
+      <td>No</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>Probabilistic</td>
+    </tr>
+    <tr>
+      <td>World ID (iris scan)</td>
+      <td>Yes (iris code)</td>
+      <td>Yes</td>
+      <td>Yes (Orb)</td>
+      <td>Strong</td>
+    </tr>
+    <tr>
+      <td>Passkeys (FIDO2)</td>
+      <td>Optionally (Face ID / fingerprint)</td>
+      <td>Partial</td>
+      <td>No</td>
+      <td>Moderate (device-bound)</td>
+    </tr>
+    <tr>
+      <td>Government ID</td>
+      <td>Yes</td>
+      <td>Yes</td>
+      <td>No</td>
+      <td>Strong (but invasive)</td>
+    </tr>
+    <tr>
+      <td><strong>IRLid</strong></td>
+      <td><strong>No</strong></td>
+      <td><strong>No</strong></td>
+      <td><strong>No</strong></td>
+      <td><strong>Moderate (physical presence required)</strong></td>
+    </tr>
+  </table>
+
+  <p>
+    IRLid occupies the gap between "no friction, low trust" (CAPTCHA) and "high friction, high privacy cost" (iris scan / government ID). It is not a drop-in replacement for either — its value is in contexts where physical co-presence is meaningful: in-person event check-ins, peer-to-peer trust bootstrapping, local community verification, and hybrid systems where receipts accumulate into a trust graph over time.
+  </p>
+
+  <h2>6. Open Questions</h2>
+
+  <p>A few areas where input from the security community would be genuinely useful:</p>
+
+  <ul>
+    <li>Is there a practical way to attest GPS integrity without proprietary hardware attestation?</li>
+    <li>Should the private key be made non-extractable (accepting no backup) to improve key confinement?</li>
+    <li>What does a reasonable revocation mechanism look like for a serverless protocol?</li>
+    <li>How should a relying party weight a receipt vs. a chain of receipts when evaluating a trust claim?</li>
+  </ul>
+
+  <h2>7. Try It</h2>
+
+  <p>
+    The application runs entirely in your browser. Open IRLid on one device, scan with a second device, and the receipt is produced locally. No account required. The source is visible in the browser.
+  </p>
+
+  <p>
+    <a href="index.html">Open IRLid →</a>
+  </p>
+
+  <p>Feedback and critique welcome via the <a href="contact.html">contact page</a>.</p>
+
+</div>
+</main>
+
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+</body>
+</html>
