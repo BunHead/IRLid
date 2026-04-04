@@ -108,7 +108,7 @@
   <div class="article-meta">Published April 2026 · irlid.co.uk</div>
 
   <p>
-    With Reddit rolling out mandatory human verification and World ID expanding its iris-scanning Orb into Discord, Shopify, and beyond, proof-of-personhood is suddenly a mainstream problem. Most proposed solutions fall into two camps: behavioural analysis (invisible, low-trust) or biometrics (high-trust, high-privacy cost). This writeup describes a third approach — anchoring proof of personhood to a physical real-world interaction between two devices, with no biometric capture and no backend server.
+    With Reddit rolling out mandatory human verification and World ID expanding its iris-scanning Orb into Discord, Shopify, and beyond, proof-of-personhood is suddenly a mainstream problem. Most proposed solutions fall into two camps: behavioural analysis (invisible, low-trust) or biometrics (high-trust, high-privacy cost). This writeup describes a third approach — anchoring proof of personhood to a physical real-world interaction between two devices, with no biometric capture and no centralised identity database. It is not a zero-knowledge protocol: GPS coordinates are part of the receipt by design. The trade-off and its implications are discussed honestly below.
   </p>
 
   <div class="callout">
@@ -193,7 +193,7 @@
 
   <h3>Step 3 — Combined Receipt</h3>
   <p>
-    A scans B's response. A's device verifies B's signature and payload, then checks mutual tolerances:
+    A scans B's response QR. At this point A's device does two things simultaneously: it creates its own signed response (containing A's GPS coordinates, timestamp, and binding to the original HELLO — mirroring exactly what B did in Step 2), and it verifies B's signature and payload. Both signed responses are then checked against mutual tolerances:
   </p>
 
   <ul>
@@ -238,7 +238,7 @@
     <li><strong>Co-presence guarantee (conditional):</strong> Both parties must have been at the same GPS location (±12m) within the same 90-second window. A bot cannot satisfy this without physical hardware at the location.</li>
     <li><strong>Replay resistance:</strong> Each HELLO contains a fresh nonce and a timestamp. Responses bind to both the HELLO hash and the signed offer hash. A replayed HELLO will fail the timestamp check after 90 seconds.</li>
     <li><strong>Cryptographic binding:</strong> B's response is bound to A's specific signed offer — not just any HELLO. A HELLO cannot be substituted mid-handshake without invalidating B's response.</li>
-    <li><strong>No biometric data:</strong> The receipt proves physical co-presence without capturing any biometric. The verifier learns that two keypairs were at the same place at the same time — nothing else.</li>
+    <li><strong>No biometric data:</strong> The receipt proves physical co-presence without capturing any biometric. However it does contain GPS coordinates from both devices — this is the mechanism, not incidental. The verifier learns that two keypairs were at the same place at the same time, plus those coordinates. This is less invasive than biometric capture but is not zero-knowledge.</li>
     <li><strong>No backend:</strong> The entire protocol runs in the browser. Verification is fully client-side.</li>
     <li><strong>Public verifiability:</strong> Any party with the combined receipt URL can verify all signatures without trusting a third party.</li>
   </ul>
@@ -260,6 +260,12 @@
   <p><strong>No identity binding.</strong> The keypairs are device-local and ephemeral. A receipt proves that two keypairs were co-present — it does not prove that a specific human controls those keypairs, unless that binding is established by a higher-level system.</p>
 
   <p><strong>No key revocation.</strong> There is currently no mechanism to revoke a key or invalidate receipts issued by a compromised keypair.</p>
+
+  <p><strong>Hash inclusion risk.</strong> The current protocol includes the computed hash in the message alongside the payload. A careless implementer could verify the signature against the hash from the message rather than recomputing it from the payload, leaving the payload open to modification. A safer design would omit the hash from the message entirely, forcing all verifiers to recompute it. This is a known implementation trap and will be addressed in a future revision.</p>
+
+  <p><strong>JSON malleability.</strong> JSON permits whitespace variation that produces different byte sequences for semantically identical structures. Hashing raw JSON therefore has edge cases. A canonical pre-authentication encoding (e.g. whitespace-stripped, keys sorted) would remove this ambiguity. Not currently specified.</p>
+
+  <p><strong>Fields outside the signature.</strong> The public key, version number, and message type are currently not covered by the signature, which could open a downgrade attack vector. These should be included in a future protocol revision.</p>
 
   <h2>5. Comparison to Alternatives</h2>
 
