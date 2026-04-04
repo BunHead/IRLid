@@ -75,6 +75,20 @@
     th {
       background: #f6f6f6;
     }
+    .table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 1.5em 0;
+    }
+    .table-wrap table {
+      margin: 0;
+      min-width: 480px;
+    }
+    @media (max-width: 600px) {
+      .article-wrap {
+        padding: 0 4px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -222,6 +236,7 @@
 
   <h2>3. Cryptographic Primitives</h2>
 
+  <div class="table-wrap">
   <table>
     <tr><th>Primitive</th><th>Choice</th><th>Rationale</th></tr>
     <tr><td>Key algorithm</td><td>ECDSA P-256</td><td>Native WebCrypto support across all modern browsers; hardware-backed on devices with a secure enclave</td></tr>
@@ -230,6 +245,7 @@
     <tr><td>Encoding</td><td>base64url (RFC 4648 §5)</td><td>URL-safe, no padding issues in QR/hash fragments</td></tr>
     <tr><td>Distance</td><td>Haversine formula</td><td>Sufficient precision at ≤12m scale</td></tr>
   </table>
+  </div>
 
   <h2>4. Security Properties</h2>
 
@@ -271,6 +287,7 @@
 
   <h2>5. Comparison to Alternatives</h2>
 
+  <div class="table-wrap">
   <table>
     <tr>
       <th>Approach</th>
@@ -315,6 +332,7 @@
       <td><strong>Moderate (physical presence required)</strong></td>
     </tr>
   </table>
+  </div>
 
   <p>
     IRLid occupies the gap between "no friction, low trust" (CAPTCHA) and "high friction, high privacy cost" (iris scan / government ID). It is not a drop-in replacement for either — its value is in contexts where physical co-presence is meaningful: in-person event check-ins, peer-to-peer trust bootstrapping, local community verification, and hybrid systems where receipts accumulate into a trust graph over time.
