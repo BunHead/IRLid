@@ -1,7 +1,7 @@
 # IRLid Protocol Specification
 
 **Status:** Draft  
-**Version:** 2  
+**Version:** 3  
 **Author:** Spencer Austin
 
 ---
@@ -23,6 +23,7 @@ The protocol produces three objects:
 |-----------|-------|
 | ECDSA P-256 | Signing payloads and verifying signatures |
 | SHA-256 | Hashing payloads and computing binding hashes |
+| `canonical()` | Deterministic recursive JSON serialisation — sorts object keys at every level before hashing, making all hashes independent of property insertion order |
 | deflate-raw | Compressing objects for QR encoding |
 | base64url | Encoding binary data in URL-safe strings |
 | Web Crypto API | Browser-native implementation (no external library) |
@@ -58,8 +59,8 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 | `ts` | number | Unix timestamp in milliseconds |
 | `nonce` | string | 16-byte random value, base64url encoded |
 | `offer.payload` | object | `{ts, nonce, gps?}` — signed offer data |
-| `offer.sig` | string | ECDSA signature over `SHA-256(JSON.stringify(offer.payload))` |
-| `offer.hash` | string | `SHA-256(JSON.stringify(offer.payload))` as base64url |
+| `offer.sig` | string | ECDSA signature over `SHA-256(canonical(offer.payload))` |
+~~`offer.hash`~~ | ~~removed in v3~~ | Previously stored the offer hash; verifier now recomputes from `offer.payload` |
 
 ### 3.2 RESPONSE
 
@@ -85,11 +86,11 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 | `v` | number | Protocol version (2) |
 | `payload.ts` | number | Timestamp (ms epoch) |
 | `payload.nonce` | string | Random nonce |
-| `payload.helloHash` | string | `SHA-256(JSON.stringify(helloObj))` — binds to the HELLO |
-| `payload.offerHash` | string | `SHA-256(JSON.stringify(offer.payload))` — binds to the offer |
-| `sig` | string | ECDSA signature over `SHA-256(JSON.stringify(payload))` |
+| `payload.helloHash` | string | `SHA-256(canonical(helloObj))` — binds to the HELLO |
+| `payload.offerHash` | string | `SHA-256(canonical(offer.payload))` — binds to the offer |
+| `sig` | string | ECDSA signature over `SHA-256(canonical(payload))` |
 | `pub` | object | Ephemeral public key (JWK) |
-| `hash` | string | `SHA-256(JSON.stringify(payload))` as base64url |
+| `hash` | string | `SHA-256(canonical(payload))` as base64url |
 
 ### 3.3 COMBINED RECEIPT
 
@@ -108,19 +109,19 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 ### Step 1 — HELLO Generation (Party A)
 1. Generate ephemeral ECDSA P-256 keypair
 2. Construct `offer.payload = { ts, nonce, gps? }`
-3. Compute `offer.hash = SHA-256(JSON.stringify(offer.payload))`
-4. Sign: `offer.sig = ECDSA.sign(privateKey, offer.hash)`
+3. Compute `offerHash = SHA-256(canonical(offer.payload))` (used for signing only; **not transmitted** in v3)
+4. Sign: `offer.sig = ECDSA.sign(privateKey, offerHash)`
 5. Assemble HELLO object with `type`, `v`, `pub`, `ts`, `nonce`, `offer`
 6. Compress + encode: `accept.html#HZ=<deflate-raw(base64url(JSON.stringify(hello)))>`
 7. Display as QR code
 
 ### Step 2 — ACCEPT (Party B)
 1. Scan HELLO QR → decompress → parse HELLO object
-2. Verify: `offer.hash == SHA-256(JSON.stringify(offer.payload))` ✓
-3. Verify: `ECDSA.verify(hello.pub, offer.hash, offer.sig)` ✓
+2. Recompute: `offerHash = SHA-256(canonical(offer.payload))` (v3: not stored in HELLO)
+3. Verify: `ECDSA.verify(hello.pub, offerHash, offer.sig)` ✓
 4. Verify: `hello.ts` is not more than 5 seconds in the future ✓
 5. Generate own ephemeral keypair
-6. Compute `helloHash = SHA-256(JSON.stringify(helloObj))`
+6. Compute `helloHash = SHA-256(canonical(helloObj))`
 7. Construct `response.payload = { ts, nonce, helloHash, offerHash }`
 8. Sign and hash payload; assemble RESPONSE object
 9. Display as QR code
@@ -145,12 +146,12 @@ The receipt page runs up to 13 checks. Score = `round(passed / total × 100)` sh
 | # | Check | Passes when | Fails when |
 |---|-------|-------------|------------|
 | 1 | Self structure | `a` has `type`, `payload`, `sig`, `pub` | Any field missing |
-| 2 | Self hash | `SHA-256(JSON.stringify(a.payload)) == a.hash` | Mismatch (skipped if stripped) |
+| 2 | Self hash | `SHA-256(canonical(a.payload)) == a.hash` | Mismatch (recomputed if stripped) |
 | 3 | Self signature | `ECDSA.verify(a.pub ∥ hello.pub, a.hash, a.sig)` | Invalid signature |
 | 4 | Guest structure | `b` has required fields | Any field missing |
-| 5 | Guest hash | `SHA-256(JSON.stringify(b.payload)) == b.hash` | Mismatch (skipped if stripped) |
+| 5 | Guest hash | `SHA-256(canonical(b.payload)) == b.hash` | Mismatch (recomputed if stripped) |
 | 6 | Guest signature | `ECDSA.verify(b.pub, b.hash, b.sig)` | Invalid signature |
-| 7 | HELLO offer | `ECDSA.verify(hello.pub, offer.hash, offer.sig)` | Invalid; offer.hash recomputed if stripped |
+| 7 | HELLO offer | Recompute `offerHash = SHA-256(canonical(offer.payload))`; `ECDSA.verify(hello.pub, offerHash, offer.sig)` | Invalid |
 | 8 | Self binds HELLO | `a.payload.helloHash == SHA-256(JSON.stringify(hello*))` | Mismatch |
 | 9 | Guest binds HELLO | `b.payload.helloHash == same helloHash` | Mismatch |
 
