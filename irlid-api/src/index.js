@@ -24,11 +24,12 @@ function b64urlDecode(str) {
   return Uint8Array.from(bin, c => c.charCodeAt(0));
 }
 
-function canonical(obj) {
-  const keys = Object.keys(obj).sort();
-  const o = {};
-  for (const k of keys) o[k] = obj[k];
-  return JSON.stringify(o);
+// v3: fully recursive — sorts keys at every nesting level
+function canonical(val) {
+  if (val === null || typeof val !== "object") return JSON.stringify(val);
+  if (Array.isArray(val)) return "[" + val.map(canonical).join(",") + "]";
+  const keys = Object.keys(val).sort();
+  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonical(val[k])).join(",") + "}";
 }
 
 function json(data, status = 200) {
@@ -50,7 +51,8 @@ function randomCode6() {
 // =====================
 
 async function hashPayloadToB64url(payloadObj) {
-  const bytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+  // v3: canonical() — order-independent hashing
+  const bytes = new TextEncoder().encode(canonical(payloadObj));
   const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
   return b64urlEncode(new Uint8Array(hashBuf));
 }
@@ -135,15 +137,18 @@ async function verifyReceipt(comb) {
   } else { checks.b_structure = false; checks.b_hash = false; checks.b_sig = false; }
 
   const hello = comb.hello;
-  if (hello && hello.offer && hello.offer.payload && hello.offer.hash && hello.offer.sig && hello.pub) {
-    checks.hello_hash = (await hashPayloadToB64url(hello.offer.payload)) === hello.offer.hash;
-    checks.hello_sig = await verifySig(hello.offer.hash, hello.offer.sig, hello.pub);
+  if (hello && hello.offer && hello.offer.payload && hello.offer.sig && hello.pub) {
+    // v3: offer.hash not transmitted — recompute from payload
+    const computedOfferHash = await hashPayloadToB64url(hello.offer.payload);
+    if (hello.offer.hash) checks.hello_hash = computedOfferHash === hello.offer.hash; // back-compat v2
+    checks.hello_sig = await verifySig(computedOfferHash, hello.offer.sig, hello.pub);
   }
 
   if (hello) {
-    const helloBytes = new TextEncoder().encode(JSON.stringify(hello));
-    const helloHashBuf = await crypto.subtle.digest("SHA-256", helloBytes);
-    const helloHash = b64urlEncode(new Uint8Array(helloHashBuf));
+    // v3: canonical() makes helloHash order-independent
+    const helloHash = b64urlEncode(new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(hello)))
+    ));
     if (a && a.payload) checks.a_binds_hello = a.payload.helloHash === helloHash;
     if (b && b.payload) checks.b_binds_hello = b.payload.helloHash === helloHash;
   }
