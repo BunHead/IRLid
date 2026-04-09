@@ -151,9 +151,24 @@
 
     <hr class="divider">
 
+    <nav class="toc" aria-label="Jump to section" style="margin:1.6rem auto 2rem; max-width:680px; padding:1rem 1.2rem; background:#f7f7f7; border-left:3px solid #ccc; border-radius:4px; font-size:0.9rem; line-height:2;">
+      <strong style="display:block; margin-bottom:0.4rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.06em; color:#666;">Contents</strong>
+      <a href="#a1" style="display:block; color:inherit; text-decoration:none;">What is Proof of Personhood?</a>
+      <a href="#a2" style="display:block; color:inherit; text-decoration:none;">How IRLid Works</a>
+      <a href="#a3" style="display:block; color:inherit; text-decoration:none;">Cryptographic Guarantees</a>
+      <a href="#a3-1" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ ECDSA P-256</a>
+      <a href="#a3-2" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ Hash Chaining</a>
+      <a href="#a3-3" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ 90-Second Window</a>
+      <a href="#a3-4" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ 12-Metre Tolerance</a>
+      <a href="#a4" style="display:block; color:inherit; text-decoration:none;">Privacy &amp; Data</a>
+      <a href="#a5" style="display:block; color:inherit; text-decoration:none;">Use Cases</a>
+      <a href="#a6" style="display:block; color:inherit; text-decoration:none;">Open &amp; Verifiable</a>
+      <a href="#a7" style="display:block; color:inherit; text-decoration:none;">Technical Writeup</a>
+    </nav>
+
     <!-- What is Proof of Personhood? -->
     <div class="about-section">
-      <h2>What is Proof of Personhood?</h2>
+      <h2 id="a1">What is Proof of Personhood?</h2>
       <p>
         Proof of personhood is a way to verify that a digital identity belongs to a unique, real human being rather than a bot, an AI agent, or a duplicate account.
         As online systems become increasingly automated, the ability to distinguish genuine human participation from synthetic activity is becoming a fundamental challenge.
@@ -168,7 +183,7 @@
 
     <!-- How IRLid Works -->
     <div class="about-section">
-      <h2>How IRLid Works</h2>
+      <h2 id="a2">How IRLid Works</h2>
       <p>
         When two people meet, they complete a short QR-code handshake using their phones. Each device holds a unique ECDSA P-256 key pair generated in the browser.
         The handshake binds both parties' cryptographic signatures to a shared timestamp and GPS location, producing a receipt that can be independently verified by anyone.
@@ -196,7 +211,7 @@
 
     <!-- Cryptographic Guarantees -->
     <div class="about-section">
-      <h2>Cryptographic Guarantees</h2>
+      <h2 id="a3">Cryptographic Guarantees</h2>
       <p>
         Every receipt undergoes multiple verification checks. Here is what each check proves:
       </p>
@@ -204,22 +219,22 @@
       <div class="guarantee-grid">
         <div class="guarantee-card">
           <div class="card-label">Signatures</div>
-          <h3>ECDSA P-256</h3>
+          <h3 id="a3-1">ECDSA P-256</h3>
           <p>Each party signs their payload with a private key that never leaves the device. The receipt contains both signatures, verifiable by anyone using the corresponding public keys.</p>
         </div>
         <div class="guarantee-card">
           <div class="card-label">Binding</div>
-          <h3>Hash Chaining</h3>
+          <h3 id="a3-2">Hash Chaining</h3>
           <p>Person B's response contains a SHA-256 hash of Person A's HELLO. This prevents replay attacks — a response is only valid for the exact HELLO it was created for.</p>
         </div>
         <div class="guarantee-card">
           <div class="card-label">Freshness</div>
-          <h3>90-Second Window</h3>
+          <h3 id="a3-3">90-Second Window</h3>
           <p>Both timestamps must be within 90 seconds of each other. This ensures the exchange happened in real time, not replayed from an old recording.</p>
         </div>
         <div class="guarantee-card">
           <div class="card-label">Proximity</div>
-          <h3>12-Metre Tolerance</h3>
+          <h3 id="a3-4">12-Metre Tolerance</h3>
           <p>GPS coordinates from both devices must be within 12 metres. Combined with the time constraint, this provides strong evidence of physical co-presence.</p>
         </div>
       </div>
@@ -229,7 +244,7 @@
 
     <!-- Privacy & Data -->
     <div class="about-section">
-      <h2>Privacy &amp; Data</h2>
+      <h2 id="a4">Privacy &amp; Data</h2>
       <p>
         Right now, IRLid works without biometrics and without requiring any personal information.
         Your device generates a random key pair — there is no registration form and no email needed just to complete a handshake.
@@ -258,7 +273,7 @@
 
     <!-- Use Cases -->
     <div class="about-section">
-      <h2>Use Cases</h2>
+      <h2 id="a5">Use Cases</h2>
       <ul class="use-case-list">
         <li>
           <strong>Replacing CAPTCHAs</strong>
@@ -291,7 +306,7 @@
 
     <!-- Open & Verifiable -->
     <div class="about-section">
-      <h2>Open &amp; Verifiable</h2>
+      <h2 id="a6">Open &amp; Verifiable</h2>
       <p>
         IRLid is open source. The entire codebase — frontend, backend, and database schema — is publicly available on
         <a href="https://github.com/BunHead/IRLid" style="color:#000; text-decoration:underline;">GitHub</a>.
@@ -304,7 +319,7 @@
 
     <!-- Technical Writeup -->
     <div class="about-section">
-      <h2>Technical Writeup</h2>
+      <h2 id="a7">Technical Writeup</h2>
       <p>
         For a deep-dive into the cryptographic protocol, threat model, attack surface, and comparison to alternatives like World ID and passkeys, read the full
         <a href="blog-proof-of-personhood.html" style="color:#000; text-decoration:underline;">Proof-of-Personhood Without Biometrics: The IRLid Protocol</a>.
