@@ -58,19 +58,29 @@
     }
 
     .verify-card-header {
-      padding: 28px 32px 20px;
+      background: #1a1a1a;
+      padding: 20px 32px;
+      text-align: center;
       border-bottom: 1px solid #f0f0f0;
+    }
+    .verify-card-header img {
+      height: 48px;
+      width: auto;
+    }
+    .verify-card-body-title {
+      padding: 22px 32px 0;
       text-align: center;
     }
-    .verify-card-header h2 {
-      font-size: 20px;
+    .verify-card-body-title h2 {
+      font-size: 19px;
       color: #1a1a1a;
       margin-bottom: 6px;
     }
-    .verify-card-header p {
+    .verify-card-body-title p {
       font-size: 13px;
       color: #888;
       line-height: 1.5;
+      margin-bottom: 20px;
     }
 
     .verify-card-body {
@@ -208,11 +218,15 @@
     <div class="verify-card">
 
       <div class="verify-card-header">
-        <h2>Prove you're human</h2>
-        <p>ExampleForum uses IRLid to confirm you've met a real person in real life. No bots. No AI agents. Just people.</p>
+        <img src="logo.png" alt="IRLid" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <span style="display:none;color:white;font-size:22px;font-weight:700;letter-spacing:-0.02em;">IRLid</span>
       </div>
 
       <div class="verify-card-body">
+        <div class="verify-card-body-title">
+          <h2>Prove you're human</h2>
+          <p>ExampleForum uses IRLid to confirm you've met a real person in real life. No bots. No AI agents. Just people.</p>
+        </div>
 
         <div class="irlid-captcha">
           <div class="irlid-collapsed" id="irlidToggle" onclick="togglePanel()">
@@ -231,7 +245,7 @@
           </div>
         </div>
 
-        <button id="enterBtn" disabled>Enter the Forum</button>
+        <button id="enterBtn" disabled>Continue</button>
         <div class="require-note" id="requireNote">IRLid verification required to continue</div>
 
       </div>
@@ -267,7 +281,7 @@
   });
 
   document.getElementById("enterBtn").addEventListener("click", function() {
-    if (!this.disabled) alert("Welcome to ExampleForum! You've proven you're human.");
+    if (!this.disabled) alert("Identity confirmed. Welcome to ExampleForum!");
   });
 </script>
 
