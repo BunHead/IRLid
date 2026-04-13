@@ -7,6 +7,10 @@
   <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IRLid — Features</title>
+  <meta name="description" content="IRLid features: browser-based ECDSA signing, GPS co-presence verification, compressed QR codes, embeddable widget, open source, and no app required." />
+  <meta property="og:title" content="IRLid — Features" />
+  <meta property="og:description" content="No app, no biometrics. Browser-based cryptographic proof of real-world presence — embeddable in any website." />
+  <meta property="og:url" content="https://irlid.co.uk/features.html" />
   <link rel="stylesheet" href="css/style.css">
   <style>
     .features-hero {
@@ -226,6 +230,7 @@
       <a href="#f3-6" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ Compressed QR Codes</a>
       <a href="#f3-7" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ Passkey Support</a>
       <a href="#f3-8" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ Open Source</a>
+      <a href="#f3-9" style="display:block; color:inherit; text-decoration:none; padding-left:1.2rem;">↳ Embeddable Widget</a>
       <a href="#f4" style="display:block; color:inherit; text-decoration:none;">Security Model</a>
     </nav>
 
@@ -405,6 +410,11 @@
         <div class="icon-row">🌐</div>
         <h3 id="f3-8">Open Source</h3>
         <p>The full codebase — frontend, Cloudflare Worker backend, D1 database schema — is on <a href="https://github.com/BunHead/IRLid" style="color:#000;">GitHub</a>. Audit the crypto, run your own instance, or contribute.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon-row">🔌</div>
+        <h3 id="f3-9">Embeddable Widget</h3>
+        <p>Any website can embed IRLid receipt verification in a single <code>&lt;iframe&gt;</code>. A <code>postMessage</code> API signals pass or fail to the parent page — no SDK, no server changes needed. <a href="demo-login.html" style="color:#000;">See the demo →</a></p>
       </div>
     </div>
 
