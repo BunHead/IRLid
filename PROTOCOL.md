@@ -1,19 +1,32 @@
 # IRLid Protocol Specification
 
-**Status:** Draft  
+**Status:** Live  
 **Version:** 3  
-**Author:** Spencer Austin
+**Author:** Spencer Austin  
+**Last updated:** April 2026
+
+---
+
+## Version History
+
+| Version | Changes |
+|---------|---------|
+| v1 | Initial protocol — basic ECDSA signing, JSON.stringify hashing |
+| v2 | Added GPS, nonce, helloHash/offerHash binding; offer.hash transmitted |
+| v3 | `canonical()` replaces `JSON.stringify()` for all hashing; `offer.hash`, `a.hash`, `b.hash` no longer transmitted in compact receipts — verifier recomputes all; compact JWK public keys |
 
 ---
 
 ## 1. Overview
 
-IRLid is a browser-only proof-of-personhood protocol that enables two parties to mutually attest co-presence without any server infrastructure. All messages are exchanged directly (via QR codes); all cryptography and verification run client-side using the Web Crypto API.
+IRLid is a browser-only proof-of-co-presence protocol that enables two parties to mutually attest physical co-location without any server infrastructure. All messages are exchanged directly (via QR codes); all cryptography and verification run client-side using the Web Crypto API.
 
 The protocol produces three objects:
 - `HELLO` — Party A's signed offer
-- `RESPONSE` — Each party's signed acknowledgement
+- `RESPONSE` — Each party's signed acknowledgement  
 - `COMBINED RECEIPT` — The merged proof, verifiable by either party or a third party
+
+Receipts can also be verified by embedding the IRLid widget in any web page — see `WIDGET.md`.
 
 ---
 
@@ -39,14 +52,13 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 ```json
 {
   "type": "hello",
-  "v": 2,
+  "v": 3,
   "pub": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
   "ts": 1710000000000,
   "nonce": "base64url-16bytes",
   "offer": {
-    "payload": { "ts": 1710000000000, "nonce": "...", "gps": { "lat": 51.9, "lon": -1.4 } },
-    "sig": "base64url-ECDSA-sig",
-    "hash": "base64url-SHA256"
+    "payload": { "ts": 1710000000000, "nonce": "...", "lat": 51.9, "lon": -1.4, "acc": 12 },
+    "sig": "base64url-ECDSA-sig"
   }
 }
 ```
@@ -54,23 +66,26 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | string | Fixed: `"hello"` |
-| `v` | number | Protocol version (2) |
-| `pub` | object | Ephemeral ECDSA P-256 public key (JWK, fields: kty, crv, x, y) |
+| `v` | number | Protocol version (`3`) |
+| `pub` | object | Ephemeral ECDSA P-256 public key (compact JWK: kty, crv, x, y) |
 | `ts` | number | Unix timestamp in milliseconds |
 | `nonce` | string | 16-byte random value, base64url encoded |
-| `offer.payload` | object | `{ts, nonce, gps?}` — signed offer data |
+| `offer.payload` | object | `{ts, nonce, lat?, lon?, acc?}` — signed offer data including GPS |
 | `offer.sig` | string | ECDSA signature over `SHA-256(canonical(offer.payload))` |
-~~`offer.hash`~~ | ~~removed in v3~~ | Previously stored the offer hash; verifier now recomputes from `offer.payload` |
+| ~~`offer.hash`~~ | ~~removed v3~~ | Previously stored the offer hash; verifier now recomputes from `offer.payload` |
 
 ### 3.2 RESPONSE
 
 ```json
 {
   "type": "response",
-  "v": 2,
+  "v": 3,
   "payload": {
     "ts": 1710000000100,
     "nonce": "...",
+    "lat": 51.9,
+    "lon": -1.4,
+    "acc": 15,
     "helloHash": "base64url-SHA256-of-HELLO",
     "offerHash": "base64url-SHA256-of-offer-payload"
   },
@@ -83,13 +98,14 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | string | Fixed: `"response"` |
-| `v` | number | Protocol version (2) |
+| `v` | number | Protocol version (`3`) |
 | `payload.ts` | number | Timestamp (ms epoch) |
 | `payload.nonce` | string | Random nonce |
+| `payload.lat/lon/acc` | number? | GPS coordinates and accuracy (optional) |
 | `payload.helloHash` | string | `SHA-256(canonical(helloObj))` — binds to the HELLO |
 | `payload.offerHash` | string | `SHA-256(canonical(offer.payload))` — binds to the offer |
 | `sig` | string | ECDSA signature over `SHA-256(canonical(payload))` |
-| `pub` | object | Ephemeral public key (JWK) |
+| `pub` | object | Ephemeral public key (compact JWK) |
 | `hash` | string | `SHA-256(canonical(payload))` as base64url |
 
 ### 3.3 COMBINED RECEIPT
@@ -108,11 +124,11 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 
 ### Step 1 — HELLO Generation (Party A)
 1. Generate ephemeral ECDSA P-256 keypair
-2. Construct `offer.payload = { ts, nonce, gps? }`
+2. Construct `offer.payload = { ts, nonce, lat?, lon?, acc? }`
 3. Compute `offerHash = SHA-256(canonical(offer.payload))` (used for signing only; **not transmitted** in v3)
 4. Sign: `offer.sig = ECDSA.sign(privateKey, offerHash)`
-5. Assemble HELLO object with `type`, `v`, `pub`, `ts`, `nonce`, `offer`
-6. Compress + encode: `accept.html#HZ=<deflate-raw(base64url(JSON.stringify(hello)))>`
+5. Assemble HELLO object with `type`, `v: 3`, `pub`, `ts`, `nonce`, `offer`
+6. Compress + encode: `accept.html#HZ=<base64url(deflate-raw(JSON.stringify(hello)))>`
 7. Display as QR code
 
 ### Step 2 — ACCEPT (Party B)
@@ -122,8 +138,8 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 4. Verify: `hello.ts` is not more than 5 seconds in the future ✓
 5. Generate own ephemeral keypair
 6. Compute `helloHash = SHA-256(canonical(helloObj))`
-7. Construct `response.payload = { ts, nonce, helloHash, offerHash }`
-8. Sign and hash payload; assemble RESPONSE object
+7. Construct `response.payload = { ts, nonce, lat?, lon?, acc?, helloHash, offerHash }`
+8. Sign and hash payload using `canonical()`; assemble RESPONSE object
 9. Display as QR code
 
 ### Step 3 — COMBINED RECEIPT (Party A)
@@ -152,10 +168,8 @@ The receipt page runs up to 13 checks. Score = `round(passed / total × 100)` sh
 | 5 | Guest hash | `SHA-256(canonical(b.payload)) == b.hash` | Mismatch (recomputed if stripped) |
 | 6 | Guest signature | `ECDSA.verify(b.pub, b.hash, b.sig)` | Invalid signature |
 | 7 | HELLO offer | Recompute `offerHash = SHA-256(canonical(offer.payload))`; `ECDSA.verify(hello.pub, offerHash, offer.sig)` | Invalid |
-| 8 | Self binds HELLO | `a.payload.helloHash == SHA-256(JSON.stringify(hello*))` | Mismatch |
-| 9 | Guest binds HELLO | `b.payload.helloHash == same helloHash` | Mismatch |
-
-*hello\* = HELLO with `offer.hash` reconstructed from `offer.payload` if it was stripped*
+| 8 | Self binds HELLO | `a.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
+| 9 | Guest binds HELLO | `b.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
 
 ### Bonus Checks (conditional)
 
@@ -163,7 +177,7 @@ The receipt page runs up to 13 checks. Score = `round(passed / total × 100)` sh
 |-------|-------------|-------|
 | Self binds offer | `a.payload.offerHash == recomputed offer hash` | If offer present |
 | Guest binds offer | `b.payload.offerHash == recomputed offer hash` | If offer present |
-| Time ≤ tolerance | `|a.payload.ts − b.payload.ts| ≤ 90,000 ms` | Fails with "Missing timestamps" if absent |
+| Time ≤ tolerance | `\|a.payload.ts − b.payload.ts\| ≤ 90,000 ms` | Fails with "Missing timestamps" if absent |
 | Distance ≤ tolerance | Haversine distance ≤ 12 m | Fails with "Missing locations" if GPS absent |
 
 ---
@@ -197,11 +211,45 @@ Typical URL lengths: HELLO ~505 chars, Receipt ~764 chars (COMB_Z) vs ~1,285 cha
 
 ---
 
-## 7. Security Notes
+## 7. Backward Compatibility
+
+v2 receipts used `JSON.stringify()` for hashing. The verifier detects the protocol version from `a.v` / `b.v` / `hello.v` and selects the correct hashing path:
+
+```
+v >= 3  →  canonical(payload)
+v < 3   →  JSON.stringify(payload)
+```
+
+Both paths are supported simultaneously. Old v2 receipts continue to verify correctly.
+
+---
+
+## 8. Security Notes
 
 - **Ephemeral keys:** New ECDSA P-256 keypair generated each session. No long-term identity is asserted.
 - **No server:** Fully peer-to-peer. No central authority can forge or revoke receipts.
 - **Replay resistance:** Nonces and short QR expiry (seconds) prevent replaying captured QR codes.
-- **GPS is optional and self-reported:** Location data is not independently verified. The distance check is a good-faith claim, not a proof of physical proximity.
+- **GPS is optional and self-reported:** Location data is not independently verified. The distance check is a good-faith claim by both parties, not a cryptographic proof of physical proximity. A dishonest participant could supply false coordinates.
+- **Cooperative trust model:** The protocol provides a tamper-evident record that both parties *chose to attest* to a meeting. It does not provide proof-of-presence to a sceptical third party who assumes one or both parties may be dishonest.
 - **Stripped fields are recomputable:** Compact encoding does not weaken verification — all stripped values can be recalculated from remaining fields.
 - **Hash binding:** Each response commits to both the HELLO hash and the offer hash, preventing cross-session substitution attacks.
+
+---
+
+## 9. Third-Party Integration
+
+Receipts can be verified by any website using the embeddable IRLid widget. See `WIDGET.md` for the full integration guide and `postMessage` API reference.
+
+Quick embed:
+
+```html
+<iframe src="https://irlid.co.uk/widget.html" width="100%" height="130" style="border:0"></iframe>
+<script>
+  window.addEventListener("message", function(event) {
+    if (event.origin !== "https://irlid.co.uk") return;
+    if (event.data?.type === "irlid-verified") {
+      // Receipt verified — unlock your gate
+    }
+  });
+</script>
+```
