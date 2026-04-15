@@ -118,6 +118,8 @@
       resultDiv.textContent = "Checking receipt…";
 
       try {
+        // Step 1: Fetch the receipt from the database
+        resultDiv.textContent = "Fetching receipt…";
         const resp = await fetch(WORKER + "/receipts/" + encodeURIComponent(hash));
 
         if (!resp.ok) {
@@ -130,9 +132,33 @@
         }
 
         const data = await resp.json();
-
-        // Pull real timestamp and location from the receipt
         const combined = data.combined || data;
+
+        // Step 2: Cryptographically verify the receipt server-side
+        resultDiv.textContent = "Verifying signatures…";
+        const verifyResp = await fetch(WORKER + "/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ combined })
+        });
+
+        if (!verifyResp.ok) {
+          resultDiv.className = "error";
+          resultDiv.textContent = "Verification service unavailable. Please try again.";
+          btn.disabled = false;
+          return;
+        }
+
+        const checks = await verifyResp.json();
+
+        if (!checks.valid) {
+          resultDiv.className = "error";
+          resultDiv.textContent = "Receipt failed cryptographic verification. Signatures do not check out.";
+          btn.disabled = false;
+          return;
+        }
+
+        // Step 3: Show real data from the verified receipt
         const payloadA = combined?.a?.payload || combined?.hello?.offer?.payload || {};
         const ts = payloadA.ts ? new Date(payloadA.ts * 1000).toLocaleString() : "Unknown";
         const lat = payloadA.lat != null ? payloadA.lat.toFixed(5) : null;
@@ -141,20 +167,19 @@
 
         resultDiv.className = "success";
         resultDiv.innerHTML =
-          `<strong>✓ Receipt found</strong><br>` +
+          `<strong>✓ Cryptographically verified</strong><br>` +
           `<strong>Time:</strong> ${ts}<br>` +
           `<strong>Location:</strong> ${locationStr}<br>` +
-          `<a href="https://irlid.co.uk/check.html#receipt=${hash}" target="_blank" style="color:#155724;">Full verification →</a>`;
+          `<a href="https://irlid.co.uk/check.html#receipt=${hash}" target="_blank" style="color:#155724;">Full report →</a>`;
 
-        // Notify parent page
-        const msg = {
+        // Notify parent page with verified data
+        window.parent.postMessage({
           type: "irlid-verified",
           hash: hash,
           timestamp: payloadA.ts ? new Date(payloadA.ts * 1000).toISOString() : null,
           lat: payloadA.lat || null,
           lon: payloadA.lon || null
-        };
-        window.parent.postMessage(msg, "*");
+        }, "*");
 
       } catch (e) {
         resultDiv.className = "error";
