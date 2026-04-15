@@ -144,35 +144,70 @@
 </div>
 
 <div class="score-bar-wrap">
-  <h2>Recommended weighting — max 20 pts base · 28 pts with all v4b optionals enabled</h2>
+  <h2>Score out of 100 — base 20pts · full system 100pts · symmetry with % confirmed</h2>
   <div class="bar-row">
-    <div class="bar-label">🔐 Signatures (×2 each)</div>
-    <div class="bar-track"><div class="bar-fill" style="width:30%; background:#1a6b2a;"></div></div>
-    <div class="bar-pts">6 pts</div>
+    <div class="bar-label">🔐 Signatures (3 × 4pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:12%; background:#1a6b2a;"></div></div>
+    <div class="bar-pts">12 pts</div>
   </div>
   <div class="bar-row">
-    <div class="bar-label">🔗 Hash integrity (×1)</div>
-    <div class="bar-track"><div class="bar-fill" style="width:20%; background:#1a3a8f;"></div></div>
+    <div class="bar-label">🔗 Hash integrity (4 × 1pt)</div>
+    <div class="bar-track"><div class="w-fill" style="width:4%; background:#1a3a8f; height:100%; border-radius:7px;"></div></div>
     <div class="bar-pts">4 pts</div>
   </div>
   <div class="bar-row">
-    <div class="bar-label">🧲 Binding (×1)</div>
-    <div class="bar-track"><div class="bar-fill" style="width:20%; background:#7b3a00;"></div></div>
+    <div class="bar-label">🧲 Binding (4 × 1pt)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:4%; background:#7b3a00;"></div></div>
     <div class="bar-pts">4 pts</div>
   </div>
   <div class="bar-row">
-    <div class="bar-label">📍 Co-presence (×2 + ×1)</div>
-    <div class="bar-track"><div class="bar-fill" style="width:30%; background:#8b0000;"></div></div>
-    <div class="bar-pts">5 pts</div>
+    <div class="bar-label">📍 Co-presence GPS + time (2 × 2pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:4%; background:#8b0000;"></div></div>
+    <div class="bar-pts">4 pts</div>
   </div>
   <div class="bar-row">
-    <div class="bar-label">🕐 Age check (×1)</div>
-    <div class="bar-track"><div class="bar-fill" style="width:5%; background:#555;"></div></div>
+    <div class="bar-label">🕐 Age check (1pt)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:1%; background:#555;"></div></div>
     <div class="bar-pts">1 pt</div>
+  </div>
+  <div class="bar-row" style="border-top:1px solid #eee; margin-top:8px; padding-top:8px;">
+    <div class="bar-label" style="font-weight:600;">Base total (v3 now)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:20%; background:#ccc;"></div></div>
+    <div class="bar-pts" style="font-weight:600;">20 / 100</div>
+  </div>
+  <div class="bar-row" style="margin-top:6px;">
+    <div class="bar-label">+ L2 Trust history (+10pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:30%; background:#4a6cf7;"></div></div>
+    <div class="bar-pts">30 / 100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">+ L2b Enclave+Bio+Face (+20pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:50%; background:#39ff14;"></div></div>
+    <div class="bar-pts">50 / 100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">+ L3 Trust network (+15pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:65%; background:#f0a500;"></div></div>
+    <div class="bar-pts">65 / 100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">+ L4 Blockchain (+15pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:80%; background:#c050f0;"></div></div>
+    <div class="bar-pts">80 / 100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">+ L5 IoT / Drones (+10pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:90%; background:#00c8c8;"></div></div>
+    <div class="bar-pts">90 / 100</div>
+  </div>
+  <div class="bar-row">
+    <div class="bar-label">+ L6 Zero Knowledge (+10pts)</div>
+    <div class="bar-track"><div class="bar-fill" style="width:100%; background:#f05050;"></div></div>
+    <div class="bar-pts">100 / 100</div>
   </div>
 </div>
 
-<p class="note">Signatures and co-presence carry double weight — these are what actually proves the meeting happened. Structure/hash checks are necessary but mechanical.</p>
+<p class="note">Score out of 100 = % confirmed. Symmetry intentional. Base receipt (20pts) is valid for all everyday use. 100pts reserved for extraordinary verification — legal, government, high-security access. Optional enhancements (L2b) take you to 50pts — halfway — with no server changes needed.</p>
 
 </body>
 </html>

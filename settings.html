@@ -86,6 +86,39 @@
           <a class="btn" href="login.html">Login</a>
         </div>
       </div>
+
+      <!-- Trust Enhancements — placeholder for v4b -->
+      <div class="panel" style="opacity:0.5; pointer-events:none; user-select:none;">
+        <h3 style="margin:0 0 4px;">Trust Enhancements</h3>
+        <p class="small" style="margin:0 0 14px; color:#888;">Optional features that increase your verification score. All off by default — enable only what you're comfortable with. Coming in a future update.</p>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin-bottom:8px;">🔒 Secure Enclave</div>
+        <div class="settings-row" style="margin-bottom:8px;">
+          <label style="display:flex; gap:10px; align-items:flex-start;">
+            <input type="checkbox" disabled style="margin-top:2px;" />
+            <span><b>Hardware-backed signing key</b><br><span class="small" style="color:#aaa;">Move your signing key from browser storage into your device's Secure Enclave / TEE. Key becomes non-extractable.</span></span>
+          </label>
+        </div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin:14px 0 8px;">👆 Biometrics</div>
+        <div class="settings-row" style="margin-bottom:8px;">
+          <label style="display:flex; gap:10px; align-items:flex-start;">
+            <input type="checkbox" disabled style="margin-top:2px;" />
+            <span><b>Require biometric unlock to sign</b><br><span class="small" style="color:#aaa;">Fingerprint or Face ID must unlock your key before each handshake. Proves you (not just your phone) were present. Biometric data never leaves your device.</span></span>
+          </label>
+        </div>
+
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin:14px 0 8px;">📸 Face Capture — Mutual Witness</div>
+        <div class="settings-row" style="margin-bottom:8px;">
+          <label style="display:flex; gap:10px; align-items:flex-start;">
+            <input type="checkbox" disabled style="margin-top:2px;" />
+            <span><b>Capture face at scan</b><br><span class="small" style="color:#aaa;">When you scan someone's QR, the camera also captures their face alongside the QR code. Their face hash is signed into your payload — you become a witness to their presence. They do the same for you. Photos stay on device; only the hash is stored in the receipt.</span></span>
+          </label>
+        </div>
+
+        <p class="small" style="margin-top:14px; color:#bbb; border-top:1px solid #eee; padding-top:10px;">Enabling these features increases your maximum verification score. None are required for everyday use — a standard receipt is fully valid without them.</p>
+      </div>
+
     </div>
   </main>
 
