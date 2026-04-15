@@ -155,30 +155,48 @@ All keypairs are ephemeral — generated fresh each session, never reused.
 
 ## 5. Verification Checks
 
-The receipt page runs up to 13 checks. Score = `round(passed / total × 100)` shown as **% Confirmed**.
+### Scoring Model
 
-### Core Checks (always run)
+The score is displayed as **% Confirmed** and is designed to equal a percentage directly (max = 100).
 
-| # | Check | Passes when | Fails when |
-|---|-------|-------------|------------|
-| 1 | Self structure | `a` has `type`, `payload`, `sig`, `pub` | Any field missing |
-| 2 | Self hash | `SHA-256(canonical(a.payload)) == a.hash` | Mismatch (recomputed if stripped) |
-| 3 | Self signature | `ECDSA.verify(a.pub ∥ hello.pub, a.hash, a.sig)` | Invalid signature |
-| 4 | Guest structure | `b` has required fields | Any field missing |
-| 5 | Guest hash | `SHA-256(canonical(b.payload)) == b.hash` | Mismatch (recomputed if stripped) |
-| 6 | Guest signature | `ECDSA.verify(b.pub, b.hash, b.sig)` | Invalid signature |
-| 7 | HELLO offer | Recompute `offerHash = SHA-256(canonical(offer.payload))`; `ECDSA.verify(hello.pub, offerHash, offer.sig)` | Invalid |
-| 8 | Self binds HELLO | `a.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
-| 9 | Guest binds HELLO | `b.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
+**Current v3 base score: 20 / 100**
 
-### Bonus Checks (conditional)
+The full 100-point system grows as optional enhancements are enabled:
 
-| Check | Passes when | Notes |
+| Layer | What's added | Score |
 |-------|-------------|-------|
-| Self binds offer | `a.payload.offerHash == recomputed offer hash` | If offer present |
-| Guest binds offer | `b.payload.offerHash == recomputed offer hash` | If offer present |
-| Time ≤ tolerance | `\|a.payload.ts − b.payload.ts\| ≤ 90,000 ms` | Fails with "Missing timestamps" if absent |
-| Distance ≤ tolerance | Haversine distance ≤ 12 m | Fails with "Missing locations" if GPS absent |
+| v3 base | Core cryptographic checks | 20 / 100 |
+| v4 Trust | Receipt history, location diversity, device consistency | 30 / 100 |
+| v4b Optional | Secure Enclave key, biometric signing, mutual face capture | 50 / 100 |
+| v5 Network | Transitive trust graph, community vouching | 65 / 100 |
+| v5 Blockchain | On-chain anchor, W3C Verifiable Credentials | 80 / 100 |
+| v5 IoT/Drones | Hardware attestation, delivery confirmation | 90 / 100 |
+| v6 ZK | Zero-knowledge proof of presence | 100 / 100 |
+
+All enhancements above v3 base are **optional and off by default**. A standard receipt scoring 20/100 is cryptographically valid and suitable for all everyday use. Higher scores are for extraordinary verification contexts.
+
+### Core Checks — v3 base (20 pts)
+
+| # | Check | Points | Passes when | Fails when |
+|---|-------|--------|-------------|------------|
+| 1 | Self structure | 1 | `a` has `type`, `payload`, `sig`, `pub` | Any field missing |
+| 2 | Self hash | 1 | `SHA-256(canonical(a.payload)) == a.hash` | Mismatch |
+| 3 | Self signature | 4 | `ECDSA.verify(a.pub ∥ hello.pub, a.hash, a.sig)` | Invalid signature |
+| 4 | Guest structure | 1 | `b` has required fields | Any field missing |
+| 5 | Guest hash | 1 | `SHA-256(canonical(b.payload)) == b.hash` | Mismatch |
+| 6 | Guest signature | 4 | `ECDSA.verify(b.pub, b.hash, b.sig)` | Invalid signature |
+| 7 | HELLO offer | 4 | `ECDSA.verify(hello.pub, offerHash, offer.sig)` | Invalid |
+| 8 | Self binds HELLO | 1 | `a.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
+| 9 | Guest binds HELLO | 1 | `b.payload.helloHash == SHA-256(canonical(hello))` | Mismatch |
+| 10 | Self binds offer | 1 | `a.payload.offerHash == recomputed offer hash` | Mismatch |
+| 11 | Guest binds offer | 1 | `b.payload.offerHash == recomputed offer hash` | Mismatch |
+
+### Bonus Checks (conditional, included in base 20)
+
+| Check | Points | Passes when | Notes |
+|-------|--------|-------------|-------|
+| Time ≤ tolerance | 1 | `\|a.payload.ts − b.payload.ts\| ≤ 90,000 ms` | Missing timestamps = 0 |
+| Distance ≤ tolerance | 1 | Haversine distance ≤ 12 m | Missing GPS = 0 |
 
 ---
 

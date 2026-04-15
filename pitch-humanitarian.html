@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRLid — Humanitarian Delivery Verification</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: white; color: #1a1a1a; max-width: 800px; margin: 0 auto; padding: 40px 24px; line-height: 1.7; }
+
+    .logo-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 48px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+    .logo-bar img { height: 36px; }
+    .logo-bar span { font-size: 12px; color: #aaa; }
+
+    h1 { font-size: 28px; font-weight: 700; line-height: 1.25; margin-bottom: 8px; }
+    .tagline { font-size: 16px; color: #555; margin-bottom: 36px; }
+
+    .problem-box { background: #fff8f0; border-left: 4px solid #e07000; padding: 20px 24px; border-radius: 4px; margin-bottom: 36px; }
+    .problem-box h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #e07000; margin-bottom: 10px; }
+    .problem-box p { font-size: 15px; color: #333; }
+
+    h2.section { font-size: 18px; font-weight: 700; margin: 36px 0 12px; }
+
+    .flow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 36px; }
+    .step { background: #f8f8f8; border-radius: 8px; padding: 16px; }
+    .step-num { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; margin-bottom: 6px; }
+    .step-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 12px; color: #666; line-height: 1.5; }
+
+    .proof { background: #f0fff4; border: 1px solid #b7eb8f; border-radius: 8px; padding: 20px 24px; margin-bottom: 36px; }
+    .proof h3 { font-size: 14px; font-weight: 700; color: #1a6b2a; margin-bottom: 12px; }
+    .proof ul { list-style: none; }
+    .proof ul li { font-size: 13px; color: #333; padding: 4px 0; }
+    .proof ul li::before { content: "✓ "; color: #1a6b2a; font-weight: 700; }
+
+    .privacy { background: #f0f4ff; border: 1px solid #aec6f5; border-radius: 8px; padding: 20px 24px; margin-bottom: 36px; }
+    .privacy h3 { font-size: 14px; font-weight: 700; color: #1a3a8f; margin-bottom: 12px; }
+    .privacy ul { list-style: none; }
+    .privacy ul li { font-size: 13px; color: #333; padding: 4px 0; }
+    .privacy ul li::before { content: "🔒 "; }
+
+    .drone-box { border: 2px solid #1a1a1a; border-radius: 8px; padding: 20px 24px; margin-bottom: 36px; }
+    .drone-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+    .drone-box p { font-size: 13px; color: #444; margin-bottom: 8px; }
+
+    .future { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 36px; }
+    .future-item { background: #f8f8f8; border-radius: 6px; padding: 14px 16px; }
+    .future-item .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; margin-bottom: 4px; }
+    .future-item p { font-size: 12px; color: #444; }
+
+    .cta { background: #1a1a1a; color: white; border-radius: 8px; padding: 24px; text-align: center; }
+    .cta h2 { font-size: 18px; margin-bottom: 8px; }
+    .cta p { font-size: 13px; color: #aaa; margin-bottom: 16px; }
+    .cta a { color: white; font-weight: 700; font-size: 14px; }
+
+    .honest-note { font-size: 12px; color: #aaa; border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px; }
+
+    @media print {
+      body { padding: 20px; }
+      .cta { background: #333; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo-bar">
+    <img src="logo.png" alt="IRLid" onerror="this.style.display='none'">
+    <span>irlid.co.uk · Open source · Free to use</span>
+  </div>
+
+  <h1>Cryptographic Proof That Aid Reached a Real Person</h1>
+  <p class="tagline">IRLid creates tamper-evident delivery receipts using ECDSA signatures — no app, no central server, no biometrics required.</p>
+
+  <div class="problem-box">
+    <h2>The Problem</h2>
+    <p>How do you prove that supplies, food, or medical equipment reached a specific real person, at a specific location, at a specific time — without trusting a central database, without requiring biometrics, and without infrastructure that can be manipulated or corrupted?</p>
+  </div>
+
+  <h2 class="section">How It Works — Delivery Flow</h2>
+
+  <div class="flow">
+    <div class="step">
+      <div class="step-num">Step 1</div>
+      <div class="step-title">Delivery agent arrives</div>
+      <p>Field worker or drone displays a signed QR code on their device. The QR contains a cryptographic commitment to their GPS location and timestamp.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">Step 2</div>
+      <div class="step-title">Recipient scans</div>
+      <p>Recipient scans with any phone browser — no app needed. Their device signs a cryptographic response binding them to this specific delivery.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">Step 3</div>
+      <div class="step-title">Receipt created</div>
+      <p>A tamper-evident receipt is generated. Both parties' signatures are verified. The receipt is independently verifiable by anyone — forever.</p>
+    </div>
+  </div>
+
+  <div class="proof">
+    <h3>What the Receipt Cryptographically Proves</h3>
+    <ul>
+      <li>Two distinct devices were present and signed</li>
+      <li>Both devices reported the same GPS location (within 12 metres)</li>
+      <li>The exchange happened within a 90-second window</li>
+      <li>Neither signature can be forged without the private key</li>
+      <li>The receipt cannot be backdated or modified after creation</li>
+      <li>Verification requires no trust in any central authority</li>
+    </ul>
+  </div>
+
+  <div class="privacy">
+    <h3>Privacy by Design</h3>
+    <ul>
+      <li>No biometric data collected — ever</li>
+      <li>No central identity database</li>
+      <li>Private keys never leave the device</li>
+      <li>GPS coordinates are in the receipt by design — both parties attest to them</li>
+      <li>Recipient only needs a phone browser — no account, no registration</li>
+      <li>Receipt is self-verifying — does not depend on IRLid's servers to remain valid</li>
+    </ul>
+  </div>
+
+  <div class="drone-box">
+    <h3>🚁 Autonomous Drone Delivery</h3>
+    <p>For hover-and-drop or landing drone delivery, the drone displays its signed HELLO QR on a screen or printed panel. The recipient scans it with their phone, completing the handshake. The drone's camera can optionally capture the recipient's face alongside the QR as a witness record.</p>
+    <p>The receipt is stored on-device and synced to the cloud when connectivity is available — making it viable in low-connectivity field environments. No operator needs to be present on-site.</p>
+    <p><strong>What this proves:</strong> A real person with a real device was physically present to receive this specific delivery, at this location, at this time. The drone did not simply drop supplies and fly away unwitnessed.</p>
+  </div>
+
+  <h2 class="section">Near-Term Roadmap for Humanitarian Use</h2>
+
+  <div class="future">
+    <div class="future-item">
+      <div class="label">Now available</div>
+      <p>Browser-based receipt, GPS verification, cryptographic signatures, open source, embeddable widget for existing platforms</p>
+    </div>
+    <div class="future-item">
+      <div class="label">v4 — next</div>
+      <p>Hardware-backed keys (Secure Enclave), optional biometric signing, mutual face capture, offline mode with sync</p>
+    </div>
+    <div class="future-item">
+      <div class="label">v5 — trust network</div>
+      <p>Blockchain anchoring for permanent tamper-evident audit trail, W3C Verifiable Credentials, NGO audit integration</p>
+    </div>
+    <div class="future-item">
+      <div class="label">v6 — zero knowledge</div>
+      <p>Prove delivery happened without revealing recipient identity — critical for vulnerable populations</p>
+    </div>
+  </div>
+
+  <div class="cta">
+    <h2>Try It Now</h2>
+    <p>No account needed. Any two phones. Takes about 10 seconds.</p>
+    <a href="https://irlid.co.uk">irlid.co.uk →</a>
+  </div>
+
+  <p class="honest-note">
+    <strong>Honest limitations:</strong> GPS coordinates are self-reported by both parties — the protocol does not independently verify location via a trusted GPS source. It provides a tamper-evident record that both parties <em>attested</em> to the delivery. This is the same trust model as a signed witness statement. For adversarial contexts where a recipient might falsify location, additional verification layers (biometric, face capture) are available as optional enhancements. The protocol is open source — audit it at github.com/BunHead/IRLid.
+  </p>
+
+</body>
+</html>
