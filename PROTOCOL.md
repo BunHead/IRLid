@@ -227,6 +227,8 @@ Both paths are supported simultaneously. Old v2 receipts continue to verify corr
 ## 8. Security Notes
 
 - **Ephemeral keys:** New ECDSA P-256 keypair generated each session. No long-term identity is asserted.
+- **Key storage (current):** Device keys are stored in `localStorage`. This is accessible on a rooted device. Planned upgrade (v4): migrate to WebAuthn/Passkeys so keys are generated and held in the device Secure Enclave (Apple) or Trusted Execution Environment (Android) — hardware-backed, never extractable, optionally biometric-gated.
+- **Biometrics (planned, optional):** WebAuthn biometric unlock gates the Secure Enclave key. Biometric data never leaves the device or the enclave — only the cryptographic signature is transmitted. Sites can optionally require biometric-gated signing via the widget config.
 - **No server:** Fully peer-to-peer. No central authority can forge or revoke receipts.
 - **Replay resistance:** Nonces and short QR expiry (seconds) prevent replaying captured QR codes.
 - **GPS is optional and self-reported:** Location data is not independently verified. The distance check is a good-faith claim by both parties, not a cryptographic proof of physical proximity. A dishonest participant could supply false coordinates.

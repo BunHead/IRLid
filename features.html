@@ -379,7 +379,7 @@
       <div class="feature-card">
         <div class="icon-row">🔑</div>
         <h3 id="f3-2">Device Key Pairs</h3>
-        <p>Each browser generates a unique ECDSA P-256 key pair using the Web Crypto API. The private key never leaves the device — it's stored in localStorage and used only for signing.</p>
+        <p>Each browser generates a unique ECDSA P-256 key pair using the Web Crypto API. The private key never leaves the device — currently stored in localStorage. In a future update, keys will migrate to the device Secure Enclave (Apple) or Trusted Execution Environment (Android) via WebAuthn, making them hardware-backed and non-extractable even on rooted devices.</p>
       </div>
       <div class="feature-card">
         <div class="icon-row">🔗</div>
@@ -403,8 +403,8 @@
       </div>
       <div class="feature-card">
         <div class="icon-row">🔒</div>
-        <h3 id="f3-7">Passkey Support</h3>
-        <p>WebAuthn passkey authentication is available for device-local login, providing biometric-gated access without sending credentials to a server.</p>
+        <h3 id="f3-7">Passkey &amp; Biometric Support</h3>
+        <p>WebAuthn passkey authentication is available for device-local login. Planned for v4: biometric-gated handshake signing via the Secure Enclave — fingerprint or Face ID unlocks the signing key locally. Biometric data never leaves the device. Sites can optionally require biometric signing via the widget config, closing the borrowed or stolen phone attack surface.</p>
       </div>
       <div class="feature-card">
         <div class="icon-row">🌐</div>

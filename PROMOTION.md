@@ -27,8 +27,8 @@ Updated April 2026.
 
 | Action | Priority | Notes |
 |--------|----------|-------|
-| Post to Dev.to | High | Draft below, no karma needed |
-| Post to Hashnode | High | Draft below, no karma needed |
+| ~~Post to Dev.to~~ | ~~High~~ | ✅ Done |
+| ~~Post to Hashnode~~ | ~~High~~ | ✅ Done |
 | Build HN karma | Medium | Comment on technical threads at news.ycombinator.com/newcomments |
 | Build IH karma | Medium | Comment on Indie Hackers posts before reposting story |
 | Reply to @joho0 on Nate's video | Medium | Their "trust economy" comment (21 likes) aligns perfectly with IRLid |
