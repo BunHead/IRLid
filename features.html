@@ -403,8 +403,11 @@
       </div>
       <div class="feature-card">
         <div class="icon-row">🔒</div>
-        <h3 id="f3-7">Passkey &amp; Biometric Support</h3>
-        <p>WebAuthn passkey authentication is available for device-local login. Planned for v4: biometric-gated handshake signing via the Secure Enclave — fingerprint or Face ID unlocks the signing key locally. Biometric data never leaves the device. Sites can optionally require biometric signing via the widget config, closing the borrowed or stolen phone attack surface.</p>
+        <h3 id="f3-7">Passkey, Biometric &amp; Face Capture Support</h3>
+        <p>WebAuthn passkey authentication is available for device-local login. Planned for v4: three optional trust enhancements — all off by default, user-enabled in Settings, never prompted during a scan:</p>
+        <p style="margin-top:8px;"><strong>Secure Enclave signing</strong> — moves handshake keys from localStorage into the device hardware enclave, making them non-extractable even on rooted devices.</p>
+        <p style="margin-top:8px;"><strong>Biometric unlock</strong> — fingerprint or Face ID gates the enclave key, proving the device owner was physically present. Biometric data never leaves the device.</p>
+        <p style="margin-top:8px;"><strong>Mutual face capture</strong> — at each scan step the camera optionally captures the other party's face alongside their QR. A witnesses B's face; B witnesses A's face. Only the photo hash travels in the receipt — the photo stays on device.</p>
       </div>
       <div class="feature-card">
         <div class="icon-row">🌐</div>
