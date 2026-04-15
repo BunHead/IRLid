@@ -105,15 +105,24 @@
   </div>
 
   <div class="category" style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.07); border:2px dashed #39ff14; opacity:0.85;">
-    <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid #39ff14; color:#1a5c10;">🔒 Secure Enclave &amp; Biometrics <span style="font-size:10px; background:#e6ffe6; color:#1a5c10; padding:2px 6px; border-radius:10px; margin-left:6px;">v4 planned</span></h2>
+    <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:14px; padding-bottom:8px; border-bottom:2px solid #39ff14; color:#1a5c10;">🔒 Secure Enclave, Biometrics &amp; Face Capture <span style="font-size:10px; background:#e6ffe6; color:#1a5c10; padding:2px 6px; border-radius:10px; margin-left:6px;">v4b planned · all optional · Settings only</span></h2>
     <div class="check">
-      <div class="weight" style="background:#39ff14; color:#000;">×2</div>
-      <div class="check-text"><strong>Hardware-backed key</strong><span>Key generated in Secure Enclave / TEE — never extractable, even on rooted device</span></div>
+      <div class="weight" style="background:#39ff14; color:#000;">×1</div>
+      <div class="check-text"><strong>Hardware-backed key (Secure Enclave)</strong><span>Key in device TEE — never extractable, even on rooted device. Replaces localStorage.</span></div>
     </div>
     <div class="check">
-      <div class="weight" style="background:#39ff14; color:#000;">×2</div>
-      <div class="check-text"><strong>Biometric unlock (optional)</strong><span>Fingerprint or Face ID gated the signing — proves owner was physically present at their own device</span></div>
+      <div class="weight" style="background:#39ff14; color:#000;">×1</div>
+      <div class="check-text"><strong>Biometric unlock</strong><span>Fingerprint / Face ID gates the signing key — proves device owner was physically present</span></div>
     </div>
+    <div class="check">
+      <div class="weight" style="background:#39ff14; color:#000;">×1</div>
+      <div class="check-text"><strong>A witnessed B's face</strong><span>At scan time, A's camera captured B's face + B's QR. Hash signed into A's payload. B cannot deny presence.</span></div>
+    </div>
+    <div class="check">
+      <div class="weight" style="background:#39ff14; color:#000;">×1</div>
+      <div class="check-text"><strong>B witnessed A's face</strong><span>At scan time, B's camera captured A's face + A's QR. Hash signed into B's payload. Mutual witness — neither photographs themselves.</span></div>
+    </div>
+    <p style="font-size:11px; color:#aaa; margin-top:10px; padding-top:10px; border-top:1px solid #eee;">All four checks off by default. User enables in Settings. Never prompted during handshake. 100% score without these is valid for all everyday use — maximum score reserved for extraordinary verification.</p>
   </div>
 
   <div class="category cat-presence">
@@ -135,7 +144,7 @@
 </div>
 
 <div class="score-bar-wrap">
-  <h2>Recommended weighting — max 20 points</h2>
+  <h2>Recommended weighting — max 20 pts base · 28 pts with all v4b optionals enabled</h2>
   <div class="bar-row">
     <div class="bar-label">🔐 Signatures (×2 each)</div>
     <div class="bar-track"><div class="bar-fill" style="width:30%; background:#1a6b2a;"></div></div>
