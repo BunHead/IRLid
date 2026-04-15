@@ -85,6 +85,15 @@
   <script>
     const WORKER = "https://irlid-api.irlid-bunhead.workers.dev";
 
+    // Configurable: max age of receipt in days (0 = no limit)
+    // Parent page can override by posting: { type: "irlid-config", maxAgeDays: 30 }
+    let MAX_AGE_DAYS = 365;
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "irlid-config" && e.data.maxAgeDays != null) {
+        MAX_AGE_DAYS = Number(e.data.maxAgeDays);
+      }
+    });
+
     function extractHash(raw) {
       const t = (raw || "").trim();
       // Raw hash
@@ -158,16 +167,33 @@
           return;
         }
 
-        // Step 3: Show real data from the verified receipt
+        // Step 3: Age check
         const payloadA = combined?.a?.payload || combined?.hello?.offer?.payload || {};
+        if (payloadA.ts && MAX_AGE_DAYS > 0) {
+          const ageMs = Date.now() - (payloadA.ts * 1000);
+          const ageDays = ageMs / (1000 * 60 * 60 * 24);
+          if (ageDays > MAX_AGE_DAYS) {
+            resultDiv.className = "error";
+            resultDiv.textContent = `Receipt is ${Math.floor(ageDays)} days old — exceeds the ${MAX_AGE_DAYS}-day limit for this site.`;
+            btn.disabled = false;
+            return;
+          }
+        }
+
+        // Step 4: Show real data with score
         const ts = payloadA.ts ? new Date(payloadA.ts * 1000).toLocaleString() : "Unknown";
         const lat = payloadA.lat != null ? payloadA.lat.toFixed(5) : null;
         const lon = payloadA.lon != null ? payloadA.lon.toFixed(5) : null;
         const locationStr = (lat && lon) ? `${lat}°, ${lon}°` : "Location not available";
 
+        // Calculate score from checks
+        const checkVals = Object.values(checks).filter(v => typeof v === "boolean");
+        const passed = checkVals.filter(Boolean).length;
+        const score = Math.round((passed / checkVals.length) * 100);
+
         resultDiv.className = "success";
         resultDiv.innerHTML =
-          `<strong>✓ Cryptographically verified</strong><br>` +
+          `<strong>✓ Cryptographically verified — ${score}%</strong><br>` +
           `<strong>Time:</strong> ${ts}<br>` +
           `<strong>Location:</strong> ${locationStr}<br>` +
           `<a href="https://irlid.co.uk/check.html#receipt=${hash}" target="_blank" style="color:#155724;">Full report →</a>`;

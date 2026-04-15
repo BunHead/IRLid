@@ -82,6 +82,21 @@ The widget includes a "Full verification →" link for this automatically.
 
 ---
 
+## Configuring Receipt Age Limit
+
+By default the widget accepts receipts up to 365 days old. To change this, send a config message to the iframe after embedding:
+
+```js
+const iframe = document.getElementById("irlid-widget");
+iframe.addEventListener("load", function() {
+  iframe.contentWindow.postMessage({ type: "irlid-config", maxAgeDays: 30 }, "https://irlid.co.uk");
+});
+```
+
+Set `maxAgeDays: 0` for no age limit.
+
+---
+
 ## Notes
 
 - The widget is self-contained — no JavaScript SDK needed on the parent page
