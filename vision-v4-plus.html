@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IRLid — Future Vision</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d0d0d; color: #eee; padding: 30px 20px; }
+    h1 { text-align: center; font-size: 22px; margin-bottom: 6px; color: white; }
+    .subtitle { text-align: center; color: #666; font-size: 13px; margin-bottom: 30px; }
+
+    .layers { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+    .layer { border-radius: 10px; padding: 18px 22px; position: relative; overflow: hidden; }
+    .layer::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+
+    .layer h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; opacity: 0.7; }
+    .layer-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .features { display: flex; flex-wrap: wrap; gap: 8px; }
+    .feat { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+
+    /* Layer 1 — Current */
+    .l1 { background: #1a1a1a; border: 1px solid #333; }
+    .l1::before { background: #2d7a3a; }
+    .l1 .layer-title { color: #4caf6e; }
+    .l1 .feat { background: #1e3b26; color: #4caf6e; }
+
+    /* Layer 2 — Near term */
+    .l2 { background: #1a1a2e; border: 1px solid #2a2a4a; }
+    .l2::before { background: #4a6cf7; }
+    .l2 .layer-title { color: #7b9fff; }
+    .l2 .feat { background: #1e2040; color: #7b9fff; }
+
+    /* Layer 3 — Trust network */
+    .l3 { background: #1e1a0d; border: 1px solid #3a3010; }
+    .l3::before { background: #f0a500; }
+    .l3 .layer-title { color: #f0c050; }
+    .l3 .feat { background: #2a2210; color: #f0c050; }
+
+    /* Layer 4 — Blockchain */
+    .l4 { background: #1a0d1a; border: 1px solid #3a1040; }
+    .l4::before { background: #c050f0; }
+    .l4 .layer-title { color: #d080ff; }
+    .l4 .feat { background: #220d2a; color: #d080ff; }
+
+    /* Layer 5 — Humanitarian / IoT */
+    .l5 { background: #0d1a1a; border: 1px solid #103a3a; }
+    .l5::before { background: #00c8c8; }
+    .l5 .layer-title { color: #50e0e0; }
+    .l5 .feat { background: #0d2222; color: #50e0e0; }
+
+    /* Layer 6 — Zero knowledge */
+    .l6 { background: #1a0d0d; border: 1px solid #3a1010; }
+    .l6::before { background: #f05050; }
+    .l6 .layer-title { color: #ff8080; }
+    .l6 .feat { background: #2a0d0d; color: #ff8080; }
+
+    .connector { text-align: center; color: #444; font-size: 18px; margin: -4px 0; }
+
+    .timeline { max-width: 960px; margin: 24px auto 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .phase { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 14px; }
+    .phase .when { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 6px; }
+    .phase .what { font-size: 13px; font-weight: 600; color: #ccc; margin-bottom: 8px; }
+    .phase ul { list-style: none; }
+    .phase ul li { font-size: 11px; color: #666; padding: 2px 0; }
+    .phase ul li::before { content: "→ "; color: #444; }
+  </style>
+</head>
+<body>
+
+<h1>IRLid — Future Vision</h1>
+<p class="subtitle">From browser tool to global trust infrastructure</p>
+
+<div class="layers">
+
+  <div class="layer l1">
+    <h2>Layer 1 — Live now (v3)</h2>
+    <div class="layer-title">Core Cryptographic Receipt</div>
+    <div class="features">
+      <span class="feat">ECDSA P-256 signatures</span>
+      <span class="feat">Canonical JSON hashing</span>
+      <span class="feat">GPS co-presence (12m)</span>
+      <span class="feat">90s time window</span>
+      <span class="feat">Client-side Web Crypto</span>
+      <span class="feat">Cloudflare Worker backend</span>
+      <span class="feat">Embeddable widget</span>
+      <span class="feat">Age-limited verification</span>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="layer l2">
+    <h2>Layer 2 — v4 near term</h2>
+    <div class="layer-title">Trust Score & Identity Layer</div>
+    <div class="features">
+      <span class="feat">Weighted verification score</span>
+      <span class="feat">Receipt history depth</span>
+      <span class="feat">Account reputation score</span>
+      <span class="feat">Device consistency tracking</span>
+      <span class="feat">Multiple receipts = higher trust</span>
+      <span class="feat">Diverse location history</span>
+      <span class="feat">Server-side widget validation</span>
+      <span class="feat">Developer API key system</span>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="layer l3">
+    <h2>Layer 3 — Trust network</h2>
+    <div class="layer-title">Web of Real-World Relationships</div>
+    <div class="features">
+      <span class="feat">Transitive trust chains</span>
+      <span class="feat">Social graph from receipts</span>
+      <span class="feat">Degrees of separation</span>
+      <span class="feat">"Trusted by X people you know"</span>
+      <span class="feat">Community vouching</span>
+      <span class="feat">Trust score decay over time</span>
+      <span class="feat">Sybil resistance via graph depth</span>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="layer l4">
+    <h2>Layer 4 — Blockchain anchoring</h2>
+    <div class="layer-title">Permanent Tamper-Evident Record</div>
+    <div class="features">
+      <span class="feat">Receipt hash on-chain</span>
+      <span class="feat">No PII on blockchain</span>
+      <span class="feat">Ethereum / Polygon / IPFS</span>
+      <span class="feat">Verifiable without IRLid server</span>
+      <span class="feat">W3C Verifiable Credentials</span>
+      <span class="feat">DID (Decentralised Identity)</span>
+      <span class="feat">Smart contract gating</span>
+      <span class="feat">DAO membership proof</span>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="layer l5">
+    <h2>Layer 5 — IoT & Humanitarian</h2>
+    <div class="layer-title">Machine-to-Human & Drone Delivery</div>
+    <div class="features">
+      <span class="feat">Drone QR handshake</span>
+      <span class="feat">Aid delivery proof</span>
+      <span class="feat">No operator needed on-site</span>
+      <span class="feat">Works offline, syncs later</span>
+      <span class="feat">NGO audit trail</span>
+      <span class="feat">IoT device as party A</span>
+      <span class="feat">Field worker verification</span>
+      <span class="feat">Anti-corruption receipts</span>
+    </div>
+  </div>
+
+  <div class="connector">↓</div>
+
+  <div class="layer l6">
+    <h2>Layer 6 — Zero knowledge (long term)</h2>
+    <div class="layer-title">Prove Presence Without Revealing Identity</div>
+    <div class="features">
+      <span class="feat">ZK proof of receipt ownership</span>
+      <span class="feat">Prove you have N receipts</span>
+      <span class="feat">No GPS revealed to verifier</span>
+      <span class="feat">Anonymous credential system</span>
+      <span class="feat">Privacy-preserving trust</span>
+      <span class="feat">zk-SNARKs / Circom</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="timeline">
+  <div class="phase">
+    <div class="when">Now</div>
+    <div class="what">v3 — Core Protocol</div>
+    <ul>
+      <li>Receipts work</li>
+      <li>Widget live</li>
+      <li>100% verified</li>
+    </ul>
+  </div>
+  <div class="phase">
+    <div class="when">Next 3 months</div>
+    <div class="what">v4 — Trust Layer</div>
+    <ul>
+      <li>Weighted scores</li>
+      <li>API keys</li>
+      <li>Reputation system</li>
+      <li>Drone proof-of-concept</li>
+    </ul>
+  </div>
+  <div class="phase">
+    <div class="when">6–12 months</div>
+    <div class="what">v5 — Network</div>
+    <ul>
+      <li>Trust graph</li>
+      <li>Blockchain anchoring</li>
+      <li>W3C credentials</li>
+      <li>NGO partnerships</li>
+    </ul>
+  </div>
+  <div class="phase">
+    <div class="when">Long term</div>
+    <div class="what">v6 — Zero Knowledge</div>
+    <ul>
+      <li>ZK proofs</li>
+      <li>Full privacy layer</li>
+      <li>Global trust primitive</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
