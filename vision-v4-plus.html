@@ -58,6 +58,16 @@
 
     .connector { text-align: center; color: #444; font-size: 18px; margin: -4px 0; }
 
+    /* Weighting tables */
+    .weights { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); }
+    .weights-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #555; margin-bottom: 10px; }
+    .w-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .w-label { width: 200px; font-size: 11px; color: #888; flex-shrink: 0; }
+    .w-track { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; overflow: hidden; }
+    .w-fill { height: 100%; border-radius: 5px; }
+    .w-pts { font-size: 10px; color: #555; width: 40px; text-align: right; flex-shrink: 0; }
+    .w-new { font-size: 10px; color: #4caf6e; margin-left: 4px; }
+
     .timeline { max-width: 960px; margin: 24px auto 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
     .phase { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 14px; }
     .phase .when { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #666; margin-bottom: 6px; }
@@ -87,6 +97,14 @@
       <span class="feat">Embeddable widget</span>
       <span class="feat">Age-limited verification</span>
     </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 20 pts</div>
+      <div class="w-row"><div class="w-label">🔐 Signatures (×2 each)</div><div class="w-track"><div class="w-fill" style="width:30%;background:#2d7a3a"></div></div><div class="w-pts">6 pts</div></div>
+      <div class="w-row"><div class="w-label">🔗 Hash integrity (×1)</div><div class="w-track"><div class="w-fill" style="width:20%;background:#1a3a8f"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">🧲 Cross-session binding (×1)</div><div class="w-track"><div class="w-fill" style="width:20%;background:#7b3a00"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">📍 Co-presence GPS+time (×2)</div><div class="w-track"><div class="w-fill" style="width:25%;background:#8b0000"></div></div><div class="w-pts">5 pts</div></div>
+      <div class="w-row"><div class="w-label">🕐 Age check (×1)</div><div class="w-track"><div class="w-fill" style="width:5%;background:#555"></div></div><div class="w-pts">1 pt</div></div>
+    </div>
   </div>
 
   <div class="connector">↓</div>
@@ -104,6 +122,17 @@
       <span class="feat">Server-side widget validation</span>
       <span class="feat">Developer API key system</span>
     </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 26 pts (+6 new)</div>
+      <div class="w-row"><div class="w-label">🔐 Signatures (×2)</div><div class="w-track"><div class="w-fill" style="width:23%;background:#2d7a3a"></div></div><div class="w-pts">6 pts</div></div>
+      <div class="w-row"><div class="w-label">🔗 Hash integrity (×1)</div><div class="w-track"><div class="w-fill" style="width:15%;background:#1a3a8f"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">🧲 Cross-session binding (×1)</div><div class="w-track"><div class="w-fill" style="width:15%;background:#7b3a00"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">📍 Co-presence (×2)</div><div class="w-track"><div class="w-fill" style="width:19%;background:#8b0000"></div></div><div class="w-pts">5 pts</div></div>
+      <div class="w-row"><div class="w-label">🕐 Age check (×1)</div><div class="w-track"><div class="w-fill" style="width:4%;background:#555"></div></div><div class="w-pts">1 pt</div></div>
+      <div class="w-row"><div class="w-label">📋 Receipt history depth (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:8%;background:#4a6cf7"></div></div><div class="w-pts">2 pts</div></div>
+      <div class="w-row"><div class="w-label">🌍 Location diversity (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:8%;background:#4a6cf7"></div></div><div class="w-pts">2 pts</div></div>
+      <div class="w-row"><div class="w-label">📱 Device consistency (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:8%;background:#4a6cf7"></div></div><div class="w-pts">2 pts</div></div>
+    </div>
   </div>
 
   <div class="connector">↓</div>
@@ -119,6 +148,15 @@
       <span class="feat">Community vouching</span>
       <span class="feat">Trust score decay over time</span>
       <span class="feat">Sybil resistance via graph depth</span>
+    </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 34 pts (+8 new)</div>
+      <div class="w-row"><div class="w-label">🔐 Signatures + integrity + binding</div><div class="w-track"><div class="w-fill" style="width:41%;background:#2d7a3a"></div></div><div class="w-pts">14 pts</div></div>
+      <div class="w-row"><div class="w-label">📍 Co-presence + age</div><div class="w-track"><div class="w-fill" style="width:18%;background:#8b0000"></div></div><div class="w-pts">6 pts</div></div>
+      <div class="w-row"><div class="w-label">📋 History + diversity + device</div><div class="w-track"><div class="w-fill" style="width:18%;background:#4a6cf7"></div></div><div class="w-pts">6 pts</div></div>
+      <div class="w-row"><div class="w-label">🤝 Transitive trust score (×2) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:12%;background:#f0a500"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">👥 Community vouching (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:6%;background:#f0a500"></div></div><div class="w-pts">2 pts</div></div>
+      <div class="w-row"><div class="w-label">🕸️ Graph depth / Sybil resist (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:6%;background:#f0a500"></div></div><div class="w-pts">2 pts</div></div>
     </div>
   </div>
 
@@ -137,6 +175,12 @@
       <span class="feat">Smart contract gating</span>
       <span class="feat">DAO membership proof</span>
     </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 40 pts (+6 new)</div>
+      <div class="w-row"><div class="w-label">All previous checks</div><div class="w-track"><div class="w-fill" style="width:85%;background:#444"></div></div><div class="w-pts">34 pts</div></div>
+      <div class="w-row"><div class="w-label">⛓️ On-chain anchor verified (×2) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:10%;background:#c050f0"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">🪪 W3C credential validity (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:5%;background:#c050f0"></div></div><div class="w-pts">2 pts</div></div>
+    </div>
   </div>
 
   <div class="connector">↓</div>
@@ -154,6 +198,12 @@
       <span class="feat">Field worker verification</span>
       <span class="feat">Anti-corruption receipts</span>
     </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 46 pts (+6 new)</div>
+      <div class="w-row"><div class="w-label">All previous checks</div><div class="w-track"><div class="w-fill" style="width:87%;background:#444"></div></div><div class="w-pts">40 pts</div></div>
+      <div class="w-row"><div class="w-label">🤖 Device/hardware attestation (×2) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:9%;background:#00c8c8"></div></div><div class="w-pts">4 pts</div></div>
+      <div class="w-row"><div class="w-label">📦 Delivery confirmation (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:4%;background:#00c8c8"></div></div><div class="w-pts">2 pts</div></div>
+    </div>
   </div>
 
   <div class="connector">↓</div>
@@ -168,6 +218,12 @@
       <span class="feat">Anonymous credential system</span>
       <span class="feat">Privacy-preserving trust</span>
       <span class="feat">zk-SNARKs / Circom</span>
+    </div>
+    <div class="weights">
+      <div class="weights-title">Score at this layer — max 54 pts (+8 new) — the ceiling</div>
+      <div class="w-row"><div class="w-label">All previous checks</div><div class="w-track"><div class="w-fill" style="width:85%;background:#444"></div></div><div class="w-pts">46 pts</div></div>
+      <div class="w-row"><div class="w-label">🔏 ZK proof validity (×3) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:11%;background:#f05050"></div></div><div class="w-pts">6 pts</div></div>
+      <div class="w-row"><div class="w-label">🕵️ Privacy credential (×1) <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:4%;background:#f05050"></div></div><div class="w-pts">2 pts</div></div>
     </div>
   </div>
 
