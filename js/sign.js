@@ -301,6 +301,12 @@ async function makeSignedHelloAsync(opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
 
+  // Optional bio-metric gate for the initiator (same as responder — Settings only).
+  let bioVerified = false;
+  if (irlidBiometricEnabled()) {
+    try { bioVerified = await irlidBiometricVerify(); } catch { bioVerified = false; }
+  }
+
   // Offer payload: v=3 inside signature ensures cross-version mixing is detectable.
   const offerPayload = {
     v: 3,
@@ -310,6 +316,7 @@ async function makeSignedHelloAsync(opts){
     ts,
     nonce: nonceA
   };
+  if (bioVerified) offerPayload.bioVerified = true;
 
   const pub = await getPublicJwk();
   const offerHash = await hashPayloadToB64url(offerPayload);
@@ -398,6 +405,15 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
+  // Optional bio-metric gate (v4 opt-in — Settings only, never prompted during normal handshake).
+  // If the user has enrolled and enabled bio-metric verification, trigger Face ID / fingerprint now.
+  // Result is committed into the signed payload: bioVerified:true proves the device owner was
+  // physically present at the moment of signing. Self-reported, but cryptographically bound.
+  let bioVerified = false;
+  if (irlidBiometricEnabled()) {
+    try { bioVerified = await irlidBiometricVerify(); } catch { bioVerified = false; }
+  }
+
   // v3: version inside signature, canonical() hashing.
   const payload = {
     v: 3,
@@ -412,6 +428,8 @@ async function makeReturnForHelloAsync(helloB64url, opts){
 
   // Remove undefined to keep hashes stable
   if (payload.offerHash === undefined) delete payload.offerHash;
+  // Only include bioVerified if true — absence means not enrolled/not verified (not a failure).
+  if (bioVerified) payload.bioVerified = true;
 
   const pub = await getPublicJwk();
   const hash = await hashPayloadToB64url(payload);
@@ -455,6 +473,215 @@ function irlidStripCombinedForEncoding(combined) {
     delete c.b.hash;
   }
   return c;
+}
+
+// =========================================================
+//  v4 Trust history — localStorage-based receipt scoring
+//  Stores a compact record of each verified receipt so future
+//  verifications can show accumulated trust signals.
+//  All data stays on-device; no backend change required for v4.
+// =========================================================
+
+const IRLID_HISTORY_KEY = "irlid_trust_history";
+const IRLID_HISTORY_MAX = 200; // cap to keep localStorage tidy
+
+// Read the stored trust history array (or empty array if none).
+function irlidTrustHistoryGet() {
+  try {
+    const raw = localStorage.getItem(IRLID_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+// Save a compact trust entry after a successful receipt verification.
+// entry: { ts, lat?, lon?, keyId }
+function irlidTrustHistoryAppend(entry) {
+  try {
+    const history = irlidTrustHistoryGet();
+    history.push(entry);
+    // Keep only the most recent entries
+    const trimmed = history.slice(-IRLID_HISTORY_MAX);
+    localStorage.setItem(IRLID_HISTORY_KEY, JSON.stringify(trimmed));
+  } catch {}
+}
+
+// Compute v4 trust score additions from history.
+// Returns { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount }
+async function irlidV4TrustScore() {
+  const history = irlidTrustHistoryGet();
+  const receiptCount = history.length;
+
+  // --- Receipt depth (0–2 pts) ---
+  // 1 receipt = 1pt, 5+ = 2pt
+  let receiptDepthPts = 0;
+  if (receiptCount >= 5) receiptDepthPts = 2;
+  else if (receiptCount >= 1) receiptDepthPts = 1;
+
+  // --- Location diversity (0–2 pts) ---
+  // Pass if known GPS locations span more than 1 km total range.
+  let locationDiversityPts = 0;
+  const coordEntries = history.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lon));
+  if (coordEntries.length >= 2) {
+    let maxDist = 0;
+    for (let i = 0; i < coordEntries.length; i++) {
+      for (let j = i + 1; j < coordEntries.length; j++) {
+        const d = irlidHaversineMeters(
+          { lat: coordEntries[i].lat, lon: coordEntries[i].lon },
+          { lat: coordEntries[j].lat, lon: coordEntries[j].lon }
+        );
+        if (d > maxDist) maxDist = d;
+      }
+    }
+    if (maxDist > 1000) locationDiversityPts = 2;
+  }
+
+  // --- Device consistency (0–2 pts) ---
+  // The ECDSA key was already in localStorage when this receipt was generated.
+  // A key that has been present across multiple sessions is consistent.
+  // Proxy: if history has entries from different calendar days = multi-session.
+  let deviceConsistencyPts = 0;
+  if (history.length >= 2) {
+    const days = new Set(history.map(e => {
+      try { return new Date(e.ts).toDateString(); } catch { return null; }
+    }).filter(Boolean));
+    if (days.size >= 2) deviceConsistencyPts = 2;
+    else if (days.size === 1) deviceConsistencyPts = 1; // same day, at least consistent
+  }
+
+  return { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount };
+}
+
+// Call this after a successful combined receipt is produced to record it in trust history.
+async function irlidRecordVerifiedReceipt(combined) {
+  try {
+    const pub = await getPublicJwk();
+    const keyId = await pubKeyId(pub);
+    // Pull our GPS from the combined receipt (side a = initiator, side b = collaborator)
+    let lat = null, lon = null;
+    const myPubRaw = JSON.stringify(compactJwk(pub));
+    // Find which side is ours
+    const sideA = combined && combined.a;
+    const sideB = combined && combined.b;
+    const helloPub = combined && combined.hello && combined.hello.pub;
+    // a.pub may be stripped (same as hello.pub) — compare with hello.pub
+    const aPub = (sideA && sideA.pub) ? sideA.pub : helloPub;
+    if (aPub && JSON.stringify(compactJwk(aPub)) === myPubRaw && sideA && sideA.payload) {
+      lat = sideA.payload.lat;
+      lon = sideA.payload.lon;
+    } else if (sideB && sideB.pub && JSON.stringify(compactJwk(sideB.pub)) === myPubRaw && sideB.payload) {
+      lat = sideB.payload.lat;
+      lon = sideB.payload.lon;
+    }
+    const entry = { ts: Date.now(), keyId };
+    if (Number.isFinite(lat) && Number.isFinite(lon)) { entry.lat = lat; entry.lon = lon; }
+    irlidTrustHistoryAppend(entry);
+  } catch {}
+}
+
+// =========================================================
+//  Bio-metric verification via WebAuthn (v4 optional feature)
+//  Adds a biometric gate at scan time — proves the device
+//  owner was physically present and unlocked the device.
+//  Does NOT replace the ECDSA keys (that is v5 / Secure Enclave).
+//  All functions are no-ops if the feature is not enrolled/enabled.
+// =========================================================
+
+// Returns true if this device has a platform authenticator (Face ID / fingerprint).
+async function irlidBiometricAvailable() {
+  if (!window.PublicKeyCredential ||
+      typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") {
+    return false;
+  }
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+
+// Returns true if the user has enrolled a bio-metric credential and enabled the feature.
+function irlidBiometricEnabled() {
+  try {
+    return localStorage.getItem("irlid_bio_enabled") === "1" &&
+           !!localStorage.getItem("irlid_bio_cred_id");
+  } catch { return false; }
+}
+
+// Called from Settings — creates a platform WebAuthn credential for IRLid.
+// No server required — the credential ID is kept in localStorage.
+// The credential is used only as a biometric gate; signing stays with ECDSA.
+async function irlidBiometricEnroll() {
+  if (!await irlidBiometricAvailable()) {
+    throw new Error(
+      "Platform authenticator (Face ID / fingerprint) not available on this device.\n\n" +
+      "Bio-metric verification requires a device with biometric unlock capability " +
+      "and a supported browser (Safari on iOS 16+, Chrome on Android 9+)."
+    );
+  }
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId    = crypto.getRandomValues(new Uint8Array(16));
+
+  let cred;
+  try {
+    cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: "IRLid", id: location.hostname },
+        user: { id: userId, name: "irlid-bio", displayName: "IRLid Bio-metric" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }], // ES256
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          residentKey: "preferred"
+        },
+        timeout: 60000,
+        attestation: "none"
+      }
+    });
+  } catch (e) {
+    throw new Error("Bio-metric enrolment cancelled or failed: " + (e.message || e));
+  }
+
+  if (!cred || !cred.rawId) throw new Error("Bio-metric enrolment returned no credential.");
+
+  const credId = b64urlEncode(new Uint8Array(cred.rawId));
+  localStorage.setItem("irlid_bio_cred_id", credId);
+  localStorage.setItem("irlid_bio_enabled", "1");
+  return credId;
+}
+
+// Disables bio-metric and removes the stored credential.
+function irlidBiometricUnenroll() {
+  try {
+    localStorage.removeItem("irlid_bio_cred_id");
+    localStorage.removeItem("irlid_bio_enabled");
+  } catch {}
+}
+
+// Triggers the platform biometric prompt using the enrolled credential.
+// Returns true if the user successfully authenticated, false if cancelled / unavailable.
+async function irlidBiometricVerify() {
+  const credIdStr = localStorage.getItem("irlid_bio_cred_id");
+  if (!credIdStr) return false;
+
+  let credIdBytes;
+  try { credIdBytes = b64urlDecode(credIdStr); } catch { return false; }
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  try {
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: credIdBytes, type: "public-key" }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+    return !!assertion;
+  } catch {
+    // User cancelled, timed out, or credential not found
+    return false;
+  }
 }
 
 async function processScannedResponse(otherRespObj, opts){

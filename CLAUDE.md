@@ -110,12 +110,42 @@ Key v3 changes from v2:
 
 ## Pending Work (priority order)
 
-1. **Friday — talk to Wisdom** about drone delivery + IRLid (pitch-humanitarian.html)
-2. **v4 implementation** — weighted scoring, Secure Enclave keys, API key system
-3. **Blog post update** — add widget, vision, drone use case
-4. **PROTOCOL.md** — verify point values match implementation
+1. **Tomorrow (Friday) — talk to Wisdom** about drone delivery + IRLid (pitch-humanitarian.html) — if he's in
+2. **v4 implementation** — see detailed brief below
+3. **Post drafts ready to publish** — r/privacy, r/webdev, LinkedIn humanitarian, WFP application — all in PROMOTION.md
+4. **Patreon** — "IRLid is Going Somewhere — Here's Where" post published ✅
 5. **HN/IH karma** — build up before reposting
-6. **r/privacy, r/webdev** — posts drafted, not yet submitted
+6. **Gates Foundation Grand Challenges** — check gcgh.grandchallenges.org, closes 28 April
+
+## v4 Implementation Brief
+
+**Scope (deliberately narrow):** Trust history scoring only. No Secure Enclave, no bio-metrics, no face capture. Ship fast, ship clean.
+
+**Score target:** 30/100 (up from 20/100). Adds 10 points via 3 new checks.
+
+**What to build:**
+
+| Feature | Detail | Points |
+|---------|--------|--------|
+| Receipt history depth | Count of verified receipts for this device, stored in localStorage. More receipts = higher trust. Curve: 1 receipt = 1pt, 5+ = 2pt | 2 pts |
+| Location diversity | Are receipts from meaningfully different GPS clusters? Simple: if receipts span >1km total range = pass | 2 pts |
+| Device consistency | Same browser fingerprint / key across sessions. Key already stored in localStorage — check if it matches previous sessions | 2 pts |
+| (remaining 4pts) | Existing checks already implemented — just need score recalculation | — |
+
+**Files to touch:**
+- `js/sign.js` — add receipt history storage after successful verification
+- `receipt.html` — display updated score with v4 breakdown
+- `irlid-api/src/index.js` — store receipt count per pubkey in D1 (optional — can do localStorage-only first pass)
+- `verify-visual.html` — add v4 score row
+- `PROTOCOL.md` — update score table (already done)
+
+**First pass approach (localStorage only, no backend change):**
+1. On successful receipt verification, increment a counter in localStorage keyed by the device's public key
+2. Store array of GPS coords from past receipts
+3. On next verification, read history and add bonus points to score
+4. Display "Trust level: X receipts verified" in receipt UI
+
+**API key system** — defer to v4b. Not needed for trust history scoring.
 
 ## Tone Notes
 

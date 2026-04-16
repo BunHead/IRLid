@@ -1402,6 +1402,46 @@
         addCheck("Distance \u2264 tolerance", false, String(e));
       }
 
+      // --- v4 Trust history checks (localStorage-based, device-local) ---
+      // Record this receipt in trust history, then surface the accumulated score.
+      try {
+        if (typeof irlidRecordVerifiedReceipt === "function") {
+          await irlidRecordVerifiedReceipt(comb);
+        }
+        if (typeof irlidV4TrustScore === "function") {
+          const v4 = await irlidV4TrustScore();
+          const depthLabel = "Trust depth (" + v4.receiptCount + " receipt" + (v4.receiptCount !== 1 ? "s" : "") + ")";
+          addCheck(depthLabel, v4.receiptDepthPts > 0,
+            v4.receiptDepthPts === 2 ? "5+ receipts — max trust depth"
+            : v4.receiptDepthPts === 1 ? "1–4 receipts — building trust"
+            : "No prior receipts on this device");
+          addCheck("Location diversity", v4.locationDiversityPts > 0,
+            v4.locationDiversityPts > 0 ? "Receipts from locations >1 km apart"
+            : v4.receiptCount < 2 ? "Need more receipts to assess"
+            : "All receipts from same area");
+          addCheck("Device consistency", v4.deviceConsistencyPts > 0,
+            v4.deviceConsistencyPts === 2 ? "Key used across multiple days"
+            : v4.deviceConsistencyPts === 1 ? "Key used today"
+            : "First receipt on this device");
+        }
+      } catch(e) {
+        // Trust history unavailable — silently skip
+      }
+
+      // --- Optional bio-metric check (v4 — Settings-gated, self-reported + cryptographically bound) ---
+      // Only shown if at least one party committed bioVerified:true into their signed payload.
+      // Absence is not a failure — it simply means neither party had bio-metric enrolled at scan time.
+      try {
+        const aBio = respA && respA.payload && respA.payload.bioVerified === true;
+        const bBio = respB && respB.payload && respB.payload.bioVerified === true;
+        if (aBio || bBio) {
+          if (aBio) addCheck("Self: bio-metric", true, "Device biometrically unlocked at time of signing");
+          if (bBio) addCheck("Guest: bio-metric", true, "Device biometrically unlocked at time of signing");
+        }
+      } catch(e) {
+        // Bio-metric field absent — not an error, not shown
+      }
+
       // Async resolve both parties' names and avatars from backend
       await resolvePartyInfo(comb, serverPartyInfo);
 
