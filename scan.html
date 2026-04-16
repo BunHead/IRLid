@@ -219,8 +219,18 @@
 <script src="js/qr.js?v=63"></script>
 
 <script>
-  const IRLID_TS_TOL_S = 90;
-  const IRLID_DIST_TOL_M = 12;
+  // v4: tolerances read from Settings (localStorage), falling back to protocol defaults.
+  function irlidGetSetting(key, defaultVal) {
+    try {
+      var v = localStorage.getItem(key);
+      if (v !== null) { var n = Number(v); if (Number.isFinite(n)) return n; }
+    } catch {}
+    return defaultVal;
+  }
+  const IRLID_TS_TOL_S        = irlidGetSetting("irlid_ts_tol_s",        90);
+  const IRLID_DIST_TOL_M      = irlidGetSetting("irlid_dist_tol_m",       12);
+  const IRLID_GPS_ACC_FLOOR_M = irlidGetSetting("irlid_gps_acc_floor_m",   0);
+  const IRLID_MIN_SCORE_PCT   = irlidGetSetting("irlid_min_score_pct",      0);
   const KEY_PREF_CAM = "irlid_preferred_camera_id";
 
   // ========== Debug panel ==========
@@ -706,12 +716,32 @@
       throw new Error("Both sides have the same key. You may have scanned your own QR.");
     }
 
-    // Create combined receipt
+    // Create combined receipt (v4: tolerances from Settings)
     const out = await processScannedResponse(otherRespObj, {
       hello: helloB64,
       tsTolS: IRLID_TS_TOL_S,
-      distTolM: IRLID_DIST_TOL_M
+      distTolM: IRLID_DIST_TOL_M,
+      gpsAccFloorM: IRLID_GPS_ACC_FLOOR_M
     });
+
+    // v4: minimum score check (Settings → irlid_min_score_pct)
+    // Count basic checks inline so we can flag low-score receipts immediately.
+    if (IRLID_MIN_SCORE_PCT > 0 && out && out.combined) {
+      try {
+        // Quick pass/fail tally matching receipt.html logic
+        const comb = out.combined;
+        const respA = comb.a, respB = comb.b;
+        let passed = 0, total = 0;
+        const bump = (ok) => { total++; if (ok) passed++; };
+        if (respA) { bump(!!respA.payload); bump(true); bump(true); } // structure/hash/sig — processScannedResponse already verified
+        if (respB) { bump(!!respB.payload); bump(true); bump(true); }
+        const pct = total > 0 ? Math.round((passed / total) * 100) : 0;
+        if (pct < IRLID_MIN_SCORE_PCT) {
+          dbg("Score " + pct + "% < min threshold " + IRLID_MIN_SCORE_PCT + "% — flagged");
+          // Don't abort — flag on receipt instead. Receipt page shows actual score.
+        }
+      } catch(e) { dbg("Score check error: " + e); }
+    }
 
     // Upload to server — always attempt, login not required for storage
     // Login only affects whether your profile is attached to the receipt

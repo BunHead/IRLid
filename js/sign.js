@@ -298,6 +298,18 @@ async function makeSignedHelloAsync(opts){
     throw new Error("Invalid geolocation coordinates.");
   }
 
+  // v4: GPS accuracy floor (Settings → irlid_gps_acc_floor_m, 0 = any)
+  try {
+    const floor = Number(localStorage.getItem("irlid_gps_acc_floor_m") || 0);
+    if (floor > 0 && Number.isFinite(acc) && acc > floor) {
+      throw new Error(
+        "GPS accuracy too low (" + acc + " m). " +
+        "Your Settings require ≤ " + floor + " m. " +
+        "Try moving outdoors or adjusting the accuracy floor in Settings."
+      );
+    }
+  } catch(e) { if (e.message && e.message.startsWith("GPS accuracy")) throw e; }
+
   const ts = Math.floor(Date.now() / 1000);
   const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
 
@@ -401,6 +413,18 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     throw new Error("Invalid geolocation coordinates.");
   }
+
+  // v4: GPS accuracy floor (Settings → irlid_gps_acc_floor_m, 0 = any)
+  try {
+    const floor = Number(localStorage.getItem("irlid_gps_acc_floor_m") || 0);
+    if (floor > 0 && Number.isFinite(acc) && acc > floor) {
+      throw new Error(
+        "GPS accuracy too low (" + acc + " m). " +
+        "Your Settings require ≤ " + floor + " m. " +
+        "Try moving outdoors or adjusting the accuracy floor in Settings."
+      );
+    }
+  } catch(e) { if (e.message && e.message.startsWith("GPS accuracy")) throw e; }
 
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];

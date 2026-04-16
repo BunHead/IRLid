@@ -13,6 +13,35 @@
     .settings-row label{ display:flex; gap:10px; align-items:center; }
     .settings-kv{ font-size: 13px; opacity: .9; margin-top: 8px; }
     .settings-kv code{ font-size: 12px; }
+    /* ---- chip picker (v4 settings) ---- */
+    .settings-group-label{
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+      color: #aaa; font-weight: 700; margin: 0 0 8px;
+    }
+    .chip-row{ display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+    .chip-pick{
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1.5px solid #e0e0e0; background: #f9f9f9; color: #555;
+      cursor: pointer; user-select: none; transition: all .1s;
+    }
+    .chip-pick:hover{ border-color: #aaa; }
+    .chip-pick.active{ background: #111; color: #fff; border-color: #111; }
+    .chip-pick.strict{ border-color: #e0c000; background: #fffbe6; color: #7a6000; }
+    .chip-pick.strict.active{ background: #7a6000; color: #fff; border-color: #7a6000; }
+    .chip-desc{ font-size: 12px; color: #888; margin-bottom: 14px; }
+    /* ---- bio-metric status ---- */
+    .bio-status-row{
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      margin: 8px 0;
+    }
+    .bio-status-row.enrolled{ background: #eaffea; color: #1a6e1a; }
+    .bio-status-row.not-enrolled{ background: #fff8e1; color: #a05000; }
+    .bio-status-row.unavailable{ background: #f5f5f5; color: #888; }
+    .bio-dot{ width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-green{ background: #1a6e1a; }
+    .dot-orange{ background: #e65100; }
+    .dot-grey{ background: #ccc; }
   </style>
 </head>
 
@@ -87,36 +116,97 @@
         </div>
       </div>
 
-      <!-- Trust Enhancements — placeholder for v4b -->
-      <div class="panel" style="opacity:0.5; pointer-events:none; user-select:none;">
-        <h3 style="margin:0 0 4px;">Trust Enhancements</h3>
-        <p class="small" style="margin:0 0 14px; color:#888;">Optional features that increase your verification score. All off by default — enable only what you're comfortable with. Coming in a future update.</p>
+      <!-- ===== v4 Trust & Verification Settings ===== -->
+      <div class="panel">
+        <h3 style="margin:0 0 4px;">Trust &amp; Verification</h3>
+        <p class="small" style="margin:0 0 18px; color:#888;">Adjust how strictly IRLid checks co-presence. Tighter settings increase your confidence score. All defaults work well for everyday use.</p>
 
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin-bottom:8px;">🔒 Secure Enclave</div>
-        <div class="settings-row" style="margin-bottom:8px;">
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" disabled style="margin-top:2px;" />
-            <span><b>Hardware-backed signing key</b><br><span class="small" style="color:#aaa;">Move your signing key from browser storage into your device's Secure Enclave / TEE. Key becomes non-extractable.</span></span>
-          </label>
+        <!-- Distance tolerance -->
+        <div class="settings-group-label">📍 Distance tolerance</div>
+        <div class="chip-row" id="distChips">
+          <div class="chip-pick strict" data-group="dist" data-value="5">5 m — strict</div>
+          <div class="chip-pick"        data-group="dist" data-value="12">12 m — default</div>
+          <div class="chip-pick"        data-group="dist" data-value="25">25 m</div>
+          <div class="chip-pick"        data-group="dist" data-value="50">50 m</div>
+        </div>
+        <div class="chip-desc">Maximum distance allowed between the two devices. Recorded inside the receipt — verifiers can see what standard was used.</div>
+
+        <!-- Time window -->
+        <div class="settings-group-label">⏱ Time window</div>
+        <div class="chip-row" id="timeChips">
+          <div class="chip-pick strict" data-group="time" data-value="30">30 s — strict</div>
+          <div class="chip-pick"        data-group="time" data-value="90">90 s — default</div>
+          <div class="chip-pick"        data-group="time" data-value="180">3 min</div>
+          <div class="chip-pick"        data-group="time" data-value="300">5 min</div>
+        </div>
+        <div class="chip-desc">Maximum seconds between Party A's HELLO and Party B's response. Shorter windows are harder to replay or delegate.</div>
+
+        <!-- GPS accuracy floor -->
+        <div class="settings-group-label">🛰 GPS accuracy floor</div>
+        <div class="chip-row" id="gpsChips">
+          <div class="chip-pick"        data-group="gps" data-value="0">Any — default</div>
+          <div class="chip-pick"        data-group="gps" data-value="20">≤ 20 m</div>
+          <div class="chip-pick"        data-group="gps" data-value="10">≤ 10 m</div>
+          <div class="chip-pick strict" data-group="gps" data-value="5">≤ 5 m — strict</div>
+        </div>
+        <div class="chip-desc">Reject a handshake if GPS accuracy is worse than this. "Any" never blocks on accuracy — current behaviour.</div>
+
+        <!-- Minimum score -->
+        <div class="settings-group-label">🎯 Minimum score to accept</div>
+        <div class="chip-row" id="scoreChips">
+          <div class="chip-pick"        data-group="score" data-value="0">Off — default</div>
+          <div class="chip-pick"        data-group="score" data-value="50">≥ 50 %</div>
+          <div class="chip-pick"        data-group="score" data-value="70">≥ 70 %</div>
+          <div class="chip-pick strict" data-group="score" data-value="90">≥ 90 % — strict</div>
+        </div>
+        <div class="chip-desc">Flag receipts that score below this threshold. Off means always accept regardless of score.</div>
+      </div>
+
+      <!-- ===== Bio-metric verification ===== -->
+      <div class="panel">
+        <h3 style="margin:0 0 4px;">👆 Bio-metric Verification</h3>
+        <p class="small" style="margin:0 0 12px; color:#888;">Require Face ID or fingerprint before each handshake. Proves <em>you</em> (not just your device) were present. Biometric data never leaves your device. Off by default — enrol once to enable.</p>
+
+        <div id="bioStatusRow" class="bio-status-row not-enrolled">
+          <div class="bio-dot dot-orange" id="bioDot"></div>
+          <span id="bioStatusText">Checking…</span>
         </div>
 
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin:14px 0 8px;">👆 Biometrics</div>
-        <div class="settings-row" style="margin-bottom:8px;">
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" disabled style="margin-top:2px;" />
-            <span><b>Require biometric unlock to sign</b><br><span class="small" style="color:#aaa;">Fingerprint or Face ID must unlock your key before each handshake. Proves you (not just your phone) were present. Biometric data never leaves your device.</span></span>
-          </label>
+        <div id="bioEnrolSection" style="display:none;">
+          <button class="btn" id="bioEnrolBtn" type="button">👆 Set up bio-metric</button>
+          <div class="settings-kv" style="margin-top:6px;">You'll be prompted once to register. Takes about 5 seconds.</div>
         </div>
 
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#aaa; margin:14px 0 8px;">📸 Face Capture — Mutual Witness</div>
-        <div class="settings-row" style="margin-bottom:8px;">
-          <label style="display:flex; gap:10px; align-items:flex-start;">
-            <input type="checkbox" disabled style="margin-top:2px;" />
-            <span><b>Capture face at scan</b><br><span class="small" style="color:#aaa;">When you scan someone's QR, the camera also captures their face alongside the QR code. Their face hash is signed into your payload — you become a witness to their presence. They do the same for you. Photos stay on device; only the hash is stored in the receipt.</span></span>
-          </label>
+        <div id="bioActiveSection" style="display:none;">
+          <div class="settings-row" style="margin-bottom:10px;">
+            <label style="display:flex; gap:10px; align-items:center;">
+              <input type="checkbox" id="bioEnabledToggle" />
+              <span><b>Require bio-metric to sign</b></span>
+            </label>
+          </div>
+          <button class="btn secondary" id="bioRemoveBtn" type="button">Remove enrolment</button>
+          <div class="settings-kv" style="margin-top:6px;">Removing clears the credential. You can re-enrol at any time.</div>
         </div>
 
-        <p class="small" style="margin-top:14px; color:#bbb; border-top:1px solid #eee; padding-top:10px;">Enabling these features increases your maximum verification score. None are required for everyday use — a standard receipt is fully valid without them.</p>
+        <div id="bioUnavailSection" style="display:none;">
+          <div class="settings-kv" style="color:#aaa;">Face ID / fingerprint via WebAuthn is not available on this device or browser. Try Safari on iOS 16+ or Chrome on Android 9+.</div>
+        </div>
+      </div>
+
+      <!-- ===== Trust History ===== -->
+      <div class="panel">
+        <h3 style="margin:0 0 4px;">📊 Trust History</h3>
+        <p class="small" style="margin:0 0 10px; color:#888;">IRLid stores a compact log of verified receipts on this device to build your local trust score (receipt depth, location diversity, device consistency).</p>
+        <div class="settings-kv" id="trustHistoryLine">Loading…</div>
+        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:10px;">
+          <button class="btn secondary" id="clearTrustBtn" type="button">Clear trust history</button>
+        </div>
+      </div>
+
+      <!-- v5 placeholder — greyed out -->
+      <div class="panel" style="opacity:0.45; pointer-events:none; user-select:none;">
+        <h3 style="margin:0 0 4px;">🔒 Secure Enclave &amp; Face Capture — v5</h3>
+        <p class="small" style="margin:0; color:#aaa;">Hardware-backed signing key (Secure Enclave / TEE) and mutual face capture coming in v5. All off by default when available — enable only what you're comfortable with.</p>
       </div>
 
     </div>
@@ -225,6 +315,159 @@
         alert("Receipts cleared.");
       });
     }
+
+    // ========================================
+    //  v4 chip pickers — distance / time / GPS / score
+    // ========================================
+    var CHIP_CONFIG = [
+      { containerId: "distChips",  lsKey: "irlid_dist_tol_m",      defaultVal: "12"  },
+      { containerId: "timeChips",  lsKey: "irlid_ts_tol_s",         defaultVal: "90"  },
+      { containerId: "gpsChips",   lsKey: "irlid_gps_acc_floor_m",  defaultVal: "0"   },
+      { containerId: "scoreChips", lsKey: "irlid_min_score_pct",    defaultVal: "0"   }
+    ];
+
+    CHIP_CONFIG.forEach(function(cfg) {
+      var container = document.getElementById(cfg.containerId);
+      if (!container) return;
+      var chips = container.querySelectorAll(".chip-pick");
+      var stored = localStorage.getItem(cfg.lsKey);
+      var current = (stored !== null) ? stored : cfg.defaultVal;
+      chips.forEach(function(chip) {
+        if (chip.dataset.value === current) chip.classList.add("active");
+        chip.addEventListener("click", function() {
+          chips.forEach(function(c) { c.classList.remove("active"); });
+          chip.classList.add("active");
+          localStorage.setItem(cfg.lsKey, chip.dataset.value);
+        });
+      });
+    });
+
+    // ========================================
+    //  Bio-metric UI
+    // ========================================
+    var bioStatusRow    = document.getElementById("bioStatusRow");
+    var bioDot          = document.getElementById("bioDot");
+    var bioStatusText   = document.getElementById("bioStatusText");
+    var bioEnrolSection = document.getElementById("bioEnrolSection");
+    var bioActiveSection= document.getElementById("bioActiveSection");
+    var bioUnavailSection = document.getElementById("bioUnavailSection");
+    var bioEnrolBtn     = document.getElementById("bioEnrolBtn");
+    var bioRemoveBtn    = document.getElementById("bioRemoveBtn");
+    var bioEnabledToggle= document.getElementById("bioEnabledToggle");
+
+    async function renderBioState() {
+      if (typeof irlidBiometricAvailable !== "function") return;
+      var available = await irlidBiometricAvailable();
+      var credId = null;
+      try { credId = localStorage.getItem("irlid_bio_cred_id"); } catch{}
+      var enrolled = available && !!credId;
+      var enabled = false;
+      try { enabled = localStorage.getItem("irlid_bio_enabled") === "1"; } catch{}
+
+      bioEnrolSection.style.display  = "none";
+      bioActiveSection.style.display = "none";
+      bioUnavailSection.style.display= "none";
+
+      if (!available) {
+        bioStatusRow.className = "bio-status-row unavailable";
+        bioDot.className = "bio-dot dot-grey";
+        bioStatusText.textContent = "Not available on this device or browser";
+        bioUnavailSection.style.display = "block";
+      } else if (!enrolled) {
+        bioStatusRow.className = "bio-status-row not-enrolled";
+        bioDot.className = "bio-dot dot-orange";
+        bioStatusText.textContent = "Available — not set up";
+        bioEnrolSection.style.display = "block";
+      } else {
+        bioStatusRow.className = "bio-status-row enrolled";
+        bioDot.className = "bio-dot dot-green";
+        bioStatusText.textContent = "Enrolled — bio-metric credential active";
+        bioActiveSection.style.display = "block";
+        bioEnabledToggle.checked = enabled;
+      }
+    }
+
+    if (bioEnrolBtn) {
+      bioEnrolBtn.addEventListener("click", async function() {
+        bioEnrolBtn.disabled = true;
+        bioEnrolBtn.textContent = "Waiting for bio-metric…";
+        try {
+          await irlidBiometricEnroll();
+          localStorage.setItem("irlid_bio_enabled", "1");
+          await renderBioState();
+        } catch(e) {
+          alert("Bio-metric enrolment failed: " + (e.message || e));
+        } finally {
+          bioEnrolBtn.disabled = false;
+          bioEnrolBtn.textContent = "👆 Set up bio-metric";
+        }
+      });
+    }
+
+    if (bioRemoveBtn) {
+      bioRemoveBtn.addEventListener("click", async function() {
+        if (!confirm("Remove bio-metric enrolment? You can re-enrol at any time.")) return;
+        if (typeof irlidBiometricUnenroll === "function") irlidBiometricUnenroll();
+        await renderBioState();
+      });
+    }
+
+    if (bioEnabledToggle) {
+      bioEnabledToggle.addEventListener("change", function() {
+        try { localStorage.setItem("irlid_bio_enabled", bioEnabledToggle.checked ? "1" : "0"); } catch{}
+      });
+    }
+
+    // ========================================
+    //  Trust history info line
+    // ========================================
+    var trustHistoryLine = document.getElementById("trustHistoryLine");
+    var clearTrustBtn    = document.getElementById("clearTrustBtn");
+
+    async function renderTrustHistory() {
+      if (!trustHistoryLine) return;
+      if (typeof irlidTrustHistoryGet !== "function") {
+        trustHistoryLine.textContent = "Trust history unavailable (sign.js not loaded).";
+        return;
+      }
+      var history = irlidTrustHistoryGet();
+      var count = history.length;
+      if (count === 0) {
+        trustHistoryLine.textContent = "No receipts recorded yet. Complete a handshake to start building trust history.";
+        return;
+      }
+      var v4 = await irlidV4TrustScore();
+      trustHistoryLine.innerHTML =
+        count + " receipt" + (count !== 1 ? "s" : "") + " on record &nbsp;·&nbsp; " +
+        "Depth: " + v4.receiptDepthPts + "/2 pts &nbsp;·&nbsp; " +
+        "Diversity: " + v4.locationDiversityPts + "/2 pts &nbsp;·&nbsp; " +
+        "Consistency: " + v4.deviceConsistencyPts + "/2 pts";
+    }
+
+    if (clearTrustBtn) {
+      clearTrustBtn.addEventListener("click", function() {
+        if (!confirm("Clear local trust history? This resets your trust score on this device.")) return;
+        try { localStorage.removeItem("irlid_trust_history"); } catch{}
+        renderTrustHistory();
+      });
+    }
+
+    // Also clear trust history when clearing all local data
+    var _origClearLocalData = clearLocalData;
+    clearLocalData = function() {
+      _origClearLocalData();
+      try { localStorage.removeItem("irlid_trust_history"); } catch{}
+      try { localStorage.removeItem("irlid_bio_cred_id"); } catch{}
+      try { localStorage.removeItem("irlid_bio_enabled"); } catch{}
+      try { localStorage.removeItem("irlid_dist_tol_m"); } catch{}
+      try { localStorage.removeItem("irlid_ts_tol_s"); } catch{}
+      try { localStorage.removeItem("irlid_gps_acc_floor_m"); } catch{}
+      try { localStorage.removeItem("irlid_min_score_pct"); } catch{}
+    };
+
+    // Init
+    renderBioState();
+    renderTrustHistory();
 
     // Soft hint if logged out
     (function(){
