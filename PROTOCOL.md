@@ -167,11 +167,13 @@ The full 100-point system grows as optional enhancements are enabled:
 |-------|-------------|-------|
 | v3 base | Core cryptographic checks | 20 / 100 |
 | v4 Trust | Receipt history, location diversity, device consistency | 30 / 100 |
-| v4b Optional | Secure Enclave key, biometric signing, mutual face capture | 50 / 100 |
-| v5 Network | Transitive trust graph, community vouching | 65 / 100 |
-| v5 Blockchain | On-chain anchor, W3C Verifiable Credentials | 80 / 100 |
-| v5 IoT/Drones | Hardware attestation, delivery confirmation | 90 / 100 |
-| v6 ZK | Zero-knowledge proof of presence | 100 / 100 |
+| v5 Enhanced security | Secure Enclave key, biometric signing, mutual face capture — all optional, off by default | 50 / 100 |
+| v6 Network | Transitive trust graph, community vouching | 65 / 100 |
+| v6 Blockchain | On-chain anchor, W3C Verifiable Credentials | 80 / 100 |
+| v6 IoT/Drones | Hardware attestation, delivery confirmation | 90 / 100 |
+| v7 ZK | Zero-knowledge proof of presence | 100 / 100 |
+
+**v4 scope:** Trust history scoring only. Secure Enclave, biometrics, and face capture deferred to v5.
 
 All enhancements above v3 base are **optional and off by default**. A standard receipt scoring 20/100 is cryptographically valid and suitable for all everyday use. Higher scores are for extraordinary verification contexts.
 

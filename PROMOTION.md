@@ -196,3 +196,144 @@ cooperative trust model only, fields outside signature scope.
 
 https://irlid.co.uk | PROTOCOL.md on GitHub
 ```
+
+---
+
+## r/privacy Draft
+
+**Title:** I built a way to prove you met someone IRL without bio-metrics, without an app, and without trusting my servers
+
+```
+I made a thing called IRLid. The premise is simple: two people meet in person, scan each other's QR codes in a browser, and both get a cryptographically signed receipt proving they were within 12 metres of each other at the same time.
+
+Here is what I think is the privacy-relevant part:
+
+- No app install. It runs entirely in any phone browser.
+- No bio-metrics. Not required, not collected, not even asked about.
+- Your private key is generated locally and never leaves your device. I cannot see it. Neither can anyone else.
+- The signed receipt is self-verifying. You can check it without IRLid's servers ever being involved. If I disappear tomorrow, your receipts still verify.
+- There is no central database of who met whom. The receipt lives with you.
+
+The honest limitation: GPS coordinates are self-reported by the browser. I do a Haversine distance check on both parties' locations server-side, but I cannot independently verify you are physically where your phone says you are. That is a known constraint of doing this without hardware attestation, and I am not pretending otherwise.
+
+The signing uses ECDSA P-256 via the Web Crypto API, SHA-256 over canonically sorted JSON. The full protocol is documented at the repo.
+
+It is live at irlid.co.uk, open source at github.com/BunHead/IRLid. Works on any phone browser, no account needed.
+
+I built this as a solo developer and I am genuinely interested in critique — especially from people who think harder about threat models than I do. What would you want to see before trusting something like this?
+```
+
+---
+
+## r/webdev Draft
+
+**Title:** I built an embeddable iframe that proves a user has physically met another real person — like reCAPTCHA but the challenge is reality
+
+```
+I have been working on IRLid, a browser-based proof-of-co-presence tool. Two people meet in person, scan each other's QR codes, get a cryptographically signed receipt confirming they were within 12 metres of each other at the same time. ECDSA P-256, SHA-256 over canonical JSON, no app required.
+
+The developer angle: I shipped an embeddable widget. Any site can drop in a single iframe and use a physical meeting as a verification gate. The integration looks like this:
+
+<iframe
+  src="https://irlid.co.uk/widget.html"
+  id="irlid-widget"
+  allow="camera; geolocation"
+></iframe>
+
+<script>
+  window.addEventListener("message", (e) => {
+    if (e.origin !== "https://irlid.co.uk") return;
+    if (e.data?.type === "IRLID_VERIFIED") {
+      const receipt = e.data.receipt;
+      // receipt is a self-contained signed JSON object
+      // verify server-side or client-side — no SDK needed
+    }
+  });
+</script>
+
+That is genuinely it. One iframe, one postMessage listener. The receipt that comes back is a self-contained signed object you can verify independently — it does not depend on my servers remaining up or cooperative.
+
+Use cases: proof-of-attendance at events, gating a community behind having met a real person, delivery confirmation, field ops logging. The receipt is timestamped and GPS-anchored.
+
+Honest caveat: GPS is self-reported by the browser. Real limitation, not hiding it.
+
+Full widget docs at github.com/BunHead/IRLid (WIDGET.md). Live demo at irlid.co.uk.
+
+One person, UK, spare time. Curious whether the postMessage interface makes sense and whether there are integration patterns I've missed. Tear it apart.
+```
+
+---
+
+## LinkedIn — Humanitarian Angle Draft
+
+```
+Something I've been sitting with for a while, and a conversation today has brought it into focus.
+
+IRLid started as a general-purpose tool: cryptographic proof that two people met in person, using nothing but a phone browser and a QR code. No app. No central authority. Tamper-evident receipts, signed on both sides with ECDSA. The use cases I imagined were mostly professional — freelancers, journalists, gig economy verification.
+
+But there's a harder problem that it turns out to be reasonably well suited to.
+
+In humanitarian logistics, last-mile delivery is where accountability breaks down. Supplies leave a warehouse. Trucks log GPS. Drones reach coordinates. And then — gap. Whether a real person received what was intended, at that location and time, is genuinely difficult to prove without either paper that can be forged or apps that require connectivity and onboarding that recipients often don't have.
+
+IRLid's answer to this is lightweight: the recipient scans a QR code. Both sides generate a cryptographic receipt in under 30 seconds. It's verifiable by anyone — auditors, donors, coordinating agencies — with no specialist software. It works on basic Android browsers. No account. No bio-metric. No app store.
+
+A colleague of mine is building drone delivery infrastructure for remote communities in sub-Saharan Africa. We're talking today about whether IRLid can serve as the proof-of-delivery layer. I think it can.
+
+The organisations I'd most want to be speaking to — WFP Innovation Accelerator, UNICEF Supply Division, logistics-focused NGO tech teams — work on exactly the accountability and verification problems IRLid is designed for.
+
+If you work in humanitarian logistics, NGO technology, or drone delivery programmes and you've bumped into the last-mile verification problem, I'd genuinely like to talk. Not to sell anything — it's open source and free — but because a real-world pilot would make it better.
+
+irlid.co.uk
+
+#HumanitarianTech #LastMile #NGOtech #OpenSource #DroneDelivery
+```
+
+---
+
+## WFP Innovation Accelerator — Application Draft
+
+**Apply at:** innovation.wfp.org/apply (rolling applications)
+
+**Project Name:** IRLid — Cryptographic Proof of Delivery for Last-Mile Humanitarian Logistics
+
+### Problem Statement
+
+Last-mile aid delivery is one of the most difficult verification problems in humanitarian logistics. When supplies reach remote communities — whether by road, porter, or drone — organisations have limited means to confirm that a real person received them at the right place and time. Paper signatures are forgeable, GPS logs prove location but not human receipt, and app-based systems require smartphones, connectivity, and user onboarding that many recipients cannot access.
+
+### Solution
+
+IRLid is a browser-based cryptographic proof-of-co-presence tool. When a delivery is made, the recipient scans a QR code displayed by the delivery agent (human or drone). The exchange generates a tamper-evident digital receipt — cryptographically signed, timestamped, and GPS-tagged — proving that two parties were co-located within approximately 12 metres at that moment. No app download. No account. No bio-metric data collected.
+
+### How It Works
+
+1. Delivery agent displays a QR code containing a signed cryptographic offer.
+2. Recipient scans it in any modern mobile browser.
+3. Both devices exchange signatures. Combined receipt generated via ECDSA P-256.
+4. Receipt independently verifiable at irlid.co.uk/check.html — no specialist software needed.
+
+Full handshake: under 30 seconds.
+
+### Why Browser-Based Matters
+
+App installation is a significant barrier in low-connectivity, low-literacy environments. IRLid works on basic Android browsers without installation. This is not a compromise — it is the design.
+
+### Privacy Approach
+
+GPS data used solely to validate proximity at exchange. No persistent tracking. No bio-metric data by default. Open source and independently auditable.
+
+### Current Status
+
+IRLid v3 is live at irlid.co.uk. Protocol implemented and tested. A collaborating engineer is developing drone delivery infrastructure targeting remote communities in sub-Saharan Africa. IRLid is being evaluated as the proof-of-delivery layer for that system.
+
+### What WFP Support Would Enable
+
+- Structured pilot in an active WFP last-mile delivery programme
+- Integration with drone delivery and field logistics workflows
+- Independent security audit of the cryptographic protocol
+- Offline/low-connectivity resilience improvements
+
+### Honest Limitations
+
+Early-stage. Not yet tested at humanitarian scale. Developer is solo and independent. WFP engagement would provide structure and credibility needed to move from proof-of-concept to operational deployment.
+
+**Contact:** irlid.co.uk | GitHub: github.com/BunHead/IRLid

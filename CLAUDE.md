@@ -58,14 +58,16 @@ Key v3 changes from v2:
 | Layer | Score | Notes |
 |-------|-------|-------|
 | v3 base | 20/100 | Current live state |
-| v4 Trust history | 30/100 | Receipt depth, diversity, device consistency |
-| v4b Optional | 50/100 | Enclave, biometric, face capture — ALL off by default |
-| v5 Trust network | 65/100 | Graph, vouching, Sybil resistance |
-| v5 Blockchain | 80/100 | On-chain anchor, W3C credentials |
-| v5 IoT/Drones | 90/100 | Hardware attestation, delivery proof |
-| v6 Zero Knowledge | 100/100 | ZK proofs, privacy-preserving credentials |
+| v4 Trust history | 30/100 | Receipt depth, diversity, device consistency — **next target** |
+| v5 Enhanced security | 50/100 | Secure Enclave keys, biometric signing, face capture — ALL off by default, deferred from v4 |
+| v6 Trust network | 65/100 | Graph, vouching, Sybil resistance |
+| v6 Blockchain | 80/100 | On-chain anchor, W3C credentials |
+| v6 IoT/Drones | 90/100 | Hardware attestation, delivery proof |
+| v7 Zero Knowledge | 100/100 | ZK proofs, privacy-preserving credentials |
 
 **Key design principle:** All enhancements above v3 are optional, off by default, user-enabled in Settings. Never prompted during handshake. Never required to complete a scan.
+
+**v4 scope (deliberately narrow):** Trust history only — weighted score based on receipt count, location diversity, and device consistency. No Secure Enclave, no biometrics, no face capture. Ship fast, ship clean.
 
 ## Key Files
 
