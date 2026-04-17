@@ -33,8 +33,12 @@ Updated April 2026.
 | Build IH karma | Medium | Comment on Indie Hackers posts before reposting story |
 | Reply to @joho0 on Nate's video | Medium | Their "trust economy" comment (21 likes) aligns perfectly with IRLid |
 | David Shapiro outreach | Low | Community Discord linked from his YouTube — easier than direct contact |
-| r/privacy post | Medium | "No biometrics" angle, text posts allowed |
-| r/webdev post | Medium | Widget/iframe integration angle for developers |
+| **Patreon v4 update** | **High** | Draft below — attach 94% receipt screenshot as proof |
+| **Gates Foundation** | **URGENT** | Draft below — gcgh.grandchallenges.org — closes 28 April |
+| r/privacy post | Medium | Draft below — "No biometrics" angle, text posts allowed |
+| r/webdev post | Medium | Draft below — Widget/iframe integration angle for developers |
+| LinkedIn humanitarian | Medium | Draft below — tag with #HumanitarianTech #DroneDelivery |
+| WFP Innovation Accelerator | Medium | Draft below — innovation.wfp.org/apply (rolling) |
 | Local tech meetup | Low | Meetup.com — Derby/Nottingham area, free events |
 | DEF CON 34 talk submission | Low | August, Las Vegas — submit protocol talk |
 
@@ -65,6 +69,92 @@ Updated April 2026.
 | Date | Location | Result |
 |------|----------|--------|
 | April 2026 | Sheffield (Bob's phone) | ✅ 100% Confirmed, 5.87m apart, 2min 46s window |
+| 17 April 2026 | Home (Spencer + wife, two accounts) | ✅ 94% Confirmed, 1.11m apart, 9s Δ, Guest: bio-metric PASS, 8 receipts in trust history. The Brain + Fuzzy Babe 69. |
+
+---
+
+## Patreon — v4 Launch Post
+
+```
+v4 is live — and I proved it at 5am with my wife's fingerprint
+
+IRLid v4 shipped overnight. Here's what's new:
+
+Bio-metric gate — if you enable it in Settings, your device asks for Face ID or
+fingerprint before signing. That confirmation gets committed inside the ECDSA-signed
+payload, cryptographically bound. Not a UI decoration — it's in the receipt.
+
+Trust history — IRLid now scores your handshake history: how many receipts, how spread
+across locations, whether the same device shows up consistently. First scan gets you
+a base score. It builds over time.
+
+Configurable tolerances — distance, timestamp window, GPS accuracy floor, minimum score
+threshold. All in Settings. All off by default.
+
+Proof it works: 94% Confirmed receipt, Guest: bio-metric PASS, 1.11m apart, 9 second
+window. The Brain and Fuzzy Babe 69. You know who you are.
+
+Still no app. Still no accounts. Still no biometrics unless you choose them.
+
+irlid.co.uk
+```
+
+*(Attach: screenshot of 94% Confirmed receipt showing Guest: bio-metric PASS)*
+
+---
+
+## Gates Foundation — Grand Challenges Draft
+
+**URL:** gcgh.grandchallenges.org — closes **28 April 2026**
+
+**Title:** IRLid — Browser-Based Cryptographic Proof of Delivery for Last-Mile Vaccine and Aid Distribution
+
+**Challenge fit:** Creating New Interventions for Global Health / last-mile accountability
+
+```
+Problem:
+Last-mile delivery accountability in low-resource settings remains largely unsolved.
+Supplies leave warehouses with GPS logs. Drones reach coordinates. Field workers sign
+paper. But whether a real person physically received what was intended — at that location,
+at that time — is genuinely hard to prove without forgeable paperwork or app-based systems
+that require connectivity and onboarding recipients don't have. In vaccine distribution
+specifically, this gap undermines both programme accountability and donor confidence.
+
+Solution:
+IRLid generates a tamper-evident cryptographic receipt proving two parties were
+co-located within 12 metres at a specific time. The handshake takes under 30 seconds.
+It runs in any mobile browser — no app install, no account, no biometric data required.
+The receipt is independently verifiable by auditors, NGOs, or donors with no specialist
+software.
+
+How it works:
+1. Delivery agent displays a signed QR code.
+2. Recipient scans in any Android/iOS browser.
+3. Both devices exchange ECDSA P-256 signatures.
+4. Combined receipt generated — timestamped, GPS-tagged, independently verifiable.
+
+Why browser-based matters:
+App installation is a measurable barrier in low-connectivity, low-literacy environments.
+IRLid's design is the answer to that barrier, not a compromise of it.
+
+Current status:
+Live at irlid.co.uk. v4 shipped April 2026 with optional biometric confirmation. Proven
+in production: 94% Confirmed receipt, 1.11m distance, 9s window. A collaborating engineer
+is building drone delivery infrastructure for remote communities in sub-Saharan Africa and
+evaluating IRLid as the proof-of-delivery layer.
+
+What a Grand Challenges grant would enable:
+Structured field pilot with an active last-mile distribution programme. Independent
+cryptographic security audit. Offline/low-connectivity resilience work. Moving from
+functional proof-of-concept to operational deployment at humanitarian scale.
+
+Honest limitations:
+GPS is self-reported by the browser. Cooperative trust model — both parties must complete
+the handshake. Solo independent developer. External structure and credibility are exactly
+what this grant stage is designed to provide.
+
+Contact: irlid.co.uk | github.com/BunHead/IRLid
+```
 
 ---
 
@@ -323,7 +413,7 @@ GPS data used solely to validate proximity at exchange. No persistent tracking. 
 
 ### Current Status
 
-IRLid v3 is live at irlid.co.uk. Protocol implemented and tested. A collaborating engineer is developing drone delivery infrastructure targeting remote communities in sub-Saharan Africa. IRLid is being evaluated as the proof-of-delivery layer for that system.
+IRLid v4 is live at irlid.co.uk. Protocol implemented, tested, and proven in production (94% Confirmed receipt, bio-metric PASS, 1.11m distance). A collaborating engineer is developing drone delivery infrastructure targeting remote communities in sub-Saharan Africa. IRLid is being evaluated as the proof-of-delivery layer for that system.
 
 ### What WFP Support Would Enable
 

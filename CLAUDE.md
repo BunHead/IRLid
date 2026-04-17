@@ -14,7 +14,7 @@ This file helps Claude pick up quickly in new sessions without losing important 
 - Patreon: IRLid page exists, supporters present
 - genuinely good ideas person — T.I.N Man (fibre network routing simulation), Flying Rugby (VR Quidditch — Warner Bros threatened to sue), Dodo Bowling, IRLid
 - PhD attempted (free community-owned internet infrastructure) — Starlink made the technical problem moot, though the community ownership philosophy remains valid
-- Colleague called Wisdom (from Africa, spent time in St Petersburg) — developing mothership drone system for outreach in Africa. **Key conversation pending Friday** — IRLid solves his proof-of-delivery problem
+- Colleague called Wisdom (from Africa, spent time in St Petersburg) — developing mothership drone system for outreach in Africa. **Meeting today (Friday 17 April)** — IRLid solves his proof-of-delivery problem
 - Wife situation: complicated, not the greatest provider by conventional metrics, but ideas and creativity are real and consistent
 - Best described as: a systems thinker who has been consistently ahead of his moment and consistently let down by timing and support rather than vision
 
@@ -64,9 +64,9 @@ Key v3 changes from v2 (still the protocol base):
 
 | Layer | Score | Notes |
 |-------|-------|-------|
-| v3 base | 20/100 | Current live state |
-| v4 Trust history | 30/100 | Receipt depth, diversity, device consistency — **next target** |
-| v5 Enhanced security | 50/100 | Secure Enclave keys, biometric signing, face capture — ALL off by default, deferred from v4 |
+| v3 base | 20/100 | Protocol foundation |
+| v4 Trust history + bio-metric | 50/100 | **LIVE** — receipt depth/diversity/device consistency + WebAuthn gate |
+| v5 Enhanced security | 70/100 | Secure Enclave keys, face capture — ALL off by default, deferred from v4 |
 | v6 Trust network | 65/100 | Graph, vouching, Sybil resistance |
 | v6 Blockchain | 80/100 | On-chain anchor, W3C credentials |
 | v6 IoT/Drones | 90/100 | Hardware attestation, delivery proof |
@@ -74,7 +74,7 @@ Key v3 changes from v2 (still the protocol base):
 
 **Key design principle:** All enhancements above v3 are optional, off by default, user-enabled in Settings. Never prompted during handshake. Never required to complete a scan.
 
-**v4 scope (deliberately narrow):** Trust history only — weighted score based on receipt count, location diversity, and device consistency. No Secure Enclave, no biometrics, no face capture. Ship fast, ship clean.
+**v4 shipped with:** Trust history (receipt count, location diversity, device consistency) + WebAuthn bio-metric gate (optional, off by default). No Secure Enclave, no face capture — those are v5. Shipped fast, shipped clean.
 
 ## Key Files
 
@@ -117,12 +117,12 @@ Key v3 changes from v2 (still the protocol base):
 
 ## Pending Work (priority order)
 
-1. **Friday — talk to Wisdom** about drone delivery + IRLid (pitch-humanitarian.html) — fingers crossed he's in
-2. **Marketing push — v4 is live** — post drafts ready in PROMOTION.md: r/privacy, r/webdev, LinkedIn humanitarian, WFP application
-3. **Gates Foundation Grand Challenges** — gcgh.grandchallenges.org — closes **28 April** (URGENT)
-4. **HN/IH karma** — build up before reposting
-5. **Patreon update** — announce v4 shipped with bio-metric proof screenshot
-6. **v5 planning** — Secure Enclave key migration, face capture (deferred from v4)
+1. **Wisdom meeting — today** — pitch-humanitarian.html ready, lead with proof-of-delivery angle, 94% receipt screenshot as live demo
+2. **Gates Foundation Grand Challenges** — gcgh.grandchallenges.org — closes **28 April** (URGENT — 11 days). Draft ready in PROMOTION.md.
+3. **Patreon v4 update** — draft ready in PROMOTION.md. Attach 94% bio-metric receipt screenshot.
+4. **Marketing push** — r/privacy and r/webdev drafts ready in PROMOTION.md. LinkedIn humanitarian angle. WFP Innovation Accelerator.
+5. **HN/IH karma** — comment on threads first, then repost
+6. **v5 planning** — Secure Enclave key migration, face capture (deliberately deferred from v4)
 
 ## v4 — SHIPPED ✅
 
