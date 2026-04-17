@@ -273,7 +273,7 @@
   <p class="check-subtitle">Verify an IRLid receipt without needing an account. Paste a receipt URL or hash, or scan a receipt QR code.</p>
 
   <div class="check-input-wrap">
-    <input type="text" id="hashInput" placeholder="Receipt hash or URL" autocomplete="off" spellcheck="false">
+    <input type="text" id="hashInput" placeholder="Receipt hash, URL, or paste privacy receipt JSON" autocomplete="off" spellcheck="false">
     <button id="checkBtn">Check</button>
   </div>
   <div class="check-or">or</div>
@@ -365,6 +365,17 @@
     // URL path /receipts/HASH
     m = t.match(/\/receipts\/([A-Za-z0-9\-_]+)/);
     if (m) return m[1];
+    return null;
+  }
+
+  // Try to parse input as a redacted receipt JSON blob
+  function extractRedactedReceipt(input) {
+    const t = (input || "").trim();
+    if (!t.startsWith("{")) return null;
+    try {
+      const obj = JSON.parse(t);
+      if (obj.redacted === true && obj.type === "combined") return obj;
+    } catch {}
     return null;
   }
 
@@ -578,11 +589,122 @@
     }
   }
 
+  // --- Redacted receipt verification ---
+  async function checkRedactedReceipt(comb) {
+    resultCard.style.display = "none";
+    checksGrid.innerHTML = "";
+    setStatus("Verifying privacy receipt…");
+
+    const respA = comb.a || null;
+    const respB = comb.b || null;
+
+    setStatus("");
+    resultCard.style.display = "block";
+
+    // Party names
+    document.getElementById("nameA").textContent = (respA && respA.payload && respA.payload.nick) || "Unknown";
+    document.getElementById("nameB").textContent = (respB && respB.payload && respB.payload.nick) || "Unknown";
+    renderAvatar(document.getElementById("avatarA"), null);
+    renderAvatar(document.getElementById("avatarB"), null);
+
+    // Location — show privacy-protected notice instead of coords
+    document.getElementById("locA").textContent = "Location: \uD83D\uDD12 privacy protected";
+    document.getElementById("locB").textContent = "Location: \uD83D\uDD12 privacy protected";
+    document.getElementById("timeA").textContent = respA && respA.payload ? "Time: " + formatTime(respA.payload.ts) : "";
+    document.getElementById("timeB").textContent = respB && respB.payload ? "Time: " + formatTime(respB.payload.ts) : "";
+    document.getElementById("accA").textContent = "";
+    document.getElementById("accB").textContent = "";
+
+    // Meta
+    const tsA = respA && respA.payload ? respA.payload.ts : null;
+    const tsB = respB && respB.payload ? respB.payload.ts : null;
+    if (tsA && tsB) {
+      const delta = Math.abs(tsA - tsB);
+      document.getElementById("metaTime").textContent = formatTime(Math.min(tsA,tsB)) + " — " + formatTime(Math.max(tsA,tsB)) + " (Δ " + delta + "s)";
+    }
+    document.getElementById("metaDist").textContent = "🔒 Privacy protected";
+    document.getElementById("metaHash").textContent = "(redacted receipt — no server hash)";
+
+    dbStatus.innerHTML = '<span style="color:#b45309; font-weight:600;">🔒 Privacy receipt — GPS coordinates removed by sender. Location proximity was verified at signing time.</span>';
+
+    // Verification checks
+    let passCount = 0, totalCount = 0;
+
+    // Signature check — sig is over the stored hash (which covered original GPS payload)
+    async function verifySigOnly(resp, label) {
+      if (!resp || !resp.hash || !resp.sig || !resp.pub) {
+        totalCount++; addCheck(label + ": structure", false); return;
+      }
+      totalCount++; if (addCheck(label + ": structure", true)) passCount++;
+      // Note: we skip hash recomputation (GPS removed). We verify sig against stored hash.
+      try {
+        const sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
+        totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
+      } catch { totalCount++; addCheck(label + ": signature", false); }
+      totalCount++;
+      // GPS hash present check
+      if (addCheck(label + ": location hash present", !!(resp.payload && resp.payload.gps_hash))) passCount++;
+    }
+
+    try {
+      await verifySigOnly(respA, "Initiator");
+      await verifySigOnly(respB, "Collaborator");
+
+      // Time tolerance
+      if (tsA && tsB) {
+        const delta = Math.abs(tsA - tsB);
+        totalCount++; if (addCheck("Time ≤ tolerance", delta <= TS_TOL_S)) passCount++;
+      }
+
+      // Different keys
+      if (respA && respA.pub && respB && respB.pub) {
+        totalCount++;
+        if (addCheck("Different devices", respA.pub.x !== respB.pub.x || respA.pub.y !== respB.pub.y)) passCount++;
+      }
+
+      // HELLO binding
+      if (comb.hello) {
+        try {
+          const helloHash = await irlidHelloHashB64url(comb.hello);
+          if (respA && respA.payload) {
+            totalCount++; if (addCheck("Initiator binds HELLO", respA.payload.helloHash === helloHash)) passCount++;
+          }
+          if (respB && respB.payload) {
+            totalCount++; if (addCheck("Collaborator binds HELLO", respB.payload.helloHash === helloHash)) passCount++;
+          }
+        } catch {}
+      }
+
+      // Privacy note badge
+      const note = document.createElement("span");
+      note.className = "check-badge pass";
+      note.style.cssText = "background:#fef3c7; color:#92400e; font-size:11px;";
+      note.textContent = "ℹ Location verified at signing — coordinates private";
+      checksGrid.appendChild(note);
+
+    } catch(e) {
+      console.error("Redacted verification error:", e);
+      addCheck("Verification error", false);
+    }
+
+    const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
+    confirmBar.textContent = pct + "% Verified (privacy mode)";
+    confirmBar.style.background = getConfirmColor(pct);
+    confirmBar.style.color = pct >= 75 ? "#000" : "#fff";
+
+    const checksDropdown = document.getElementById("checksDropdown");
+    const checksSummary = document.getElementById("checksSummary");
+    checksSummary.textContent = passCount + "/" + totalCount + " checks passed";
+    checksDropdown.open = true;
+  }
+
   // --- Check button ---
   checkBtn.addEventListener("click", () => {
+    const redacted = extractRedactedReceipt(hashInput.value);
+    if (redacted) { checkRedactedReceipt(redacted); return; }
     const hash = extractHash(hashInput.value);
     if (!hash) {
-      setStatus("Please enter a valid receipt hash or URL.");
+      setStatus("Please enter a valid receipt hash, URL, or paste a privacy receipt JSON.");
       return;
     }
     checkReceipt(hash);

@@ -1311,6 +1311,26 @@
           });
           // Insert after the QR box, before the confirm bar
           topQrEl.insertAdjacentElement("afterend", chip);
+
+          // Privacy share button — redacted receipt (no GPS)
+          const privacyBtn = document.createElement("div");
+          privacyBtn.className = "receipt-hash-chip";
+          privacyBtn.title = "Copy a privacy-safe version — GPS removed, signatures intact";
+          privacyBtn.style.marginTop = "6px";
+          privacyBtn.innerHTML = '<span class="copy-icon">&#128274;</span><span>Copy (privacy mode)</span>';
+          privacyBtn.addEventListener("click", async () => {
+            try {
+              const redacted = await irlidMakeRedactedReceipt(comb);
+              await navigator.clipboard.writeText(JSON.stringify(redacted));
+              privacyBtn.innerHTML = '<span class="copy-icon">&#10003;</span><span>Privacy receipt copied!</span>';
+              setTimeout(() => {
+                privacyBtn.innerHTML = '<span class="copy-icon">&#128274;</span><span>Copy (privacy mode)</span>';
+              }, 2000);
+            } catch(e) {
+              privacyBtn.innerHTML = '<span class="copy-icon">&#10007;</span><span>Failed — ' + e.message + '</span>';
+            }
+          });
+          chip.insertAdjacentElement("afterend", privacyBtn);
         }
       }
 

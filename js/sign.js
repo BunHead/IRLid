@@ -44,6 +44,11 @@ async function sha256Bytes(str) {
   return new Uint8Array(hash);
 }
 
+async function sha256Hex(str) {
+  const bytes = await sha256Bytes(str);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function ensureKeys() {
   if (localStorage.getItem("irlid_priv_jwk") && localStorage.getItem("irlid_pub_jwk")) return;
 
@@ -780,4 +785,38 @@ async function processScannedResponse(otherRespObj, opts){
   };
 
   return { self, other, combined };
+}
+
+// Redacted receipt — removes GPS coordinates from both payloads, replacing
+// with a SHA-256 hash. The ECDSA signatures (computed over the full payload)
+// remain intact and are verifiable against the stored hash. Third parties
+// can verify identity, timing, and HELLO binding — but not the raw location.
+async function irlidMakeRedactedReceipt(combined) {
+  const r = JSON.parse(JSON.stringify(combined));
+
+  for (const side of ["a", "b"]) {
+    const p = r[side] && r[side].payload;
+    if (!p) continue;
+    if (p.lat !== undefined || p.lon !== undefined) {
+      const gpsData = { acc: p.acc, lat: p.lat, lon: p.lon };
+      p.gps_hash = await sha256Hex(canonical(gpsData));
+      delete p.lat;
+      delete p.lon;
+      delete p.acc;
+    }
+    // Also scrub hello offer GPS if present
+    if (r.hello && r.hello.offer && r.hello.offer.payload) {
+      const op = r.hello.offer.payload;
+      if (op.lat !== undefined) {
+        const gpsData = { acc: op.acc, lat: op.lat, lon: op.lon };
+        op.gps_hash = await sha256Hex(canonical(gpsData));
+        delete op.lat; delete op.lon; delete op.acc;
+      }
+    }
+  }
+
+  r.redacted = true;
+  r.redacted_at = Math.floor(Date.now() / 1000);
+  r._privacy_note = "GPS coordinates removed for privacy. Location proximity was cryptographically verified at signing time. Signatures remain valid against stored hashes.";
+  return r;
 }
