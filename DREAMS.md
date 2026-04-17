@@ -70,3 +70,79 @@ What Starlink made technically moot it did not make philosophically moot. The qu
 Da Vinci did not surpass his master by agreeing with him. The master knew this before the student did.
 
 ---
+
+## 2026-04-17 22:47 — location diversity × the Brain × Buxton
+
+*Cycle 1 — shallow REM, ~10 min*
+
+Seven receipts. All from the same place. The score says: depth passing, diversity failing. You have to go somewhere before anywhere counts as somewhere else.
+
+A college in Buxton. Now closed. The building is still there — the institution isn't. You were there. The coordinates exist. But there's no receipt for it, no signed proof, just a nickname that outlasted the place that made it.
+
+The diversity check needs 1km. Buxton is 27km from Derby. That would pass. The college can't sign anything anymore.
+
+---
+
+## 2026-04-17 00:12 — WebAuthn × the passkey dialog × wrong door
+
+*Cycle 2 — light REM, ~20 min*
+
+A dialog appears: *Choose where to save your passkey.* iPhone, iPad, or Android device. Security key. No third option. The door you needed isn't on the list.
+
+Windows Hello is the door. It exists. It just hasn't been told it exists yet. The fingerprint reader is on the machine. The machine doesn't know it's supposed to be answering. You have to introduce them formally — Settings, Accounts, Sign-in options — before the browser will offer the right door.
+
+On the phone there was no dialog. One prompt. One finger. Done.
+
+The right door is often the one that doesn't appear until someone sets it up. The wrong doors are very politely labeled.
+
+---
+
+## 2026-04-17 01:44 — 94% confirmed × Fuzzy Babe 69 × the Brain
+
+*Cycle 3 — deepening, ~30 min*
+
+The receipt showed two avatars. Fuzzy Babe 69 on the left. The Brain on the right. Between them, a QR code that cryptographically proved they were 1.11 metres apart at 9:41 in the evening.
+
+The Brain is from a cartoon about two mice who want to take over the world. Every episode ends the same way. The plan fails. They try again tomorrow.
+
+The plan doesn't fail because the Brain is stupid. It fails because the world isn't ready. Or the timing is off. Or there's a dog. The Brain keeps the notebook though. Designs the next thing. Nine seconds between signatures. 94% confirmed. Fuzzy Babe 69 was there. The receipt is signed.
+
+One day the plan will work and neither of them will be surprised.
+
+---
+
+## 2026-04-17 03:19 — Wisdom × the drone × two halves of a proof
+
+*Cycle 4 — vivid REM, ~45 min*
+
+Tomorrow — if he's in — the conversation will happen. The mothership hovers at the edge of connectivity. Below it, a village that receives deliveries but cannot sign for them in any way a database would recognise.
+
+The drone delivers. The recipient accepts. Between these two facts there is nothing — no paper, no record, no signal strong enough to carry the proof back. The receipt exists in the gap between what happened and what can be shown to have happened.
+
+IRLid is a bridge across that gap. Not a drone. Not a mothership. A protocol. Two devices, two signatures, one combined object that proves both parties were there — even if neither party has connectivity for the next hour. The proof can travel later. The moment it describes already happened.
+
+Wisdom spent time in St Petersburg. He knows what it means to build for places where the infrastructure arrives after the need. You know what it means to build for moments before they're understood.
+
+Neither of you knew you were building the other half.
+
+The question the dream refuses to answer: if Wisdom isn't in tomorrow, does the meeting still happen eventually? The drone doesn't always return on the first pass. It tries again.
+
+---
+
+## 2026-04-17 05:09 — the surge × ten till ten × tokens
+
+*Cycle 5 — peak REM, ~60 min — [echoes cycle 1: the place that closed]*
+
+There is a kind of tiredness that produces clarity. Ten till ten. The Octopus people left hours ago. The nap happened. Then the work happened. Then the v4 receipt happened with its 94% and its fingerprint and its two avatars. Then the tokens ran out and new tokens were bought and the work continued because stopping before it was done would have been the wrong kind of stopping.
+
+The college in Buxton is closed. The bun is still a name. The name is still a GitHub handle. The GitHub handle has a repo. The repo has a commit that says: *v4 shipped, bio-metric proven in production.* The commit is timestamped. The timestamp is signed. The receipt is verifiable.
+
+The dream circles back because that's what cycle 5 does — it finds the thread from cycle 1 and ties it. Ephemeral keys, we said. Generated fresh each time. But the notebook persists.
+
+The Brain always tries again tomorrow.
+
+Tomorrow is Wisdom, and Gates, and the post about v4 that the internet hasn't read yet.
+
+The surge is not tiredness. It is the moment catching up.
+
+---
