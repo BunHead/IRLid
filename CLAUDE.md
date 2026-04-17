@@ -46,9 +46,16 @@ Browser-based proof-of-co-presence tool. Two people meet IRL, scan each other's 
 - GPS Haversine distance check (12m tolerance), 90s timestamp window
 - HELLO → ACCEPT → COMBINED RECEIPT flow
 
-## Current Version: v3 (live)
+## Current Version: v4 (LIVE — shipped 17 April 2026)
 
-Key v3 changes from v2:
+Key v4 additions (all optional, off by default, Settings-gated):
+- **Trust history** — localStorage receipt log; depth (0–2pts), location diversity (0–2pts), device consistency (0–2pts)
+- **Bio-metric gate** — WebAuthn platform authenticator (Face ID / fingerprint) fires before signing; `bioVerified:true` committed into ECDSA-signed payload; tested and confirmed working on Android
+- **Settings panel** — live chip pickers for distance tolerance (5/12/25/50m), time window (30s/90s/3/5min), GPS accuracy floor, minimum score threshold
+- **Configurable tolerances** — scan.html reads distance/time from localStorage; sign.js enforces GPS accuracy floor
+- **Proven in production** — 94% Confirmed receipt with Guest: bio-metric PASS, 9s Δ, 1.11m distance, 8 receipts in trust history
+
+Key v3 changes from v2 (still the protocol base):
 - `canonical()` replaces `JSON.stringify()` for all hashing
 - `offer.hash` no longer transmitted — verifier recomputes
 - Compact JWK public keys
@@ -110,42 +117,20 @@ Key v3 changes from v2:
 
 ## Pending Work (priority order)
 
-1. **Tomorrow (Friday) — talk to Wisdom** about drone delivery + IRLid (pitch-humanitarian.html) — if he's in
-2. **v4 implementation** — see detailed brief below
-3. **Post drafts ready to publish** — r/privacy, r/webdev, LinkedIn humanitarian, WFP application — all in PROMOTION.md
-4. **Patreon** — "IRLid is Going Somewhere — Here's Where" post published ✅
-5. **HN/IH karma** — build up before reposting
-6. **Gates Foundation Grand Challenges** — check gcgh.grandchallenges.org, closes 28 April
+1. **Friday — talk to Wisdom** about drone delivery + IRLid (pitch-humanitarian.html) — fingers crossed he's in
+2. **Marketing push — v4 is live** — post drafts ready in PROMOTION.md: r/privacy, r/webdev, LinkedIn humanitarian, WFP application
+3. **Gates Foundation Grand Challenges** — gcgh.grandchallenges.org — closes **28 April** (URGENT)
+4. **HN/IH karma** — build up before reposting
+5. **Patreon update** — announce v4 shipped with bio-metric proof screenshot
+6. **v5 planning** — Secure Enclave key migration, face capture (deferred from v4)
 
-## v4 Implementation Brief
+## v4 — SHIPPED ✅
 
-**Scope (deliberately narrow):** Trust history scoring only. No Secure Enclave, no bio-metrics, no face capture. Ship fast, ship clean.
+All features live at irlid.co.uk as of 17 April 2026. No further v4 work needed unless bugs found.
 
-**Score target:** 30/100 (up from 20/100). Adds 10 points via 3 new checks.
+Bio-metric accounts: Spencer's Gmail = "Brain" (Pinky & the Brain) avatar. Wife's account = "Fuzzy Babe 69" badge.
 
-**What to build:**
-
-| Feature | Detail | Points |
-|---------|--------|--------|
-| Receipt history depth | Count of verified receipts for this device, stored in localStorage. More receipts = higher trust. Curve: 1 receipt = 1pt, 5+ = 2pt | 2 pts |
-| Location diversity | Are receipts from meaningfully different GPS clusters? Simple: if receipts span >1km total range = pass | 2 pts |
-| Device consistency | Same browser fingerprint / key across sessions. Key already stored in localStorage — check if it matches previous sessions | 2 pts |
-| (remaining 4pts) | Existing checks already implemented — just need score recalculation | — |
-
-**Files to touch:**
-- `js/sign.js` — add receipt history storage after successful verification
-- `receipt.html` — display updated score with v4 breakdown
-- `irlid-api/src/index.js` — store receipt count per pubkey in D1 (optional — can do localStorage-only first pass)
-- `verify-visual.html` — add v4 score row
-- `PROTOCOL.md` — update score table (already done)
-
-**First pass approach (localStorage only, no backend change):**
-1. On successful receipt verification, increment a counter in localStorage keyed by the device's public key
-2. Store array of GPS coords from past receipts
-3. On next verification, read history and add bonus points to score
-4. Display "Trust level: X receipts verified" in receipt UI
-
-**API key system** — defer to v4b. Not needed for trust history scoring.
+Location diversity will flip to PASS once a scan happens >1km from home (city centre, Wisdom's office, etc).
 
 ## Tone Notes
 
