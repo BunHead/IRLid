@@ -104,25 +104,39 @@ Key v3 changes from v2 (still the protocol base):
 
 | Platform | Status |
 |----------|--------|
-| Patreon | ✅ Posted |
+| Patreon | ✅ v3 posted. ✅ v4 posted (18 April 2026) — bio-metric proof, 94% receipt screenshot |
 | Twitter/X | ✅ Posted |
 | LinkedIn | ✅ Posted |
 | Reddit r/netsec | ✅ Live (25K+ views, cym13 exchange ended positively) |
+| Reddit r/webdev | 📝 Draft saved — post Saturday 2pm UK |
+| Reddit r/privacy | 📝 Draft ready in PROMOTION.md — post Saturday 2pm UK |
 | YouTube — Nate B Jones | ✅ Commented |
 | Dev.to | ✅ Posted |
 | Hashnode | ✅ Posted |
 | Hacker News | ⚠️ Needs karma — comment on threads first |
 | Indie Hackers | ⚠️ Needs karma — comment on posts first |
 | David Shapiro | ⚠️ Try his Discord community |
+| 44CON | 📝 CFP open — London, UK security conference |
+| EAI SecureComm | 📝 Lancaster, July 21-24 2026 — protocol paper angle |
 
 ## Pending Work (priority order)
 
-1. **Wisdom meeting — today** — pitch-humanitarian.html ready, lead with proof-of-delivery angle, 94% receipt screenshot as live demo
-2. **Gates Foundation Grand Challenges** — gcgh.grandchallenges.org — closes **28 April** (URGENT — 11 days). Draft ready in PROMOTION.md.
-3. **Patreon v4 update** — draft ready in PROMOTION.md. Attach 94% bio-metric receipt screenshot.
-4. **Marketing push** — r/privacy and r/webdev drafts ready in PROMOTION.md. LinkedIn humanitarian angle. WFP Innovation Accelerator.
-5. **HN/IH karma** — comment on threads first, then repost
-6. **v5 planning** — Secure Enclave key migration, face capture (deliberately deferred from v4)
+1. **Wisdom meeting — Wednesday** — pitch-humanitarian.html ready, lead with proof-of-delivery angle, 94% receipt screenshot as live demo
+2. **Reddit posts — Saturday 2pm UK** — both drafts saved. r/webdev: "Show r/webdev:" prefix, code-first, saved draft on Reddit. r/privacy: problem-first, no links in post body, drop GitHub link in comments only if people engage.
+3. **44CON CFP** — London, UK security conference. Open CFP. Realistic target for a protocol talk.
+4. **EAI SecureComm 2026** — Lancaster, July 21-24. Academic security/privacy conference. Protocol paper angle.
+5. **WFP Innovation Accelerator** — innovation.wfp.org/apply (rolling). Draft in PROMOTION.md.
+6. **UNICEF Venture Fund** — unicefinnovationfund.org — open source software for children in LMICs. Assess next session.
+7. **HN/IH karma** — comment on threads first, then repost
+8. **v5 planning** — Secure Enclave key migration, face capture (deliberately deferred from v4)
+
+## Gates Foundation — Ruled Out (April 2026)
+
+Current open batch (closes 28 April) is entirely medical diagnostics and AI for charitable giving. No fit for IRLid. Revisit future batches when topic rotates to accountability, supply chain, or humanitarian logistics.
+
+## Recently Shipped
+
+- **Redacted receipt** (18 April 2026) — `irlidMakeRedactedReceipt()` in sign.js. GPS replaced with SHA-256 hash. "Copy (privacy mode)" button in receipt.html. check.html handles redacted JSON receipts — verifies signatures and timing, shows location as privacy-protected.
 
 ## v4 — SHIPPED ✅
 

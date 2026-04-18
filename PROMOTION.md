@@ -289,7 +289,45 @@ https://irlid.co.uk | PROTOCOL.md on GitHub
 
 ---
 
-## r/privacy Draft
+## r/privacy Draft — REVISED (18 April 2026)
+
+**Title:** Trying to build a human-verification tool that doesn't phone home. Here's where it's got to and what's still uncertain.
+
+**Post Saturday 2pm UK time. NO links in the post body. Drop GitHub link in comments only if people engage.**
+
+```
+Most human-verification systems are privacy problems in disguise. reCAPTCHA sends
+behavioural data to Google. App-based identity tools need accounts, databases, and
+trusting someone else's server. Face verification means storing biometrics somewhere.
+
+The approach I've been exploring: two people meet in person, scan each other's QR
+codes in a browser, each gets a cryptographically signed receipt. ECDSA P-256 via
+Web Crypto API. No app. No account required. No biometrics unless you choose them.
+
+The properties I'm *aiming* for — though I'd welcome challenge on whether I've
+actually achieved them: private key generated locally, never transmitted. Receipt
+self-verifying, doesn't require my servers. No central database of who met whom.
+GPS used only to verify proximity during the handshake, not tracked centrally.
+
+The limitation I can't get around: GPS is self-reported by the browser. Known
+constraint, not hiding it — but I'm genuinely unsure how much that undermines
+the whole thing.
+
+The bit I'm most uncertain about: the local receipt history is stored in
+localStorage — timestamped, GPS-tagged records of past meetings. Privacy risk
+if your device is compromised. But also potentially forensic evidence if
+something happens to you — a trail of who you met and when. I'm not sure
+whether that's a feature or a limitation, and I'd genuinely like to know how
+people here think about that tradeoff.
+
+What would you want to see before trusting something like this for anything meaningful?
+```
+
+*(If people ask for the code/project, reply in comments: "Open source, happy to share — github.com/BunHead/IRLid")*
+
+---
+
+## r/privacy Draft — ORIGINAL (kept for reference)
 
 **Title:** I built a way to prove you met someone IRL without bio-metrics, without an app, and without trusting my servers
 
