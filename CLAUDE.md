@@ -34,6 +34,7 @@ Browser-based proof-of-co-presence tool. Two people meet IRL, scan each other's 
 
 **Live at:** irlid.co.uk  
 **Repo:** github.com/BunHead/IRLid  
+**Local repo path (Spencer's machine):** `D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo` — Spencer is on Windows / PowerShell. Don't use `&&` to chain commands; use `;` or run separately.  
 **Backend:** Cloudflare Worker (irlid-api) + D1 database  
 **Frontend:** GitHub Pages  
 
