@@ -1516,7 +1516,7 @@
 
           // Colour-code the diversity badge by novelty score.
           // Green (novel outlier) → yellow (moderate) → orange (familiar) → red (saturated home).
-          function noveltyColor(score) {
+          function noveltyColour(score) {
             if (score >= 0.85) return { bg: "#eaffea", border: "#c8f2c8", text: "#1a6e1a" }; // bright green
             if (score >= 0.65) return { bg: "#f0f9e8", border: "#c8e0a0", text: "#3a6010" }; // lime
             if (score >= 0.45) return { bg: "#fffbe6", border: "#ffe066", text: "#7a5c00" }; // yellow
@@ -1526,7 +1526,7 @@
 
           function addNoveltyCheck(label, novelty, detail) {
             checkResults.push(novelty !== null ? novelty.score >= 0.25 : false);
-            const colours = novelty ? noveltyColor(novelty.score) : noveltyColor(0);
+            const colours = novelty ? noveltyColour(novelty.score) : noveltyColour(0);
 
             // Compact grid item with custom colour
             const item = document.createElement("div");
