@@ -1,7 +1,7 @@
 // Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 76 — compact payloads for smaller QR codes
+//  Deploy 77 — GPS fallback in trust history when viewing on non-scan device
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -602,6 +602,18 @@ async function irlidRecordVerifiedReceipt(combined) {
     } else if (sideB && sideB.pub && JSON.stringify(compactJwk(sideB.pub)) === myPubRaw && sideB.payload) {
       lat = sideB.payload.lat;
       lon = sideB.payload.lon;
+    }
+    // Fallback: if this device's key isn't in the receipt (e.g. viewing on desktop
+    // when the scan was done on mobile), record GPS from whichever side has it.
+    // Both parties were within 12m so the location is accurate enough for diversity.
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      if (sideA && sideA.payload && Number.isFinite(sideA.payload.lat)) {
+        lat = sideA.payload.lat;
+        lon = sideA.payload.lon;
+      } else if (sideB && sideB.payload && Number.isFinite(sideB.payload.lat)) {
+        lat = sideB.payload.lat;
+        lon = sideB.payload.lon;
+      }
     }
     const entry = { ts: Date.now(), keyId };
     if (Number.isFinite(lat) && Number.isFinite(lon)) { entry.lat = lat; entry.lon = lon; }

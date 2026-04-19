@@ -503,6 +503,28 @@ describe("Trust history & v4TrustScore()", () => {
     assert.equal(s.deviceConsistencyPts, 1);
   });
 
+  test("GPS fallback: stores sideA GPS when device key not in receipt", async () => {
+    // Simulates viewing a receipt on desktop when scanned on mobile —
+    // the local key won't match either side, so fallback to sideA GPS.
+    localStorageMock.clear();
+    const { irlidRecordVerifiedReceipt: recordReceipt } = ctx;
+    const fakeCombined = {
+      v: 3, type: "combined",
+      hello: { type: "hello", pub: { kty: "EC", crv: "P-256", x: "aaaa", y: "bbbb" } },
+      a: { payload: { v: 3, lat: 53.1191, lon: -1.1163, acc: 5, ts: 1000, nonce: 1 },
+           hash: "h", sig: "s" },
+      b: { payload: { v: 3, lat: 53.1192, lon: -1.1164, acc: 4, ts: 1001, nonce: 2 },
+           hash: "h2", sig: "s2", pub: { kty: "EC", crv: "P-256", x: "cccc", y: "dddd" } }
+    };
+    // Local key won't match aaaa/bbbb or cccc/dddd — fallback should kick in
+    await recordReceipt(fakeCombined);
+    const history = irlidTrustHistoryGet();
+    assert.equal(history.length, 1);
+    assert.ok(Number.isFinite(history[0].lat), "lat should be stored via fallback");
+    assert.ok(Number.isFinite(history[0].lon), "lon should be stored via fallback");
+    assert.equal(history[0].lat, 53.1191); // sideA's lat
+  });
+
   test("irlidTrustHistoryGet round-trips stored entries", () => {
     localStorageMock.clear();
     const entry = { ts: 1713388800000, keyId: "testkey", lat: 52.9225, lon: -1.4746 };
