@@ -475,11 +475,20 @@ describe("Trust history & v4TrustScore()", () => {
     assert.equal(s.locationDiversityPts, 0);
   });
 
-  test("entries >1km apart → locationDiversityPts = 2", async () => {
+  test("2 distinct clusters → locationDiversityPts = 1", async () => {
     localStorageMock.clear();
-    // Derby and Nottingham are ~22km apart
+    // Derby and Nottingham are ~22km apart — 2 distinct clusters
     irlidTrustHistoryAppend({ ts: Date.now(), keyId: "key1", lat: 52.9225, lon: -1.4746 }); // Derby
     irlidTrustHistoryAppend({ ts: Date.now(), keyId: "key1", lat: 52.9540, lon: -1.1581 }); // Nottingham
+    const s = await irlidV4TrustScore();
+    assert.equal(s.locationDiversityPts, 1);
+  });
+
+  test("3+ distinct clusters → locationDiversityPts = 2", async () => {
+    localStorageMock.clear();
+    irlidTrustHistoryAppend({ ts: Date.now(), keyId: "key1", lat: 52.9225, lon: -1.4746 }); // Derby (home)
+    irlidTrustHistoryAppend({ ts: Date.now(), keyId: "key1", lat: 52.9540, lon: -1.1581 }); // Nottingham (work)
+    irlidTrustHistoryAppend({ ts: Date.now(), keyId: "key1", lat: 53.1191, lon: -1.1163 }); // Mansfield (outlier)
     const s = await irlidV4TrustScore();
     assert.equal(s.locationDiversityPts, 2);
   });

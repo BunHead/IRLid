@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 114 -->
+<!-- Deploy 115 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -459,7 +459,7 @@
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
 <script src="js/nav.js"></script>
-<script src="js/sign.js?v=3.2"></script>
+<script src="js/sign.js?v=3.3"></script>
 <script src="js/qr.js?v=63"></script>
 
 <script>
@@ -1499,16 +1499,86 @@
             v4.receiptDepthPts === 2 ? "5+ receipts — max trust depth"
             : v4.receiptDepthPts === 1 ? "1–4 receipts — building trust"
             : "No prior receipts on this device");
-          // Distinguish "no GPS history on this device" from "all receipts at same location" —
-          // the algorithm needs ≥2 entries with finite lat/lon to evaluate diversity.
-          const coordCount = (typeof irlidTrustHistoryGet === "function")
-            ? irlidTrustHistoryGet().filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lon)).length
-            : 0;
-          addCheck("Location diversity", v4.locationDiversityPts > 0,
-            v4.locationDiversityPts > 0 ? "Receipts from locations >1 km apart"
-            : coordCount === 0 ? "No GPS history on this device — try scanning here"
-            : coordCount < 2 ? "Need more GPS-enabled receipts to assess"
-            : "All receipts from same area");
+
+          // --- Location diversity: hotspot novelty scoring ---
+          // Instead of binary pass/fail, score how novel THIS receipt's location is
+          // relative to accumulated history. Home saturates quickly; outliers score high.
+          const history = typeof irlidTrustHistoryGet === "function" ? irlidTrustHistoryGet() : [];
+          const coordCount = history.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lon)).length;
+          const gA = respA ? getGps(respA) : null;
+          const gB = respB ? getGps(respB) : null;
+          const receiptGps = gA || gB;
+
+          let noveltyResult = null;
+          if (receiptGps && typeof irlidLocationNovelty === "function") {
+            noveltyResult = irlidLocationNovelty(receiptGps.lat, receiptGps.lon, history);
+          }
+
+          // Colour-code the diversity badge by novelty score.
+          // Green (novel outlier) → yellow (moderate) → orange (familiar) → red (saturated home).
+          function noveltyColor(score) {
+            if (score >= 0.85) return { bg: "#eaffea", border: "#c8f2c8", text: "#1a6e1a" }; // bright green
+            if (score >= 0.65) return { bg: "#f0f9e8", border: "#c8e0a0", text: "#3a6010" }; // lime
+            if (score >= 0.45) return { bg: "#fffbe6", border: "#ffe066", text: "#7a5c00" }; // yellow
+            if (score >= 0.25) return { bg: "#fff3e0", border: "#ffb74d", text: "#7a3c00" }; // orange
+            return { bg: "#ffecec", border: "#ffd0d0", text: "#8b2020" };                     // red (saturated)
+          }
+
+          function addNoveltyCheck(label, novelty, detail) {
+            checkResults.push(novelty !== null ? novelty.score >= 0.25 : false);
+            const colours = novelty ? noveltyColor(novelty.score) : noveltyColor(0);
+
+            // Compact grid item with custom colour
+            const item = document.createElement("div");
+            item.className = "check-item";
+            const badge = document.createElement("span");
+            badge.className = "check-badge";
+            badge.style.background = colours.bg;
+            badge.style.borderColor = colours.border;
+            badge.style.color = colours.text;
+            const pct = novelty ? Math.round(novelty.score * 100) : 0;
+            badge.textContent = pct + "%";
+            const lbl = document.createElement("span");
+            lbl.className = "check-label";
+            lbl.textContent = label;
+            lbl.title = label + (detail ? " — " + detail : "");
+            item.appendChild(badge);
+            item.appendChild(lbl);
+            checksGrid.appendChild(item);
+
+            // Verbose row
+            const row = document.createElement("div");
+            row.className = "check-verbose";
+            const vBadge = document.createElement("div");
+            vBadge.className = "badge";
+            vBadge.style.background = colours.bg;
+            vBadge.style.borderColor = colours.border;
+            vBadge.style.color = colours.text;
+            vBadge.textContent = pct + "%";
+            const txt = document.createElement("div");
+            txt.innerHTML = label + (detail ? '<div class="check-detail">' + detail + '</div>' : "");
+            row.appendChild(vBadge);
+            row.appendChild(txt);
+            checksVerbose.appendChild(row);
+
+            updateConfirmBar();
+          }
+
+          if (noveltyResult !== null) {
+            const clusterScans = noveltyResult.clusterCount;
+            const totalClusters = noveltyResult.totalClusters;
+            const pct = Math.round(noveltyResult.score * 100);
+            let detail;
+            if (clusterScans === 0) detail = "New area — never scanned here before";
+            else if (clusterScans === 1) detail = "1 scan in this area — outlier location";
+            else detail = clusterScans + " scans in this area across " + totalClusters + " distinct hotspot" + (totalClusters !== 1 ? "s" : "");
+            addNoveltyCheck("Location diversity", noveltyResult, detail);
+          } else {
+            addCheck("Location diversity", v4.locationDiversityPts > 0,
+              coordCount === 0 ? "No GPS history — scan on a GPS-enabled device first"
+              : "Building location history…");
+          }
+
           addCheck("Device consistency", v4.deviceConsistencyPts > 0,
             v4.deviceConsistencyPts === 2 ? "Key used across multiple days"
             : v4.deviceConsistencyPts === 1 ? "Key used today"

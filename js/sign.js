@@ -1,7 +1,7 @@
 // Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 // IRLid signing (ECDSA P-256) - requires WebCrypto (secure context)
-//  Deploy 77 — GPS fallback in trust history when viewing on non-scan device
+//  Deploy 78 — location hotspot clustering + novelty scoring for diversity
 
 (function () {
   if (!window.crypto || !window.crypto.subtle) {
@@ -537,49 +537,96 @@ function irlidTrustHistoryAppend(entry) {
 }
 
 // Compute v4 trust score additions from history.
-// Returns { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount }
+// =========================================================
+//  Location clustering — groups GPS entries into 1km hotspots.
+//  Returns array of { lat, lon, count } cluster objects.
+//  Common areas (home, work) build up high counts.
+//  Rare areas (Mansfield, Sheffield) stay at count=1.
+// =========================================================
+function irlidBuildLocationClusters(entries, radiusM) {
+  if (!radiusM) radiusM = 1000;
+  const clusters = [];
+  for (const e of entries) {
+    if (!Number.isFinite(e.lat) || !Number.isFinite(e.lon)) continue;
+    let best = null, bestDist = radiusM;
+    for (const c of clusters) {
+      const d = irlidHaversineMeters({ lat: e.lat, lon: e.lon }, { lat: c.lat, lon: c.lon });
+      if (d < bestDist) { bestDist = d; best = c; }
+    }
+    if (best) {
+      best.count++;
+      // Update running centroid — keeps the cluster centre accurate as it grows.
+      best.lat += (e.lat - best.lat) / best.count;
+      best.lon += (e.lon - best.lon) / best.count;
+    } else {
+      clusters.push({ lat: e.lat, lon: e.lon, count: 1 });
+    }
+  }
+  return clusters;
+}
+
+// =========================================================
+//  Location novelty score (0–1) for a specific lat/lon.
+//  1.0 = never been here before (outlier like Sheffield).
+//  0.0 = every scan is from this location (home).
+//  Returned alongside cluster info so the UI can colour-code
+//  the diversity badge and show the hotspot scan count.
+// =========================================================
+function irlidLocationNovelty(lat, lon, history) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { score: 0, clusterCount: 0, totalClusters: 0 };
+  const coords = history.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lon));
+  if (coords.length === 0) return { score: 1.0, clusterCount: 0, totalClusters: 0 };
+
+  const clusters = irlidBuildLocationClusters(coords);
+  const total = clusters.reduce((s, c) => s + c.count, 0);
+
+  // Find which cluster this location falls into (nearest within 1km).
+  let clusterCount = 0;
+  let minDist = Infinity;
+  for (const c of clusters) {
+    const d = irlidHaversineMeters({ lat, lon }, { lat: c.lat, lon: c.lon });
+    if (d < 1000 && d < minDist) { minDist = d; clusterCount = c.count; }
+  }
+
+  // Brand-new area = maximum novelty.
+  if (clusterCount === 0) return { score: 1.0, clusterCount: 0, totalClusters: clusters.length };
+
+  // Score decays as the cluster share grows.
+  // Home (40/55 = 73% share) → 0.27. Sheffield (1/55 = 2%) → 0.98.
+  const score = Math.max(0, 1 - (clusterCount / total));
+  return { score, clusterCount, totalClusters: clusters.length };
+}
+
+// Returns { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount, clusters }
 async function irlidV4TrustScore() {
   const history = irlidTrustHistoryGet();
   const receiptCount = history.length;
 
   // --- Receipt depth (0–2 pts) ---
-  // 1 receipt = 1pt, 5+ = 2pt
   let receiptDepthPts = 0;
   if (receiptCount >= 5) receiptDepthPts = 2;
   else if (receiptCount >= 1) receiptDepthPts = 1;
 
   // --- Location diversity (0–2 pts) ---
-  // Pass if known GPS locations span more than 1 km total range.
+  // Based on distinct 1km clusters, not just max pairwise distance.
+  // 1 cluster (home only) = 0pts. 2 distinct areas = 1pt. 3+ = 2pts.
   let locationDiversityPts = 0;
   const coordEntries = history.filter(e => Number.isFinite(e.lat) && Number.isFinite(e.lon));
-  if (coordEntries.length >= 2) {
-    let maxDist = 0;
-    for (let i = 0; i < coordEntries.length; i++) {
-      for (let j = i + 1; j < coordEntries.length; j++) {
-        const d = irlidHaversineMeters(
-          { lat: coordEntries[i].lat, lon: coordEntries[i].lon },
-          { lat: coordEntries[j].lat, lon: coordEntries[j].lon }
-        );
-        if (d > maxDist) maxDist = d;
-      }
-    }
-    if (maxDist > 1000) locationDiversityPts = 2;
-  }
+  const clusters = irlidBuildLocationClusters(coordEntries);
+  if (clusters.length >= 3) locationDiversityPts = 2;
+  else if (clusters.length >= 2) locationDiversityPts = 1;
 
   // --- Device consistency (0–2 pts) ---
-  // The ECDSA key was already in localStorage when this receipt was generated.
-  // A key that has been present across multiple sessions is consistent.
-  // Proxy: if history has entries from different calendar days = multi-session.
   let deviceConsistencyPts = 0;
   if (history.length >= 2) {
     const days = new Set(history.map(e => {
       try { return new Date(e.ts).toDateString(); } catch { return null; }
     }).filter(Boolean));
     if (days.size >= 2) deviceConsistencyPts = 2;
-    else if (days.size === 1) deviceConsistencyPts = 1; // same day, at least consistent
+    else if (days.size === 1) deviceConsistencyPts = 1;
   }
 
-  return { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount };
+  return { receiptDepthPts, locationDiversityPts, deviceConsistencyPts, receiptCount, clusters };
 }
 
 // Call this after a successful combined receipt is produced to record it in trust history.
