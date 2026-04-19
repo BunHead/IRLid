@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 112 -->
+<!-- Deploy 113 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1235,6 +1235,10 @@
     checksGrid.innerHTML = "";
     checksVerbose.innerHTML = "";
     checkResults = [];
+    // Remove any stale hash chip + privacy button from a previous receipt view.
+    // They only get created if !existingChip, so without this they'd persist across
+    // hashchange navigation and show the wrong key for subsequent receipts.
+    document.querySelectorAll(".receipt-hash-chip").forEach(el => el.remove());
 
     // Show/hide raw JSON based on debug mode
     rawWrap.style.display = isDebug() ? "block" : "none";
