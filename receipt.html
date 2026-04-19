@@ -201,10 +201,12 @@
     .check-badge{
       font-weight: 700;
       font-size: 11px;
-      padding: 3px 8px;
+      padding: 3px 0;
       border: 1px solid #e5e5e5;
       flex-shrink: 0;
-      text-transform: uppercase;
+      width: 52px;
+      text-align: center;
+      border-radius: 4px;
     }
     .check-badge.pass{ background: #eaffea; border-color: #c8f2c8; color: #1a6e1a; }
     .check-badge.fail{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
@@ -235,13 +237,14 @@
       border-top: 1px solid #f0f0f0;
     }
     .check-verbose .badge{
-      width: 54px;
+      width: 52px;
       text-align: center;
       font-weight: 700;
       font-size: 11px;
       padding: 4px 0;
       border: 1px solid #e5e5e5;
       flex-shrink: 0;
+      border-radius: 4px;
     }
     .check-verbose .badge.pass{ background: #eaffea; border-color: #c8f2c8; }
     .check-verbose .badge.fail{ background: #ffecec; border-color: #ffd0d0; }
@@ -855,15 +858,19 @@
   //  CHECK TRACKING
   // =========================
 
-  function addCheck(label, ok, detail){
+  function addCheck(label, ok, detail, displayValue){
     checkResults.push(ok);
+    // If a display value is provided, show it; otherwise fall back to PASS/FAIL
+    const badgeText = (displayValue !== undefined && displayValue !== null)
+      ? String(displayValue)
+      : (ok ? "PASS" : "FAIL");
 
     // Compact grid item
     const item = document.createElement("div");
     item.className = "check-item";
     const badge = document.createElement("span");
     badge.className = "check-badge " + (ok ? "pass" : "fail");
-    badge.textContent = ok ? "PASS" : "FAIL";
+    badge.textContent = badgeText;
     const lbl = document.createElement("span");
     lbl.className = "check-label";
     lbl.textContent = label;
@@ -877,7 +884,7 @@
     row.className = "check-verbose";
     const vBadge = document.createElement("div");
     vBadge.className = "badge " + (ok ? "pass" : "fail");
-    vBadge.textContent = ok ? "PASS" : "FAIL";
+    vBadge.textContent = badgeText;
     const txt = document.createElement("div");
     txt.innerHTML = label + (detail ? '<div class="check-detail">' + detail + '</div>' : "");
     row.appendChild(vBadge);
@@ -1465,7 +1472,7 @@
         const tsBms = respB ? getTsMs(respB) : null;
         if (tsAms && tsBms) {
           const deltaS = Math.abs(tsAms - tsBms) / 1000;
-          addCheck("Time \u2264 tolerance", deltaS <= TS_TOL_S, "\u0394 " + Math.round(deltaS) + "s (limit " + TS_TOL_S + "s)");
+          addCheck("Time \u2264 tolerance", deltaS <= TS_TOL_S, "\u0394 " + Math.round(deltaS) + "s (limit " + TS_TOL_S + "s)", Math.round(deltaS) + "s");
         } else {
           addCheck("Time \u2264 tolerance", false, "Missing timestamps.");
         }
@@ -1478,7 +1485,7 @@
         const gB = respB ? getGps(respB) : null;
         if (gA && gB) {
           const d = haversineMeters(gA.lat, gA.lon, gB.lat, gB.lon);
-          addCheck("Distance \u2264 tolerance", d <= DIST_TOL_M, d.toFixed(2) + " m (limit " + DIST_TOL_M + " m)");
+          addCheck("Distance \u2264 tolerance", d <= DIST_TOL_M, d.toFixed(2) + " m (limit " + DIST_TOL_M + " m)", d.toFixed(1) + "m");
         } else {
           addCheck("Distance \u2264 tolerance", false, "Missing locations.");
         }
@@ -1494,11 +1501,12 @@
         }
         if (typeof irlidV4TrustScore === "function") {
           const v4 = await irlidV4TrustScore();
-          const depthLabel = "Trust depth (" + v4.receiptCount + " receipt" + (v4.receiptCount !== 1 ? "s" : "") + ")";
+          const depthLabel = "Trust depth";
           addCheck(depthLabel, v4.receiptDepthPts > 0,
-            v4.receiptDepthPts === 2 ? "5+ receipts — max trust depth"
-            : v4.receiptDepthPts === 1 ? "1–4 receipts — building trust"
-            : "No prior receipts on this device");
+            v4.receiptDepthPts === 2 ? v4.receiptCount + " receipts — max trust depth"
+            : v4.receiptDepthPts === 1 ? v4.receiptCount + " receipt" + (v4.receiptCount !== 1 ? "s" : "") + " — building trust"
+            : "No prior receipts on this device",
+            v4.receiptCount + "x");
 
           // --- Location diversity: hotspot novelty scoring ---
           // Instead of binary pass/fail, score how novel THIS receipt's location is
@@ -1582,7 +1590,8 @@
           addCheck("Device consistency", v4.deviceConsistencyPts > 0,
             v4.deviceConsistencyPts === 2 ? "Key used across multiple days"
             : v4.deviceConsistencyPts === 1 ? "Key used today"
-            : "First receipt on this device");
+            : "First receipt on this device",
+            v4.deviceConsistencyPts + "/2");
         }
       } catch(e) {
         // Trust history unavailable — silently skip
