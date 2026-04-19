@@ -503,21 +503,28 @@
     let passCount = 0;
     let totalCount = 0;
 
-    async function verifyResponse(resp, label) {
-      if (!resp || !resp.payload || !resp.hash || !resp.sig || !resp.pub) {
+    // fallbackPub: used when resp.pub has been stripped (a.pub removed — same as hello.pub).
+    // hash is recomputed from payload if missing (stripped for compact receipt encoding).
+    async function verifyResponse(resp, label, fallbackPub) {
+      const pub = (resp && resp.pub) ? resp.pub : (fallbackPub || null);
+      if (!resp || !resp.payload || !resp.sig || !pub) {
         totalCount++;
         addCheck(label + ": structure", false);
         return null;
       }
       totalCount++; if (addCheck(label + ": structure", true)) passCount++;
 
+      let hashToUse = resp.hash || null;
       try {
         const computed = await hashPayloadToB64url(resp.payload);
-        totalCount++; if (addCheck(label + ": hash", computed === resp.hash)) passCount++;
+        // If hash was stripped (compact form), recomputed hash is authoritative.
+        const ok = resp.hash ? (computed === resp.hash) : true;
+        totalCount++; if (addCheck(label + ": hash", ok)) passCount++;
+        hashToUse = computed;
       } catch(e) { totalCount++; addCheck(label + ": hash", false); }
 
       try {
-        const sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
+        const sigOk = hashToUse ? await verifySig(hashToUse, resp.sig, pub) : false;
         totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
       } catch(e) { totalCount++; addCheck(label + ": signature", false); }
 
@@ -525,9 +532,10 @@
     }
 
     try {
-      // Verify both responses
-      await verifyResponse(respA, "Initiator");
-      await verifyResponse(respB, "Collaborator");
+      // Verify both responses — pass hello.pub as fallback for stripped a.pub.
+      const helloPubFallback = comb.hello && comb.hello.pub ? comb.hello.pub : null;
+      await verifyResponse(respA, "Initiator", helloPubFallback);
+      await verifyResponse(respB, "Collaborator", null);
 
       // HELLO verification
       if (comb.hello) {
@@ -563,9 +571,11 @@
         totalCount++; if (addCheck("Time \u2264 tolerance", delta <= TS_TOL_S)) passCount++;
       }
 
-      // Different keys check
-      if (respA && respA.pub && respB && respB.pub) {
-        const keysAreDifferent = respA.pub.x !== respB.pub.x || respA.pub.y !== respB.pub.y;
+      // Different keys check — fall back to hello.pub when a.pub is stripped.
+      const aPub = (respA && respA.pub) ? respA.pub : (comb.hello && comb.hello.pub ? comb.hello.pub : null);
+      const bPub = respB && respB.pub ? respB.pub : null;
+      if (aPub && bPub) {
+        const keysAreDifferent = aPub.x !== bPub.x || aPub.y !== bPub.y;
         totalCount++; if (addCheck("Different devices", keysAreDifferent)) passCount++;
       }
     } catch(e) {
