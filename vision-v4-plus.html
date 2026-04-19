@@ -110,20 +110,20 @@
   <div class="connector">↓</div>
 
   <div class="layer l2">
-    <h2>Layer 2 — v4 near term</h2>
+    <h2>Layer 2 — v4 — <span style="color:#4caf6e;">LIVE (April 2026)</span></h2>
     <div class="layer-title">Trust Score & Identity Layer</div>
     <div class="features">
       <span class="feat">Weighted verification score</span>
       <span class="feat">Receipt history depth</span>
-      <span class="feat">Account reputation score</span>
       <span class="feat">Device consistency tracking</span>
       <span class="feat">Multiple receipts = higher trust</span>
-      <span class="feat">Diverse location history</span>
-      <span class="feat">Server-side widget validation</span>
-      <span class="feat">Developer API key system</span>
+      <span class="feat">Location hotspot novelty scoring</span>
+      <span class="feat">WebAuthn biometric gate (optional, off by default)</span>
+      <span class="feat">Privacy mode — redacted GPS receipt</span>
+      <span class="feat">Settings panel — configurable tolerances</span>
     </div>
     <div class="weights">
-      <div class="weights-title">Score at this layer — max 30 pts (30/100) (+6 new)</div>
+      <div class="weights-title">Score at this layer — max 50 pts (50/100) — trust history + biometric gate LIVE</div>
       <div class="w-row"><div class="w-label">🔐 Signatures (×2)</div><div class="w-track"><div class="w-fill" style="width:23%;background:#2d7a3a"></div></div><div class="w-pts">6 pts</div></div>
       <div class="w-row"><div class="w-label">🔗 Hash integrity (×1)</div><div class="w-track"><div class="w-fill" style="width:15%;background:#1a3a8f"></div></div><div class="w-pts">4 pts</div></div>
       <div class="w-row"><div class="w-label">🧲 Cross-session binding (×1)</div><div class="w-track"><div class="w-fill" style="width:15%;background:#7b3a00"></div></div><div class="w-pts">4 pts</div></div>
@@ -139,24 +139,16 @@
 
   <div class="layer" style="background:#0d1a0d; border:1px solid #1a4020; position:relative; overflow:hidden; border-radius:10px; padding:18px 22px;">
     <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#39ff14;"></div>
-    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Layer 3 — v5 — Secure Enclave, Bio-metrics &amp; Face Capture (all optional)</h2>
-    <div class="layer-title" style="color:#39ff14; font-size:16px; font-weight:700; margin-bottom:8px;">Hardware-Backed Identity &amp; Visual Witness — Stolen/Borrowed Phone Proof</div>
-    <div style="font-size:11px; color:#555; margin-bottom:10px;">All features in this layer are <strong style="color:#39ff14;">off by default</strong>. User enables individually in Settings. Never prompted during handshake. Never required to complete a scan.</div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Layer 3 — v5 — Secure Enclave &amp; Face Capture (all optional, next up)</h2>
+    <div class="layer-title" style="color:#39ff14; font-size:16px; font-weight:700; margin-bottom:8px;">Hardware-Backed Keys &amp; Visual Witness — Stolen Phone Proof</div>
+    <div style="font-size:11px; color:#555; margin-bottom:10px;">All features in this layer are <strong style="color:#39ff14;">off by default</strong>. User enables individually in Settings. Never prompted during handshake. Never required to complete a scan.<br><em style="color:#444;">Note: WebAuthn biometric gate already shipped in v4. v5 adds hardware-backed key storage (Secure Enclave / TEE) and face capture.</em></div>
 
-    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">🔒 Secure Enclave</div>
+    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">🔒 Secure Enclave Key Migration</div>
     <div class="features">
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">WebAuthn / Passkey signing</span>
       <span class="feat" style="background:#0d2a10; color:#39ff14;">Keys in Secure Enclave (Apple) / TEE (Android)</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Private key never extractable</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Replaces localStorage key storage</span>
-    </div>
-
-    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">👆 Bio-metrics</div>
-    <div class="features">
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Fingerprint / Face ID gates signing key</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Proves owner present at their own device</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">No bio-metric data ever transmitted</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Stolen phone = useless without owner bio-metric</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Private key never extractable — replaces localStorage</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Migration path from v4 localStorage keys</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Stolen device = keys unusable without biometric unlock</span>
     </div>
 
     <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">📸 Face Capture — Mutual Witness System</div>

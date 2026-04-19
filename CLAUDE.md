@@ -85,7 +85,7 @@ Unit tests live in `tests/sign.test.js`. No npm install needed — uses Node's b
 node --test tests/sign.test.js
 ```
 
-Covers: b64url encoding, `canonical()`, SHA-256, `compactJwk()`, `roundGps()`, Haversine distance, `hashPayloadToB64url()` (v2/v3), `irlidStripCombinedForEncoding()`, `irlidMakeRedactedReceipt()`, trust history scoring, and ECDSA sign/verify round-trips. 56 tests, ~200ms.
+Covers: b64url encoding, `canonical()`, SHA-256, `compactJwk()`, `roundGps()`, Haversine distance, `hashPayloadToB64url()` (v2/v3), `irlidStripCombinedForEncoding()`, `irlidMakeRedactedReceipt()`, trust history scoring, and ECDSA sign/verify round-trips. 58 tests, ~200ms.
 
 ## Key Files
 
