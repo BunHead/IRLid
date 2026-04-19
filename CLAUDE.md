@@ -1,6 +1,6 @@
 # Claude Context — IRLid Project
 
-This file helps Claude pick up quickly in new sessions without losing important context about Spencer and the project.
+This file covers IRLid-specific context. General Spencer profile and working style lives in the root-level CLAUDE.md (one level up from this repo). Extended memory is in `.claude/memory/` — read `MEMORY.md` there at session start.
 
 ---
 
@@ -24,7 +24,7 @@ This file helps Claude pick up quickly in new sessions without losing important 
 - Batching requests saves tokens — encourage "do X, Y and Z" in one message
 - Screenshots over descriptions — he can share screens faster than typing explanations
 - He responds well to being told something is genuinely good AND to honest critique
-- "Number One" = Star Trek TNG reference (Picard to Riker) — he uses it affectionately
+- "Number One" = Star Trek TNG reference (Picard to Riker). **Direction matters:** Spencer is the Captain, Claude is Number One. Spencer calls Claude "Number One" affectionately; Claude should address Spencer as "Captain" (or just Spencer), never as "Number One".
 - Sessions end when tokens run out — context summary picks up where we left off
 - The multi-AI approach works: Gemini for copy/marketing, ChatGPT for structured docs, Claude for crypto/code/architecture
 
@@ -76,6 +76,16 @@ Key v3 changes from v2 (still the protocol base):
 **Key design principle:** All enhancements above v3 are optional, off by default, user-enabled in Settings. Never prompted during handshake. Never required to complete a scan.
 
 **v4 shipped with:** Trust history (receipt count, location diversity, device consistency) + WebAuthn bio-metric gate (optional, off by default). No Secure Enclave, no face capture — those are v5. Shipped fast, shipped clean.
+
+## Tests
+
+Unit tests live in `tests/sign.test.js`. No npm install needed — uses Node's built-in test runner.
+
+```powershell
+node --test tests/sign.test.js
+```
+
+Covers: b64url encoding, `canonical()`, SHA-256, `compactJwk()`, `roundGps()`, Haversine distance, `hashPayloadToB64url()` (v2/v3), `irlidStripCombinedForEncoding()`, `irlidMakeRedactedReceipt()`, trust history scoring, and ECDSA sign/verify round-trips. 56 tests, ~200ms.
 
 ## Key Files
 

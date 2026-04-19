@@ -1,0 +1,12 @@
+{
+  "name": "irlid",
+  "version": "4.0.0",
+  "description": "Browser-based proof-of-co-presence — ECDSA P-256, no app, no central authority.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/sign.test.js",
+    "test:watch": "node --test --watch tests/sign.test.js"
+  },
+  "author": "Spencer Austin",
+  "license": "Apache-2.0"
+}
