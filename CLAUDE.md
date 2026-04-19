@@ -149,6 +149,20 @@ Current open batch (closes 28 April) is entirely medical diagnostics and AI for 
 
 - **Redacted receipt** (18 April 2026) — `irlidMakeRedactedReceipt()` in sign.js. GPS replaced with SHA-256 hash. "Copy (privacy mode)" button in receipt.html. check.html handles redacted JSON receipts — verifies signatures and timing, shows location as privacy-protected.
 
+- **Layer 1 automated test suite** (19 April 2026) — `tests/sign.test.js`, 58 tests, Node built-in test runner (`node --test tests/sign.test.js`). `package.json` added with `"type":"module"` and test script. Covers all crypto primitives, GPS logic, trust history, sign/verify round-trips. No npm needed. VM cross-realm issues resolved.
+
+- **GPS fallback for cross-device receipts** (19 April 2026) — `irlidRecordVerifiedReceipt()` now falls back to sideA/sideB GPS when local key doesn't match either receipt side (e.g. scanned on mobile, viewed on desktop). Fixes diversity always FAIL.
+
+- **Background GPS harvest** (19 April 2026) — `backgroundHarvestGps()` in receipt.html. After receipt list loads, silently fetches each server receipt at 150ms intervals, extracts GPS, appends to trust history with `receiptHash` deduplication key. Ensures all receipts contribute to location diversity without requiring a rescan.
+
+- **Hotspot novelty scoring** (19 April 2026) — replaced binary PASS/FAIL diversity with `irlidBuildLocationClusters()` + `irlidLocationNovelty()` in sign.js. 1km-radius greedy clustering. Novelty = `1 - (largestClusterFraction)`. Home saturates to red (~36%), outliers stay green (~69%+). Colour-coded badge in receipt.html: red/orange/yellow/lime/green. Score jumped to 100% Confirmed (diversity no longer blocks on home-only history).
+
+- **Hash chip cache fix** (19 April 2026) — `renderDetail()` in receipt.html now clears all `.receipt-hash-chip` elements before re-rendering. Fixes stale hash chip showing wrong key when navigating between receipts.
+
+- **British spelling** (19 April 2026) — `noveltyColour` (was `noveltyColor`) in receipt.html. CSS properties left as-is (CSS spec).
+
+- **pitch-humanitarian.html updated** (19 April 2026) — v4 marked LIVE, roadmap corrected (v5=Secure Enclave, v6=Trust network/Blockchain/IoT, v7=ZK), 100% Confirmed score, privacy mode (redacted receipt), biometric detail added.
+
 ## v4 — SHIPPED ✅
 
 All features live at irlid.co.uk as of 17 April 2026. No further v4 work needed unless bugs found.
