@@ -105,16 +105,19 @@
       <li>Neither signature can be forged without the private key</li>
       <li>The receipt cannot be backdated or modified after creation</li>
       <li>Verification requires no trust in any central authority</li>
+      <li>Optional biometric gate (Face ID / fingerprint) — result committed into the signed payload</li>
     </ul>
+    <p style="font-size:12px;color:#1a6b2a;margin-top:12px;font-weight:600;">Live result: 100% Confirmed receipt — biometric PASS, 1.11m distance, 9s Δ</p>
   </div>
 
   <div class="privacy">
     <h3>Privacy by Design</h3>
     <ul>
-      <li>No biometric data collected by default — optional face capture stays on-device if enabled</li>
+      <li>No biometric data collected by default — WebAuthn gate is opt-in, off by default</li>
       <li>No central identity database</li>
       <li>Private keys never leave the device</li>
       <li>GPS coordinates are in the receipt by design — both parties attest to them</li>
+      <li>Privacy mode available: GPS replaced with a SHA-256 hash — proves location match without exposing coordinates</li>
       <li>Recipient only needs a phone browser — no account, no registration</li>
       <li>Receipt is self-verifying — does not depend on IRLid's servers to remain valid</li>
     </ul>
@@ -131,20 +134,20 @@
 
   <div class="future">
     <div class="future-item">
-      <div class="label">Now available</div>
-      <p>Browser-based receipt, GPS verification, cryptographic signatures, open source, embeddable widget for existing platforms</p>
+      <div class="label">v4 — Live now (April 2026)</div>
+      <p>Browser-based receipt, GPS verification, cryptographic ECDSA signatures, optional WebAuthn biometric gate, trust history scoring, location hotspot novelty — open source, embeddable widget for existing platforms</p>
     </div>
     <div class="future-item">
-      <div class="label">v4 — next</div>
-      <p>Hardware-backed keys (Secure Enclave), optional biometric signing, mutual face capture, offline mode with sync</p>
+      <div class="label">v5 — next</div>
+      <p>Hardware-backed keys (Secure Enclave / platform key), mutual face capture stored on-device, offline mode with sync when connectivity restored</p>
     </div>
     <div class="future-item">
-      <div class="label">v5 — trust network</div>
-      <p>Blockchain anchoring for permanent tamper-evident audit trail, W3C Verifiable Credentials, NGO audit integration</p>
+      <div class="label">v6 — trust network &amp; blockchain</div>
+      <p>Blockchain anchoring for permanent tamper-evident audit trail, W3C Verifiable Credentials, graph-based trust network, NGO audit integration, IoT / drone hardware attestation</p>
     </div>
     <div class="future-item">
-      <div class="label">v6 — zero knowledge</div>
-      <p>Prove delivery happened without revealing recipient identity — critical for vulnerable populations</p>
+      <div class="label">v7 — zero knowledge</div>
+      <p>Prove delivery happened without revealing recipient identity — critical for vulnerable populations in conflict zones</p>
     </div>
   </div>
 
