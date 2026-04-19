@@ -147,6 +147,10 @@ Bio-metric accounts: Spencer's Gmail = "Brain" (Pinky & the Brain) avatar. Wife'
 
 Location diversity will flip to PASS once a scan happens >1km from home (city centre, Wisdom's office, etc).
 
+## Design Principles (non-negotiable)
+
+- **DB: immutable, warts-and-all** — never write migrations that retroactively re-verify or "fix" old receipt rows. Old UNVERIFIED rows stay UNVERIFIED. Transparency beats tidiness; no central authority means no retroactive rewrites. If a bug caused bad `verified=0` rows, the bug gets fixed going forward; the history stays honest. This is *on-message* for the protocol, not a limitation.
+
 ## Tone Notes
 
 - Spencer is honest, self-deprecating, genuinely funny
