@@ -124,19 +124,27 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
 async function verifyReceipt(comb) {
   const TS_TOL = 90; const DIST_TOL = 12; const checks = {};
 
+  // Compact form strips a.hash, a.pub, and b.hash (see client sign.js irlidStripCombinedForEncoding).
+  // Fall back to hello.pub when a.pub is stripped; recompute hash from canonical(payload) when stripped.
+  const helloPub = (comb.hello && comb.hello.pub) ? comb.hello.pub : null;
+
   const a = comb.a;
-  if (a && a.payload && a.hash && a.sig && a.pub) {
+  const aPub = (a && a.pub) ? a.pub : helloPub;
+  if (a && a.payload && a.sig && aPub) {
     checks.a_structure = true;
     // Pass a.v (top-level response version) so v2 uses JSON.stringify, v3+ uses canonical().
-    checks.a_hash = (await hashPayloadToB64url(a.payload, a.v)) === a.hash;
-    checks.a_sig = await verifySig(a.hash, a.sig, a.pub);
+    const computedA = await hashPayloadToB64url(a.payload, a.v);
+    // If hash was stripped, recomputed is authoritative; if present, it must match.
+    checks.a_hash = a.hash ? (computedA === a.hash) : true;
+    checks.a_sig = await verifySig(computedA, a.sig, aPub);
   } else { checks.a_structure = false; checks.a_hash = false; checks.a_sig = false; }
 
   const b = comb.b;
-  if (b && b.payload && b.hash && b.sig && b.pub) {
+  if (b && b.payload && b.sig && b.pub) {
     checks.b_structure = true;
-    checks.b_hash = (await hashPayloadToB64url(b.payload, b.v)) === b.hash;
-    checks.b_sig = await verifySig(b.hash, b.sig, b.pub);
+    const computedB = await hashPayloadToB64url(b.payload, b.v);
+    checks.b_hash = b.hash ? (computedB === b.hash) : true;
+    checks.b_sig = await verifySig(computedB, b.sig, b.pub);
   } else { checks.b_structure = false; checks.b_hash = false; checks.b_sig = false; }
 
   const hello = comb.hello;
@@ -582,7 +590,10 @@ async function uploadReceipt(request, env) {
   if (dup) return json({ receipt_id: dup.id, receipt_hash: receiptHash, duplicate: true });
 
   const checks = await verifyReceipt(combined);
-  const pkA = (combined.a && combined.a.pub) ? await pubKeyId(combined.a.pub) : "";
+  // Compact receipts strip a.pub (it equals hello.pub) — fall back so we still record the key
+  const helloPub = (combined.hello && combined.hello.pub) ? combined.hello.pub : null;
+  const aPubForId = (combined.a && combined.a.pub) ? combined.a.pub : helloPub;
+  const pkA = aPubForId ? await pubKeyId(aPubForId) : "";
   const pkB = (combined.b && combined.b.pub) ? await pubKeyId(combined.b.pub) : "";
   const tsA = combined.a?.payload?.ts || null;
   const tsB = combined.b?.payload?.ts || null;
