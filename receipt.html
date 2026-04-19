@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 113 -->
+<!-- Deploy 114 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -1151,6 +1151,63 @@
     }
 
     listFooter.style.display = "flex";
+
+    // Background GPS harvest — silently walk through receipts and populate
+    // trust history with GPS from each one. Skips any receipt already logged
+    // (tracked by receipt_hash). Rate-limited to avoid hammering the API.
+    // This means diversity builds up from your full receipt history, not just
+    // the ones you happen to click into.
+    if (receipts.length > 0 && typeof irlidTrustHistoryGet === "function") {
+      backgroundHarvestGps(receipts);
+    }
+  }
+
+  async function backgroundHarvestGps(receipts) {
+    try {
+      // Build a set of receipt hashes already in the trust history so we skip them.
+      const seen = new Set(
+        irlidTrustHistoryGet()
+          .map(e => e.receiptHash)
+          .filter(Boolean)
+      );
+
+      for (const r of receipts) {
+        if (!r.receipt_hash || seen.has(r.receipt_hash)) continue;
+
+        // Fetch the full combined receipt JSON (GPS lives inside the payload).
+        try {
+          const res = await window.IRLBackend.getReceipt(r.receipt_hash);
+          if (!res.ok || !res.data || !res.data.combined) continue;
+          const comb = res.data.combined;
+          if (comb.type !== "combined") continue;
+
+          // Extract GPS from whichever side has it (fallback logic same as sign.js).
+          const sideA = comb.a;
+          const sideB = comb.b;
+          let lat = null, lon = null;
+
+          if (sideA && sideA.payload && Number.isFinite(sideA.payload.lat)) {
+            lat = sideA.payload.lat;
+            lon = sideA.payload.lon;
+          } else if (sideB && sideB.payload && Number.isFinite(sideB.payload.lat)) {
+            lat = sideB.payload.lat;
+            lon = sideB.payload.lon;
+          }
+
+          if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            // Use the scan timestamp from the receipt, not now — keeps history honest.
+            const ts = (sideA && sideA.payload && sideA.payload.ts)
+              ? sideA.payload.ts * 1000
+              : Date.now();
+            irlidTrustHistoryAppend({ ts, lat, lon, receiptHash: r.receipt_hash });
+            seen.add(r.receipt_hash);
+          }
+        } catch(_) {}
+
+        // 150ms gap between fetches — polite to the API, invisible to the user.
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    } catch(_) {}
   }
 
   function getLocalReceiptList(){
