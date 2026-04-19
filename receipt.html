@@ -1169,6 +1169,106 @@
     }
   }
 
+  // =========================
+  //  FULL HARVEST (monthly)
+  // =========================
+  // Walks every page of the server receipt list once a month.
+  // Adds GPS to trust history for any verified receipt not already logged.
+  // Counts unverified receipts (legacy bug rows) and stores the count so
+  // Settings can explain the gap between "X on record" and the DB total.
+  // Runs idle (requestIdleCallback / 5s delay) so it doesn't block anything.
+
+  async function fullHarvestGps() {
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+    try {
+      const lastRun = parseInt(localStorage.getItem("irlid_harvest_ts") || "0", 10);
+      if (Date.now() - lastRun < THIRTY_DAYS) return; // not time yet
+    } catch(_) { return; }
+
+    if (typeof irlidTrustHistoryGet !== "function") return;
+    if (!window.IRLBackend || typeof window.IRLBackend.listReceipts !== "function") return;
+
+    const seen = new Set(
+      irlidTrustHistoryGet().map(e => e.receiptHash).filter(Boolean)
+    );
+
+    let unverifiedCount = 0;
+    let page = 1;
+    let limit = pageLimit || 20;
+
+    while (true) {
+      let result;
+      try {
+        result = await window.IRLBackend.listReceipts(page);
+      } catch(_) { break; }
+
+      if (!result || !result.data) break;
+      const receipts = result.data.receipts || [];
+      const total    = result.data.total   || 0;
+      limit          = result.data.limit   || limit;
+
+      for (const r of receipts) {
+        if (!r.receipt_hash) continue;
+
+        if (!r.verified) {
+          unverifiedCount++;
+          continue; // UNVERIFIED rows (legacy bug) — count but don't add to trust history
+        }
+
+        if (seen.has(r.receipt_hash)) continue; // already logged
+
+        try {
+          const res = await window.IRLBackend.getReceipt(r.receipt_hash);
+          if (!res.ok || !res.data || !res.data.combined) continue;
+          const comb = res.data.combined;
+          if (comb.type !== "combined") continue;
+
+          const sideA = comb.a;
+          const sideB = comb.b;
+          let lat = null, lon = null;
+          if (sideA && sideA.payload && Number.isFinite(sideA.payload.lat)) {
+            lat = sideA.payload.lat; lon = sideA.payload.lon;
+          } else if (sideB && sideB.payload && Number.isFinite(sideB.payload.lat)) {
+            lat = sideB.payload.lat; lon = sideB.payload.lon;
+          }
+
+          if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            const ts = (sideA && sideA.payload && sideA.payload.ts)
+              ? sideA.payload.ts * 1000 : Date.now();
+            irlidTrustHistoryAppend({ ts, lat, lon, receiptHash: r.receipt_hash });
+            seen.add(r.receipt_hash);
+          }
+        } catch(_) {}
+
+        // 150ms gap — polite to the API, invisible to the user
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+
+      // Brief pause between pages
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      const totalPages = Math.ceil(total / limit);
+      if (page >= totalPages || receipts.length === 0) break;
+      page++;
+    }
+
+    // Persist the harvest timestamp and unverified count for Settings to read
+    try {
+      localStorage.setItem("irlid_harvest_ts",         String(Date.now()));
+      localStorage.setItem("irlid_harvest_unverified",  String(unverifiedCount));
+    } catch(_) {}
+  }
+
+  // Trigger full harvest once the page is idle — never blocks the UI
+  (function scheduleFullHarvest() {
+    const run = () => setTimeout(fullHarvestGps, 3000);
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run);
+    } else {
+      run();
+    }
+  })();
+
   async function backgroundHarvestGps(receipts) {
     try {
       // Build a set of receipt hashes already in the trust history so we skip them.

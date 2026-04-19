@@ -437,17 +437,24 @@
         return;
       }
       var v4 = await irlidV4TrustScore();
+      var unverified = parseInt(localStorage.getItem("irlid_harvest_unverified") || "0", 10);
+      var unverifiedNote = unverified > 0
+        ? " &nbsp;·&nbsp; <span title='Unverified receipts are legacy rows from an earlier bug — signatures could not be confirmed at the time. They are stored for transparency but do not contribute to your trust score.' style='color:#b05000;cursor:help;'>" + unverified + " unverified ⓘ</span>"
+        : "";
       trustHistoryLine.innerHTML =
         count + " receipt" + (count !== 1 ? "s" : "") + " on record &nbsp;·&nbsp; " +
         "Depth: " + v4.receiptDepthPts + "/2 pts &nbsp;·&nbsp; " +
         "Diversity: " + v4.locationDiversityPts + "/2 pts &nbsp;·&nbsp; " +
-        "Consistency: " + v4.deviceConsistencyPts + "/2 pts";
+        "Consistency: " + v4.deviceConsistencyPts + "/2 pts" +
+        unverifiedNote;
     }
 
     if (clearTrustBtn) {
       clearTrustBtn.addEventListener("click", function() {
         if (!confirm("Clear local trust history? This resets your trust score on this device.")) return;
         try { localStorage.removeItem("irlid_trust_history"); } catch{}
+        try { localStorage.removeItem("irlid_harvest_ts"); } catch{}
+        try { localStorage.removeItem("irlid_harvest_unverified"); } catch{}
         renderTrustHistory();
       });
     }
@@ -457,6 +464,8 @@
     clearLocalData = function() {
       _origClearLocalData();
       try { localStorage.removeItem("irlid_trust_history"); } catch{}
+      try { localStorage.removeItem("irlid_harvest_ts"); } catch{}
+      try { localStorage.removeItem("irlid_harvest_unverified"); } catch{}
       try { localStorage.removeItem("irlid_bio_cred_id"); } catch{}
       try { localStorage.removeItem("irlid_bio_enabled"); } catch{}
       try { localStorage.removeItem("irlid_dist_tol_m"); } catch{}
