@@ -166,14 +166,14 @@ The full 100-point system grows as optional enhancements are enabled:
 | Layer | What's added | Score |
 |-------|-------------|-------|
 | v3 base | Core cryptographic checks | 20 / 100 |
-| v4 Trust | Receipt history, location diversity, device consistency | 30 / 100 |
-| v5 Enhanced security | Secure Enclave key, biometric signing, mutual face capture — all optional, off by default | 50 / 100 |
-| v6 Network | Transitive trust graph, community vouching | 65 / 100 |
+| v4 Trust (**LIVE**) | Receipt depth, location hotspot novelty, device consistency, optional WebAuthn bio-metric gate | 50 / 100 |
+| v5 Enhanced security | Secure Enclave key migration, mutual face capture — all optional, off by default | 70 / 100 |
+| v6 Network | Transitive trust graph, community vouching, Sybil resistance | 65 / 100 |
 | v6 Blockchain | On-chain anchor, W3C Verifiable Credentials | 80 / 100 |
 | v6 IoT/Drones | Hardware attestation, delivery confirmation | 90 / 100 |
 | v7 ZK | Zero-knowledge proof of presence | 100 / 100 |
 
-**v4 scope:** Trust history scoring only. Secure Enclave, biometrics, and face capture deferred to v5.
+**v4 scope (shipped April 2026):** Trust history scoring (receipt depth, location hotspot novelty, device consistency) + optional WebAuthn bio-metric gate (Face ID / fingerprint committed into signed payload) + privacy mode (redacted GPS receipt). Secure Enclave key migration and face capture deferred to v5.
 
 All enhancements above v3 base are **optional and off by default**. A standard receipt scoring 20/100 is cryptographically valid and suitable for all everyday use. Higher scores are for extraordinary verification contexts.
 
@@ -247,9 +247,10 @@ Both paths are supported simultaneously. Old v2 receipts continue to verify corr
 ## 8. Security Notes
 
 - **Ephemeral keys:** New ECDSA P-256 keypair generated each session. No long-term identity is asserted.
-- **Key storage (current):** Device keys are stored in `localStorage`. This is accessible on a rooted device. Planned upgrade (v4): migrate to WebAuthn/Passkeys so keys are generated and held in the device Secure Enclave (Apple) or Trusted Execution Environment (Android) — hardware-backed, never extractable, optionally biometric-gated.
-- **Biometrics (planned, optional):** WebAuthn biometric unlock gates the Secure Enclave key. Biometric data never leaves the device or the enclave — only the cryptographic signature is transmitted. Sites can optionally require biometric-gated signing via the widget config.
-- **Face capture / mutual witness (planned, optional):** At each scan step, the scanning camera optionally captures the other party's face alongside the QR code. The face image is hashed and the hash is included in the scanner's signed payload — meaning A's payload contains a hash of B's face (witnessed by A) and B's payload contains a hash of A's face (witnessed by B). Neither party photographs themselves. The photo stays on device; only the hash travels in the receipt. All face capture features are off by default and enabled individually in Settings — never prompted during a handshake, never required to complete a scan.
+- **Key storage (current):** Device keys are stored in `localStorage`. This is accessible on a rooted device. Planned upgrade (v5): migrate to WebAuthn/Passkeys so keys are generated and held in the device Secure Enclave (Apple) or Trusted Execution Environment (Android) — hardware-backed, never extractable.
+- **Bio-metric gate (v4, optional, off by default):** WebAuthn platform authenticator (Face ID / fingerprint) fires before signing. The result (`bioVerified: true`) is committed into the ECDSA-signed payload — cryptographically bound, not self-reported after the fact. Bio-metric data never leaves the device. Enabled once in Settings; does not require Secure Enclave key storage.
+- **Privacy mode (v4):** `irlidMakeRedactedReceipt()` replaces GPS coordinates with `SHA-256(canonical({lat, lon, acc}))` before sharing. The receipt proves co-presence without exposing coordinates. A verifier with the original receipt can confirm the hash matches; a third party learns only that location was verified.
+- **Face capture / mutual witness (v5, planned, optional):** At each scan step, the scanning camera optionally captures the other party's face alongside the QR code. The face image is hashed and the hash is included in the scanner's signed payload — meaning A's payload contains a hash of B's face (witnessed by A) and B's payload contains a hash of A's face (witnessed by B). Neither party photographs themselves. The photo stays on device; only the hash travels in the receipt. All face capture features are off by default and enabled individually in Settings — never prompted during a handshake, never required to complete a scan.
 - **No server:** Fully peer-to-peer. No central authority can forge or revoke receipts.
 - **Replay resistance:** Nonces and short QR expiry (seconds) prevent replaying captured QR codes.
 - **GPS is optional and self-reported:** Location data is not independently verified. The distance check is a good-faith claim by both parties, not a cryptographic proof of physical proximity. A dishonest participant could supply false coordinates.

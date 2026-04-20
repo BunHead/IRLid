@@ -85,7 +85,7 @@ Unit tests live in `tests/sign.test.js`. No npm install needed — uses Node's b
 node --test tests/sign.test.js
 ```
 
-Covers: b64url encoding, `canonical()`, SHA-256, `compactJwk()`, `roundGps()`, Haversine distance, `hashPayloadToB64url()` (v2/v3), `irlidStripCombinedForEncoding()`, `irlidMakeRedactedReceipt()`, trust history scoring, and ECDSA sign/verify round-trips. 58 tests, ~200ms.
+Covers: b64url encoding, `canonical()`, SHA-256, `compactJwk()`, `roundGps()`, Haversine distance, `hashPayloadToB64url()` (v2/v3), `irlidStripCombinedForEncoding()`, `irlidMakeRedactedReceipt()`, `irlidBuildLocationClusters()`, `irlidLocationNovelty()`, trust history scoring, cross-key rejection, bioVerified payload binding, redacted GPS hash round-trip, and ECDSA sign/verify round-trips. 76 tests, ~270ms.
 
 ## Key Files
 
@@ -162,6 +162,16 @@ Current open batch (closes 28 April) is entirely medical diagnostics and AI for 
 - **British spelling** (19 April 2026) — `noveltyColour` (was `noveltyColor`) in receipt.html. CSS properties left as-is (CSS spec).
 
 - **pitch-humanitarian.html updated** (19 April 2026) — v4 marked LIVE, roadmap corrected (v5=Secure Enclave, v6=Trust network/Blockchain/IoT, v7=ZK), 100% Confirmed score, privacy mode (redacted receipt), biometric detail added.
+
+- **Uniform badge sizing + numeric values** (20 April 2026) — All check badges fixed to 52px wide pill shape. PASS/FAIL replaced with actual values: time shows "9s", distance shows "1.1m", trust depth shows "93x", device consistency shows "2/2". Novelty % unchanged.
+
+- **Full monthly harvest** (20 April 2026) — `fullHarvestGps()` in receipt.html. Walks all DB pages once per month (30-day localStorage throttle). Runs idle (requestIdleCallback / 3s delay). Counts UNVERIFIED receipts and stores count in `irlid_harvest_unverified`. Settings trust history line now shows unverified count with ⓘ tooltip explaining legacy bug rows.
+
+- **Deep site audit + fixes** (20 April 2026) — `qr.js` version unified to v63 across all pages (index.html was on v59). Meta descriptions + OG tags added to check.html, widget.html, receipt.html, scan.html. Bio-metric spelling consistency in settings.html. 
+
+- **Test suite expanded to 76** (20 April 2026) — +18 tests: `irlidBuildLocationClusters()` (5), `irlidLocationNovelty()` (6), cross-key signature rejection (2), pubKeyId collision resistance (1), bioVerified payload binding (2), redacted GPS hash round-trip (2). All 76 pass.
+
+- **PROTOCOL.md updated** (20 April 2026) — v4 scoring corrected (50/100 not 30/100), bio-metric gate documented as LIVE, privacy mode (gps_hash) formally specified, v5 scope corrected to Secure Enclave + face capture only.
 
 ## v4 — SHIPPED ✅
 
