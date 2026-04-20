@@ -70,12 +70,15 @@ const {
   hashPayloadToB64url,
   irlidStripCombinedForEncoding,
   irlidMakeRedactedReceipt,
+  irlidBuildLocationClusters,
+  irlidLocationNovelty,
   irlidV4TrustScore,
   irlidTrustHistoryAppend,
   irlidTrustHistoryGet,
   pubKeyId,
   getPublicJwk,
   ensureKeys,
+  signHashB64url,
 } = ctx;
 
 // ─── b64url encoding ─────────────────────────────────────────────────────────
@@ -603,5 +606,210 @@ describe("ECDSA sign/verify round-trip", () => {
     const id  = await pubKeyId(pub);
     assert.equal(id.length, 18);
     assert.ok(!id.includes("=") && !id.includes("+") && !id.includes("/"));
+  });
+
+  test("two different key pairs produce different pubKeyIds", async () => {
+    // Generate a second key pair in the VM context to confirm IDs don't collide
+    const pub1 = await getPublicJwk();
+    const kp   = await ctx.crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+    );
+    const pub2Raw = await ctx.crypto.subtle.exportKey("jwk", kp.publicKey);
+    const id1 = await pubKeyId(pub1);
+    const id2 = await pubKeyId(pub2Raw);
+    assert.notEqual(id1, id2);
+  });
+
+  test("cross-key: signature from key A fails verification against key B", async () => {
+    // Sign a hash with the current (key A) private key
+    const payload = { action: "test", ts: 9999 };
+    const hashB64 = await hashPayloadToB64url(payload, 3);
+    const sigB64  = await signHashB64url(hashB64);
+
+    // Generate a fresh key B and try to verify key A's signature with it
+    const kp = await ctx.crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+    );
+    const keyBPub = await ctx.crypto.subtle.exportKey("jwk", kp.publicKey);
+
+    const sigBytes  = b64urlDecode(sigB64);
+    const hashBytes = b64urlDecode(hashB64);
+    const keyBCrypto = await ctx.crypto.subtle.importKey(
+      "jwk", keyBPub, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]
+    );
+    const valid = await ctx.crypto.subtle.verify(
+      { name: "ECDSA", hash: "SHA-256" }, keyBCrypto, sigBytes, hashBytes
+    );
+    assert.equal(valid, false, "Key B must NOT verify Key A's signature");
+  });
+});
+
+// ─── irlidBuildLocationClusters() ────────────────────────────────────────────
+
+describe("irlidBuildLocationClusters()", () => {
+  test("empty input returns empty clusters", () => {
+    const clusters = irlidBuildLocationClusters([]);
+    assert.equal(clusters.length, 0);
+  });
+
+  test("entries without GPS coordinates are skipped", () => {
+    const clusters = irlidBuildLocationClusters([
+      { ts: 1 },                          // no lat/lon
+      { lat: null, lon: 52.9 },           // null lat
+      { lat: 52.9, lon: NaN },            // NaN lon
+      { lat: 52.9225, lon: -1.4746 },     // valid — Derby
+    ]);
+    assert.equal(clusters.length, 1);
+    assert.equal(clusters[0].count, 1);
+  });
+
+  test("two points <1km apart land in the same cluster", () => {
+    // ~500m apart within Derby city centre
+    const clusters = irlidBuildLocationClusters([
+      { lat: 52.9225, lon: -1.4746 },
+      { lat: 52.9265, lon: -1.4726 },
+    ]);
+    assert.equal(clusters.length, 1);
+    assert.equal(clusters[0].count, 2);
+  });
+
+  test("two points exactly 1km+ apart form separate clusters", () => {
+    // Derby (~52.9225, -1.4746) and a point ~1.1km north
+    const clusters = irlidBuildLocationClusters([
+      { lat: 52.9225, lon: -1.4746 },   // Derby centre
+      { lat: 52.9325, lon: -1.4746 },   // ~1.1km north
+    ]);
+    assert.equal(clusters.length, 2);
+  });
+
+  test("centroid updates as cluster grows", () => {
+    // Three points in a tight cluster — centroid should be between them
+    const clusters = irlidBuildLocationClusters([
+      { lat: 52.920, lon: -1.474 },
+      { lat: 52.924, lon: -1.476 },
+      { lat: 52.922, lon: -1.475 },
+    ]);
+    assert.equal(clusters.length, 1);
+    assert.equal(clusters[0].count, 3);
+    // Centroid lat should be between 52.920 and 52.924
+    assert.ok(clusters[0].lat > 52.920 && clusters[0].lat < 52.924);
+  });
+
+  test("Derby and Sheffield form separate clusters (43km apart)", () => {
+    const clusters = irlidBuildLocationClusters([
+      { lat: 52.9225, lon: -1.4746 },   // Derby
+      { lat: 53.3811, lon: -1.4701 },   // Sheffield
+    ]);
+    assert.equal(clusters.length, 2);
+  });
+});
+
+// ─── irlidLocationNovelty() ──────────────────────────────────────────────────
+
+describe("irlidLocationNovelty()", () => {
+  test("empty history → score 1.0 (brand new area)", () => {
+    const result = irlidLocationNovelty(52.9225, -1.4746, []);
+    assert.equal(result.score, 1.0);
+    assert.equal(result.totalClusters, 0);
+  });
+
+  test("history with no GPS entries → score 1.0", () => {
+    const history = [{ ts: 1 }, { ts: 2, lat: null }];
+    const result = irlidLocationNovelty(52.9225, -1.4746, history);
+    assert.equal(result.score, 1.0);
+  });
+
+  test("brand-new location far from all history → score 1.0", () => {
+    // All history in Derby, querying Sheffield
+    const history = Array(10).fill(null).map(() => ({ lat: 52.9225, lon: -1.4746 }));
+    const result = irlidLocationNovelty(53.3811, -1.4701, history); // Sheffield
+    assert.equal(result.score, 1.0);
+    assert.equal(result.clusterCount, 0);
+  });
+
+  test("saturated home location → score < 0.5", () => {
+    // All 10 history entries at home; querying same home
+    const history = Array(10).fill(null).map(() => ({ lat: 52.9225, lon: -1.4746 }));
+    const result = irlidLocationNovelty(52.9225, -1.4746, history);
+    // All 10/10 entries are in this cluster → score = 0
+    assert.equal(result.score, 0);
+  });
+
+  test("mixed history: home heavy, Sheffield once → Sheffield scores high", () => {
+    const history = [
+      ...Array(9).fill(null).map(() => ({ lat: 52.9225, lon: -1.4746 })), // Derby ×9
+      { lat: 53.3811, lon: -1.4701 },  // Sheffield ×1
+    ];
+    const sheffieldResult = irlidLocationNovelty(53.3811, -1.4701, history);
+    const derbyResult     = irlidLocationNovelty(52.9225, -1.4746, history);
+    // Sheffield (1/10) should score much higher than Derby (9/10)
+    assert.ok(sheffieldResult.score > 0.85, `Sheffield score was ${sheffieldResult.score}`);
+    assert.ok(derbyResult.score < 0.15,     `Derby score was ${derbyResult.score}`);
+  });
+
+  test("invalid coordinates return zero score", () => {
+    const result = irlidLocationNovelty(NaN, -1.4746, [{ lat: 52.9, lon: -1.4 }]);
+    assert.equal(result.score, 0);
+  });
+});
+
+// ─── bioVerified field in signed payload ─────────────────────────────────────
+
+describe("bioVerified in signed payload", () => {
+  test("payload with bioVerified:true hashes differently than without", async () => {
+    const base    = { ts: 1000, lat: 52.9225, lon: -1.4746 };
+    const withBio = { ...base, bioVerified: true };
+    const hashBase = await hashPayloadToB64url(base,    3);
+    const hashBio  = await hashPayloadToB64url(withBio, 3);
+    assert.notEqual(hashBase, hashBio,
+      "Adding bioVerified:true must change the hash (it's in the signed payload)");
+  });
+
+  test("bioVerified:false hashes differently than bioVerified:true", async () => {
+    const withFalse = { ts: 1000, lat: 52.9, lon: -1.4, bioVerified: false };
+    const withTrue  = { ts: 1000, lat: 52.9, lon: -1.4, bioVerified: true };
+    const h1 = await hashPayloadToB64url(withFalse, 3);
+    const h2 = await hashPayloadToB64url(withTrue,  3);
+    assert.notEqual(h1, h2);
+  });
+});
+
+// ─── Redacted receipt GPS hash round-trip ────────────────────────────────────
+
+describe("Redacted receipt GPS hash verification", () => {
+  test("verifier can recompute gps_hash from original coordinates", async () => {
+    const lat = 52.9225, lon = -1.4746, acc = 5;
+    // This is what sign.js does when building gps_hash:
+    const canonical_gps = canonical({ lat: roundGps(lat), lon: roundGps(lon), acc });
+    const expectedHash  = await sha256Hex(canonical_gps);
+
+    // Build a minimal combined receipt and redact it
+    const combined = {
+      type: "combined",
+      a: { payload: { lat, lon, acc, ts: 1000 }, hash: "x", sig: "x", pub: {} },
+      b: { payload: { lat, lon, acc, ts: 1001 }, hash: "x", sig: "x" },
+      hello: { offer: { payload: { lat, lon, acc, ts: 999 } }, hash: "x", sig: "x", pub: {} }
+    };
+    const redacted = await irlidMakeRedactedReceipt(combined);
+
+    // The gps_hash in the redacted receipt must match what a verifier recomputes
+    assert.equal(redacted.a.payload.gps_hash, expectedHash);
+    assert.equal(redacted.b.payload.gps_hash, expectedHash);
+  });
+
+  test("redacted receipt has no lat/lon but gps_hash is present on both sides", async () => {
+    const combined = {
+      type: "combined",
+      a: { payload: { lat: 52.9, lon: -1.4, acc: 10, ts: 1000 }, hash: "x", sig: "x", pub: {} },
+      b: { payload: { lat: 52.9, lon: -1.4, acc: 10, ts: 1001 }, hash: "x", sig: "x" },
+      hello: { offer: { payload: { lat: 52.9, lon: -1.4, ts: 999 } }, hash: "x", sig: "x", pub: {} }
+    };
+    const redacted = await irlidMakeRedactedReceipt(combined);
+    assert.equal(redacted.a.payload.lat, undefined);
+    assert.equal(redacted.a.payload.lon, undefined);
+    assert.equal(typeof redacted.a.payload.gps_hash, "string");
+    assert.equal(redacted.b.payload.lat, undefined);
+    assert.equal(redacted.b.payload.lon, undefined);
+    assert.equal(typeof redacted.b.payload.gps_hash, "string");
   });
 });
