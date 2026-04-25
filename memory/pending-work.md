@@ -82,14 +82,47 @@
 - **Imbue pilot design** — First-visit name registration + persistent device-key recognition for attendance logging. Add to org portal spec.
 - **DREAMS.md.new cleanup** — Stale draft (21 April, UK date format) sitting next to live `DREAMS.md` (25 April, ISO format). Recommend deletion. Pending Captain's call.
 
-## Roadmap — captured in PROTOCOL.md §10–§11 (26 Apr 2026)
+## Roadmap — Master version PROTOCOL.md §12 is canonical
 
-- **v6a** — Optional single RFC 3161 TSA token (FreeTSA) — score 50→55
-- **v6b** — Multi-witness TSA: NIST + NPL + USNO — score 55→62; raises threat-model floor to state-level
-- **v7a** — IRLid Time Authority (Cloudflare-hosted aggregator) — score 62→70
-- **v7b** — Daily OpenTimestamps Bitcoin anchor — score 70→75
-- **v8** — Mothership/drone pulsar receiver (XNAV) — score 90+; off-Earth-capable, hardware tier
-- **Forward-defined fields:** `tframe`, `pframe`, `tsTokens` documented in PROTOCOL.md §10–§11. Not yet emitted; receipts that include them remain v3-valid.
+The v5–v10 roadmap is now formally captured in `PROTOCOL.md §12 Master Roadmap` with target dates, effort estimates, and dependencies. **That is the single source of truth.** Summary below for quick scan; defer to §12 for detail.
+
+### Active horizon (May–Jul 2026) — v5
+
+- **v5.0** — Secure Enclave / Passkeys via WebAuthn — *Late May 2026, 2 weeks effort*
+- **v5.1** — Imbue pilot — name registration + device-key recognition — *Mid Jun 2026, 2 weeks*
+- **v5.2** — Schema fields added: `tframe`, `pframe`, `orient`, `tsTokens` (forward-defined, default-resolved) — *Late Jun 2026, 3 days*
+- **v5.3** — `DeviceOrientationEvent` → `orient` field; tolerance cone in verifier — *Mid Jul 2026, 1 week*
+
+### Near horizon (Aug–Nov 2026) — v6 Time anchoring
+
+- **v6.0** — Single RFC 3161 TSA token (FreeTSA)
+- **v6.1** — Multi-witness TSA (NIST + NPL + USNO) — state-level threat model
+- **v6.2** — OpenTimestamps Bitcoin anchor
+- **v6.3** — Hardening + formal threat model write-up
+
+### Mid horizon (Dec 2026–Jul 2027) — v7 Authority infrastructure
+
+- **v7.0** — IRLid Time Authority (Cloudflare aggregator)
+- **v7.1** — ZK coordinate hiding
+- **v7.2** — Frame-translation verifier libraries
+- **v7.3** — Independent security audit
+
+### Far horizon (2028+) — v8 Hardware tier and beyond
+
+- **v8.0–8.3** — Wisdom drone integration; star-tracker + pulsar XNAV anchors (gated on ASE Tech hardware)
+- **v9** — Multi-body operation (Moon, Mars) — gated on infrastructure that doesn't yet exist
+- **v10+** — Research frontier (full ZK presence, post-quantum, consumer-grade VLBI)
+
+### Forward-defined fields (in PROTOCOL.md, not yet emitted)
+
+- `tframe` — time frame, default `earth/utc` (§10.1)
+- `pframe` — position frame, default `wgs84/gps` (§10.1)
+- `orient` — quaternion orientation, optional (§10.3)
+- `pos` — extended position object supporting cartesian or geographic (§10.3)
+- `anchors[]` — celestial attestations (star-tracker, pulsar-xnav, vlbi-quasar, ephemeris-cross) (§10.3)
+- `tsTokens[]` — multi-witness TSA tokens (§11.3)
+
+All optional, all default-resolved, all backward-compatible with v3 receipts.
 
 ## Infrastructure — Done 25 April
 

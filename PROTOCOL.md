@@ -328,6 +328,63 @@ Phased path from the current Earth-bound protocol toward genuine cross-body oper
 
 **Note on pulsar/quasar feasibility:** NASA's NICER/SEXTANT mission demonstrated XNAV on the ISS in 2018. Millisecond pulsars (e.g., PSR B1937+21, PSR J0437-4715) provide timing stability comparable to atomic clocks. Quasars provide the most stable angular reference frame known (the ICRF). The hardware to receive and process these signals is research-grade today, plausibly consumer-grade by the 2030s. IRLid's protocol design must not assume this hardware is ever available *to phones* — it assumes it's available to the **mothership/drone tier** that browser-class clients defer to.
 
+### 10.3 Six-Axis Spatial Coordinates (6DOF)
+
+The current `lat`/`lon`/`acc` fields capture position only. They tell a verifier *where* two parties were, not *how they were oriented* relative to each other or the world. For some scenarios — drone delivery, AR co-presence, doorman flows, off-Earth operation — orientation is part of the proof.
+
+**6DOF means:** position (`x`, `y`, `z` or `lat`, `lon`, `alt`) plus orientation (a quaternion `qx, qy, qz, qw`, equivalent to pitch/yaw/roll). Together they define a complete *pose* in space.
+
+**Schema additions (forward-defined, not yet emitted):**
+
+```json
+{
+  "pos": {
+    "lat": 51.9, "lon": -1.4, "alt": 137.0,
+    "frame": "wgs84/gps"
+  },
+  "orient": {
+    "qx": 0.0, "qy": 0.0, "qz": 0.707, "qw": 0.707,
+    "frame": "wgs84/gps"
+  },
+  "anchors": [
+    { "type": "star-tracker", "hash": "sha256-of-observed-star-pattern", "catalog": "hipparcos-2007" },
+    { "type": "pulsar-xnav",  "pulsar": "PSR-J0437-4715", "toa-offset-ns": 142 }
+  ]
+}
+```
+
+For off-Earth contexts, `pos` carries cartesian `x`/`y`/`z` instead of `lat`/`lon`/`alt`, with `frame` set to e.g. `luna/pcrf` or `mars2000`.
+
+**The `anchors` array — celestial attestations.** This is where the design gets interesting:
+
+| Anchor type | What it proves | Verifier method |
+|-------------|----------------|-----------------|
+| `star-tracker` | Device observed a specific star pattern at signing time | Look up Hipparcos/Tycho catalog; recompute expected pattern at claimed pose+time; compare hash |
+| `pulsar-xnav` | Device received a pulsar signal with a specific timing-of-arrival offset | Cross-reference with IPTA published timing model for that pulsar |
+| `vlbi-quasar` | Device's antenna observed a quasar with measured differential timing (multi-station) | Compare against ICRF reference frame data |
+| `ephemeris-cross` | Device observed Sun/Moon/Earth positions consistent with claimed pose+time | Cross-reference NASA HORIZONS or JPL SPICE |
+
+These anchors are **independently verifiable from public reference data** — no trust in the parties is required. If the receipt claims pose P at time T and includes a star-tracker hash, a verifier with the published star catalog can confirm: "Yes, that star pattern *was* visible from pose P at time T." This is qualitatively stronger than self-reported GPS, because there is nothing to spoof except the original observation, which requires the receiver hardware.
+
+**Verifier behaviour:**
+
+- `pos` and `orient` follow the same frame-compatibility rules as §10.1 — both parties must declare matching frames or provide an explicit bridge
+- Position tolerance: 3D Euclidean distance for cartesian frames; Haversine + altitude for `wgs84/gps`
+- Orientation tolerance: angle between quaternions, default 30° cone (parties facing each other within reason)
+- Anchor verification: each anchor independently checked against public reference data; failure of any anchor does **not** invalidate the receipt — score reflects actual verification
+
+**Phasing:**
+
+| Phase | What | Score band | Hardware |
+|-------|------|------------|----------|
+| **v5.3** | `orient` field populated from `DeviceOrientationEvent`; orientation cone in verifier | richness, not security | Phone (already exposes API) |
+| **v8.1** | `anchors` array with `star-tracker` type — hash of observed star pattern | 70→80/100 | Mothership / drone with optical sensor |
+| **v8.2** | `anchors` with `pulsar-xnav` type — pulsar timing-offset signature | 80→90/100 | Hardware tier with radio / X-ray receiver |
+| **v8.3** | Full hardware-attested 6DOF pose (combined star + pulsar + ephemeris) | 90+/100 | Mothership tier |
+| **v9+** | Cross-body 6DOF — Mars2000, lunar PCRF, frame translation via published ephemeris | 95+/100 | Multi-body deployment |
+
+**Honest limitation at the phone tier:** `DeviceOrientationEvent` is just as spoofable as `Date.now()`. Phone-tier 6DOF adds *use-case richness* (AR, doorman, drone-recipient pairing) but does **not** strengthen the threat model. Threat-model strengthening lives in the hardware tier.
+
 ---
 
 ## 11. Forward Considerations: Multi-Authority Time Anchoring
@@ -426,4 +483,112 @@ The protocol does not claim absolute time-correctness against a state actor with
 
 ---
 
-*Sections 10 and 11 are forward-defined. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
+## 12. Master Roadmap
+
+This section is the **single source of truth** for IRLid's versioned development plan. Individual feature phasing in §10 and §11 is summarised here. When the per-feature tables and this master table disagree, **this table wins** and the others are updated.
+
+### 12.1 The Layered Anchoring Model
+
+Every IRLid receipt is a stack of optional, additive **attestations**. The base ECDSA signature is what matters cryptographically. Everything above is *external anchoring* — increasingly independent witnesses that "yes, this happened, here's how I can prove it without trusting the parties." Each version adds one more layer.
+
+```
+                   ┌─────────────────────────────────────────┐
+v10+               │  Quantum-resistant + full ZK presence   │  100/100
+                   ├─────────────────────────────────────────┤
+v9                 │  Multi-body translation (Mars/Moon)     │   95/100
+                   ├─────────────────────────────────────────┤
+v8                 │  Hardware-attested 6DOF (star + pulsar) │   90/100
+                   ├─────────────────────────────────────────┤
+v7                 │  Authority infra + ZK + frame tooling   │   75/100
+                   ├─────────────────────────────────────────┤
+v6                 │  Multi-witness TSA + OpenTimestamps     │   62/100
+                   ├─────────────────────────────────────────┤
+v5                 │  Hardware-backed keys + names + frames  │   50/100
+                   ├─────────────────────────────────────────┤
+v4 (LIVE)          │  Trust history + biometric + privacy    │   50/100
+                   ├─────────────────────────────────────────┤
+v3 (BASE)          │  ECDSA + canonical hash + GPS + window  │   20/100
+                   └─────────────────────────────────────────┘
+```
+
+Older receipts always remain valid; they sit at their original score. New layers add — they never invalidate.
+
+### 12.2 Versioned Roadmap
+
+Target dates from 26 April 2026, assuming sustained solo+AI development pace (~4–6 weeks per major version, ~1–2 weeks per minor). Hardware- and infrastructure-dependent versions (v8+) are gated on external partners and are best-estimates only.
+
+#### v5 — Identity hardening (May–Jul 2026)
+
+| Sub | Scope | Target | Effort | Section |
+|-----|-------|--------|--------|---------|
+| v5.0 | Secure Enclave / Passkeys via WebAuthn (closes localStorage criticism) | Late May 2026 | 2 weeks | §8 |
+| v5.1 | Imbue pilot — name registration + persistent device-key recognition | Mid Jun 2026 | 2 weeks | (org portal) |
+| v5.2 | Schema fields added: `tframe`, `pframe`, `orient`, `tsTokens` (forward-defined, default-resolved) | Late Jun 2026 | 3 days | §10, §11 |
+| v5.3 | `DeviceOrientationEvent` populates `orient`; tolerance cone in verifier | Mid Jul 2026 | 1 week | §10.3 |
+
+#### v6 — Time anchoring (Aug–Nov 2026)
+
+| Sub | Scope | Target | Effort | Section |
+|-----|-------|--------|--------|---------|
+| v6.0 | Single RFC 3161 TSA token (FreeTSA) — proves the pattern | Aug 2026 | 1 week | §11 |
+| v6.1 | Multi-witness TSA (NIST + NPL + USNO) — state-level threat model | Sept 2026 | 2 weeks | §11.4 |
+| v6.2 | OpenTimestamps daily Bitcoin Merkle anchor | Oct 2026 | 1 week + automation | §11 |
+| v6.3 | Hardening, formal threat model write-up, audit prep | Nov 2026 | 2 weeks | §8 |
+
+#### v7 — Authority infrastructure (Dec 2026–Jul 2027)
+
+| Sub | Scope | Target | Effort | Section |
+|-----|-------|--------|--------|---------|
+| v7.0 | IRLid Time Authority (Cloudflare aggregator with own TSA cert) | Jan 2027 | 4 weeks | §11.4 |
+| v7.1 | ZK coordinate hiding (Pedersen commitments over GPS) | Mar 2027 | 6 weeks | §8 |
+| v7.2 | Frame-translation verifier libraries (WGS84 ↔ lunar PCRF ↔ Mars2000) | Jun 2027 | 4 weeks | §10.1 |
+| v7.3 | Independent security audit (paid external) | Jul 2027 | 4 weeks | — |
+
+#### v8 — Hardware tier (2028)
+
+*Gated on Wisdom (ASE Tech) drone hardware progress and partnership formalisation.*
+
+| Sub | Scope | Target | Effort | Section |
+|-----|-------|--------|--------|---------|
+| v8.0 | Mothership/drone integration spec — schema for hardware-attested receipts | Q1 2028 | 6 weeks (joint) | §10.2, §10.3 |
+| v8.1 | Star-tracker observation hash field + verifier (Hipparcos/Tycho catalog) | Q2 2028 | 8 weeks | §10.3 |
+| v8.2 | Pulsar XNAV signature field + verifier (IPTA timing models) | Q3 2028 | 8 weeks | §10.3 |
+| v8.3 | Full hardware-attested 6DOF pose attestation | Q4 2028 | 8.1 + 8.2 merge | §10.3 |
+
+#### v9 — Multi-body operation (2029–2030)
+
+*Gated on actual lunar/Mars surface infrastructure existing.*
+
+| Sub | Scope | Target | Effort | Section |
+|-----|-------|--------|--------|---------|
+| v9.0 | Lunar receipts (LTC time, lunar PCRF) — first cross-body deployment | 2029 | 3+ months | §10.1, §10.2 |
+| v9.1 | Cross-frame validation: Earth verifier checks Moon receipts via published ephemeris | 2029 | 6 weeks | §10.1 |
+| v9.2 | Mars receipts (MTC time, Mars2000) — pending Mars surface presence | 2030+ | Major | §10.1 |
+| v9.3 | VLBI quasar bridging for cross-body simultaneity claims | 2030+ | Research | §10.3 |
+
+#### v10+ — Research frontier (2030+)
+
+| Scope | Notes |
+|-------|-------|
+| Full zero-knowledge proofs of co-presence (Schnorr + bulletproofs over Haversine in non-native field) | ZK lib maturity dependent |
+| Post-quantum signature migration (CRYSTALS-Dilithium or successor) | Triggered by quantum-cryptanalysis maturity |
+| Direct VLBI quasar fingerprinting at consumer scale | Hardware miniaturisation dependent |
+
+### 12.3 Gating and Honest Caveats
+
+- **Pre-v7 dates** are realistic targets under sustained pace.
+- **v7 dates** are achievable but assume continuous priority; real life intervenes.
+- **v8 onward** is *contingent* on partnerships and hardware that we don't control.
+- **v9 onward** is *contingent* on infrastructure that doesn't yet exist (lunar/Mars human presence at scale).
+- The roadmap is a *target to plan against*, not a commitment. Halve all dates beyond v6 for use in pitches or applications.
+
+### 12.4 Update Discipline
+
+- This section is updated whenever a version ships, slips, or scope changes.
+- Version-shipping updates the version history table at the top of this document and moves the relevant row from "future" to "shipped."
+- Major scope changes require a corresponding update in `memory/MEMORY.md`.
+- Minor scope changes are logged in `memory/sessions/` per-session.
+
+---
+
+*Sections 10, 11, and 12 are forward-defined. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
