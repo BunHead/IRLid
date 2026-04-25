@@ -277,3 +277,153 @@ Quick embed:
   });
 </script>
 ```
+
+---
+
+## 10. Forward Considerations
+
+The sections below are not implemented in the current protocol version. They document **design intent** so that future versions can be built incrementally without breaking changes. The principle: lay foundations now for the destination, rather than bolting things on later.
+
+All fields described in §10 and §11 are **optional** and **additive**. Receipts that omit them remain fully valid. Verifiers default-resolve missing fields (e.g. absent `tframe` resolves to `"earth/utc"`).
+
+### 10.1 Frame-Aware Time and Position
+
+Today, `ts` is implicitly Earth UTC milliseconds and `lat`/`lon` are implicitly WGS84/GPS. As IRLid's deployment surface widens — humanitarian last-mile in GPS-denied territory, drone delivery, eventually off-Earth operation — these implicit assumptions need to become explicit.
+
+**Schema additions (forward-defined, not yet emitted):**
+
+```json
+{
+  "ts": 1710000000000,
+  "tframe": "earth/utc",
+  "lat": 51.9,
+  "lon": -1.4,
+  "pframe": "wgs84/gps"
+}
+```
+
+| Field | Default (when absent) | Future values |
+|-------|----------------------|---------------|
+| `tframe` | `"earth/utc"` | `"earth/tai"`, `"luna/ltc"` (Coordinated Lunar Time, currently being defined by NASA), `"mars/mtc"` (Mars Coordinated Time), `"ssb/tcb"` (solar system barycentric) |
+| `pframe` | `"wgs84/gps"` | `"luna/pcrf"` (Principal Axes Coordinate Reference Frame, lunar), `"mars2000"`, mission-local frames |
+
+**Verifier behaviour:**
+- If both parties' `tframe` agree, normal time-tolerance check applies
+- If `tframe` differs, verification requires an explicit bridge — rejected as incompatible until inter-frame translation is defined
+- Same for `pframe`
+
+**Why now:** Adding the field today costs nothing; receipts ignore it. Adding the field after a million receipts have been signed without it is a coordinated migration. We pay zero to keep the door open.
+
+### 10.2 Off-Earth Operation Roadmap
+
+Phased path from the current Earth-bound protocol toward genuine cross-body operation:
+
+| Phase | Anchor | Timekeeping | Position | Hardware required |
+|-------|--------|-------------|----------|-------------------|
+| Now (v3–v4) | Browser clock + GPS | Self-reported UTC | Self-reported WGS84 | Consumer phone |
+| v5–v6 | Same, with `tframe`/`pframe` field present | Earth UTC explicit | WGS84 explicit | Consumer phone |
+| v7 | Multi-witness TSA tokens (see §11) | Anchored to TAI via national time authorities | Cell/wifi triangulation fallback | Consumer phone |
+| v8 | Hardware-attested time and position | Pulsar timing receiver (XNAV) — millisecond pulsars are stable everywhere in the solar system | Pulsar navigation — same source serves time AND position | Bespoke ground station / drone mothership / satellite payload |
+| v9+ | VLBI quasar anchor for inter-frame bridging | Local body time (lunar/Mars/etc.) cross-validated against celestial reference | Body-local frame, translated via published ephemeris | Multi-body deployment |
+
+**Note on pulsar/quasar feasibility:** NASA's NICER/SEXTANT mission demonstrated XNAV on the ISS in 2018. Millisecond pulsars (e.g., PSR B1937+21, PSR J0437-4715) provide timing stability comparable to atomic clocks. Quasars provide the most stable angular reference frame known (the ICRF). The hardware to receive and process these signals is research-grade today, plausibly consumer-grade by the 2030s. IRLid's protocol design must not assume this hardware is ever available *to phones* — it assumes it's available to the **mothership/drone tier** that browser-class clients defer to.
+
+---
+
+## 11. Forward Considerations: Multi-Authority Time Anchoring
+
+The current `ts` field is browser-self-reported — it is the weakest claim in the receipt structure. A motivated participant can trivially set their device clock to any value before signing. The 90-second tolerance window mitigates honest drift, not deliberate falsification.
+
+This section defines the planned anchoring approach to elevate timestamps from "self-reported" to "third-party witnessed."
+
+### 11.1 The TAI Hierarchy
+
+```
+Millisecond pulsar timing arrays  ──validation──▶  International Atomic Time (TAI)
+                                                          │
+                                                          │  weighted average of
+                                                          │  ~400 atomic clocks at
+                                                          │  ~80 institutions
+                                                          ▼
+                                                          UTC  =  TAI  −  leap seconds
+                                                          │
+                              ┌───────────────────────────┼───────────────────────────┐
+                              ▼                           ▼                           ▼
+                    NIST (USA)                  NPL (UK)                  USNO Master Clock
+                    nist.gov TSA                npl.co.uk                  (USA)
+                                                          │
+                                                          ▼
+                                          IRLid receipt (witnessed)
+```
+
+Anchoring against any one of these national time authorities is qualitatively stronger than self-reporting. Anchoring against multiple (multi-witness) is stronger still.
+
+### 11.2 RFC 3161 Time Stamp Authority Tokens
+
+RFC 3161 defines a standard for cryptographic timestamping. The flow:
+
+1. Client computes `H = SHA-256(canonical(receipt))`
+2. Client POSTs `H` to a TSA endpoint
+3. TSA returns a signed token: `{ts, hash, sig, certChain}` proving "this hash existed at time `ts`, witnessed by this TSA"
+4. Client embeds the token in the receipt
+
+Free public TSAs include:
+- FreeTSA (`freetsa.org`)
+- DigiCert (commercial)
+- NIST, NPL, USNO (national, free for non-commercial use)
+
+Verification is offline once the TSA's certificate chain is cached.
+
+### 11.3 Schema (forward-defined, not yet emitted)
+
+```json
+{
+  "ts": 1710000000000,
+  "tframe": "earth/utc",
+  "tsTokens": [
+    { "issuer": "nist", "token": "base64url-RFC3161-token" },
+    { "issuer": "npl",  "token": "base64url-RFC3161-token" },
+    { "issuer": "usno", "token": "base64url-RFC3161-token" }
+  ]
+}
+```
+
+The `tsTokens` array is order-independent. Each token must independently verify against its issuer's published certificate chain. The receipt's claimed `ts` must fall within the window vouched for by the witnesses (typically ±1 second).
+
+### 11.4 Phased Rollout
+
+| Phase | What | Score band | Notes |
+|-------|------|------------|-------|
+| **v6a** | Optional single TSA token (FreeTSA) | 50→55/100 | Proof of concept; one weekend of work |
+| **v6b** | Multi-witness — N≥2 of {NIST, NPL, USNO} | 55→62/100 | State-level adversary now needed |
+| **v7a** | "IRLid Time Authority" — Cloudflare-hosted aggregator that itself anchors to USNO + NIST + NPL and signs a unified token; reduces client-side TSA round-trips to one | 62→70/100 | Improves UX; requires our own signed pubkey infrastructure |
+| **v7b** | Daily Merkle anchor of all receipts to Bitcoin via OpenTimestamps | 70→75/100 | Provides upper-bound timestamp proof for archival; complements TSA tokens |
+| **v8** | Mothership/drone with onboard pulsar receiver — hardware-attested time, no Earth-network dependency | 90+/100 | See §10.2 |
+
+### 11.5 Verifier Behaviour
+
+For each token in `tsTokens`:
+
+1. Look up the issuer's certificate chain (cached locally, refreshed periodically)
+2. Verify the token's signature against the chain
+3. Confirm the token's signed time is within ±1 second of the receipt's claimed `ts`
+4. Confirm the token's signed hash matches `SHA-256(canonical(receipt-with-tsTokens-removed))`
+
+If at least one token verifies, the timestamp is "witnessed." Score boost scales with the number of independent witnesses up to a defined cap.
+
+If a token fails verification — issuer unreachable, certificate revoked, hash mismatch — the receipt is **not invalidated**. The score simply reflects the actual verification result. This preserves the design principle: enhancements never gate the base protocol.
+
+### 11.6 Threat Model Improvement
+
+| Attack | v3–v4 (today) | v6b multi-witness |
+|--------|---------------|-------------------|
+| Lone participant lies about time | Trivial — set device clock | Requires forging valid TSA tokens, infeasible without compromising authority private keys |
+| Coordinated participant pair lies about time | Trivial — both set device clocks | Same as above |
+| State-level adversary forges time | Possible via compromised CA | Requires compromising N national time authorities simultaneously |
+| Replay attack within tolerance window | Possible (90s) | Possible but bounded; mitigated by nonces |
+
+The protocol does not claim absolute time-correctness against a state actor with multi-jurisdiction reach. It does claim absolute time-correctness against any party not at that level.
+
+---
+
+*Sections 10 and 11 are forward-defined. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*

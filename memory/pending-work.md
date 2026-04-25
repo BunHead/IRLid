@@ -82,6 +82,15 @@
 - **Imbue pilot design** — First-visit name registration + persistent device-key recognition for attendance logging. Add to org portal spec.
 - **DREAMS.md.new cleanup** — Stale draft (21 April, UK date format) sitting next to live `DREAMS.md` (25 April, ISO format). Recommend deletion. Pending Captain's call.
 
+## Roadmap — captured in PROTOCOL.md §10–§11 (26 Apr 2026)
+
+- **v6a** — Optional single RFC 3161 TSA token (FreeTSA) — score 50→55
+- **v6b** — Multi-witness TSA: NIST + NPL + USNO — score 55→62; raises threat-model floor to state-level
+- **v7a** — IRLid Time Authority (Cloudflare-hosted aggregator) — score 62→70
+- **v7b** — Daily OpenTimestamps Bitcoin anchor — score 70→75
+- **v8** — Mothership/drone pulsar receiver (XNAV) — score 90+; off-Earth-capable, hardware tier
+- **Forward-defined fields:** `tframe`, `pframe`, `tsTokens` documented in PROTOCOL.md §10–§11. Not yet emitted; receipts that include them remain v3-valid.
+
 ## Infrastructure — Done 25 April
 
 - ✅ `support@irlid.co.uk` email sending — Gmail + Resend SMTP. Verified working.
