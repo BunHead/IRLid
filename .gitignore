@@ -1,0 +1,6 @@
+# Cowork sandbox artefacts
+.write_probe
+
+# OS
+.DS_Store
+Thumbs.db
