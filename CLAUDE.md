@@ -154,6 +154,11 @@ node --test tests/sign.test.js
 | 26 April 2026 | First Codex PR merged — settings panel bugs fixed, score binding and summary panel both verified working |
 | 25–26 April 2026 | Full outreach completed — Sequenzy, Shipit, Viberank, Talon, NextGen Tools all actioned |
 | 26 April 2026 | support@irlid.co.uk sending confirmed working via Gmail + Resend SMTP |
+| 26 April 2026 | `memory/` bootstrapped — `MEMORY.md`, `pending-work.md`, `sessions/` now version-controlled in repo |
+| 26 April 2026 | HANDOVER batch 2 issued to Mr. Data — Imbue pilot pattern (3 tasks); first batch (org dashboard wiring) PRs #2/#3/#4 opened cleanly |
+| 26 April 2026 | **PROTOCOL.md §10–§12 published** — frame-aware time/coordinates (`tframe`, `pframe`), multi-authority time anchoring (`tsTokens`), six-axis spatial coordinates (`orient`, `anchors[]`), master roadmap v5→v10+ |
+| 26 April 2026 | **`memory/crew-protocol.md` formalised** — Captain (Spencer) / Number One (Claude) / Mr. Data (Codex) / Counsellor Troi (Gemini); per-version effort percentages; hard rules; working rules |
+| 26 April 2026 | "100-year roadmap" angle added to PROMOTION.md as headline framing for serious outreach |
 
 ## Promotion Status
 

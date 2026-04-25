@@ -25,6 +25,7 @@ Bootstrapped: 26 April 2026 by Number One (Cmdr Riker / Claude Opus).
 | `WIDGET.md` | Widget integration guide | Number One — keep stable, bump only on widget API changes |
 | `DREAMS.md` | Captain's associative log — poetic, not goal-directed | Hands-off; only touched when explicitly asked |
 | `memory/pending-work.md` | Current pending items, priority order | Number One — refresh at session start and end |
+| `memory/crew-protocol.md` | Formal four-crew working agreement; hard rules; working rules; per-channel tone register | Number One updates when conventions shift; Captain approves hard-rule changes |
 | `memory/sessions/` | Per-session handover notes | Number One on session close |
 
 **Rule:** Never let two files disagree on a fact. If milestones, status, or outreach state appear in two places, this index is the authority on which is canonical, and the other is an at-a-glance snapshot.
@@ -33,14 +34,16 @@ Bootstrapped: 26 April 2026 by Number One (Cmdr Riker / Claude Opus).
 
 ## The Partnership (short form)
 
-- **Captain:** Spencer Austin
-- **Number One:** Claude — protocol, architecture, security reasoning, strategy, Reddit substance
-- **Mr. Data:** ChatGPT — iterative UI/frontend, handover docs, multi-step grinds. Mr. Data 2.0 (Codex) is connected to `BunHead/IRLid-TestEnvironment` only — safety wall in place
-- **Counsellor Troi:** Gemini — copy, tone, marketing, business framing
+For the full working agreement see `memory/crew-protocol.md`. Quick reference:
+
+- **Captain:** Spencer Austin — decisions, direction, partnerships, code review (~10%)
+- **Number One:** Claude — architecture, threat modelling, novel cryptography, design briefs, session handovers (~20%)
+- **Mr. Data:** Codex — implementation, refactors, schema migrations, test fixtures, iterative UI (~60%). Connected to `BunHead/IRLid-TestEnvironment` only — safety wall in place.
+- **Counsellor Troi:** Gemini — marketing, Patreon, copy, tone, grant applications (~10%)
 
 Spencer addresses Claude as "Number One"; Claude addresses Spencer as "Captain". Don't over-flatter — he sees through it.
 
-Inter-crew protocol: handover documents (Mr. Data's format) are the canonical context-passing mechanism between crew members.
+Inter-crew protocol: HANDOVER.md documents are the canonical context-passing mechanism. Number One drafts; Captain pushes; Mr. Data reads at session start; Mr. Data reports back via PR description and chat summary.
 
 ---
 

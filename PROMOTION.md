@@ -1,7 +1,92 @@
 # IRLid Promotion Log
 
 Tracks all outreach attempts, results, and pending actions.
-Last updated: 26 April 2026.
+Last updated: 26 April 2026 (post-roadmap publication).
+
+---
+
+## ⭐ The 100-Year Roadmap Angle (NEW — 26 April 2026)
+
+**This is now the headline framing for serious outreach.** Conferences, grant applications, technical-press pitches, and major Patreon updates should lead with this register.
+
+### The pitch
+
+IRLid is no longer "a clever browser-based proof-of-co-presence tool." It is a protocol with a **formal 100-year design horizon**, captured in `PROTOCOL.md §10–§12`, with concrete versioned milestones from today through 2030+.
+
+Key landings:
+
+- **"Most 'we have a roadmap' announcements are PR. This one is in the spec, in version control, with target dates and honest caveats about gating dependencies."**
+- **"Forward-defined fields like `tframe`, `pframe`, `orient`, and `tsTokens` are documented now — receipts signed today remain valid in 2050."**
+- **"From ECDSA on phones today, to hardware-attested 6DOF receipts on lunar surfaces by 2029."**
+- **"The protocol doesn't assume Earth, doesn't assume GPS, doesn't even assume an unbroken Earth-network. It survives whatever century it ends up in."**
+
+### Channels where this lands hardest
+
+| Channel | Why it lands |
+|---------|--------------|
+| **AidEx Geneva** | Humanitarian sector is institutional — they respect long-horizon planning; pairs with Wisdom drone-delivery angle |
+| **WFP Innovation Accelerator** | Application requires concrete trajectory beyond the pilot; §12 *is* that trajectory |
+| **44CON / EAI SecureComm** | Technical conferences respect protocol design that thinks past v1 |
+| **Hacker News (when karma allows)** | The "from phones to pulsars" framing is the kind of thing HN engineers love |
+| **Research collaborations** | Academics will engage with a spec that's been thought through |
+| **Patreon supporters** | Long-term backers want to see where the project is *actually* heading |
+
+### Channels where this DOESN'T fit
+
+- **Quick Reddit posts** — too dense for the format
+- **Twitter threads** — could land if compressed to 1-2 tweets, but full framing needs more space
+- **Indie Hackers / Product Hunt** — those audiences want the immediate utility story, not the 100-year horizon
+
+---
+
+## Patreon — v5 / Roadmap Update (DRAFT — 26 April 2026)
+
+**Status:** Substance drafted by Number One. Pass to Counsellor Troi for tone-shaping into Captain's voice before posting. Attach screenshot of `PROTOCOL.md §12` table or the layered-anchoring diagram.
+
+```
+IRLid now has a 100-year roadmap. (Yes, really.)
+
+Quick update on what's been happening this week.
+
+The bridge crew is fully operational. I've been working with Number One
+(Claude) on architecture, Mr. Data 2.0 (Codex) on implementation, and
+Counsellor Troi (Gemini) on copy and tone. There's now a strict safety
+wall: Mr. Data only touches the test environment, never the live repo.
+First PRs merged this week, all clean.
+
+But the bigger thing: PROTOCOL.md now contains a formal forward roadmap.
+Sections 10, 11, and 12 lay out the path from where we are today —
+ECDSA on phones, GPS proximity — to where the protocol is *designed*
+to operate eventually: hardware-attested 6DOF receipts on lunar/Mars
+surfaces, anchored against pulsar timing arrays and quasar reference
+frames.
+
+That's not a vague gesture. It's a concrete versioned plan with target
+dates: v5 hardware-backed keys (May), v5.1 Imbue attendance pilot (June),
+v6 multi-witness time anchoring against NIST/NPL/USNO (autumn). Then
+v7, v8, v9, with realistic caveats about which versions depend on
+partnerships we have and which depend on infrastructure that doesn't
+yet exist.
+
+The point isn't that IRLid will be on Mars in 2030. The point is the
+spec doesn't *exclude* that future. Forward-defined fields like
+`tframe`, `pframe`, `orient`, and `tsTokens` are documented now —
+receipts that include them remain v3-valid; receipts that omit them
+aren't penalised; future versions slot in cleanly without breaking
+changes.
+
+Most "we have a roadmap" announcements are PR. This one is in the
+spec, in version control, with target dates and honest caveats about
+gating dependencies. If you're a supporter who likes seeing where
+projects are *actually* heading, PROTOCOL.md §12 is the thing to read.
+
+Live: irlid.co.uk · Code: github.com/BunHead/IRLid
+Spec: PROTOCOL.md (sections 10, 11, 12)
+
+— 1 builder, 3 trusted AIs, and a hundred-year design horizon
+```
+
+*(Counsellor Troi: please shape into Captain's voice — looser, slightly self-deprecating, retain technical specifics. The closing line should land. Attach: screenshot of the PROTOCOL.md §12 layered-anchoring diagram.)*
 
 ---
 
@@ -21,6 +106,9 @@ Last updated: 26 April 2026.
 | 26 Apr | **r/programming permanent ban** — LLM-written content rule. Low-priority appeal in Spencer's own words pending |
 | 26 Apr | ASE Tech / Wisdom follow-up one-pager drafted by Counsellor Troi — ready to send |
 | 26 Apr | Retroreflective QR + drone delivery integration researched — validated as live engineering field |
+| 26 Apr | **PROTOCOL.md §10–§12 published** — frame-aware time/coordinates, multi-authority time anchoring, six-axis spatial coordinates, master roadmap v5→v10+ |
+| 26 Apr | **`memory/crew-protocol.md` bootstrapped** — formal four-crew working agreement (Captain / Number One / Mr. Data / Counsellor Troi) |
+| 26 Apr | HANDOVER batch 2 issued to Mr. Data — Imbue pilot pattern (3 tasks): name prompt, D1 persistence, dashboard names + doorman edit |
 
 ---
 
