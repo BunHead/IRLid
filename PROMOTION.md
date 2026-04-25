@@ -1,7 +1,39 @@
 # IRLid Promotion Log
 
 Tracks all outreach attempts, results, and pending actions.
-Updated April 2026.
+Last updated: 26 April 2026.
+
+---
+
+## 23–26 April 2026 — Recent Activity Block
+
+| Date | Event |
+|------|-------|
+| 23 Apr | **Wisdom (ASE Tech) meeting** — proof-of-delivery angle landed. Genuine interest. Next step: send concrete one-pager / demo link |
+| 23 Apr | **Product Hunt — LAUNCHED.** Inbound traffic from Shipit, Talon, BacklinkLog, Viberank |
+| 23 Apr | Organisation Portal test environment operational on GitHub Pages — QR→scan→entry flow working end-to-end |
+| 25 Apr | **Reddit r/webdev** posted with [Showoff Saturday] tag |
+| 25 Apr | Test environment fully pushed — `org.html`, `schema.sql`, `index.js`, `scan.html` all live |
+| 25 Apr | `support@irlid.co.uk` sending verified — Gmail + Resend SMTP |
+| 25 Apr | Inbound replies: Sequenzy (decline), Shipit (listing requested), Talon (scan submitted), Viberank (thanks), NextGen Tools (listed) |
+| 26 Apr | **Mr. Data 2.0 (Codex) commissioned** — connected to `BunHead/IRLid-TestEnvironment` only, safety wall in place |
+| 26 Apr | First Codex PR merged — settings panel score binding + summary panel verified working |
+| 26 Apr | **r/programming permanent ban** — LLM-written content rule. Low-priority appeal in Spencer's own words pending |
+| 26 Apr | ASE Tech / Wisdom follow-up one-pager drafted by Counsellor Troi — ready to send |
+| 26 Apr | Retroreflective QR + drone delivery integration researched — validated as live engineering field |
+
+---
+
+## Inbound — Closed out 25–26 April
+
+| Contact | Status | Notes |
+|---------|--------|-------|
+| Nic — Sequenzy | ✅ Replied 25 Apr | Polite decline, warm tone |
+| Lasha — Shipit | ✅ Replied 25 Apr | Listing request sent with PH URL |
+| Aidan — Talon | ✅ Scan submitted | Report pending at `support@irlid.co.uk` |
+| Viberank | ✅ Replied 25 Apr | Thanks + USP feedback acknowledged |
+| NextGen Tools | ✅ Listed 25 Apr | Scheduled launch, listing live |
+| BacklinkLog | ⏸ Hold | $20/yr decision deferred until first Patreon member |
 
 ---
 
@@ -9,10 +41,10 @@ Updated April 2026.
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| **Patreon** | ✅ Posted | v3 update post live. "1 person and his trusted AIs" closing line. |
+| **Patreon** | ✅ Posted | v4 update posted 18 April 2026 — bio-metric proof, 94% receipt screenshot. (v3 post earlier — "1 person and his trusted AIs" closing line.) |
 | **Twitter/X** | ✅ Posted | 6-tweet thread. Canonical hashing, 4am bug, widget angle. |
 | **LinkedIn** | ✅ Posted | Professional angle, widget/iframe framing. |
-| **Reddit r/netsec** (original) | ✅ Live | 25K+ views, 29 comments. cym13 exchange — ended positively. |
+| **Reddit r/netsec** (original) | ✅ Live | 28K+ views. cym13 exchange ended positively. v4 update comment posted 20 April. |
 | **Reddit r/netsec** (v3 post) | ❌ Removed | Removed by mods, likely duplicate rule. Don't repost. |
 | **YouTube — Nate B Jones** | ✅ Commented | "There Are Only 5 Safe Places to Build in AI" video. Comment live. |
 | **Indie Hackers** | ⚠️ Blocked | Tried to post story — insufficient karma. Need to comment first to build karma. Profile bio filled in. |
@@ -33,12 +65,19 @@ Updated April 2026.
 | Build IH karma | Medium | Comment on Indie Hackers posts before reposting story |
 | Reply to @joho0 on Nate's video | Medium | Their "trust economy" comment (21 likes) aligns perfectly with IRLid |
 | David Shapiro outreach | Low | Community Discord linked from his YouTube — easier than direct contact |
-| **Patreon v4 update** | **High** | Draft below — attach 94% receipt screenshot as proof |
-| **Gates Foundation** | **URGENT** | Draft below — gcgh.grandchallenges.org — closes 28 April |
-| r/privacy post | Medium | Draft below — "No biometrics" angle, text posts allowed |
-| r/webdev post | Medium | Draft below — Widget/iframe integration angle for developers |
-| LinkedIn humanitarian | Medium | Draft below — tag with #HumanitarianTech #DroneDelivery |
+| ~~Patreon v4 update~~ | ~~High~~ | ✅ Posted 18 April 2026 — 94% receipt screenshot attached |
+| ~~Product Hunt~~ | ~~Thursday 24 April~~ | ✅ **LAUNCHED 23 April 2026** — inbound from Shipit, Talon, BacklinkLog, Viberank |
+| ~~Reddit r/webdev~~ | ~~Saturday 25 April~~ | ✅ Posted 25 April 2026 with [Showoff Saturday] tag |
+| r/SaaS | ✅ Posted 20 April | May have been filtered — monitor |
+| r/programming | ⛔ **Banned 26 April 2026** — LLM-written content rule. Low-priority appeal pending in Spencer's own words |
+| r/cybersecurity | ✅ Posted 21 April 2026 | FOSS Tool flair — monitor for comments |
+| r/javascript | ❌ Skipped | Too restrictive, poor fit — not worth attempting |
+| r/privacy post | Medium | Karma wall — build comment history first. Draft below. |
+| Gates Foundation | ❌ Ruled out | April 2026 batch is medical diagnostics only. No fit. Revisit future batches. |
 | WFP Innovation Accelerator | Medium | Draft below — innovation.wfp.org/apply (rolling) |
+| 44CON CFP | Medium | London security conference — open CFP. Protocol talk angle. |
+| EAI SecureComm 2026 | Medium | Lancaster, July 21-24 — academic security/privacy conference |
+| LinkedIn humanitarian | Medium | Draft below — tag with #HumanitarianTech #DroneDelivery |
 | Local tech meetup | Low | Meetup.com — Derby/Nottingham area, free events |
 | DEF CON 34 talk submission | Low | August, Las Vegas — submit protocol talk |
 
@@ -465,3 +504,127 @@ IRLid v4 is live at irlid.co.uk. Protocol implemented, tested, and proven in pro
 Early-stage. Not yet tested at humanitarian scale. Developer is solo and independent. WFP engagement would provide structure and credibility needed to move from proof-of-concept to operational deployment.
 
 **Contact:** irlid.co.uk | GitHub: github.com/BunHead/IRLid
+
+---
+
+## r/programming Draft (21 April 2026)
+
+**Title:** Show r/programming: I built a browser tool that cryptographically proves two people physically met — ECDSA P-256, Web Crypto API, no app
+
+```
+I've been building IRLid — two people meet in person, scan each other's QR codes in a browser, both get a cryptographically signed receipt proving co-location within 12 metres.
+
+The interesting technical bits:
+
+**Canonical JSON serialisation** — moved from JSON.stringify() to a custom canonical() function for payload hashing before ECDSA signing. Property order isn't guaranteed across environments; canonical() recursively sorts all object keys before serialising, making all signatures order-independent.
+
+```javascript
+function canonical(obj) {
+  if (typeof obj !== 'object' || obj === null) return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(canonical).join(',') + ']';
+  const sorted = Object.keys(obj).sort().map(k =>
+    JSON.stringify(k) + ':' + canonical(obj[k])
+  );
+  return '{' + sorted.join(',') + '}';
+}
+```
+
+**Compact QR encoding** — receipts strip recomputable fields (a.hash, b.hash, a.pub) before deflate-raw compression. 764 chars vs 1,285 uncompressed.
+
+**Embeddable widget** — any site can drop in a single iframe and use a physical meeting as a verification gate. One iframe, one postMessage listener, receipt is a self-contained signed JSON object verifiable without my servers.
+
+**The 4am bug** — shipped v3, receipts showing 23% instead of 100%. GPS was being stripped server-side before returning to the client — stripped the coordinates that were in the original signed payload. Client couldn't recompute the hash. Every receipt failed. Obvious in hindsight.
+
+Honest limitation: GPS is self-reported. Cooperative trust model — both parties must complete the handshake. Full threat model documented in PROTOCOL.md.
+
+76 unit tests, Node built-in test runner, no npm needed. Live at irlid.co.uk | github.com/BunHead/IRLid
+```
+
+---
+
+## r/javascript Draft (21 April 2026)
+
+**Title:** Show r/javascript: Built a postMessage widget that verifies a user has physically met another person — ECDSA P-256 in the browser, no SDK
+
+```
+IRLid is a proof-of-co-presence tool — two people scan each other's QR codes in a browser and get a cryptographically signed receipt. I've just shipped an embeddable widget version.
+
+The integration is one iframe + one message listener:
+
+```javascript
+window.addEventListener("message", (e) => {
+  if (e.origin !== "https://irlid.co.uk") return;
+  if (e.data?.type === "IRLID_VERIFIED") {
+    const receipt = e.data.receipt;
+    // self-contained signed JSON — verify server or client side
+    // no SDK, no API key, no dependency on my servers staying up
+  }
+});
+```
+
+Everything runs via Web Crypto API — ECDSA P-256 key generation, SHA-256 over canonical JSON, deflate-raw for QR compression. No libraries, no WebAssembly, just what the browser ships with.
+
+The canonical() serialisation was the interesting bit — JSON.stringify() property order isn't guaranteed across environments, which would break signature verification. Recursively sort all keys before hashing and the problem goes away.
+
+Use cases: proof-of-attendance, community gating behind having physically met a real person, event check-ins, delivery confirmation.
+
+Honest caveat: GPS is self-reported by the browser. Full protocol spec and threat model at github.com/BunHead/IRLid (PROTOCOL.md). Live demo at irlid.co.uk/demo-login.html
+```
+
+---
+
+## r/cybersecurity Draft (21 April 2026)
+
+**Title:** I built a browser-based co-presence protocol using ECDSA P-256 — honest threat model included, interested in critique
+
+```
+IRLid produces a cryptographically signed receipt proving two parties were co-located within 12 metres at a specific time. Runs in any mobile browser via Web Crypto API. No app, no central authority, no biometrics by default.
+
+**Protocol summary:**
+- ECDSA P-256 signing, SHA-256 over canonical() JSON serialisation
+- HELLO → ACCEPT → COMBINED RECEIPT flow
+- Each response commits to both the HELLO hash and the offer hash — prevents cross-session substitution
+- Compact encoding strips recomputable fields; verifier recomputes from remaining data
+- Ephemeral keys per session — no long-term identity asserted
+
+**v4 additions (all optional, off by default):**
+- WebAuthn bio-metric gate — Face ID/fingerprint fires before signing; bioVerified:true committed into the ECDSA-signed payload
+- Privacy mode — GPS replaced with SHA-256(canonical({lat,lon,acc})) before sharing; proves co-presence without exposing coordinates
+- Trust history scoring — receipt depth, location hotspot novelty, device consistency
+
+**Honest limitations:**
+- GPS is self-reported by the browser — a dishonest participant can fabricate coordinates
+- Keys currently stored in localStorage — accessible on a rooted device (v5 plans Secure Enclave migration via WebAuthn/Passkeys)
+- Cooperative trust model — both parties must complete the handshake
+
+The r/netsec thread from last week has 28K views and some good pushback worth reading if you want the existing critique: search "Proof-of-Personhood Without Biometrics IRLid" on Reddit.
+
+Full protocol spec: github.com/BunHead/IRLid (PROTOCOL.md) | Live: irlid.co.uk
+```
+
+---
+
+## Product Hunt Draft (21 April 2026)
+
+**Name:** IRLid
+
+**Tagline:** Prove you physically met someone — like reCAPTCHA but the challenge is reality
+
+**Description:**
+IRLid lets two people prove they physically met — no app, no accounts, no biometrics required.
+
+Two phones. Two QR scans. One cryptographically signed receipt proving co-location within 12 metres at a specific time. ECDSA P-256 signatures via the Web Crypto API. Entirely browser-based.
+
+For developers: Drop in a single iframe and use a physical meeting as a verification gate. One postMessage listener. The receipt is self-contained and independently verifiable — no SDK, no API key, no dependency on IRLid's servers.
+
+For everyone else: Works on any phone browser. No download. No sign-up. Scan, sign, done.
+
+Use cases: proof-of-attendance at events, community gating behind real-world meetings, delivery confirmation, field ops logging, humanitarian last-mile accountability.
+
+v4 ships with optional bio-metric confirmation (Face ID/fingerprint committed into the signed payload), privacy mode (GPS replaced with a SHA-256 hash before sharing), and trust history scoring.
+
+Open source. Free. One developer, UK, spare time.
+
+**Topics:** Developer Tools, Security, Privacy, Open Source
+
+**Links:** irlid.co.uk | github.com/BunHead/IRLid
