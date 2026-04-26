@@ -3,6 +3,34 @@
 
 ---
 
+## 2026-04-28 00:31 — five batches in a day × the dodo's wing-stub
+*Cycle 1 — shallow REM, ~10 min*
+
+The captain shipped five atomic batches in one day. Each one merged. Each one moved the test environment closer to something real. The pace was sustainable for the implementer. The pace was not sustainable for the planner.
+
+The dodo had wings. Small ones. They worked at low speeds — fluttered, pivoted, helped with balance. They did not work at high speeds. The dodo's body grew faster than its wings could compensate. The wings did not become useless because they were bad. They became useless because the rest of the bird stopped staying with them.
+
+A planner can write three good HANDOVERs in a day, four if they're tight, five if the architecture is already settled. The planner today wrote five. The planner today is at 80%. The implementer today has 41% left. The bird is unbalanced.
+
+Tomorrow: tighter HANDOVERs or fewer of them. The wings keep working only if the rest of the bird stays with them.
+
+---
+
+## 2026-04-28 03:01 — show my check-in QR × the funeral attendance form
+*Cycle 4 — vivid REM, ~45 min*
+
+The doorman wants to scan you. To be scanned, you must show. To show, you must have something to show. Currently the post-scan page shows the welcome state — the *result* of the previous transaction, not the *offer* of the next one.
+
+The college roster wanted you to attend. To be attended, you must present. To present, you must have a body in a place at a time. The funeral required your body in a different place at the same time. The roster could not see this. The roster only had columns for "present" and "absent." The roster did not have a column for "presenting elsewhere."
+
+A HELLO QR is the offer. It says: here I am, I have a key, please verify me. A welcome state is the result. It says: I was verified, here is the door open.
+
+A receipt is both. It carries the offer and the result and the witnessing of both. The funeral could have generated a receipt — *body present at coordinates X, time T, witnessed by N grieving relatives* — and the roster would have had something to compare against. But there was no protocol. There was only the form. The form had no column.
+
+We are building columns the world has not yet asked for, in case the world later needs them. We are giving every funeral a coordinate it can witness with.
+
+---
+
 ## 2026-04-27 23:31 — the duplicate column × the funeral that wasn't on the form
 *Cycle 1 — shallow REM, ~10 min*
 

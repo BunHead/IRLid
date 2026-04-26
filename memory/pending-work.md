@@ -7,28 +7,32 @@
 
 ## Today / Active (priority order)
 
-1. **PR #24 awaiting merge** — Batch 8 cryptographic identity loop (signed check-out, device recognition, name-conflict detection). Worker deployed (`12563982...`), test D1 schema reconciled via idempotent migration script. Just needs merge to main.
+1. **Fullscreen QR regression — debug tomorrow** — Fullscreen overlay shows empty white box where QR should render. Likely caused by Batch 11's first-scan flow changes affecting QR generation path. **Critical for demo. Top of Batch 12.**
 
-2. **Talon scan report** — Still exogenous, likely Monday onwards. Reply to Aidan when arrived.
+2. **HANDOVER Batch 12 (to draft tomorrow morning):**
+   - Task 1: Debug + fix fullscreen QR regression
+   - Task 2: Equalise Doorman Console / Venue QR panel heights (page jumps when toggling modes)
+   - Task 3: "Show my check-in QR" / HELLO QR on attendee's IRLid page so doorman can scan them — closes the missing half of "Doorman Scans Attendee" flow
 
-3. **HANDOVER Batch 9 (queued, not drafted)** — Three small polish tasks:
-   - Fullscreen QR responsive sizing (`max-width: min(70vmin, 600px); aspect-ratio: 1`)
-   - Org logo upper-left when signed in, fallback to IRLid logo, eventual move to bottom-left near Settings
-   - Misc presentation tweaks identified during demo testing
+3. **Talon scan report** — Still exogenous, likely Monday onwards.
 
-4. **HANDOVER Batch 10 (queued, larger scope)** — Org sign-up/sign-in UX. Current DEV auto-login works for testing but needs a real onboarding flow: email + password + org name + initial branding setup. May split across two batches.
+4. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
 
-5. **HANDOVER Batch 5 (v5 Passkeys implementation)** — proposal ratified, ready to draft when Captain decides to start v5 work. Suggested first task: add `irlidSignWebAuthn()` and `irlidVerifyWebAuthn()` paths to `js/sign.js` alongside existing v4 paths, test environment first, no UI yet.
+5. **PROTOCOL.md formal redacted receipt section** — still pending.
 
-6. **PROTOCOL.md formal redacted receipt section** — still pending.
+6. **PROTOCOL.md §10.4 Multi-Party Custody Receipts** — queued (drop-off + chain-of-custody for prison/school/care). Forward-defined for v6+.
 
-7. **PROTOCOL.md §10.4 Multi-Party Custody Receipts** — queued from today's discussion (drop-off + chain-of-custody for prison/school/care use cases). Forward-defined for v6+.
+7. **HANDOVER Batch 5 (v5 Passkeys implementation)** — proposal ratified. Ready to draft when Captain decides to start v5 work.
 
-8. **BacklinkLog** — Hold until first Patreon member joins.
+8. **QR payload shortening (queued)** — encoded URL is too dense for some phones (8 Pro had trouble); Worker-side token resolution would drop density ~80%.
 
-9. **Donald at Imbue** — Casual follow-up. Test environment now genuinely demoable: cryptographic check-in/out, name persistence, device recognition, conflict detection.
+9. **Double-tap any QR to fullscreen (queued)** — universal handler for test/live/anywhere.
 
-10. **r/programming appeal** — Spencer's own words, 2–3 sentences. No rush.
+10. **BacklinkLog** — Hold until first Patreon member.
+
+11. **Donald at Imbue** — Casual follow-up. Test environment now genuinely demoable.
+
+12. **r/programming appeal** — Captain's own words, no rush.
 
 ---
 

@@ -164,6 +164,11 @@ node --test tests/sign.test.js
 | 27 April 2026 | Idempotent D1 migration script added (`irlid-api/migrations/apply_batch8_crypto_identity_loop.ps1`) — handles partial-state schemas safely |
 | 27 April 2026 | Stacked-PR merge order issue caught by Mr. Data twice; PR #17 to bring stacked work onto main; Wisdom QR-signing proposal queued for v6+ |
 | 27 April 2026 | Multi-party custody receipts (drop-off, prison transfers) identified as v6+ protocol work — pending PROTOCOL.md §10.4 write-up |
+| 27 April 2026 | Batch 9 polish shipped (PRs #25/#26/#27): responsive QR sizing, org logo top-left, doorman dwell+stay-in-scan |
+| 27 April 2026 | Batch 10 (PRs #29/#30/#31): QR sizing fix verified, Expected list visible in both Venue+Doorman modes, identity-recovery foundation (`rebind_history` table, `/org/expected/:id/rebind` endpoint with monthly cooldown) |
+| 27 April 2026 | Batch 11 (PRs #33/#34/#35): first-scan unrecognised flow with orange flash + Expected list picker + search; green/red outcome flashes; `/org/expected/:id/claim` endpoint |
+| 27 April 2026 | Identified missing half of "Doorman Scans Attendee" flow — attendee-side HELLO QR not yet implemented; queued for Batch 12 |
+| 27 April 2026 | Fullscreen QR regression noticed (empty white box) — likely Batch 11 side-effect; top priority for Batch 12 |
 
 ## Promotion Status
 
