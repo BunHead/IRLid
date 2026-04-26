@@ -1,25 +1,42 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 26 April 2026 (Number One — current Claude session)
+**Last refreshed:** 27 April 2026 (Number One — current Claude session)
 **Source of truth.** All other lists defer to this file.
 
 ---
 
 ## Today / Active (priority order)
 
-1. **Talon scan report** — Scan submitted 25 April, report coming to `support@irlid.co.uk`. Not yet received. Reply to Aidan once it arrives.
+1. **Talon scan report** — Scan submitted 25 April, report still pending at `support@irlid.co.uk`. Likely Monday earliest (security audits don't run weekends). Reply to Aidan once arrived.
 
-2. **Mr. Data 2.0 (Codex) — next mission** — First PR (settings panel score binding + summary panel) merged and verified. **Next task:** replace mocked attendee logic in TestEnvironment with real Worker calls against `irlid-api-test`. Number One to write the brief: scope, endpoints, success criteria, hard boundary at the test DB.
+2. **v5 Passkeys proposal — RATIFIED** (with adjustments). See `v5-PASSKEYS-PROPOSAL.md`. Captain's decisions (27 Apr):
+   - ✅ Bump receipt version to `v: 5`
+   - ✅ Neutral on cross-device Passkey sync (document trade-off)
+   - ✅ Score 70/100 confirmed
+   - ✅ **Default-on flip moved from v5.2 → v6.0** — better security narrative, no split user base
+   - **Next:** Number One to draft HANDOVER batch 5 for Mr. Data — v5 implementation on test environment first
 
-3. **v5 architecture proposal — Secure Enclave / Passkeys migration** — Number One owes Captain a concrete proposal: key generation path via WebAuthn, backward compat with existing v4 receipts, rollout gating, fallback for browsers without platform authenticator.
+3. **Imbue pilot test environment — fully functional after today's debug**
+   - Batch 4 PRs (#10, #11, #12) shipped: auto-link, sort, dup prevention, inline edit
+   - PR #13 fixed `D1_TYPE_ERROR` (orgAuth() missing `error: true` flag) — worker version `3a323cdb`
+   - Live UI now exercises full editable-database flow end-to-end
 
-4. **PROTOCOL.md formal write-up of redacted receipt format** — Privacy mode is live in code (`irlidMakeRedactedReceipt()`) but PROTOCOL.md only mentions it briefly in §8. Formal schema + verifier behaviour section needed.
+4. **PROTOCOL.md formal redacted receipt section** — still pending. Privacy mode live in code; needs formal schema/verifier section.
 
-5. **BacklinkLog** — $20/year decision pending. Permanent dofollow backlink. **Hold until first Patreon member joins.**
+5. **BacklinkLog** — Hold until first Patreon member joins.
 
-6. **Donald at Imbue** — Casual follow-up next time he's around. Mention Imbue attendance pilot idea (first-visit name + persistent device key recognition).
+6. **Donald at Imbue** — Casual follow-up. Imbue pilot test environment now actually demoable.
 
-7. **r/programming appeal** — Permanent ban for LLM-written content rule (26 April). Low priority. Spencer's own words, 2–3 sentences. No rush.
+7. **r/programming appeal** — Spencer's own words, 2–3 sentences. No rush.
+
+---
+
+## Hardware testing setup (decided 27 Apr)
+
+- **Webcam:** Logitech C920 (~£47) — solves QR scanning issue
+- **Windows Hello:** USB fingerprint reader (~£20) instead of IR webcam
+- **Total:** ~£67. Defer purchase until v5 implementation is closer.
+- **Phase 1 lab testing:** two Androids + Windows fingerprint reader. iOS deferred to Phase 3 (Patreon early-access).
 
 ---
 

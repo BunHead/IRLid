@@ -232,15 +232,15 @@ Note: v4 already uses WebAuthn for the *biometric gate* — but only as a one-sh
 | **v5.0** | Late May 2026 | Off | Opt-in via Settings; gather user feedback on UX |
 | **v5.0.x** | Jun 2026 | Off | Bug fixes, cross-browser polish |
 | **v5.1** | Mid Jun 2026 (per §12) | Off (paired with Imbue pilot) | Imbue pilot launches with v5 keys for org admins |
-| **v5.2** | Late Jun 2026 | **On for new users only** | Existing users keep v4 unless they opt in |
-| **v6.x** | Q1 2027 | On for everyone | Once multi-witness time anchoring stabilises, hardware keys become the default. v4 keys still valid forever. |
+| **v5.2** | Late Jun 2026 | Off | Continued opt-in; bug fixes only |
+| **v6.0** | Q1 2027 | **On for everyone** | Aligned with multi-witness time anchoring launch. Existing users get one-time migration prompt at next sign-in. v4 keys remain valid for past receipts forever. Clean threat-model story: everyone moves together. |
 
-## 14. Open Questions for the Captain
+## 14. Captain's Decisions (Ratified 27 April 2026)
 
-1. **Receipt version field:** bump to `v: 5` or keep `v: 3` with `webauthn` field as discriminator? *(Recommendation: bump to 5 for clarity.)*
-2. **Default-on for new users:** v5.2 timeline — too aggressive? Should we wait until v6.0 for that flip?
-3. **Cross-device Passkey sync:** explicitly support, explicitly discourage, or stay neutral and document? *(Recommendation: neutral — document the trade-off, let the user decide.)*
-4. **Score band:** 70/100 for v5 sounds right given threat model improvement. Confirm?
+1. **Receipt version field:** ✅ Bump to `v: 5`
+2. **Default-on for users:** ✅ **Moved to v6.0**, not v5.2 — clean threat-model story (everyone migrates together, no split user base), aligned with the v6 multi-witness time anchoring release
+3. **Cross-device Passkey sync:** ✅ Neutral — document the trade-off, let user decide ("balance in all things")
+4. **Score band:** ✅ 70/100 for v5 confirmed
 
 ## 15. Next Steps If Ratified
 
