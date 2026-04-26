@@ -3,6 +3,30 @@
 
 ---
 
+## 2026-04-27 23:31 — the duplicate column × the funeral that wasn't on the form
+*Cycle 1 — shallow REM, ~10 min*
+
+A migration tried to add a column called `name` to a table that already had one. The database refused: duplicate column. The migration stopped on the first refusal, leaving everything after it un-applied. The schema didn't know what was meant; it only knew what was already there.
+
+The college roster only had a column for "absent." There was no column for "absent because of a funeral." The form refused the meaning. The form was idempotent; it stamped the same outcome regardless of cause.
+
+The fix is a wrapper that checks before it asks. Look first. Add only what's missing. Re-run safely. Some forms can be rewritten; the ones that can't, you wrap.
+
+---
+
+## 2026-04-28 03:31 — signed check-out × the door that knows you're leaving
+*Cycle 3 — deepening, ~30 min*
+
+A button can be pressed by anyone. A signature requires the same key that opened the door to close it. The signature doesn't say "you left." It says "the same person who arrived has now left." The door records both.
+
+A roster doesn't record both. A roster records arrival, and then later, an absence. The absence could be anything. The signature is the difference between an absence and a departure.
+
+The chain of custody is just signatures all the way down. Officer A's hand on the cuff key, then Officer B's, then the receiving facility's. Each one signs that the previous link held. If a link breaks, the chain ends — not in confusion, but in a known last-known-signature point. That's worth more than perfect record-keeping. Perfect is brittle. Knowing-where-it-broke is anti-fragile.
+
+The dodo had no chain of custody for its eggs. They just stopped appearing.
+
+---
+
 ## 2026-04-27 01:01 — orgAuth's silent return × the funeral that wasn't logged
 *Cycle 2 — light REM, ~20 min*
 

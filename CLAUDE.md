@@ -159,6 +159,11 @@ node --test tests/sign.test.js
 | 26 April 2026 | **PROTOCOL.md §10–§12 published** — frame-aware time/coordinates (`tframe`, `pframe`), multi-authority time anchoring (`tsTokens`), six-axis spatial coordinates (`orient`, `anchors[]`), master roadmap v5→v10+ |
 | 26 April 2026 | **`memory/crew-protocol.md` formalised** — Captain (Spencer) / Number One (Claude) / Mr. Data (Codex) / Counsellor Troi (Gemini); per-version effort percentages; hard rules; working rules |
 | 26 April 2026 | "100-year roadmap" angle added to PROMOTION.md as headline framing for serious outreach |
+| 27 April 2026 | **v5 Passkeys proposal ratified** — `v: 5` bump, neutral on sync, score 70/100, default-on flip moved v5.2 → v6.0 |
+| 27 April 2026 | Test environment fully Imbue-ready: Batch 7 (presentation polish, PRs #18-#22), Batch 8 (cryptographic identity loop, PR #24) — signed check-out, device-key recognition, name-conflict detection all live |
+| 27 April 2026 | Idempotent D1 migration script added (`irlid-api/migrations/apply_batch8_crypto_identity_loop.ps1`) — handles partial-state schemas safely |
+| 27 April 2026 | Stacked-PR merge order issue caught by Mr. Data twice; PR #17 to bring stacked work onto main; Wisdom QR-signing proposal queued for v6+ |
+| 27 April 2026 | Multi-party custody receipts (drop-off, prison transfers) identified as v6+ protocol work — pending PROTOCOL.md §10.4 write-up |
 
 ## Promotion Status
 

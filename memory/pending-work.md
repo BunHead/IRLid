@@ -7,27 +7,28 @@
 
 ## Today / Active (priority order)
 
-1. **Talon scan report** — Scan submitted 25 April, report still pending at `support@irlid.co.uk`. Likely Monday earliest (security audits don't run weekends). Reply to Aidan once arrived.
+1. **PR #24 awaiting merge** — Batch 8 cryptographic identity loop (signed check-out, device recognition, name-conflict detection). Worker deployed (`12563982...`), test D1 schema reconciled via idempotent migration script. Just needs merge to main.
 
-2. **v5 Passkeys proposal — RATIFIED** (with adjustments). See `v5-PASSKEYS-PROPOSAL.md`. Captain's decisions (27 Apr):
-   - ✅ Bump receipt version to `v: 5`
-   - ✅ Neutral on cross-device Passkey sync (document trade-off)
-   - ✅ Score 70/100 confirmed
-   - ✅ **Default-on flip moved from v5.2 → v6.0** — better security narrative, no split user base
-   - **Next:** Number One to draft HANDOVER batch 5 for Mr. Data — v5 implementation on test environment first
+2. **Talon scan report** — Still exogenous, likely Monday onwards. Reply to Aidan when arrived.
 
-3. **Imbue pilot test environment — fully functional after today's debug**
-   - Batch 4 PRs (#10, #11, #12) shipped: auto-link, sort, dup prevention, inline edit
-   - PR #13 fixed `D1_TYPE_ERROR` (orgAuth() missing `error: true` flag) — worker version `3a323cdb`
-   - Live UI now exercises full editable-database flow end-to-end
+3. **HANDOVER Batch 9 (queued, not drafted)** — Three small polish tasks:
+   - Fullscreen QR responsive sizing (`max-width: min(70vmin, 600px); aspect-ratio: 1`)
+   - Org logo upper-left when signed in, fallback to IRLid logo, eventual move to bottom-left near Settings
+   - Misc presentation tweaks identified during demo testing
 
-4. **PROTOCOL.md formal redacted receipt section** — still pending. Privacy mode live in code; needs formal schema/verifier section.
+4. **HANDOVER Batch 10 (queued, larger scope)** — Org sign-up/sign-in UX. Current DEV auto-login works for testing but needs a real onboarding flow: email + password + org name + initial branding setup. May split across two batches.
 
-5. **BacklinkLog** — Hold until first Patreon member joins.
+5. **HANDOVER Batch 5 (v5 Passkeys implementation)** — proposal ratified, ready to draft when Captain decides to start v5 work. Suggested first task: add `irlidSignWebAuthn()` and `irlidVerifyWebAuthn()` paths to `js/sign.js` alongside existing v4 paths, test environment first, no UI yet.
 
-6. **Donald at Imbue** — Casual follow-up. Imbue pilot test environment now actually demoable.
+6. **PROTOCOL.md formal redacted receipt section** — still pending.
 
-7. **r/programming appeal** — Spencer's own words, 2–3 sentences. No rush.
+7. **PROTOCOL.md §10.4 Multi-Party Custody Receipts** — queued from today's discussion (drop-off + chain-of-custody for prison/school/care use cases). Forward-defined for v6+.
+
+8. **BacklinkLog** — Hold until first Patreon member joins.
+
+9. **Donald at Imbue** — Casual follow-up. Test environment now genuinely demoable: cryptographic check-in/out, name persistence, device recognition, conflict detection.
+
+10. **r/programming appeal** — Spencer's own words, 2–3 sentences. No rush.
 
 ---
 
@@ -159,3 +160,13 @@ All optional, all default-resolved, all backward-compatible with v3 receipts.
 
 - **Gates Foundation** (April 2026 batch) — medical diagnostics only. Revisit when topic rotates.
 - **r/javascript** — too restrictive, poor fit. Not worth attempting.
+
+---
+
+## Mr. Data addendum - 2026-04-26 12:12 BST
+
+Imbue pilot stack update after Number One's return:
+- PR #14: stable DEV org key / auto-login (`codex/fix-dev-autologin-org-key`).
+- PR #15: fullscreen venue QR now regenerates cleanly and shows org branding/trust cues (`codex/fix-fullscreen-venue-qr-branding`). Still needs merging onward to `main` before GitHub Pages shows it.
+- PR #16: dashboard check-out button + `POST /org/checkout` client wiring (`codex/add-dashboard-checkout-action`). Captain merged #16 into #15's branch; no local `git push` needed for that part.
+- Next: Number One should inspect/merge the remaining stack to `main`, wait for GitHub Pages deploy, then have Captain hard refresh and verify DEV login, fullscreen venue QR, and check-out flow.
