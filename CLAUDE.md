@@ -169,6 +169,9 @@ node --test tests/sign.test.js
 | 27 April 2026 | Batch 11 (PRs #33/#34/#35): first-scan unrecognised flow with orange flash + Expected list picker + search; green/red outcome flashes; `/org/expected/:id/claim` endpoint |
 | 27 April 2026 | Identified missing half of "Doorman Scans Attendee" flow — attendee-side HELLO QR not yet implemented; queued for Batch 12 |
 | 27 April 2026 | Fullscreen QR regression noticed (empty white box) — likely Batch 11 side-effect; top priority for Batch 12 |
+| 27 April 2026 | Number One drafted `HANDOVER-Batch12.md` (3 tasks); Mr. Data delivered Batch 12 to origin/main as PR #40 (separate `codex/fix-fullscreen-qr-regression`, `codex/equalise-org-panel-heights`, `codex/attendee-hello-qr-and-shell-polish` branches); shared `js/qr-fullscreen.js` extracted as universal handler |
+| 27 April 2026 | **Inline checkout QR bug diagnosed by Number One** — `org.html:renderCheckoutQr()` calls `getElementById` with `CSS.escape(checkinId)`. UUIDs starting with a digit get the leading digit escaped (`\39 …`), but `getElementById` takes a literal id, not a CSS selector → target null → early return → empty white box. Mr. Data's PR #44 image fallback didn't fire because the same broken guard short-circuited it. Fix: drop `CSS.escape`, one line. Pending Captain's clean merge recovery. |
+| 27 April 2026 | Mr. Data drafted Batch 13 in test env `HANDOVER.md` — 5-task plan: staff auth schema/endpoint, staff auth UI smoke panel, enforcement gate, checkout token API, short checkout QR UI (+ optional debug clear). Properly split across PRs. |
 
 ## Promotion Status
 

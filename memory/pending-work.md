@@ -1,43 +1,49 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 27 April 2026 (Number One — current Claude session)
+**Last refreshed:** 27 April 2026 (Number One — late afternoon session, post-Batch-12)
 **Source of truth.** All other lists defer to this file.
 
 ---
 
 ## Today / Active (priority order)
 
-1. **Fullscreen QR regression — debug tomorrow** — Fullscreen overlay shows empty white box where QR should render. Likely caused by Batch 11's first-scan flow changes affecting QR generation path. **Critical for demo. Top of Batch 12.**
+1. **🔥 LIVE BUG — Inline checkout QR renders as empty white box on org dashboard.**
+   Root cause: `org.html:renderCheckoutQr()` calls `getElementById('checkoutQr_' + CSS.escape(checkinId))`. UUIDs starting with a digit (`9e179aa2-…`) get their leading "9" escaped to `\39 ` by CSS.escape, but `getElementById` takes a literal id, not a CSS selector — so target is always null, function early-returns at the `if (!target)` guard, no QR ever rendered. Mr. Data's PR #44 added an `<img>` API fallback but kept the broken CSS.escape, so the fallback never fires.
+   **Fix:** drop `CSS.escape()` — one line. Number One applied it locally; merge conflict with PR #44 needs clean resolution after Captain's `git merge --abort` + clean pull. The right merged version: drop CSS.escape (mine) **and** keep PR #44's image fallback path (his). Both correct.
 
-2. **HANDOVER Batch 12 — DRAFTED 27 Apr (`HANDOVER-Batch12.md` at repo root):**
-   - Task 1: Debug + fix fullscreen QR regression
-   - Task 2: Equalise Doorman Console / Venue QR panel heights
-   - Task 3: Attendee HELLO QR ("Show my check-in QR") + universal double-tap-to-fullscreen on every QR + Settings cog stays bottom-left on check-in (one PR, three commits)
-   - Awaiting Captain to push to TestEnvironment for Mr. Data
+2. **Test env merge state currently broken — needs recovery.**
+   Local main was 1 ahead, 25 behind. Pull conflicted on `org.html`. Staged merge also includes alarming `renamed: scan.html -> s` and `deleted: settings.html` — these files still exist as untracked in the working tree. Captain to `git merge --abort`, share status, then clean pull + reapply CSS.escape fix.
 
-2a. **Batch 13 (queued):**
-   - Doorman scans own HELLO to authenticate before recording check-in (staff cryptographic identity gate — protocol-relevant)
-   - Checkout QR sizing + Worker-side payload shortening (token resolution, ~80% density drop)
+3. **Batch 12 — MERGED to origin/main as PR #40.** Mr. Data delivered (separately from Number One's HANDOVER-Batch12.md draft). Captain's local clone hadn't pulled, which caused tonight's confusion. Once recovery in step 2 is done, Batch 12 is effectively shipped.
 
-3. **Talon scan report** — Still exogenous, likely Monday onwards.
+4. **Batch 13 — DRAFTED by Mr. Data in `HANDOVER.md` (test env)** as a 5-task plan:
+   - T1: Staff auth schema + `POST /org/staff/auth` session endpoint (Worker + D1, no UI)
+   - T2: Staff Auth UI smoke panel in Doorman mode (non-blocking)
+   - T3: Enforce staff auth for manual check-in (Worker rejects without session token)
+   - T4: Checkout token API foundation (`org_checkout_tokens`, short tokens, 5-min TTL)
+   - T5: Short checkout QR UI (replaces dense URL with `?t=<token>`)
+   - Optional: Debug "Clear test attendance" maintenance action (DEV-org only)
+   Mr. Data correctly split this — won't touch Worker schema + UI gate + checkout tokens in one PR.
 
-4. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
+5. **Talon scan report** — Still exogenous, likely Monday onwards.
 
-5. **PROTOCOL.md formal redacted receipt section** — still pending.
+6. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
 
-6. **PROTOCOL.md §10.4 Multi-Party Custody Receipts** — queued (drop-off + chain-of-custody for prison/school/care). Forward-defined for v6+.
+7. **PROTOCOL.md formal redacted receipt section** — still pending.
 
-7. **HANDOVER Batch 5 (v5 Passkeys implementation)** — proposal ratified. Ready to draft when Captain decides to start v5 work.
+8. **PROTOCOL.md §10.4 Multi-Party Custody Receipts** — queued (drop-off + chain-of-custody for prison/school/care). Forward-defined for v6+.
 
-8. **QR payload shortening (queued)** — encoded URL is too dense for some phones (8 Pro had trouble); Worker-side token resolution would drop density ~80%.
+9. **HANDOVER Batch 5 (v5 Passkeys implementation)** — proposal ratified. Ready to draft when Captain decides to start v5 work.
 
-9. **Double-tap any QR to fullscreen (queued)** — universal handler for test/live/anywhere.
+10. **QR payload shortening (queued)** — encoded URL is too dense for some phones (8 Pro had trouble); now folded into Mr. Data's Batch 13 T4/T5 (Worker token resolution).
 
-10. **BacklinkLog** — Hold until first Patreon member.
+11. **Double-tap any QR to fullscreen** — Number One specced this in Batch 12 Task 3b. Whether Mr. Data's PR #40 picked it up needs verifying after recovery — `js/qr-fullscreen.js` is now a tracked file in origin/main, suggests he did extract it as a shared handler.
 
-11. **Donald at Imbue** — Casual follow-up. Test environment now genuinely demoable.
+12. **BacklinkLog** — Hold until first Patreon member.
 
-12. **r/programming appeal** — Captain's own words, no rush.
+13. **Donald at Imbue** — Casual follow-up. Test environment now genuinely demoable.
+
+14. **r/programming appeal** — Captain's own words, no rush.
 
 ---
 
