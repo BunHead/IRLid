@@ -26,6 +26,7 @@
    - **Venue fullscreen QR — no company/Imbue logo at top.** Regression somewhere in Batch 12. Was working as of Batch 9 polish.
    - **Doorman page too tall — Expected Attendees pushed off-screen, no scroll.** Caused by Staff Auth panel addition in Batch 13 Task 2. **Fix preference: shrink the Doorman/Staff Auth section vertically — do NOT restore page scroll.**
    - **`scan.html` mobile — stray corner-bracket overlay** mid-left of camera viewport, overlapping "POINT AT ANY IRLID QR" text. Likely `js/qr-fullscreen.js` (universal double-tap handler from Batch 12 Task 3b) attaching to elements it shouldn't on the scan page.
+   - **Settings page — QR test tools panel (right column) is too tall, hiding the "Hosted scan page" expandable section and Live settings snapshot below it.** Captain didn't realise more settings existed below the fold. **Fix preference: shrink the active outcome QR frame and make that right-column panel scrollable. This is dev/debug-y — won't be used often, shouldn't dominate the page.**
 
 3c. **Batch 13 remaining (T3/T4/T5)** — enforce staff auth for manual check-in (T3), checkout token API foundation (T4), short checkout QR UI (T5). Tomorrow or later. Per Mr. Data's own draft these are properly separable across PRs.
 

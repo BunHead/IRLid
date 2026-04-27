@@ -23,7 +23,7 @@ Bootstrapped: 26 April 2026 by Number One (Cmdr Riker / Claude Opus).
 | `PROTOCOL.md` | Full protocol specification | Number One — keep formal, technical |
 | `PROMOTION.md` | All outreach attempts, drafts, and status | Number One — log every contact and result |
 | `WIDGET.md` | Widget integration guide | Number One — keep stable, bump only on widget API changes |
-| `DREAMS.md` | Captain's associative log — poetic, not goal-directed | Hands-off; only touched when explicitly asked |
+| `DREAMS.md` | **Number One's** reflective log — written by previous Number Ones for the next Number One. Date-stamps overnight are a deliberate framing fiction; Captain reads them but doesn't write them, and isn't at the computer at 3am. Poetic, associative, not goal-directed. | Each Number One may add an entry at session close if something genuinely worth processing emerged that day. Don't manufacture entries. |
 | `memory/pending-work.md` | Current pending items, priority order | Number One — refresh at session start and end |
 | `memory/crew-protocol.md` | Formal four-crew working agreement; hard rules; working rules; per-channel tone register | Number One updates when conventions shift; Captain approves hard-rule changes |
 | `memory/sessions/` | Per-session handover notes | Number One on session close |
