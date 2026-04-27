@@ -22,11 +22,14 @@
    - **PR (debug) — Optional debug clear + Sign out staff button.** `POST /org/debug/clear-attendance` (DEV-only, 403 on non-test orgs), confirmation dialog with org key, Expected-attendees preservation checkbox. Plus "Sign out staff" button on Doorman panel clearing sessionStorage session only. Smoke: 8 phantom check-ins cleared, 1 Expected preserved.
    - **Status:** Mr. Data clocked off for the day after the debug task.
 
-3b. **🐛 Bugs surfaced during today's smoke testing — log for tomorrow's fix-pass batch:**
-   - **Venue fullscreen QR — no company/Imbue logo at top.** Regression somewhere in Batch 12. Was working as of Batch 9 polish.
-   - **Doorman page too tall — Expected Attendees pushed off-screen, no scroll.** Caused by Staff Auth panel addition in Batch 13 Task 2. **Fix preference: shrink the Doorman/Staff Auth section vertically — do NOT restore page scroll.**
-   - **`scan.html` mobile — stray corner-bracket overlay** mid-left of camera viewport, overlapping "POINT AT ANY IRLID QR" text. Likely `js/qr-fullscreen.js` (universal double-tap handler from Batch 12 Task 3b) attaching to elements it shouldn't on the scan page.
-   - **Settings page — QR test tools panel (right column) is too tall, hiding the "Hosted scan page" expandable section and Live settings snapshot below it.** Captain didn't realise more settings existed below the fold. **Fix preference: shrink the active outcome QR frame and make that right-column panel scrollable. This is dev/debug-y — won't be used often, shouldn't dominate the page.**
+3b. **🐛 Bug status (28 Apr — Number One applied direct fixes pre-Wednesday demo):**
+   - ✅ **Venue fullscreen logo** — verified working by Captain.
+   - ✅ **Doorman vertical compression** — Number One applied direct CSS edits in `org.html`: `.staff-auth-panel` padding 14px→10px, margin-bottom 12px→8px; `.staff-auth-input` min-height 82px→56px; `.staff-auth-head` margin-bottom 12px→8px; `.staff-auth-actions` and `.staff-auth-status` margin-top 10px→6px. Verify in browser after push.
+   - ✅ **Settings page right-column scrollable + smaller QR** — Number One applied in `org.html`: `.qr-tools-card` got `max-height: calc(100vh - 100px)`, sticky positioning, flex column; `.qr-tools-body` got `overflow-y: auto`, flex-1; `.qr-box-large` shrunk 228px→168px (inner 208→152); `.qr-pad.active-pad` min-height 268px→200px.
+   - ✅ **Settings cog moved to bottom-RIGHT** — `.checkin-settings-cog` `left: clamp(...)` → `right: max(20px, calc(env(safe-area-inset-right) + 20px))`. Captain's request from 28 Apr screenshot.
+   - 🟡 **`scan.html` mobile corner-bracket overlay — DEFERRED to Mr. Data Thursday.** Investigation showed: scan.html intentionally uses 3 finder corner brackets (TL/TR/BL) — that's QR-spec correct (real QR codes have 3 finder patterns, not 4). The "stray" bracket Captain saw is likely `.idle-label` (`bottom: 18%`) overlapping `.finder.bl` (`bottom: 10%`) on short mobile viewports — needs real-device debugging by Mr. Data with browser DevTools mobile-emulation, not blind CSS edits.
+
+3c. **Wednesday demo state:** All four immediate visual blockers either fixed or verified. Test env is demo-ready for Wisdom + Donald.
 
 3c. **Batches 14, 15, 16 — DRAFTED 28 Apr in `HANDOVER-Batch14-15-16.md` at live repo root.** Number One front-loaded all three because weekly usage near cap (95%, no return until Saturday). Captain holds copy-paste briefs in chat for each batch. Mr. Data executes one batch at a time, reports, waits for Captain's go-ahead.
    - **Batch 14** (3 tasks): Venue fullscreen logo regression, Doorman vertical compression, paired CSS (scan.html overlay + Settings right-column scrollable)
