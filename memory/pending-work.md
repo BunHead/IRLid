@@ -28,7 +28,10 @@
    - **`scan.html` mobile — stray corner-bracket overlay** mid-left of camera viewport, overlapping "POINT AT ANY IRLID QR" text. Likely `js/qr-fullscreen.js` (universal double-tap handler from Batch 12 Task 3b) attaching to elements it shouldn't on the scan page.
    - **Settings page — QR test tools panel (right column) is too tall, hiding the "Hosted scan page" expandable section and Live settings snapshot below it.** Captain didn't realise more settings existed below the fold. **Fix preference: shrink the active outcome QR frame and make that right-column panel scrollable. This is dev/debug-y — won't be used often, shouldn't dominate the page.**
 
-3c. **Batch 13 remaining (T3/T4/T5)** — enforce staff auth for manual check-in (T3), checkout token API foundation (T4), short checkout QR UI (T5). Tomorrow or later. Per Mr. Data's own draft these are properly separable across PRs.
+3c. **Batches 14, 15, 16 — DRAFTED 28 Apr in `HANDOVER-Batch14-15-16.md` at live repo root.** Number One front-loaded all three because weekly usage near cap (95%, no return until Saturday). Captain holds copy-paste briefs in chat for each batch. Mr. Data executes one batch at a time, reports, waits for Captain's go-ahead.
+   - **Batch 14** (3 tasks): Venue fullscreen logo regression, Doorman vertical compression, paired CSS (scan.html overlay + Settings right-column scrollable)
+   - **Batch 15** (1 task): Enforce staff auth for Doorman manual check-in
+   - **Batch 16** (2 tasks, sequential): Checkout token API + Short checkout QR UI
 
 4. **Batch 13 — DRAFTED by Mr. Data in `HANDOVER.md` (test env)** as a 5-task plan:
    - T1: Staff auth schema + `POST /org/staff/auth` session endpoint (Worker + D1, no UI)
