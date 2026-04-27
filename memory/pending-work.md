@@ -16,6 +16,19 @@
 
 3. **Batch 12 — MERGED to origin/main as PR #40.** Mr. Data delivered (separately from Number One's HANDOVER-Batch12.md draft). Captain's local clone hadn't pulled, which caused tonight's confusion. Once recovery in step 2 is done, Batch 12 is effectively shipped.
 
+3a. **Batch 13 — IN PROGRESS.** Mr. Data shipped today:
+   - **PR #45 — Task 1: Staff Auth Schema + Session Endpoint.** Worker + D1, `org_staff_sessions` table, `POST /org/staff/auth`, `H:`/`HZ:` HELLO accepted, replay idempotent, 15-min TTL. Smoke-tested green.
+   - **PR #46 — Task 2: Staff Auth UI Smoke Panel.** Visible in Doorman mode, paste/scan textarea, sessionStorage session, manual check-in still enabled (non-blocking), Venue QR mode unaffected.
+   - **PR (debug) — Optional debug clear + Sign out staff button.** `POST /org/debug/clear-attendance` (DEV-only, 403 on non-test orgs), confirmation dialog with org key, Expected-attendees preservation checkbox. Plus "Sign out staff" button on Doorman panel clearing sessionStorage session only. Smoke: 8 phantom check-ins cleared, 1 Expected preserved.
+   - **Status:** Mr. Data clocked off for the day after the debug task.
+
+3b. **🐛 Bugs surfaced during today's smoke testing — log for tomorrow's fix-pass batch:**
+   - **Venue fullscreen QR — no company/Imbue logo at top.** Regression somewhere in Batch 12. Was working as of Batch 9 polish.
+   - **Doorman page too tall — Expected Attendees pushed off-screen, no scroll.** Caused by Staff Auth panel addition in Batch 13 Task 2. **Fix preference: shrink the Doorman/Staff Auth section vertically — do NOT restore page scroll.**
+   - **`scan.html` mobile — stray corner-bracket overlay** mid-left of camera viewport, overlapping "POINT AT ANY IRLID QR" text. Likely `js/qr-fullscreen.js` (universal double-tap handler from Batch 12 Task 3b) attaching to elements it shouldn't on the scan page.
+
+3c. **Batch 13 remaining (T3/T4/T5)** — enforce staff auth for manual check-in (T3), checkout token API foundation (T4), short checkout QR UI (T5). Tomorrow or later. Per Mr. Data's own draft these are properly separable across PRs.
+
 4. **Batch 13 — DRAFTED by Mr. Data in `HANDOVER.md` (test env)** as a 5-task plan:
    - T1: Staff auth schema + `POST /org/staff/auth` session endpoint (Worker + D1, no UI)
    - T2: Staff Auth UI smoke panel in Doorman mode (non-blocking)
