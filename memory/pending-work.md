@@ -1,6 +1,6 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 27 April 2026 (Number One — late afternoon session, post-Batch-12)
+**Last refreshed:** 28 April 2026 (Number One — afternoon, pre-Wisdom/Donald Wednesday demo)
 **Source of truth.** All other lists defer to this file.
 
 ---
@@ -22,14 +22,17 @@
    - **PR (debug) — Optional debug clear + Sign out staff button.** `POST /org/debug/clear-attendance` (DEV-only, 403 on non-test orgs), confirmation dialog with org key, Expected-attendees preservation checkbox. Plus "Sign out staff" button on Doorman panel clearing sessionStorage session only. Smoke: 8 phantom check-ins cleared, 1 Expected preserved.
    - **Status:** Mr. Data clocked off for the day after the debug task.
 
-3b. **🐛 Bug status (28 Apr — Number One applied direct fixes pre-Wednesday demo):**
-   - ✅ **Venue fullscreen logo** — verified working by Captain.
-   - ✅ **Doorman vertical compression** — Number One applied direct CSS edits in `org.html`: `.staff-auth-panel` padding 14px→10px, margin-bottom 12px→8px; `.staff-auth-input` min-height 82px→56px; `.staff-auth-head` margin-bottom 12px→8px; `.staff-auth-actions` and `.staff-auth-status` margin-top 10px→6px. Verify in browser after push.
-   - ✅ **Settings page right-column scrollable + smaller QR** — Number One applied in `org.html`: `.qr-tools-card` got `max-height: calc(100vh - 100px)`, sticky positioning, flex column; `.qr-tools-body` got `overflow-y: auto`, flex-1; `.qr-box-large` shrunk 228px→168px (inner 208→152); `.qr-pad.active-pad` min-height 268px→200px.
-   - ✅ **Settings cog moved to bottom-RIGHT** — `.checkin-settings-cog` `left: clamp(...)` → `right: max(20px, calc(env(safe-area-inset-right) + 20px))`. Captain's request from 28 Apr screenshot.
-   - 🟡 **`scan.html` mobile corner-bracket overlay — DEFERRED to Mr. Data Thursday.** Investigation showed: scan.html intentionally uses 3 finder corner brackets (TL/TR/BL) — that's QR-spec correct (real QR codes have 3 finder patterns, not 4). The "stray" bracket Captain saw is likely `.idle-label` (`bottom: 18%`) overlapping `.finder.bl` (`bottom: 10%`) on short mobile viewports — needs real-device debugging by Mr. Data with browser DevTools mobile-emulation, not blind CSS edits.
+3b. **🐛 Bug status (28 Apr — all merged + pushed by end of session):**
+   - ✅ **Venue fullscreen logo** — verified working.
+   - ✅ **Doorman vertical compression** — Number One applied via Edit tool, rebased onto Mr. Data's parallel Settings panel work. `.staff-auth-panel` padding 14px→10px, margin-bottom 12px→8px; `.staff-auth-input` min-height 82px→56px; head/actions/status margins all tightened to 6-8px.
+   - ✅ **Settings page right-column scrollable + smaller QR** — **Mr. Data shipped his version independently while Number One was offline; on rebase the two converged (168px QR, 198px active-pad, `min-height: 0; overflow-y: auto`).** Both arrived at near-identical answer — see DREAMS 2026-04-28 17:11.
+   - ✅ **Settings cog moved to bottom-RIGHT** — `.checkin-settings-cog` `left: clamp(...)` → `right: max(20px, calc(env(safe-area-inset-right) + 20px))`.
+   - ✅ **UK date format (DD/MM/YYYY)** — `formatTimestamp()` now uses `toLocaleString('en-GB', {...})` with explicit options. Affects dashboard table + Expected Attendees "linked" timestamps. Pushed as separate commit.
+   - 🟡 **`scan.html` mobile corner-bracket overlay — DEFERRED to Mr. Data Thursday.** Investigation showed: scan.html intentionally uses 3 finder brackets (TL/TR/BL — QR-spec correct, real QR codes have 3 not 4 finder patterns). Captain's "stray" bracket is likely `.idle-label` (`bottom: 18%`) overlapping `.finder.bl` (`bottom: 10%`) on short mobile viewports — needs real-device DevTools mobile-emulation, not blind CSS edits.
 
-3c. **Wednesday demo state:** All four immediate visual blockers either fixed or verified. Test env is demo-ready for Wisdom + Donald.
+3c. **Wednesday demo state:** Test env is demo-ready for Wisdom + Donald. Visual debt cleared. Cryptographic enforcement (Batch 15 PR #51) is live. Inline checkout QR fix (CSS.escape) is live. Dashboard tidy. UK locale.
+
+3d. **Hardware ordered:** TOALLIN 2K Windows Hello-certified webcam, £41.99, arriving Tue 28 Apr. When it arrives: Settings → Accounts → Sign-in options → Facial recognition. If Hello enrols → single-device strategy works. If not → fall back to C920 + USB fingerprint reader.
 
 3c. **Batches 14, 15, 16 — DRAFTED 28 Apr in `HANDOVER-Batch14-15-16.md` at live repo root.** Number One front-loaded all three because weekly usage near cap (95%, no return until Saturday). Captain holds copy-paste briefs in chat for each batch. Mr. Data executes one batch at a time, reports, waits for Captain's go-ahead.
    - **Batch 14** (3 tasks): Venue fullscreen logo regression, Doorman vertical compression, paired CSS (scan.html overlay + Settings right-column scrollable)
