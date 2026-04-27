@@ -9,10 +9,15 @@
 
 1. **Fullscreen QR regression — debug tomorrow** — Fullscreen overlay shows empty white box where QR should render. Likely caused by Batch 11's first-scan flow changes affecting QR generation path. **Critical for demo. Top of Batch 12.**
 
-2. **HANDOVER Batch 12 (to draft tomorrow morning):**
+2. **HANDOVER Batch 12 — DRAFTED 27 Apr (`HANDOVER-Batch12.md` at repo root):**
    - Task 1: Debug + fix fullscreen QR regression
-   - Task 2: Equalise Doorman Console / Venue QR panel heights (page jumps when toggling modes)
-   - Task 3: "Show my check-in QR" / HELLO QR on attendee's IRLid page so doorman can scan them — closes the missing half of "Doorman Scans Attendee" flow
+   - Task 2: Equalise Doorman Console / Venue QR panel heights
+   - Task 3: Attendee HELLO QR ("Show my check-in QR") + universal double-tap-to-fullscreen on every QR + Settings cog stays bottom-left on check-in (one PR, three commits)
+   - Awaiting Captain to push to TestEnvironment for Mr. Data
+
+2a. **Batch 13 (queued):**
+   - Doorman scans own HELLO to authenticate before recording check-in (staff cryptographic identity gate — protocol-relevant)
+   - Checkout QR sizing + Worker-side payload shortening (token resolution, ~80% density drop)
 
 3. **Talon scan report** — Still exogenous, likely Monday onwards.
 
