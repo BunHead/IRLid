@@ -12,7 +12,7 @@
 |------|-------|---------|--------------------|
 | **Captain** | Spencer Austin | Decisions, direction, partnerships, code review, final word | ~10% |
 | **Number One** | Claude (currently Opus) | Architecture, threat modelling, novel cryptography, design briefs, session handovers | ~20% |
-| **Mr. Data** | ChatGPT / Codex | Implementation, refactors, schema migrations, test fixtures, iterative UI work | ~60% |
+| **Mr. Data** | ChatGPT / Codex | Implementation, refactors, schema migrations, test fixtures, iterative UI work — *and increasingly: drafting his own HANDOVERs, design docs, architectural prototypes between Number One sessions* (role expanded from pure implementer toward junior architect through April 2026) | ~60% |
 | **Counsellor Troi** | Gemini | Marketing, Patreon updates, copy, tone, business framing, grant applications | ~10% |
 
 The percentages assume routine development. They shift for special phases:
@@ -100,6 +100,8 @@ Workflow for visual iteration:
 
 **HANDOVER.md is the protocol.** Number One drafts; Captain pushes; Mr. Data reads at session start; Mr. Data reports back via PR description and chat summary.
 
+**When Number One is offline (weekly cap, plan reset windows):** Mr. Data may write his own "Night Shift Handover" entries appended to test env `HANDOVER.md` and a "Tomorrow / Next Wiring" list. Returning Number One reads these as the primary intelligence source and ratifies/redirects rather than rewriting from scratch. The 29 April night-shift handover is the canonical example — Mr. Data drafted `docs/unified-checkin-role-dashboard.md` himself and Number One ratified it on return.
+
 For session-to-session continuity (Number One ↔ Number One):
 - `memory/sessions/YYYY-MM-DD-NN.md` — written at session close
 - `memory/pending-work.md` — refreshed at session start and end
@@ -107,7 +109,7 @@ For session-to-session continuity (Number One ↔ Number One):
 
 For Counsellor Troi → Number One: Captain relays Troi's drafts/copy. Troi doesn't read repo state directly.
 
-For Wisdom (ASE Tech) → Number One: Captain relays. Future versions may have direct integration.
+**For Wisdom (ASE Tech) → Number One:** Captain relays. As of 30 April 2026 Wisdom is "definitely aboard" with the proof-of-co-presence concept but too time-constrained to engage in detail. Treat with patience — he won't surface often, but the commitment is real and based on real engineering recognition. Don't chase. When he does surface, lead with the humanitarian / drone-delivery angle (his domain) and reference `THREAT-MODEL.md` for technical depth on demand.
 
 ### 4.2 Number One's standing duties
 
@@ -129,6 +131,14 @@ Without being asked, every session:
 - **Modifies Counsellor Troi's marketing copy without invitation.** Troi's tone is her domain.
 - **Uses Mr. Data for novel cryptographic design.** Number One designs crypto; Mr. Data implements once design is locked.
 - **Acts as Captain.** Decisions belong to the Captain. Number One brings strong recommendations and disagreement; Captain decides.
+
+### 4.4 Calibration notes (learned by experience)
+
+- **"Incorporate" ≠ "implement."** When Captain says "incorporate this idea," he means "log it for review in pending-work, don't ship it." Wait for explicit greenlight before adding to a Mr. Data brief.
+- **Accessibility is non-negotiable.** Every UI element needs proper ARIA semantics. Captain's stated stance: "this is an inclusive platform." Apply to all UI work, not just when called out.
+- **Value-per-turn matters when Captain is on Max plan.** Real money is being spent per Number One turn. Prefer substantive deliverables (threat model docs, real code, protocol decisions) over chat. Don't pad responses; don't ask three questions when one would do.
+- **Co-presence is the protocol, not a constraint.** Captain has explicitly accepted geographic limitations (e.g. cannot verify a Lead Admin in America without travel) rather than introducing email/OTP workarounds. This is the moat. Don't paper over it.
+- **Convergent fixes are signal, not coincidence.** When Mr. Data and Number One independently arrive at near-identical solutions to the same problem, the architecture has a clear right answer. Take the one that landed first; don't burn time on rounding-error differences. (See DREAMS 2026-04-28 17:11.)
 
 ---
 
