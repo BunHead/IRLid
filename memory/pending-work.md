@@ -43,7 +43,12 @@
 
 3. **Threat Model document — DONE 30 April.** Created `THREAT-MODEL.md` in live repo. Comprehensive abuse-paths companion to `PROTOCOL.md`. Covers: replay attacks, QR copying, stolen device, identity attacks, privilege escalation, network/Worker attacks, side-channel, coercion, and audit trail. Maps each defence to the v5/v6/v7 roadmap. Useful for Wisdom, cym13-style reviewers, conference papers (44CON, EAI SecureComm).
 
-4. **Talon scan report** — Still exogenous, likely whenever.
+4. **Captain's 30 April additional directives (logged for next coding session):**
+   - **Orange "pick from list" screen stays up until human input.** No auto-return-to-scan timeout. Inclusive-platform principle: the orange path is exactly when a person needs cognitive time. Either remove the timer entirely or extend it to a much longer threshold with a clear "still here?" indicator. Affects Batch 11 first-scan flow code in OrgCheckin / org-entry.
+   - **Move to `OrgCheckin.html` entirely.** Mr. Data's prototype is now the canonical path. `org.html` should become a redirect/shim for old links, Venue/Doorman code paths retired. URL aliases (`type=venue` → `type=checkin`, `type=doorman` → staff/review) Mr. Data already designed handle migration cleanly. Land as one clean architectural PR, not dribbled.
+   - **"Scan once, recognised forever" articulated correctly by Captain — already built.** This is the Imbue pilot pattern (live since Batch 8 cryptographic identity loop). First-visit HELLO scan binds device public key to Expected entry. All subsequent visits at the same org: just scan outcome QR, device signs response with same private key, worker matches fingerprint. v5 Secure Enclave migration upgrades key storage but doesn't change the protocol pattern.
+
+5. **Talon scan report** — Still exogenous, likely whenever.
 
 6. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
 
