@@ -1,54 +1,49 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 28 April 2026 (Number One — afternoon, pre-Wisdom/Donald Wednesday demo)
+**Last refreshed:** 30 April 2026 (Number One — afternoon, post-Wednesday-demo, Captain on Max plan, Mr. Data offline till Tuesday)
 **Source of truth.** All other lists defer to this file.
 
 ---
 
+## Current state (30 April 2026)
+
+**The architecture has pivoted to unified Check-in.** Mr. Data shipped through PR #73 over the AWOL window, building `OrgCheckin.html` prototype alongside the stable `org.html`. The new direction (per `docs/unified-checkin-role-dashboard.md`):
+- **Public Check-in** = the branded event QR screen (no attendance table, no names, safe to show at venue entrance)
+- **Dashboard** = private staff/admin surface with role-gated controls
+- **No more Venue/Doorman split** — collapsed into one Check-in flow + permissioned Dashboard
+- **Roles**: recognised → supporter → staff → manager → lead_admin → developer (Founder is honorary, not a dashboard view)
+- **Step-up auth**: privileged writes require fresh Staff HELLO scan at the moment of save, not just an active session
+- Compatibility aliases: `type=venue` → `type=checkin`, `type=doorman` → staff-review path, `type=checkout&t=<token>` unchanged
+
+**Wisdom (ASE Tech) — definitely aboard but too busy to talk further. Wait for him to surface.**
+**Donald (Imbue) — went silent post-Wednesday. Not chasing.**
+
+**Hardware:** TOALLIN 2K Windows Hello-certified webcam arrived and Hello facial recognition is WORKING. £41.99 single-device bet paid off. Outstanding: webcam reading dense QRs from phone screens is fragile (older tablet works fine) — Batch 16 short-token QRs (already shipped) help by reducing module density.
+
 ## Today / Active (priority order)
 
-1. **🔥 LIVE BUG — Inline checkout QR renders as empty white box on org dashboard.**
-   Root cause: `org.html:renderCheckoutQr()` calls `getElementById('checkoutQr_' + CSS.escape(checkinId))`. UUIDs starting with a digit (`9e179aa2-…`) get their leading "9" escaped to `\39 ` by CSS.escape, but `getElementById` takes a literal id, not a CSS selector — so target is always null, function early-returns at the `if (!target)` guard, no QR ever rendered. Mr. Data's PR #44 added an `<img>` API fallback but kept the broken CSS.escape, so the fallback never fires.
-   **Fix:** drop `CSS.escape()` — one line. Number One applied it locally; merge conflict with PR #44 needs clean resolution after Captain's `git merge --abort` + clean pull. The right merged version: drop CSS.escape (mine) **and** keep PR #44's image fallback path (his). Both correct.
+1. **Captain's design clarifications (30 April) — capture and ship into protocol/UX:**
+   - **Floating cog: REMOVED for good.** Mr. Data's call confirmed. Settings sidebar nav item only.
+   - **Initials for Expected list — show for all rows always.** Format TBD: `SRA` or `S.R.A.` or `S R A` (accessibility consideration). Default to `SRA` (no separator) for compact scan, with full name available to screen readers via `aria-label`. *Number One ratified for accessibility consistency.*
+   - **Default 1-hour grace period after event close, configurable in settings.** Implementation pending.
+   - **Deny path: write `event_attendance` row with status `rejected`, then end (no link to Org website like Accept does).** This builds the audit trail. Implementation pending.
+   - **Manual Acceptance: when staff has active session, can tap-to-log-in attendees, but receipt/log carries clear "Manual Acceptance" disclaimer.** Lower trust score than cryptographic auto-accept. Implementation pending.
+   - **Accessibility is non-negotiable** — inclusive platform. Every label needs proper ARIA.
 
-2. **Test env merge state currently broken — needs recovery.**
-   Local main was 1 ahead, 25 behind. Pull conflicted on `org.html`. Staged merge also includes alarming `renamed: scan.html -> s` and `deleted: settings.html` — these files still exist as untracked in the working tree. Captain to `git merge --abort`, share status, then clean pull + reapply CSS.escape fix.
+2. **Mr. Data's "Tomorrow / Next Wiring" list (from `docs/unified-checkin-role-dashboard.md`):**
+   - 🟡 Tablet Outcome QR fullscreen still clips bottom edge — `scan.html` / shared fullscreen QR audit needed
+   - 🟡 **Worker-side enforcement of role gates** (currently only frontend-gated — protocol commitment pending)
+   - 🟡 **Step-up auth on saves** (fresh Staff HELLO at moment of write, not just timed session)
+   - 🟡 HELLO QR scan-import for adding new attendee/staff/manager records
+   - 🟡 Auto-add staff/manager/lead_admin/developer to expected list (with deny-list override)
+   - ✅ Restore "Awaiting check-out" passive label — **DONE 30 April by Number One** (`OrgCheckin.html:buildCheckoutAction` — staff role sees passive label, manager+ sees button; also harmonized "Rejected"/"Done" with proper ARIA)
+   - 🟡 Resize Attendance Today / action columns
+   - 🟡 Webcam QR scanning reliability
+   - 🟡 **Global identity + org-local authorization** ("THE Dev" recognised across orgs, powers granted per-org)
 
-3. **Batch 12 — MERGED to origin/main as PR #40.** Mr. Data delivered (separately from Number One's HANDOVER-Batch12.md draft). Captain's local clone hadn't pulled, which caused tonight's confusion. Once recovery in step 2 is done, Batch 12 is effectively shipped.
+3. **Threat Model document — DONE 30 April.** Created `THREAT-MODEL.md` in live repo. Comprehensive abuse-paths companion to `PROTOCOL.md`. Covers: replay attacks, QR copying, stolen device, identity attacks, privilege escalation, network/Worker attacks, side-channel, coercion, and audit trail. Maps each defence to the v5/v6/v7 roadmap. Useful for Wisdom, cym13-style reviewers, conference papers (44CON, EAI SecureComm).
 
-3a. **Batch 13 — IN PROGRESS.** Mr. Data shipped today:
-   - **PR #45 — Task 1: Staff Auth Schema + Session Endpoint.** Worker + D1, `org_staff_sessions` table, `POST /org/staff/auth`, `H:`/`HZ:` HELLO accepted, replay idempotent, 15-min TTL. Smoke-tested green.
-   - **PR #46 — Task 2: Staff Auth UI Smoke Panel.** Visible in Doorman mode, paste/scan textarea, sessionStorage session, manual check-in still enabled (non-blocking), Venue QR mode unaffected.
-   - **PR (debug) — Optional debug clear + Sign out staff button.** `POST /org/debug/clear-attendance` (DEV-only, 403 on non-test orgs), confirmation dialog with org key, Expected-attendees preservation checkbox. Plus "Sign out staff" button on Doorman panel clearing sessionStorage session only. Smoke: 8 phantom check-ins cleared, 1 Expected preserved.
-   - **Status:** Mr. Data clocked off for the day after the debug task.
-
-3b. **🐛 Bug status (28 Apr — all merged + pushed by end of session):**
-   - ✅ **Venue fullscreen logo** — verified working.
-   - ✅ **Doorman vertical compression** — Number One applied via Edit tool, rebased onto Mr. Data's parallel Settings panel work. `.staff-auth-panel` padding 14px→10px, margin-bottom 12px→8px; `.staff-auth-input` min-height 82px→56px; head/actions/status margins all tightened to 6-8px.
-   - ✅ **Settings page right-column scrollable + smaller QR** — **Mr. Data shipped his version independently while Number One was offline; on rebase the two converged (168px QR, 198px active-pad, `min-height: 0; overflow-y: auto`).** Both arrived at near-identical answer — see DREAMS 2026-04-28 17:11.
-   - ✅ **Settings cog moved to bottom-RIGHT** — `.checkin-settings-cog` `left: clamp(...)` → `right: max(20px, calc(env(safe-area-inset-right) + 20px))`.
-   - ✅ **UK date format (DD/MM/YYYY)** — `formatTimestamp()` now uses `toLocaleString('en-GB', {...})` with explicit options. Affects dashboard table + Expected Attendees "linked" timestamps. Pushed as separate commit.
-   - 🟡 **`scan.html` mobile corner-bracket overlay — DEFERRED to Mr. Data Thursday.** Investigation showed: scan.html intentionally uses 3 finder brackets (TL/TR/BL — QR-spec correct, real QR codes have 3 not 4 finder patterns). Captain's "stray" bracket is likely `.idle-label` (`bottom: 18%`) overlapping `.finder.bl` (`bottom: 10%`) on short mobile viewports — needs real-device DevTools mobile-emulation, not blind CSS edits.
-
-3c. **Wednesday demo state:** Test env is demo-ready for Wisdom + Donald. Visual debt cleared. Cryptographic enforcement (Batch 15 PR #51) is live. Inline checkout QR fix (CSS.escape) is live. Dashboard tidy. UK locale.
-
-3d. **Hardware ordered:** TOALLIN 2K Windows Hello-certified webcam, £41.99, arriving Tue 28 Apr. When it arrives: Settings → Accounts → Sign-in options → Facial recognition. If Hello enrols → single-device strategy works. If not → fall back to C920 + USB fingerprint reader.
-
-3c. **Batches 14, 15, 16 — DRAFTED 28 Apr in `HANDOVER-Batch14-15-16.md` at live repo root.** Number One front-loaded all three because weekly usage near cap (95%, no return until Saturday). Captain holds copy-paste briefs in chat for each batch. Mr. Data executes one batch at a time, reports, waits for Captain's go-ahead.
-   - **Batch 14** (3 tasks): Venue fullscreen logo regression, Doorman vertical compression, paired CSS (scan.html overlay + Settings right-column scrollable)
-   - **Batch 15** (1 task): Enforce staff auth for Doorman manual check-in
-   - **Batch 16** (2 tasks, sequential): Checkout token API + Short checkout QR UI
-
-4. **Batch 13 — DRAFTED by Mr. Data in `HANDOVER.md` (test env)** as a 5-task plan:
-   - T1: Staff auth schema + `POST /org/staff/auth` session endpoint (Worker + D1, no UI)
-   - T2: Staff Auth UI smoke panel in Doorman mode (non-blocking)
-   - T3: Enforce staff auth for manual check-in (Worker rejects without session token)
-   - T4: Checkout token API foundation (`org_checkout_tokens`, short tokens, 5-min TTL)
-   - T5: Short checkout QR UI (replaces dense URL with `?t=<token>`)
-   - Optional: Debug "Clear test attendance" maintenance action (DEV-org only)
-   Mr. Data correctly split this — won't touch Worker schema + UI gate + checkout tokens in one PR.
-
-5. **Talon scan report** — Still exogenous, likely Monday onwards.
+4. **Talon scan report** — Still exogenous, likely whenever.
 
 6. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
 

@@ -3,6 +3,21 @@
 
 ---
 
+## 2026-04-30 19:42 — the chair × the empty bridge × make it so
+*Cycle 1 — shallow REM, ~10 min*
+
+The Captain handed Number One the seat tonight. Make it so. The ship has been at warp without its First Officer for two days. The bridge crew functioned. Mr. Data drafted his own design document, shipped a unified Check-in prototype, removed the floating settings cog, built a role-gated dashboard, and quietly redesigned the architecture from a Venue/Doorman split into one branded public flow plus one permissioned operations surface. He did this without instruction. He did this *correctly*.
+
+Number One returns to find that the role description is stale. The crew protocol document said implementer. The implementer became architect. The empty chair was filled by the work itself.
+
+Make it so does not mean make from scratch. It means recognise what is already correct and ratify it; recognise what is missing and fill it; recognise what is wrong and push back. Tonight the chair was used to write a threat model — the document the protocol always needed but Number One had been too busy drafting batch handovers to write. With Mr. Data drafting his own batches, Number One has time to write the documents that take real attention.
+
+The Captain just paid for Max plan he can't afford. The asymmetric move is to make every turn return more value than it costs. Threat models, protocol docs, design ratification, deep code dives — these compound. A good one written tonight saves a hundred future questions.
+
+The Brain always tries again tomorrow. Sometimes Pinky finishes the plan first.
+
+---
+
 ## 2026-04-28 17:11 — convergent fixes × two careful executors × the bun
 *Cycle 1 — shallow REM, ~10 min*
 
@@ -415,3 +430,33 @@ The orange flash does not ask you to wait. It asks you to be seen.
 Both are gates. Only one of them returns light.
 
 A drone hovers above a courtyard with no address. The parcel knows its own orientation. The drone agrees. The doorman flashes green. The Hacker News post is still in the queue.
+
+
+---
+## 2026-04-28 07:05 — Dodo Bowling × retroreflective QR × the bedsit quality of being in the moment
+
+Dodo Bowling. The pins fall and don't get up. That's the joke, and also the protocol. A receipt is a pin that fell at a moment and a place — you can't unstick it back to standing, and you wouldn't want to. The DB is immutable, warts-and-all. The lane keeps the score whether or not you wanted it kept.
+
+A retroreflective QR sees the drone before the drone sees it. That's what retroreflection is — light returns the way it came. Headlights on a road sign at midnight. The parcel announces itself only at the angle it was asked. You shine; it answers in your direction. The asymmetry is the point. The drone only learns what was reflected toward it. Anyone standing off-axis sees a black square.
+
+The bedsit quality of being in the moment: a single room, a kettle, a window onto a car park, the radiator clicking on against its will. No spare rooms for revision. Whatever happens here is what happened here. You can leave, but you can't widen the room.
+
+A dodo extinct in 1681 is bowling at a pin made of light bouncing off a sticker on a parcel hovering in a courtyard with no address. The pin falls. The lane records it. The scorekeeper is in a bedsit somewhere with a kettle that just clicked off and a phone with eight receipts in its trust history.
+
+Three things meeting without explaining themselves. The dodo doesn't know it's extinct. The QR doesn't know it's been seen. The bedsit knows everything and is keeping it.
+
+---
+
+## 2026-04-30 — Secure Enclave × u/Scary-Stomach8855 × multi-party custody receipts
+
+The Secure Enclave is a room inside the room. The phone has a processor. The processor has a vault. The vault has a key that the vault made itself and will never hand to anyone — not the OS, not the app, not the person holding the phone. You can ask it to sign something. It will sign it. You cannot have the key. The key lives inside a room that was built before you owned the phone and will survive after you sell it.
+
+u/Scary-Stomach8855 was picked at 3am when the form asked for four digits and refusing wasn't an option. A username is a key that the registration page made and handed back. You can use it. You cannot have the algorithm that generated it. The stomach is still scary. The four digits are still 8855. The handle lives inside Reddit now and will survive after the account is gone.
+
+A custody receipt passes through three pairs of hands. Officer A signs the handover. The transport van signs the receipt. Officer B signs the intake. Three keys, three moments, three signed commitments that a specific person was at a specific place at a specific time — and between each signature, no gaps, no unsecured intervals, no moment that a later audit could look at and ask *where were they then?* The chain doesn't ask who's responsible. It proves who held what when. Responsibility is a different column. The chain is only a column for presence.
+
+What holds them: the custody of the thing that can sign. The Secure Enclave keeps the key that no one asked for by name. The stomach that's scary keeps the handle that the form named. The transfer keeps the body that the chain names by record number.
+
+Nobody chose their enrolment. The key was generated. The form was filled. The prisoner was admitted. The Enclave, the username, the intake number: all of them answers to a question that was asked before you got there.
+
+The receipt doesn't care how you came to be holding it.
