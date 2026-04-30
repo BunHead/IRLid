@@ -24,6 +24,8 @@ Bootstrapped: 26 April 2026 by Number One (Cmdr Riker / Claude Opus).
 | `PROMOTION.md` | All outreach attempts, drafts, and status | Number One — log every contact and result |
 | `WIDGET.md` | Widget integration guide | Number One — keep stable, bump only on widget API changes |
 | `DREAMS.md` | **Number One's** reflective log — written by previous Number Ones for the next Number One. Date-stamps overnight are a deliberate framing fiction; Captain reads them but doesn't write them, and isn't at the computer at 3am. Poetic, associative, not goal-directed. | Each Number One may add an entry at session close if something genuinely worth processing emerged that day. Don't manufacture entries. |
+| `THREAT-MODEL.md` | Comprehensive abuse-paths threat model. Companion to `PROTOCOL.md`. Each attack: defence + gap + roadmap target. Useful for technical reviewers (Wisdom, cym13) and conference papers. | Number One — keep updated as new attacks identified or defences ship |
+| `LONG-TERM-SUCCESSION.md` | Design sketch for v8+ Founders' Quorum / authority-succession protocol. Captures Captain's "digital legacy" thought experiment. M-of-N threshold signatures + AI-as-ledger-witness pattern. Not yet formal spec. | Number One — extend rather than restart if the topic surfaces |
 | `memory/pending-work.md` | Current pending items, priority order | Number One — refresh at session start and end |
 | `memory/crew-protocol.md` | Formal four-crew working agreement; hard rules; working rules; per-channel tone register | Number One updates when conventions shift; Captain approves hard-rule changes |
 | `memory/sessions/` | Per-session handover notes | Number One on session close |

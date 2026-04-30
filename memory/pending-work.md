@@ -48,7 +48,11 @@
    - **Move to `OrgCheckin.html` entirely.** Mr. Data's prototype is now the canonical path. `org.html` should become a redirect/shim for old links, Venue/Doorman code paths retired. URL aliases (`type=venue` → `type=checkin`, `type=doorman` → staff/review) Mr. Data already designed handle migration cleanly. Land as one clean architectural PR, not dribbled.
    - **"Scan once, recognised forever" articulated correctly by Captain — already built.** This is the Imbue pilot pattern (live since Batch 8 cryptographic identity loop). First-visit HELLO scan binds device public key to Expected entry. All subsequent visits at the same org: just scan outcome QR, device signs response with same private key, worker matches fingerprint. v5 Secure Enclave migration upgrades key storage but doesn't change the protocol pattern.
 
-5. **Talon scan report** — Still exogenous, likely whenever.
+4a. **Long-Term Authority Succession — design sketch published.** `LONG-TERM-SUCCESSION.md` at live repo root captures Captain's "digital legacy" thought experiment as a v8+ Founders' Quorum design. M-of-N threshold signatures + AI-as-ledger-witness pattern, with diversity-of-AI-lineage requirement to avoid ideological lock-in. Captain's key insight (clerks/cardinals are both human, AIs aren't coercible the same way) is the architectural foundation. Not yet committed to PROTOCOL.md. Extend rather than restart if topic resurfaces.
+
+5. **Roadmap priority confirmed (30 April):** v5.0 Passkeys → Live IRLid sign-in overhaul → Worker-side role enforcement + step-up auth. Three sequential horizons, each independent. v5 first because it closes cym13's localStorage criticism (loudest honest critique). Worker enforcement third because by then the Passkey-backed signing surface is stable and step-up auth implementation hits the right thing.
+
+6. **Talon scan report** — Still exogenous, likely whenever.
 
 6. **Live IRLid sign-in / onboarding overhaul (queued, design first)** — Email + password login, Patreon webhook for auto-user creation on subscription, magic-link alternative. Login dropdown structure: `Account / Organization / Event` with `Show my check-in QR` under Event. v5.x / live-IRLid work, not test environment.
 
