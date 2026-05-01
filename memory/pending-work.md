@@ -17,10 +17,24 @@ Number One implemented v5.0 client-side directly during the Friday Bridge stretc
 
 **What v5 does NOT yet have:**
 - Real-device browser smoke test (needs Captain's phone/laptop).
-- Worker-side verification (Mr. Data, via the HANDOVER above).
 - Live deploy — v5 is OFF by default; nothing changes for existing users until they explicitly enrol via Settings.
 
-**Roadmap impact:** v5.0 client-side is now ahead of schedule (target was late May, landed 1 May). v5.1 (Imbue pilot) and v5.2/5.3 (forward-defined fields, orient cone) remain on schedule.
+**Worker-side v5: ✅ DONE 1 May 2026 afternoon.** Captain bypassed Mr. Data ("get v5 out the door before any horns, helium-tight"). Both Workers updated:
+- **Live Worker** (`irlid-api/src/index.js`): `verifyV5Envelope()` helper inserted between haversine and verifyReceipt; `verifyReceipt()` rewritten with per-side v5 dispatch + `fully_v5` scoring flag (true only when BOTH a/b sides + HELLO offer all verify their v5 envelopes; PROTOCOL.md §13.9).
+- **Test-env Worker** (`IRLid-TestEnvironment/irlid-api/src/index.js`): same `verifyV5Envelope()` helper, `verifyReceipt()` v5 dispatch, plus `verifySignedHello()` updated to return `verification_state: "v5_envelope_verified"` for v5 HELLOs. Defensive bonus: the non-recursive `canonical()` was upgraded to fully recursive (matches `js/sign.js`); harmless for current flat payloads, future-proof for nested fields.
+- **Validation:** Node-side Worker smoke at `outputs/v5-test/worker-smoke.mjs` — 12 tests covering pure v3, pure v5, hybrid v3+v5, mutated payload, wrong origin, UV flag cleared, webauthn-missing-but-v=5, hash mismatch, distance overflow. All green. Combined client+Worker test count: **122 green, 0 red**.
+- **`HANDOVER-Batch5-Worker.md` marked DONE** and preserved for historical context. Mr. Data on Tuesday should read it for design rationale but no execution required.
+
+**Roadmap impact:** v5.0 client-side AND Worker-side both landed 1 May, ahead of late-May target. Only real-device smoke + live deploy remain before v5 is fully out the door. v5.1 (Imbue pilot) and v5.2/5.3 (forward-defined fields, orient cone) remain on schedule.
+
+**Remaining v5 path to deploy:**
+1. Captain runs `node --test tests/sign.test.js` on his machine (the integrated 95+ test suite).
+2. Captain enrols on real device (phone Face ID, laptop Hello) via Settings; toggle on; do a real scan; confirm v5 receipt produced and verified.
+3. Captain pushes Worker code to test-env Cloudflare deploy via `wrangler deploy` from `IRLid-TestEnvironment/irlid-api/`.
+4. Smoke test against deployed test Worker with curl + a hand-rolled v5 receipt.
+5. If clean, push live Worker via `wrangler deploy` from live `irlid-api/`.
+6. Bump `js/sign.js?v=` cache-buster in HTML files and push frontend to GitHub Pages.
+7. Then — and only then — the cym13 r/netsec follow-up post (drafts already in PROMOTION.md).
 
 ---
 

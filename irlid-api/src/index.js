@@ -121,42 +121,174 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// =====================
+//  v5 ENVELOPE VERIFICATION (PROTOCOL.md §13)
+//  Mirrors irlidV5VerifyEnvelope() in js/sign.js exactly.
+//  Web Crypto on Cloudflare Workers behaves identically to the browser for ECDSA P-256.
+// =====================
+
+const IRLID_V5_ORIGIN_ALLOWLIST = [
+  "https://irlid.co.uk",
+  "https://bunhead.github.io",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+];
+
+function irlidV5OriginAllowed(origin) {
+  return IRLID_V5_ORIGIN_ALLOWLIST.includes(String(origin));
+}
+
+// Verify a v5 envelope. Returns true on success; throws Error with descriptive message on first failure.
+async function verifyV5Envelope(payload, pubJwk, sigRawB64u, webauthnEnv, expectedRpOrigin) {
+  if (!webauthnEnv || !webauthnEnv.authData || !webauthnEnv.clientData) {
+    throw new Error("v5: envelope missing");
+  }
+  if (!pubJwk || pubJwk.kty !== "EC" || pubJwk.crv !== "P-256") {
+    throw new Error("v5: pub is not a P-256 JWK");
+  }
+  if (!sigRawB64u) throw new Error("v5: sig missing");
+
+  // 1. Recompute expected payload hash using the same canonical/SHA-256 as the client
+  const payloadHashB64u = await hashPayloadToB64url(payload);
+
+  // 2. Parse and validate clientDataJSON
+  const clientDataBytes = b64urlDecode(webauthnEnv.clientData);
+  let clientData;
+  try {
+    clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+  } catch (e) {
+    throw new Error("v5: clientDataJSON not valid JSON");
+  }
+  if (clientData.type !== "webauthn.get") {
+    throw new Error("v5: clientData.type is '" + clientData.type + "', expected 'webauthn.get'");
+  }
+  if (expectedRpOrigin !== undefined && expectedRpOrigin !== null) {
+    if (clientData.origin !== expectedRpOrigin) {
+      throw new Error("v5: origin '" + clientData.origin + "' did not match expected '" + expectedRpOrigin + "'");
+    }
+  } else if (!irlidV5OriginAllowed(clientData.origin)) {
+    throw new Error("v5: origin '" + clientData.origin + "' not in allowlist");
+  }
+  if (clientData.challenge !== payloadHashB64u) {
+    throw new Error("v5: clientData.challenge does not match recomputed payload hash");
+  }
+
+  // 3. Verify UV flag in authenticatorData
+  const authDataBytes = b64urlDecode(webauthnEnv.authData);
+  if (authDataBytes.length < 37) throw new Error("v5: authData too short");
+  const flags = authDataBytes[32];
+  if ((flags & 0x04) !== 0x04) {
+    throw new Error("v5: UV flag not asserted in authData");
+  }
+
+  // 4. Reconstruct signedBytes = authData || SHA-256(clientDataJSON)
+  const clientDataHashBuf = await crypto.subtle.digest("SHA-256", clientDataBytes);
+  const clientDataHash = new Uint8Array(clientDataHashBuf);
+  const signedBytes = new Uint8Array(authDataBytes.length + clientDataHash.length);
+  signedBytes.set(authDataBytes, 0);
+  signedBytes.set(clientDataHash, authDataBytes.length);
+
+  // 5. Verify ECDSA P-256 signature (raw r||s wire format)
+  let pubKey;
+  try {
+    pubKey = await crypto.subtle.importKey(
+      "jwk", pubJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false, ["verify"]
+    );
+  } catch (e) {
+    throw new Error("v5: failed to import pub: " + (e.message || e));
+  }
+  const ok = await crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    pubKey,
+    b64urlDecode(sigRawB64u),
+    signedBytes
+  );
+  if (!ok) throw new Error("v5: ECDSA signature verification failed");
+  return true;
+}
+
 async function verifyReceipt(comb) {
   const TS_TOL = 90; const DIST_TOL = 12; const checks = {};
 
   // Compact form strips a.hash, a.pub, and b.hash (see client sign.js irlidStripCombinedForEncoding).
   // Fall back to hello.pub when a.pub is stripped; recompute hash from canonical(payload) when stripped.
+  // v5 (PROTOCOL.md §13): each signature can be either v3-style (raw ECDSA over hash) or
+  // v5-style (ECDSA over WebAuthn envelope `authData || SHA-256(clientDataJSON)`).
+  // Dispatch is per-side, signalled by the side's `webauthn` field + `v: 5`.
   const helloPub = (comb.hello && comb.hello.pub) ? comb.hello.pub : null;
 
   const a = comb.a;
   const aPub = (a && a.pub) ? a.pub : helloPub;
   if (a && a.payload && a.sig && aPub) {
     checks.a_structure = true;
-    // Pass a.v (top-level response version) so v2 uses JSON.stringify, v3+ uses canonical().
     const computedA = await hashPayloadToB64url(a.payload, a.v);
-    // If hash was stripped, recomputed is authoritative; if present, it must match.
     checks.a_hash = a.hash ? (computedA === a.hash) : true;
-    checks.a_sig = await verifySig(computedA, a.sig, aPub);
-  } else { checks.a_structure = false; checks.a_hash = false; checks.a_sig = false; }
+    if (a.webauthn && Number(a.v) === 5) {
+      try {
+        await verifyV5Envelope(a.payload, aPub, a.sig, a.webauthn);
+        checks.a_sig = true;
+        checks.a_v5_envelope = true;
+      } catch (e) {
+        checks.a_sig = false;
+        checks.a_v5_envelope = false;
+        checks.a_v5_error = e.message;
+      }
+    } else {
+      checks.a_sig = await verifySig(computedA, a.sig, aPub);
+      checks.a_v5_envelope = false;
+    }
+  } else {
+    checks.a_structure = false; checks.a_hash = false; checks.a_sig = false; checks.a_v5_envelope = false;
+  }
 
   const b = comb.b;
   if (b && b.payload && b.sig && b.pub) {
     checks.b_structure = true;
     const computedB = await hashPayloadToB64url(b.payload, b.v);
     checks.b_hash = b.hash ? (computedB === b.hash) : true;
-    checks.b_sig = await verifySig(computedB, b.sig, b.pub);
-  } else { checks.b_structure = false; checks.b_hash = false; checks.b_sig = false; }
+    if (b.webauthn && Number(b.v) === 5) {
+      try {
+        await verifyV5Envelope(b.payload, b.pub, b.sig, b.webauthn);
+        checks.b_sig = true;
+        checks.b_v5_envelope = true;
+      } catch (e) {
+        checks.b_sig = false;
+        checks.b_v5_envelope = false;
+        checks.b_v5_error = e.message;
+      }
+    } else {
+      checks.b_sig = await verifySig(computedB, b.sig, b.pub);
+      checks.b_v5_envelope = false;
+    }
+  } else {
+    checks.b_structure = false; checks.b_hash = false; checks.b_sig = false; checks.b_v5_envelope = false;
+  }
 
   const hello = comb.hello;
   if (hello && hello.offer && hello.offer.payload && hello.offer.sig && hello.pub) {
-    // Offer hash uses the offer payload's own version (offer.payload.v).
     const computedOfferHash = await hashPayloadToB64url(hello.offer.payload);
     if (hello.offer.hash) checks.hello_hash = computedOfferHash === hello.offer.hash; // back-compat v2
-    checks.hello_sig = await verifySig(computedOfferHash, hello.offer.sig, hello.pub);
+    if (hello.offer.webauthn && Number(hello.v) === 5) {
+      try {
+        await verifyV5Envelope(hello.offer.payload, hello.pub, hello.offer.sig, hello.offer.webauthn);
+        checks.hello_sig = true;
+        checks.hello_v5_envelope = true;
+      } catch (e) {
+        checks.hello_sig = false;
+        checks.hello_v5_envelope = false;
+        checks.hello_v5_error = e.message;
+      }
+    } else {
+      checks.hello_sig = await verifySig(computedOfferHash, hello.offer.sig, hello.pub);
+      checks.hello_v5_envelope = false;
+    }
   }
 
   if (hello) {
-    // v3+: canonical(). v2 and below: JSON.stringify (backward compat for old receipts).
     const hv = (hello && hello.v) ? Number(hello.v) : 3;
     const helloStr = (hv >= 3) ? canonical(hello) : JSON.stringify(hello);
     const helloHash = b64urlEncode(new Uint8Array(
@@ -179,7 +311,15 @@ async function verifyReceipt(comb) {
     checks.distance_ok = checks.distance_m <= DIST_TOL;
   } else { checks.distance_ok = false; }
 
-  checks.valid = !!(checks.a_structure && checks.a_hash && checks.a_sig && checks.b_structure && checks.b_hash && checks.b_sig && checks.time_delta_ok && checks.distance_ok);
+  // v5 score band: full v5 (BOTH sides + hello envelope verified) → 70/100 ceiling.
+  // Hybrid (one v3, one v5) → 50/100 (v4 ceiling). Single-side v5 alone is not enough to claim the v5 bonus.
+  // PROTOCOL.md §13.9 + HANDOVER-Batch5-Worker.md Task 3 scoring.
+  checks.fully_v5 = !!(checks.a_v5_envelope && checks.b_v5_envelope &&
+                       (!hello || !hello.offer || checks.hello_v5_envelope));
+
+  checks.valid = !!(checks.a_structure && checks.a_hash && checks.a_sig &&
+                    checks.b_structure && checks.b_hash && checks.b_sig &&
+                    checks.time_delta_ok && checks.distance_ok);
   return checks;
 }
 

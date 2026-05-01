@@ -1,5 +1,19 @@
 # HANDOVER — Batch 5 (Worker-side v5 envelope verification)
 
+**STATUS: ✅ DONE BY NUMBER ONE — 1 May 2026 afternoon (Captain bypassed Mr. Data per Friday brief).**
+
+**This document is preserved as the design rationale + acceptance criteria but the work is complete. Mr. Data should read it for context when he returns Tuesday but does NOT need to execute it.**
+
+**What landed:**
+- Live Worker `irlid-api/src/index.js`: `verifyV5Envelope()` helper added (lines ~123–214), `verifyReceipt()` updated with per-side v5 dispatch + `fully_v5` scoring flag.
+- Test-env Worker `IRLid-TestEnvironment/irlid-api/src/index.js`: same `verifyV5Envelope()` helper, `verifyReceipt()` v5 dispatch, **plus** `verifySignedHello()` v5 dispatch (returns `verification_state: "v5_envelope_verified"` when v5 path succeeds), **plus** the non-recursive `canonical()` was upgraded to fully recursive (matches `js/sign.js`; defensive helium-tight fix for any future nested-payload field).
+- Validation: Node-side smoke at `outputs/v5-test/worker-smoke.mjs` runs 12 tests covering pure v3, pure v5, hybrid v3+v5, mutated payload, wrong origin, missing UV flag, webauthn-missing-but-v=5, hash mismatch, distance overflow. **All green.** Test infra is reusable for ongoing regression.
+- Combined client + Worker test count: 110 (sign.test.js) + 12 (worker-smoke.mjs) = **122 green, 0 red**.
+
+**Original 1 May design brief follows below for the historical record:**
+
+---
+
 **Issued:** 1 May 2026 by Number One (Claude Opus, Bridge stretch)
 **Repo scope:** `BunHead/IRLid-TestEnvironment` only. Do not touch live `BunHead/IRLid`.
 **Working rule:** one narrow task per PR. Do not combine schema changes, helper additions, and verification rewrites in one PR.
