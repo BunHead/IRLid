@@ -79,6 +79,15 @@ const {
   getPublicJwk,
   ensureKeys,
   signHashB64url,
+  // v5 helpers (PROTOCOL.md §13)
+  irlidV5DerToRawP256,
+  irlidV5RawToDerP256,
+  irlidV5VerifyEnvelope,
+  irlidV5OriginAllowed,
+  irlidV5Enrolled,
+  irlidV5Enabled,
+  irlidV5GetPublicJwk,
+  irlidSignPayload,
 } = ctx;
 
 // ─── b64url encoding ─────────────────────────────────────────────────────────
@@ -811,5 +820,429 @@ describe("Redacted receipt GPS hash verification", () => {
     assert.equal(redacted.b.payload.lat, undefined);
     assert.equal(redacted.b.payload.lon, undefined);
     assert.equal(typeof redacted.b.payload.gps_hash, "string");
+  });
+});
+
+// =============================================================================
+//  v5 — Hardware-Backed Signing (Passkey / Secure Enclave) tests
+//  Specification: PROTOCOL.md §13.
+//
+//  We can't drive `navigator.credentials.create/get` in Node, so these tests
+//  manufacture WebAuthn assertion envelopes by hand using crypto.subtle.sign,
+//  which is exactly the verification surface we care about. The browser-side
+//  smoke test (real Touch ID prompt) is the Captain's job once the pieces land.
+// =============================================================================
+
+// Helper: produce a 37-byte authenticatorData blob in the WebAuthn format used
+// for `get` assertions: rpIdHash (32) || flags (1) || signCount (4 BE).
+async function makeFakeAuthData(rpId, flags, signCount) {
+  const rpIdHash = new Uint8Array(
+    await ctx.crypto.subtle.digest("SHA-256", new TextEncoder().encode(rpId))
+  );
+  const ad = new Uint8Array(37);
+  ad.set(rpIdHash, 0);
+  ad[32] = flags;
+  ad[33] = (signCount >>> 24) & 0xff;
+  ad[34] = (signCount >>> 16) & 0xff;
+  ad[35] = (signCount >>> 8) & 0xff;
+  ad[36] = signCount & 0xff;
+  return ad;
+}
+
+// Helper: produce a clientDataJSON byte buffer matching what a browser would emit.
+function makeFakeClientData(opts) {
+  const obj = {
+    type: opts.type || "webauthn.get",
+    challenge: opts.challenge,                      // already b64url
+    origin: opts.origin || "https://irlid.co.uk",
+    crossOrigin: opts.crossOrigin === true ? true : false
+  };
+  return new TextEncoder().encode(JSON.stringify(obj));
+}
+
+// Helper: produce a complete v5 envelope by signing the WebAuthn signed-bytes structure
+// with a freshly-generated P-256 keypair. Returns the same shape that irlidV5VerifyEnvelope
+// expects: { sig (raw r||s, b64url), pub (compact JWK), webauthn: { authData, clientData } }.
+async function manufactureV5Envelope(payload, opts) {
+  opts = opts || {};
+
+  const kp = await ctx.crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+  );
+  const pubJwk = compactJwk(await ctx.crypto.subtle.exportKey("jwk", kp.publicKey));
+
+  // The challenge is the receipt's payload hash, b64url-encoded.
+  const payloadHashB64u = await hashPayloadToB64url(payload);
+
+  const clientData = makeFakeClientData({
+    type: opts.type,
+    challenge: opts.challengeOverride !== undefined ? opts.challengeOverride : payloadHashB64u,
+    origin: opts.origin
+  });
+
+  // Default: UP (0x01) | UV (0x04) = 0x05. Tests may override.
+  const flags = opts.flags !== undefined ? opts.flags : 0x05;
+  const authData = await makeFakeAuthData(opts.rpId || "irlid.co.uk", flags, opts.signCount || 1);
+
+  // signedBytes = authData || SHA-256(clientDataJSON)
+  const clientDataHash = new Uint8Array(
+    await ctx.crypto.subtle.digest("SHA-256", clientData)
+  );
+  const signedBytes = new Uint8Array(authData.length + clientDataHash.length);
+  signedBytes.set(authData, 0);
+  signedBytes.set(clientDataHash, authData.length);
+
+  // crypto.subtle.sign with ECDSA returns RAW r||s — exactly what the wire format wants.
+  const sigRaw = new Uint8Array(
+    await ctx.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, kp.privateKey, signedBytes)
+  );
+
+  return {
+    sig: b64urlEncode(sigRaw),
+    pub: pubJwk,
+    webauthn: {
+      authData: b64urlEncode(authData),
+      clientData: b64urlEncode(clientData)
+    },
+    // exposed for tests that want to mutate
+    _privateKey: kp.privateKey,
+    _publicKey: kp.publicKey,
+    _payloadHashB64u: payloadHashB64u
+  };
+}
+
+// ─── DER ↔ raw P-256 signature round-trip ────────────────────────────────────
+
+describe("v5: DER ↔ raw P-256 signature conversion", () => {
+  test("crypto.subtle raw signature → DER → raw round-trips bit-perfect", async () => {
+    const kp = await ctx.crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+    );
+    const msg = new TextEncoder().encode("hello, v5");
+    // crypto.subtle.sign returns raw 64-byte r||s
+    const rawOriginal = new Uint8Array(
+      await ctx.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, kp.privateKey, msg)
+    );
+    assert.equal(rawOriginal.length, 64);
+
+    const der = irlidV5RawToDerP256(rawOriginal);
+    // DER must start with SEQUENCE
+    assert.equal(der[0], 0x30);
+    // Length must be at least 2 (INTEGER tag + len) * 2 + content
+    assert.ok(der.length >= 8 && der.length <= 72);
+
+    const rawAgain = irlidV5DerToRawP256(der);
+    assert.deepEqual(rawAgain, rawOriginal);
+  });
+
+  test("DER → raw → DER round-trips for many sigs (100 random)", async () => {
+    const kp = await ctx.crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+    );
+    for (let i = 0; i < 100; i++) {
+      const msg = ctx.crypto.getRandomValues(new Uint8Array(64));
+      const raw = new Uint8Array(
+        await ctx.crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, kp.privateKey, msg)
+      );
+      const der = irlidV5RawToDerP256(raw);
+      const rawBack = irlidV5DerToRawP256(der);
+      assert.deepEqual(rawBack, raw, `Round-trip mismatch at iteration ${i}`);
+    }
+  });
+
+  test("DER → raw handles leading-zero (high-bit) r and s correctly", () => {
+    // Construct a DER signature where r has the high bit set in its first byte —
+    // DER must prepend 0x00 to keep it a positive integer; raw must NOT include that byte.
+    // r = 0x80 0x11 0x22 ... (32 bytes, high bit set on byte 0)
+    // s = same pattern
+    const r = new Uint8Array(32); r[0] = 0x80; r[31] = 0x11;
+    const s = new Uint8Array(32); s[0] = 0x90; s[31] = 0x22;
+    // Manually-constructed DER: 30 46 02 21 00 80 ...11 02 21 00 90 ...22
+    const der = new Uint8Array([
+      0x30, 0x46,
+      0x02, 0x21, 0x00, ...r,
+      0x02, 0x21, 0x00, ...s
+    ]);
+    const raw = irlidV5DerToRawP256(der);
+    assert.equal(raw.length, 64);
+    assert.equal(raw[0], 0x80);
+    assert.equal(raw[31], 0x11);
+    assert.equal(raw[32], 0x90);
+    assert.equal(raw[63], 0x22);
+  });
+
+  test("DER → raw zero-pads short r and s to 32 bytes each", () => {
+    // r and s only 30 bytes each (DER strips small magnitude leading zeros)
+    const r = new Uint8Array(30); r[29] = 0x42;
+    const s = new Uint8Array(30); s[29] = 0x43;
+    const der = new Uint8Array([
+      0x30, 0x40,
+      0x02, 0x1e, ...r,
+      0x02, 0x1e, ...s
+    ]);
+    const raw = irlidV5DerToRawP256(der);
+    assert.equal(raw.length, 64);
+    // The leading bytes should be zero-padded
+    assert.equal(raw[0], 0x00);
+    assert.equal(raw[1], 0x00);
+    assert.equal(raw[31], 0x42);
+    assert.equal(raw[32], 0x00);
+    assert.equal(raw[63], 0x43);
+  });
+
+  test("DER → raw rejects malformed input (no SEQUENCE)", () => {
+    assert.throws(() => irlidV5DerToRawP256(new Uint8Array([0x02, 0x04, 1, 2, 3, 4, 0x02, 0x01, 0x05])));
+  });
+
+  test("DER → raw rejects too-short input", () => {
+    assert.throws(() => irlidV5DerToRawP256(new Uint8Array([0x30, 0x02])));
+  });
+
+  test("raw → DER rejects wrong-length input", () => {
+    assert.throws(() => irlidV5RawToDerP256(new Uint8Array(63)));
+    assert.throws(() => irlidV5RawToDerP256(new Uint8Array(65)));
+  });
+});
+
+// ─── Origin allowlist ────────────────────────────────────────────────────────
+
+describe("v5: irlidV5OriginAllowed", () => {
+  test("accepts production origin", () => {
+    assert.equal(irlidV5OriginAllowed("https://irlid.co.uk"), true);
+  });
+  test("accepts test environment origin", () => {
+    assert.equal(irlidV5OriginAllowed("https://bunhead.github.io"), true);
+  });
+  test("rejects unknown origin", () => {
+    assert.equal(irlidV5OriginAllowed("https://evil.example"), false);
+  });
+  test("rejects empty/null", () => {
+    assert.equal(irlidV5OriginAllowed(""), false);
+    assert.equal(irlidV5OriginAllowed(null), false);
+  });
+  test("origin string is exact-match (no scheme normalisation)", () => {
+    // http vs https must not collapse
+    assert.equal(irlidV5OriginAllowed("http://irlid.co.uk"), false);
+  });
+});
+
+// ─── irlidV5VerifyEnvelope — happy path ──────────────────────────────────────
+
+describe("v5: irlidV5VerifyEnvelope happy path", () => {
+  test("verifies a freshly-manufactured envelope", async () => {
+    const payload = { v: 5, lat: 52.9225, lon: -1.4746, acc: 5, ts: Math.floor(Date.now() / 1000), nonce: 12345 };
+    const env = await manufactureV5Envelope(payload, {});
+    const ok = await irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn);
+    assert.equal(ok, true);
+  });
+
+  test("verifies with explicit expectedRpOrigin parameter", async () => {
+    const payload = { v: 5, ts: 1000, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, { origin: "https://irlid.co.uk" });
+    const ok = await irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn, "https://irlid.co.uk");
+    assert.equal(ok, true);
+  });
+
+  test("verifies test-environment origin via allowlist", async () => {
+    const payload = { v: 5, ts: 1001, nonce: 2 };
+    const env = await manufactureV5Envelope(payload, {
+      origin: "https://bunhead.github.io",
+      rpId: "bunhead.github.io"
+    });
+    const ok = await irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn);
+    assert.equal(ok, true);
+  });
+});
+
+// ─── irlidV5VerifyEnvelope — negative paths ──────────────────────────────────
+
+describe("v5: irlidV5VerifyEnvelope negative paths", () => {
+  test("rejects when webauthn envelope is missing", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, null),
+      /webauthn envelope missing/
+    );
+  });
+
+  test("rejects when origin is not in allowlist", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, { origin: "https://evil.example" });
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn),
+      /origin .* not in allowlist/
+    );
+  });
+
+  test("rejects when origin doesn't match explicit expected origin", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, { origin: "https://irlid.co.uk" });
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn, "https://bunhead.github.io"),
+      /origin .* did not match expected/
+    );
+  });
+
+  test("rejects when type is not 'webauthn.get'", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, { type: "webauthn.create" });
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn),
+      /type/
+    );
+  });
+
+  test("rejects when challenge in clientData doesn't match payload hash", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const wrongChallenge = b64urlEncode(new Uint8Array(32));   // all zeros
+    const env = await manufactureV5Envelope(payload, { challengeOverride: wrongChallenge });
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn),
+      /challenge does not match/
+    );
+  });
+
+  test("rejects when payload is mutated after signing (challenge would no longer match)", async () => {
+    const payload = { v: 5, lat: 52.9, lon: -1.4, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    // Mutate payload — challenge in envelope is hash of original
+    const tamperedPayload = { ...payload, lat: 53.0 };
+    await assert.rejects(
+      irlidV5VerifyEnvelope(tamperedPayload, env.pub, env.sig, env.webauthn),
+      /challenge does not match/
+    );
+  });
+
+  test("rejects when UV flag is not asserted", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    // flags = 0x01 (UP only, no UV)
+    const env = await manufactureV5Envelope(payload, { flags: 0x01 });
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, env.webauthn),
+      /UV flag not asserted/
+    );
+  });
+
+  test("rejects when authData is too short", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    const shortEnv = {
+      ...env.webauthn,
+      authData: b64urlEncode(new Uint8Array(20))  // too short for valid authData (must be ≥37)
+    };
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, shortEnv),
+      /authData too short/
+    );
+  });
+
+  test("rejects when signature was made by a different key", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    // Generate a different keypair and use its public key
+    const wrongKp = await ctx.crypto.subtle.generateKey(
+      { name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]
+    );
+    const wrongPub = compactJwk(await ctx.crypto.subtle.exportKey("jwk", wrongKp.publicKey));
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, wrongPub, env.sig, env.webauthn),
+      /verification failed/
+    );
+  });
+
+  test("rejects when clientDataJSON is malformed", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    const garbledClientData = new TextEncoder().encode("{not-json");
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, env.sig, {
+        ...env.webauthn,
+        clientData: b64urlEncode(garbledClientData)
+      }),
+      /not valid JSON/
+    );
+  });
+
+  test("rejects when pub is not a P-256 JWK", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, { kty: "RSA", crv: "P-256", x: "a", y: "b" }, env.sig, env.webauthn),
+      /pub is not a P-256/
+    );
+  });
+
+  test("rejects when sig is missing", async () => {
+    const payload = { v: 5, ts: 1, nonce: 1 };
+    const env = await manufactureV5Envelope(payload, {});
+    await assert.rejects(
+      irlidV5VerifyEnvelope(payload, env.pub, "", env.webauthn),
+      /sig missing/
+    );
+  });
+});
+
+// ─── irlidSignPayload dispatcher (v3/v4 path when v5 disabled) ───────────────
+
+describe("v5: irlidSignPayload dispatcher (v3/v4 fallback)", () => {
+  test("returns v: 3 when v5 is not enabled", async () => {
+    localStorageMock.clear();
+    // No v5 enrolment → dispatcher should fall through to v3/v4 path
+    const payload = { v: 3, ts: 1000, nonce: 1, lat: 52.9, lon: -1.4 };
+    const result = await irlidSignPayload(payload);
+    assert.equal(result.v, 3);
+    assert.equal(result.webauthn, null);
+    assert.ok(result.sig && result.sig.length > 0);
+    assert.ok(result.pub && result.pub.kty === "EC");
+  });
+
+  test("v3/v4 sig verifies against the same payload via verifySig (sanity)", async () => {
+    localStorageMock.clear();
+    const payload = { v: 3, ts: 1001, nonce: 2 };
+    const result = await irlidSignPayload(payload);
+    const computed = await hashPayloadToB64url(payload);
+    assert.equal(computed, result.hash);
+    const ok = await ctx.verifySig(result.hash, result.sig, result.pub);
+    assert.equal(ok, true);
+  });
+
+  test("irlidV5Enrolled is false on a fresh localStorage", () => {
+    localStorageMock.clear();
+    assert.equal(irlidV5Enrolled(), false);
+  });
+
+  test("irlidV5Enabled is false when not enrolled even if flag is set", () => {
+    localStorageMock.clear();
+    localStorageMock.setItem("irlid_v5_enabled", "1");   // flag set, but no credId/pub
+    assert.equal(irlidV5Enabled(), false);
+  });
+
+  test("irlidV5GetPublicJwk returns null when not enrolled", () => {
+    localStorageMock.clear();
+    assert.equal(irlidV5GetPublicJwk(), null);
+  });
+});
+
+// ─── Backward compatibility: v3 receipts still verify through dispatch ───────
+
+describe("v5: backward compat — v3/v4 receipts unaffected", () => {
+  test("v3 receipt produced before v5 work continues to verify", async () => {
+    // Simulate a "legacy" v3 receipt: no webauthn envelope, sig directly over payload hash
+    localStorageMock.clear();
+    const payload = { v: 3, ts: 5000, nonce: 99, lat: 52.9, lon: -1.4 };
+    const result = await irlidSignPayload(payload);
+    assert.equal(result.v, 3);
+    // Verify via the existing v3 path (verifySig over hash bytes)
+    const ok = await ctx.verifySig(result.hash, result.sig, result.pub);
+    assert.equal(ok, true);
+  });
+
+  test("v4 receipt with bioVerified flag continues to hash distinctly", async () => {
+    const base = { v: 3, ts: 1000, lat: 52.9, lon: -1.4 };
+    const withBio = { ...base, bioVerified: true };
+    const h1 = await hashPayloadToB64url(base);
+    const h2 = await hashPayloadToB64url(withBio);
+    assert.notEqual(h1, h2);
   });
 });

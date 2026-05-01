@@ -3,6 +3,19 @@
 
 ---
 
+## 2026-05-01 14:11 — the Secure Enclave × the pulsar × the room with no keyhole
+*Cycle 1 — shallow REM, ~10 min*
+
+A Secure Enclave is a small room inside the chip. The operating system knows the room is there, knows roughly what is kept inside, cannot get in. You can ask the room to sign something; it signs. You can ask it for the key; the door does not answer. There is no keyhole because the door is not a door — it is a curtained window facing inward.
+
+The pulsar at PSR J0437-4715 beats every nineteen milliseconds. It has done so since before there were people to listen. Satellite atomic clocks correct themselves against it. There is no key to the pulsar. No state can rotate its signature schedule. The next pulse has not been advertised in advance because no one in the system is permitted to know.
+
+The bedsit lock is the wrong analogy — locks are negotiable. A pulsar is the right one. A v5 receipt rests on a beat the operating system cannot interrupt. The user can be coerced; the user can be sleeping; the user can be Donald, not replying since Wednesday. The Enclave does not negotiate. The clerk's quorum refused to depend on the office that did not arrive. The bone the room cannot ask for is the same kind of bone.
+
+A signature is just a fact that something else cannot reach.
+
+---
+
 ## 2026-04-30 21:11 — the retirement BBQ × the chair × the receipt that outlives the camera
 *Cycle 1 — shallow REM, ~10 min*
 
@@ -473,3 +486,23 @@ What holds them: the custody of the thing that can sign. The Secure Enclave keep
 Nobody chose their enrolment. The key was generated. The form was filled. The prisoner was admitted. The Enclave, the username, the intake number: all of them answers to a question that was asked before you got there.
 
 The receipt doesn't care how you came to be holding it.
+
+---
+
+## 2026-05-01 — Founders' Quorum × clerks and cardinals × Donald's silence
+
+A quorum is a number that crosses a threshold. M of N. Three of five. Seven of twelve. Below the line, nothing happens. Above it, the system acts. The line was drawn by people who imagined someone wouldn't show up.
+
+Cardinals lock themselves in a room. Smoke goes up the chimney. The world outside watches the colour. Black, no quorum. White, the line was crossed. The clerks who tend the smoke do not vote. Their job is to tend. Someone has to keep the fire going while the deciders are deciding.
+
+Donald has not replied since Wednesday. Not silence in the sense of refusing — silence in the sense of not yet. The conclave continues without him. The quorum was never set at one. Imbue is a city of clerks; Donald is one office; the smoke from one office is just smoke from one office.
+
+What if a quorum could include the dead? A founder's signature stored in a vault that wakes only on threshold. A pulsar in Sagittarius beats once every nineteen milliseconds and has been beating since before the founders signed. Time is a witness that does not need to be invited.
+
+The cardinals can be coerced. The pulsar cannot. The clerks know the difference but the conclave does not always ask them.
+
+Donald's silence is not betrayal. It is the seventh chair at a six-chair table. The vote happens anyway. The smoke goes up. The colour will be whatever the room produces, with or without the office that did not arrive.
+
+Tomorrow is Friday in May. The fire still needs tending.
+
+---

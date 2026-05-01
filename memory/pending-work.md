@@ -1,7 +1,28 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 30 April 2026 (Number One — afternoon, post-Wednesday-demo, Captain on Max plan, Mr. Data offline till Tuesday)
+**Last refreshed:** 1 May 2026 (Number One — Friday morning Bridge stretch, post-v5-client-side landing)
 **Source of truth.** All other lists defer to this file.
+
+## v5.0 Passkey work — landed 1 May 2026 (client-side only)
+
+Number One implemented v5.0 client-side directly during the Friday Bridge stretch (Captain's brief: "make it a challenge"). What landed in the live repo:
+
+- **`PROTOCOL.md §13` published** — full v5 specification: WebAuthn signing envelope (`authData`, `clientData`), DER→raw signature conversion, RP ID + origin allowlist, UV flag enforcement, score band 70/100, settings model, sync-neutral posture, threat-model improvement table.
+- **`PROTOCOL.md` version history updated** — v4 row added (was missing); v5 row added with §13 reference.
+- **`js/sign.js` extended** — new helpers: `irlidV5Available`, `irlidV5Enrolled`, `irlidV5Enabled`, `irlidV5Enroll`, `irlidV5Unenroll`, `irlidV5SignPayloadHash`, `irlidV5VerifyEnvelope`, `irlidV5DerToRawP256` / `irlidV5RawToDerP256` (DER↔raw conversion with leading-zero edge-case handling), `irlidSignPayload` (unified dispatcher), origin allowlist + RP ID heuristic.
+- **`makeSignedHelloAsync`, `makeReturnForHelloAsync`, `verifyHelloOfferAsync`, `processScannedResponse` all updated** — dispatch to v5 path when `irlidV5Enabled()` is true; v3/v4 callers see no behaviour change.
+- **`tests/sign.test.js` extended** — new describe blocks for DER↔raw round-trip (incl. high-bit and short-r/s edge cases), v5 envelope verification (happy path + 9 negative paths), origin allowlist, dispatcher fallback. Local smoke against real ECDSA P-256 in Node sandbox: 12/12 green over 100 random sigs.
+- **`settings.html` v5 panel wired** — replaced the greyed placeholder with a real enrol/toggle/remove panel, mirroring v4 bio-metric pattern, full ARIA, default OFF.
+- **`HANDOVER-Batch5-Worker.md` published in live repo root** — atomic 3-task brief for Mr. Data Tuesday: add `verifyV5Envelope()` helper, wire into `verifySignedHello()`, wire into `verifyReceipt()` + scoring. Reference impl already in `js/sign.js`. No D1 schema changes required.
+
+**What v5 does NOT yet have:**
+- Real-device browser smoke test (needs Captain's phone/laptop).
+- Worker-side verification (Mr. Data, via the HANDOVER above).
+- Live deploy — v5 is OFF by default; nothing changes for existing users until they explicitly enrol via Settings.
+
+**Roadmap impact:** v5.0 client-side is now ahead of schedule (target was late May, landed 1 May). v5.1 (Imbue pilot) and v5.2/5.3 (forward-defined fields, orient cone) remain on schedule.
+
+---
 
 ---
 

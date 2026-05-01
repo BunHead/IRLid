@@ -203,10 +203,60 @@
         </div>
       </div>
 
-      <!-- v5 placeholder — greyed out -->
-      <div class="panel" style="opacity:0.45; pointer-events:none; user-select:none;">
-        <h3 style="margin:0 0 4px;">🔒 Secure Enclave &amp; Face Capture — v5</h3>
-        <p class="small" style="margin:0; color:#aaa;">Hardware-backed signing key (Secure Enclave / TEE) and mutual face capture coming in v5. All off by default when available — enable only what you're comfortable with.</p>
+      <!-- ===== v5 Hardware-Backed Signing (Passkey / Secure Enclave) ===== -->
+      <div class="panel" id="v5Panel">
+        <h3 style="margin:0 0 4px;">🔒 Hardware-Backed Signing — v5 (beta)</h3>
+        <p class="small" style="margin:0 0 12px; color:#888;">
+          Move your IRLid signing key into your device's Secure Enclave (Apple) /
+          TEE (Android) / Windows Hello TPM. Private key never leaves the hardware,
+          and Face ID / Touch ID / fingerprint is required at every signature.
+          Closes the strongest honest criticism of v3/v4 (localStorage extraction —
+          see <a href="https://github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md#iii-stolen-device-attacks" target="_blank" rel="noopener">THREAT-MODEL.md §III.2</a>).
+          <strong>Off by default.</strong> Enrol once to enable.
+        </p>
+
+        <div id="v5StatusRow" class="bio-status-row not-enrolled" role="status" aria-live="polite">
+          <div class="bio-dot dot-orange" id="v5Dot"></div>
+          <span id="v5StatusText">Checking…</span>
+        </div>
+
+        <div id="v5EnrolSection" style="display:none;">
+          <button class="btn" id="v5EnrolBtn" type="button" aria-describedby="v5EnrolHelp">
+            🔒 Enrol hardware-backed key
+          </button>
+          <div class="settings-kv" id="v5EnrolHelp" style="margin-top:6px;">
+            You'll be prompted once to register a passkey. Takes about 5 seconds.
+            Your fingerprint or face never leaves the device.
+          </div>
+        </div>
+
+        <div id="v5ActiveSection" style="display:none;">
+          <div class="settings-row" style="margin-bottom:10px;">
+            <label style="display:flex; gap:10px; align-items:center;">
+              <input type="checkbox" id="v5EnabledToggle" aria-describedby="v5EnabledHelp" />
+              <span><b>Use hardware-backed key for signing</b></span>
+            </label>
+          </div>
+          <div class="settings-kv" id="v5EnabledHelp" style="margin-bottom:10px;">
+            When ON, every HELLO and response signature requires a fresh user-verification
+            gesture (Face ID / Touch ID / Windows Hello). Score boost: +20 to 70/100 when v5 verifies.
+          </div>
+          <button class="btn secondary" id="v5RemoveBtn" type="button">Remove enrolment</button>
+          <div class="settings-kv" style="margin-top:6px;">
+            Removing only clears IRLid's reference to the key; the key itself stays in your
+            platform's password manager (iCloud Keychain / Google Password Manager / Windows Hello)
+            until you remove it there. You can re-enrol any time.
+          </div>
+        </div>
+
+        <div id="v5UnavailSection" style="display:none;">
+          <div class="settings-kv" style="color:#aaa;">
+            Hardware-backed signing requires a platform authenticator (Touch ID, Face ID,
+            fingerprint, or Windows Hello) and a recent browser (Safari on iOS 16+,
+            Chrome on Android 9+, or Edge/Chrome on Windows with Windows Hello set up).
+            Not available on this device or browser.
+          </div>
+        </div>
       </div>
 
     </div>
@@ -419,6 +469,81 @@
     }
 
     // ========================================
+    //  v5 Hardware-Backed Signing UI (PROTOCOL.md §13)
+    // ========================================
+    var v5StatusRow      = document.getElementById("v5StatusRow");
+    var v5Dot            = document.getElementById("v5Dot");
+    var v5StatusText     = document.getElementById("v5StatusText");
+    var v5EnrolSection   = document.getElementById("v5EnrolSection");
+    var v5ActiveSection  = document.getElementById("v5ActiveSection");
+    var v5UnavailSection = document.getElementById("v5UnavailSection");
+    var v5EnrolBtn       = document.getElementById("v5EnrolBtn");
+    var v5RemoveBtn      = document.getElementById("v5RemoveBtn");
+    var v5EnabledToggle  = document.getElementById("v5EnabledToggle");
+
+    async function renderV5State() {
+      if (typeof irlidV5Available !== "function") return;
+      var available = await irlidV5Available();
+      var enrolled = (typeof irlidV5Enrolled === "function") ? irlidV5Enrolled() : false;
+      var enabled  = (typeof irlidV5Enabled  === "function") ? irlidV5Enabled()  : false;
+
+      v5EnrolSection.style.display   = "none";
+      v5ActiveSection.style.display  = "none";
+      v5UnavailSection.style.display = "none";
+
+      if (!available) {
+        v5StatusRow.className = "bio-status-row unavailable";
+        v5Dot.className = "bio-dot dot-grey";
+        v5StatusText.textContent = "Not available on this device or browser";
+        v5UnavailSection.style.display = "block";
+      } else if (!enrolled) {
+        v5StatusRow.className = "bio-status-row not-enrolled";
+        v5Dot.className = "bio-dot dot-orange";
+        v5StatusText.textContent = "Available — not enrolled";
+        v5EnrolSection.style.display = "block";
+      } else {
+        v5StatusRow.className = "bio-status-row enrolled";
+        v5Dot.className = "bio-dot dot-green";
+        v5StatusText.textContent = enabled
+          ? "Enrolled & active — signatures use the hardware-backed key"
+          : "Enrolled — toggle below to start using v5 for signing";
+        v5ActiveSection.style.display = "block";
+        v5EnabledToggle.checked = !!enabled;
+      }
+    }
+
+    if (v5EnrolBtn) {
+      v5EnrolBtn.addEventListener("click", async function() {
+        v5EnrolBtn.disabled = true;
+        v5EnrolBtn.textContent = "Waiting for hardware…";
+        try {
+          await irlidV5Enroll();
+          await renderV5State();
+        } catch(e) {
+          alert("v5 enrolment failed: " + (e.message || e));
+        } finally {
+          v5EnrolBtn.disabled = false;
+          v5EnrolBtn.textContent = "🔒 Enrol hardware-backed key";
+        }
+      });
+    }
+
+    if (v5RemoveBtn) {
+      v5RemoveBtn.addEventListener("click", async function() {
+        if (!confirm("Remove the v5 hardware-backed signing reference?\n\nThis disables v5 signing on this device. The credential itself remains in your platform's password manager and can be removed there.")) return;
+        if (typeof irlidV5Unenroll === "function") irlidV5Unenroll();
+        await renderV5State();
+      });
+    }
+
+    if (v5EnabledToggle) {
+      v5EnabledToggle.addEventListener("change", function() {
+        try { localStorage.setItem("irlid_v5_enabled", v5EnabledToggle.checked ? "1" : "0"); } catch{}
+        renderV5State();
+      });
+    }
+
+    // ========================================
     //  Trust history info line
     // ========================================
     var trustHistoryLine = document.getElementById("trustHistoryLine");
@@ -472,10 +597,15 @@
       try { localStorage.removeItem("irlid_ts_tol_s"); } catch{}
       try { localStorage.removeItem("irlid_gps_acc_floor_m"); } catch{}
       try { localStorage.removeItem("irlid_min_score_pct"); } catch{}
+      // v5 keys (PROTOCOL.md §13)
+      try { localStorage.removeItem("irlid_v5_cred_id"); } catch{}
+      try { localStorage.removeItem("irlid_v5_pub_jwk"); } catch{}
+      try { localStorage.removeItem("irlid_v5_enabled"); } catch{}
     };
 
     // Init
     renderBioState();
+    renderV5State();
     renderTrustHistory();
 
     // Soft hint if logged out
