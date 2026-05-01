@@ -1,7 +1,230 @@
 # IRLid Promotion Log
 
 Tracks all outreach attempts, results, and pending actions.
-Last updated: 26 April 2026 (post-roadmap publication).
+Last updated: 1 May 2026 (post-v5.0-client-side landing).
+
+---
+
+## ⭐ v5 Hardware-Backed Signing — outreach drafts (NEW — 1 May 2026)
+
+**Why now:** v5 closes THREAT-MODEL.md §III.2 — the strongest honest critique of v3/v4, raised publicly by **u/cym13** in r/netsec on the original v4 thread. Closing that loop in public is high-leverage: it re-engages the most prominent technical reviewer the protocol has, surfaces any second-round critique while v5 is still client-side-only and easy to revise, and turns "shipped a feature" into "answered the engineer who said the previous version had a real flaw."
+
+**Status:** Substance drafted by Number One, 1 May 2026. Captain to rewrite in his voice and post per crew §5.1 (Reddit r/netsec → engineering peer-to-peer register, Captain's voice).
+
+### A. r/netsec follow-up — comment reply on original thread (RECOMMENDED)
+
+The original v4 thread (~28K views) is the right place for this — same audience, same mods, no fresh karma exposure. Comment reply directly tagging u/cym13.
+
+```
+u/cym13 — your localStorage point from the v4 thread drove a real change.
+Quick update on what landed today, in case it's worth your time to take
+another look.
+
+v5 moves the signing key out of localStorage and into the platform's
+hardware-backed authenticator — Apple Secure Enclave, Android TEE,
+Windows Hello TPM — via WebAuthn. Private keys are generated inside
+the secure element and are not extractable, even by an attacker with
+brief unlocked-device access. Every signature requires a fresh
+user-verification gesture (Face ID / Touch ID / fingerprint / Hello).
+
+Mechanism (since "passkey as general signing primitive" isn't WebAuthn's
+primary intended use, and getting it wrong is a real risk):
+
+- Receipt payload is hashed exactly as v3/v4: SHA-256(canonical(payload)).
+- That hash goes into the WebAuthn assertion's `challenge` field.
+- Platform signs the standard envelope: authenticatorData || SHA-256(clientDataJSON).
+- Verifier parses clientDataJSON, checks type === "webauthn.get", checks
+  origin against an allowlist, checks challenge against the recomputed
+  payload hash, then verifies ECDSA P-256 over the envelope.
+- Wire format is raw r||s; DER → raw conversion is done client-side
+  (with the leading-zero high-bit edge case handled — the standard footgun).
+- userVerification: "required" enforced; verifier inspects
+  authData[32] & 0x04 to confirm UV was actually performed (some
+  authenticators silently downgrade).
+- Signature counters not relied on for replay protection (iCloud
+  Keychain returns 0; some Android implementations are non-monotonic).
+  Protocol-level nonce + 90s window handles replay.
+
+Spec: PROTOCOL.md §13
+  github.com/BunHead/IRLid/blob/main/PROTOCOL.md
+Reference impl: js/sign.js — irlidV5* helpers
+  github.com/BunHead/IRLid/blob/main/js/sign.js
+Threat-model row: THREAT-MODEL.md §III.2
+  github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md
+Test coverage: 110 tests across the v5 envelope verifier, including
+  100 random ECDSA P-256 sigs through DER↔raw round-trip, all 9 named
+  negative paths (wrong origin, wrong type, mutated payload, missing UV
+  flag, malformed clientData, etc.).
+
+Honest about what's not yet done:
+- Worker-side envelope verification is queued
+  (HANDOVER-Batch5-Worker.md). Until that lands, v5 receipts arriving
+  at the test Worker fail signature check — which is fine because
+  v5 is OFF by default in settings.html and nothing in the wild
+  produces v5 receipts yet.
+- No real-device deploy. v5 won't go live to irlid.co.uk until
+  Worker side is in and a real-phone smoke confirms enrol → toggle →
+  scan produces a verifying receipt.
+- Sync vs device-bound: v5.0 is sync-neutral
+  (authenticatorAttachment: "platform", let the OS decide). Orgs
+  requiring non-sync can mandate that as a v5.x extension.
+
+The piece I'd most welcome a sharp eye on is the verifier function
+itself (irlidV5VerifyEnvelope in js/sign.js, ~80 lines). That's where
+remaining footguns most plausibly hide. If you spot one — or if there's
+a class of attack against the WebAuthn-as-signing pattern that's not in
+THREAT-MODEL.md §III.2 — I'd rather hear about it now than after deploy.
+
+Cheers for the original critique. The protocol is stronger because of it.
+```
+
+### B. r/netsec follow-up — new top-level post (alternative)
+
+If the original thread has gone too cold for a comment to surface, a fresh top-level post works. Keep it tighter — Reddit top-level posts get more skim-eyeballs than thread comments.
+
+```
+[Update] IRLid v5 — closing the localStorage criticism
+
+(Follow-up to the v4 thread that ran here a couple of weeks back. tl;dr:
+the strongest honest criticism we got — that signing keys lived in
+localStorage and were extractable on a brief-access attacker scenario
+— is closed in v5 at the protocol level. Mechanism + code below.)
+
+v3/v4 stored the device's ECDSA P-256 keypair in localStorage. Anyone
+with brief unlocked-device access could pull it. u/cym13 flagged this
+in the original thread. Fair point, no defence at the protocol level.
+
+v5 (PROTOCOL.md §13, landed today) moves signing into the platform
+authenticator — Secure Enclave on Apple, TEE on Android, Hello TPM on
+Windows — via WebAuthn. Keys are non-extractable; UV is required at
+every signature; the receipt now carries an envelope (authenticatorData,
+clientDataJSON) that the verifier inspects before doing the ECDSA check.
+
+Mechanism is the standard "passkey-as-signing-primitive" trick: payload
+hash goes into the WebAuthn challenge, platform signs over
+authenticatorData || SHA-256(clientDataJSON), verifier parses the
+clientDataJSON and checks type / origin / challenge before verifying
+ECDSA P-256 against the credential pubkey. Wire format raw r||s, DER →
+raw done client-side with the leading-zero high-bit edge case handled.
+
+Code: github.com/BunHead/IRLid/blob/main/js/sign.js (irlidV5*)
+Spec: github.com/BunHead/IRLid/blob/main/PROTOCOL.md (section 13)
+Tests: 110 covering DER↔raw round-trip across 100 random sigs, plus
+       envelope happy path + 9 negative paths.
+
+Worker-side verification is still in flight (HANDOVER-Batch5-Worker.md).
+v5 is OFF by default in settings.html until that lands.
+
+If you have time to glance at irlidV5VerifyEnvelope and tell me where the
+footguns are hiding, that would be appreciated. The WebAuthn-as-signing
+pattern has a few well-known footguns and probably some less-well-known
+ones; better surfaced now than after live deploy.
+
+Original v4 thread: [link]
+```
+
+### C. X / Twitter (280 chars)
+
+```
+v5 of IRLid landed today. The strongest critique of v3/v4 — signing keys in localStorage, extractable on brief-access attack — is now closed at the protocol level. Keys live in Secure Enclave / TEE / Windows Hello TPM via WebAuthn. Spec: PROTOCOL.md §13. github.com/BunHead/IRLid
+```
+
+(~282 chars; trim "today" if needed.)
+
+### D. LinkedIn (medium-form)
+
+```
+IRLid v5 client-side landed today.
+
+For context: a few weeks ago I published v4 of the IRLid protocol on
+r/netsec and got an honest, well-targeted critique from a reviewer
+called cym13. Their point: my v3/v4 signing keys lived in localStorage,
+which means an attacker with a brief moment of unlocked-device access
+could extract them. I acknowledged it openly in the spec — but didn't
+have a fix at the time.
+
+Today's v5 closes that criticism at the protocol level.
+
+Signing keys now live inside the platform's hardware-backed authenticator
+— Apple's Secure Enclave, Android's Trusted Execution Environment, or
+Windows Hello's TPM — via WebAuthn. The keys are generated inside the
+secure element and never leave it. Every signature requires a fresh
+biometric or unlock gesture. localStorage is no longer the key store.
+
+The honest engineering bit: getting "passkey as general-purpose signing
+primitive" right has a few known footguns — the WebAuthn signature
+envelope, the DER-vs-raw signature format mismatch, the user-verification
+flag silently downgrading on some authenticators. v5 handles all of
+them, with 110 unit tests including a 100-random-signature round-trip
+through DER↔raw conversion.
+
+Worker-side verification is queued for next week; the live deploy waits
+for that and a real-device smoke test. v5 is opt-in and off by default
+until then.
+
+Receipts signed today remain valid in 2050. The protocol is stronger
+than it was last week, because cym13 took the time to write a critique
+that was actually correct.
+
+Spec: PROTOCOL.md §13 (github.com/BunHead/IRLid)
+```
+
+### E. Patreon supporter update (Captain's voice — Counsellor Troi to shape)
+
+```
+Quick update for supporters.
+
+A few weeks back, when I posted v4 on r/netsec, somebody called cym13
+read the spec carefully and pointed out that the signing keys lived in
+localStorage — which means a thief with a moment of unlocked-device
+access could extract them and walk away as you. Fair criticism. I
+acknowledged it openly and said v5 was where I'd close it.
+
+v5 client-side landed today. Keys now live in your phone's Secure Enclave
+(or Android TEE, or Windows Hello TPM) and physically cannot leave the
+hardware. Every signature requires Face ID / Touch ID / fingerprint at
+the moment of signing. The OS itself can't read the key; only the chip
+inside the chip can.
+
+Specifically: the protocol now uses WebAuthn — the same standard that
+underlies passkey login — but pointed at signing IRLid receipts instead
+of website login. The receipt format is fully backward-compatible: a
+v4 receipt signed in April still verifies forever. v5 receipts have an
+extra envelope that proves the signature came from the secure element.
+
+Honest about what's left: Worker-side verification is queued for next
+week, and v5 is OFF by default until that lands and I've smoke-tested
+it on real hardware. Your existing v3/v4 receipts are unaffected.
+
+The reason this matters more than a normal feature update: this is the
+first time the protocol has had a named public critique that was real,
+got logged, and got closed in version control with a referenceable
+spec section and a test suite. That cycle — critique → acknowledgement →
+fix → public follow-up — is what separates protocols that age well from
+protocols that pretend they don't have flaws.
+
+Receipts signed today verify in 2050. Now they're harder to steal too.
+
+Spec section: PROTOCOL.md §13
+Threat model row: THREAT-MODEL.md §III.2
+Code: js/sign.js (irlidV5* helpers)
+
+— Spencer
+```
+
+### Posting order recommended
+
+1. **r/netsec comment reply (Format A)** first — engineering peer audience, low risk, closes the loop with cym13 specifically.
+2. **24–48 hours later, X (Format C)** — short, broadcast, links the netsec thread.
+3. **Same day or next day, LinkedIn (Format D)** — broader engineering / professional audience.
+4. **Patreon (Format E)** any time — supporter-only audience, no time pressure.
+5. **New top-level r/netsec post (Format B)** — only if the comment reply gets minimal traction or the original thread is too cold; avoids cross-posting.
+
+### Watch-fors
+
+- If u/cym13 replies and identifies a new attack class against the WebAuthn-as-signing pattern, **log it in THREAT-MODEL.md and respond before doing more outreach.** That cycle is more valuable than any volume of posts.
+- If anyone in r/netsec questions the claim that the Secure Enclave is genuinely uncoercible-by-software, the right response is to point at THREAT-MODEL.md §III.2's framing ("reduces to attacker-has-compromised-the-platform"), not to overclaim.
+- Don't oversell. v5 is the layer of v5; v6+ time anchoring and v7 ZK are still in design. The 100-year roadmap framing pairs well with this update — "we shipped the next version on schedule" lands harder than "we have a vision."
 
 ---
 
