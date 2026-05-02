@@ -1,9 +1,36 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 1 May 2026 (Number One — Friday morning Bridge stretch, post-v5-client-side landing)
+**Last refreshed:** 2 May 2026 (Number One — Saturday afternoon, post-v5-PRODUCTION-DEPLOY, retirement coda)
 **Source of truth.** All other lists defer to this file.
 
-## v5.0 Passkey work — landed 1 May 2026 (client-side only)
+## v5.0 Passkey work — VERIFIED IN PRODUCTION 2 May 2026
+
+**Status:** ✅ **End-to-end deployed and verified clean on real consumer hardware across three browser × OS combinations:**
+
+- **Edge / Microsoft Password Manager + Windows Hello (TPM)** on Windows 11 — full 6-step diagnostic green
+- **Chrome / Google Password Manager + Windows Hello (TPM)** on Windows 11 — full 6-step diagnostic green
+- **Chrome / Google Password Manager + Android biometric** on Pixel 8 Pro / Android 10 — full 6-step diagnostic green
+- **Firefox on Windows** — quarantined; documented Firefox-side WebAuthn UX wrinkle (see "Browser-compat observation" below) — protocol-side verifies fine, page-reporting is messy
+
+**THREAT-MODEL.md §III.2 (localStorage extraction)** is closed in production. Not closed in spec, not closed in test — closed in the live system at `https://irlid.co.uk` as of ~16:00 UTC 2 May 2026.
+
+**Worker side:** both Workers (`irlid-api` live + `irlid-api-test`) wrangler-deployed with v5 envelope verification. Combined client + Worker test count: 122/122 green (110 client unit tests + 12 Worker regression).
+
+## v5 — remaining deliverables (post-deploy)
+
+1. **cym13 r/netsec follow-up post.** Drafts in `PROMOTION.md` Format A (comment reply on original v4 thread). Ready to post tomorrow morning (3 May 2026) when Captain has a fresh head. Drop in today's date and add one line: "verified clean on Edge + Chrome on Windows + Chrome on Android; Firefox-on-Windows has a known Firefox-side WebAuthn UX quirk." Honest limitation-flagging > overclaim.
+
+2. **Update public-facing pages to mention v5.** Captain's request at retirement of the Saturday Number One (2 May 2026): `features.html`, `about.html`, `settings.html` (settings already has the v5 panel; the descriptive copy may need v5-mention), plus possibly `index.html` headline / `vision-v4-plus.html` / `pitch-humanitarian.html` if v5 strengthens any of those pitches. Not urgent; do it after the cym13 post lands so the public pages match what the post claims.
+
+3. **Optional Patreon update via Counsellor Troi.** v5 is a meaningful supporter-update milestone. Substance draft in `PROMOTION.md` Format E. Hand to Troi for tone-shaping when Captain is ready.
+
+4. **Lt. La Forge onboarding (DeepSeek).** Was queued before v5 deploy. Now post-deploy. The bake-off can begin properly: hand La Forge one of the deferred Captain 30 April clarifications (initials display, configurable grace period, orange-screen timer) as his first atomic task. Mr. Data gets a parallel task. Compare on PR quality, integration friction, cost, responsiveness. Decide steady-state crew composition based on evidence, not pricing-page enthusiasm.
+
+5. **Captain's 30 April clarifications** (still deferred from previous Number One stretches): initials display in OrgCheckin.html Expected list rows, configurable event-end grace period, orange "pick from list" timer removal. Frontend-only test-env work. Could go to either Mr. Data or La Forge as their atomic-task bake-off.
+
+6. **Captain's request for visual-tweak feedback** on existing pages — discoverable via the Patreon supporter group when the v5 announcement lands.
+
+## Browser-compat observation — Firefox-on-Windows v5 enrolment UX (2 May 2026)
 
 Number One implemented v5.0 client-side directly during the Friday Bridge stretch (Captain's brief: "make it a challenge"). What landed in the live repo:
 
@@ -42,6 +69,38 @@ Number One implemented v5.0 client-side directly during the Friday Bridge stretc
 - `CLAUDE.md` scoring table updated with v5 row + status, "Number One's Technical Positions" updated to reflect v5 landed not just planned.
 - Worker-side regression tests at `irlid-api/tests/verify-receipt.test.mjs` in BOTH live and test-env repos (version-controlled now, not just sandbox artifact).
 - `THREAT-MODEL.md §III.2` cross-linked to PROTOCOL.md §13 + js/sign.js + HANDOVER-Batch5-Worker.md.
+
+## Browser-compat observation — Firefox-on-Windows v5 enrolment UX (2 May 2026)
+
+**Finding from production smoke (2 May ~15:30 UTC):** `https://irlid.co.uk/v5-test.html` was tested on three Windows browsers after v5 deploy. **Edge** (with Microsoft Password Manager) and **Chrome** (with Google Password Manager) both completed all six diagnostic steps cleanly with full ECDSA P-256 envelope verification on real Windows Hello hardware.
+
+**Firefox-on-Windows fails the page-side report**, even though the Hello credential IS created. The issue is a two-stage Windows Security dialog sequence Firefox triggers:
+
+1. First dialog: *"Save your passkey... This will be saved to your Windows device"* with Continue/Cancel — clicking Continue commits to creating a Hello/TPM credential.
+2. Hello biometric capture fires — face recognition succeeds.
+3. **Second, redundant dialog appears:** *"Choose where to save your passkey"* with iPhone/iPad/Android device + Security key options. Cancel is the right click.
+4. Firefox interprets the Cancel of the secondary picker as a primary `navigator.credentials.create()` abort and the API throws — even though Windows already created and stored the credential at step 2.
+5. `irlidV5Enroll()` catches the throw and reports "v5 enrolment cancelled or failed" on the page.
+6. The Hello credential exists and is visible in `edge://settings/passkeys` and in Windows Settings → Accounts → Passkeys, but our page's localStorage doesn't get the credId/pubJwk written before the throw.
+
+**Captain's call (2 May):** quarantine Firefox-on-Windows from the official "supported browsers" list for v5 enrolment. Edge and Chrome on Windows are the recommended Windows paths.
+
+**Possible v5.x remedies (none in v5.0 scope):**
+1. **Detect Firefox UA and switch enrolment flow.** When `navigator.userAgent` includes `Firefox/`, set `authenticatorAttachment: "platform"` more strictly (already doing this) AND add `excludeCredentials: []` AND set `attestation: "direct"` to see if that suppresses the secondary cross-platform picker.
+2. **Catch the specific `NotAllowedError` after a successful Hello biometric and probe for the credential in `Settings.html`.** If a fresh Hello credential exists for `irlid.co.uk` post-throw, treat the enrolment as effectively succeeded and write the credId/pubJwk via a separate `navigator.credentials.get()` retrieval flow. Risky: GraphAPI changes between Firefox versions.
+3. **Adopt SimpleWebAuthn library** for the enrolment flow — they may have already worked around this Firefox quirk. Adds a dependency, but the library is well-maintained.
+4. **File a bugzilla.mozilla.org issue.** The two-stage dialog is a Firefox UX bug; fixing it upstream solves it for everyone.
+
+**Reproduction:**
+1. Firefox on Windows 11.
+2. Navigate to `https://irlid.co.uk/v5-test.html`.
+3. Click Step 2 "Enrol v5 credential."
+4. Observe the two-stage Windows Security dialog described above.
+5. Verify in `edge://settings/passkeys` that an `irlid-signer` entry for `irlid.co.uk` appears, despite the page reporting failure.
+
+**For the cym13 r/netsec post tomorrow:** post acknowledges Edge + Chrome on Windows verified clean, Firefox on Windows has a known Firefox-side WebAuthn UX wrinkle (the protocol can't fix it). Honest limitation-flagging > overclaim.
+
+---
 
 ## Design observation surfaced by 2 May Tier 3 IRL test — asymmetric trust-history accrual
 
