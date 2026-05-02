@@ -95,10 +95,11 @@ Key v4 additions (all optional, off by default, Settings-gated):
 |-------|-------|-------|
 | v3 base | 20/100 | Protocol foundation |
 | v4 Trust history + bio-metric | 50/100 | **LIVE** |
-| v5 Enhanced security | 70/100 | Secure Enclave keys, face capture — deferred from v4 |
+| v5 Hardware-backed signing (Passkey/Secure Enclave) | 70/100 | **CODE COMPLETE 1 May 2026** — client + Worker shipped, default OFF, awaiting real-device smoke + live deploy. Closes THREAT-MODEL.md §III.2 (localStorage extraction). Spec: PROTOCOL.md §13. |
+| v5.x Face capture / mutual witness | 70+/100 | Deferred extensions to v5.0. Off by default when shipped. |
+| v6 Time anchoring (TSA, OpenTimestamps) | 75/100 | Multi-witness time, state-level threat model. PROTOCOL.md §11. |
 | v6 Trust network | 65/100 | Graph, vouching, Sybil resistance |
-| v6 Blockchain | 80/100 | On-chain anchor, W3C credentials |
-| v6 IoT/Drones | 90/100 | Hardware attestation, delivery proof |
+| v6 IoT/Drones | 90/100 | Hardware attestation, delivery proof. ASE Tech / Wisdom partnership-gated. |
 | v7 Zero Knowledge | 100/100 | ZK proofs, privacy-preserving credentials |
 
 **Key design principle:** All enhancements above v3 are optional, off by default, user-enabled in Settings. Never prompted during handshake. Never required to complete a scan.
@@ -185,6 +186,9 @@ node --test tests/sign.test.js
 | 30 April 2026 | Number One shipped: "Awaiting check-out" passive label restored in `OrgCheckin.html:buildCheckoutAction` with proper ARIA semantics; "Rejected"/"Done" inline-style spans harmonised to `.att-action-passive` class; "Awaiting check-in" gained `aria-label` for screen readers. |
 | 30 April 2026 | **`LONG-TERM-SUCCESSION.md` published in live repo** — Captain's "digital legacy" thought experiment captured as v8+ design sketch. Founders' Quorum (M-of-N threshold signatures), AI-as-ledger-witness pattern, diversity-of-AI-lineage requirement. Captain's key counter-argument that clerks/cardinals are both human (AIs aren't coercible the same way) is the architectural foundation. |
 | 30 April 2026 | **Number One retirement / context-window handover** — Captain commissioned next Number One after this session. Final tour completed: docs current, memory pristine, threat model + succession sketch published, crew protocol updated with calibration notes (§4.4). Served from 30 Apr afternoon return-from-AWOL through evening retirement, in Captain's words "with merit." |
+| 1 May 2026 | **New Number One commissioned — Friday Bridge stretch.** Captain's brief: "Make it a challenge." Result: **v5.0 client-side landed** in single session — `PROTOCOL.md §13` full specification published, `js/sign.js` v5 envelope helpers + DER↔raw + dispatcher integrated, `tests/sign.test.js` extended with envelope-verification suite (12-test sandbox smoke green over 100 random ECDSA P-256 sigs), `settings.html` v5 enrolment panel wired (default OFF, ARIA-complete), `HANDOVER-Batch5-Worker.md` issued for Mr. Data Tuesday. Closes THREAT-MODEL.md §III.2 (localStorage extraction) at the protocol level pending deploy. v5 is ahead of the original late-May target. |
+| 1 May 2026 | **v5 Worker-side landed same day** (Captain bypassed Mr. Data, "helium-tight before any horns"). Both `irlid-api/src/index.js` (live) and `IRLid-TestEnvironment/irlid-api/src/index.js` (test) gained `verifyV5Envelope()` helper, per-side v5 dispatch in `verifyReceipt()`, `fully_v5` scoring flag, and (test-env) `verifySignedHello()` v5 dispatch. Defensive: test-env Worker's non-recursive `canonical()` upgraded to fully recursive. Validation: Node-runnable Worker smoke at `outputs/v5-test/worker-smoke.mjs` — 12/12 green. Combined client+Worker tests: **122/122 green**. v5 outreach drafts (cym13 r/netsec follow-up + X/LinkedIn/Patreon) staged in `PROMOTION.md` for Captain to post AFTER live deploy + real-device smoke. |
+| 1 May 2026 | **v5 IRL preparation autonomous stretch** (Captain at work). `v5-test.html` diagnostic page published at live repo root — six-step pass/fail walkthrough (availability → enrol → sign → verify → round-trip → unenrol) with copyable diagnostics blob, designed for the 3pm Face ID / Hello smoke test. All 9 HTML files cache-busted to `?v=5.0`. Worker regression tests now version-controlled at `irlid-api/tests/verify-receipt.test.mjs` in both repos. THREAT-MODEL.md §III.2 cross-linked to spec + impl + handover. v5 is now end-to-end ready: spec, client, Worker, tests, settings panel, diagnostic page, outreach copy — pending Captain's IRL smoke + deploy. |
 
 ## Promotion Status
 
@@ -234,7 +238,7 @@ Current open batch (closes 28 April) is entirely medical diagnostics and AI for 
 
 ## Number One's Technical Positions
 
-- **v5 priority:** Secure Enclave key migration via WebAuthn/Passkeys closes the biggest honest criticism. localStorage keys are the weak point cym13 and others correctly identified. This is the right next move.
+- **v5 status:** Code complete 1 May 2026. Secure Enclave / Passkey signing via WebAuthn closes the biggest honest criticism (cym13's localStorage point on r/netsec). Client-side reference impl + Worker-side verification both landed; awaiting real-device smoke + live deploy. PROTOCOL.md §13 is the canonical spec. After live deploy, the cym13 follow-up post lands (drafts in PROMOTION.md).
 - **Widget:** Underrated asset. The reCAPTCHA framing in demo-login.html is the commercial hook — physical presence as a verification gate is a real product category.
 - **Humanitarian angle:** Proof-of-delivery for Wisdom's drone/outreach work is the most compelling real-world use case right now. More visceral than the tech community posts.
 - **ZK proofs:** Not v5 work. Haversine in ZK circuits is expensive, ECDSA P-256 requires non-native field arithmetic. Staged when the time comes: coordinate hiding → Schnorr → full ZK.

@@ -101,9 +101,9 @@ Every attack below is defeated where one or more of these asymmetries holds.
 
 **Defence (v3/v4):** None at the protocol level. **This is the strongest honest criticism the protocol currently has** — flagged publicly by cym13 in r/netsec and acknowledged in `PROTOCOL.md`.
 
-**Mitigation in flight (v5):** Secure Enclave / Passkey migration via WebAuthn. Private keys move into platform-provided hardware-backed storage; signing operations require the platform authenticator each time. localStorage is no longer the key store.
+**Mitigation in flight (v5):** Secure Enclave / Passkey migration via WebAuthn. Private keys are generated inside the platform's hardware-backed authenticator (Apple Secure Enclave, Android TEE, Windows Hello TPM) and never extractable. Signing requires a fresh user-verification gesture (Face ID / Touch ID / fingerprint / Windows Hello) every time. **Specification:** `PROTOCOL.md §13`. **Reference implementation:** `js/sign.js` (`irlidV5*` helpers); 110-test coverage in `tests/sign.test.js`. **Worker-side verification:** queued in `HANDOVER-Batch5-Worker.md` (Mr. Data, May 2026).
 
-**Roadmap:** v5.0 is the priority closing this gap. After v5 lands, III.2 reduces to "attacker has compromised the platform's secure enclave," which is a much higher bar.
+**Roadmap:** v5.0 client-side landed 1 May 2026 (ahead of original late-May target). After Worker-side verification lands and the v5 toggle is shipped, III.2 reduces to "attacker has compromised the platform's secure element," which is a much higher bar than localStorage extraction.
 
 ### III.3 Passkey-bound device cloning
 **Attack (post-v5):** Attacker compromises a cloud-synced passkey (e.g., via the platform vendor's account compromise) and uses the synced key on a different device.

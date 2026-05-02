@@ -14,6 +14,8 @@
 | v1 | Initial protocol — basic ECDSA signing, JSON.stringify hashing |
 | v2 | Added GPS, nonce, helloHash/offerHash binding; offer.hash transmitted |
 | v3 | `canonical()` replaces `JSON.stringify()` for all hashing; `offer.hash`, `a.hash`, `b.hash` no longer transmitted in compact receipts — verifier recomputes all; compact JWK public keys |
+| v4 | Trust history (depth, location diversity, device consistency); optional WebAuthn bio-metric gate (`bioVerified` cryptographically bound into signed payload); redacted-receipt mode (`gps_hash` replaces lat/lon/acc); hotspot novelty scoring. Shipped 17 April 2026. All optional, off by default. |
+| v5 | Hardware-backed signing keys via WebAuthn / Passkeys — private key lives in Secure Enclave (Apple) / TEE (Android) / TPM (Windows Hello), never extractable. v5 receipts carry a `webauthn` envelope (`authData`, `clientData`) alongside the existing ECDSA `sig` field. Closes localStorage extraction (THREAT-MODEL.md §III.2). Score 70/100 when v5 verifies. Specification in §13. In-implementation, default OFF. |
 
 ---
 
@@ -591,4 +593,300 @@ Target dates from 26 April 2026, assuming sustained solo+AI development pace (~4
 
 ---
 
-*Sections 10, 11, and 12 are forward-defined. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
+## 13. Hardware-Backed Signing (v5)
+
+**Status:** In implementation. Specification stable. Default OFF until live deploy. Reference implementation in `js/sign.js` v5 helpers (`irlidV5*`).
+
+This section is the canonical specification for v5 signing. v3 and v4 receipts continue to be valid forever; v5 is an additive layer.
+
+### 13.1 Motivation
+
+The strongest honest criticism of v3/v4 IRLid is that signing keys live in `localStorage`, which is extractable by any code with brief access to an unlocked device (THREAT-MODEL.md §III.2). v5 closes this gap by migrating signing-key custody to the platform's hardware-backed authenticator: Apple Secure Enclave, Android Trusted Execution Environment, or Windows Hello TPM. Private keys are generated inside the secure element and never leave it. Signing requires a fresh user-verification gesture (Face ID, Touch ID, fingerprint, Windows Hello) every time.
+
+After v5 lands, III.2 reduces from "attacker with brief physical access extracts the key" to "attacker has compromised the platform's secure element," a much higher bar.
+
+### 13.2 The signing primitive
+
+WebAuthn was originally designed for server-issued challenge-response authentication. v5 uses it as a **general-purpose signing primitive** by placing IRLid's payload hash into the `challenge` field of an assertion request. The platform authenticator signs the standard WebAuthn signed-data envelope, which transitively binds our payload because our hash is inside `clientDataJSON`.
+
+The signed bytes are exactly:
+```
+authenticatorData || SHA-256(clientDataJSON)
+```
+where `||` is byte concatenation. This is the WebAuthn-standard signing input, unchanged for v5. The signature is ECDSA P-256 (COSE algorithm `-7`).
+
+A relying party verifying a v5 receipt:
+1. Parses `clientDataJSON` (bytes → UTF-8 → JSON).
+2. Confirms `clientData.type === "webauthn.get"`.
+3. Confirms `clientData.origin` matches an expected RP origin (production: `https://irlid.co.uk`; test: `https://bunhead.github.io`).
+4. b64url-decodes `clientData.challenge` and confirms it byte-equals the recipient-recomputed `payloadHash = SHA-256(canonical(payload))`.
+5. Reconstructs `signedBytes = authData || SHA-256(clientDataJSON)`.
+6. Verifies the receipt's `sig` field against `signedBytes` using the receipt's `pub` (P-256 JWK), via `crypto.subtle.verify`.
+
+Any single failure rejects the v5 envelope.
+
+### 13.3 v5 receipt schema (additive over v3)
+
+A v5 RESPONSE object adds a `webauthn` envelope alongside the existing fields:
+
+```json
+{
+  "v": 5,
+  "type": "response",
+  "payload": {
+    "v": 5,
+    "lat": 52.9225, "lon": -1.4746, "acc": 5,
+    "ts": 1714560000,
+    "nonce": 4287654321,
+    "helloHash": "<base64url SHA-256 of canonical(hello)>",
+    "offerHash": "<base64url SHA-256 of canonical(offer.payload)>"
+  },
+  "hash": "<base64url SHA-256 of canonical(payload)>",
+  "sig": "<base64url ECDSA P-256 signature, raw r||s, 64 bytes>",
+  "pub": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
+  "webauthn": {
+    "authData": "<base64url authenticatorData bytes>",
+    "clientData": "<base64url clientDataJSON bytes>"
+  }
+}
+```
+
+A v5 HELLO object structures its `offer.sig` identically and adds the same `webauthn` envelope inside `offer`:
+
+```json
+{
+  "v": 5,
+  "type": "hello",
+  "pub": { ... },
+  "offer": {
+    "payload": { "v": 5, "lat": ..., "lon": ..., "acc": ..., "ts": ..., "nonce": ... },
+    "sig": "<raw r||s>",
+    "webauthn": { "authData": "...", "clientData": "..." }
+  }
+}
+```
+
+**Critical: signature wire-format is raw `r||s`.** WebAuthn natively returns DER-encoded ECDSA signatures (`SEQUENCE { INTEGER r, INTEGER s }`). v5 implementations MUST convert DER → raw 64-byte concatenation before serialisation, because:
+1. Verifier uses `crypto.subtle.verify` with `{ name: "ECDSA" }`, which requires raw IEEE P1363 format.
+2. v3/v4 receipts already use raw format. Keeping the wire format identical means a v3/v4 verifier extension only needs to add envelope-checking, not signature-format-handling.
+
+### 13.4 Public-key extraction at enrolment
+
+A v5 credential is created with `navigator.credentials.create()`. The returned attestation contains a COSE-encoded public key inside `attestationObject.authData.attestedCredentialData.credentialPublicKey`. v5 implementations MUST extract the COSE key, convert to JWK form, and store the JWK locally for later embedding in receipts as `pub`.
+
+For ECDSA P-256 (COSE `-7`):
+- COSE keys are CBOR-encoded with integer keys: `kty=2, alg=-7, crv=1, x=..., y=...`.
+- Convert to JWK: `{ kty: "EC", crv: "P-256", x: <b64url(x)>, y: <b64url(y)> }`.
+
+The `credId` returned by `create()` is also stored locally — it is required to call `get()` against this credential later. The `credId` is not sensitive (it's a public handle) but is uniquely tied to this device's hardware.
+
+### 13.5 Enrolment parameters (canonical)
+
+```js
+navigator.credentials.create({
+  publicKey: {
+    challenge: <crypto.getRandomValues(32 bytes)>,
+    rp: { name: "IRLid", id: <eTLD+1 of current origin> },
+    user: { id: <16 random bytes>, name: "irlid-signer", displayName: "IRLid Signing Key" },
+    pubKeyCredParams: [{ type: "public-key", alg: -7 }],   // ES256 only
+    authenticatorSelection: {
+      authenticatorAttachment: "platform",
+      userVerification: "required",
+      residentKey: "preferred"
+    },
+    timeout: 60000,
+    attestation: "none"
+  }
+});
+```
+
+Notes:
+- `alg: -7` only — no fallback to other algorithms. v5 is locked to P-256 to match v3/v4 verifier expectations.
+- `userVerification: "required"` — no PIN-fallback bypass. Bio-metric or device unlock gesture mandatory at every signing.
+- `attestation: "none"` — we don't trust attestation as an authenticity signal at consumer scale (most platforms strip or randomise it). The receipt's value comes from the protocol, not the attestation chain.
+- `rp.id` must equal an eTLD+1 the current origin is registered under. For irlid.co.uk this is `irlid.co.uk`. For test deploys at `bunhead.github.io` this is `bunhead.github.io`. The RP ID is locked at creation time and cannot be changed without re-enrolment.
+
+### 13.6 Signing parameters (canonical)
+
+```js
+const payloadHash = b64urlDecode(await hashPayloadToB64url(payload));  // 32 bytes
+
+const assertion = await navigator.credentials.get({
+  publicKey: {
+    challenge: payloadHash,                                 // ← OUR data goes here
+    allowCredentials: [{ id: storedCredId, type: "public-key" }],
+    userVerification: "required",
+    timeout: 60000
+  }
+});
+
+const authData = new Uint8Array(assertion.response.authenticatorData);
+const clientData = new Uint8Array(assertion.response.clientDataJSON);
+const sigDer = new Uint8Array(assertion.response.signature);
+const sigRaw = derToRawP256Signature(sigDer);   // 64-byte r||s
+```
+
+The receipt then carries `sig = b64url(sigRaw)`, `webauthn.authData = b64url(authData)`, `webauthn.clientData = b64url(clientData)`.
+
+### 13.7 Verification rules (canonical)
+
+A receipt-verifying party (peer device, third-party verifier, Worker):
+
+```js
+async function verifyV5Envelope(payload, pub, sigRawB64u, webauthn, expectedRpOrigin) {
+  // 1. Compute payloadHash from payload (same as v3/v4)
+  const payloadHashB64u = await hashPayloadToB64url(payload);
+
+  // 2. Parse and validate clientDataJSON
+  const clientDataBytes = b64urlDecode(webauthn.clientData);
+  const clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+  if (clientData.type !== "webauthn.get") return false;
+  if (clientData.origin !== expectedRpOrigin) return false;
+  if (clientData.challenge !== payloadHashB64u) return false;  // string b64url comparison
+
+  // 3. Reconstruct signedBytes = authData || SHA-256(clientDataJSON)
+  const authDataBytes = b64urlDecode(webauthn.authData);
+  const clientDataHash = new Uint8Array(await crypto.subtle.digest("SHA-256", clientDataBytes));
+  const signedBytes = new Uint8Array(authDataBytes.length + clientDataHash.length);
+  signedBytes.set(authDataBytes, 0);
+  signedBytes.set(clientDataHash, authDataBytes.length);
+
+  // 4. Verify ECDSA P-256 signature
+  const pubKey = await crypto.subtle.importKey("jwk", pub,
+    { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
+  return crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    pubKey,
+    b64urlDecode(sigRawB64u),
+    signedBytes
+  );
+}
+```
+
+The expected RP origin is per-deployment:
+- Production: `https://irlid.co.uk`
+- Test (GitHub Pages): `https://bunhead.github.io`
+- Localhost dev: `http://localhost:8000`, `http://127.0.0.1:8000`
+
+A verifier outside the issuing origin (e.g. a third-party widget verifying a receipt signed at irlid.co.uk) accepts the origin set the issuer publishes. v5 uses a publicly documented allowlist; future versions may register origins in PROTOCOL.md §14 (RP federation).
+
+### 13.8 Verifier-side branching (backward compat)
+
+A v5-aware verifier handles all three eras:
+
+```
+if (receipt.v === 5 && receipt.webauthn) {
+  // v5 path: verify envelope, then verify sig over authData||SHA-256(clientDataJSON)
+} else if (receipt.v === 5 && !receipt.webauthn) {
+  // malformed v5 — reject
+} else {
+  // v3/v4 path: verify sig directly over payloadHash bytes
+}
+```
+
+A v3/v4-only verifier (no v5 awareness) sees a v5 receipt with `v: 5` and either:
+- Treats it as malformed and rejects (current `processScannedResponse` behaviour, since the `verifySig` call would compare a hash signed by raw payloadHash bytes against a receipt where `sig` is over `authData||SHA-256(clientDataJSON)`, which won't match);
+- Or, if the verifier has a permissive `v: any` policy, mis-verifies. This is why **the v5 sig wire-format is raw r||s** — it's structurally compatible with v3/v4 verifier code, but the bytes won't validate. The mismatch is detected, not silently accepted.
+
+### 13.9 Score band
+
+A v5 receipt that verifies cleanly (all envelope checks pass + ECDSA verifies) raises the receipt's score by 20 points: from the v4 ceiling of 50 to the v5 ceiling of 70. The 20-point delta reflects:
+- Closure of THREAT-MODEL.md §III.2 (key extraction).
+- Strengthening of §III.1 (active-session-on-stolen-device): every signature now requires fresh user verification, not just an unlocked browser tab.
+- Per-signature attestation that the legitimate user (whoever the platform binds to) was physically present at signing time.
+
+Score does not raise to 100 — that requires v6+ external-witness anchoring.
+
+### 13.10 Settings & migration
+
+v5 is OFF by default. Enabling requires:
+1. The device must support a platform authenticator (`PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable() === true`).
+2. The user explicitly enrols a v5 credential via Settings → "Hardware-Backed Signing (v5, beta)".
+3. The user explicitly toggles "Use v5 signing" ON.
+
+If any of those is false, signing falls back to v3/v4 behaviour (localStorage ECDSA). The v3/v4 keypair is **not deleted** on v5 enrolment — old receipts that referenced that public key continue to verify, and the user can return to v3/v4 mode at any time.
+
+A migration is not forced. v5 adoption is per-user, per-device, per-decision.
+
+### 13.11 Sync vs device-bound posture
+
+WebAuthn platform credentials may be synced (iCloud Keychain, Google Password Manager) or device-bound (security keys, some platform configurations). v5.0 is **neutral**: we set `authenticatorAttachment: "platform"` and let the OS/browser decide.
+
+This is acceptable because:
+- The protocol's primary moat is co-presence at signing time. A synced credential on a second device still requires the second device to physically attend a venue + pass user-verification on that device.
+- Cloud-sync compromise (e.g., Apple ID account takeover) gives the attacker a valid signing key, but they still face the co-presence wall to use it for a fraudulent attendance claim.
+- Cross-device recovery improves UX significantly. Phone-loss without sync is currently catastrophic for v3/v4 users (key gone, identity gone). v5 with sync makes recovery natural.
+
+Orgs requiring stronger posture (high-security contexts) may choose `authenticatorAttachment: "cross-platform"` (security keys only, never synced) at credential creation. This is documented as a v5.x extension, not a v5.0 default. The default is sync-permissive.
+
+### 13.12 Known footguns (handled in reference implementation)
+
+- **DER → raw signature conversion.** WebAuthn returns DER; `crypto.subtle.verify` requires raw `r||s`. Reference implementation includes `derToRawP256Signature(der: Uint8Array): Uint8Array` with full ASN.1 parsing and zero-padding handling. Extensively unit-tested.
+- **Signature counter unreliable.** iCloud Keychain returns counter `0` on every assertion; some Android implementations are non-monotonic. v5 does **not** rely on counters for replay protection — the protocol-level nonce + 90-second time window already handle this.
+- **`clientDataJSON` field ordering.** The spec mandates a specific order, but historical implementations have varied. Reference implementation **parses** `clientDataJSON` and reads named fields; never reserialises and byte-compares.
+- **RP ID lock.** Once a credential is created with `rpId: "irlid.co.uk"`, that credential cannot be used at `bunhead.github.io` and vice versa. v5 implementations document this loudly to avoid users enrolling on the test environment and finding their credential unavailable on production. Per-environment enrolment is acceptable; cross-environment portability is not.
+- **`userVerification: "required"` enforcement.** Some authenticators silently downgrade to `"preferred"`. The verifier MUST inspect `authData[32] & 0x04` (UV flag) and reject the assertion if UV was not actually performed. Reference implementation enforces this.
+- **Cross-origin receipt verification.** A receipt signed at `irlid.co.uk` and verified at `bunhead.github.io` is a legitimate cross-origin verification — the verifier checks the receipt's claimed origin against an allowlist, not against `location.origin`. Reference implementation parameterises `expectedRpOrigin`.
+
+### 13.13 Score table update
+
+The §5 scoring model is extended:
+
+| Layer | What's added | Score |
+|-------|-------------|-------|
+| v3 base | Core cryptographic checks | 20 / 100 |
+| v4 Trust (LIVE) | Receipt depth, location hotspot novelty, device consistency, optional WebAuthn bio-metric gate | 50 / 100 |
+| **v5 (THIS SECTION)** | **Hardware-backed signing key (Secure Enclave / TEE / Hello TPM); per-signature user verification; closes localStorage extraction** | **70 / 100** |
+| v6 Network | Transitive trust graph, community vouching, Sybil resistance | 65 / 100 |
+| v6 Time anchor | Multi-witness TSA tokens, OpenTimestamps Bitcoin anchor | 75 / 100 |
+| v7 ZK | Zero-knowledge proof of presence + coordinate hiding | 100 / 100 |
+
+The "Bonus Checks" section under §5 gains:
+
+| Check | Points | Passes when |
+|-------|--------|-------------|
+| v5 envelope present | 0 | Receipt has `v: 5` and `webauthn.{authData, clientData}` populated |
+| v5 RP origin match | +5 | `clientData.origin` equals expected RP origin for issuer's deployment |
+| v5 challenge binding | +5 | `clientData.challenge` (b64url-decoded) equals `SHA-256(canonical(payload))` |
+| v5 UV flag asserted | +5 | `authData[32] & 0x04 === 0x04` (user verification was performed) |
+| v5 ECDSA over envelope | +5 | `crypto.subtle.verify(pub, sig, authData \|\| SHA-256(clientDataJSON))` succeeds |
+
+Total v5 boost: 20 points. Receipts missing any v5 check do not score the v5 bonus but remain valid at v4 score band.
+
+### 13.14 Test coverage
+
+Reference implementation in `tests/sign.test.js` adds:
+- DER ↔ raw P-256 signature round-trip (with positive + negative + low-bit + high-bit r/s test vectors).
+- v5 envelope verification: known-good vector signed offline, verified by `irlidV5VerifyEnvelope`.
+- Negative tests: wrong origin, wrong type, wrong challenge, missing UV flag, sig over wrong bytes, malformed clientDataJSON.
+- Backward compat: v3 receipt + v4 receipt both verify through v5-aware verifier without false positives or false negatives.
+
+Target after v5 implementation: 95+ tests, all green, run via `node --test tests/sign.test.js`.
+
+### 13.15 Worker-side verification
+
+v5 envelope verification on the Cloudflare Worker (`irlid-api/src/index.js`) uses the same primitive (Web Crypto is available in Workers). Worker changes are scoped in `HANDOVER-Batch5-Worker.md` for Mr. Data — they are structurally Worker work, not Number One work. The pure cryptographic spec is identical to §13.7 above; only the runtime environment differs (Worker `caches` instead of localStorage, Worker `Origin` header instead of `location.origin`).
+
+### 13.16 What v5 does NOT do
+
+To set expectations clearly:
+- v5 does **not** add face capture or mutual witness photography. Those are §8 v5-planned extensions reframed for v5.x once the core key-migration lands.
+- v5 does **not** strengthen GPS spoofing resistance. That is v6+ multi-anchor positioning.
+- v5 does **not** address the §V.3 Worker-side role enforcement gap. That is a separate Worker hardening track.
+- v5 does **not** force migration of v3/v4 receipts. They remain valid forever at their original score.
+- v5 does **not** retain envelope verifiability after privacy-mode redaction. The v5 envelope's `clientData.challenge` is `SHA-256(canonical(original-payload))`. After `irlidMakeRedactedReceipt()` strips GPS and replaces it with `gps_hash`, the original payload bytes are gone — a third-party verifier cannot recompute the challenge to compare. v5 receipts can still be verified at signing time and recorded, but **a v5 receipt that has been put through privacy-mode redaction cannot be re-verified through the v5 envelope path by a third party**. The receipt holder would need to present the unredacted form for full envelope verification. The v3/v4 raw-hash signature path is unaffected by redaction (it verifies the stored `hash` directly). Implementation surfaces this honestly: `check.html`'s privacy-mode path explicitly reports "v5 envelope cannot be verified after GPS redaction" rather than silently passing or silently failing. v6+ may revisit the redaction format to preserve v5 envelope verifiability (e.g. by including a redaction proof that bridges original-payload-hash to redacted-payload-hash); not in v5.0 scope.
+
+### 13.17 Threat-model improvement (per-attack)
+
+| Attack | v3/v4 (today) | v5 |
+|--------|---------------|-----|
+| III.2 localStorage extraction | **Trivial** with brief unlocked-device access | **Infeasible** without compromising the platform's secure element |
+| III.1 Stolen unlocked device | Bio-metric optional; PIN-fallback bypassable | UV required at every signing; PIN bypass blocked by `userVerification: "required"` |
+| III.3 Cloud passkey sync compromise | N/A | New attack surface (sync platform). Mitigation: orgs may require non-sync at v5.x |
+| Replay (90s window) | 90s nonce window | Same — orthogonal to v5 |
+
+The §III.2 row is the headline. cym13's r/netsec criticism, which is the strongest honest critique of the protocol on public record, is closed by v5.
+
+---
+
+*Sections 10, 11, 12, and 13 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*

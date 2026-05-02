@@ -336,7 +336,7 @@
 <script src="js/auth.js"></script>
 <script src="js/backend.js"></script>
 <script src="js/nav.js"></script>
-<script src="js/sign.js?v=3.3"></script>
+<script src="js/sign.js?v=5.0"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 (function(){
@@ -527,7 +527,20 @@
       } catch(e) { totalCount++; addCheck(label + ": hash", false); }
 
       try {
-        const sigOk = hashToUse ? await verifySig(hashToUse, resp.sig, pub) : false;
+        // v5 (PROTOCOL.md §13): if the response carries a webauthn envelope and v: 5,
+        // verify the envelope (origin, type, challenge, UV flag, ECDSA over authData||SHA-256(clientData))
+        // instead of the v3/v4 raw-hash path.
+        let sigOk = false;
+        if (resp.webauthn && Number(resp.v) === 5 && typeof irlidV5VerifyEnvelope === "function") {
+          try {
+            await irlidV5VerifyEnvelope(resp.payload, pub, resp.sig, resp.webauthn);
+            sigOk = true;
+          } catch (v5e) {
+            sigOk = false;
+          }
+        } else {
+          sigOk = hashToUse ? await verifySig(hashToUse, resp.sig, pub) : false;
+        }
         totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
       } catch(e) { totalCount++; addCheck(label + ": signature", false); }
 
@@ -650,9 +663,23 @@
       }
       totalCount++; if (addCheck(label + ": structure", true)) passCount++;
       // Note: we skip hash recomputation (GPS removed). We verify sig against stored hash.
+      // v5 + privacy mode caveat (PROTOCOL.md §13 + §8 redacted receipts): the v5 envelope's
+      // challenge is the SHA-256 of the canonical ORIGINAL payload. After redaction the original
+      // bytes are gone, so we cannot recompute the challenge to compare. v5 receipts in privacy
+      // mode therefore can't be re-verified through this path; the receipt holder would need to
+      // present the unredacted form for full envelope verification. Mark it explicitly.
       try {
-        const sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
-        totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
+        let sigOk = false;
+        if (resp.webauthn && Number(resp.v) === 5) {
+          totalCount++;
+          addCheck(label + ": signature (v5 + privacy)",
+                   false,
+                   "v5 envelope cannot be verified after GPS redaction — present unredacted receipt for full v5 verification.");
+          // Do not increment passCount; this is a known limitation, surfaced honestly.
+        } else {
+          sigOk = await verifySig(resp.hash, resp.sig, resp.pub);
+          totalCount++; if (addCheck(label + ": signature", sigOk)) passCount++;
+        }
       } catch { totalCount++; addCheck(label + ": signature", false); }
       totalCount++;
       // GPS hash present check

@@ -318,15 +318,17 @@ async function makeSignedHelloAsync(opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceA = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Optional bio-metric gate for the initiator (same as responder — Settings only).
-  let bioVerified = false;
-  if (irlidBiometricEnabled()) {
+  // v5 short-circuits the bio-metric gate (its WebAuthn UV is the gate).
+  // v3/v4 path uses the optional v4 bio-metric gate (Settings only, never prompted otherwise).
+  const useV5 = irlidV5Enabled();
+  let bioVerified = useV5;
+  if (!useV5 && irlidBiometricEnabled()) {
     try { bioVerified = await irlidBiometricVerify(); } catch { bioVerified = false; }
   }
 
-  // Offer payload: v=3 inside signature ensures cross-version mixing is detectable.
+  // Offer payload version mirrors the signing path: v: 3 for v3/v4, v: 5 for v5.
   const offerPayload = {
-    v: 3,
+    v: useV5 ? 5 : 3,
     lat,
     lon,
     acc,
@@ -335,22 +337,23 @@ async function makeSignedHelloAsync(opts){
   };
   if (bioVerified) offerPayload.bioVerified = true;
 
-  const pub = await getPublicJwk();
-  const offerHash = await hashPayloadToB64url(offerPayload);
-  const offerSig = await signHashB64url(offerHash);
+  // Dispatch — picks v5 (Secure Enclave / passkey) or v3/v4 (localStorage ECDSA) based on Settings.
+  const signed = await irlidSignPayload(offerPayload);
 
   // v3: offer.hash removed from HELLO — verifier recomputes it from offer.payload.
   // Saves ~88 chars. hash still used to sign (offerSig), just not transmitted.
   // JWK stripped of ext/key_ops (saves ~25 chars).
+  // v5: webauthn envelope (authData, clientData) attached to the offer.
   const hello = {
-    v: 3,
+    v: signed.v,
     type: "hello",
-    pub: compactJwk(pub),
+    pub: signed.pub,
     offer: {
       payload: offerPayload,
-      sig: offerSig
+      sig: signed.sig
     }
   };
+  if (signed.webauthn) hello.offer.webauthn = signed.webauthn;
 
   return hello;
 }
@@ -374,8 +377,22 @@ async function verifyHelloOfferAsync(helloObj, opts){
   const computed = await hashPayloadToB64url(offer.payload);
   if (offer.hash && computed !== offer.hash) throw new Error("HELLO offer hash mismatch.");
 
-  const sigOk = await verifySig(computed, offer.sig, helloObj.pub);
-  if (!sigOk) throw new Error("HELLO offer signature invalid.");
+  // v5: WebAuthn-envelope-wrapped signature. Verify the envelope (origin, type, challenge,
+  // UV flag, ECDSA over authData||SHA-256(clientDataJSON)) instead of the raw v3 path.
+  const isV5 = !!(offer.webauthn && Number(helloObj.v) === 5);
+  let mode;
+  if (isV5) {
+    try {
+      await irlidV5VerifyEnvelope(offer.payload, helloObj.pub, offer.sig, offer.webauthn);
+    } catch (e) {
+      throw new Error("HELLO offer v5 envelope: " + (e.message || e));
+    }
+    mode = "signed-v5";
+  } else {
+    const sigOk = await verifySig(computed, offer.sig, helloObj.pub);
+    if (!sigOk) throw new Error("HELLO offer signature invalid.");
+    mode = "signed-v3";
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const ts = Number(offer.payload.ts);
@@ -386,7 +403,7 @@ async function verifyHelloOfferAsync(helloObj, opts){
 
   // Always return the computed hash so response builder can bind to it,
   // regardless of whether offer.hash was transmitted.
-  return { ok: true, mode: "signed-v3", offerHash: computed };
+  return { ok: true, mode, offerHash: computed };
 }
 
 
@@ -434,18 +451,20 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   const ts = Math.floor(Date.now() / 1000);
   const nonceB = crypto.getRandomValues(new Uint32Array(1))[0];
 
-  // Optional bio-metric gate (v4 opt-in — Settings only, never prompted during normal handshake).
+  // v5 short-circuits the bio-metric gate (its WebAuthn UV is the gate).
+  // v3/v4 path uses the optional v4 bio-metric gate (Settings only, never prompted otherwise).
   // If the user has enrolled and enabled bio-metric verification, trigger Face ID / fingerprint now.
   // Result is committed into the signed payload: bioVerified:true proves the device owner was
   // physically present at the moment of signing. Self-reported, but cryptographically bound.
-  let bioVerified = false;
-  if (irlidBiometricEnabled()) {
+  const useV5 = irlidV5Enabled();
+  let bioVerified = useV5;
+  if (!useV5 && irlidBiometricEnabled()) {
     try { bioVerified = await irlidBiometricVerify(); } catch { bioVerified = false; }
   }
 
-  // v3: version inside signature, canonical() hashing.
+  // Payload version mirrors the signing path.
   const payload = {
-    v: 3,
+    v: useV5 ? 5 : 3,
     helloHash,
     offerHash: offerInfo.offerHash || undefined,
     lat,
@@ -460,19 +479,20 @@ async function makeReturnForHelloAsync(helloB64url, opts){
   // Only include bioVerified if true — absence means not enrolled/not verified (not a failure).
   if (bioVerified) payload.bioVerified = true;
 
-  const pub = await getPublicJwk();
-  const hash = await hashPayloadToB64url(payload);
-  const sig = await signHashB64url(hash);
+  // Dispatch — picks v5 (Secure Enclave / passkey) or v3/v4 (localStorage ECDSA) based on Settings.
+  const signed = await irlidSignPayload(payload);
 
   // Deploy 76: stripped JWK (saves ~25 chars).
+  // v5: webauthn envelope (authData, clientData) attached at the top level of the response.
   const resp = {
-    v: 3,
+    v: signed.v,
     type: "response",
     payload,
-    hash,
-    sig,
-    pub: compactJwk(pub)
+    hash: signed.hash,
+    sig: signed.sig,
+    pub: signed.pub
   };
+  if (signed.webauthn) resp.webauthn = signed.webauthn;
 
   // Cache for scan.html to use in mutual verification
   window.__irlid_last_self_response = resp;
@@ -795,8 +815,18 @@ async function processScannedResponse(otherRespObj, opts){
   const computed = await hashPayloadToB64url(other.payload);
   if (computed !== other.hash) throw new Error("Hash mismatch.");
 
-  const sigOk = await verifySig(other.hash, other.sig, other.pub);
-  if (!sigOk) throw new Error("Signature invalid.");
+  // v5 envelope path vs v3/v4 raw-hash path
+  const isV5 = !!(other.webauthn && Number(other.v) === 5);
+  if (isV5) {
+    try {
+      await irlidV5VerifyEnvelope(other.payload, other.pub, other.sig, other.webauthn);
+    } catch (e) {
+      throw new Error("Response v5 envelope: " + (e.message || e));
+    }
+  } else {
+    const sigOk = await verifySig(other.hash, other.sig, other.pub);
+    if (!sigOk) throw new Error("Signature invalid.");
+  }
 
   // Binding checks:
   // - Always bind to the HELLO hash (legacy + new)
@@ -878,4 +908,458 @@ async function irlidMakeRedactedReceipt(combined) {
   r.redacted_at = Math.floor(Date.now() / 1000);
   r._privacy_note = "GPS coordinates removed for privacy. Location proximity was cryptographically verified at signing time. Signatures remain valid against stored hashes.";
   return r;
+}
+
+// =========================================================
+//  v5 — Hardware-Backed Signing (WebAuthn / Passkeys / Secure Enclave)
+//  Specification: PROTOCOL.md §13.
+//  All v5 features OFF by default; enabling is per-user via Settings.
+//  v3/v4 paths above are untouched. v5 functions live entirely in this block.
+// =========================================================
+
+const IRLID_V5_CRED_ID_KEY  = "irlid_v5_cred_id";
+const IRLID_V5_PUB_JWK_KEY  = "irlid_v5_pub_jwk";
+const IRLID_V5_ENABLED_KEY  = "irlid_v5_enabled";
+
+// Returns true if this device exposes a platform authenticator we could enrol against.
+async function irlidV5Available() {
+  if (!window.PublicKeyCredential ||
+      typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable !== "function") {
+    return false;
+  }
+  try {
+    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+  } catch { return false; }
+}
+
+// Returns true if the user has enrolled a v5 credential (credId + pub JWK both present).
+function irlidV5Enrolled() {
+  try {
+    return !!localStorage.getItem(IRLID_V5_CRED_ID_KEY) &&
+           !!localStorage.getItem(IRLID_V5_PUB_JWK_KEY);
+  } catch { return false; }
+}
+
+// Returns true if v5 is enrolled AND the user has toggled it on.
+function irlidV5Enabled() {
+  try {
+    return irlidV5Enrolled() && localStorage.getItem(IRLID_V5_ENABLED_KEY) === "1";
+  } catch { return false; }
+}
+
+// Returns the stored v5 public JWK (compact form) or null if not enrolled.
+function irlidV5GetPublicJwk() {
+  try {
+    const raw = localStorage.getItem(IRLID_V5_PUB_JWK_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+// Compute the RP ID for the current origin: eTLD+1, lowercase.
+// Production: irlid.co.uk. Test: bunhead.github.io. Localhost: localhost.
+// Note: this is a heuristic; for unusual deployments the operator can override
+// via window.IRLID_RP_ID before sign.js loads.
+function irlidV5RpId() {
+  if (typeof window !== "undefined" && window.IRLID_RP_ID) return String(window.IRLID_RP_ID);
+  const host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "localhost";
+  // Special-case the deployment hosts we know
+  if (host === "irlid.co.uk" || host.endsWith(".irlid.co.uk")) return "irlid.co.uk";
+  if (host === "bunhead.github.io" || host.endsWith(".bunhead.github.io")) return "bunhead.github.io";
+  // Localhost / 127.0.0.1
+  if (host === "localhost" || host === "127.0.0.1") return host;
+  // Default: pass through. The browser will reject if it doesn't match the registrable domain.
+  return host;
+}
+
+// Compute the expected RP origin for verification of a v5 envelope produced at this deployment.
+// Verifiers receiving cross-origin receipts use the issuer's published origin allowlist instead.
+function irlidV5ExpectedOrigin() {
+  if (typeof window !== "undefined" && window.IRLID_RP_ORIGIN) return String(window.IRLID_RP_ORIGIN);
+  const host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "localhost";
+  if (host === "irlid.co.uk" || host.endsWith(".irlid.co.uk")) return "https://irlid.co.uk";
+  if (host === "bunhead.github.io" || host.endsWith(".bunhead.github.io")) return "https://bunhead.github.io";
+  if (host === "localhost" || host === "127.0.0.1") {
+    const port = (location.port && location.port !== "80" && location.port !== "443") ? (":" + location.port) : "";
+    return location.protocol + "//" + host + port;
+  }
+  return location.protocol + "//" + host;
+}
+
+// Allowed origins for cross-origin verification.
+// A receipt signed at irlid.co.uk and verified at bunhead.github.io is legitimate;
+// the verifier checks the receipt's claimed origin against this list, not against location.origin.
+const IRLID_V5_ORIGIN_ALLOWLIST = [
+  "https://irlid.co.uk",
+  "https://bunhead.github.io",
+  "http://localhost:8000",
+  "http://127.0.0.1:8000",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000"
+];
+
+function irlidV5OriginAllowed(origin) {
+  return IRLID_V5_ORIGIN_ALLOWLIST.includes(String(origin));
+}
+
+// =========================================================
+//  DER ↔ raw P-256 signature conversion
+//  WebAuthn returns DER-encoded ECDSA signatures.
+//  crypto.subtle.verify with { name: "ECDSA" } expects raw IEEE P1363 r||s.
+//  Both directions, fully tested round-trip in tests/sign.test.js.
+// =========================================================
+
+function irlidV5DerToRawP256(der) {
+  if (!(der instanceof Uint8Array)) der = new Uint8Array(der);
+  if (der.length < 8) throw new Error("v5: DER signature too short");
+  if (der[0] !== 0x30) throw new Error("v5: DER signature missing SEQUENCE tag");
+
+  // SEQUENCE length — short-form is one byte. P-256 sigs are always short-form (≤ 70 bytes).
+  let pos = 2;
+  if (der[1] & 0x80) {
+    // Long-form length encoding (rare for P-256 sigs)
+    const lenBytes = der[1] & 0x7f;
+    pos = 2 + lenBytes;
+  }
+
+  // INTEGER r
+  if (der[pos] !== 0x02) throw new Error("v5: DER signature missing first INTEGER tag (r)");
+  const rLen = der[pos + 1];
+  let r = der.slice(pos + 2, pos + 2 + rLen);
+  pos += 2 + rLen;
+
+  // INTEGER s
+  if (der[pos] !== 0x02) throw new Error("v5: DER signature missing second INTEGER tag (s)");
+  const sLen = der[pos + 1];
+  let s = der.slice(pos + 2, pos + 2 + sLen);
+
+  // DER encodes positive integers; if the high bit of the magnitude is set,
+  // a leading 0x00 byte is prepended to disambiguate from a negative number.
+  // Strip that leading zero before producing raw format.
+  while (r.length > 32 && r[0] === 0x00) r = r.slice(1);
+  while (s.length > 32 && s[0] === 0x00) s = s.slice(1);
+  if (r.length > 32 || s.length > 32) {
+    throw new Error("v5: r or s component larger than 32 bytes (not a valid P-256 signature)");
+  }
+
+  // Pad to 32 bytes each (DER strips leading zeros; raw requires fixed-width).
+  const out = new Uint8Array(64);
+  out.set(r, 32 - r.length);
+  out.set(s, 64 - s.length);
+  return out;
+}
+
+function irlidV5RawToDerP256(raw) {
+  if (!(raw instanceof Uint8Array)) raw = new Uint8Array(raw);
+  if (raw.length !== 64) throw new Error("v5: raw signature must be exactly 64 bytes");
+
+  let r = raw.slice(0, 32);
+  let s = raw.slice(32, 64);
+
+  // Strip leading zeros for DER minimal encoding (must keep at least one byte)
+  let rStart = 0;
+  while (rStart < r.length - 1 && r[rStart] === 0x00) rStart++;
+  r = r.slice(rStart);
+  let sStart = 0;
+  while (sStart < s.length - 1 && s[sStart] === 0x00) sStart++;
+  s = s.slice(sStart);
+
+  // If high bit is set, prepend 0x00 so the integer is unambiguously positive
+  if (r[0] & 0x80) {
+    const pad = new Uint8Array(r.length + 1);
+    pad.set(r, 1);
+    r = pad;
+  }
+  if (s[0] & 0x80) {
+    const pad = new Uint8Array(s.length + 1);
+    pad.set(s, 1);
+    s = pad;
+  }
+
+  // Build SEQUENCE { INTEGER r, INTEGER s }
+  const totalContent = 2 + r.length + 2 + s.length;
+  const der = new Uint8Array(2 + totalContent);
+  der[0] = 0x30;             // SEQUENCE tag
+  der[1] = totalContent;     // SEQUENCE length (short-form)
+  der[2] = 0x02;             // INTEGER tag (r)
+  der[3] = r.length;
+  der.set(r, 4);
+  der[4 + r.length] = 0x02;  // INTEGER tag (s)
+  der[5 + r.length] = s.length;
+  der.set(s, 6 + r.length);
+  return der;
+}
+
+// =========================================================
+//  v5 Enrolment, Unenrolment, Signing
+// =========================================================
+
+// Enrol a new v5 credential. Stores credId + public JWK in localStorage.
+// Throws if a credential already exists, the device lacks a platform authenticator,
+// or the user cancels the enrolment prompt.
+async function irlidV5Enroll() {
+  if (!await irlidV5Available()) {
+    throw new Error(
+      "Hardware-backed signing not available on this device.\n\n" +
+      "v5 requires a platform authenticator (Touch ID, Face ID, fingerprint, or Windows Hello). " +
+      "Try Safari on iOS 16+, Chrome on Android 9+, or a Windows machine with Windows Hello set up."
+    );
+  }
+  if (irlidV5Enrolled()) {
+    throw new Error("v5 already enrolled. Remove the existing credential before enrolling a new one.");
+  }
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId    = crypto.getRandomValues(new Uint8Array(16));
+  const rpId      = irlidV5RpId();
+
+  let cred;
+  try {
+    cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: "IRLid", id: rpId },
+        user: { id: userId, name: "irlid-signer", displayName: "IRLid Signing Key" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }],   // ES256 ONLY
+        authenticatorSelection: {
+          authenticatorAttachment: "platform",
+          userVerification: "required",
+          residentKey: "preferred"
+        },
+        timeout: 60000,
+        attestation: "none"
+      }
+    });
+  } catch (e) {
+    throw new Error("v5 enrolment cancelled or failed: " + (e.message || e));
+  }
+
+  if (!cred || !cred.rawId) throw new Error("v5 enrolment returned no credential.");
+
+  // Extract the SPKI public key from the attestation response. Modern browsers (Chrome 85+,
+  // Safari 14.5+, Firefox 119+) expose getPublicKey() directly. Falling back to CBOR-parsing
+  // the attestationObject is non-trivial; we require getPublicKey().
+  if (typeof cred.response.getPublicKey !== "function") {
+    throw new Error(
+      "v5 enrolment: AuthenticatorAttestationResponse.getPublicKey() not supported in this browser. " +
+      "Please use a more recent version of Chrome, Safari, or Firefox."
+    );
+  }
+  const spkiBytes = cred.response.getPublicKey();
+  if (!spkiBytes) throw new Error("v5 enrolment: getPublicKey() returned null.");
+
+  // Confirm we got an ES256 (P-256) key
+  if (typeof cred.response.getPublicKeyAlgorithm === "function") {
+    const alg = cred.response.getPublicKeyAlgorithm();
+    if (alg !== -7) {
+      throw new Error("v5 enrolment: authenticator returned alg=" + alg + ", expected -7 (ES256). " +
+                      "v5 requires P-256 keys.");
+    }
+  }
+
+  // SPKI → JWK → compact JWK
+  let pubJwk;
+  try {
+    const cryptoKey = await crypto.subtle.importKey(
+      "spki", spkiBytes,
+      { name: "ECDSA", namedCurve: "P-256" },
+      true, ["verify"]
+    );
+    const fullJwk = await crypto.subtle.exportKey("jwk", cryptoKey);
+    pubJwk = compactJwk(fullJwk);
+    if (pubJwk.kty !== "EC" || pubJwk.crv !== "P-256" || !pubJwk.x || !pubJwk.y) {
+      throw new Error("v5 enrolment: imported public key is not P-256.");
+    }
+  } catch (e) {
+    throw new Error("v5 enrolment: failed to import public key: " + (e.message || e));
+  }
+
+  const credIdB64u = b64urlEncode(new Uint8Array(cred.rawId));
+  localStorage.setItem(IRLID_V5_CRED_ID_KEY, credIdB64u);
+  localStorage.setItem(IRLID_V5_PUB_JWK_KEY, JSON.stringify(pubJwk));
+  // Default-OFF after enrolment — user must explicitly toggle to use v5 for signing
+  localStorage.setItem(IRLID_V5_ENABLED_KEY, "0");
+
+  return { credIdB64u, pubJwk };
+}
+
+// Remove the v5 credential locally. Does not delete the platform credential itself —
+// the user can do that via OS settings (iCloud Keychain / Google Password Manager / Windows Hello).
+function irlidV5Unenroll() {
+  try {
+    localStorage.removeItem(IRLID_V5_CRED_ID_KEY);
+    localStorage.removeItem(IRLID_V5_PUB_JWK_KEY);
+    localStorage.removeItem(IRLID_V5_ENABLED_KEY);
+  } catch {}
+}
+
+// Sign a payload hash via the enrolled v5 credential.
+// Input: payloadHashBytes — Uint8Array of length 32 (the SHA-256 of canonical(payload))
+// Returns: { sigRaw: Uint8Array(64), authData: Uint8Array, clientData: Uint8Array }
+async function irlidV5SignPayloadHash(payloadHashBytes) {
+  if (!irlidV5Enrolled()) throw new Error("v5 not enrolled.");
+  if (!(payloadHashBytes instanceof Uint8Array) || payloadHashBytes.length !== 32) {
+    throw new Error("v5 sign: payloadHashBytes must be a 32-byte Uint8Array.");
+  }
+
+  const credIdStr = localStorage.getItem(IRLID_V5_CRED_ID_KEY);
+  const credIdBytes = b64urlDecode(credIdStr);
+
+  let assertion;
+  try {
+    assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: payloadHashBytes,                                      // ← OUR data
+        allowCredentials: [{ id: credIdBytes, type: "public-key" }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+  } catch (e) {
+    throw new Error("v5 sign: assertion cancelled or failed: " + (e.message || e));
+  }
+  if (!assertion || !assertion.response) throw new Error("v5 sign: no assertion returned.");
+
+  const authData   = new Uint8Array(assertion.response.authenticatorData);
+  const clientData = new Uint8Array(assertion.response.clientDataJSON);
+  const sigDer     = new Uint8Array(assertion.response.signature);
+  const sigRaw     = irlidV5DerToRawP256(sigDer);
+
+  // Sanity: confirm UV flag was actually asserted (some authenticators silently downgrade)
+  if (authData.length < 37) throw new Error("v5 sign: authenticatorData too short.");
+  const flags = authData[32];
+  if ((flags & 0x04) !== 0x04) {
+    throw new Error("v5 sign: authenticator did not assert UV flag (userVerification was not actually performed).");
+  }
+
+  // Sanity: confirm clientData challenge matches our payload hash before we ship it
+  let parsed;
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(clientData));
+  } catch (e) {
+    throw new Error("v5 sign: clientDataJSON is not valid JSON.");
+  }
+  if (parsed.type !== "webauthn.get") {
+    throw new Error("v5 sign: clientData.type is " + parsed.type + ", expected 'webauthn.get'.");
+  }
+  const expectedChallenge = b64urlEncode(payloadHashBytes);
+  if (parsed.challenge !== expectedChallenge) {
+    throw new Error("v5 sign: clientData.challenge does not match our payload hash.");
+  }
+
+  return { sigRaw, authData, clientData };
+}
+
+// Verify a v5 envelope — used by both peer-side scan verification and Worker-side verification.
+// Inputs:
+//   payload          — the receipt payload object
+//   pubJwk           — the receipt's pub field (compact JWK, P-256)
+//   sigRawB64u       — the receipt's sig field (raw r||s, base64url)
+//   webauthnEnv      — { authData: <b64url>, clientData: <b64url> }
+//   expectedRpOrigin — optional override; defaults to checking against allowlist
+// Returns: true if all checks pass; throws on the first failure with a descriptive message.
+async function irlidV5VerifyEnvelope(payload, pubJwk, sigRawB64u, webauthnEnv, expectedRpOrigin) {
+  if (!webauthnEnv || !webauthnEnv.authData || !webauthnEnv.clientData) {
+    throw new Error("v5 verify: webauthn envelope missing.");
+  }
+  if (!pubJwk || pubJwk.kty !== "EC" || pubJwk.crv !== "P-256") {
+    throw new Error("v5 verify: pub is not a P-256 JWK.");
+  }
+  if (!sigRawB64u) throw new Error("v5 verify: sig missing.");
+
+  // 1. Compute expected payload hash (same canonical form as v3/v4)
+  const payloadHashB64u = await hashPayloadToB64url(payload);
+
+  // 2. Parse and validate clientDataJSON
+  const clientDataBytes = b64urlDecode(webauthnEnv.clientData);
+  let clientData;
+  try {
+    clientData = JSON.parse(new TextDecoder().decode(clientDataBytes));
+  } catch (e) {
+    throw new Error("v5 verify: clientDataJSON not valid JSON.");
+  }
+  if (clientData.type !== "webauthn.get") {
+    throw new Error("v5 verify: clientData.type is '" + clientData.type + "', expected 'webauthn.get'.");
+  }
+  // Origin check: explicit override, else allowlist
+  if (expectedRpOrigin !== undefined && expectedRpOrigin !== null) {
+    if (clientData.origin !== expectedRpOrigin) {
+      throw new Error("v5 verify: origin '" + clientData.origin + "' did not match expected '" + expectedRpOrigin + "'.");
+    }
+  } else if (!irlidV5OriginAllowed(clientData.origin)) {
+    throw new Error("v5 verify: origin '" + clientData.origin + "' not in allowlist.");
+  }
+  if (clientData.challenge !== payloadHashB64u) {
+    throw new Error("v5 verify: clientData.challenge does not match recomputed payload hash.");
+  }
+
+  // 3. Verify UV flag in authenticatorData
+  const authDataBytes = b64urlDecode(webauthnEnv.authData);
+  if (authDataBytes.length < 37) throw new Error("v5 verify: authData too short.");
+  const flags = authDataBytes[32];
+  if ((flags & 0x04) !== 0x04) {
+    throw new Error("v5 verify: UV flag not asserted in authData.");
+  }
+
+  // 4. Reconstruct signedBytes = authData || SHA-256(clientDataJSON)
+  const clientDataHashBuf = await crypto.subtle.digest("SHA-256", clientDataBytes);
+  const clientDataHash = new Uint8Array(clientDataHashBuf);
+  const signedBytes = new Uint8Array(authDataBytes.length + clientDataHash.length);
+  signedBytes.set(authDataBytes, 0);
+  signedBytes.set(clientDataHash, authDataBytes.length);
+
+  // 5. Verify ECDSA P-256 signature
+  let pubKey;
+  try {
+    pubKey = await crypto.subtle.importKey(
+      "jwk", pubJwk,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false, ["verify"]
+    );
+  } catch (e) {
+    throw new Error("v5 verify: failed to import pub: " + (e.message || e));
+  }
+
+  const ok = await crypto.subtle.verify(
+    { name: "ECDSA", hash: "SHA-256" },
+    pubKey,
+    b64urlDecode(sigRawB64u),
+    signedBytes
+  );
+  if (!ok) throw new Error("v5 verify: ECDSA signature verification failed.");
+  return true;
+}
+
+// =========================================================
+//  Unified signing dispatcher
+//  Picks v5 path if enabled, else v3/v4 path.
+//  Returns: { v, sig, pub, webauthn? }
+// =========================================================
+async function irlidSignPayload(payloadObj) {
+  const payloadHashB64u = await hashPayloadToB64url(payloadObj);
+
+  if (irlidV5Enabled()) {
+    const payloadHashBytes = b64urlDecode(payloadHashB64u);
+    const v5 = await irlidV5SignPayloadHash(payloadHashBytes);
+    return {
+      v: 5,
+      hash: payloadHashB64u,
+      sig: b64urlEncode(v5.sigRaw),
+      pub: irlidV5GetPublicJwk(),
+      webauthn: {
+        authData:   b64urlEncode(v5.authData),
+        clientData: b64urlEncode(v5.clientData)
+      }
+    };
+  }
+
+  // v3/v4 path — localStorage-resident ECDSA
+  const sig = await signHashB64url(payloadHashB64u);
+  const pub = await getPublicJwk();
+  return {
+    v: 3,
+    hash: payloadHashB64u,
+    sig,
+    pub: compactJwk(pub),
+    webauthn: null
+  };
 }

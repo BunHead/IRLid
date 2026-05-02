@@ -1,7 +1,64 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 30 April 2026 (Number One — afternoon, post-Wednesday-demo, Captain on Max plan, Mr. Data offline till Tuesday)
+**Last refreshed:** 1 May 2026 (Number One — Friday morning Bridge stretch, post-v5-client-side landing)
 **Source of truth.** All other lists defer to this file.
+
+## v5.0 Passkey work — landed 1 May 2026 (client-side only)
+
+Number One implemented v5.0 client-side directly during the Friday Bridge stretch (Captain's brief: "make it a challenge"). What landed in the live repo:
+
+- **`PROTOCOL.md §13` published** — full v5 specification: WebAuthn signing envelope (`authData`, `clientData`), DER→raw signature conversion, RP ID + origin allowlist, UV flag enforcement, score band 70/100, settings model, sync-neutral posture, threat-model improvement table.
+- **`PROTOCOL.md` version history updated** — v4 row added (was missing); v5 row added with §13 reference.
+- **`js/sign.js` extended** — new helpers: `irlidV5Available`, `irlidV5Enrolled`, `irlidV5Enabled`, `irlidV5Enroll`, `irlidV5Unenroll`, `irlidV5SignPayloadHash`, `irlidV5VerifyEnvelope`, `irlidV5DerToRawP256` / `irlidV5RawToDerP256` (DER↔raw conversion with leading-zero edge-case handling), `irlidSignPayload` (unified dispatcher), origin allowlist + RP ID heuristic.
+- **`makeSignedHelloAsync`, `makeReturnForHelloAsync`, `verifyHelloOfferAsync`, `processScannedResponse` all updated** — dispatch to v5 path when `irlidV5Enabled()` is true; v3/v4 callers see no behaviour change.
+- **`tests/sign.test.js` extended** — new describe blocks for DER↔raw round-trip (incl. high-bit and short-r/s edge cases), v5 envelope verification (happy path + 9 negative paths), origin allowlist, dispatcher fallback. Local smoke against real ECDSA P-256 in Node sandbox: 12/12 green over 100 random sigs.
+- **`settings.html` v5 panel wired** — replaced the greyed placeholder with a real enrol/toggle/remove panel, mirroring v4 bio-metric pattern, full ARIA, default OFF.
+- **`HANDOVER-Batch5-Worker.md` published in live repo root** — atomic 3-task brief for Mr. Data Tuesday: add `verifyV5Envelope()` helper, wire into `verifySignedHello()`, wire into `verifyReceipt()` + scoring. Reference impl already in `js/sign.js`. No D1 schema changes required.
+
+**What v5 does NOT yet have:**
+- Real-device browser smoke test (needs Captain's phone/laptop).
+- Live deploy — v5 is OFF by default; nothing changes for existing users until they explicitly enrol via Settings.
+
+**Worker-side v5: ✅ DONE 1 May 2026 afternoon.** Captain bypassed Mr. Data ("get v5 out the door before any horns, helium-tight"). Both Workers updated:
+- **Live Worker** (`irlid-api/src/index.js`): `verifyV5Envelope()` helper inserted between haversine and verifyReceipt; `verifyReceipt()` rewritten with per-side v5 dispatch + `fully_v5` scoring flag (true only when BOTH a/b sides + HELLO offer all verify their v5 envelopes; PROTOCOL.md §13.9).
+- **Test-env Worker** (`IRLid-TestEnvironment/irlid-api/src/index.js`): same `verifyV5Envelope()` helper, `verifyReceipt()` v5 dispatch, plus `verifySignedHello()` updated to return `verification_state: "v5_envelope_verified"` for v5 HELLOs. Defensive bonus: the non-recursive `canonical()` was upgraded to fully recursive (matches `js/sign.js`); harmless for current flat payloads, future-proof for nested fields.
+- **Validation:** Node-side Worker smoke at `outputs/v5-test/worker-smoke.mjs` — 12 tests covering pure v3, pure v5, hybrid v3+v5, mutated payload, wrong origin, UV flag cleared, webauthn-missing-but-v=5, hash mismatch, distance overflow. All green. Combined client+Worker test count: **122 green, 0 red**.
+- **`HANDOVER-Batch5-Worker.md` marked DONE** and preserved for historical context. Mr. Data on Tuesday should read it for design rationale but no execution required.
+
+**Roadmap impact:** v5.0 client-side AND Worker-side both landed 1 May, ahead of late-May target. Only real-device smoke + live deploy remain before v5 is fully out the door. v5.1 (Imbue pilot) and v5.2/5.3 (forward-defined fields, orient cone) remain on schedule.
+
+**Remaining v5 path to deploy:**
+1. Captain runs `node --test tests/sign.test.js` on his machine (the integrated 95+ test suite). Then `node --test irlid-api/tests/verify-receipt.test.mjs` for the Worker regression (12 tests). Total combined client + Worker: ~107+ tests.
+2. Captain enrols on real device (phone Face ID, laptop Hello) via `https://irlid.co.uk/v5-test.html` (after deploy) or `http://localhost:8000/v5-test.html` (locally via `python -m http.server`). Step-by-step diagnostic walks through availability → enrol → sign → verify → round-trip, with a copyable diagnostics blob if anything fails.
+3. Captain merges `no1/v5-passkey-signing` to `main` so GitHub Pages deploys the frontend (cache-busters bumped to `?v=5.0` ✅).
+4. Captain pushes Worker code to test-env Cloudflare deploy via `wrangler deploy` from `IRLid-TestEnvironment/irlid-api/`.
+5. Smoke test against deployed test Worker with curl + a hand-rolled v5 receipt (`manufactureV5Envelope` infrastructure in `irlid-api/tests/verify-receipt.test.mjs` produces the bytes).
+6. If clean, push live Worker via `wrangler deploy` from live `irlid-api/`.
+7. Then — and only then — the cym13 r/netsec follow-up post (drafts already in PROMOTION.md).
+
+**Autonomous stretch deliverables (1 May, while Captain at work):**
+- `v5-test.html` — IRL diagnostic page with step-by-step pass/fail UI, copyable diag blob, fully ARIA-complete.
+- All 9 HTML files cache-busted to `?v=5.0` (settings, check, accept, login, index, receipt, scan, account, plus v5-test).
+- `CLAUDE.md` scoring table updated with v5 row + status, "Number One's Technical Positions" updated to reflect v5 landed not just planned.
+- Worker-side regression tests at `irlid-api/tests/verify-receipt.test.mjs` in BOTH live and test-env repos (version-controlled now, not just sandbox artifact).
+- `THREAT-MODEL.md §III.2` cross-linked to PROTOCOL.md §13 + js/sign.js + HANDOVER-Batch5-Worker.md.
+
+## Design observation surfaced by 2 May Tier 3 IRL test — asymmetric trust-history accrual
+
+**Finding:** in the standard v3/v4 2-scan handshake (HELLO → scan → response → scan), only the **initiator** ends up with the combined receipt and therefore only the initiator updates their trust history. The **responder** signs a response, hands it over, and never sees the combined object. So the responder's `irlid_trust_history` localStorage doesn't grow from that handshake. Captain's 2 May test exercised this empirically: 8 Pro (initiator both times, with wife's and child's phones as responders at swim baths and town) accumulated 57 → 59. The two responder devices accumulated 0 receipts each from today's flow. Tier 3's diversity-progression test on a responder device cannot pass through standard role assignment.
+
+**Captain's call (2 May):** initiator-primary is the right default. Asymmetric accrual is the cost of fast 2-scan handshakes. Queue as v6+ design item.
+
+**Possible v6+ resolution paths (not in v5 scope):**
+1. **3-scan handshake variant** — initiator shows combined receipt as a 3rd QR; responder scans it; responder records. Trade-off: extra round trip, slightly more friction.
+2. **Responder-side partial caching** — when signing the response, the responder caches `{ helloHash, offerHash, my_signed_response }` in localStorage. When they later visit a verifier with the combined-receipt URL the initiator shares (e.g. via WhatsApp / SMS), the cached partial completes into a full record on the responder's device.
+3. **Server-mediated mirror** — for org-portal contexts where a Worker is in the loop, the Worker can serve the combined receipt back to both parties on request. Naturally fits the unified Check-in flow Mr. Data has been building.
+
+**Test-guide update:** `IRL-TEST-GUIDE.md` updated 2 May with a footnote in T3.1/T3.2 noting that responder-side trust-history accumulation requires a role-swap scan (target device acts as initiator) — same locations work, just swap who shows the HELLO first.
+
+**Status:** logged for v6+ consideration. No immediate work. Captain's instruction: "footnote that it might need testing again."
+
+---
 
 ---
 
