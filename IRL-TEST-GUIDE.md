@@ -139,18 +139,20 @@ You will need (at minimum):
 - **Expected:** the receipt's location score / badge indicates "fresh" / "1.0 novelty" / "new area." Trust history shows two clusters (home + new) if this is your second cluster, or one cluster (just here) if you've never scanned at home.
 - **Pass criteria:** `LocationNovelty.score > 0.85` for this receipt, OR if you check `irlidV4TrustScore()` from DevTools console, `clusters.length` increased by 1.
 - **If it fails:** likely cause: GPS didn't lock or you're actually inside your home cluster's 1km radius. Confirm via DevTools `navigator.geolocation.getCurrentPosition`.
+- **† Important (surfaced 2 May 2026):** in the standard 2-scan handshake, **only the initiator's device records the combined receipt** to its trust history. The responder signs a response, hands it back, and never sees the combined object — so the responder's `irlid_trust_history` doesn't grow from this handshake. If you're testing trust-history accumulation on a *specific* device (e.g. proving a fresh phone goes 0/2 → 2/2), that device must be the **initiator** (open `index.html` → generate HELLO) at each test location. The role-swap is trivial: swap which phone shows the QR first; everything else is identical. Same locations work, just different role assignment.
 
 ### T3.2 — Build location diversity to 2/2 points
 - **What it proves:** scanning at 3+ distinct locations earns the maximum `LocationDiversityPts: 2`.
 - **Required:** three trips to three places ≥1km apart from each other (and from home, if home counts as a cluster). Examples: home, your work / regular café, a supermarket in a different town.
 - **Steps:**
-  - Do a scan at location 1.
-  - Travel to location 2 (≥1km away). Do a scan.
-  - Travel to location 3 (≥1km from both prior). Do a scan.
-  - Open Settings → Trust History line.
+  - Do a scan at location 1 — **with the device-under-test as the initiator** (it generates the HELLO; co-tester scans + responds).
+  - Travel to location 2 (≥1km away). Do a scan as initiator again.
+  - Travel to location 3 (≥1km from both prior). Do a scan as initiator again.
+  - Open Settings → Trust History line on the device-under-test.
 - **Expected:** the line shows "Diversity: 2/2 pts."
-- **Pass criteria:** Settings page reads "Diversity: 2/2 pts" exactly. If it reads 1/2 or 0/2, you need more genuinely distinct locations.
-- **If it fails:** the clusters might be silently merging. Open DevTools, run `irlidBuildLocationClusters(irlidTrustHistoryGet())`. Inspect `count` and `lat/lon` per cluster. If two locations you thought were distinct ended up in one cluster, they were probably <1km apart on the actual GPS coords.
+- **Pass criteria:** Settings page reads "Diversity: 2/2 pts" exactly. If it reads 1/2 or 0/2, you need more genuinely distinct locations OR you weren't the initiator (see footnote on T3.1).
+- **If it fails:** the clusters might be silently merging. Open DevTools, run `irlidBuildLocationClusters(irlidTrustHistoryGet())`. Inspect `count` and `lat/lon` per cluster. If two locations you thought were distinct ended up in one cluster, they were probably <1km apart on the actual GPS coords. **OR** the device-under-test was the responder for some/all scans (responders don't accumulate — see T3.1 footnote). If you have a cluster count of 2 instead of 3 on the device-under-test but think you scanned at 3 places, the missing scan was probably one where this device was the responder.
+- **Note:** if the device-under-test has pre-existing receipts (e.g. a "home" cluster from prior testing), the test passes after **2** distinct fresh scans rather than 3. Total cluster count of 3 — across home + 2 new — qualifies for `Diversity: 2/2`.
 
 ### T3.3 — Hotspot saturation behaviour
 - **What it proves:** repeating scans at one location grows that cluster's count without growing the cluster *count*; the novelty score for that location decays toward 0 as repeats accumulate.

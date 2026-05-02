@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<!-- v5 IRL diagnostic page — load on phone or laptop to verify hardware-backed signing works on this device. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>IRLid — v5 Diagnostic</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .v5-wrap { max-width: 700px; margin: 0 auto; padding: 0 16px; }
+    .v5-step {
+      border: 1px solid #ddd; border-radius: 10px; padding: 14px 16px;
+      margin: 10px 0; background: #fafafa;
+    }
+    .v5-step h3 { margin: 0 0 6px; font-size: 16px; }
+    .v5-step p.small { margin: 0 0 10px; color: #666; }
+    .v5-step button {
+      display: block; width: 100%; min-height: 48px;
+      padding: 12px; font-size: 15px; font-weight: 600;
+      background: #111; color: #fff; border: none; border-radius: 8px;
+      cursor: pointer;
+    }
+    .v5-step button:disabled { background: #999; cursor: not-allowed; }
+    .v5-step button.secondary { background: #fff; color: #111; border: 1.5px solid #111; }
+    .v5-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .v5-status .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .v5-status.pending { background: #f5f5f5; color: #888; }
+    .v5-status.pending .dot { background: #ccc; }
+    .v5-status.running { background: #fff8e1; color: #a05000; }
+    .v5-status.running .dot { background: #e65100; }
+    .v5-status.pass { background: #eaffea; color: #1a6e1a; }
+    .v5-status.pass .dot { background: #1a6e1a; }
+    .v5-status.fail { background: #ffeeee; color: #a00000; }
+    .v5-status.fail .dot { background: #a00000; }
+    .v5-log {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px; line-height: 1.45;
+      background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 6px;
+      padding: 10px; margin-top: 8px;
+      max-height: 220px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .v5-log:empty { display: none; }
+    .v5-diag {
+      width: 100%; min-height: 200px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11px; padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+    }
+    .v5-meta { font-size: 12px; color: #888; margin-top: 6px; }
+    .v5-meta code { font-size: 11px; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'">
+      </a>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="settings.html">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-main">
+    <div class="v5-wrap">
+      <h2 style="margin:6px 0 4px;">v5 Hardware-Backed Signing — Diagnostic</h2>
+      <p class="small" style="margin:0 0 18px; color:#666;">
+        Walk through enrolment, signing, and verification on this device. Each step shows pass/fail
+        with a log. If anything fails, copy the diagnostics blob at the bottom and send it back.
+      </p>
+
+      <!-- Step 1: Availability check -->
+      <div class="v5-step" id="step1">
+        <span class="v5-status pending" id="step1Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 1 · Platform authenticator availability</h3>
+        <p class="small">Checks <code>PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()</code>. Required for v5 enrolment.</p>
+        <button type="button" id="step1Btn">Run check</button>
+        <div class="v5-log" id="step1Log" role="log" aria-live="polite"></div>
+        <div class="v5-meta" id="step1Meta"></div>
+      </div>
+
+      <!-- Step 2: Enrol -->
+      <div class="v5-step" id="step2">
+        <span class="v5-status pending" id="step2Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 2 · Enrol a v5 credential</h3>
+        <p class="small">Fires <code>navigator.credentials.create()</code>. You'll be prompted by the OS to confirm with Face ID / Touch ID / fingerprint / Hello.</p>
+        <button type="button" id="step2Btn" disabled>Enrol v5 credential</button>
+        <div class="v5-log" id="step2Log" role="log" aria-live="polite"></div>
+        <div class="v5-meta" id="step2Meta"></div>
+      </div>
+
+      <!-- Step 3: Sign a test payload -->
+      <div class="v5-step" id="step3">
+        <span class="v5-status pending" id="step3Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 3 · Sign a test payload</h3>
+        <p class="small">Builds a fake-but-realistic IRLid payload, hashes it, and signs the hash via your enrolled v5 credential. Another biometric prompt is expected.</p>
+        <button type="button" id="step3Btn" disabled>Sign test payload</button>
+        <div class="v5-log" id="step3Log" role="log" aria-live="polite"></div>
+      </div>
+
+      <!-- Step 4: Verify the envelope locally -->
+      <div class="v5-step" id="step4">
+        <span class="v5-status pending" id="step4Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 4 · Verify the v5 envelope</h3>
+        <p class="small">Runs the signed envelope from Step 3 through <code>irlidV5VerifyEnvelope()</code> — the same verifier the Worker uses. No biometric prompt.</p>
+        <button type="button" id="step4Btn" disabled>Verify locally</button>
+        <div class="v5-log" id="step4Log" role="log" aria-live="polite"></div>
+      </div>
+
+      <!-- Step 5: Round-trip via dispatcher -->
+      <div class="v5-step" id="step5">
+        <span class="v5-status pending" id="step5Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 5 · Full round-trip via the dispatcher</h3>
+        <p class="small">Toggles the v5-enabled flag, runs <code>irlidSignPayload()</code> (the production code path), verifies the result, then restores the flag. Proves the integration works end-to-end.</p>
+        <button type="button" id="step5Btn" disabled>Round-trip test</button>
+        <div class="v5-log" id="step5Log" role="log" aria-live="polite"></div>
+      </div>
+
+      <!-- Step 6: Cleanup -->
+      <div class="v5-step" id="step6">
+        <span class="v5-status pending" id="step6Status"><span class="dot"></span><span>Pending</span></span>
+        <h3>Step 6 · Clean up</h3>
+        <p class="small">Removes the v5 credential reference from this device. Optional. The platform-side credential remains in your password manager until you delete it there.</p>
+        <button type="button" id="step6Btn" class="secondary">Unenrol</button>
+        <div class="v5-log" id="step6Log" role="log" aria-live="polite"></div>
+      </div>
+
+      <!-- Diagnostics dump -->
+      <div class="v5-step">
+        <h3>Diagnostics</h3>
+        <p class="small">Copy this if anything failed and paste it back so I can debug.</p>
+        <textarea class="v5-diag" id="diagOut" readonly aria-label="Diagnostic output"></textarea>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button type="button" class="secondary" id="copyDiagBtn" style="flex:1;">📋 Copy diagnostics</button>
+          <button type="button" class="secondary" id="refreshDiagBtn" style="flex:1;">🔄 Refresh</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/sign.js?v=5.0"></script>
+  <script>
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    let envelopeFromStep3 = null;
+    let payloadFromStep3 = null;
+
+    function setStatus(stepId, state, label) {
+      const el = document.getElementById(stepId + "Status");
+      if (!el) return;
+      el.className = "v5-status " + state;
+      el.querySelector("span:last-child").textContent = label;
+    }
+    function log(stepId, msg, isError) {
+      const el = document.getElementById(stepId + "Log");
+      if (!el) return;
+      const line = document.createElement("div");
+      line.textContent = (isError ? "✗ " : "· ") + msg;
+      if (isError) line.style.color = "#a00000";
+      el.appendChild(line);
+      el.scrollTop = el.scrollHeight;
+    }
+    function clearLog(stepId) {
+      const el = document.getElementById(stepId + "Log");
+      if (el) el.textContent = "";
+    }
+    function setMeta(stepId, html) {
+      const el = document.getElementById(stepId + "Meta");
+      if (el) el.innerHTML = html;
+    }
+
+    function envInfo() {
+      return {
+        ua: navigator.userAgent,
+        platform: navigator.platform || "(unknown)",
+        location: location.origin + location.pathname,
+        hasPublicKeyCredential: !!window.PublicKeyCredential,
+        hasIsUserVerifyingPAA: typeof window.PublicKeyCredential?.isUserVerifyingPlatformAuthenticatorAvailable === "function",
+        hasCredentialsAPI: !!(navigator.credentials && navigator.credentials.create && navigator.credentials.get),
+        hasCryptoSubtle: !!(window.crypto && window.crypto.subtle),
+        signJsLoaded: typeof irlidV5Available === "function" &&
+                      typeof irlidV5Enroll === "function" &&
+                      typeof irlidV5VerifyEnvelope === "function" &&
+                      typeof irlidSignPayload === "function",
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    function refreshDiag() {
+      const blob = {
+        env: envInfo(),
+        steps: {
+          step1: document.getElementById("step1Log").textContent,
+          step2: document.getElementById("step2Log").textContent,
+          step3: document.getElementById("step3Log").textContent,
+          step4: document.getElementById("step4Log").textContent,
+          step5: document.getElementById("step5Log").textContent,
+          step6: document.getElementById("step6Log").textContent
+        },
+        meta: {
+          step1: document.getElementById("step1Meta").innerHTML,
+          step2: document.getElementById("step2Meta").innerHTML
+        }
+      };
+      document.getElementById("diagOut").value = JSON.stringify(blob, null, 2);
+    }
+
+    // ─── Step 1: Availability ────────────────────────────────────────────────
+    document.getElementById("step1Btn").addEventListener("click", async () => {
+      clearLog("step1");
+      setStatus("step1", "running", "Checking…");
+      try {
+        if (typeof irlidV5Available !== "function") throw new Error("sign.js v5 helpers not loaded — check that js/sign.js is fresh and ?v= cache-buster is current.");
+        log("step1", "irlidV5Available is defined");
+        const available = await irlidV5Available();
+        log("step1", "isUserVerifyingPlatformAuthenticatorAvailable() returned: " + available);
+        if (!available) {
+          setStatus("step1", "fail", "Not available");
+          setMeta("step1", "<code>Try Safari iOS 16+, Chrome Android 9+, or Edge/Chrome on Windows with Hello set up.</code>");
+          return;
+        }
+        setStatus("step1", "pass", "Available");
+        setMeta("step1", "<code>Origin: " + location.origin + "</code>  ·  <code>Hostname: " + location.hostname + "</code>");
+        document.getElementById("step2Btn").disabled = false;
+      } catch (e) {
+        setStatus("step1", "fail", "Error");
+        log("step1", e.message || String(e), true);
+      }
+      refreshDiag();
+    });
+
+    // ─── Step 2: Enrol ───────────────────────────────────────────────────────
+    document.getElementById("step2Btn").addEventListener("click", async () => {
+      clearLog("step2");
+      setStatus("step2", "running", "Prompting…");
+      const btn = document.getElementById("step2Btn");
+      btn.disabled = true;
+      btn.textContent = "Waiting for Face ID / Touch ID / Hello…";
+      try {
+        const result = await irlidV5Enroll();
+        log("step2", "irlidV5Enroll() succeeded");
+        log("step2", "credId (first 32 chars): " + result.credIdB64u.slice(0, 32) + "…");
+        log("step2", "pubJwk: " + JSON.stringify(result.pubJwk));
+        setStatus("step2", "pass", "Enrolled");
+        setMeta("step2", "<code>credId stored in localStorage[irlid_v5_cred_id]</code>");
+        document.getElementById("step3Btn").disabled = false;
+        document.getElementById("step5Btn").disabled = false;
+      } catch (e) {
+        setStatus("step2", "fail", "Failed");
+        log("step2", e.message || String(e), true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Enrol v5 credential";
+      }
+      refreshDiag();
+    });
+
+    // ─── Step 3: Sign test payload ───────────────────────────────────────────
+    document.getElementById("step3Btn").addEventListener("click", async () => {
+      clearLog("step3");
+      setStatus("step3", "running", "Prompting…");
+      const btn = document.getElementById("step3Btn");
+      btn.disabled = true;
+      btn.textContent = "Waiting for biometric…";
+      try {
+        const payload = {
+          v: 5, lat: 52.9225, lon: -1.4746, acc: 5,
+          ts: Math.floor(Date.now() / 1000),
+          nonce: Math.floor(Math.random() * 0xffffffff)
+        };
+        log("step3", "Built test payload: " + JSON.stringify(payload));
+        const payloadHashB64u = await hashPayloadToB64url(payload);
+        log("step3", "payload hash (b64url): " + payloadHashB64u);
+        const payloadHashBytes = b64urlDecode(payloadHashB64u);
+        const signed = await irlidV5SignPayloadHash(payloadHashBytes);
+        log("step3", "Signature returned, raw r||s length: " + signed.sigRaw.length + " bytes");
+        log("step3", "authData length: " + signed.authData.length + " bytes");
+        log("step3", "clientData length: " + signed.clientData.length + " bytes");
+        // Parse clientData and show the challenge / origin
+        const cdParsed = JSON.parse(new TextDecoder().decode(signed.clientData));
+        log("step3", "clientData.type: " + cdParsed.type);
+        log("step3", "clientData.origin: " + cdParsed.origin);
+        log("step3", "clientData.challenge matches payload hash: " + (cdParsed.challenge === payloadHashB64u));
+        // Stash for Step 4
+        envelopeFromStep3 = {
+          sig: b64urlEncode(signed.sigRaw),
+          pub: irlidV5GetPublicJwk(),
+          webauthn: {
+            authData: b64urlEncode(signed.authData),
+            clientData: b64urlEncode(signed.clientData)
+          }
+        };
+        payloadFromStep3 = payload;
+        setStatus("step3", "pass", "Signed");
+        document.getElementById("step4Btn").disabled = false;
+      } catch (e) {
+        setStatus("step3", "fail", "Failed");
+        log("step3", e.message || String(e), true);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sign test payload";
+      }
+      refreshDiag();
+    });
+
+    // ─── Step 4: Verify locally ──────────────────────────────────────────────
+    document.getElementById("step4Btn").addEventListener("click", async () => {
+      clearLog("step4");
+      setStatus("step4", "running", "Verifying…");
+      try {
+        if (!envelopeFromStep3) throw new Error("Run Step 3 first.");
+        log("step4", "Verifying envelope from Step 3 (no biometric prompt)");
+        await irlidV5VerifyEnvelope(payloadFromStep3, envelopeFromStep3.pub, envelopeFromStep3.sig, envelopeFromStep3.webauthn);
+        log("step4", "Verification PASSED");
+        // Negative-path sanity: tamper the payload, expect verification to fail
+        log("step4", "Negative-path check: tampering payload, expecting failure…");
+        const tampered = { ...payloadFromStep3, lat: 53.0 };
+        try {
+          await irlidV5VerifyEnvelope(tampered, envelopeFromStep3.pub, envelopeFromStep3.sig, envelopeFromStep3.webauthn);
+          throw new Error("Tampered payload unexpectedly verified — this is bad");
+        } catch (negErr) {
+          if (negErr.message.includes("challenge does not match")) {
+            log("step4", "Tampered payload correctly rejected: " + negErr.message);
+          } else {
+            throw new Error("Unexpected error in negative-path check: " + negErr.message);
+          }
+        }
+        setStatus("step4", "pass", "Verified + tamper-detect OK");
+      } catch (e) {
+        setStatus("step4", "fail", "Failed");
+        log("step4", e.message || String(e), true);
+      }
+      refreshDiag();
+    });
+
+    // ─── Step 5: Full round-trip via the dispatcher ──────────────────────────
+    document.getElementById("step5Btn").addEventListener("click", async () => {
+      clearLog("step5");
+      setStatus("step5", "running", "Round-trip…");
+      const btn = document.getElementById("step5Btn");
+      btn.disabled = true;
+      btn.textContent = "Waiting for biometric…";
+      // Save the current v5 enabled flag so we can restore it
+      const savedFlag = localStorage.getItem("irlid_v5_enabled");
+      try {
+        // Force v5 ON for the duration of this test
+        localStorage.setItem("irlid_v5_enabled", "1");
+        log("step5", "Temporarily set irlid_v5_enabled = 1 (was: " + savedFlag + ")");
+        log("step5", "irlidV5Enabled() returns: " + irlidV5Enabled());
+        const payload = {
+          v: 5, lat: 52.9225, lon: -1.4746, acc: 5,
+          ts: Math.floor(Date.now() / 1000),
+          nonce: Math.floor(Math.random() * 0xffffffff)
+        };
+        log("step5", "Calling irlidSignPayload() — the production dispatch");
+        const signed = await irlidSignPayload(payload);
+        log("step5", "Dispatcher returned: v=" + signed.v + ", webauthn present: " + !!signed.webauthn);
+        if (signed.v !== 5 || !signed.webauthn) throw new Error("Dispatcher should have produced a v5 envelope but didn't");
+        log("step5", "Verifying the dispatcher's output via irlidV5VerifyEnvelope…");
+        await irlidV5VerifyEnvelope(payload, signed.pub, signed.sig, signed.webauthn);
+        log("step5", "End-to-end round-trip PASSED");
+        setStatus("step5", "pass", "Round-trip OK");
+      } catch (e) {
+        setStatus("step5", "fail", "Failed");
+        log("step5", e.message || String(e), true);
+      } finally {
+        // Restore previous flag
+        if (savedFlag === null) localStorage.removeItem("irlid_v5_enabled");
+        else localStorage.setItem("irlid_v5_enabled", savedFlag);
+        log("step5", "Restored irlid_v5_enabled = " + (savedFlag === null ? "(unset)" : savedFlag));
+        btn.disabled = false;
+        btn.textContent = "Round-trip test";
+      }
+      refreshDiag();
+    });
+
+    // ─── Step 6: Unenrol ─────────────────────────────────────────────────────
+    document.getElementById("step6Btn").addEventListener("click", () => {
+      clearLog("step6");
+      try {
+        if (typeof irlidV5Unenroll !== "function") throw new Error("irlidV5Unenroll not loaded");
+        irlidV5Unenroll();
+        log("step6", "irlidV5Unenroll() called — local credId/pubJwk/enabled removed");
+        log("step6", "Note: the platform-side credential remains in your password manager");
+        setStatus("step6", "pass", "Unenrolled");
+        // Re-disable downstream steps
+        document.getElementById("step3Btn").disabled = true;
+        document.getElementById("step4Btn").disabled = true;
+        document.getElementById("step5Btn").disabled = true;
+      } catch (e) {
+        setStatus("step6", "fail", "Failed");
+        log("step6", e.message || String(e), true);
+      }
+      refreshDiag();
+    });
+
+    // ─── Diagnostics buttons ─────────────────────────────────────────────────
+    document.getElementById("copyDiagBtn").addEventListener("click", async () => {
+      const ta = document.getElementById("diagOut");
+      try {
+        await navigator.clipboard.writeText(ta.value);
+        document.getElementById("copyDiagBtn").textContent = "✓ Copied";
+        setTimeout(() => document.getElementById("copyDiagBtn").textContent = "📋 Copy diagnostics", 1500);
+      } catch {
+        ta.select();
+        document.execCommand("copy");
+      }
+    });
+    document.getElementById("refreshDiagBtn").addEventListener("click", refreshDiag);
+
+    // Initial diagnostics population
+    refreshDiag();
+  </script>
+
+  <footer class="site-footer" style="margin-top:30px;">
+    &copy; 2026 Spencer Austin. All rights reserved.
+    &nbsp;&middot;&nbsp;
+    <a href="settings.html">Settings</a>
+  </footer>
+</body>
+</html>

@@ -28,13 +28,35 @@ Number One implemented v5.0 client-side directly during the Friday Bridge stretc
 **Roadmap impact:** v5.0 client-side AND Worker-side both landed 1 May, ahead of late-May target. Only real-device smoke + live deploy remain before v5 is fully out the door. v5.1 (Imbue pilot) and v5.2/5.3 (forward-defined fields, orient cone) remain on schedule.
 
 **Remaining v5 path to deploy:**
-1. Captain runs `node --test tests/sign.test.js` on his machine (the integrated 95+ test suite).
-2. Captain enrols on real device (phone Face ID, laptop Hello) via Settings; toggle on; do a real scan; confirm v5 receipt produced and verified.
-3. Captain pushes Worker code to test-env Cloudflare deploy via `wrangler deploy` from `IRLid-TestEnvironment/irlid-api/`.
-4. Smoke test against deployed test Worker with curl + a hand-rolled v5 receipt.
-5. If clean, push live Worker via `wrangler deploy` from live `irlid-api/`.
-6. Bump `js/sign.js?v=` cache-buster in HTML files and push frontend to GitHub Pages.
+1. Captain runs `node --test tests/sign.test.js` on his machine (the integrated 95+ test suite). Then `node --test irlid-api/tests/verify-receipt.test.mjs` for the Worker regression (12 tests). Total combined client + Worker: ~107+ tests.
+2. Captain enrols on real device (phone Face ID, laptop Hello) via `https://irlid.co.uk/v5-test.html` (after deploy) or `http://localhost:8000/v5-test.html` (locally via `python -m http.server`). Step-by-step diagnostic walks through availability → enrol → sign → verify → round-trip, with a copyable diagnostics blob if anything fails.
+3. Captain merges `no1/v5-passkey-signing` to `main` so GitHub Pages deploys the frontend (cache-busters bumped to `?v=5.0` ✅).
+4. Captain pushes Worker code to test-env Cloudflare deploy via `wrangler deploy` from `IRLid-TestEnvironment/irlid-api/`.
+5. Smoke test against deployed test Worker with curl + a hand-rolled v5 receipt (`manufactureV5Envelope` infrastructure in `irlid-api/tests/verify-receipt.test.mjs` produces the bytes).
+6. If clean, push live Worker via `wrangler deploy` from live `irlid-api/`.
 7. Then — and only then — the cym13 r/netsec follow-up post (drafts already in PROMOTION.md).
+
+**Autonomous stretch deliverables (1 May, while Captain at work):**
+- `v5-test.html` — IRL diagnostic page with step-by-step pass/fail UI, copyable diag blob, fully ARIA-complete.
+- All 9 HTML files cache-busted to `?v=5.0` (settings, check, accept, login, index, receipt, scan, account, plus v5-test).
+- `CLAUDE.md` scoring table updated with v5 row + status, "Number One's Technical Positions" updated to reflect v5 landed not just planned.
+- Worker-side regression tests at `irlid-api/tests/verify-receipt.test.mjs` in BOTH live and test-env repos (version-controlled now, not just sandbox artifact).
+- `THREAT-MODEL.md §III.2` cross-linked to PROTOCOL.md §13 + js/sign.js + HANDOVER-Batch5-Worker.md.
+
+## Design observation surfaced by 2 May Tier 3 IRL test — asymmetric trust-history accrual
+
+**Finding:** in the standard v3/v4 2-scan handshake (HELLO → scan → response → scan), only the **initiator** ends up with the combined receipt and therefore only the initiator updates their trust history. The **responder** signs a response, hands it over, and never sees the combined object. So the responder's `irlid_trust_history` localStorage doesn't grow from that handshake. Captain's 2 May test exercised this empirically: 8 Pro (initiator both times, with wife's and child's phones as responders at swim baths and town) accumulated 57 → 59. The two responder devices accumulated 0 receipts each from today's flow. Tier 3's diversity-progression test on a responder device cannot pass through standard role assignment.
+
+**Captain's call (2 May):** initiator-primary is the right default. Asymmetric accrual is the cost of fast 2-scan handshakes. Queue as v6+ design item.
+
+**Possible v6+ resolution paths (not in v5 scope):**
+1. **3-scan handshake variant** — initiator shows combined receipt as a 3rd QR; responder scans it; responder records. Trade-off: extra round trip, slightly more friction.
+2. **Responder-side partial caching** — when signing the response, the responder caches `{ helloHash, offerHash, my_signed_response }` in localStorage. When they later visit a verifier with the combined-receipt URL the initiator shares (e.g. via WhatsApp / SMS), the cached partial completes into a full record on the responder's device.
+3. **Server-mediated mirror** — for org-portal contexts where a Worker is in the loop, the Worker can serve the combined receipt back to both parties on request. Naturally fits the unified Check-in flow Mr. Data has been building.
+
+**Test-guide update:** `IRL-TEST-GUIDE.md` updated 2 May with a footnote in T3.1/T3.2 noting that responder-side trust-history accumulation requires a role-swap scan (target device acts as initiator) — same locations work, just swap who shows the HELLO first.
+
+**Status:** logged for v6+ consideration. No immediate work. Captain's instruction: "footnote that it might need testing again."
 
 ---
 

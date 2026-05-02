@@ -874,6 +874,7 @@ To set expectations clearly:
 - v5 does **not** strengthen GPS spoofing resistance. That is v6+ multi-anchor positioning.
 - v5 does **not** address the §V.3 Worker-side role enforcement gap. That is a separate Worker hardening track.
 - v5 does **not** force migration of v3/v4 receipts. They remain valid forever at their original score.
+- v5 does **not** retain envelope verifiability after privacy-mode redaction. The v5 envelope's `clientData.challenge` is `SHA-256(canonical(original-payload))`. After `irlidMakeRedactedReceipt()` strips GPS and replaces it with `gps_hash`, the original payload bytes are gone — a third-party verifier cannot recompute the challenge to compare. v5 receipts can still be verified at signing time and recorded, but **a v5 receipt that has been put through privacy-mode redaction cannot be re-verified through the v5 envelope path by a third party**. The receipt holder would need to present the unredacted form for full envelope verification. The v3/v4 raw-hash signature path is unaffected by redaction (it verifies the stored `hash` directly). Implementation surfaces this honestly: `check.html`'s privacy-mode path explicitly reports "v5 envelope cannot be verified after GPS redaction" rather than silently passing or silently failing. v6+ may revisit the redaction format to preserve v5 envelope verifiability (e.g. by including a redaction proof that bridges original-payload-hash to redacted-payload-hash); not in v5.0 scope.
 
 ### 13.17 Threat-model improvement (per-attack)
 
