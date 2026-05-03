@@ -244,6 +244,48 @@
       color: #b91c1c;
       font-weight: 600;
     }
+
+    /* --- Protocol-version indicator: top bar on panel + pill in header --- */
+    .party-panel { border-top: 4px solid transparent; transition: border-color 0.3s, box-shadow 0.3s; }
+    .party-panel.v3 { border-top-color: #999; }
+    .party-panel.v4 { border-top-color: #4a6cf7; }
+    .party-panel.v5 {
+      border-top-color: #2d8f3a;
+      box-shadow: 0 0 14px rgba(45, 143, 58, 0.18), inset 0 0 0 1px rgba(45, 143, 58, 0.08);
+    }
+
+    .version-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin: 6px auto 8px;
+      padding: 6px 14px;
+      border-radius: 18px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      border: 1.5px solid;
+      cursor: help;
+      white-space: nowrap;
+    }
+    .version-pill .pill-icon { font-size: 14px; line-height: 1; }
+    .version-pill.v3 {
+      background: #f5f5f5;
+      border-color: #bbb;
+      color: #555;
+    }
+    .version-pill.v4 {
+      background: #e6efff;
+      border-color: #7b9fff;
+      color: #1a3a8f;
+    }
+    .version-pill.v5 {
+      background: linear-gradient(135deg, #d8f5d8 0%, #eafff0 100%);
+      border-color: #2d8f3a;
+      color: #0f5a1a;
+      box-shadow: 0 0 10px rgba(45, 143, 58, 0.25);
+    }
   </style>
 </head>
 
@@ -304,6 +346,7 @@
       <div class="party-panel" id="panelA">
         <div class="party-role">Initiator</div>
         <div class="party-name" id="nameA">—</div>
+        <div class="version-pill" id="versionA" style="display:none;"></div>
         <div id="avatarA"></div>
         <div class="party-detail" id="locA"></div>
         <div class="party-detail" id="timeA"></div>
@@ -312,6 +355,7 @@
       <div class="party-panel" id="panelB">
         <div class="party-role">Collaborator</div>
         <div class="party-name" id="nameB">—</div>
+        <div class="version-pill" id="versionB" style="display:none;"></div>
         <div id="avatarB"></div>
         <div class="party-detail" id="locB"></div>
         <div class="party-detail" id="timeB"></div>
@@ -423,6 +467,45 @@
     }
   }
 
+  // =========================
+  //  PROTOCOL VERSION DETECTION (v3 / v4 / v5)
+  // =========================
+  // v5: WebAuthn envelope present + v:5 — keys live in Secure Enclave / TEE / Hello TPM
+  // v4: bioVerified flag in signed payload — biometric gate via WebAuthn UV
+  // v3: neither — base protocol with localStorage signing key
+  function detectVersion(resp) {
+    if (!resp) return null;
+    if (resp.webauthn && Number(resp.v) === 5) return "v5";
+    if (resp.payload && resp.payload.bioVerified === true) return "v4";
+    return "v3";
+  }
+
+  function renderVersionPill(elId, version, panelId) {
+    const el = document.getElementById(elId);
+    const panel = panelId ? document.getElementById(panelId) : null;
+
+    // Reset panel version classes
+    if (panel) panel.classList.remove("v3", "v4", "v5");
+
+    if (!el) return;
+    if (!version) { el.style.display = "none"; return; }
+
+    // Apply colored top-bar on panel
+    if (panel) panel.classList.add(version);
+
+    // Pill content: icon + version + descriptive label
+    const icon = version === "v5" ? "🔒" : version === "v4" ? "👆" : "🔓";
+    const label = version === "v5" ? "v5 — Hardware-backed"
+                : version === "v4" ? "v4 — Bio-metric"
+                : "v3 — Base";
+    el.className = "version-pill " + version;
+    el.innerHTML = '<span class="pill-icon">' + icon + '</span><span>' + label + '</span>';
+    el.title = version === "v5" ? "Signed via Secure Enclave / TEE / Hello TPM — keys non-extractable"
+            : version === "v4" ? "Signed with bio-metric verification (WebAuthn UV at signing time)"
+            : "Signed with base protocol (localStorage signing key)";
+    el.style.display = "inline-flex";
+  }
+
   async function checkReceipt(hash) {
     resultCard.style.display = "none";
     checksGrid.innerHTML = "";
@@ -458,6 +541,10 @@
     const partyInfo = data.party_info || null;
     const respA = comb.a || null;
     const respB = comb.b || null;
+
+    // Protocol-version indicators: pill in header + colored top-bar on panel
+    renderVersionPill("versionA", detectVersion(respA), "panelA");
+    renderVersionPill("versionB", detectVersion(respB), "panelB");
 
     // --- Party info ---
     const piA = partyInfo && partyInfo.a ? partyInfo.a : null;
@@ -623,6 +710,10 @@
 
     const respA = comb.a || null;
     const respB = comb.b || null;
+
+    // Protocol-version indicators: pill in header + colored top-bar on panel
+    renderVersionPill("versionA", detectVersion(respA), "panelA");
+    renderVersionPill("versionB", detectVersion(respB), "panelB");
 
     setStatus("");
     resultCard.style.display = "block";
