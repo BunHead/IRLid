@@ -39,9 +39,11 @@
     }
     .person-header{
       display: flex;
+      justify-content: center;
       gap: 6px;
       align-items: baseline;
       margin-bottom: 8px;
+      flex-wrap: wrap;
     }
     .person-role{
       font-weight: 700;
@@ -340,10 +342,11 @@
     }
 
     .version-pill {
-      display: inline-flex;
+      display: flex;
       align-items: center;
+      justify-content: center;
       gap: 7px;
-      margin: 10px 0 4px;
+      margin: 10px auto 4px;
       padding: 6px 14px;
       border-radius: 18px;
       font-size: 11.5px;
@@ -353,6 +356,8 @@
       border: 1.5px solid;
       cursor: help;
       white-space: nowrap;
+      width: fit-content;
+      max-width: 100%;
     }
     .version-pill .pill-icon { font-size: 14px; line-height: 1; }
     .version-pill.v3 {
@@ -803,19 +808,31 @@
     const pubA = (comb.a && comb.a.pub) ? comb.a.pub : (comb.hello && comb.hello.pub ? comb.hello.pub : null);
     const pubB = comb.b && comb.b.pub ? comb.b.pub : null;
 
-    // Get this device's local public key to identify which side is "me"
+    // Get this device's local public keys to identify which side is "me"
+    // — checks both the v3/v4 ECDSA key and the v5 WebAuthn credential pub
     let localPub = null;
+    let localV5Pub = null;
     try {
       const raw = localStorage.getItem("irlid_pub_jwk");
       if (raw) localPub = JSON.parse(raw);
+    } catch{}
+    try {
+      const rawV5 = localStorage.getItem("irlid_v5_pub_jwk");
+      if (rawV5) localV5Pub = JSON.parse(rawV5);
     } catch{}
 
     function jwkMatch(a, b) {
       return a && b && a.x === b.x && a.y === b.y;
     }
 
-    const aIsLocal = jwkMatch(pubA, localPub);
-    const bIsLocal = jwkMatch(pubB, localPub);
+    // A side is "local" (i.e. signed by THIS device) if its public key matches
+    // EITHER the v3/v4 localStorage ECDSA key OR the v5 WebAuthn credential pub.
+    function isLocalKey(pub) {
+      return jwkMatch(pub, localPub) || jwkMatch(pub, localV5Pub);
+    }
+
+    const aIsLocal = isLocalKey(pubA);
+    const bIsLocal = isLocalKey(pubB);
 
     // Set role labels — mark which side is "You"
     roleAEl.textContent = aIsLocal ? "You (Initiator):" : "Initiator:";
