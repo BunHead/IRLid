@@ -51,20 +51,29 @@ Reference impl: js/sign.js — irlidV5* helpers
   github.com/BunHead/IRLid/blob/main/js/sign.js
 Threat-model row: THREAT-MODEL.md §III.2
   github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md
-Test coverage: 110 tests across the v5 envelope verifier, including
-  100 random ECDSA P-256 sigs through DER↔raw round-trip, all 9 named
-  negative paths (wrong origin, wrong type, mutated payload, missing UV
-  flag, malformed clientData, etc.).
+Test coverage: 122 tests (110 client-side unit tests in tests/sign.test.js
+  plus 12 Worker regression tests in irlid-api/tests/verify-receipt.test.mjs)
+  across the v5 envelope verifier, including 100 random ECDSA P-256 sigs
+  through DER↔raw round-trip, all 9 named negative paths (wrong origin,
+  wrong type, mutated payload, missing UV flag, malformed clientData, etc.).
 
-Honest about what's not yet done:
-- Worker-side envelope verification is queued
-  (HANDOVER-Batch5-Worker.md). Until that lands, v5 receipts arriving
-  at the test Worker fail signature check — which is fine because
-  v5 is OFF by default in settings.html and nothing in the wild
-  produces v5 receipts yet.
-- No real-device deploy. v5 won't go live to irlid.co.uk until
-  Worker side is in and a real-phone smoke confirms enrol → toggle →
-  scan produces a verifying receipt.
+Status:
+- Worker-side envelope verification is deployed in both production
+  (irlid-api) and test (irlid-api-test) Workers, sharing the same
+  verifyV5Envelope() helper. Receipts where both sides plus the HELLO
+  offer all verify their v5 envelopes set a fully_v5 scoring flag
+  (PROTOCOL.md §13.9). v5 remains OFF by default in settings.html —
+  users opt in via Settings.
+- Verified clean on real consumer hardware on 2 May 2026 across three
+  browser × OS combinations: Edge + Microsoft Password Manager +
+  Windows Hello on Windows 11; Chrome + Google Password Manager +
+  Windows Hello on Windows 11; Chrome + Google Password Manager +
+  Android biometric on Pixel 8 Pro. The six-step diagnostic at
+  https://irlid.co.uk/v5-test.html runs green on all three.
+  Firefox-on-Windows is quarantined for a documented Firefox-side
+  WebAuthn UX wrinkle (two-stage Windows Security dialog; the credential
+  creates correctly but the page-side reporting fails on the secondary
+  picker). Honest about it; not a v5 protocol issue.
 - Sync vs device-bound: v5.0 is sync-neutral
   (authenticatorAttachment: "platform", let the OS decide). Orgs
   requiring non-sync can mandate that as a v5.x extension.
@@ -109,11 +118,15 @@ raw done client-side with the leading-zero high-bit edge case handled.
 
 Code: github.com/BunHead/IRLid/blob/main/js/sign.js (irlidV5*)
 Spec: github.com/BunHead/IRLid/blob/main/PROTOCOL.md (section 13)
-Tests: 110 covering DER↔raw round-trip across 100 random sigs, plus
-       envelope happy path + 9 negative paths.
+Tests: 122 (110 client + 12 Worker regression) covering DER↔raw round-trip
+       across 100 random sigs, plus envelope happy path + 9 negative paths.
 
-Worker-side verification is still in flight (HANDOVER-Batch5-Worker.md).
-v5 is OFF by default in settings.html until that lands.
+Worker-side verification deployed and tested in parallel (production +
+test Workers share the same verifyV5Envelope helper). Verified clean on
+real hardware: Edge + Chrome on Windows 11 (Hello/TPM) and Chrome on
+Android (Pixel 8 Pro). Firefox-on-Windows quarantined for a known
+Firefox-side WebAuthn UX wrinkle. v5 is OFF by default in settings.html
+— users opt in via Settings.
 
 If you have time to glance at irlidV5VerifyEnvelope and tell me where the
 footguns are hiding, that would be appreciated. The WebAuthn-as-signing
@@ -158,9 +171,12 @@ flag silently downgrading on some authenticators. v5 handles all of
 them, with 110 unit tests including a 100-random-signature round-trip
 through DER↔raw conversion.
 
-Worker-side verification is queued for next week; the live deploy waits
-for that and a real-device smoke test. v5 is opt-in and off by default
-until then.
+Worker-side verification is now deployed alongside the client; the live
+deploy completed 2 May 2026 and was verified clean on three browser × OS
+combinations (Edge and Chrome on Windows 11 with Hello/TPM, plus Chrome
+on Pixel 8 Pro / Android). Firefox-on-Windows is the one quarantined
+combination, due to a documented Firefox-side WebAuthn UX wrinkle, not
+a protocol issue. v5 is opt-in and off by default in Settings.
 
 Receipts signed today remain valid in 2050. The protocol is stronger
 than it was last week, because cym13 took the time to write a critique
@@ -180,7 +196,8 @@ localStorage — which means a thief with a moment of unlocked-device
 access could extract them and walk away as you. Fair criticism. I
 acknowledged it openly and said v5 was where I'd close it.
 
-v5 client-side landed today. Keys now live in your phone's Secure Enclave
+v5 is now fully deployed — client-side, Worker-side, and verified clean
+on real consumer hardware. Keys now live in your phone's Secure Enclave
 (or Android TEE, or Windows Hello TPM) and physically cannot leave the
 hardware. Every signature requires Face ID / Touch ID / fingerprint at
 the moment of signing. The OS itself can't read the key; only the chip
@@ -192,9 +209,14 @@ of website login. The receipt format is fully backward-compatible: a
 v4 receipt signed in April still verifies forever. v5 receipts have an
 extra envelope that proves the signature came from the secure element.
 
-Honest about what's left: Worker-side verification is queued for next
-week, and v5 is OFF by default until that lands and I've smoke-tested
-it on real hardware. Your existing v3/v4 receipts are unaffected.
+Tested clean on three browser × OS combinations: Edge with Microsoft
+Password Manager + Windows Hello on Windows 11, Chrome with Google
+Password Manager + Windows Hello on Windows 11, and Chrome on Pixel 8 Pro
+running Android. Firefox on Windows has a known WebAuthn UX wrinkle
+(two-stage dialog) that we've documented honestly rather than papered over.
+
+v5 is OFF by default in Settings — opt in when you're ready. Your existing
+v3/v4 receipts are unaffected and remain fully valid forever.
 
 The reason this matters more than a normal feature update: this is the
 first time the protocol has had a named public critique that was real,

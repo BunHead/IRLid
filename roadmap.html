@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IRLid — Future Vision</title>
+  <title>IRLid — Roadmap</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d0d0d; color: #eee; padding: 30px 20px; }
@@ -79,7 +79,7 @@
 </head>
 <body>
 
-<h1>IRLid — Future Vision</h1>
+<h1>IRLid — Roadmap</h1>
 <p class="subtitle">From browser tool to global trust infrastructure</p>
 
 <div class="layers">
@@ -139,19 +139,20 @@
 
   <div class="layer" style="background:#0d1a0d; border:1px solid #1a4020; position:relative; overflow:hidden; border-radius:10px; padding:18px 22px;">
     <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#39ff14;"></div>
-    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Layer 3 — v5 — Secure Enclave &amp; Face Capture (all optional, next up)</h2>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Layer 3 — v5 — Hardware-Backed Signing — <span style="color:#39ff14;">LIVE (May 2026)</span></h2>
     <div class="layer-title" style="color:#39ff14; font-size:16px; font-weight:700; margin-bottom:8px;">Hardware-Backed Keys &amp; Visual Witness — Stolen Phone Proof</div>
-    <div style="font-size:11px; color:#555; margin-bottom:10px;">All features in this layer are <strong style="color:#39ff14;">off by default</strong>. User enables individually in Settings. Never prompted during handshake. Never required to complete a scan.<br><em style="color:#444;">Note: WebAuthn biometric gate already shipped in v4. v5 adds hardware-backed key storage (Secure Enclave / TEE) and face capture.</em></div>
+    <div style="font-size:11px; color:#555; margin-bottom:10px;">All features in this layer are <strong style="color:#39ff14;">off by default</strong>. User enables individually in Settings. Never prompted during handshake. Never required to complete a scan.<br><em style="color:#444;">v5.0 hardware-backed signing deployed and verified clean on three browser × OS combinations (Edge + Chrome on Windows 11 with Hello/TPM, plus Chrome on Pixel 8 Pro / Android). Mutual face capture is planned for v5.x.</em></div>
 
-    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">🔒 Secure Enclave Key Migration</div>
+    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">🔒 Secure Enclave / TEE / Hello TPM — v5.0 LIVE</div>
     <div class="features">
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Keys in Secure Enclave (Apple) / TEE (Android)</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Keys in Secure Enclave (Apple) / TEE (Android) / Hello TPM (Windows)</span>
       <span class="feat" style="background:#0d2a10; color:#39ff14;">Private key never extractable — replaces localStorage</span>
-      <span class="feat" style="background:#0d2a10; color:#39ff14;">Migration path from v4 localStorage keys</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Coexists with v4 localStorage keys; user opts in via Settings</span>
       <span class="feat" style="background:#0d2a10; color:#39ff14;">Stolen device = keys unusable without biometric unlock</span>
+      <span class="feat" style="background:#0d2a10; color:#39ff14;">Verified on Edge + Chrome (Windows) + Chrome (Android)</span>
     </div>
 
-    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">📸 Face Capture — Mutual Witness System</div>
+    <div style="font-size:11px; color:#39ff14; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;">📸 Face Capture — Mutual Witness System (v5.x — planned)</div>
     <div class="features">
       <span class="feat" style="background:#0d2a10; color:#39ff14;">At scan: camera captures other party's face + QR</span>
       <span class="feat" style="background:#0d2a10; color:#39ff14;">A witnesses B's face — B witnesses A's face</span>
@@ -164,7 +165,7 @@
     </div>
 
     <div class="weights" style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(57,255,20,0.15);">
-      <div class="weights-title" style="font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#555; margin-bottom:10px;">Score at this layer — max 50 pts (50/100) — +20 new, all optional</div>
+      <div class="weights-title" style="font-size:10px; text-transform:uppercase; letter-spacing:0.08em; color:#555; margin-bottom:10px;">Score at this layer — max 70 pts (70/100) when v5 active — +20 over v4 layer-2 ceiling. PROTOCOL.md §13.9 is canonical.</div>
       <div class="w-row"><div class="w-label">All Layer 2 checks</div><div class="w-track"><div class="w-fill" style="width:60%;background:#444"></div></div><div class="w-pts">30 pts</div></div>
       <div class="w-row"><div class="w-label">🔒 Enclave-backed key <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:5%;background:#39ff14"></div></div><div class="w-pts">5 pts</div></div>
       <div class="w-row"><div class="w-label">👆 Biometric unlock <span class="w-new">NEW</span></div><div class="w-track"><div class="w-fill" style="width:5%;background:#39ff14"></div></div><div class="w-pts">5 pts</div></div>
@@ -291,13 +292,13 @@
     </ul>
   </div>
   <div class="phase" style="border-color:#39ff14;">
-    <div class="when" style="color:#39ff14;">v5 — Enhanced</div>
-    <div class="what" style="color:#39ff14;">Bio-metrics &amp; Enclave</div>
+    <div class="when" style="color:#39ff14;">v5 — LIVE (May 2026)</div>
+    <div class="what" style="color:#39ff14;">Hardware-Backed Keys</div>
     <ul>
-      <li>Secure Enclave</li>
-      <li>Fingerprint/Face ID</li>
-      <li>Mutual face witness</li>
-      <li>All opt-in</li>
+      <li>Secure Enclave / TEE / Hello TPM</li>
+      <li>Fingerprint / Face ID / Hello at every sig</li>
+      <li>Mutual face capture queued for v5.x</li>
+      <li>All opt-in, off by default</li>
     </ul>
   </div>
   <div class="phase">

@@ -260,9 +260,11 @@
         This is a deliberate starting point: prove the cryptographic model works before adding layers on top.
       </p>
       <p>
-        That said, biometrics and personal data are not off the table. In future, incorporating them could significantly
-        strengthen the system — for example, making it harder to spoof a handshake by passing a phone to someone else,
-        or tying a device key to a verified identity for higher-stakes use cases. These are improvements, not requirements.
+        Optional bio-metric and hardware-backed enhancements are now available as Settings-gated features.
+        v4 (April 2026) added an optional bio-metric gate — Face ID, Touch ID, fingerprint, or Windows Hello at handshake time, proving
+        the device owner (not just the device) was physically present. v5 (May 2026) added optional hardware-backed signing — keys live
+        in the device's Secure Enclave / TEE / Hello TPM and are non-extractable even on rooted devices. Bio-metric data never leaves
+        the device in either case. Both are off by default and never prompted during a scan; the core handshake works the same without them.
       </p>
       <p>
         Even today, linking a Google account (and soon, a direct email login) improves the experience in practical ways:
@@ -341,13 +343,13 @@
     <div class="about-section">
       <h2 id="a8">Where IRLid Is Heading</h2>
       <p>
-        IRLid v3 is the foundation — a cryptographic receipt proving two people physically met. But the protocol is designed to grow. Future layers will add hardware-backed keys via the device Secure Enclave, optional biometric signing, mutual face capture as a witness system, a trust network built from real-world relationships, blockchain anchoring for permanent tamper-evident records, IoT and drone delivery verification, and eventually zero-knowledge proofs so presence can be proven without revealing identity.
+        IRLid v3 was the foundation — a cryptographic receipt proving two people physically met. v4 (April 2026) added optional trust history, bio-metric gating, and privacy mode. v5 (May 2026) moved signing keys into the device's Secure Enclave, Trusted Execution Environment, or Windows Hello TPM via WebAuthn, closing the strongest honest criticism of the earlier versions. The protocol continues to grow in layers — future work includes mutual face capture (v5.x), multi-witness time anchoring against atomic clocks (v6), trust-network analysis (v6), drone-delivery and IoT integration (v6+), and zero-knowledge presence proofs (v7). Every layer is optional and off by default; v3-era receipts remain fully valid forever.
       </p>
       <p style="margin-top:12px;">
         The scoring system grows with each layer — from a base of 20 points today to a ceiling of 100 points, maintaining symmetry with the % Confirmed display. All optional enhancements are off by default and user-controlled from Settings. A standard receipt without any extras is fully valid for everyday use.
       </p>
       <p style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;">
-        <a href="vision-v4-plus.html" style="color:#000; text-decoration:underline; font-weight:500;">Full roadmap — layer by layer →</a>
+        <a href="roadmap.html" style="color:#000; text-decoration:underline; font-weight:500;">Full roadmap — layer by layer →</a>
         <a href="verify-visual.html" style="color:#000; text-decoration:underline; font-weight:500;">Verification score breakdown →</a>
       </p>
     </div>

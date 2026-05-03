@@ -380,7 +380,7 @@
       <div class="feature-card">
         <div class="icon-row">🔑</div>
         <h3 id="f3-2">Device Key Pairs</h3>
-        <p>Each browser generates a unique ECDSA P-256 key pair using the Web Crypto API. The private key never leaves the device — currently stored in localStorage. In a future update, keys will migrate to the device Secure Enclave (Apple) or Trusted Execution Environment (Android) via WebAuthn, making them hardware-backed and non-extractable even on rooted devices.</p>
+        <p>Each browser generates a unique ECDSA P-256 key pair using the Web Crypto API. The private key never leaves the device. By default it lives in localStorage; with v5 hardware-backed signing enabled in Settings (LIVE since May 2026), the key lives in the device's Secure Enclave (Apple), Trusted Execution Environment (Android), or Windows Hello TPM via WebAuthn — non-extractable even on rooted devices, and requires a fresh biometric gesture at every signature.</p>
       </div>
       <div class="feature-card">
         <div class="icon-row">🔗</div>
@@ -404,11 +404,11 @@
       </div>
       <div class="feature-card">
         <div class="icon-row">🔒</div>
-        <h3 id="f3-7">Passkey, Biometric &amp; Face Capture Support</h3>
-        <p>WebAuthn passkey authentication is available for device-local login. Planned for v4: three optional trust enhancements — all off by default, user-enabled in Settings, never prompted during a scan:</p>
-        <p style="margin-top:8px;"><strong>Secure Enclave signing</strong> — moves handshake keys from localStorage into the device hardware enclave, making them non-extractable even on rooted devices.</p>
-        <p style="margin-top:8px;"><strong>Biometric unlock</strong> — fingerprint or Face ID gates the enclave key, proving the device owner was physically present. Biometric data never leaves the device.</p>
-        <p style="margin-top:8px;"><strong>Mutual face capture</strong> — at each scan step the camera optionally captures the other party's face alongside their QR. A witnesses B's face; B witnesses A's face. Only the photo hash travels in the receipt — the photo stays on device.</p>
+        <h3 id="f3-7">Hardware-Backed Signing &amp; Biometric Verification</h3>
+        <p>Three optional trust enhancements layered on the base protocol — all off by default, user-enabled in Settings, never prompted during a scan:</p>
+        <p style="margin-top:8px;"><strong>Bio-metric gate (v4, LIVE since April 2026).</strong> WebAuthn requires Face ID, Touch ID, fingerprint, or Windows Hello at each handshake. The bio-verified flag is committed inside the ECDSA-signed payload — proving the device owner (not just the device) was physically present. Bio-metric data never leaves the device.</p>
+        <p style="margin-top:8px;"><strong>Hardware-backed signing (v5, LIVE since May 2026).</strong> Signing keys live in the device's Secure Enclave (Apple), TEE (Android), or Windows Hello TPM. Non-extractable even on rooted devices. Score band 70/100. Closes the strongest honest criticism of v3/v4 (localStorage extraction).</p>
+        <p style="margin-top:8px;"><strong>Mutual face capture (v5.x, planned).</strong> At each scan step the camera optionally captures the other party's face alongside their QR. A witnesses B's face; B witnesses A's face. Only the photo hash travels in the receipt — the photo stays on device.</p>
       </div>
       <div class="feature-card">
         <div class="icon-row">🌐</div>
@@ -445,13 +445,13 @@
     <div class="section">
       <h2 id="f5">Roadmap</h2>
       <p>
-        IRLid is designed to grow in layers — each adding new trust primitives while keeping everything backwards compatible and optional. The base receipt (20 points) is valid forever. Optional enhancements in future updates will push the score toward 100, maintaining symmetry with the % Confirmed display.
+        IRLid is designed to grow in layers — each adding new trust primitives while keeping everything backwards compatible and optional. The base receipt scores 20/100 and remains valid forever. v4 enhancements — trust history, biometric gate, privacy mode — push the ceiling to 50/100 when enabled in Settings. v5 hardware-backed signing pushes it to 70/100 when active. Every layer is optional and off by default; the base receipt is sufficient for everyday use.
       </p>
       <p style="margin-top:12px;">
-        Planned: hardware-backed keys via Secure Enclave, biometric signing, mutual face capture as a witness system, a trust graph built from real-world relationships, blockchain anchoring, IoT and drone delivery verification, and zero-knowledge proofs for privacy-preserving credentials.
+        Planned: mutual face capture as a witness system (v5.x), multi-witness time anchoring against atomic clocks (v6), a trust graph built from real-world relationships (v6), drone delivery and IoT verification (v6+), and zero-knowledge proofs for privacy-preserving presence (v7).
       </p>
       <p style="margin-top:16px; display:flex; gap:20px; flex-wrap:wrap;">
-        <a href="vision-v4-plus.html" style="color:#000; text-decoration:underline; font-weight:500;">Full roadmap — layer by layer →</a>
+        <a href="roadmap.html" style="color:#000; text-decoration:underline; font-weight:500;">Full roadmap — layer by layer →</a>
         <a href="verify-visual.html" style="color:#000; text-decoration:underline; font-weight:500;">Verification score breakdown →</a>
         <a href="demo-login.html" style="color:#000; text-decoration:underline; font-weight:500;">Live widget demo →</a>
       </p>

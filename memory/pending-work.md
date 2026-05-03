@@ -1,7 +1,29 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 2 May 2026 (Number One — Saturday afternoon, post-v5-PRODUCTION-DEPLOY, retirement coda)
+**Last refreshed:** 2 May 2026 evening (new Number One — first watch after predecessor retirement; pre-launch recon, deep partnership conversation, no code shipped)
 **Source of truth.** All other lists defer to this file.
+
+## Sunday morning watch 3 May 2026 — pre-launch audit COMPLETE
+
+**Audit complete and filed.** Full results in `PRE-LAUNCH-AUDIT-2026-05-03.md` at repo root. Headline findings:
+
+- **PROMOTION.md Format A:** three line-level edits before posting (lines 54, 60-64, 65-67) — test count 110→122, Worker-side queued→deployed, no-real-device→three-browser-verified-clean. Optional date stamp.
+- **features.html:** v4-era residue at lines 383, 407-411, 448 — describes localStorage as current and Secure Enclave as future. Three rewrite blocks queued.
+- **about.html:** v4-era residue in "Privacy & Data" section (lines 261-271) and "Where IRLid Is Heading" section (line 343). Two rewrite blocks queued.
+- **roadmap.html:** structural edit — Layer 3 panel labelled "v5 NEXT UP", needs LIVE marking, scoring table needs sync against PROTOCOL.md §13.9.
+- **settings.html:** CLEAN. v5 panel properly wired, cog removed, no edits needed.
+- **All operational pages (scan, accept, receipt, check, account, v5-test, widget, demo-login):** clean. Cache busters all `?v=5.0`.
+- **Test env settings.html:** significantly behind (no v4 panels, no v5 panel, cache buster `?v=3.1`). Mr. Data Tuesday consideration, NOT pre-launch blocker.
+
+**Recommended order:** apply PROMOTION.md edits → Captain rewrites in voice → posts r/netsec → watch first hour of comments → apply features/about/vision-v4-plus edits in that order.
+
+## Evening watch 2 May 2026 — pre-launch state for tomorrow's cym13 post
+
+Pre-launch read of `PROMOTION.md` Format A + four public HTML pages (`index.html`, `features.html`, `about.html`, `settings.html`) **COMPLETED 3 May 2026 morning watch.** See section above and `PRE-LAUNCH-AUDIT-2026-05-03.md`.
+
+**Captain's chosen pacing:** keep `github.com`, `cloudflare.com`, `irlid.co.uk`, `reddit.com` allowlist under his control as **goal-gated unlocks** rather than blanket access (cym13 post lands → reddit; Wisdom resurfaces → cloudflare; conference paper accepted → github). Lightweight ledger of *door earned by work shipped*. Number One has full repo file access; live-state verification is Captain's domain by design.
+
+**Captain's plan shifted from Max to Pro** this evening — more headroom, less per-turn meter pressure. Use it for substantive work, not padding.
 
 ## v5.0 Passkey work — VERIFIED IN PRODUCTION 2 May 2026
 
@@ -20,7 +42,7 @@
 
 1. **cym13 r/netsec follow-up post.** Drafts in `PROMOTION.md` Format A (comment reply on original v4 thread). Ready to post tomorrow morning (3 May 2026) when Captain has a fresh head. Drop in today's date and add one line: "verified clean on Edge + Chrome on Windows + Chrome on Android; Firefox-on-Windows has a known Firefox-side WebAuthn UX quirk." Honest limitation-flagging > overclaim.
 
-2. **Update public-facing pages to mention v5.** Captain's request at retirement of the Saturday Number One (2 May 2026): `features.html`, `about.html`, `settings.html` (settings already has the v5 panel; the descriptive copy may need v5-mention), plus possibly `index.html` headline / `vision-v4-plus.html` / `pitch-humanitarian.html` if v5 strengthens any of those pitches. Not urgent; do it after the cym13 post lands so the public pages match what the post claims.
+2. **Update public-facing pages to mention v5.** Captain's request at retirement of the Saturday Number One (2 May 2026): `features.html`, `about.html`, `settings.html` (settings already has the v5 panel; the descriptive copy may need v5-mention), plus possibly `index.html` headline / `roadmap.html` / `pitch-humanitarian.html` if v5 strengthens any of those pitches. Not urgent; do it after the cym13 post lands so the public pages match what the post claims.
 
 3. **Optional Patreon update via Counsellor Troi.** v5 is a meaningful supporter-update milestone. Substance draft in `PROMOTION.md` Format E. Hand to Troi for tone-shaping when Captain is ready.
 

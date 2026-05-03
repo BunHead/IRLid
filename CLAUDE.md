@@ -129,7 +129,7 @@ node --test tests/sign.test.js
 | `WIDGET.md` | Widget integration guide |
 | `PROMOTION.md` | All outreach attempts and drafts — Number One maintains |
 | `verify-visual.html` | Score breakdown visual |
-| `vision-v4-plus.html` | Full roadmap diagram |
+| `roadmap.html` | Full roadmap diagram (renamed from `vision-v4-plus.html` on 3 May 2026) |
 | `pitch-humanitarian.html` | NGO/drone delivery pitch for Wisdom |
 
 ## Milestones
