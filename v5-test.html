@@ -54,6 +54,14 @@
     }
     .v5-meta { font-size: 12px; color: #888; margin-top: 6px; }
     .v5-meta code { font-size: 11px; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+    /* Mobile-nav cosmetic fix (4 May 2026) — v5-test has only 2 nav buttons (Home + Settings),
+       so the global 2×2 grid at 124px leaves an empty second row and risks clipping the right
+       column on narrow viewports. Override locally to a single 62px row. Doesn't touch global
+       CSS, so 4-button pages (settings.html etc.) keep their 2×2 layout unchanged. */
+    @media (max-width: 720px) {
+      body { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0)); }
+      .site-nav { height: 62px; grid-template-rows: 1fr; }
+    }
   </style>
 </head>
 <body>
