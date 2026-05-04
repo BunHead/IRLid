@@ -963,7 +963,7 @@ CREATE INDEX idx_sessions_expires ON login_sessions(expires_at);
 CREATE TABLE login_challenges (
   nonce       TEXT PRIMARY KEY,         -- random, base64url, 16 bytes
   issued_at   INTEGER NOT NULL,
-  expires_at  INTEGER NOT NULL,         -- 60 seconds default
+  expires_at  INTEGER NOT NULL,         -- 180 seconds default (real human flow needs >60s)
   claimed_by  TEXT REFERENCES portal_users(id),  -- NULL until phone claims it
   session_token TEXT REFERENCES login_sessions(token),  -- set when claim succeeds
   consumed    INTEGER NOT NULL DEFAULT 0  -- 1 once the desktop has retrieved the session
@@ -1022,7 +1022,7 @@ Device-Desktop (admin portal)              Worker                          Devic
      creation form.
 ```
 
-The login QR is short-lived (default 60 seconds). Past expiry, the desktop UI regenerates a fresh nonce; old QRs are useless even if photographed.
+The login QR is short-lived (default 180 seconds — bumped from 60s on 4 May 2026 after IRL testing showed 60s left zero margin once camera-app QR scan + page load + biometric prompt + sign + POST overhead are accounted for). Past expiry, the desktop UI regenerates a fresh nonce; old QRs are useless even if photographed.
 
 ### 14.5 The login QR format
 
@@ -1122,14 +1122,14 @@ The `developer` role is reserved for the bootstrap fingerprint (and any subseque
 
 | Attack | Defence |
 |--------|---------|
-| Login QR shoulder-surfed | Nonce is single-use and 60-second TTL; even an instant photograph is useless once consumed. |
+| Login QR shoulder-surfed | Nonce is single-use and 180-second TTL; even an instant photograph is useless once consumed, and the surfer has to outrace the legitimate user's biometric prompt + POST in under 3 minutes — assuming they had a v5-enrolled device with the same RP-ID-bound credential, which they don't. |
 | Replay of signed envelope | Each challenge nonce is one-time. Worker rejects duplicate `nonce`. The signed envelope binds the specific nonce. |
 | Stolen session token | TTL 24h; sliding refresh tied to active use; manual revocation. Token is opaque and server-checked on every request. Attacker with token but no signing key cannot create new logins or sign receipts. |
 | Stolen device with active session | UV is required at next sensitive operation if v5 is enabled (re-auth on `/user/create-org` and similar). Lower-tier ops (read attendance) ride the existing session. |
 | Bootstrap fingerprint compromise | Rotate `BOOTSTRAP_DEVELOPER_FP` env var; old fp instantly loses founder rights. Existing user rows persist; only the bootstrap-elevation path closes. |
 | Silent membership tampering | Every membership row has `granted_by` and `granted_at`. Bulk audit query trivially surfaces the chain of who added whom. Forward extension (v6+): each membership change signed by the granting admin. |
 | User-enumeration oracle | The `/org/login/claim` 401 collapses "valid signature but unknown user" and "invalid signature" into a single generic `auth_failed`. An attacker probing random pub_jwks cannot tell whether they hit a valid envelope-but-unregistered user or an outright invalid signature. The `users` table is not browsable. |
-| Brute-force claim attempts | `/org/login/claim` rate-limits to 3 failed attempts per `(source_ip, nonce)` window within 60 seconds; a fourth attempt returns 429 with a 5-minute cooldown. The 60-second nonce TTL itself caps total attempts per challenge to a small number even without the rate-limit. Combined effect: an attacker has at most ~18 claim attempts per minute against a given nonce before lockout, against a 16-byte search space — astronomically infeasible. |
+| Brute-force claim attempts | `/org/login/claim` rate-limits to 3 failed attempts per nonce within the nonce's 180-second TTL; a fourth attempt returns 429 with a 5-minute cooldown. The TTL itself caps total attempts per challenge to a small number even without the rate-limit. Combined effect: at most 3 attempts per nonce against a 16-byte (96-bit) search space — astronomically infeasible. |
 | Source-IP correlation | The `login_sessions.ip_hash` is a one-way SHA-256 of the source IP, used for forensic correlation only (e.g., spotting that one IP suddenly issued sessions for ten different users in a minute). It is never used as an authorisation factor. Logs are retained per Cloudflare default + a per-org rolling-window policy (forward-defined, v6+). |
 | Cross-environment cred reuse | RP ID binding (§13.12) prevents test-env credentials from logging into production and vice versa. A user wishing to operate in both environments enrols separately in each. |
 | Cross-context envelope replay | The signed login payload is `{nonce, type: "irlid_login_v5"}` — the `type` discriminator binds the signature to the login context. An envelope produced for login cannot be accepted by any other v5-signing endpoint (e.g., a future `/user/sign-arbitrary-statement`) because the recomputed payload hash would not match. Conversely, an envelope produced for receipt signing has different payload fields and so cannot be replayed at `/org/login/claim`. Each context owns its own discriminator. |
