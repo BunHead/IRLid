@@ -921,23 +921,27 @@ A user MAY enrol multiple devices. Each device contributes its own public key. T
 Two new tables on the Worker D1 database:
 
 ```sql
--- One row per human.
-CREATE TABLE users (
+-- One row per human who can act in the Org Portal. Named portal_users
+-- (not users) to avoid collision with the existing users table that stores
+-- live-IRLid Google-OAuth account records (see schema.sql). These are
+-- distinct concepts in v5.5; v6+ may unify them under a single humans table
+-- if the data shapes converge.
+CREATE TABLE portal_users (
   id           TEXT PRIMARY KEY,        -- ULID or UUID
   pub_jwk      TEXT NOT NULL,           -- canonical-serialised JWK, JSON string
-  pub_fp       TEXT NOT NULL UNIQUE,    -- SHA-256(canonical(pub_jwk)), base64url
+  pub_fp       TEXT NOT NULL UNIQUE,    -- SHA-256(canonical(pub_jwk)), base64url, 16 char
   display_name TEXT,                    -- human-friendly, set during account creation
   created_at   INTEGER NOT NULL,        -- ms epoch
   updated_at   INTEGER NOT NULL
 );
-CREATE INDEX idx_users_pub_fp ON users(pub_fp);
+CREATE INDEX idx_portal_users_pub_fp ON portal_users(pub_fp);
 
 -- Many-to-many: which users belong to which orgs, with what role.
 CREATE TABLE org_memberships (
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id    TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE,
   org_id     TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   role       TEXT NOT NULL CHECK (role IN ('attendee','staff','manager','lead_admin','developer')),
-  granted_by TEXT REFERENCES users(id),  -- who added this membership; NULL for bootstrap
+  granted_by TEXT REFERENCES portal_users(id),  -- who added this membership; NULL for bootstrap
   granted_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, org_id)
 );
@@ -947,7 +951,7 @@ CREATE INDEX idx_memberships_user ON org_memberships(user_id);
 -- Short-lived session tokens issued after successful login.
 CREATE TABLE login_sessions (
   token       TEXT PRIMARY KEY,         -- opaque random, base64url, 32 bytes
-  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES portal_users(id) ON DELETE CASCADE,
   issued_at   INTEGER NOT NULL,
   expires_at  INTEGER NOT NULL,         -- 24h sliding; refreshed on use
   ip_hash     TEXT,                     -- SHA-256(client IP), audit only
@@ -960,7 +964,7 @@ CREATE TABLE login_challenges (
   nonce       TEXT PRIMARY KEY,         -- random, base64url, 16 bytes
   issued_at   INTEGER NOT NULL,
   expires_at  INTEGER NOT NULL,         -- 60 seconds default
-  claimed_by  TEXT REFERENCES users(id),  -- NULL until phone claims it
+  claimed_by  TEXT REFERENCES portal_users(id),  -- NULL until phone claims it
   session_token TEXT REFERENCES login_sessions(token),  -- set when claim succeeds
   consumed    INTEGER NOT NULL DEFAULT 0  -- 1 once the desktop has retrieved the session
 );
@@ -987,10 +991,12 @@ Device-Desktop (admin portal)              Worker                          Devic
                                                                                 phone camera; phone
                                                                                 browser navigates to
                                                                                 /org-login.html
-                                                                            [6] Page reads v5 cred
-                                                                                (or v3/v4 keypair),
+                                                                            [6] Page reads v5 cred,
                                                                                 signs the challenge:
-                                                                                  sig = sign(nonce)
+                                                                                  payload = {nonce, type:
+                                                                                    "irlid_login_v5"}
+                                                                                  sig = sign(SHA-256(
+                                                                                    canonical(payload)))
                                                                             [7] POST /org/login/claim
                                                                                 {nonce, pub_jwk,
                                                                                  sig, [webauthn]}
@@ -1126,6 +1132,8 @@ The `developer` role is reserved for the bootstrap fingerprint (and any subseque
 | Brute-force claim attempts | `/org/login/claim` rate-limits to 3 failed attempts per `(source_ip, nonce)` window within 60 seconds; a fourth attempt returns 429 with a 5-minute cooldown. The 60-second nonce TTL itself caps total attempts per challenge to a small number even without the rate-limit. Combined effect: an attacker has at most ~18 claim attempts per minute against a given nonce before lockout, against a 16-byte search space — astronomically infeasible. |
 | Source-IP correlation | The `login_sessions.ip_hash` is a one-way SHA-256 of the source IP, used for forensic correlation only (e.g., spotting that one IP suddenly issued sessions for ten different users in a minute). It is never used as an authorisation factor. Logs are retained per Cloudflare default + a per-org rolling-window policy (forward-defined, v6+). |
 | Cross-environment cred reuse | RP ID binding (§13.12) prevents test-env credentials from logging into production and vice versa. A user wishing to operate in both environments enrols separately in each. |
+| Cross-context envelope replay | The signed login payload is `{nonce, type: "irlid_login_v5"}` — the `type` discriminator binds the signature to the login context. An envelope produced for login cannot be accepted by any other v5-signing endpoint (e.g., a future `/user/sign-arbitrary-statement`) because the recomputed payload hash would not match. Conversely, an envelope produced for receipt signing has different payload fields and so cannot be replayed at `/org/login/claim`. Each context owns its own discriminator. |
+| Malicious worker URL in login QR | The login QR encodes both the nonce AND the worker URL the phone POSTs to. A QR pointing at `attacker.example.com/org/login/claim` would direct the phone's signed envelope to the attacker. `org-login.html` defends with an allowlist of acceptable Worker hosts (irlid-api.irlid-bunhead.workers.dev, irlid-api-test.irlid-bunhead.workers.dev, plus localhost for dev) and refuses to POST to anything outside it. Even without the allowlist the attack value is low — the nonce in the envelope was chosen by the attacker and is not in the legitimate Worker's challenge table — but defence in depth blocks the path entirely. |
 
 ### 14.11 Backward compatibility
 

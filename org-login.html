@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<!-- IRLid org-portal login page (PROTOCOL.md §14.5).
+     Phone scans the QR shown on a desktop; the QR encodes this URL with
+     ?nonce=<n>&worker=<workerOrigin>. Page reads the v5 credential, signs
+     the canonical payload {nonce, type:"irlid_login_v5"}, and POSTs the
+     signed envelope to <workerOrigin>/org/login/claim. The desktop is
+     polling the same Worker on the same nonce and picks up the session
+     within ~1.5s of the claim landing. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>IRLid — Sign in</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .login-wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+    .login-wrap h2 { margin: 14px 0 6px; font-size: 22px; }
+    .login-sub { margin: 0 0 18px; color: #666; font-size: 14px; line-height: 1.5; }
+    .login-status {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; border-radius: 10px; font-size: 14px; font-weight: 600;
+      margin: 0 0 18px;
+    }
+    .login-status .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .login-status.pending { background: #f5f5f5; color: #666; }
+    .login-status.pending .dot { background: #ccc; }
+    .login-status.busy { background: #fff8e1; color: #a05000; }
+    .login-status.busy .dot { background: #e65100; animation: blink 1s infinite; }
+    .login-status.warn { background: #fff8e1; color: #a05000; }
+    .login-status.warn .dot { background: #e65100; }
+    .login-status.pass { background: #eaffea; color: #1a6e1a; }
+    .login-status.pass .dot { background: #1a6e1a; }
+    .login-status.fail { background: #ffeeee; color: #a00000; }
+    .login-status.fail .dot { background: #a00000; }
+    @keyframes blink { 50% { opacity: 0.3; } }
+    .login-primary, .login-secondary {
+      display: block; width: 100%; min-height: 52px;
+      padding: 14px; font-size: 16px; font-weight: 600;
+      border-radius: 10px; cursor: pointer;
+      margin-bottom: 10px;
+    }
+    .login-primary { background: #111; color: #fff; border: none; }
+    .login-primary:disabled { background: #999; cursor: not-allowed; }
+    .login-secondary { background: #fff; color: #111; border: 1.5px solid #111; }
+    .login-diag-summary {
+      cursor: pointer; font-size: 13px; color: #666; padding: 6px 0;
+    }
+    .login-diag {
+      width: 100%; min-height: 140px; margin-top: 8px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 11px; padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+      background: #f8f8f8; resize: vertical;
+    }
+    /* Mobile-nav cosmetic — page has only Home + Settings, override the global
+       2×2 grid like v5-test.html does. Won't affect 4-button pages. */
+    @media (max-width: 720px) {
+      body { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0)); }
+      .site-nav { height: 62px; grid-template-rows: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo" onerror="this.style.display='none'" />
+      </a>
+    </div>
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="settings.html">Settings</a>
+    </nav>
+  </header>
+
+  <main class="page-main">
+    <div class="login-wrap">
+      <h2>Sign in to IRLid org portal</h2>
+      <p class="login-sub">
+        Tap "Sign in with v5" below. Your phone will ask for Face ID / fingerprint /
+        Windows Hello to confirm. The desktop showing the QR will pick up your session
+        within ~2 seconds. You don't need to type anything.
+      </p>
+
+      <div id="loginStatus" class="login-status pending" role="status" aria-live="polite">
+        <span class="dot"></span>
+        <span id="statusText">Checking login link…</span>
+      </div>
+
+      <button type="button" id="signInBtn" class="login-primary" disabled>Sign in with v5</button>
+      <button type="button" id="cancelBtn" class="login-secondary">Cancel</button>
+
+      <details id="diagWrap" style="margin-top:18px;">
+        <summary class="login-diag-summary">Show diagnostics</summary>
+        <textarea id="diagOut" class="login-diag" readonly aria-label="Diagnostic output"></textarea>
+      </details>
+    </div>
+  </main>
+
+  <footer class="site-footer" style="margin-top:30px;">
+    &copy; 2026 Spencer Austin. All rights reserved.
+    &nbsp;&middot;&nbsp;
+    <a href="settings.html">Settings</a>
+  </footer>
+
+  <script src="js/sign.js?v=5.0"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      // ── Read query params ────────────────────────────────────────────────
+      const params = new URLSearchParams(location.search);
+      const nonce = (params.get("nonce") || "").trim();
+      const workerRaw = (params.get("worker") || "").trim();
+
+      // ── Worker URL allowlist (PROTOCOL.md §14.5 + safety) ─────────────────
+      // The worker URL is supplied in the QR. A malicious QR could try to point
+      // the phone at attacker.example.com so the attacker captures the signed
+      // envelope. Although the captured envelope is bound to a nonce the
+      // attacker chose (not one in the legitimate Worker's table), we still
+      // refuse to POST anywhere outside the known IRLid Worker hosts as
+      // defence in depth.
+      const WORKER_ALLOWLIST = [
+        /^https:\/\/irlid-api(-test)?\.irlid-bunhead\.workers\.dev\/?$/,
+        /^http:\/\/localhost:\d+\/?$/,
+        /^http:\/\/127\.0\.0\.1:\d+\/?$/
+      ];
+      function workerOk(url) {
+        if (!url) return false;
+        return WORKER_ALLOWLIST.some(re => re.test(url));
+      }
+
+      // ── UI helpers ────────────────────────────────────────────────────────
+      function setStatus(state, text) {
+        const el = document.getElementById("loginStatus");
+        el.className = "login-status " + state;
+        document.getElementById("statusText").textContent = text;
+      }
+      function diag(line) {
+        const ta = document.getElementById("diagOut");
+        const stamp = new Date().toLocaleTimeString("en-GB", { hour12: false });
+        ta.value += "[" + stamp + "] " + line + "\n";
+        ta.scrollTop = ta.scrollHeight;
+      }
+      function setBtn(label, disabled) {
+        const b = document.getElementById("signInBtn");
+        b.textContent = label;
+        b.disabled = !!disabled;
+      }
+
+      // ── Initial validation ────────────────────────────────────────────────
+      let canSign = false;
+      function init() {
+        diag("Page loaded. nonce=" + JSON.stringify(nonce) + " worker=" + JSON.stringify(workerRaw));
+        if (!nonce || !/^[A-Za-z0-9_-]{8,128}$/.test(nonce)) {
+          setStatus("fail", "Invalid login link — missing or malformed nonce.");
+          diag("VALIDATION FAIL: nonce shape rejected.");
+          return;
+        }
+        if (!workerOk(workerRaw)) {
+          setStatus("fail", "Invalid login link — worker URL not recognised.");
+          diag("VALIDATION FAIL: worker not in allowlist.");
+          return;
+        }
+        if (typeof irlidV5Enrolled !== "function" || !irlidV5Enrolled()) {
+          setStatus("warn", "No v5 credential on this device.");
+          diag("This device has not enrolled a hardware-backed key. Open Settings to enrol.");
+          setBtn("Open Settings to enrol", false);
+          // Re-target the button to navigate to settings instead of signing.
+          const b = document.getElementById("signInBtn");
+          b.replaceWith(b.cloneNode(true));
+          document.getElementById("signInBtn").addEventListener("click", () => {
+            location.href = "settings.html#v5";
+          });
+          return;
+        }
+        setStatus("pending", "Ready to sign. Tap below.");
+        diag("v5 credential present. Ready.");
+        canSign = true;
+        setBtn("Sign in with v5", false);
+      }
+
+      // ── Sign + POST claim ─────────────────────────────────────────────────
+      async function signAndClaim() {
+        if (!canSign) return;
+        setBtn("Signing…", true);
+        setStatus("busy", "Confirm with Face ID / fingerprint / Hello…");
+
+        try {
+          // Build the canonical login payload. PROTOCOL.md §14: the type
+          // discriminator binds this signature to the login context, so it
+          // cannot be replayed in any other v5-signing context.
+          const payload = { nonce: nonce, type: "irlid_login_v5" };
+          const canonStr = canonical(payload);
+          diag("Payload canonical: " + canonStr);
+
+          const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonStr));
+          const hashBytes = new Uint8Array(hashBuf);
+
+          // Sign via v5 (uses navigator.credentials.get, will prompt for UV).
+          const sigEnv = await irlidV5SignPayloadHash(hashBytes);
+          diag("Signed. UV flag asserted, clientData.challenge matches.");
+          setStatus("busy", "Sending to Worker…");
+
+          // Read pub_jwk from localStorage and reduce to compact form (matches
+          // Worker's expected shape — see PROTOCOL.md §13.7 verifyV5Envelope).
+          const pubJwkRaw = localStorage.getItem("irlid_v5_pub_jwk");
+          if (!pubJwkRaw) throw new Error("v5 pub_jwk missing from localStorage");
+          const pubJwk = compactJwk(JSON.parse(pubJwkRaw));
+
+          const claimUrl = workerRaw.replace(/\/$/, "") + "/org/login/claim";
+          diag("POST " + claimUrl);
+
+          const resp = await fetch(claimUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              nonce: nonce,
+              pub_jwk: pubJwk,
+              sig: b64urlEncode(sigEnv.sigRaw),
+              webauthn: {
+                authData: b64urlEncode(sigEnv.authData),
+                clientData: b64urlEncode(sigEnv.clientData)
+              }
+            })
+          });
+
+          let data = null;
+          try { data = await resp.json(); } catch (_) { data = {}; }
+          diag("Response " + resp.status + " " + JSON.stringify(data));
+
+          if (resp.ok) {
+            setStatus("pass", "Signed in. You may close this tab.");
+            setBtn("Done", true);
+          } else if (resp.status === 410) {
+            setStatus("fail", "QR expired. Get a fresh one from the desktop.");
+            setBtn("Try again", false);
+          } else if (resp.status === 429) {
+            const retry = Number(data.retry_after) || 300;
+            const mins = Math.max(1, Math.ceil(retry / 60));
+            setStatus("fail", "Rate limited. Wait " + mins + " minute" + (mins === 1 ? "" : "s") + ".");
+            setBtn("Try again later", true);
+          } else {
+            const reason = (data && data.error) ? data.error : ("Worker returned " + resp.status);
+            setStatus("fail", "Sign-in failed: " + reason);
+            setBtn("Try again", false);
+          }
+        } catch (e) {
+          const msg = (e && e.message) ? e.message : String(e);
+          diag("ERROR: " + msg);
+          setStatus("fail", "Sign-in failed: " + msg);
+          setBtn("Try again", false);
+        }
+      }
+
+      // ── Wire ──────────────────────────────────────────────────────────────
+      document.addEventListener("DOMContentLoaded", () => {
+        init();
+        document.getElementById("signInBtn").addEventListener("click", () => {
+          if (canSign) signAndClaim();
+        });
+        document.getElementById("cancelBtn").addEventListener("click", () => {
+          // window.close() generally fails on tabs the script didn't open;
+          // fall back to navigating home.
+          try { window.close(); } catch (_) {}
+          setTimeout(() => { location.href = "index.html"; }, 100);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
