@@ -323,5 +323,98 @@
   </div>
 </div>
 
+<!-- ========== AXIS BREAK — different dimension ========== -->
+<div style="max-width:960px; margin:48px auto 24px; text-align:center;">
+  <div style="display:inline-flex; align-items:center; gap:14px; color:#555; font-size:11px; text-transform:uppercase; letter-spacing:0.12em;">
+    <span style="height:1px; width:60px; background:linear-gradient(to right, transparent, #444);"></span>
+    <span>Different axis</span>
+    <span style="height:1px; width:60px; background:linear-gradient(to left, transparent, #444);"></span>
+  </div>
+</div>
+
+<h1 style="text-align:center; font-size:22px; margin:0 0 6px; color:white;">Application Surfaces</h1>
+<p style="text-align:center; color:#666; font-size:13px; margin:0 0 30px;">Where the protocol gets deployed — parallel deployments, one shared cryptographic core</p>
+
+<div style="max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:12px;">
+
+  <!-- Surface 1: Consumer (LIVE — green) -->
+  <div style="background:#0d1a0d; border:1px solid #1a4020; border-radius:10px; padding:18px 22px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#2d7a3a;"></div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Surface 1 — <span style="color:#4caf6e;">LIVE</span></h2>
+    <div style="font-size:16px; font-weight:700; color:#4caf6e; margin-bottom:8px;">Consumer</div>
+    <div style="font-size:13px; color:#888; margin-bottom:12px;">Two phones, two scans, one cryptographic receipt. The default deployment — no install, no account, no biometrics by default. Anyone with a browser is on this surface.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">index.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">accept.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">scan.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">receipt.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">check.html (third-party verify)</span>
+    </div>
+  </div>
+
+  <!-- Surface 2: Org Portal — Unified Check-in (TEST ENV — blue) -->
+  <div style="background:#0d0d1a; border:1px solid #2a2a4a; border-radius:10px; padding:18px 22px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#4a6cf7;"></div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Surface 2 — <span style="color:#7b9fff;">TEST ENV</span></h2>
+    <div style="font-size:16px; font-weight:700; color:#7b9fff; margin-bottom:8px;">Org Portal — Unified Check-in</div>
+    <div style="font-size:13px; color:#888; margin-bottom:12px;">Branded event QR + role-gated dashboard for venues, conferences, workplaces. Doorman flow with manual-acceptance disclaimer; cryptographic identity loop enabling "scan once, recognised forever". Currently in test environment; staff auth + step-up signing on saves still in flight.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e2040; color:#7b9fff;">OrgCheckin.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e2040; color:#7b9fff;">org.html (legacy)</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e2040; color:#7b9fff;">Role-gated dashboard</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e2040; color:#7b9fff;">Cryptographic identity loop</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e2040; color:#7b9fff;">Identity rebind / recovery</span>
+    </div>
+  </div>
+
+  <!-- Surface 3: Embeddable Widget (LIVE — green) -->
+  <div style="background:#0d1a0d; border:1px solid #1a4020; border-radius:10px; padding:18px 22px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#2d7a3a;"></div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Surface 3 — <span style="color:#4caf6e;">LIVE</span></h2>
+    <div style="font-size:16px; font-weight:700; color:#4caf6e; margin-bottom:8px;">Embeddable Widget — reCAPTCHA-style</div>
+    <div style="font-size:13px; color:#888; margin-bottom:12px;">Any website can drop in a single &lt;iframe&gt; and use a physical meeting as a verification gate. One postMessage listener, no SDK, no API key, no dependency on IRLid's servers staying up. The receipt is a self-verifying signed object — the parent page can verify it independently or trust the embedded widget's verification.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">widget.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">demo-login.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">postMessage API</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#1e3b26; color:#4caf6e;">No SDK required</span>
+    </div>
+  </div>
+
+  <!-- Surface 4: Humanitarian Last-Mile (PARTNERSHIP-GATED — amber) -->
+  <div style="background:#1a1a0d; border:1px solid #3a3010; border-radius:10px; padding:18px 22px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#f0a500;"></div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Surface 4 — <span style="color:#f0c050;">PARTNERSHIP-GATED</span></h2>
+    <div style="font-size:16px; font-weight:700; color:#f0c050; margin-bottom:8px;">Humanitarian Last-Mile</div>
+    <div style="font-size:13px; color:#888; margin-bottom:12px;">Drone-delivered aid + local recipient handshake. Proof of delivery in places without addresses, beyond reliable connectivity. Partnership with ASE Tech / Wisdom Aidenogie for sub-Saharan Africa deployment. Retroreflective QR research validated as a live engineering field; the protocol can carry the proof while the courier moves on.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#2a2210; color:#f0c050;">pitch-humanitarian.html</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#2a2210; color:#f0c050;">Drone QR handshake</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#2a2210; color:#f0c050;">Retroreflective QR (researched)</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#2a2210; color:#f0c050;">Offline-first, sync later</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#2a2210; color:#f0c050;">NGO audit trail</span>
+    </div>
+  </div>
+
+  <!-- Surface 5: Multi-Party Custody (V6+ DESIGN — purple) -->
+  <div style="background:#1a0d1a; border:1px solid #3a1040; border-radius:10px; padding:18px 22px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:0; left:0; right:0; height:3px; background:#c050f0;"></div>
+    <h2 style="font-size:12px; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; opacity:0.7;">Surface 5 — <span style="color:#d080ff;">V6+ DESIGN</span></h2>
+    <div style="font-size:16px; font-weight:700; color:#d080ff; margin-bottom:8px;">Multi-Party Custody</div>
+    <div style="font-size:13px; color:#888; margin-bottom:12px;">Chain-of-custody receipts for handovers — drop-offs, prison transfers, school pickup chains, package handoffs. Each link signed by the previous holder; if the chain breaks, it ends at a known last-known-signature point rather than dissolving into ambiguity. Anti-fragile by design.</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#220d2a; color:#d080ff;">PROTOCOL.md §10.4 (queued)</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#220d2a; color:#d080ff;">Chain-of-custody receipts</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#220d2a; color:#d080ff;">Known-break-point semantics</span>
+      <span style="padding:6px 12px; border-radius:20px; font-size:12px; font-weight:500; background:#220d2a; color:#d080ff;">Anti-fragile by design</span>
+    </div>
+  </div>
+
+</div>
+
+<p style="max-width:760px; margin:32px auto 32px; padding:0 20px; text-align:center; color:#555; font-size:12px; line-height:1.6;">
+  These surfaces share the same protocol core. A v3-era receipt verifies the same way whether it comes from a consumer handshake at a coffee shop, a drone-delivered parcel in a rural courtyard, or a custody handover at a prison gate. Future protocol versions (above) extend what's cryptographically possible; application surfaces (here) extend where the protocol meets the world.
+</p>
+
 </body>
 </html>

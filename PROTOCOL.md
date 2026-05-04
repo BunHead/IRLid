@@ -16,6 +16,7 @@
 | v3 | `canonical()` replaces `JSON.stringify()` for all hashing; `offer.hash`, `a.hash`, `b.hash` no longer transmitted in compact receipts — verifier recomputes all; compact JWK public keys |
 | v4 | Trust history (depth, location diversity, device consistency); optional WebAuthn bio-metric gate (`bioVerified` cryptographically bound into signed payload); redacted-receipt mode (`gps_hash` replaces lat/lon/acc); hotspot novelty scoring. Shipped 17 April 2026. All optional, off by default. |
 | v5 | Hardware-backed signing keys via WebAuthn / Passkeys — private key lives in Secure Enclave (Apple) / TEE (Android) / TPM (Windows Hello), never extractable. v5 receipts carry a `webauthn` envelope (`authData`, `clientData`) alongside the existing ECDSA `sig` field. Closes localStorage extraction (THREAT-MODEL.md §III.2). Score 70/100 when v5 verifies. Specification in §13. In-implementation, default OFF. |
+| v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. |
 
 ---
 
@@ -889,4 +890,286 @@ The §III.2 row is the headline. cym13's r/netsec criticism, which is the strong
 
 ---
 
-*Sections 10, 11, 12, and 13 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
+## 14. Identity-Bound Sessions (v5.5)
+
+**Status:** Specification draft, 4 May 2026. Implementation phased as Batches A → B → C. Test environment first, live environment after dogfooding.
+
+This section defines how IRLid uses its own signing primitives as a sign-in mechanism for the Org Portal and any future role-gated surfaces. The protocol commits to a single identity model — one human, one durable public key — and to "scan to sign in" as the canonical login pattern.
+
+§14 is **additive on top of §13**. It does not modify the receipt format. It re-uses the v3/v4 ECDSA signing path AND the v5 hardware-backed envelope as authentication primitives at a different layer (session establishment) than they already serve (co-presence proof). The protocol's primary moat — co-presence at signing time — is preserved unchanged at the receipt layer.
+
+### 14.1 Motivation
+
+The current org-portal sign-in is `X-Org-Key: org_<random>`: a single shared secret, copy-pasted, unrecoverable if lost, with no concept of "which human is acting." Every operation traces back to "the org," not to a person. This is operationally adequate for a single-admin test bench and architecturally inadequate for a real venue.
+
+A protocol that already proves "this device with this private key was here at this time" can prove "this device with this private key is the human signing in right now" by the same primitive. The login challenge is just a different payload through the same signing pipeline. Reusing the primitive means:
+- Zero new cryptography to audit.
+- Zero new keys for users to hold (their existing v3/v4/v5 IRLid identity IS their sign-in identity).
+- Sign-in trace is auditable to the same standard as receipts.
+- Future Wisdom drone operators, prison-transfer custodians, and inter-org delegations all use the same identity layer.
+
+### 14.2 The identity primitive
+
+**One human = one durable public key.** A user's identity is the SHA-256 fingerprint of their canonical JWK public key (`pub_fp`). This is the same fingerprint already produced by `js/sign.js:fpFromJwk()` and used in the Imbue pilot for attendee device-key recognition. The pattern is already proven in production for attendees; §14 applies it to staff and admins.
+
+A v5-enrolled user's `pub_fp` identifies the WebAuthn-bound credential (Secure Enclave / TEE / TPM). A v3/v4-only user's `pub_fp` identifies their localStorage ECDSA keypair. Both are valid identities; v5 carries a stronger threat-model claim (§13.17) but identity equality is solely "same pub_fp, same human" regardless of the storage tier.
+
+A user MAY enrol multiple devices. Each device contributes its own public key. The `users` table stores the primary key; an associated `user_devices` table (forward-defined, not in v5.5 scope) will eventually carry the full set. v5.5 ships with single-device-per-user; multi-device is v5.6+.
+
+### 14.3 Storage model
+
+Two new tables on the Worker D1 database:
+
+```sql
+-- One row per human.
+CREATE TABLE users (
+  id           TEXT PRIMARY KEY,        -- ULID or UUID
+  pub_jwk      TEXT NOT NULL,           -- canonical-serialised JWK, JSON string
+  pub_fp       TEXT NOT NULL UNIQUE,    -- SHA-256(canonical(pub_jwk)), base64url
+  display_name TEXT,                    -- human-friendly, set during account creation
+  created_at   INTEGER NOT NULL,        -- ms epoch
+  updated_at   INTEGER NOT NULL
+);
+CREATE INDEX idx_users_pub_fp ON users(pub_fp);
+
+-- Many-to-many: which users belong to which orgs, with what role.
+CREATE TABLE org_memberships (
+  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  org_id     TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  role       TEXT NOT NULL CHECK (role IN ('attendee','staff','manager','lead_admin','developer')),
+  granted_by TEXT REFERENCES users(id),  -- who added this membership; NULL for bootstrap
+  granted_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, org_id)
+);
+CREATE INDEX idx_memberships_org ON org_memberships(org_id);
+CREATE INDEX idx_memberships_user ON org_memberships(user_id);
+
+-- Short-lived session tokens issued after successful login.
+CREATE TABLE login_sessions (
+  token       TEXT PRIMARY KEY,         -- opaque random, base64url, 32 bytes
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  issued_at   INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL,         -- 24h sliding; refreshed on use
+  ip_hash     TEXT,                     -- SHA-256(client IP), audit only
+  user_agent  TEXT
+);
+CREATE INDEX idx_sessions_expires ON login_sessions(expires_at);
+
+-- Pending login challenges (the QR-on-screen → phone-scans → desktop-polls flow).
+CREATE TABLE login_challenges (
+  nonce       TEXT PRIMARY KEY,         -- random, base64url, 16 bytes
+  issued_at   INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL,         -- 60 seconds default
+  claimed_by  TEXT REFERENCES users(id),  -- NULL until phone claims it
+  session_token TEXT REFERENCES login_sessions(token),  -- set when claim succeeds
+  consumed    INTEGER NOT NULL DEFAULT 0  -- 1 once the desktop has retrieved the session
+);
+```
+
+The api_key column on `organisations` is **retained** as a machine-to-machine credential (Workers-only, never exposed to humans, used by future automation and the existing widget integration path). v5.5 shifts humans to session-token auth; service accounts continue to use api_key.
+
+### 14.4 The login flow
+
+```
+Device-Desktop (admin portal)              Worker                          Device-Phone
+─────────────────────────────              ──────                          ─────────────
+[1] User clicks "Sign in"
+    → POST /org/login/init
+                                          [2] Generate nonce, write
+                                              login_challenges row,
+                                              return {nonce, expires_at}
+[3] Render QR encoding
+    https://irlid.co.uk/org-login.html
+      ?nonce=<n>&worker=<w>
+[4] Begin polling
+    GET /org/login/poll?nonce=<n>
+                                                                            [5] User scans QR with
+                                                                                phone camera; phone
+                                                                                browser navigates to
+                                                                                /org-login.html
+                                                                            [6] Page reads v5 cred
+                                                                                (or v3/v4 keypair),
+                                                                                signs the challenge:
+                                                                                  sig = sign(nonce)
+                                                                            [7] POST /org/login/claim
+                                                                                {nonce, pub_jwk,
+                                                                                 sig, [webauthn]}
+                                          [8] Verify envelope (re-uses
+                                              §13.7 verifyV5Envelope or
+                                              v3/v4 ECDSA verify path).
+                                              Look up users.pub_fp; if
+                                              missing AND pub_fp ==
+                                              BOOTSTRAP_DEVELOPER_FP,
+                                              insert as founding user.
+                                              Else 401 user_not_recognised.
+                                          [9] Issue session_token,
+                                              update challenge row.
+                                                                            [10] Phone shows
+                                                                                 "Signed in. You may
+                                                                                 close this tab."
+[11] Next poll returns
+     {session_token, user_id,
+      orgs: [...],
+      can_create_org: bool}
+[12] Store token; redirect
+     to dashboard or new-org
+     creation form.
+```
+
+The login QR is short-lived (default 60 seconds). Past expiry, the desktop UI regenerates a fresh nonce; old QRs are useless even if photographed.
+
+### 14.5 The login QR format
+
+```
+https://irlid.co.uk/org-login.html?nonce=<base64url>&worker=<https://irlid-api.../>
+```
+
+- **`nonce`** — 16 random bytes, base64url, server-issued, single-use, expiring.
+- **`worker`** — the API origin to POST `/org/login/claim` to. Allows test environment vs production discrimination.
+- The page at `org-login.html` is published at the same origin as `irlid.co.uk` so existing v5 credentials (which are bound to `rpId: "irlid.co.uk"` per §13.12) are usable. Test environment uses a parallel page at `bunhead.github.io/IRLid-TestEnvironment/org-login.html` with credentials bound to its own RP ID.
+- The QR is rendered with the same high-correction-level `makeQR` helper that produces venue QRs. No new QR primitive.
+
+### 14.6 Bootstrap
+
+**Primary path — hardcoded developer fingerprint.** A single `BOOTSTRAP_DEVELOPER_FP` constant in the Worker config (Cloudflare environment variable, not committed source) carries the founder's `pub_fp`. When `/org/login/claim` receives a signed envelope whose `pub_fp` matches this constant AND no `users` row exists for that fingerprint, the Worker creates the user row with implicit `role: 'developer'` on a synthetic `__system__` org. From that point onward, the developer can:
+- Create new orgs (`POST /user/create-org`) and is automatically inserted as `lead_admin` on each.
+- Add other users to orgs by registering their `pub_fp` (each new user proves ownership by signing a one-time invitation — see fallback below).
+- All without requiring any pre-existing email, password, or other account infrastructure.
+
+This pattern is appropriate for the test environment and the early production phase where the founder personally bootstraps each new venue's account. It does not scale; it is not intended to.
+
+**Fallback path — invite tokens.** Once email infrastructure is live (`support@irlid.co.uk` already provisioned, see live-IRLid roadmap), a lead_admin or developer can issue an `invite_token` for a new user. The token grants one-time `pub_fp`-registration rights for a specific role on a specific org. Mechanism:
+1. Existing admin calls `POST /user/invite` with `{email, org_id, role}`. Worker generates a token, sends an email with a link `https://irlid.co.uk/org-login.html?invite=<token>`.
+2. Recipient opens the link on their phone. Page asks them to scan in (signing a special "claim invite" challenge with their existing IRLid identity, OR enrolling a fresh v5 credential if they're new to IRLid entirely).
+3. On valid signed envelope, Worker creates `users` row (if needed) and inserts the membership. The token is consumed.
+
+This fallback is **forward-defined** and ships in v5.6+. v5.5 ships with the primary developer-bootstrap path only.
+
+The `BOOTSTRAP_DEVELOPER_FP` is rotateable: changing the Cloudflare env var instantly transfers founder rights to a different device's `pub_fp`. Loss of the founding device does not lock out the system because the Worker config is editable through the Cloudflare dashboard (which itself uses a separate identity layer — Cloudflare account auth).
+
+### 14.7 Session token semantics
+
+- **Token format:** 32 random bytes, base64url-encoded. Opaque server-side reference, never structured (not a JWT). The token carries no claims — it is purely a reference into the `login_sessions` table. **Why opaque, not JWT:** JWTs (JSON Web Tokens) are signed structured tokens that let servers verify a user's claims without consulting a database — useful when many independent services need to validate the same token without sharing state. IRLid does not have that problem: a single Cloudflare Worker is the only auth service, and every authed request hits the D1 database for other reasons anyway. JWTs add real costs without buying anything in our architecture: (a) **revocation** still requires a database denylist, defeating the stateless benefit and adding a new failure mode; (b) JWTs have a known footgun history (`alg: none` accepted by some libraries, key-confusion between RS256/HS256, expired-token grace-period bugs); (c) signed tokens require a signing key to manage and rotate, increasing operational surface; (d) JWT contents are visible to anyone who intercepts the token, making "carry as little as possible in the token" a discipline a stateless model fights against. Opaque tokens carry only entropy. Every auth decision is a database row that can be inspected, audited, and revoked atomically. This matches IRLid's protocol-wide principle of "make state legible" — every receipt is a self-describing object, every membership has a `granted_by`, every session has an issuance and an expiry. The session token follows the same shape: a row, not a claim.
+- **TTL:** 24 hours from issuance. Sliding refresh: every successful authed request resets `expires_at = now() + 24h`.
+- **Header:** `Authorization: Bearer <token>` on every authed request. The legacy `X-Org-Key` header continues to work for service accounts but is rejected for any endpoint that requires user identity (e.g., new-org creation).
+- **Revocation:** explicit logout (`POST /user/logout`) deletes the row. Admin-revocable: a lead_admin can revoke any session belonging to a user in their org by deleting the row.
+- **Audit:** `ip_hash` (SHA-256 of source IP, salt-less since this is anti-fingerprinting at log-read time, not at issuance time) and `user_agent` are stored for forensic purposes. Not used for authorisation decisions.
+
+The session token is **not** itself a signing credential. It only authenticates HTTP requests. Receipt signing continues to use the user's v3/v4/v5 IRLid keypair, completely independent of any active session.
+
+### 14.8 Endpoint contracts
+
+```
+POST /org/login/init
+  Body: {} (no fields required)
+  Response: 200 {nonce: "<base64url>", expires_at: <ms>}
+
+GET /org/login/poll?nonce=<n>
+  Response: 200 {status: "pending"} (challenge exists, not yet claimed)
+            200 {status: "claimed", session_token, user_id, display_name,
+                 orgs: [{id, name, role, slug}], can_create_org: bool}
+            404 {error: "challenge_expired"} (nonce gone)
+
+POST /org/login/claim
+  Body: {nonce, pub_jwk, sig, webauthn?: {authData, clientData}}
+  Response: 200 {ok: true} (the desktop poller will pick up the session next tick)
+            401 {error: "auth_failed"}            (single generic error covering invalid envelope
+                                                   AND unrecognised user — see §14.10 oracle defence)
+            410 {error: "challenge_expired"}      (nonce gone or already consumed)
+            429 {error: "rate_limited", retry_after: <seconds>}
+                                                  (3 failed claim attempts on the same nonce or from
+                                                   the same source IP within 60s triggers a 5-minute
+                                                   cooldown; per §14.10 brute-force defence)
+
+GET /user/orgs
+  Header: Authorization: Bearer <session_token>
+  Response: 200 {orgs: [{id, name, role, slug, theme}]}
+
+POST /user/create-org
+  Header: Authorization: Bearer <session_token>
+  Body: {name: "<string>", website_url?: "<url>", staff?: [{pub_jwk, role, display_name}]}
+  Allowed only when user.role === 'developer' OR user has lead_admin on at least one existing org.
+  Response: 201 {org: {id, name, slug, api_key}, memberships: [...], theme_scrape_status: "queued"|"none"}
+
+POST /user/logout
+  Header: Authorization: Bearer <session_token>
+  Response: 204 (idempotent — succeeds even if token already gone)
+```
+
+The `theme_scrape_status: "queued"` field is a forward-defined hook for Batch D (website scraping). v5.5 returns `"none"` here; the Worker function that does the scrape lands later.
+
+### 14.9 Role model
+
+| Role | Read-only ops | Mutating ops on attendance | Admin ops on memberships | Org settings | Create new orgs |
+|------|--------------|---------------------------|-------------------------|--------------|-----------------|
+| attendee | Yes (their own attendance only) | None | None | None | No |
+| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review | None | None | No |
+| manager | Yes | All staff + edit/delete attendance + edit expected list | Add/remove staff and attendees in this org | View only | No |
+| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add lead_admins | Edit all | Yes (multiple) |
+| developer | Yes (any org via __system__) | All lead_admin in any org | All in any org | All in any org | Yes (unlimited) |
+
+A user MAY hold different roles in different orgs. A real example: someone is `lead_admin` of their own conference venue and `staff` at a friend's event next weekend. The `org_memberships` table is the source of truth; the session token resolves to a `user_id`, the dashboard queries memberships per org.
+
+The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level.
+
+### 14.10 Threat model
+
+| Attack | Defence |
+|--------|---------|
+| Login QR shoulder-surfed | Nonce is single-use and 60-second TTL; even an instant photograph is useless once consumed. |
+| Replay of signed envelope | Each challenge nonce is one-time. Worker rejects duplicate `nonce`. The signed envelope binds the specific nonce. |
+| Stolen session token | TTL 24h; sliding refresh tied to active use; manual revocation. Token is opaque and server-checked on every request. Attacker with token but no signing key cannot create new logins or sign receipts. |
+| Stolen device with active session | UV is required at next sensitive operation if v5 is enabled (re-auth on `/user/create-org` and similar). Lower-tier ops (read attendance) ride the existing session. |
+| Bootstrap fingerprint compromise | Rotate `BOOTSTRAP_DEVELOPER_FP` env var; old fp instantly loses founder rights. Existing user rows persist; only the bootstrap-elevation path closes. |
+| Silent membership tampering | Every membership row has `granted_by` and `granted_at`. Bulk audit query trivially surfaces the chain of who added whom. Forward extension (v6+): each membership change signed by the granting admin. |
+| User-enumeration oracle | The `/org/login/claim` 401 collapses "valid signature but unknown user" and "invalid signature" into a single generic `auth_failed`. An attacker probing random pub_jwks cannot tell whether they hit a valid envelope-but-unregistered user or an outright invalid signature. The `users` table is not browsable. |
+| Brute-force claim attempts | `/org/login/claim` rate-limits to 3 failed attempts per `(source_ip, nonce)` window within 60 seconds; a fourth attempt returns 429 with a 5-minute cooldown. The 60-second nonce TTL itself caps total attempts per challenge to a small number even without the rate-limit. Combined effect: an attacker has at most ~18 claim attempts per minute against a given nonce before lockout, against a 16-byte search space — astronomically infeasible. |
+| Source-IP correlation | The `login_sessions.ip_hash` is a one-way SHA-256 of the source IP, used for forensic correlation only (e.g., spotting that one IP suddenly issued sessions for ten different users in a minute). It is never used as an authorisation factor. Logs are retained per Cloudflare default + a per-org rolling-window policy (forward-defined, v6+). |
+| Cross-environment cred reuse | RP ID binding (§13.12) prevents test-env credentials from logging into production and vice versa. A user wishing to operate in both environments enrols separately in each. |
+
+### 14.11 Backward compatibility
+
+- **Existing org api_keys continue to work** for service-account / machine-to-machine flows. Widget integrations, automation scripts, and the existing test-env paste-an-`org_<key>` flow all keep functioning during migration. Endpoints that require a user identity (e.g., `/user/create-org`, audited mutations) reject api_key auth and require Bearer session tokens.
+- **v3/v4 receipts are unaffected.** Identity-bound sessions are a Worker/portal concern; the receipt layer is untouched.
+- **Legacy "load existing key" UI** in `OrgCheckin.html` remains as a fallback path in v5.5 but is hidden behind a "Service-account login" expander. The default path is "Sign in with IRLid" (the QR scan).
+
+### 14.12 Forward considerations
+
+- **Multi-device per user (v5.6).** A user enrolling on a second device proves continuity by signing a "device addition" envelope with their existing primary device. The new device's `pub_fp` is added to a `user_devices` join table. Login works from any associated device.
+- **Federation (v6).** A user authenticated at venue A can present a signed delegation token to gain time-limited access at venue B (e.g., a touring lecturer). The delegation is itself a signed payload through the same primitive.
+- **Wisdom integration (v6+).** Drone operators / chain-of-custody handoffs use the same identity layer. A drone is a "user" with a hardware-backed `pub_fp`; its custody handoff to a recipient is a signed receipt that ALSO acts as a session-establishing event between the recipient's user account and the delivery record.
+- **Cross-org delegation (v6+).** A lead_admin at org A may issue a "guest staff" invite to a user already in org B. The invited user's session at org B doesn't transfer; they obtain a parallel session at org A scoped to the role they were invited into.
+- **PROTOCOL.md §14 is open to extension.** Any future identity primitive (e.g., post-quantum signing, social-recovery thresholds) plugs in here without modifying receipt-layer specs.
+
+### 14.13 Reference implementation phasing
+
+- **Batch A** (1 day) — D1 schema migration; `/org/login/init`, `/org/login/poll`, `/org/login/claim`; `BOOTSTRAP_DEVELOPER_FP` config plumbing. Server-side only. Test by hand-rolled curl + a node script that signs envelopes.
+- **Batch B** (1 day) — `org-login.html` page on the test environment; admin-portal sign-in screen rebuild (QR display + polling + redirect on session); flip the default away from api_key paste. Existing api_key path retained behind a "Service account" expander.
+- **Batch C** (1 day) — `/user/create-org` endpoint; new-org creation form including staff/manager scan-in flow (each new staff scans, their pub_fp is registered with the role assigned); developer-only org creation while bootstrap is the only path.
+- **Batch D** (deferred, 1 day when scheduled) — website-scrape Worker function (`HTMLRewriter` for `<meta theme-color>` + favicon URL); client-side canvas pixel-sampling for dominant logo colour; auto-apply scraped theme to the new org's `settings_json`.
+
+**Pacing (per Captain's 4 May direction):** batches ship one at a time. Batch A lands and gets eyeballed; Batch B follows only after A is tidy; Batch C follows only after B settles. Each batch is independently revertable.
+
+**Initial scope decisions (4 May):**
+- The login signing path in v5.5 is **v5-only**. No v3/v4 fallback in the login flow — the bootstrap user (Captain) is already v5-enrolled, and any future user IRLid bothers to authenticate as a real org-portal user is presumed-or-required-to-be on v5 hardware. v3/v4 keypairs continue to sign receipts (unchanged), but they do not establish portal sessions. This keeps the §III.2 closure that v5 delivered intact at the auth layer too.
+- **No orgs are signed up yet at v5.5 deploy time.** The bootstrap developer fingerprint is the only seeded identity. Captain (developer) creates the first org through the `/user/create-org` flow once Batch C lands. Any earlier dev orgs in the test environment are wiped on the schema migration.
+
+§14 is **stable specification** before Batch A begins. Implementation deviations from this spec are bug reports against either the spec or the implementation, and the discrepancy is resolved before merging.
+
+### 14.14 Scaling path
+
+v5.5 ships polling because it is the simplest option that works correctly. The endpoint contracts (§14.8) are deliberately designed so the implementation can graduate to push-based delivery **without changing the public API.** Three upgrade paths in increasing order of operational complexity:
+
+**Tier 1 — long polling (10× capacity, zero architectural change).** `GET /org/login/poll` becomes a long-poll: the Worker holds the request open for up to ~25 seconds, returning early if the challenge becomes claimed and at the deadline if it stays pending. Cuts the request rate by ~16×; eliminates the perceived 1.5s claim-arrival latency. No client change required — the desktop polling loop just sees individual requests take longer. Cloudflare Workers support this natively (subject to the 30s response time limit on the free tier).
+
+**Tier 2 — Server-Sent Events (100× capacity, small client change).** `/org/login/poll` accepts `Accept: text/event-stream` and returns a streaming response that pushes `pending` keepalive events every 15s and a single `claimed` event once the phone POSTs. Cloudflare Workers + ReadableStream cleanly do this. Client change: the desktop opens an `EventSource` instead of looping `fetch`. Endpoint URL unchanged. Backward compatible — non-streaming clients still get the JSON polling response by content-negotiation.
+
+**Tier 3 — Durable Objects (millions of concurrent logins, real architectural change).** Each pending challenge is a Cloudflare Durable Object. The phone's `/org/login/claim` POSTs to the Worker which forwards to the DO; the desktop's `/org/login/poll` (or its EventSource equivalent) is held by the same DO. Claim-to-poll latency is bounded by Cloudflare's edge propagation (~tens of ms). This is the proper Cloudflare-native answer for chat-app-scale traffic. Endpoint URLs and bodies remain unchanged; the DO routing is internal.
+
+The decision to defer until evidence demands it is intentional: DO billing is per-second-active and per-request, and an org-portal login flow at single-user-per-org scale doesn't justify it. The migration is invisible to clients when it happens — which is the whole point of having defined the endpoint contracts first.
+
+**The polling row in the load-bearing table:** at 10K concurrent active login screens (which would be a remarkable success for IRLid), polling at 1.5s gives ~6,667 GET/s against the Worker. Cloudflare's free tier is 100K requests/day and the paid tier is unmetered for sub-millisecond Worker invocations — 6.6K/s is comfortable. The Tier 1 long-poll graduation kicks in well before the rate becomes uncomfortable. The Tier 2/3 graduations are forward design, not deferred bugs.
+
+---
+
+*Sections 10, 11, 12, 13, and 14 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*

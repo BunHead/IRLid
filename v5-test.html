@@ -143,6 +143,28 @@
           <button type="button" class="secondary" id="refreshDiagBtn" style="flex:1;">🔄 Refresh</button>
         </div>
       </div>
+
+      <!-- Device fingerprint (pub_fp) — operational helper for v5.5 sign-in bootstrap.
+           Reads localStorage["irlid_v5_pub_jwk"], computes SHA-256 of the canonical-
+           sorted compact JWK, displays the 16-char short form (matches existing
+           device_pub_fp pattern) and the full 43-char form. Useful for bootstrapping
+           new orgs (PROTOCOL.md §14.6) and for debugging cross-device identity issues. -->
+      <div class="v5-step">
+        <h3>Device fingerprint (pub_fp)</h3>
+        <p class="small">Your v5 credential's stable public-key fingerprint on this device. Use this to bootstrap an org-portal developer account or to verify cross-device identity matches.</p>
+        <button type="button" class="secondary" id="showFpBtn">Show fingerprint</button>
+        <div id="fpOut" style="display:none; margin-top:12px;">
+          <label class="small" for="fpShort" style="display:block; margin-bottom:4px; color:#9ba8b9;">Short (16 char — matches existing <code>device_pub_fp</code> pattern):</label>
+          <input type="text" id="fpShort" readonly style="width:100%; padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:15px; background:#0b1220; color:#e6edf3; border:1px solid #30363d; border-radius:6px;">
+          <label class="small" for="fpFull" style="display:block; margin:10px 0 4px; color:#9ba8b9;">Full (43 char — full SHA-256 entropy):</label>
+          <input type="text" id="fpFull" readonly style="width:100%; padding:10px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; background:#0b1220; color:#e6edf3; border:1px solid #30363d; border-radius:6px;">
+          <div style="display:flex; gap:10px; margin-top:8px;">
+            <button type="button" class="secondary" id="copyShortFpBtn" style="flex:1;">📋 Copy short</button>
+            <button type="button" class="secondary" id="copyFullFpBtn" style="flex:1;">📋 Copy full</button>
+          </div>
+          <p class="small" id="fpHint" style="margin-top:8px; color:#9ba8b9;"></p>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -414,6 +436,57 @@
       }
     });
     document.getElementById("refreshDiagBtn").addEventListener("click", refreshDiag);
+
+    // ─── Device fingerprint (PROTOCOL.md §14 sign-in bootstrap helper) ───────
+    // Computes SHA-256(canonical(compactJwk(pub_jwk))) base64url. Short form is
+    // sliced to 16 chars to match the existing device_pub_fp pattern used in the
+    // codebase (org-entry.html:deviceKeyFingerprint, irlid-api/src/index.js:deviceKeyFp).
+    document.getElementById("showFpBtn").addEventListener("click", async () => {
+      const out = document.getElementById("fpOut");
+      const hint = document.getElementById("fpHint");
+      const jwkRaw = localStorage.getItem("irlid_v5_pub_jwk");
+      if (!jwkRaw) {
+        out.style.display = "block";
+        document.getElementById("fpShort").value = "";
+        document.getElementById("fpFull").value = "";
+        hint.textContent = "No v5 credential found on this device. Enrol via Settings → Hardware-Backed Signing first.";
+        hint.style.color = "#f85149";
+        return;
+      }
+      try {
+        const jwk = JSON.parse(jwkRaw);
+        // Canonical JWK serialisation — sorted keys, only the four EC fields.
+        const canon = JSON.stringify({crv:jwk.crv, kty:jwk.kty, x:jwk.x, y:jwk.y}, ["crv","kty","x","y"]);
+        const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canon));
+        const fp = btoa(String.fromCharCode(...new Uint8Array(hashBuf)))
+          .replace(/\+/g,"-").replace(/\//g,"_").replace(/=/g,"");
+        document.getElementById("fpShort").value = fp.slice(0, 16);
+        document.getElementById("fpFull").value = fp;
+        out.style.display = "block";
+        hint.textContent = "These are stable for the lifetime of your v5 credential. Re-enrolling generates a fresh fingerprint.";
+        hint.style.color = "#9ba8b9";
+      } catch (e) {
+        out.style.display = "block";
+        hint.textContent = "Failed to read fingerprint: " + (e.message || String(e));
+        hint.style.color = "#f85149";
+      }
+    });
+    document.getElementById("copyShortFpBtn").addEventListener("click", async () => {
+      const v = document.getElementById("fpShort").value;
+      if (!v) return;
+      try { await navigator.clipboard.writeText(v); } catch {}
+      const btn = document.getElementById("copyShortFpBtn");
+      btn.textContent = "✓ Copied";
+      setTimeout(() => btn.textContent = "📋 Copy short", 1500);
+    });
+    document.getElementById("copyFullFpBtn").addEventListener("click", async () => {
+      const v = document.getElementById("fpFull").value;
+      if (!v) return;
+      try { await navigator.clipboard.writeText(v); } catch {}
+      const btn = document.getElementById("copyFullFpBtn");
+      btn.textContent = "✓ Copied";
+      setTimeout(() => btn.textContent = "📋 Copy full", 1500);
+    });
 
     // Initial diagnostics population
     refreshDiag();

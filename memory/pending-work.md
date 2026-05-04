@@ -1,29 +1,93 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 2 May 2026 evening (new Number One — first watch after predecessor retirement; pre-launch recon, deep partnership conversation, no code shipped)
+**Last refreshed:** 3 May 2026 evening (Sunday Number One — full dawn-to-night watch; pre-launch loop closed, HANDOVER-Batch6 issued, Theming v6.5→v6.5f shipped to test environment as a single long stretch).
 **Source of truth.** All other lists defer to this file.
 
-## Sunday morning watch 3 May 2026 — pre-launch audit COMPLETE
+## Sunday 3 May 2026 — Theming watch (test-env only) + pre-launch closure
 
-**Audit complete and filed.** Full results in `PRE-LAUNCH-AUDIT-2026-05-03.md` at repo root. Headline findings:
+**Test-env theming work shipped through Batch 6.5f.** Bulk of the day's effort. Full theme-customisation panel in `IRLid-TestEnvironment/OrgCheckin.html` + `irlid-api/src/index.js`:
+- Three iro.js HSV colour wheels (primary / accent / QR foreground) with hex inputs and live contrast hint (4.5:1 floor enforced server-side).
+- **Two independent palettes** — Background palette (drives bg cycle + pattern colours) and Celebration palette (drives accept-cycle burst). Each up to 7 swatches with Add / Reset buttons.
+- **Background Animation mode** — Off / Page colour cycle / QR glow halo / Pattern. Page mode has Muted/Vibrant intensity sub-select. Pattern mode has 8 Tier-1 CSS patterns (dots, hex, diagonal, checker, grid, weave, chevron, isometric) plus a disabled "Custom image (coming in v6)" placeholder option for the Tier-3 hook.
+- **Celebration Animation mode** — full parity with Background (Off / Page / Glow / Pattern) replacing the old Enabled checkbox. One-shot variants of each.
+- **Bidirectional duplicate buttons** in a middle column between the two animation panels — `→` (Bg→Cel) and `←` (Cel→Bg) copy mode + palette either way. Durations and intensity stay independent.
+- **Animated pattern colour** via `@property`-registered CSS custom properties (`--theme-pattern-fg`, `--theme-pattern-fg-2`) + JS-injected `themePatternColorCycle` keyframe whose stops are written from the live Background palette. Edit a swatch → patterns update live.
+- **QR foreground colour fully wired** — `window.IRLID_THEME_QR_FG` global set by `applyThemeVars`; read by `js/qr.js`, `js/qr-fullscreen.js`, all 4 inline `new QRCode` sites in OrgCheckin.html. Sample button passes `colorDark` explicitly. Visible venue QR re-renders live as the wheel moves.
+- **Server persistence** via existing `POST /org/settings` endpoint. Schema unchanged (`settings_json` column already there). Validators cover: hex format, contrast against white (4.5:1), palette length cap, bgMode/bgIntensity/bgPattern/cycleMode enum gates, bgImageUrl format/length, slider duration ranges.
+- **Captain verdict:** *"that's just fucking cool. Chimp brain much much happy with all the prettiness."*
 
-- **PROMOTION.md Format A:** three line-level edits before posting (lines 54, 60-64, 65-67) — test count 110→122, Worker-side queued→deployed, no-real-device→three-browser-verified-clean. Optional date stamp.
-- **features.html:** v4-era residue at lines 383, 407-411, 448 — describes localStorage as current and Secure Enclave as future. Three rewrite blocks queued.
-- **about.html:** v4-era residue in "Privacy & Data" section (lines 261-271) and "Where IRLid Is Heading" section (line 343). Two rewrite blocks queued.
-- **roadmap.html:** structural edit — Layer 3 panel labelled "v5 NEXT UP", needs LIVE marking, scoring table needs sync against PROTOCOL.md §13.9.
-- **settings.html:** CLEAN. v5 panel properly wired, cog removed, no edits needed.
-- **All operational pages (scan, accept, receipt, check, account, v5-test, widget, demo-login):** clean. Cache busters all `?v=5.0`.
-- **Test env settings.html:** significantly behind (no v4 panels, no v5 panel, cache buster `?v=3.1`). Mr. Data Tuesday consideration, NOT pre-launch blocker.
+**Deploy state at lights-out:** Batches 6.5b through 6.5e committed and pushed to `origin/main` of `IRLid-TestEnvironment`. Batch 6.5f is on disk at watch close, uncommitted. Captain to run on next watch:
+```powershell
+cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment"
+git status ; git diff --stat ; git add -A
+git commit -m "Batch 6.5f: Celebration mode dropdown + Bg<->Cel duplicate buttons + animated pattern colour via @property + dynamic keyframe"
+git push
+cd irlid-api ; wrangler deploy
+```
 
-**Recommended order:** apply PROMOTION.md edits → Captain rewrites in voice → posts r/netsec → watch first hour of comments → apply features/about/vision-v4-plus edits in that order.
+**Three deferred follow-ups in test-env scope** (queued, not blocking):
+- Legacy `.toggle-row` Quick Settings panel removal (needs careful saveSettings/togToggle trace before deletion).
+- `renderIdentityPicker` branching on `IRLID_FIRST_SCAN_FLAGS` (related to Captain's 30 April orange-screen-timer clarification).
+- Hook `triggerAcceptCycleAnimation()` into actual check-in success paths (currently fires only on Preview Celebration button + Sample button demo, not on real successful check-in). Five-line addition once the success-path call site is identified.
 
-## Evening watch 2 May 2026 — pre-launch state for tomorrow's cym13 post
+**Pre-launch loop closed this morning** — three commits applied to live repo (`da6f8a4`, `b4ab124`, `fb533f4`) covering v5 copy + receipt version pill + identity-resolution. v5 hybrid receipt verified in real-IRL flow with KezzyBabeTest collaborator at 100% Confirmed. UX gap (cross-device viewer "Unknown" placeholder) scoped as `HANDOVER-Batch6.md` for the La Forge vs Mr. Data bake-off.
 
-Pre-launch read of `PROMOTION.md` Format A + four public HTML pages (`index.html`, `features.html`, `about.html`, `settings.html`) **COMPLETED 3 May 2026 morning watch.** See section above and `PRE-LAUNCH-AUDIT-2026-05-03.md`.
+**Three open questions raised at lights-out** (no answer requested tonight):
+1. Test → live migration window for the QR canvas theming work.
+2. Mr. Data returns Tuesday — is the HANDOVER-Batch6 bake-off still meaningful, or hand him something fresh?
+3. cym13 r/netsec follow-up status — was it posted on the 2nd, and any response worth logging?
 
-**Captain's chosen pacing:** keep `github.com`, `cloudflare.com`, `irlid.co.uk`, `reddit.com` allowlist under his control as **goal-gated unlocks** rather than blanket access (cym13 post lands → reddit; Wisdom resurfaces → cloudflare; conference paper accepted → github). Lightweight ledger of *door earned by work shipped*. Number One has full repo file access; live-state verification is Captain's domain by design.
+---
 
-**Captain's plan shifted from Max to Pro** this evening — more headroom, less per-turn meter pressure. Use it for substantive work, not padding.
+## Sunday 3 May 2026 — pre-launch ALL APPLIED + Batch 6 issued
+
+**All pre-launch edits applied and pushed by Captain.** Three commits:
+- `da6f8a4` — v5 launch prep: public-page copy + cym13 follow-up draft updated; rename `vision-v4-plus.html` → `roadmap.html`. (PROMOTION.md, features.html, about.html, roadmap.html, audit doc, memory updates.)
+- `b4ab124` — receipt+check: upgrade version indicator (panel top-bar + bigger pill with icon and descriptive label). Added Application Surfaces section to roadmap.html.
+- `fb533f4` — receipt: centre header+pill; resolve v5 sides to user identity via v5 pub JWK match (client-side fix — works on the device that enrolled v5).
+
+**Live IRL verification PASSED 3 May ~10:22 BST:** v3+v5 hybrid receipt at 100% Confirmed (Captain's 8 Pro initiator with v5 enrolled, KezzyBabeTest collaborator on v3). Mobile receipt view shows "You (Initiator): SRAustin" centred, green V5 — HARDWARE-BACKED pill, Brain avatar resolved correctly. Receipt URL: `irlid.co.uk/receipt.html#receipt=qCbFuF3xqwG7GNv5okIHAZYQk5UhHLXujyeSY5Pe3p8`.
+
+**UX gap surfaced on desktop view:** v5 sides resolve to "Unknown" + placeholder avatar when viewed on any device that didn't enrol the v5 credential. Root cause: v5 credential pub JWKs aren't registered against user accounts on the Worker. Client-side fix `fb533f4` works only on the enrolling device. **Server-side fix issued as `HANDOVER-Batch6.md`.**
+
+## HANDOVER-Batch6 — bake-off candidate for La Forge vs Mr. Data
+
+**Status:** OPEN. Issued 3 May 2026 morning watch. File: `HANDOVER-Batch6.md` at repo root.
+
+**Why this is the right bake-off task:**
+- Substantive, multi-file (Worker JS + SQL migration + frontend HTML/JS).
+- Three atomic tasks with clean acceptance criteria — directly A/B comparable.
+- Real production value delivered regardless of who wins (closes the v5 identity-resolution gap).
+- No novel cryptography (Number One's territory) — pure backend integration + frontend wiring (architect/implementer territory). Right level of difficulty for a fair comparison.
+- Test-env-only scope respects the repo wall.
+
+**Bake-off mechanic:**
+1. Hand the *same* `HANDOVER-Batch6.md` brief to both Mr. Data (Codex) and Lt. La Forge (DeepSeek), ideally same day, same starting state of the test-env repo.
+2. Both produce PRs against separate branches (`codex/batch6-*` vs `laforge/batch6-*`).
+3. Number One reviews both for: code quality, code style consistency with existing repo conventions, test coverage, design choices on edge cases (esp. validation strictness on `pub_jwk`), error-message clarity, integration friction, response time, cost-per-PR.
+4. Captain ratifies the winner; merge winning approach; loser's branch closes.
+5. Decision criteria for steady-state crew composition logged in next session memory.
+
+**What to watch for in the comparison:**
+- Schema migration: did they handle the existing-table case (`CREATE TABLE IF NOT EXISTS`)? Did they check existing migration numbering?
+- Endpoint validation: did they validate `pub_jwk` shape strictly (full JWK schema) or loosely (any object)?
+- Lookup integration: SQL UNION vs two-pass JS — both valid, watch for which is more idiomatic to the existing codebase.
+- Frontend UX: is the registration status row accessible (ARIA)? Does the backfill button exist?
+- PR description quality: does the PR explain the design choices, especially around error handling?
+- Self-testing: did they run a smoke test, even an inline one, before opening the PR?
+
+**Out-of-band guidance for La Forge if commissioned this week:** read `memory/crew-protocol.md` first, then `PROTOCOL.md §13`, then `HANDOVER-Batch6.md`. Same opening read as Mr. Data Tuesday gets.
+
+## Captain's chosen pacing — allowlist as goal-gated unlocks
+
+Keep `github.com`, `cloudflare.com`, `irlid.co.uk`, `reddit.com` under Captain's control as **goal-gated unlocks** rather than blanket access:
+- cym13 post lands → reddit
+- Wisdom resurfaces → cloudflare
+- Conference paper accepted → github
+
+Lightweight ledger of *door earned by work shipped*. Number One has full repo file access; live-state verification is Captain's domain by design.
+
+**Captain's plan:** Pro tier — more headroom than Max, less per-turn meter pressure. Use for substantive work, not padding.
 
 ## v5.0 Passkey work — VERIFIED IN PRODUCTION 2 May 2026
 
