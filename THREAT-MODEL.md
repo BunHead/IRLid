@@ -300,9 +300,15 @@ The forensic trail is the third asymmetry: **honest scars beat tidy lies.** The 
 
 | Threat | Current state | Gap closer | Roadmap target |
 |--------|---------------|------------|----------------|
-| III.2 localStorage key extraction | Best-effort | Secure Enclave / Passkey | v5.0 |
+| III.2 localStorage key extraction | **Closed in production 2 May 2026** | Secure Enclave / Passkey | v5.0 ✅ |
 | V.3 Crafted role-elevation request | Frontend-only gates | Worker-side role enforcement | v5.x (next) |
 | V.2 Stolen device session window | 15-min TTL | Step-up auth on every write | v5.x (next) |
+| **XI.5 User-enumeration oracle** | **Closed in spec 4 May 2026** | Generic `auth_failed` | v5.5 ✅ (test-env verbose-debug TODO until env-flag-gated for prod) |
+| **XI.6 Bootstrap fp compromise** | Cloudflare-secret rotation | Founders' quorum (multi-sig) | v6+ (per `LONG-TERM-SUCCESSION.md`) |
+| **XI.4 Brute-force claim** | **Closed 4 May 2026** | Per-nonce 3-attempt rate limit + 5-min cooldown | v5.5 ✅ |
+| **XI.2 Cross-context envelope replay** | **Closed 4 May 2026** | `type` discriminator in signed payload | v5.5 ✅ |
+| **XI.3 Malicious worker URL in QR** | **Closed 4 May 2026** | Worker-host allowlist on `org-login.html` | v5.5 ✅ |
+| **XI.7 Stolen session token IP-binding** | 24h sliding TTL + audit fields | Per-network token re-auth | v6+ |
 | IV.1 Sybil with patient diversity | Trust history | Vouching graph + crossing rule | v6.x |
 | I.1 Within-window stale HELLO | 90s window | Multi-witness TSA tokens | v6.0–6.2 |
 | II.1 GPS spoof | Haversine 12m | Multi-anchor positioning | v6.x–v8.x |
@@ -311,6 +317,78 @@ The forensic trail is the third asymmetry: **honest scars beat tidy lies.** The 
 | VIII.2 Coerced check-out (panic signal) | Not addressed | Bio-metric duress signal | v6+ design |
 
 Each row is a real constraint a reviewer can interrogate. The gap closer is the design idea; the roadmap target is when it's expected to land in `PROTOCOL.md §12`.
+
+---
+
+## XI. Org-Portal Sign-in Attacks (v5.5)
+
+§14 of `PROTOCOL.md` defines IRLid's identity-bound session layer: human users sign in to the Org Portal by scanning a QR with their phone, signing the login challenge with their hardware-backed v5 credential, and receiving a server-side opaque session token. The protocol's primary primitive ("this device with this private key was here") is applied here to "this device is the human signing in." This section catalogues the threats specific to that layer and the defences in v5.5.
+
+### XI.1 Login QR shoulder-surf
+
+**Attack:** observer photographs / screen-records the login QR shown on a desktop. They open the same URL on their own phone and try to sign in as the desktop user.
+
+**Defence:** the login QR encodes only a one-time `nonce` + the worker URL — it does **not** carry signing material. To complete the login, the observer would need to produce a valid v5 envelope (hardware-backed assertion) with a `pub_fp` that matches a registered user. They don't have that hardware key. Even if they did, the nonce is single-use (consumed on the first valid claim) and 180-second TTL. Photographing the QR is information-theoretically useless.
+
+**Caveat:** the nonce TTL was bumped from 60s to 180s on 4 May 2026 after IRL testing showed 60s left zero margin for a real human flow. 180s still bounds the replay window narrowly: an observer would need to produce a valid v5 envelope and POST it before the legitimate user's biometric prompt + POST completes. Realistic attacker bandwidth here is zero.
+
+### XI.2 Cross-context envelope replay
+
+**Attack:** an attacker captures a v5 envelope signed for one purpose (e.g., a check-in receipt at venue A) and replays it against the login endpoint, hoping to be authenticated as the device that signed it.
+
+**Defence:** the login payload includes a `type` discriminator: `{nonce, type:"irlid_login_v5"}`. Worker verification recomputes the canonical hash over exactly this object; an envelope whose underlying payload was a check-in receipt has different fields and therefore a different hash, and the `clientData.challenge` would not match the recomputed login-payload hash. Conversely, a login envelope cannot be replayed against `/receipts` for the same reason. Each context owns its own discriminator string. This defence costs nothing (one extra field) and closes an entire class of cross-protocol replay attacks before they can exist.
+
+**Roadmap:** when future endpoints are added (e.g., `/user/sign-arbitrary-statement` for v6+ delegation), each gets its own discriminator. The pattern is now canonical.
+
+### XI.3 Malicious worker URL in login QR
+
+**Attack:** an attacker mints a forged login QR encoding `https://irlid.co.uk/org-login.html?nonce=X&worker=https://attacker.example.com`. Victim scans the QR, signs the login challenge with their v5 credential, and the phone POSTs the signed envelope to `attacker.example.com`. The attacker has captured a v5-signed envelope tied to nonce X.
+
+**Defence:** `org-login.html` validates the `worker` query parameter against an allowlist (production + test Worker hosts + localhost dev variants only) and refuses to POST anywhere outside it. Even without the allowlist, the captured envelope has limited attack value because the nonce X was chosen by the attacker, not issued by the legitimate Worker — replaying it against the legitimate `/org/login/claim` would fail with `challenge_expired` (nonce not in `login_challenges` table). The allowlist is defence in depth: it also prevents the attacker from observing a leaked envelope in their server logs.
+
+**Roadmap:** the allowlist is hardcoded in `org-login.html`. v6+ may move to a signed-list-of-allowed-workers anchored in a TOFU certificate so deploying new IRLid Worker hosts doesn't require coordinated client updates.
+
+### XI.4 Brute-force claim attempts
+
+**Attack:** an attacker who has access to a valid login QR (e.g., shoulder-surfed) probes random `pub_jwk + sig + webauthn` triples against `/org/login/claim`, hoping to guess a valid one.
+
+**Defence:** rate-limited by `login_challenges.fail_count` per nonce. Three failed attempts within the nonce's 180s TTL lock the challenge for 300 seconds (`LOGIN_CLAIM_FAIL_LIMIT = 3`, `LOGIN_CLAIM_COOLDOWN_S = 300`). The TTL itself caps total attempts per nonce to a small number even without the rate-limit. The signing space is ECDSA P-256 (~2^128 bits effective security against signature forgery) plus a 16-byte nonce binding (~2^128 against blind probing). Brute force is astronomically infeasible.
+
+**Caveat:** the rate limit is per-nonce, not per-IP. An attacker could request a fresh nonce for every burst of three attempts and try forever. Mitigation: each `/org/login/init` is itself rate-limited by Cloudflare's default DDoS protection (not a IRLid-layer concern). v5.6+ may add per-IP throttling on `/org/login/init` if abuse is observed.
+
+### XI.5 User-enumeration oracle
+
+**Attack:** an attacker probes random `pub_jwk` values against `/org/login/claim`, watching the response to determine whether each `pub_jwk` is a registered user. A response distinguishing "valid signature but unknown user" vs "invalid signature" would let the attacker enumerate the `portal_users` table.
+
+**Defence:** `/org/login/claim` returns the same generic `auth_failed` (HTTP 401) regardless of which check failed (envelope verification vs unknown user). The response body is identical. The `users` table is not browsable.
+
+**Caveat (4 May 2026):** during v5.5 test-env smoke testing, the Worker temporarily returns verbose `debug_reason / debug_computed_fp / debug_bootstrap_fp_first4-last4` fields to help diagnose first-deploy failures. This is test-env-only and a TODO marks it for env-flag-gating before production. With that gating in place, production v5.5 honours the §14.10 generic-error contract.
+
+### XI.6 Bootstrap fingerprint compromise
+
+**Attack:** the developer's hardware credential (the device whose `pub_fp` is configured as `BOOTSTRAP_DEVELOPER_FP`) is compromised. The attacker can sign in as the founding developer, create new orgs, manipulate any membership.
+
+**Defence:** the `BOOTSTRAP_DEVELOPER_FP` is a Cloudflare Worker environment variable, editable through the Cloudflare dashboard (which itself has separate identity / 2FA). Rotating the bootstrap fp instantly transfers founder rights to a different device. Existing user rows in `portal_users` persist; only the bootstrap-elevation path closes for the old fp. The compromised credential cannot create new founding-developer accounts after rotation.
+
+**Caveat:** if the attacker has *also* compromised the developer's Cloudflare account, rotation isn't possible. This collapses to the wider risk of platform-level account compromise, which IRLid does not solve at the protocol layer. Mitigation: developer-tier Cloudflare accounts should have 2FA enabled (Captain confirmed in scope).
+
+**Roadmap:** v6+ may move bootstrap-developer election to a multi-signature pattern (founders' quorum) per `LONG-TERM-SUCCESSION.md`, removing the single-fp single-point-of-compromise risk entirely.
+
+### XI.7 Stolen session token
+
+**Attack:** an attacker steals a valid `Bearer <session_token>` (e.g., XSS, MITM with broken TLS, malicious browser extension, lost-and-unlocked device). They make authed API calls as the user.
+
+**Defence:** session tokens have a 24-hour sliding TTL — the moment the user signs out, or the moment the lead_admin revokes the row in `login_sessions`, the token is dead. Session tokens are NOT signing credentials; they only authenticate HTTP requests. An attacker with a session token cannot sign new receipts or sign new login claims (those still require the v5 hardware credential). Audit fields (`ip_hash`, `user_agent`) on `login_sessions` allow forensic correlation: a session row showing impossible IP geography or sudden user-agent change is a forensic flag.
+
+**Caveat:** `ip_hash` is unsalted SHA-256 of the source IP, used for forensic correlation only. It is **not** a privacy guarantee — for a known-IP attacker, the hash is reversible. It is not used as an authorisation factor. Production deployment should review log retention with the tenancy in mind.
+
+**Roadmap:** v6+ may add token binding to `User-Agent` + IP-class (so a session minted from one network can't be replayed from a different network's IP class without re-auth). The current v5.5 design is intentionally permissive about location/network changes because legitimate users move between networks routinely.
+
+### XI.8 Race between phone and shoulder-surfer
+
+**Attack:** an observer in the same room as a desktop displaying the login QR sees the QR, prepares a malicious request in advance, and tries to claim the nonce **before** the legitimate user's phone POSTs.
+
+**Defence:** the observer does not have the legitimate user's hardware-backed v5 credential. Their best attempt is to POST `/org/login/claim` with their own credential — but their `pub_fp` doesn't match `BOOTSTRAP_DEVELOPER_FP` (or any registered user with rights to that org), so the claim fails with `auth_failed`. The legitimate user's phone proceeds to POST with the correct credential and succeeds. Race is decided by who has the right key, not by who POSTs first. Even in the unrealistic worst case where the observer has somehow stolen the user's credential too, they still need to be physically next to the displaying desktop AND beat the user's biometric flow — which is at the same threshold as physically grabbing the unlocked phone, a separate threat already covered by §III.
 
 ---
 

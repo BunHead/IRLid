@@ -1,7 +1,51 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 3 May 2026 evening (Sunday Number One — full dawn-to-night watch; pre-launch loop closed, HANDOVER-Batch6 issued, Theming v6.5→v6.5f shipped to test environment as a single long stretch).
+**Last refreshed:** 4 May 2026 afternoon (Monday Number One — dawn-through-afternoon long-watch; PROTOCOL.md §14 published, Batches A+B+C all shipped, bootstrap login worked end-to-end on Captain's Pixel 8 Pro fingerprint).
 **Source of truth.** All other lists defer to this file.
+
+## Monday 4 May 2026 — v5.5 Identity-Bound Sessions watch
+
+**THE BIG ONE: PROTOCOL.md §14 specified, Batches A+B+C shipped, bootstrap login worked end-to-end.** Captain's Pixel 8 Pro v5 hardware credential signed a login challenge → Worker recognised the bootstrap pub_fp → founding `portal_users` row created → 24h session token issued → desktop redirect signal received. Zero passwords, zero pasted keys, just QR scan + fingerprint. This is the first time IRLid's protocol authenticated a user into IRLid's own product. It's the architecture eating its own cooking.
+
+**What landed today** (one Monday, one Number One):
+- `PROTOCOL.md §14` — Identity-Bound Sessions full specification (~250 lines): storage model (4 tables), QR-poll login flow, bootstrap mechanism, opaque-token-not-JWT justification, endpoint contracts, role permission matrix (`attendee/staff/manager/lead_admin/developer`), threat model (10 rows), backward compat, phasing, scaling path through Durable Objects.
+- `PROTOCOL.md §14.14` — three-tier scaling path (long-poll → SSE → Durable Objects) documented with endpoint contracts unchanged through all tiers; load-bearing-numbers reality check.
+- **Batch A** — `apply_batch_a_identity_sessions.ps1` migration (4 new D1 tables — `portal_users`, `org_memberships`, `login_sessions`, `login_challenges`); Worker `verifyV5Envelope()` ported from live (test Worker had been missing it); `orgLoginInit/Poll/Claim` endpoints with §14.10 rate-limit + generic-error patterns; `BOOTSTRAP_DEVELOPER_FP` env-var bootstrap recognition.
+- **Batch A patch** — initial `users` table name collided with OAuth `/auth/register` users table; renamed to `portal_users` throughout.
+- **Batch B** — `irlid.co.uk/org-login.html` phone-side login page (mobile-first, worker-URL allowlist defence in depth, type-discriminated `{nonce, type:"irlid_login_v5"}` payload); `OrgCheckin.html` admin-portal sign-in panel rebuilt around QR-scan-and-poll with legacy api_key paste demoted to `<details>` expander; `?dev=0` URL escape hatch to bypass DEV_AUTO_LOGIN; `js/orgapi.js` `loginInit/Poll/workerBaseUrl` wrappers.
+- **Batch B fixes:** Worker CORS allowlist extended to `https://irlid.co.uk` (login flow is cross-origin by design); verbose-debug login errors gated for test env (production v5.5 will gate behind env flag — see "Outstanding"); login challenge TTL 60s → 180s (IRL test showed 60s leaves no margin for a real human flow).
+- **Batch C** — Worker `requireSession()` Bearer-token helper (sliding 24h TTL); `userListOrgs` returns memberships with role + api_key; `userCreateOrg` validates name/website_url + authorisation + creates organisation+membership rows. Frontend `handleQrLoginSuccess` rewritten async, branches on org count. New create-org form. New `loadDashboardForOrg` hands off to existing X-Org-Key dashboard code.
+- `v5-test.html` device-fingerprint helper panel + 2-button mobile-nav cosmetic fix (live repo).
+- Renormalise commit (line-ending tidy on 13 unrelated files).
+
+**State at watch end:**
+- Live repo: all commits pushed.
+- Test repo: all commits pushed (Worker upload size grew from 98.9 KiB → 104+ KiB confirming Worker has Batch C code).
+- Test Worker: deployed via wrangler (multiple Cloudflare API timeouts during the day; every operation eventually succeeded after retries).
+- **GitHub Pages CDN: stuck.** The TTL-bump commit (`3e3321e5...`) became stuck mid-deployment in GitHub Pages' pipeline; subsequent deployments (Batch C, renormalize) all blocked with `Deployment request failed... due to in progress deployment. Please cancel 3e3321e5... first or wait for it to complete.` Last successful Pages deploy was `Batch B debug patch` (pre-Batch-C). Re-run of #108 queued at watch end.
+
+**End-to-end-proven on real hardware:**
+- Captain's Pixel 8 Pro fingerprint as the biometric.
+- Bootstrap pub_fp `TvklFsivZk68R67j` set as Cloudflare Worker secret.
+- Real WebAuthn assertion from the platform authenticator → recomputed canonical hash matched on Worker → ECDSA verified → session issued.
+- The afternoon's verbose-debug patch surfaced the only real failure mode (`debug_bootstrap_fp_len: 1` from a Ctrl+V-mangled secret); pipe-stdin recovery worked first try.
+
+## Three open questions raised at end-of-Monday-watch
+
+1. **GitHub Pages stuck deploy** — re-run of #108 queued, expected to clear once GitHub releases the lock. If still stuck after 30+ min, push a no-op commit or use API to force-cancel the stuck workflow #106.
+2. **Restore §14.10 generic `auth_failed` for production** — currently the Worker leaks `debug_reason / debug_computed_fp / debug_bootstrap_fp_first4-last4`. Cleanest fix: env-var-gated verbose mode (default generic; test env opts in via `LOGIN_DEBUG=1`). ~15 lines of Worker change. Spec'd as Option 2 in the afternoon menu.
+3. **IRLid app's QR scanner doesn't recognise URL QRs** — Captain had to use his phone's native camera to open the login QR; the IRLid scanner expects HELLO/Hz: prefixes and rejects bare URLs. Three options flagged: leave it (camera handles URLs natively, document the workaround), extend IRLid scanner, or use a custom prefix like `IRLOGIN:...` for login QRs.
+
+## Deferred from Batches B + C (queued for next watch)
+
+- **Batch C.5 — staff scan-in flow.** Spec'd in §14.13: when a lead_admin adds a new staff/manager to an org, the staff member scans an invite QR with their phone, signs the invite challenge with their v5 cred, gets registered in `portal_users` and `org_memberships`. Mirror of the bootstrap login pattern, different endpoint. ~1 day's work.
+- **Batch D — website-scrape theme extraction.** Spec'd in §14.13: Worker function uses `HTMLRewriter` on the org's website URL to extract `<meta theme-color>`, `<link rel="icon">`, `<title>`. Client-side `<canvas>` pixel-sample for dominant logo colour. Apply to `settings_json.theme`. ~1 day's work.
+- **Multi-org picker UI** — when `userListOrgs()` returns ≥ 2 orgs, current frontend just loads the most-recently-granted membership. Picker UI is half a day's work.
+- **Test-env DB orphan cleanup (Batch A.5)** — Cloudflare API was too flaky today to reliably run inventory queries. Tables likely droppable: `users` (OAuth, never used in test), `devices`, `sessions`, `link_codes`, `test_table`. Defer until next stable-API window.
+
+## Sunday 3 May 2026 — Theming watch (test-env only) + pre-launch closure
+
+**Test-env theming work shipped through Batch 6.5f.** Bulk of the day's effort. Full theme-customisation panel in `IRLid-TestEnvironment/OrgCheckin.html` + `irlid-api/src/index.js`:
 
 ## Sunday 3 May 2026 — Theming watch (test-env only) + pre-launch closure
 

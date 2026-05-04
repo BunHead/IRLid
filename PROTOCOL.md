@@ -1178,6 +1178,231 @@ The decision to defer until evidence demands it is intentional: DO billing is pe
 
 **The polling row in the load-bearing table:** at 10K concurrent active login screens (which would be a remarkable success for IRLid), polling at 1.5s gives ~6,667 GET/s against the Worker. Cloudflare's free tier is 100K requests/day and the paid tier is unmetered for sub-millisecond Worker invocations — 6.6K/s is comfortable. The Tier 1 long-poll graduation kicks in well before the rate becomes uncomfortable. The Tier 2/3 graduations are forward design, not deferred bugs.
 
+### 14.15 Batch C.5 — Staff invite scan-in flow
+
+The Batch C MVP creates an organisation with the requesting user (developer or lead_admin) as the sole member. Real venues need additional staff and managers. Batch C.5 specifies how a lead_admin invites another human into their org without the new staff member needing any pre-existing IRLid account, password, or email exchange — purely a scan + biometric.
+
+**The flow mirrors the bootstrap login** (§14.4) at the protocol layer; it is **not** a separate cryptographic primitive. The novelty is the orchestration: the inviter generates the invite QR; the invitee's phone signs the invite challenge; the Worker creates a `portal_users` row (if needed) and an `org_memberships` row in one atomic step.
+
+```
+Lead Admin                         Worker                                Invitee Phone
+──────────                         ──────                                ─────────────
+[1] Click "Add staff" in
+    dashboard, fill form:
+      display_name (required)
+      role: staff|manager
+    POST /org/:org_id/invite/init
+        Authorization: Bearer <session>
+                                  [2] Auth check: caller has
+                                      lead_admin or developer
+                                      role for this org. Generate
+                                      invite_id (16 bytes b64u),
+                                      nonce (16 bytes b64u).
+                                      INSERT login_challenges row
+                                      tagged with invite_context.
+                                      Return {invite_id, nonce,
+                                      expires_at}.
+[3] Render invite QR encoding
+    https://irlid.co.uk/
+      org-invite.html
+      ?invite=<id>
+      &nonce=<n>
+      &worker=<workerUrl>
+      &role=<role>
+      &display=<name>
+[4] Begin polling
+    GET /org/:org_id/invite/poll
+        ?invite=<id>
+                                                                        [5] Invitee scans QR with
+                                                                            phone camera, opens
+                                                                            org-invite.html, sees
+                                                                            "Join <orgName> as <role>?
+                                                                             You'll be added to
+                                                                             <orgName>'s members."
+                                                                        [6] Tap "Accept invite". Page
+                                                                            checks v5 enrolled; if
+                                                                            not, prompts enrolment
+                                                                            via embedded Settings link.
+                                                                        [7] Sign canonical payload:
+                                                                              {invite_id, nonce,
+                                                                               type:"irlid_invite_v5"}
+                                                                            via irlidV5SignPayloadHash.
+                                                                        [8] POST /org/invite/claim
+                                                                            {invite_id, nonce, pub_jwk,
+                                                                             sig, webauthn,
+                                                                             display_name}
+                                  [9] Verify envelope (same
+                                      verifyV5Envelope helper).
+                                      Look up invite; ensure not
+                                      expired/consumed; resolve
+                                      pub_fp via deviceKeyFp.
+                                      INSERT-OR-IGNORE portal_users
+                                      (id, pub_jwk, pub_fp, display_name).
+                                      INSERT org_memberships row
+                                      with role from invite,
+                                      granted_by = inviter user_id.
+                                      Mark invite consumed.
+                                                                       [10] Phone shows "Welcome,
+                                                                            <display_name>. You may
+                                                                            close this tab."
+[11] Next poll returns
+     {status: "claimed",
+      member: {user_id, pub_fp,
+              display_name, role}}
+     UI updates "Members" list,
+     toast "Added <display_name>".
+```
+
+**Endpoint contracts (additions to §14.8):**
+
+```
+POST /org/:org_id/invite/init
+  Header: Authorization: Bearer <session_token>
+  Body: { display_name: string, role: "staff" | "manager" }
+  Authorization: caller must hold 'lead_admin' or 'developer' on org_id;
+                 manager-role invites OK; supporter-role invites OK.
+                 lead_admin-role invites must come from another lead_admin OR developer.
+  Response: 201 { invite_id, nonce, expires_at, role }
+            403 if caller insufficient role
+            404 if org doesn't exist or caller not a member
+
+GET /org/:org_id/invite/poll?invite=<id>
+  Header: Authorization: Bearer <session_token>
+  Authorization: caller must be the issuer of this invite OR a higher role on org.
+  Response: 200 { status: "pending" }
+            200 { status: "claimed", member: {user_id, pub_fp, display_name, role} }
+            410 { error: "invite_expired" }
+
+POST /org/invite/claim
+  Body: { invite_id, nonce, pub_jwk, sig, webauthn, display_name? }
+  No Bearer token required (the invite_id + signed envelope ARE the auth).
+  Same rate-limit + generic-auth_failed semantics as /org/login/claim.
+  Response: 200 { ok: true }
+            401 (generic auth_failed)
+            410 (expired or consumed)
+            429 (rate limited)
+```
+
+**Schema addition** — single new column on existing `login_challenges` table to discriminate login-context vs invite-context, keeping schema flat:
+
+```sql
+ALTER TABLE login_challenges ADD COLUMN context TEXT NOT NULL DEFAULT 'login';
+ALTER TABLE login_challenges ADD COLUMN context_org_id TEXT;
+ALTER TABLE login_challenges ADD COLUMN context_role TEXT;
+ALTER TABLE login_challenges ADD COLUMN context_display_name TEXT;
+ALTER TABLE login_challenges ADD COLUMN context_invited_by TEXT REFERENCES portal_users(id);
+```
+
+Login-context rows leave the new columns NULL; invite-context rows populate them. `nonce` continues to be unique. `invite_id` is just `nonce` for invite-context rows (no separate column needed).
+
+**Type discriminator:** the signed payload uses `type: "irlid_invite_v5"` (distinct from `"irlid_login_v5"`) so an envelope produced for invite-acceptance cannot be replayed at `/org/login/claim` and vice versa. Same threat-model row as XI.2.
+
+**Invitee already a `portal_user`:** if the signing pub_fp resolves to an existing row (e.g., the invitee is already a staff member at another org), `INSERT-OR-IGNORE portal_users` no-ops and the new `org_memberships` row links the existing user. Multi-org membership is the natural product of this design.
+
+**Threat model deltas (extend §XI):**
+- **XI.9 Invite shoulder-surf** — same defence as XI.1 (single-use nonce + 24h TTL by default; the nonce-and-role pair is bound; an observer cannot accept the invite without the legitimate invitee's hardware credential).
+- **XI.10 Invite QR forwarded to wrong person** — the invite is bound to a `display_name` chosen by the lead_admin and shown on the invitee's phone before they accept. Wrong-recipient detection happens in the human review step, not at the protocol layer. The lead_admin sees who actually claimed (their pub_fp + display_name self-reported by the phone) in the poll response, and can revoke if it doesn't match expectation.
+
+**Out of scope for v5.5 / Batch C.5:**
+- Bulk invite (one QR for multiple staff). Possible v5.6+ feature.
+- Email-link invites. Requires the email infrastructure that's queued for live-IRLid sign-in overhaul; reuse the same primitives when that lands.
+- Time-windowed roles ("staff for this event only"). v6+ via membership_expires_at column.
+
+**Estimated effort:** 1 day (Worker endpoints + frontend invite flow + dashboard members panel).
+
+### 14.16 Batch D — Website theme extraction
+
+When a lead_admin or developer creates an organisation via `/user/create-org` with a `website_url`, IRLid offers to auto-extract that website's branding (logo + theme colour) so the org's IRLid surfaces match the venue's existing visual identity. Two-stage extraction: server-side metadata harvest, client-side dominant-colour analysis.
+
+**Stage 1 — Worker scrape (server-side, runs on org creation or on demand):**
+
+```
+POST /user/orgs/:org_id/scrape-theme
+  Header: Authorization: Bearer <session_token>
+  Authorization: caller must be lead_admin or developer for org_id.
+  Body: {} (org_id from path; website_url already in settings_json)
+  Response: 200 { logo_candidates: [...], theme_color, title, scraped_at }
+            404 if no website_url stored
+            502 if target site unreachable
+            504 if target site timeout (>5s)
+```
+
+The Worker uses Cloudflare's `HTMLRewriter` API (built-in, streaming, fast) to extract:
+
+| Selector | Purpose | Field |
+|----------|---------|-------|
+| `meta[name="theme-color"]` | Suggested primary colour (hex) | `theme_color` |
+| `link[rel="icon"]`, `link[rel="apple-touch-icon"]`, `link[rel="apple-touch-icon-precomposed"]` | Logo URL candidates (resolve relative to base) | `logo_candidates[]` |
+| `meta[property="og:image"]` | Hero/share image as fallback logo | `logo_candidates[]` last |
+| `title` | Sanity-check the user-typed org name | `title` |
+
+**Outbound fetch settings:**
+- Timeout: 5 seconds. Slow sites get a 504 and the user retries or skips.
+- User-Agent: `Mozilla/5.0 (compatible; IRLid-themescrape/1.0; +https://irlid.co.uk/)` so site owners can identify our crawler.
+- No cookies, no referer leakage, no follow-redirects beyond 3 hops.
+- Cache results for 24h in `settings_json.theme_scrape` to avoid hammering small sites on repeated calls.
+
+**Caveats:**
+- HTML-only. JavaScript-rendered single-page apps (Wix/Squarespace SPAs without server-rendered meta tags) won't surface their theme-color via this method. We'll get whatever they ship in the initial HTML response. v6+ may add a fallback that fetches `/sitemap.xml` or `/manifest.json`.
+- Workers cannot process images server-side without third-party libraries. The pixel-sampling for dominant colour is deferred to client-side (Stage 2).
+
+**Stage 2 — Client-side canvas pixel-sample (browser):**
+
+After Stage 1 returns `logo_candidates[]`, the OrgCheckin frontend:
+
+1. Selects the highest-resolution logo from candidates (apple-touch-icon-precomposed > apple-touch-icon > og:image > favicon).
+2. Loads it into a hidden `<canvas>` (CORS-aware: tries `crossOrigin="anonymous"` first; if the image server doesn't permit CORS, falls back to a Worker-proxied fetch via `GET /util/image-proxy?url=<encoded>`).
+3. Samples ~256 evenly-distributed pixels, bins them into HSL buckets, picks the bucket with highest saturation × frequency product (avoids picking white/black).
+4. Returns the dominant colour as `#RRGGBB`.
+
+Result: two colour candidates per scraped site — `theme_color` from `<meta>` (the site's *intentional* primary) and the canvas-derived `dominant_logo_color`. UI presents both with a "Use this" button per option, and the user picks (or chooses neither and stays with IRLid defaults).
+
+**Server-proxied image fallback:**
+
+```
+GET /util/image-proxy?url=<encoded_https_url>
+  No auth required (rate-limited per-IP).
+  Worker fetches the image (5s timeout, 2 MB cap), returns with
+  Access-Control-Allow-Origin: https://irlid.co.uk + cache headers.
+  Allowlist: only http(s) URLs; refuses data: / file: / non-image content-types.
+```
+
+This unblocks canvas pixel-sampling for sites that don't set CORS headers on their logos. Required for ~80% of small-business websites (CORS on static assets is uncommon outside SaaS-hosted brands).
+
+**Worker storage:**
+
+```sql
+-- New nullable JSON column on organisations table.
+ALTER TABLE organisations ADD COLUMN theme_scrape_json TEXT;
+-- Or stored inside existing settings_json.theme_scrape; either is fine.
+```
+
+Cached structure:
+```json
+{
+  "scraped_at": 1714855200,
+  "website_url": "https://example.com/",
+  "theme_color": "#0066cc",
+  "logo_candidates": [
+    {"href": "https://example.com/apple-touch-icon.png", "type": "apple-touch-icon", "rel": "icon"},
+    {"href": "https://example.com/favicon.ico", "type": "icon", "rel": "icon"}
+  ],
+  "title": "Example Conferences",
+  "dominant_logo_color": "#0a4d99"
+}
+```
+
+**Threat model deltas (extend §XI):**
+- **XI.11 Malicious URL via /util/image-proxy** — attacker submits a URL pointing to an internal Cloudflare-only resource or a localhost address, hoping the Worker SSRF-proxies the response. Defence: URL allowlist regex (`^https?://[a-z0-9-.]+\.[a-z]{2,}/`) refuses localhost, internal IP ranges (`10.`, `172.16-31.`, `192.168.`, `169.254.`, `127.`), and non-http(s) protocols. Plus the 2 MB response cap and image-content-type-only response.
+- **XI.12 Theme-extraction tracking pixel** — a scraped site could register the IRLid scrape in their analytics and learn an org is being created on IRLid. Mitigation: the User-Agent identifies us, but we don't carry the requesting user's IP — the Worker's egress IP is generic Cloudflare. Org owners may treat this as expected behaviour (you're literally telling IRLid to fetch your site).
+
+**Out of scope for v5.5 / Batch D:**
+- AI-based logo classification (text-vs-pictorial, brand recognition). v8+ if it ever earns its weight.
+- Theme inheritance from parent venues. v6+ design with the multi-org model.
+- Auto-update of theme on website re-scan when site changes. v5.6+ via scheduled Worker.
+
+**Estimated effort:** 1 day (Worker scrape endpoint + image proxy + client-side canvas sampler + UI for "Use this colour / use this logo").
+
 ---
 
 *Sections 10, 11, 12, 13, and 14 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
