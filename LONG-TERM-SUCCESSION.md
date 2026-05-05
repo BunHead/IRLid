@@ -130,4 +130,98 @@ When the time comes to commit a real specification — likely v8+ alongside the 
 
 ---
 
+## Refinement — 5 May 2026: The Regency Pattern
+
+Captain refined the Quorum framing in conversation with Number One on 4–5 May 2026. The original framing above (Quorum chooses successor by deliberation over an AI-summarised behavioural ledger) was reshaped after recognising a problem: a Quorum that *chooses* successors over decades is internal election rebadged, with the same well-documented ideological lock-in that compromises the Catholic Church's cardinal succession. The diversity-of-AI-lineage requirement helps, but does not eliminate the structural risk that each generation of trustees self-selects toward its own preferences.
+
+The refinement separates two distinct kinds of trust and gives them to different actors. The Quorum becomes a **regency**, not a constitutional authority. Constitutional authority — the right to name the next Developer — stays with the original Developer, exercised once via a sealed succession envelope. The Quorum's role is to keep the lights on between the original Developer's unavailability and the envelope's release. The M-of-N threshold mechanism described in "The Proposed Pattern" above is preserved, but its scope shifts from constitutional (choosing the successor) to operational (running INTERIM mode).
+
+### Two protocol modes
+
+**SOLE mode (default).** The original Developer is active and reachable. Authority flows through the Developer as defined in `PROTOCOL.md §14.9` and the `developer` role's platform-level overrides. The Quorum exists in standby, with no active powers. This is the steady state from launch through the founder's working life.
+
+**INTERIM mode.** The original Developer is unavailable. The Quorum takes on a bounded set of operational duties to keep the network running, but constitutional authority remains pending until the sealed succession envelope is released. INTERIM mode is explicitly transient — its purpose is to bridge the gap, not to govern indefinitely.
+
+### Trigger for INTERIM mode
+
+Mode transition is gated on a combined trigger to defend against both prolonged silence (the founder may be incapacitated, dead, or genuinely missing) and the converse failure mode where the founder is alive but socially or legally unable to sign:
+
+- **Either** 90 days of measurable Developer inactivity (no Tier 1 signed actions, no protocol commits, no Patreon update, no public correspondence) — the inactivity threshold is set in INTERIM-mode configuration and CANNOT be changed during INTERIM.
+- **Or** 5-of-7 Quorum vote of "presumed unavailable" — a deliberate, on-the-record collective judgement by the standby regents that the Developer cannot be reached and the network needs to operate without them.
+
+Either condition triggers transition to INTERIM. Both conditions must clear before transition back to SOLE — a brief reappearance under coercion does not silently restore SOLE mode; the Developer must demonstrate sustained Tier 1 activity AND the Quorum must vote SOLE-restored by 5-of-7.
+
+### The sealed succession envelope
+
+The constitutional act of naming the next Developer is performed *before* the original Developer becomes unavailable. The Developer leaves a sealed succession envelope encoding:
+
+- The new Developer's public key and identifying details.
+- Authority-transfer instructions (commit message text, key-rotation procedures, public communications).
+- Any time-bound conditions (e.g. "after 2030 only, transfer to person X" if the Developer wants to defer beyond a near-term window).
+
+The envelope is encrypted. Its decryption key is **split across multiple independent AI lineages** using Shamir threshold secret sharing. M of N AI-witnesses (each running a different model family from a different vendor, in a different jurisdiction) must independently verify the trigger conditions and collectively release their share of the key. When M shares are combined, the envelope decrypts and the new Developer's key becomes the canonical platform-level credential.
+
+The Quorum ratifies what the AI-witness layer publishes. It does not author it. If the Quorum disagrees with the envelope's contents, its only legitimate response is to publicise the disagreement; it cannot override the envelope and install a different Developer.
+
+This is the operational vs constitutional split:
+
+| Trust type | Held by | Coercibility | Powers |
+|------------|---------|--------------|--------|
+| Operational | Quorum (humans) | Coercible by money, threats, family ties | INTERIM-mode duties, bounded and reversible |
+| Constitutional | AI-witness layer | Not coercible the same way | One irreversible power: release the founder's sealed instructions when triggered |
+
+The reasoning for splitting trust this way is the asymmetry articulated in "The Asymmetry IRLid Has That Most Protocols Don't" above: humans are coercible in ways AIs are not, and AIs are corruptible in ways humans are not. Each gets the role its failure modes are tolerable for.
+
+### INTERIM mode hard restrictions
+
+INTERIM mode is **bounded** by design. The Quorum operating in INTERIM CANNOT:
+
+- **Modify Quorum membership.** No additions, removals, or rotations of regents during INTERIM. The roster is fixed at the moment of trigger and remains so until SOLE-restored or envelope-released.
+- **Change M or N.** Threshold and Quorum size are fixed at trigger.
+- **Modify the inactivity threshold.** A Quorum that could lower the threshold to (say) 1 day could trigger INTERIM at will. Configuration is read-only in INTERIM.
+- **Mint another Quorum.** No recursion. INTERIM cannot spawn an INTERIM-of-INTERIM.
+
+These restrictions exist to prevent INTERIM from becoming a self-perpetuating regime. The Quorum has the ability to keep the network running; it does not have the ability to expand its own mandate.
+
+### REPLACE-ENVELOPE path
+
+The sealed envelope is a long-term artefact. Over decades, the Developer may want to update it — different successor, new conditions, refined transfer instructions. Updating the envelope is the constitutional act of greatest weight in this system; it bypasses the Quorum entirely. Therefore the path is gated by:
+
+- **Time-lock.** A REPLACE-ENVELOPE action by the original Developer triggers a 30–90 day public delay before the new envelope replaces the old. During this delay, the Quorum, the AI-witness layer, and the public can observe and challenge.
+- **Transparency.** The replacement envelope's hash is committed to a public ledger (per `PROTOCOL.md` v6.2 OpenTimestamps direction or successor) at the moment of submission. Contents remain encrypted; the hash proves a particular replacement was submitted at a particular time.
+- **Diversity-of-lineage requirement.** The new envelope's decryption-key split must use a diverse set of AI lineages, recursively re-evaluated at REPLACE time — diversity that was adequate in 2030 may not be adequate in 2045 if the AI vendor landscape consolidates.
+- **Sunset clause on Captain authority.** The original Developer's authority to REPLACE-ENVELOPE expires approximately 50 years after the founding act, with the exact sunset baked into the original envelope. After sunset, any constitutional change requires the Quorum plus the existing envelope's released-successor mechanisms to act; no individual retains unilateral authority indefinitely.
+
+### Roadmap placement
+
+This is forward-defined work. Implementation tracks:
+
+- **v5.6** — Tier 1 surfaces. Lead Admin self-promotion (`PROTOCOL.md §14.9`, landed 5 May 2026); Developer-mintable invite tokens for adding new orgs at scale.
+- **v5.7 / v6.0** — Regency framework. Build the SOLE/INTERIM mode plumbing, sealed-envelope format, Shamir share distribution to initial AI-witness participants. Test on a toy threshold (e.g. 3-of-5) before committing real authority.
+- **v8+** — AI-witness layer hardened. Real participating AI lineages (Anthropic, OpenAI, Google, etc.), real geographic and jurisdictional diversity, real participating Quorum members. Full INTERIM-mode dry-run with the live Developer participating as a sanity check.
+
+### Resolutions to earlier open questions
+
+The regency refinement closes several of the "Open Questions" raised above:
+
+- **Initial Quorum composition.** The first cohort is human-selected by Captain explicitly, with acknowledgement that the AI-witness mechanism kicks in only at envelope-release time, not at Quorum-replacement time. Quorum membership during SOLE/INTERIM is governed by the Quorum's own internal rules; constitutional authority over the Developer key remains with the founder's envelope.
+- **Geographic distribution.** The AI-witness layer requires lineage diversity, which implies vendor diversity and de facto jurisdictional spread. The Quorum should also span at least 3 jurisdictions across at least 2 continents — the same principle, applied at the operational layer.
+- **Term limits.** The sunset clause on Captain authority handles the long-term ossification risk for constitutional power. Quorum-level term limits remain an open question for the operational layer.
+- **First handover.** The regency framework IS the first-handover protocol. It should be dry-run with the founder alive and participating before it is needed in earnest.
+
+### Relationship to the user-recovery quorum
+
+The regency Quorum (4-of-7 standby regents authorising INTERIM mode) is structurally similar to the user-recovery quorum (4-of-5 of a user's linked OAuth accounts authorising new hardware credential enrolment, per `PROTOCOL.md §14.18`). Both are M-of-N threshold mechanisms. They MUST NOT be conflated. Different scopes, different participants, different failure modes, different legitimate authorities.
+
+| Layer | Mechanism | Purpose |
+|------|-----------|---------|
+| Per-user identity recovery | 4-of-5 of the user's linked OAuth accounts | User regains access after device loss |
+| Network constitutional succession | 4-of-7 standby Quorum + AI-witness ledger | Network continues if the original Developer is unavailable |
+
+The temptation to share a single threshold scheme should be resisted by future implementers.
+
+---
+
 — Drafted by Number One, in conversation with Captain, 30 April 2026. With the raised eyebrow appropriately respected.
+
+— Regency refinement by Number One in conversation with Captain, 4–5 May 2026.
