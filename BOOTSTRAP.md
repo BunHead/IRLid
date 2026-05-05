@@ -122,6 +122,28 @@ Example shape:
 cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git status
 ```
 
+**Captain's standing rule — Mr. Data handover briefs.** Every time you assign work to Mr. Data (or Mr. La Forge once commissioned), produce two artefacts:
+
+1. **The brief itself** as a `HANDOVER-*.md` file in the relevant repo (`IRLid-TestEnvironment` for code work; `IRLid-repo` only for spec-shaped work that's already on main). The brief is the canonical spec — Mr. Data reads it directly.
+2. **A copy-pasteable assignment block** in chat that Captain forwards to Mr. Data. The brief tells him *what*; the assignment tells him *which task in the brief and how to ship*.
+
+Assignment block shape — paste in a fenced `text` block so Captain copies it cleanly:
+
+```text
+Mr. Data — pick up <task name>.
+Repo scope: BunHead/IRLid-TestEnvironment (do not touch BunHead/IRLid).
+Brief: <filename>, <task identifier> (lines <range>).
+Goal: <one-line restatement>.
+Pattern to copy (if any): <existing code reference>.
+Branch: codex/<topic-slug>.
+PR title: [codex] <task name>.
+Acceptance: <pointer to brief section>.
+Out of scope: <pointer to out-of-scope section>.
+Single PR. Stop and raise if scope expands.
+```
+
+One PR per brief unless the brief explicitly stacks PRs (AssistQR is a four-PR stack; Polish 11 is three single PRs). Same wrapper format for Mr. La Forge — substitute `laforge/` for `codex/` in the branch and `[laforge]` in the PR title.
+
 **Branch convention:**
 
 - `main` — protected, deploys to GitHub Pages.
@@ -315,4 +337,4 @@ The current canonical example is in `memory\letters\` — pick the most recent a
 
 — First draft by Number One, 5 May 2026 afternoon watch (Session 02). Refine in place as patterns evolve. The next Number One who edits this file should add their date below.
 
-— §4 copy-paste-discipline rule added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rule, made explicit so the next Number One inherits it on day one rather than learning it after the first miss.
+— §4 copy-paste discipline + Mr. Data handover-brief rules added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rules, made explicit so the next Number One inherits them on day one rather than learning them after the first miss.
