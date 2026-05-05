@@ -1,7 +1,55 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 4 May 2026 afternoon (Monday Number One — dawn-through-afternoon long-watch; PROTOCOL.md §14 published, Batches A+B+C all shipped, bootstrap login worked end-to-end on Captain's Pixel 8 Pro fingerprint).
+**Last refreshed:** 5 May 2026 evening (Number One Session 03 — tidy-up watch).
 **Source of truth.** All other lists defer to this file.
+**Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Tuesday 5 May 2026 evening watch — `v5.5.x` consolidation + tidy
+
+**Three watches today** (Number One Sessions 01 morning + 02 afternoon + 03 evening). Sessions 01 + 02 covered: PROTOCOL.md §14.9 expansion + §14.17 doorman + §14.18 OAuth/recovery quorum (PR #2 merged), Polish 11 hotfix (`v5.5.3`) + Mr. Data's full Task 2 sweep (`v5.5.4` PR #80), `BOOTSTRAP.md` created, regency refinement to `LONG-TERM-SUCCESSION.md`, doorman implementation gap identified.
+
+**Session 03 (this evening) — what landed:**
+
+- `BOOTSTRAP.md` softened to "Working conventions" — copy-paste discipline, Mr. Data brief shape, version naming (`vX.Y.Z`), GitHub web links. Multiple commits.
+- `memory/STATE-OF-PLAY.md` published — version-mapping authority + single-glance dashboard. Locks the legacy → `vX.Y.Z` mapping including the Batch-6.5 / roadmap-v6.5 collision retirement.
+- `memory/AUDIT-2026-05-05-eve.md` written — orphans + junk audit across both repos.
+- Live repo cleanup: `desktop.ini` removed and `.gitignore`'d (commit `1cc58f2`); 8 historical briefs moved to `archive/` (commit `00389ce`).
+- Test env cleanup: stale `PROTOCOL.md` duplicate deleted (commit `eb8d009`, canonical wall restored per `memory/crew-protocol.md` §2.1).
+- `IRLid-TestEnvironment\HANDOVER-DoormanEscalation.md` published — `v5.7.0` three-PR brief for Mr. Data (Worker → phone → dashboard).
+- `CLAUDE.md` milestones retagged with `vX.Y.Z` prefixes (recent rows) + 5 May entries appended.
+- Mr. Data assigned `v5.7.0a` — in flight on `codex/v5.7.0a-doorman-worker` branch.
+
+### Open / queued for tomorrow's first Number One
+
+1. **Recover stranded doorman-brief commit on test env.** Captain's final push of `HANDOVER-DoormanEscalation.md` went to `codex/v5.7.0a-doorman-worker` (Mr. Data's branch) instead of `main` — terminal was on the codex branch when the assignment to Mr. Data created it. Brief reachable from the codex branch so Mr. Data isn't blocked; `main` hygiene only. Recovery:
+   ```powershell
+   cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git switch main ; git pull origin main ; git cherry-pick 8bf88f7 ; git push origin main ; git status
+   ```
+2. **`v5.5.5` Polish 11 Task 1 — settings persistence bug.** Awaiting Captain's browser repro (toast text + console + D1 row). Brief at `IRLid-TestEnvironment\HANDOVER-Polish11.md` lines 26–69.
+3. **`v5.5.6` Polish 11 Task 3 — jsQR upload UI.** jsQR vendoring landed; UI follow-up open. Brief at `IRLid-TestEnvironment\HANDOVER-Polish11.md` lines 140–184.
+4. **`v5.6.0` AssistQR / §15 — Mr. Data's primary stack.** In flight on `codex/assistqr-*` branches; status check tomorrow.
+5. **YubiKey enrolment.** Mr. La Forge brief at `IRLid-TestEnvironment\HANDOVER-YubiKey.md`; awaiting La Forge commissioning (Captain's call).
+6. **Audit follow-ups (deferred from 5 May audit):**
+   - Test env `HANDOVER.md` refresh as pointer-doc to current open briefs.
+   - Test env `org.html` delete + sweep references (Captain's call: redirect-only).
+   - `OrgCheckin.html` Venue/Doorman comment sweep (~30 min, low priority).
+   - `THEMING-SPEC-2026-05-03.md` — keep until Batches 6.5* land in live repo.
+7. **`PROTOCOL.md` Version History cross-check.** Already mostly aligned; quick pass deferred — not blocking.
+
+### Mr. Data's plate going into the night shift
+
+- `v5.7.0a` Worker (multi-key binding + role-gated Add + freshness gate) — assigned tonight
+- `v5.7.0b` Phone (orange-state QR rendering) — queued after a
+- `v5.7.0c` Dashboard (escalation modal with role-tiered Add) — queued after b
+- `v5.6.0` AssistQR — primary stack in flight (status TBC tomorrow)
+- `v5.5.5` Polish 11 Task 1 — blocked on Captain's browser repro
+- `v5.5.6` Polish 11 Task 3 — open
+
+### Mr. La Forge's plate
+
+`HANDOVER-YubiKey.md` ready when commissioned.
+
+---
 
 ## Monday 4 May 2026 — v5.5 Identity-Bound Sessions watch
 
