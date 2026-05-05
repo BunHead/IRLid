@@ -1109,14 +1109,20 @@ The `theme_scrape_status: "queued"` field is a forward-defined hook for Batch D 
 | Role | Read-only ops | Mutating ops on attendance | Admin ops on memberships | Org settings | Create new orgs |
 |------|--------------|---------------------------|-------------------------|--------------|-----------------|
 | attendee | Yes (their own attendance only) | None | None | None | No |
-| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review | None | None | No |
+| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review; add attendee to Expected List | None | None | No |
 | manager | Yes | All staff + edit/delete attendance + edit expected list | Add/remove staff and attendees in this org | View only | No |
-| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add lead_admins | Edit all | Yes (multiple) |
+| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add/remove lead_admins | Edit all | Yes (multiple) |
 | developer | Yes (any org via __system__) | All lead_admin in any org | All in any org | All in any org | Yes (unlimited) |
 
 A user MAY hold different roles in different orgs. A real example: someone is `lead_admin` of their own conference venue and `staff` at a friend's event next weekend. The `org_memberships` table is the source of truth; the session token resolves to a `user_id`, the dashboard queries memberships per org.
 
-The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level.
+The five role identifiers (`attendee`, `staff`, `manager`, `lead_admin`, `developer`) are protocol-internal and never change — they are database keys, code paths, and audit-log entries. Orgs MAY override the user-visible **display label** for each role to match domain vocabulary: a school might display `staff` as "Teacher" and `attendee` as "Student"; a venue might display `staff` as "Usher". Display labels live in `settings_json.role_labels` as a `{ role_id: label }` map; missing entries fall back to defaults ("Attendee", "Staff", "Manager", "Lead Admin", "Developer"). Validation: each label is 1–30 characters, plain text, no HTML. The `developer` label is fixed and cannot be overridden — it is platform-level, not org-level. The `lead_admin` label MAY be overridden, but the protocol recommends keeping a recognisable suffix or prefix (e.g. "Head Teacher (Lead Admin)") so users can map a custom name back to platform privilege when reading audit logs or contacting support.
+
+The `lead_admin` role is subject to one count invariant: an org must always have at least one lead_admin (no orphaning). Add/remove permissions are unbounded above this floor — a lead_admin MAY add another lead_admin in any state, and MAY delete another lead_admin (including themselves) provided the org would still hold at least 1 lead_admin after the deletion. An attempt to delete the sole lead_admin returns `409 {error: "would_orphan_org"}` at the Worker layer.
+
+The recommended handover pattern is for an outgoing lead_admin to add the incoming one first (count 1 → 2), confirm the new one is operating correctly, then remove themselves (count back to 1). The protocol does not enforce this pattern; it is operational guidance. Batch C.5 (§14.15) is the first surface that exposes lead_admin add/remove to the UI; the count-floor check lands in the Worker as part of that batch.
+
+The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level. It also overrides the lead_admin count floor: a developer may delete the last lead_admin (orphaning the org for cleanup) and may restore an orphaned org by adding a new lead_admin — the only path back from a 0-state.
 
 ### 14.10 Threat model
 
@@ -1402,6 +1408,51 @@ Cached structure:
 - Auto-update of theme on website re-scan when site changes. v5.6+ via scheduled Worker.
 
 **Estimated effort:** 1 day (Worker scrape endpoint + image proxy + client-side canvas sampler + UI for "Use this colour / use this logo").
+
+### 14.17 Doorman flow
+
+The doorman flow is the canonical state machine that runs every time a scan envelope arrives at the dashboard's check-in surface during a live event. It is the default check-in path. A doorman is not a role — it is staff (or higher) acting at the door. The flow is the same regardless of which role tier is acting; the role only gates what the actor can do during the staff-mediated escalation described below.
+
+Three outcomes are possible per scan, distinguished by whether the scanned `pub_jwk` matches an Expected List entry for the active event:
+
+**Recognised + Allowed (green).** The fingerprint matches an active Expected List entry — the attendee is expected, has not been previously rejected for this event, and has not already checked in. The Worker writes an `event_attendance` row with `status: "checked_in"`; the dashboard displays the attendee's resolved name and a green confirmation; the surface returns to scan-ready.
+
+**Recognised + Not allowed (red).** The fingerprint matches an Expected List entry but the entry is in a state that prohibits entry — denied, expired (post-event-close beyond grace period), banned, or already-checked-in for this event. The Worker writes an `event_attendance` row with `status: "rejected"` (the rejection is recorded, not silenced — audit-trail principle from §14.9). The dashboard displays a red rejection screen and returns to scan-ready.
+
+**Unrecognised (orange).** The fingerprint matches no Expected List entry. No attendance row is written yet. The attendee's screen displays an orange "?" panel showing their device-key QR (encoding `pub_jwk` and display intent); the dashboard surfaces a "Get a member of staff" prompt. The flow forks to the staff-mediated escalation below.
+
+#### Staff-mediated escalation
+
+Resolution of an unrecognised scan requires staff (or higher) to act at the dashboard:
+
+1. The acting staff member scans the attendee's orange QR. The QR encodes the attendee's `pub_jwk` (Device Enclave Key in v5 terminology).
+2. The dashboard surfaces two actions, role-gated as below: **Choose from List** or **Add Attendee** (and at higher role tiers, Add Staff / Add Manager / Add Lead Admin).
+
+**Choose from List.** The acting staff visually identifies the attendee against an existing Expected List entry — typical case: the person is on the list but has re-enrolled on a new device, or scanned with a different credential. The new `pub_jwk` is **added** to the existing entry's key set rather than replacing it; old keys remain valid until explicitly revoked through the recovery path. Multi-key binding matches the multi-device reality and dovetails with the user-recovery quorum design in §14.18, where keys come and go independently. After binding, the original scan resolves into the recognised+allowed branch.
+
+**Add Attendee / Add Staff / Add Manager / Add Lead Admin.** The acting staff creates a new Expected List entry (for an attendee — event-scoped, not a membership) or a new `org_memberships` row (for staff, manager, or lead_admin — org-wide). The new entry binds the attendee's `pub_jwk` from creation. The role tier of the new entry is gated by the acting staff member's own role:
+
+| Acting role | May add at the door |
+|-------------|---------------------|
+| `staff` | Attendee (Expected List entry only — not a new membership) |
+| `manager` | + Staff (membership) |
+| `lead_admin` | + Manager / Lead Admin (the latter subject to the §14.9 count invariant) |
+| `developer` | All ops, in any state |
+
+Once the escalation completes, the original scan resolves into the recognised+allowed branch and the attendee is checked in.
+
+#### Auth freshness
+
+The escalation path is privileged. Two tiers apply:
+
+- **Add (any tier).** The acting staff session must be backed by a fresh Staff HELLO scan (`requireFreshStaffProof`, the §14.10 step-up principle). Adding identity creates a permanent record; the highest auth gate applies. The dashboard prompts for a fresh Staff HELLO if the session is older than the configured freshness window.
+- **Choose from List.** The standing Bearer session is sufficient. The op binds a key to an existing identity that the acting staff has visually confirmed; no new identity is created; the standing session covers the operation.
+
+A Developer Bearer session MAY substitute for a fresh Staff HELLO across the escalation path (per the Polish 11 Task 2 implementation queue), reflecting that the `developer` role is platform-level and a Bearer session backed by `BOOTSTRAP_DEVELOPER_FP` is itself a higher trust signal than a fresh Staff HELLO from a non-platform actor.
+
+#### Backward compatibility
+
+The doorman flow defined here is the operational state machine that has been implicit in `OrgCheckin.html` since Batch 8. This subsection formalises it without changing the wire-level behaviour of any existing endpoint. Existing scans continue to dispatch into the green / red / orange branches as they always have; the formalisation captures the shape so that §14.18 (OAuth + recovery quorum), §14.15 (Batch C.5 — Staff invite scan-in flow), and the upcoming Assisted Identity Flow (v5.6, currently in spec on `codex/assistqr-protocol`) can reference a stable description.
 
 ---
 
