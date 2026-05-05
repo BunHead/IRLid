@@ -114,45 +114,26 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
 - For long output: pipe through `Out-Host -Paging` (space to scroll, `q` to quit)
 - For clipboard: `... | Set-Clipboard` then he Ctrl+V into chat. Use sparingly — chained `Set-Clipboard` calls overwrite each other.
 
-**Captain's standing rule — copy-paste discipline.** Every PowerShell command you want Captain to run goes in a fenced ` ```powershell ` block. Cowork chat renders fenced blocks with a copy button; Captain pastes straight in. No prose-embedded one-liners, no inline backticks for multi-step commands. One fenced block per logical action — chained commands inside a block are fine (`;`-separated), but unrelated actions get their own block. Lead with `cd "<path>"` when a working directory matters; quote paths with spaces. Inline backticks are reserved for short identifiers (filenames, commit hashes, tool names); they are NOT a substitute for a fenced block when Captain needs to run something.
+**Working conventions.** Three light rules that keep handovers readable and counting easy:
 
-Example shape:
+- **Copy-paste discipline.** PowerShell commands for Captain go in fenced ` ```powershell ` blocks (Cowork renders them with a copy button). Quote paths with spaces; chain with `;`, not `&&`. One block per logical action.
+- **Mr. Data handover briefs.** Two artefacts per assignment — a `HANDOVER-*.md` brief in the test repo (Mr. Data reads it directly), plus a short copy-pasteable assignment block in chat naming the brief, task, branch, PR title, and what's out of scope. One PR per task unless the brief explicitly stacks them. Substitute `laforge/` and `[laforge]` for Mr. La Forge.
+- **Version naming.** Three-part `vX.Y.Z` for new shipped work — Major (X) for protocol jumps (v3, v4, v5...), Minor (X.Y) for whole features within a major (v5.0–v5.9), Patch (X.Y.Z) for fixes/polish/partials within a minor (v5.5.0–v5.5.9). Map historical labels (Batches A/B/C/C.5/C.6/D, Polish 1–11, old Batch 1–16) under the right minor in `memory/STATE-OF-PLAY.md`. PR title prefix: `[codex] v5.5.x — <topic>` (or `[no1]`, `[laforge]`).
 
-```powershell
-cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git status
-```
-
-**Captain's standing rule — Mr. Data handover briefs.** Every time you assign work to Mr. Data (or Mr. La Forge once commissioned), produce two artefacts:
-
-1. **The brief itself** as a `HANDOVER-*.md` file in the relevant repo (`IRLid-TestEnvironment` for code work; `IRLid-repo` only for spec-shaped work that's already on main). The brief is the canonical spec — Mr. Data reads it directly.
-2. **A copy-pasteable assignment block** in chat that Captain forwards to Mr. Data. The brief tells him *what*; the assignment tells him *which task in the brief and how to ship*.
-
-Assignment block shape — paste in a fenced `text` block so Captain copies it cleanly:
+Assignment block template:
 
 ```text
 Mr. Data — pick up <task name>.
-Repo scope: BunHead/IRLid-TestEnvironment (do not touch BunHead/IRLid).
+Repo scope: BunHead/IRLid-TestEnvironment.
 Brief: <filename>, <task identifier> (lines <range>).
 Goal: <one-line restatement>.
 Pattern to copy (if any): <existing code reference>.
 Branch: codex/<topic-slug>.
-PR title: [codex] <task name>.
+PR title: [codex] <vX.Y.Z> — <task name>.
 Acceptance: <pointer to brief section>.
 Out of scope: <pointer to out-of-scope section>.
 Single PR. Stop and raise if scope expands.
 ```
-
-One PR per brief unless the brief explicitly stacks PRs (AssistQR is a four-PR stack; Polish 11 is three single PRs). Same wrapper format for Mr. La Forge — substitute `laforge/` for `codex/` in the branch and `[laforge]` in the PR title.
-
-**Captain's standing rule — version naming.** Use a three-part `vX.Y.Z` tag for every shipped piece of work going forward. Counting stays simple; minds stay tidy.
-
-- **Major (X)** — protocol-defining version. v3, v4, v5, v6, v7. Big jumps that change scoring, threat model, or the fundamental cryptographic approach.
-- **Minor (X.Y)** — a discrete shipped feature within a major. `v5.0` through `v5.9`. Each minor = one whole feature. Examples mapped to current work: `v5.0` = Passkeys / hardware signing (live since 2 May), `v5.5` = Identity-Bound Sessions, `v5.6` = AssistQR / §15, `v5.7` = Doorman escalation / §14.17.
-- **Patch (X.Y.Z)** — bug fixes, polish rounds, partial implementations *within* a minor. `v5.5.0` through `v5.5.9`.
-
-Retire the parallel labelling — alphabetic Batches (A/B/C/C.5/C.6/D), unrelated Polish series (1–11), old-style numbered Batches (1–16) — from new commits and PRs. Existing labels stay in historical commits and milestones; new shipped pieces get a `vX.Y.Z` tag and are folded under the right minor in `memory/STATE-OF-PLAY.md`.
-
-PR titles get the tag at the front: `[codex] v5.5.x — <topic>` or `[no1] v5.5.x — <topic>`. Commits get the tag in the subject line. Every milestone line in `CLAUDE.md` should be tag-prefixed going forward.
 
 **Branch convention:**
 
@@ -347,4 +328,4 @@ The current canonical example is in `memory\letters\` — pick the most recent a
 
 — First draft by Number One, 5 May 2026 afternoon watch (Session 02). Refine in place as patterns evolve. The next Number One who edits this file should add their date below.
 
-— §4 copy-paste discipline + Mr. Data handover-brief rules + version naming rule added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rules, made explicit so the next Number One inherits them on day one rather than learning them after the first miss.
+— §4 working conventions (copy-paste, Mr. Data briefs, version naming) added by Number One, 5 May 2026 evening watch (Session 03).
