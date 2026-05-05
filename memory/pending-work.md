@@ -1,7 +1,180 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 4 May 2026 afternoon (Monday Number One — dawn-through-afternoon long-watch; PROTOCOL.md §14 published, Batches A+B+C all shipped, bootstrap login worked end-to-end on Captain's Pixel 8 Pro fingerprint).
+**Last refreshed:** 5 May 2026 late morning (Tuesday Number One Session 01 — polish rounds 9→11 hotfix + extensive design conversation: Lead Admin transfer rule, AI-witness build-out plan, OAuth user linkage, three-tier proof hierarchy, user-recovery quorum, paper outline).
 **Source of truth.** All other lists defer to this file.
+
+## Wednesday 6 May 2026 — first thing for the new Number One
+
+The morning of 5 May produced a lot of design output that hasn't yet been written into PROTOCOL.md or LONG-TERM-SUCCESSION.md. Doc-only writes, sequenced by dependency:
+
+### Doc 1 — PROTOCOL.md §14.9 Lead Admin transfer-of-privilege rule (~30 min)
+
+Captain's design (5 May morning watch). Default state: org has exactly 1 Lead Admin. Transfer state (transient): briefly 2 Lead Admins during handover. Forbidden: 0 (orphaned) or 3+ (committee creep).
+
+Constraints:
+- LeadAdmin can ADD another LeadAdmin iff org has exactly 1 LeadAdmin
+- LeadAdmin can DELETE a LeadAdmin (incl. self) iff org has exactly 2 LeadAdmins
+- Developer overrides both: can ADD or DELETE in any state (orphan recovery + force-replace deadlocked transfers)
+
+This invariant gets implemented at the Worker layer in Batch C.5 (staff invite scan-in flow) when membership ops first get UI. The doc landing first means C.5's implementer (Mr. Data probably) has a spec to follow.
+
+### Doc 2 — PROTOCOL.md §14.17 OAuth linkage + Three-tier proof + User-recovery quorum (~1 hr)
+
+These three form one design surface; write together.
+
+**OAuth user linkage (many-to-many):**
+```sql
+CREATE TABLE portal_user_external_links (
+  portal_user_id TEXT NOT NULL REFERENCES portal_users(id),
+  provider       TEXT NOT NULL,         -- 'google' | 'apple' | 'microsoft' | 'github' | ...
+  external_id    TEXT NOT NULL,
+  linked_at      INTEGER NOT NULL,
+  display_label  TEXT,
+  PRIMARY KEY (portal_user_id, provider)
+);
+```
+
+**Three-tier proof hierarchy:**
+- Tier 1 — Hardware-backed credential. Required for any write/privileged action.
+- Tier 2 — OAuth account verification. Sufficient for read access only. Never sufficient alone for privileged ops.
+- Tier 3 — Multi-account recovery quorum (below).
+
+**Hardware signs, OAuth identifies.** This is the principle.
+
+**User-recovery quorum:**
+- 4-of-5 of the user's linked OAuth accounts must independently sign a recovery agreement
+- Geographic / jurisdictional diversity asked at link time but not enforced (most providers US-based; commercial / technical diversity is the practical defence)
+- Recovery staged over time — provider signatures collected over different days/sessions to defeat fast-cascade scenarios
+- Old pub_fp added to revocation list when new credential enrolled
+
+Distinct from network constitutional Quorum (4-of-7 regents for Captain succession). Different scopes.
+
+### Doc 3 — LONG-TERM-SUCCESSION.md regency addendum (~1 hr)
+
+Promised since Monday evening. Captures:
+- Two protocol modes: SOLE (default) and INTERIM
+- Combined trigger: 90-day inactivity OR 5-of-7 Quorum vote of "presumed unavailable"
+- 4-of-7 standby regents
+- Quorum does NOT choose successor — sealed succession envelope, decryption key split across multiple independent AI lineages (Shamir threshold)
+- Operational trust (humans, coercible, bounded reversible powers) vs constitutional trust (non-human AIs, not coercible the same way, one irreversible power)
+- INTERIM mode hard restrictions: cannot modify Quorum membership, cannot change M or N, cannot modify inactivity threshold, cannot mint another Quorum
+- REPLACE-ENVELOPE path with time-lock (30-90 day public delay), transparency requirement (hash to public ledger), diversity-of-lineage requirement (recursively re-evaluated), sunset clause on Captain authority (~50 years)
+
+Roadmap placement: v5.6 = Tier 1 (Lead Admin self-promotion via C.5) + Tier 2 (Developer-mintable invite tokens). v5.7/v6.0 = Regency + sealed succession envelope. v8+ = AI-witness layer hardened.
+
+### Doc 4 — Multi-Lineage AI Witnesses paper (full write-up)
+
+Outline + abstract + Section 4 (Regency Pattern) written by Number One on disk at `PAPERS/multi-lineage-ai-witnesses-OUTLINE.md` on 5 May morning watch. Captain's plan: open a fresh chat dedicated to the paper, hand the new instance the outline + this conversation's design discussion (memory log) and they flesh out the technical sections. Estimated ~10-12 page paper. Realistic target: EAI SecureComm 2026 (Lancaster, July 21-24) or 44CON CFP.
+
+Crew role assignments for actually building the AI-witness infrastructure:
+- Mr. Data (Codex/OpenAI) — verdict-rendering API skeleton
+- Counsellor Troi (Gemini) — human-facing legal prose, criteria as fact-checks
+- Mr. La Forge (DeepSeek) — independent compatible implementation for cross-checking
+- Number One (Claude) — orchestration, threat model
+
+## Code follow-ups (queued)
+
+### Polish 12 — display name cache refresh on session restore
+
+Today the cached `qrLoginSession.display_name` in localStorage retains the old value across optimistic restore. Sign-out + sign-in is the current workaround (Captain hit this when "Captain (developer)" persisted in the org picker after the SQL update to "Developer (Super-Admin)"). Proper fix: add a `/user/me` endpoint that returns fresh display_name + is_developer + can_create_org, called on optimistic restore to refresh the cache. ~1 hr Worker + frontend.
+
+### Polish 11 Task 2 (Mr. Data's queue) — Worker-side Bearer-replaces-Staff-HELLO
+
+The 5 May morning hotfix (`requireFreshStaffProof` Developer bypass) is frontend-only. Polish 11 Task 2 in HANDOVER-Polish11.md extends this Worker-side: any endpoint currently requiring `staff_session` should also accept Developer Bearer session. Lifts the polish-9 pattern to all gated endpoints. Frontend needs matching updates.
+
+### Batch C.5 — staff invite scan-in flow
+
+Spec'd in PROTOCOL.md §14.15. The natural surface for membership ops UI; the transfer-of-privilege rule (Doc 1 above) gets implemented here. ~1 day. Mr. Data should pick this up after AssistQR + Polish 11 Tasks land.
+
+### Batch D — website-scrape theme extraction
+
+Spec'd in §14.16. Lower priority. ~1 day.
+
+---
+
+## Bake-off in flight (Tuesday 5 May)
+
+**Mr. Data working on:**
+- HANDOVER-AssistQR.md (Batch C.6 full assist-QR flow) — in flight at end of morning watch. Worker PR open as draft #74. Stacking phone-side and dashboard PRs on top.
+- HANDOVER-Polish11.md (three tightening items: persistence bug-hunt, Bearer-replaces-Staff-HELLO across all gated endpoints, QR image upload with vendored jsQR) — picks up after AssistQR.
+
+**Mr. La Forge un-commissioned:**
+- HANDOVER-YubiKey.md ready on disk for when Captain spins up DeepSeek's coding agent. Captain's first DeepSeek run; recommended scope discipline ("STOP and ask, don't silently rewrite") is in the handover.
+
+---
+
+## Live state at end of 5 May morning watch
+
+**Test environment:**
+- v5.5 identity sessions live, working end-to-end on Captain's Pixel 8 Pro
+- Polish 9, 10, 11 hotfix all deployed
+- Captain confirmed working: added himself as Staff + KezzyBabe69 as Lead Admin in Imbue Ventures, checked in/out on his own credential
+- Outstanding: settings persistence (logoUrl/redirectUrl/welcomeMessage) bug-hunt is Mr. Data's Polish 11 Task 1
+- "Captain (developer)" → "Developer (Super-Admin)" SQL update applied via Cloudflare D1 console (wrangler API timed out three times)
+
+**Live site (irlid.co.uk):**
+- v5 hardware-backed signing live (PROTOCOL.md §13)
+- Three-browser-two-OS production verification done 2 May
+- v5.5 NOT yet ported. Migration path documented in `memory/sessions/2026-05-04-02.md` and `memory/sessions/2026-05-05-01.md`. Estimated half-day port when test env settles.
+
+---
+
+## What follows below — Monday 4 May session is preserved unchanged
+
+
+
+1. Update `LONG-TERM-SUCCESSION.md` with the regency model. Key points to capture:
+   - Two protocol modes: SOLE (default) and INTERIM
+   - Combined trigger: 90-day Developer inactivity OR 5-of-7 Quorum vote of "presumed unavailable"
+   - **Quorum: 4-of-7 regents** (Captain's call)
+   - **Crucial: Quorum does NOT choose the successor.** They keep the lights on, mint invite tokens, run interim ops. The constitutional act of naming the next Developer was already made by Captain before he was unavailable.
+   - **Mechanism: succession envelope sealed by AI-witness ledger.** Captain leaves an encrypted succession envelope. Decryption key split across multiple independent AI lineages (different model providers, training cutoffs, jurisdictions). M of N AI-witnesses must independently verify trigger conditions and collectively release the key. Quorum ratifies what the AI-witness layer publishes; doesn't author it.
+   - **Operational vs constitutional trust split** — humans coercible (Quorum, bounded reversible powers), AIs not coercible the same way (AI-witnesses, one irreversible power: release Captain's sealed instructions).
+   - INTERIM mode hard restrictions: cannot modify Quorum membership, cannot change M or N, cannot modify inactivity threshold, cannot mint another Quorum (no recursion).
+   - Roadmap placement: v5.6 = Tier 1 + 2 (Lead Admin self-promotion + invite tokens), v5.7/v6.0 = Regency + sealed succession, v8+ = AI-witness layer hardened.
+
+2. Read `memory/sessions/2026-05-04-02.md` for full context if unsure on any detail.
+
+## Polish 4→8 deploy bundle (uncommitted, ready to push)
+
+Captain wrote: *"Add everything to the log for tomorrow. Where I'm hoping we can get this dialled in and maybe even on the live site."*
+
+```powershell
+cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git add -A ; git commit -m "Batch C polish 4-8: refresh restore session, sample logo fallback, See-an-organiser hold screen, Developer is bootstrap-only (frontend + Worker), empty-name attendee_scan reject (Worker), comprehensive light-mode sweep, Organisation tab signed-in summary, savePortalSettingsBtn now POSTs to Worker (real persistence fix)" ; git push ; cd irlid-api ; wrangler deploy
+```
+
+What's in the bundle (frontend + Worker):
+- **Frontend** — `OrgCheckin.html` polish 4-8 changes; `org-entry.html` "I'm not on the list" hold screen
+- **Worker** — `isExpectedRoleAllowedFromDashboard()` Developer-bootstrap-only guard on `/org/expected` create + update; empty-name `attendee_scan` reject in `/org/checkin`
+
+What Captain should test after deploy:
+1. Hard refresh while signed in → land directly on dashboard, not bounced to sign-in
+2. Settings → enter logo URL + redirect URL → click Save → toast says "Settings saved" → switch tabs / refresh → values still there (this was the polish-7→8 fix; round 7 was orphaned because the Save button had its own handler)
+3. Theme → light mode → all panels light, no dark holdouts
+4. Add dropdown on Dashboard → no Developer option
+5. Phone scans Check-in QR → unrecognised → "I'm not on the list" → "See an organiser" hold screen, NO new dashboard row
+6. Click Organisation tab while signed in → signed-in summary card (Switch / + Create / Sign out), not the QR sign-in flow
+7. Sign out → bounced to fresh sign-in; refresh → still on sign-in (not auto-restored)
+
+## Two small post-deploy SQL/data tasks
+
+- **Update existing user's display_name** — Worker create-path now uses "Developer (Super-Admin)" for new bootstrap users, but won't update existing `portal_users` rows. Run from `IRLid-TestEnvironment/irlid-api/`:
+  ```powershell
+  wrangler d1 execute irlid-test --command "UPDATE portal_users SET display_name = 'Developer (Super-Admin)' WHERE pub_fp = 'TvklFsivZk68R67j';"
+  ```
+- **Clear JfpA ghost row** — Captain can use the dashboard's "Clear test attendance" button on Imbue Ventures.
+
+## Decision point — after polish testing
+
+Captain's stated hope: *"maybe even on the live site."* Two paths:
+
+**Path A — promote v5.5 to live.** Port `IRLid-TestEnvironment/irlid-api/` v5.5 changes to the live `irlid-api/` Worker. Schema migration on production D1 (`apply_batch_a_identity_sessions.ps1` → adapt for production DB name), Worker code merge, frontend cutover (replace api_key paste flow with QR-scan login on `irlid.co.uk`). Non-trivial — production D1 has real receipts; the migration must be additive only. Pre-flight: snapshot the live DB, dry-run the migration locally, plan rollback.
+
+**Path B — more test-env polish.** Batch C.5 (staff scan-in flow, spec'd in PROTOCOL.md §14.15) — when a Lead Admin adds new staff/manager, they scan an invite QR with their phone, sign with v5 cred, get registered in `portal_users` + `org_memberships`. ~1 day. Plus Batch D (website-scrape theme extraction, spec'd in §14.16) — Worker `HTMLRewriter` to extract `<meta theme-color>`, favicon, title from new org's website URL. ~1 day.
+
+Captain should choose A or B based on his confidence after testing the polish bundle.
+
+---
 
 ## Monday 4 May 2026 — v5.5 Identity-Bound Sessions watch
 
