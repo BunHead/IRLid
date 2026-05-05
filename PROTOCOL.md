@@ -17,6 +17,7 @@
 | v4 | Trust history (depth, location diversity, device consistency); optional WebAuthn bio-metric gate (`bioVerified` cryptographically bound into signed payload); redacted-receipt mode (`gps_hash` replaces lat/lon/acc); hotspot novelty scoring. Shipped 17 April 2026. All optional, off by default. |
 | v5 | Hardware-backed signing keys via WebAuthn / Passkeys — private key lives in Secure Enclave (Apple) / TEE (Android) / TPM (Windows Hello), never extractable. v5 receipts carry a `webauthn` envelope (`authData`, `clientData`) alongside the existing ECDSA `sig` field. Closes localStorage extraction (THREAT-MODEL.md §III.2). Score 70/100 when v5 verifies. Specification in §13. In-implementation, default OFF. |
 | v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. |
+| v5.6 | Assisted identity flow for venue check-in. An unrecognised attendee can show a signed assist-request QR to staff; staff scan it from the OrgCheckin dashboard and bind the device to an expected attendee, create-and-bind a new expected attendee, or reject with audit trail. Specification in §15. Receipt format unchanged. |
 
 ---
 
@@ -1405,4 +1406,159 @@ Cached structure:
 
 ---
 
-*Sections 10, 11, 12, 13, and 14 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
+## 15. Assisted Identity Flow (v5.6)
+
+**Status:** Specification draft, 5 May 2026. Implementation target: test environment first, then live environment after dogfooding.
+
+This section defines the staff-mediated recovery path for venue check-in when a phone is present at the venue but its device key cannot be matched to an expected attendee. The phone produces a signed assist-request QR. A staff member scans it from the OrgCheckin dashboard and chooses one of three explicit outcomes: bind the device to an existing expected attendee, create a new expected attendee and bind the device atomically, or reject the request with an audit record.
+
+Section 15 is additive on top of Sections 13 and 14. It reuses the existing HELLO QR encoding and signing dispatcher, including v3/v4 ECDSA and v5 hardware-backed signing where available. Existing receipt formats and normal venue check-in HELLO scans are unchanged.
+
+### 15.1 Phone-side QR generation
+
+When an attendee reaches the "See an organiser" hold screen during venue check-in, the phone renders a QR containing a signed assist-request envelope:
+
+```json
+{
+  "type": "assist_request",
+  "pub_fp": "device-public-key-fingerprint",
+  "pub_jwk": {"kty": "EC", "crv": "P-256", "x": "...", "y": "..."},
+  "ts": 1714855200,
+  "org_code": "venue-or-organisation-code",
+  "nonce": "base64url-16bytes"
+}
+```
+
+The envelope is signed by the same device key used for venue HELLO signing. Implementations MUST use the existing signing dispatcher so v3/v4 local ECDSA keys and v5 hardware-backed credentials follow the same verification semantics already defined in Section 13.
+
+The QR payload uses the same compact HELLO transport convention:
+- `H:<base64url-json>` for normal base64url JSON encoding.
+- `HZ:<base64url-deflate-raw-json>` when compression is needed.
+
+Implementations SHOULD use the existing `irlidEncodeJsonToB64url` and `irlidCompressToB64url` helpers rather than defining a new QR encoding.
+
+The phone polls:
+
+```
+GET /org/assist/poll/:pub_fp?nonce=<nonce>
+```
+
+every 2 seconds while the QR is valid. A `claimed` result advances the phone into the same allow/review path as a normal venue check-in. A `rejected` result shows a clear "Entry not approved - see organiser" terminal state. If the 5 minute timestamp window expires before a final result, the phone stops the old polling loop and generates a fresh signed QR with a new `ts` and `nonce`.
+
+### 15.2 Staff-side scan and verification
+
+The dashboard scanner decodes the scanned QR using the existing HELLO decoder. It then inspects the decoded envelope's `type` field:
+
+```js
+if (env.type === "assist_request") openAssistModal(env);
+else runDoormanCheckin(env);
+```
+
+Envelopes with no `type` field are treated as normal check-in HELLO envelopes for backward compatibility (see Section 15.6). Envelopes with `type: "checkin"` are also treated as normal check-ins.
+
+Assist-request signatures are verified server-side before any bind, create-and-bind, or reject action is accepted. The Worker verifies that:
+- `type` is exactly `"assist_request"`.
+- `pub_fp` matches `pub_jwk`.
+- the signature is valid for the envelope under the v3/v4 or v5 path used by the device.
+- `ts` is within the replay window defined in Section 15.4.
+- `org_code` resolves to the organisation context being operated on.
+
+The dashboard modal is an operator surface, not a trust root. It MAY pre-validate obvious parse errors for user feedback, but the Worker is authoritative for signature validity and freshness.
+
+### 15.3 Bind, claim, and reject endpoint contracts
+
+Assist poll records are keyed by `(pub_fp, nonce)` so multiple phones showing assist requests cannot collide. Records are short-lived and carry one of three states: `pending`, `claimed`, or `rejected`.
+
+```
+GET /org/assist/poll/:pub_fp?nonce=<nonce>
+  No staff auth required.
+  Response: 200 {status: "pending"}
+            200 {status: "claimed", expected_id, expected_name}
+            200 {status: "rejected", reason?}
+            404 {error: "assist_not_found"}
+            410 {error: "assist_expired"}
+```
+
+```
+POST /org/expected/:id/claim
+  Header: Authorization: Bearer <session_token> OR existing staff_session body field
+  Body: {device_pub_fp, assist_nonce?}
+  Authorization: staff_session, lead_admin/developer session, or another existing dashboard-approved staff path.
+  Behaviour: existing claim behaviour is retained. When assist_nonce is present,
+             the Worker also updates the matching assist poll record to claimed.
+  Response: 200 {expected: <row>, link: {...}}
+            400/401/403/404 with existing claim errors
+            410 if assist_nonce exists but the assist request is expired
+```
+
+```
+POST /org/expected/create-and-claim
+  Header: Authorization: Bearer <session_token> OR existing staff_session body field
+  Body: {first_name, surname, prototype_role, device_pub_fp, assist_nonce}
+  Authorization: same as dashboard expected-list creation; Developer role creation remains forbidden
+                 unless a separate bootstrap/invite-token path explicitly permits it.
+  Behaviour:
+    1. Validate prototype_role with the dashboard role guard.
+    2. Validate assist_nonce against an in-flight assist poll record.
+    3. Insert an org_expected row with device_key_fp pre-bound,
+       status='linked', and linked_at=now().
+    4. Update the assist poll record to status='claimed'.
+    5. Write the same attendance/link audit rows produced by normal claim paths.
+  Response: 201 {expected: <row>, link: {...}}
+            403 if prototype_role is Developer or caller lacks permission
+            410 if the assist request is expired
+            409 if the device key is already bound and existing rebind rules block the action
+```
+
+```
+POST /org/assist/reject
+  Header: Authorization: Bearer <session_token> OR existing staff_session body field
+  Body: {assist_nonce, reason?}
+  Authorization: same as staff-side assist actions.
+  Behaviour:
+    1. Validate assist_nonce against an in-flight assist poll record.
+    2. Write an event_attendance row with status='rejected' for forensic audit.
+    3. Update the assist poll record to status='rejected'.
+  Response: 200 {rejected: true}
+            410 if the assist request is expired
+            404 if the assist request does not exist
+```
+
+All three staff-side actions MUST be independently auditable. "Cancel" in the dashboard modal is not an outcome; it closes the modal and leaves the phone polling until claim, reject, or timeout.
+
+### 15.4 Replay defence
+
+The assist-request timestamp window is 5 minutes. Workers MUST reject staff actions against envelopes whose `ts` is more than 5 minutes old, even if a stale poll record still exists.
+
+The `nonce` is optional at the envelope schema level for forward compatibility with older decoders, but implementations SHOULD generate and require a 16-byte base64url nonce. Test-environment v5.6 requires `nonce` for all bind, create-and-bind, reject, and poll operations. Reusing a nonce after a final state MUST fail.
+
+Recommended Worker storage:
+- key: `(pub_fp, nonce)`
+- issued_at / expires_at
+- org_id or org_code
+- status
+- expected_id / expected_name for claimed state
+- reject reason for rejected state
+- remote IP failure counter
+
+The poll endpoint is public because it is keyed by possession of the phone's `pub_fp` and fresh `nonce`, but it SHOULD be rate-limited per IP and per `(pub_fp, nonce)`. Repeated invalid nonce or expired-request attempts SHOULD return generic failures after 3 misses and cool down for 5 minutes.
+
+### 15.5 Threat model additions
+
+| Attack | Risk | Defence |
+|--------|------|---------|
+| Assist-QR shoulder-surf | An observer photographs the phone's assist QR and tries to claim the attendee from another device or later time. | QR is signed by the attendee device, includes `pub_fp`, `org_code`, `ts`, and a fresh nonce, and expires after 5 minutes. Staff action is required and leaves an audit trail. |
+| Replay | A valid assist QR is reused after the attendee has already been claimed or rejected. | Worker stores final state by `(pub_fp, nonce)` and rejects reused nonces and stale timestamps. |
+| Malicious staff scanner | A compromised dashboard or malicious staff member tries to manufacture assist outcomes. | Staff endpoints require the existing staff_session or higher Bearer-session authorisation. The Worker verifies signatures and freshness server-side; dashboard parse results are advisory only. |
+| False-name binding | Staff chooses the wrong expected attendee or types the wrong name during create-and-bind. | The action is attributed and auditable. Recovery uses the existing device rebind flow and monthly cooldown rather than silent auto-rebinding. |
+| Cross-org assist reuse | A QR from one venue is presented to another venue's dashboard. | `org_code` is signed in the envelope and checked against the dashboard's active organisation before any outcome is accepted. |
+
+### 15.6 Backward compatibility
+
+Existing HELLO scans continue to behave as they do today. If a decoded scanner envelope has no `type` field, the dashboard MUST treat it as `type: "checkin"` and run the existing doorman check-in path. Explicit `type: "checkin"` is equivalent.
+
+The assist flow does not change the compact receipt format, trust scoring, redaction, or v5 WebAuthn envelope semantics. It is a venue-operations layer on top of existing IRLid identity and signing primitives.
+
+---
+
+*Sections 10, 11, 12, 13, 14, and 15 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
