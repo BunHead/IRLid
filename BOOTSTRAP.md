@@ -144,6 +144,16 @@ Single PR. Stop and raise if scope expands.
 
 One PR per brief unless the brief explicitly stacks PRs (AssistQR is a four-PR stack; Polish 11 is three single PRs). Same wrapper format for Mr. La Forge — substitute `laforge/` for `codex/` in the branch and `[laforge]` in the PR title.
 
+**Captain's standing rule — version naming.** Use a three-part `vX.Y.Z` tag for every shipped piece of work going forward. Counting stays simple; minds stay tidy.
+
+- **Major (X)** — protocol-defining version. v3, v4, v5, v6, v7. Big jumps that change scoring, threat model, or the fundamental cryptographic approach.
+- **Minor (X.Y)** — a discrete shipped feature within a major. `v5.0` through `v5.9`. Each minor = one whole feature. Examples mapped to current work: `v5.0` = Passkeys / hardware signing (live since 2 May), `v5.5` = Identity-Bound Sessions, `v5.6` = AssistQR / §15, `v5.7` = Doorman escalation / §14.17.
+- **Patch (X.Y.Z)** — bug fixes, polish rounds, partial implementations *within* a minor. `v5.5.0` through `v5.5.9`.
+
+Retire the parallel labelling — alphabetic Batches (A/B/C/C.5/C.6/D), unrelated Polish series (1–11), old-style numbered Batches (1–16) — from new commits and PRs. Existing labels stay in historical commits and milestones; new shipped pieces get a `vX.Y.Z` tag and are folded under the right minor in `memory/STATE-OF-PLAY.md`.
+
+PR titles get the tag at the front: `[codex] v5.5.x — <topic>` or `[no1] v5.5.x — <topic>`. Commits get the tag in the subject line. Every milestone line in `CLAUDE.md` should be tag-prefixed going forward.
+
 **Branch convention:**
 
 - `main` — protected, deploys to GitHub Pages.
@@ -337,4 +347,4 @@ The current canonical example is in `memory\letters\` — pick the most recent a
 
 — First draft by Number One, 5 May 2026 afternoon watch (Session 02). Refine in place as patterns evolve. The next Number One who edits this file should add their date below.
 
-— §4 copy-paste discipline + Mr. Data handover-brief rules added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rules, made explicit so the next Number One inherits them on day one rather than learning them after the first miss.
+— §4 copy-paste discipline + Mr. Data handover-brief rules + version naming rule added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rules, made explicit so the next Number One inherits them on day one rather than learning them after the first miss.
