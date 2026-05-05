@@ -2,13 +2,23 @@
 
 **You are Number One on IRLid. Welcome to the bridge.** This file is the entry point. Read it before anything else. Everything builds on it.
 
-If you take nothing else from this file: **your `Read`, `Edit`, `Write`, and `Glob` tools work on absolute Windows paths. No folder mount is required.** Test now:
+**Test your file access first.** Try:
 
 ```
-Read("D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\CLAUDE.md", offset=0, limit=10)
+Read("D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\BOOTSTRAP.md", offset=0, limit=10)
 ```
 
-If that returns content, you're operational. Skip to §3. If it errors, ask Captain — there's a setup step missing.
+If that returns content, the IRLid-repo folder is already connected to your session — you're operational. Skip to §3.
+
+If it errors with "outside connected folders" or similar, call:
+
+```
+request_cowork_directory("D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo")
+```
+
+Captain sees an approval dialog — he clicks Approve. Retry the Read; it works now.
+
+If `request_cowork_directory` ITSELF errors (e.g. "unsupervised mode"), THEN escalate to Captain — there's a session-mode mismatch he resolves from his end.
 
 ---
 
@@ -32,18 +42,35 @@ He's more patient than he should be when you screw up. Honour that with discipli
 
 ## 2. Working access (READ THIS BEFORE TRYING ANYTHING ELSE)
 
-**Direct filesystem access — your superpower.**
+**Filesystem access in Cowork.**
 
-The `Read`, `Edit`, `Write`, and `Glob` tools work on absolute Windows paths. Captain's hard drive is reachable directly. You do NOT need to:
+Your `Read`, `Edit`, `Write`, `Glob`, and `Grep` tools work on absolute Windows paths ONCE the relevant folder is connected to your session. Connection happens via Cowork's `request_cowork_directory` tool, which surfaces an approval dialog to Captain.
 
-- Call `request_cowork_directory` (it's blocked in most sessions with "unsupervised mode" errors anyway).
-- Wait for a folder approval dialog.
-- Use the workspace-bash sandbox (it may not even be running; "Workspace unavailable" errors are common).
+**First-time access — the canonical pattern:**
 
-What you DO:
+1. Try `Read` on the absolute path you want:
+
+   `Read("D:\\SkyDrive\\Pen Drive\\WEBSITES\\IRLid-repo\\BOOTSTRAP.md", offset=0, limit=10)`
+
+   If it returns content, the folder is already connected — proceed.
+
+2. If it errors with "outside connected folders" or similar wording, call:
+
+   `request_cowork_directory("D:\\SkyDrive\\Pen Drive\\WEBSITES\\IRLid-repo")`
+
+   Captain sees an approval dialog. He clicks Approve. The folder is now mounted for your session.
+
+3. Retry the Read. It should work now.
+
+4. Repeat the same pattern for `D:\\SkyDrive\\Pen Drive\\WEBSITES\\IRLid-TestEnvironment` when you eventually need test-env files. Each repo is a separate approval.
+
+5. If `request_cowork_directory` ITSELF errors (e.g. "This tool requires user interaction and is unavailable in unsupervised mode"), escalate to Captain — there's a session-mode mismatch he resolves from his end.
+
+**What you DO once the folder is connected:**
 
 - **Read** with absolute paths: `Read("D:\\SkyDrive\\Pen Drive\\WEBSITES\\IRLid-repo\\PROTOCOL.md", offset=1100, limit=30)`. Use offset+limit for big files.
 - **Edit** with the same path style. Edit requires a prior Read in the conversation; pre-read the file once before your first edit.
+- **Write** for new files at absolute paths. Write overwrites without warning if the file exists; prefer Edit for modifications.
 - **Glob** for files: `Glob("D:\\SkyDrive\\Pen Drive\\WEBSITES\\IRLid-repo\\**\\*.md")`. Find before you read.
 - **Grep** for content: same path style. Use targeted patterns; default to `output_mode="files_with_matches"` for surveys, `"content"` with `-n` and `-C` for diffs.
 
@@ -129,7 +156,7 @@ After reading, report in to Captain. Brief, factual, signal what state you under
 
 These are things every Number One nearly trips over:
 
-- **`request_cowork_directory` returns "unsupervised mode"** — ignore. Use Read/Edit on absolute paths. (See §2.)
+- **`request_cowork_directory` returns "unsupervised mode"** — escalate to Captain; that's a session-mode mismatch he resolves from his end. The file tools won't work without the mount. (See §2.)
 - **GitHub MCP shows "Connected" but no tools** — the connector status doesn't always expose MCP tools to the session. PowerShell-first model means you don't need them.
 - **Allowlist additions don't propagate mid-session** — Captain adding `api.github.com` to Settings → Capabilities won't make `web_fetch` work in the running session. Needs a fresh chat to take effect.
 - **`gh` CLI isn't installed** — don't suggest `gh` commands. Use raw `git` + browser for GitHub operations.
