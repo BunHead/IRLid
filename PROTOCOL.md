@@ -1454,6 +1454,68 @@ A Developer Bearer session MAY substitute for a fresh Staff HELLO across the esc
 
 The doorman flow defined here is the operational state machine that has been implicit in `OrgCheckin.html` since Batch 8. This subsection formalises it without changing the wire-level behaviour of any existing endpoint. Existing scans continue to dispatch into the green / red / orange branches as they always have; the formalisation captures the shape so that §14.18 (OAuth + recovery quorum), §14.15 (Batch C.5 — Staff invite scan-in flow), and the upcoming Assisted Identity Flow (v5.6, currently in spec on `codex/assistqr-protocol`) can reference a stable description.
 
+### 14.18 OAuth identity linkage, proof hierarchy, and user-recovery quorum
+
+This section captures three related design surfaces that together govern how an IRLid user's identity is linked to external providers, what kinds of proof the protocol accepts for which operations, and how a user can recover when their hardware credential is lost. The principle that ties them together is: **hardware signs, OAuth identifies**. Hardware proves that the user consents to a specific act, right now, with a specific device. OAuth proves who the user claims to be. The two are different jobs and the protocol does not allow either to substitute for the other in their respective scopes.
+
+#### OAuth identity linkage
+
+A `portal_users` row represents the IRLid identity. External provider linkages (Google, Apple, Microsoft, GitHub, etc.) are stored in a many-to-many table:
+
+```sql
+CREATE TABLE portal_user_external_links (
+  portal_user_id TEXT NOT NULL REFERENCES portal_users(id),
+  provider       TEXT NOT NULL,         -- 'google' | 'apple' | 'microsoft' | 'github' | ...
+  external_id    TEXT NOT NULL,         -- the provider-side stable user id (OIDC `sub` claim or equivalent)
+  linked_at      INTEGER NOT NULL,      -- ms timestamp
+  display_label  TEXT,                  -- optional friendly label, e.g. "spencer@gmail.com"
+  PRIMARY KEY (portal_user_id, provider)
+);
+```
+
+A user MAY have zero, one, or many linked providers. Most users will have both a hardware credential (for portal admin operations) and one or more OAuth links (for receipts and recovery). Some — particularly attendees who never administer an org — may have only OAuth or even neither.
+
+The `(portal_user_id, provider)` primary key prevents a single user from linking the same provider twice; switching, e.g., a Google account from `a@gmail.com` to `b@gmail.com` is an unlink-and-relink. The `external_id` column carries the provider's stable user identifier (OIDC `sub` or equivalent), which does not rotate when the user changes their provider-side email. This protects against silent identity drift if a user changes their email with the provider.
+
+OAuth linkage does NOT grant or alter portal privileges. It is a recognition mechanism — "this IRLid user controls this Google account" — and its consequences for privilege are governed by the proof hierarchy below.
+
+#### Three-tier proof hierarchy
+
+IRLid distinguishes three tiers of proof. Each tier admits the user to a different scope of operation:
+
+**Tier 1 — Hardware-backed credential.** A signature produced by a credential held in a Secure Enclave, TEE, or FIDO authenticator (the v5 envelope from §13). Required for any **write or privileged** operation: creating an org, modifying memberships, signing a receipt, performing any escalation in §14.17, modifying settings. The credential is non-extractable (or operating in non-extractable posture for Synced Passkeys), so the signature attests to live possession of the device that holds the key.
+
+**Tier 2 — OAuth account verification.** A successful sign-in flow with a linked external provider. Sufficient for **read** access to the user's own data — viewing their attendance history, downloading their own receipts, browsing public org pages as themselves. Tier 2 is **never** sufficient on its own for privileged ops. A user signed in with only OAuth cannot create check-ins, mutate memberships, modify settings, or sign new receipts.
+
+**Tier 3 — Multi-account recovery quorum.** N-of-M linked OAuth accounts collectively authorising the enrolment of a NEW hardware credential. Used only when the user has lost access to their previous hardware key and needs to bootstrap a new one. Detailed in the next subsection.
+
+The bright line is between Tier 1 and Tier 2. **Hardware signs, OAuth identifies.** A request that arrives with only Tier 2 proof against a Tier 1 endpoint is rejected at the Worker layer with `401 {error: "tier_insufficient", required: "hardware"}` regardless of how many OAuth providers were involved or how recently they verified.
+
+#### User-recovery quorum
+
+When a user loses their hardware credential — phone destroyed, device reset, biometric enrolment cleared — they need a path back without an attacker being able to forge that path. The recovery quorum is that path.
+
+**Default threshold: 4-of-5 of the user's linked OAuth accounts.** The protocol recommends linking at least 5 providers during normal account hygiene to make recovery available at the default threshold. Scaling for users with fewer than 5 links (e.g. 3-of-4, 3-of-3) is left to the v5.6 reference implementation; until that lands, users with fewer than 5 links rely on `developer` override (a Tier 1 platform-level act) for emergency recovery.
+
+**Mechanism.** Each of the N participating providers must independently sign a recovery agreement statement of the form `{portal_user_id, new_pub_jwk, recovery_intent: true, timestamp}` using their normal OAuth flow. Signatures are collected over different days or sessions deliberately — staged collection defeats fast-cascade attack scenarios in which an attacker compromises the user's primary email account and chains through multiple OAuth password resets in one sitting. The Worker rejects a recovery quorum where every participating signature was issued within a single 24-hour window unless the user has explicitly opted into expedited recovery at link time.
+
+**On successful quorum:**
+
+1. The new `pub_jwk` is bound to the existing `portal_user` row (multi-key binding per §14.17 — the new key joins the key set, doesn't replace the old).
+2. The previous `pub_fp` (hardware fingerprint) is added to a revocation list. It can no longer be used to authenticate new sessions; existing sessions backed by it are invalidated at next request.
+3. Subsequent operations by the user are performed under the new hardware credential, with all Tier 1 privileges restored.
+
+**Diversity.** The protocol asks the user at link time to consider geographic and jurisdictional diversity of their linked providers — picking, for example, Google + Apple + Microsoft + GitHub spans multiple US-based corporate entities but no single one controls all of them. The protocol does not enforce diversity (most consumer providers are US-based, and forcing non-US providers would frustrate normal users), but the link-time prompt is a "did you consider" nudge. Commercial and technical diversity (different account-recovery surfaces for different providers) is the practical defence regardless of jurisdictional spread.
+
+**Distinct from network constitutional quorum.** This per-user recovery quorum is NOT the same as the network-level constitutional Quorum described in `LONG-TERM-SUCCESSION.md` (4-of-7 standby regents authorising INTERIM mode after the original Developer becomes unavailable). Both are M-of-N threshold mechanisms; both are legitimate; but they operate at different scopes:
+
+| Layer | Mechanism | Purpose |
+|------|-----------|---------|
+| Per-user identity recovery | 4-of-5 of the user's linked OAuth accounts | User regains access after device loss |
+| Network constitutional succession | 4-of-7 standby Quorum + AI-witness ledger | Network continues if the original Developer is unavailable |
+
+The two MUST NOT be conflated in implementation. Future implementers will be tempted to share a single threshold scheme; the temptation should be resisted, because the trust models, the participants, the failure modes, and the legitimate authorities are different.
+
 ---
 
 *Sections 10, 11, 12, 13, and 14 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
