@@ -1109,14 +1109,20 @@ The `theme_scrape_status: "queued"` field is a forward-defined hook for Batch D 
 | Role | Read-only ops | Mutating ops on attendance | Admin ops on memberships | Org settings | Create new orgs |
 |------|--------------|---------------------------|-------------------------|--------------|-----------------|
 | attendee | Yes (their own attendance only) | None | None | None | No |
-| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review | None | None | No |
+| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review; add attendee to Expected List | None | None | No |
 | manager | Yes | All staff + edit/delete attendance + edit expected list | Add/remove staff and attendees in this org | View only | No |
-| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add lead_admins | Edit all | Yes (multiple) |
+| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add/remove lead_admins | Edit all | Yes (multiple) |
 | developer | Yes (any org via __system__) | All lead_admin in any org | All in any org | All in any org | Yes (unlimited) |
 
 A user MAY hold different roles in different orgs. A real example: someone is `lead_admin` of their own conference venue and `staff` at a friend's event next weekend. The `org_memberships` table is the source of truth; the session token resolves to a `user_id`, the dashboard queries memberships per org.
 
-The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level.
+The five role identifiers (`attendee`, `staff`, `manager`, `lead_admin`, `developer`) are protocol-internal and never change — they are database keys, code paths, and audit-log entries. Orgs MAY override the user-visible **display label** for each role to match domain vocabulary: a school might display `staff` as "Teacher" and `attendee` as "Student"; a venue might display `staff` as "Usher". Display labels live in `settings_json.role_labels` as a `{ role_id: label }` map; missing entries fall back to defaults ("Attendee", "Staff", "Manager", "Lead Admin", "Developer"). Validation: each label is 1–30 characters, plain text, no HTML. The `developer` label is fixed and cannot be overridden — it is platform-level, not org-level. The `lead_admin` label MAY be overridden, but the protocol recommends keeping a recognisable suffix or prefix (e.g. "Head Teacher (Lead Admin)") so users can map a custom name back to platform privilege when reading audit logs or contacting support.
+
+The `lead_admin` role is subject to one count invariant: an org must always have at least one lead_admin (no orphaning). Add/remove permissions are unbounded above this floor — a lead_admin MAY add another lead_admin in any state, and MAY delete another lead_admin (including themselves) provided the org would still hold at least 1 lead_admin after the deletion. An attempt to delete the sole lead_admin returns `409 {error: "would_orphan_org"}` at the Worker layer.
+
+The recommended handover pattern is for an outgoing lead_admin to add the incoming one first (count 1 → 2), confirm the new one is operating correctly, then remove themselves (count back to 1). The protocol does not enforce this pattern; it is operational guidance. Batch C.5 (§14.15) is the first surface that exposes lead_admin add/remove to the UI; the count-floor check lands in the Worker as part of that batch.
+
+The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level. It also overrides the lead_admin count floor: a developer may delete the last lead_admin (orphaning the org for cleanup) and may restore an orphaned org by adding a new lead_admin — the only path back from a 0-state.
 
 ### 14.10 Threat model
 
@@ -1402,6 +1408,113 @@ Cached structure:
 - Auto-update of theme on website re-scan when site changes. v5.6+ via scheduled Worker.
 
 **Estimated effort:** 1 day (Worker scrape endpoint + image proxy + client-side canvas sampler + UI for "Use this colour / use this logo").
+
+### 14.17 Doorman flow
+
+The doorman flow is the canonical state machine that runs every time a scan envelope arrives at the dashboard's check-in surface during a live event. It is the default check-in path. A doorman is not a role — it is staff (or higher) acting at the door. The flow is the same regardless of which role tier is acting; the role only gates what the actor can do during the staff-mediated escalation described below.
+
+Three outcomes are possible per scan, distinguished by whether the scanned `pub_jwk` matches an Expected List entry for the active event:
+
+**Recognised + Allowed (green).** The fingerprint matches an active Expected List entry — the attendee is expected, has not been previously rejected for this event, and has not already checked in. The Worker writes an `event_attendance` row with `status: "checked_in"`; the dashboard displays the attendee's resolved name and a green confirmation; the surface returns to scan-ready.
+
+**Recognised + Not allowed (red).** The fingerprint matches an Expected List entry but the entry is in a state that prohibits entry — denied, expired (post-event-close beyond grace period), banned, or already-checked-in for this event. The Worker writes an `event_attendance` row with `status: "rejected"` (the rejection is recorded, not silenced — audit-trail principle from §14.9). The dashboard displays a red rejection screen and returns to scan-ready.
+
+**Unrecognised (orange).** The fingerprint matches no Expected List entry. No attendance row is written yet. The attendee's screen displays an orange "?" panel showing their device-key QR (encoding `pub_jwk` and display intent); the dashboard surfaces a "Get a member of staff" prompt. The flow forks to the staff-mediated escalation below.
+
+#### Staff-mediated escalation
+
+Resolution of an unrecognised scan requires staff (or higher) to act at the dashboard:
+
+1. The acting staff member scans the attendee's orange QR. The QR encodes the attendee's `pub_jwk` (Device Enclave Key in v5 terminology).
+2. The dashboard surfaces two actions, role-gated as below: **Choose from List** or **Add Attendee** (and at higher role tiers, Add Staff / Add Manager / Add Lead Admin).
+
+**Choose from List.** The acting staff visually identifies the attendee against an existing Expected List entry — typical case: the person is on the list but has re-enrolled on a new device, or scanned with a different credential. The new `pub_jwk` is **added** to the existing entry's key set rather than replacing it; old keys remain valid until explicitly revoked through the recovery path. Multi-key binding matches the multi-device reality and dovetails with the user-recovery quorum design in §14.18, where keys come and go independently. After binding, the original scan resolves into the recognised+allowed branch.
+
+**Add Attendee / Add Staff / Add Manager / Add Lead Admin.** The acting staff creates a new Expected List entry (for an attendee — event-scoped, not a membership) or a new `org_memberships` row (for staff, manager, or lead_admin — org-wide). The new entry binds the attendee's `pub_jwk` from creation. The role tier of the new entry is gated by the acting staff member's own role:
+
+| Acting role | May add at the door |
+|-------------|---------------------|
+| `staff` | Attendee (Expected List entry only — not a new membership) |
+| `manager` | + Staff (membership) |
+| `lead_admin` | + Manager / Lead Admin (the latter subject to the §14.9 count invariant) |
+| `developer` | All ops, in any state |
+
+Once the escalation completes, the original scan resolves into the recognised+allowed branch and the attendee is checked in.
+
+#### Auth freshness
+
+The escalation path is privileged. Two tiers apply:
+
+- **Add (any tier).** The acting staff session must be backed by a fresh Staff HELLO scan (`requireFreshStaffProof`, the §14.10 step-up principle). Adding identity creates a permanent record; the highest auth gate applies. The dashboard prompts for a fresh Staff HELLO if the session is older than the configured freshness window.
+- **Choose from List.** The standing Bearer session is sufficient. The op binds a key to an existing identity that the acting staff has visually confirmed; no new identity is created; the standing session covers the operation.
+
+A Developer Bearer session MAY substitute for a fresh Staff HELLO across the escalation path (per the Polish 11 Task 2 implementation queue), reflecting that the `developer` role is platform-level and a Bearer session backed by `BOOTSTRAP_DEVELOPER_FP` is itself a higher trust signal than a fresh Staff HELLO from a non-platform actor.
+
+#### Backward compatibility
+
+The doorman flow defined here is the operational state machine that has been implicit in `OrgCheckin.html` since Batch 8. This subsection formalises it without changing the wire-level behaviour of any existing endpoint. Existing scans continue to dispatch into the green / red / orange branches as they always have; the formalisation captures the shape so that §14.18 (OAuth + recovery quorum), §14.15 (Batch C.5 — Staff invite scan-in flow), and the upcoming Assisted Identity Flow (v5.6, currently in spec on `codex/assistqr-protocol`) can reference a stable description.
+
+### 14.18 OAuth identity linkage, proof hierarchy, and user-recovery quorum
+
+This section captures three related design surfaces that together govern how an IRLid user's identity is linked to external providers, what kinds of proof the protocol accepts for which operations, and how a user can recover when their hardware credential is lost. The principle that ties them together is: **hardware signs, OAuth identifies**. Hardware proves that the user consents to a specific act, right now, with a specific device. OAuth proves who the user claims to be. The two are different jobs and the protocol does not allow either to substitute for the other in their respective scopes.
+
+#### OAuth identity linkage
+
+A `portal_users` row represents the IRLid identity. External provider linkages (Google, Apple, Microsoft, GitHub, etc.) are stored in a many-to-many table:
+
+```sql
+CREATE TABLE portal_user_external_links (
+  portal_user_id TEXT NOT NULL REFERENCES portal_users(id),
+  provider       TEXT NOT NULL,         -- 'google' | 'apple' | 'microsoft' | 'github' | ...
+  external_id    TEXT NOT NULL,         -- the provider-side stable user id (OIDC `sub` claim or equivalent)
+  linked_at      INTEGER NOT NULL,      -- ms timestamp
+  display_label  TEXT,                  -- optional friendly label, e.g. "spencer@gmail.com"
+  PRIMARY KEY (portal_user_id, provider)
+);
+```
+
+A user MAY have zero, one, or many linked providers. Most users will have both a hardware credential (for portal admin operations) and one or more OAuth links (for receipts and recovery). Some — particularly attendees who never administer an org — may have only OAuth or even neither.
+
+The `(portal_user_id, provider)` primary key prevents a single user from linking the same provider twice; switching, e.g., a Google account from `a@gmail.com` to `b@gmail.com` is an unlink-and-relink. The `external_id` column carries the provider's stable user identifier (OIDC `sub` or equivalent), which does not rotate when the user changes their provider-side email. This protects against silent identity drift if a user changes their email with the provider.
+
+OAuth linkage does NOT grant or alter portal privileges. It is a recognition mechanism — "this IRLid user controls this Google account" — and its consequences for privilege are governed by the proof hierarchy below.
+
+#### Three-tier proof hierarchy
+
+IRLid distinguishes three tiers of proof. Each tier admits the user to a different scope of operation:
+
+**Tier 1 — Hardware-backed credential.** A signature produced by a credential held in a Secure Enclave, TEE, or FIDO authenticator (the v5 envelope from §13). Required for any **write or privileged** operation: creating an org, modifying memberships, signing a receipt, performing any escalation in §14.17, modifying settings. The credential is non-extractable (or operating in non-extractable posture for Synced Passkeys), so the signature attests to live possession of the device that holds the key.
+
+**Tier 2 — OAuth account verification.** A successful sign-in flow with a linked external provider. Sufficient for **read** access to the user's own data — viewing their attendance history, downloading their own receipts, browsing public org pages as themselves. Tier 2 is **never** sufficient on its own for privileged ops. A user signed in with only OAuth cannot create check-ins, mutate memberships, modify settings, or sign new receipts.
+
+**Tier 3 — Multi-account recovery quorum.** N-of-M linked OAuth accounts collectively authorising the enrolment of a NEW hardware credential. Used only when the user has lost access to their previous hardware key and needs to bootstrap a new one. Detailed in the next subsection.
+
+The bright line is between Tier 1 and Tier 2. **Hardware signs, OAuth identifies.** A request that arrives with only Tier 2 proof against a Tier 1 endpoint is rejected at the Worker layer with `401 {error: "tier_insufficient", required: "hardware"}` regardless of how many OAuth providers were involved or how recently they verified.
+
+#### User-recovery quorum
+
+When a user loses their hardware credential — phone destroyed, device reset, biometric enrolment cleared — they need a path back without an attacker being able to forge that path. The recovery quorum is that path.
+
+**Default threshold: 4-of-5 of the user's linked OAuth accounts.** The protocol recommends linking at least 5 providers during normal account hygiene to make recovery available at the default threshold. Scaling for users with fewer than 5 links (e.g. 3-of-4, 3-of-3) is left to the v5.6 reference implementation; until that lands, users with fewer than 5 links rely on `developer` override (a Tier 1 platform-level act) for emergency recovery.
+
+**Mechanism.** Each of the N participating providers must independently sign a recovery agreement statement of the form `{portal_user_id, new_pub_jwk, recovery_intent: true, timestamp}` using their normal OAuth flow. Signatures are collected over different days or sessions deliberately — staged collection defeats fast-cascade attack scenarios in which an attacker compromises the user's primary email account and chains through multiple OAuth password resets in one sitting. The Worker rejects a recovery quorum where every participating signature was issued within a single 24-hour window unless the user has explicitly opted into expedited recovery at link time.
+
+**On successful quorum:**
+
+1. The new `pub_jwk` is bound to the existing `portal_user` row (multi-key binding per §14.17 — the new key joins the key set, doesn't replace the old).
+2. The previous `pub_fp` (hardware fingerprint) is added to a revocation list. It can no longer be used to authenticate new sessions; existing sessions backed by it are invalidated at next request.
+3. Subsequent operations by the user are performed under the new hardware credential, with all Tier 1 privileges restored.
+
+**Diversity.** The protocol asks the user at link time to consider geographic and jurisdictional diversity of their linked providers — picking, for example, Google + Apple + Microsoft + GitHub spans multiple US-based corporate entities but no single one controls all of them. The protocol does not enforce diversity (most consumer providers are US-based, and forcing non-US providers would frustrate normal users), but the link-time prompt is a "did you consider" nudge. Commercial and technical diversity (different account-recovery surfaces for different providers) is the practical defence regardless of jurisdictional spread.
+
+**Distinct from network constitutional quorum.** This per-user recovery quorum is NOT the same as the network-level constitutional Quorum described in `LONG-TERM-SUCCESSION.md` (4-of-7 standby regents authorising INTERIM mode after the original Developer becomes unavailable). Both are M-of-N threshold mechanisms; both are legitimate; but they operate at different scopes:
+
+| Layer | Mechanism | Purpose |
+|------|-----------|---------|
+| Per-user identity recovery | 4-of-5 of the user's linked OAuth accounts | User regains access after device loss |
+| Network constitutional succession | 4-of-7 standby Quorum + AI-witness ledger | Network continues if the original Developer is unavailable |
+
+The two MUST NOT be conflated in implementation. Future implementers will be tempted to share a single threshold scheme; the temptation should be resisted, because the trust models, the participants, the failure modes, and the legitimate authorities are different.
 
 ---
 
