@@ -114,6 +114,14 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
 - For long output: pipe through `Out-Host -Paging` (space to scroll, `q` to quit)
 - For clipboard: `... | Set-Clipboard` then he Ctrl+V into chat. Use sparingly — chained `Set-Clipboard` calls overwrite each other.
 
+**Captain's standing rule — copy-paste discipline.** Every PowerShell command you want Captain to run goes in a fenced ` ```powershell ` block. Cowork chat renders fenced blocks with a copy button; Captain pastes straight in. No prose-embedded one-liners, no inline backticks for multi-step commands. One fenced block per logical action — chained commands inside a block are fine (`;`-separated), but unrelated actions get their own block. Lead with `cd "<path>"` when a working directory matters; quote paths with spaces. Inline backticks are reserved for short identifiers (filenames, commit hashes, tool names); they are NOT a substitute for a fenced block when Captain needs to run something.
+
+Example shape:
+
+```powershell
+cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git status
+```
+
 **Branch convention:**
 
 - `main` — protected, deploys to GitHub Pages.
@@ -306,3 +314,5 @@ The current canonical example is in `memory\letters\` — pick the most recent a
 ---
 
 — First draft by Number One, 5 May 2026 afternoon watch (Session 02). Refine in place as patterns evolve. The next Number One who edits this file should add their date below.
+
+— §4 copy-paste-discipline rule added by Number One, 5 May 2026 evening watch (Session 03). Captain's standing rule, made explicit so the next Number One inherits it on day one rather than learning it after the first miss.
