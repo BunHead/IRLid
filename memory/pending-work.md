@@ -1,18 +1,70 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 6 May 2026 morning (~7am pickup, Captain heading to work).
+**Last refreshed:** 6 May 2026 late evening (post-`v5.7.0` doorman stack ship).
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
 
-## Wednesday 6 May 2026 morning watch — `v5.5.5` closed + doorman moving
+## Wednesday 6 May 2026 — full `v5.7.0` doorman stack shipped end-to-end
 
-**Shipped this morning:**
+**Today landed a lot. Order of merges, all to test env unless noted:**
 
 - `v5.5.4` confirmed live + working — PR #80 (Polish 11 Task 2 Bearer sweep) verified post-merge.
 - `v5.5.5` merged + verified end-to-end — PR #82 (portalState + api_key resolution). Browser test: full save round-trip on Imbue Ventures, org-switch loads correct api_key, switch-back restores values from D1, hard-refresh persists. Morale-blocker closed.
+- `v5.5.10` merged — PR #85 (both save buttons save absolutely everything; theme included in payload + readback parity check).
+- `v5.5.11` merged — PR #90 (role-gated buttons hidden when role doesn't permit; effectiveRoleRank() used for gate; Staff role can no longer see Delete expected).
+- Stranded doorman brief commit (`8bf88f7`) cherry-picked to test env `main`.
+- `v5.7.0a` Worker merged + deployed — PR #81 (multi-key binding + role-gated Add + freshness gate).
+- `v5.7.0a-followup` merged + deployed — PR #84 (`/org/expected/lookup-by-fp/:fp` polling endpoint, leverages existing `findExpectedByDeviceFp()`, multi-key `rebind_history` matches resolve as `linked` too).
+- `v5.7.0b` merged — PR #83 (phone-side orange-state QR, signed `device_key` envelope, 2s polling, 5-min regenerate).
+- `v5.7.0b-polish` merged — PR #87 (orange QR encoded as `scan.html?type=device_key&payload=...` URL; OrgCheckin.html unwraps payload param before scanning).
+- `v5.7.0b.1` merged — PR #88 (orange QR maximised to ~82% viewport width, level-H error correction, "Hold your phone up so staff can scan it. You don't need to hand it over." subtitle).
+- `v5.7.0b.2` already-shipped via PR #89 (orange QR URL is absolute `https://irlid.co.uk/scan.html?...`; Mr. Data correctly identified the change was already on main and didn't open a redundant PR).
+- `v5.7.0c` merged — PR #86 (dashboard escalation modal + role-tiered Add tabs + scanner type-branch on `device_key` envelope).
+- **Live repo: `scan.html v5.7.1`** merged — PR #3 (live repo, universal QR ingress: `?type=`/`?payload=` and compact `?h=`/`?hz=`/`?d=`/`?dz=` params, type-aware `classify()`, fullscreen gating overlay for non-receipt envelopes; Captain's blinking-red-dot directive captured for offline mode separately).
+
+**Major proposal drafted, awaiting Captain's ratification:**
+
+- `OFFLINE-MODE-PROPOSAL.md` at repo root — `PROTOCOL.md §16` candidate covering offline-first design principle, four-tier path (PWA shell → IndexedDB queue → cached snapshot → multi-device mesh), time-anchoring via `§11 tsTokens`, blinking red dot UI directive, connection to `v6` themes (Wisdom humanitarian, multi-party custody, trust network). Commit pending Captain's read.
+
+### `v5.7.0c-followup` — scan widget orphan (urgent for testing)
+
+**Found 6 May late evening during Captain's first end-to-end test attempt.** The unified Check-in design (`prototype-checkin` class on body) correctly hides the legacy Doorman mode card on the Check-in panel — but the dashboardScanBox / "Process scan" widget that `v5.7.0c` added lives INSIDE that hidden Doorman card. Result: the escalation modal can't be triggered through the unified UI; v5.7.0c is effectively unreachable without dev-console workarounds.
+
+Brief drafted late evening, sent to Mr. Data. Branch `codex/v5.7.0c-followup-scan-widget-relocation`. Small fix — relocate the widget into the Dashboard panel where staff actions belong, or have `applyCheckinPrototypeLayout()` move it alongside `expectedPanel` and `roleToolbar`. Once shipped, end-to-end test of the doorman flow becomes possible without console hacks.
+
+### Other open / queued items (logged 6 May)
+
+- `v5.5.9` Dashboard table state bleed on org-switch — found 6 May morning. Mirror PR #82's reset pattern in `loadDashboardForOrg()`. Functional confusion, not data corruption. Still open.
+- `v5.7.0b.1.1` (or polish) — orange QR centring on portrait viewports (Captain's testing 6 May late evening). Tiny CSS fix.
+- `v5.7.0b polish` — orange screen +3s hold before transition (Captain's UX feedback earlier today). Small.
+- `v5.7.x cleanup` — retire Doorman mode toggle / unified Check-in cleanup. Same area as the scan-widget-orphan fix; could fold together.
+- `v6` GPS-guided "nearest staff" feature on orange screen — design captured for later. Includes Captain's directive to add a placeholder for the map widget NOW so the visual frame is ready when v6 lands.
+- `v5.6.0` AssistQR — Mr. Data's continuing primary stack on `codex/assistqr-*` branches.
+- `v5.5.6` Polish 11 Task 3 — jsQR Staff HELLO upload UI. Brief at HANDOVER-Polish11.md Task 3.
+- `v5.5.7` Batch C.5 — Staff invite scan-in flow. Spec'd in PROTOCOL.md §14.15.
+- `v5.5.8` Batch D — Website-scrape theme extraction. Spec'd in §14.13.
+- `v5.7.1` polish — orange QR friendlier-for-non-IRLid-scanners. Largely superseded by `scan.html v5.7.1` shipping universal-ingress.
+
+### Mr. Data's plate going into the night
+
+- `v5.7.0c-followup` (scan widget relocation) — assigned end of evening; small fix.
+- `v5.6.0` AssistQR — primary stack continues on his branches.
+
+### Mr. La Forge
+
+`HANDOVER-YubiKey.md` ready when commissioned. No change.
+
+---
+
+## Wednesday 6 May 2026 morning watch — `v5.5.5` closed + doorman moving
+
+**Original morning summary (kept for historical record; superseded by today's full-day section above):**
+
+- `v5.5.4` confirmed live + working — PR #80 (Polish 11 Task 2 Bearer sweep) verified post-merge.
+- `v5.5.5` merged + verified end-to-end — PR #82 (portalState + api_key resolution).
 - Stranded doorman brief commit (`8bf88f7`) cherry-picked to test env `main`.
 - `v5.7.0a` Worker merged + deployed (PR #81, multi-key binding + role-gated Add + freshness gate).
-- `v5.7.0b` phone work assigned to Mr. Data (orange-state QR rendering on `org-entry.html`).
+- `v5.7.0b` phone work assigned to Mr. Data.
 
 **New bug found this morning — `v5.5.9` candidate.** Dashboard table state bleed on org-switch. Switching from Org A to Org B leaves the previous org's Attendance Today rows visible until a hard refresh forces re-fetch. Same shape as the `v5.5.5` Branding bleed but on the dashboard's attendance/expected state surface, not portalState. PR #82 reset portalState on org-switch but didn't touch attendance table render. Likely fix: mirror PR #82's reset pattern in `loadDashboardForOrg()` — clear attendance + expected list state before re-fetching from the new org. Functional confusion, not data corruption.
 
