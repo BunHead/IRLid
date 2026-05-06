@@ -16,6 +16,10 @@
 
 **New bug found this morning — `v5.5.9` candidate.** Dashboard table state bleed on org-switch. Switching from Org A to Org B leaves the previous org's Attendance Today rows visible until a hard refresh forces re-fetch. Same shape as the `v5.5.5` Branding bleed but on the dashboard's attendance/expected state surface, not portalState. PR #82 reset portalState on org-switch but didn't touch attendance table render. Likely fix: mirror PR #82's reset pattern in `loadDashboardForOrg()` — clear attendance + expected list state before re-fetching from the new org. Functional confusion, not data corruption.
 
+**Second new bug — `v5.5.11` candidate.** Role-gated action buttons stay visible regardless of viewing role. The prototype-role-toolbar correctly displays the policy text (*"Staff can add attendees and assist review cases. Delete, clear, settings, and staff-role actions stay locked."*) when set to Staff, but the Delete expected buttons (and likely Clear test attendance, settings affordances, etc.) remain rendered and clickable. Should be hidden entirely (not just disabled) when current role doesn't permit. Use existing `effectiveRoleRank()` helper (commit `c58b23c`) for the gate. Investigation pass needed: enumerate all role-gated buttons in `OrgCheckin.html` first, then a single sweep PR. Captain's posture: prototype gating must enforce, not just label.
+
+**Third gap surfaced — `v5.7.0a-followup` Worker.** Mr. Data spotted in his PR #83 description that PR #81 merged without exposing `GET /org/expected/lookup-by-fp/:fp`, so `v5.7.0b`'s phone polling has no live target. Brief written and ready to forward; small endpoint addition.
+
 **Diagnostic notes from this morning:**
 
 - `v5.5.5` initial test failed because Captain clicked "Save theme" (theme-only save) not "Save All Settings" (full payload save). UX confusion masking a working save path. Polish ticket: duplicate "Save All Settings" button near Branding fields. Tag `v5.5.10`.
@@ -29,6 +33,8 @@
 - `v5.5.8` — Batch D, Website-scrape theme extraction (spec'd in §14.13).
 - `v5.5.9` — Dashboard state bleed (new this morning, see above).
 - `v5.5.10` — UX polish, duplicate "Save All Settings" button near Branding (low priority).
+- `v5.5.11` — Role-gating sweep: hide action buttons (Delete expected, Clear test attendance, settings affordances) entirely when current role doesn't permit. Found 6 May, see above.
+- `v5.7.0a-followup` — Worker `GET /org/expected/lookup-by-fp/:fp` polling endpoint (closes the gap PR #81 left). Brief drafted 6 May; assigned to Mr. Data.
 - `v5.6.0` — AssistQR / §15, Mr. Data's continuing primary stack on `codex/assistqr-*` branches.
 - `v5.7.0b` — Doorman phone, Mr. Data assigned this morning.
 - `v5.7.0c` — Doorman dashboard, queued after `v5.7.0b`.
