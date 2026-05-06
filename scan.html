@@ -1,4 +1,4 @@
-<!-- scan.html — Pure Scanner — Deploy 114 -->
+<!-- scan.html — Pure Scanner — Deploy 115 (v5.7.1: universal QR ingress + fullscreen gating) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,6 +153,72 @@
     }
 
     #debugControls { display: none; padding: 8px 14px 0; }
+
+    /* ===== Fullscreen gating overlay (v5.7.1) =====
+       Shown when scan.html receives a non-receipt envelope (device_key,
+       assist_request, future types). Covers the entire viewport so users
+       see clear instructions before fiddling with back buttons.        */
+    .gate-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: #FF9500;
+      color: #fff;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      text-align: center;
+      font-family: system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: contain;
+      user-select: none;
+    }
+    .gate-overlay.active { display: flex; }
+    .gate-overlay[data-state="orange"] { background: #FF9500; }
+    .gate-overlay[data-state="green"]  { background: #2E7D32; }
+    .gate-overlay[data-state="red"]    { background: #C62828; }
+    .gate-overlay .gate-mark {
+      font: 800 96px/1 system-ui, sans-serif;
+      margin-bottom: 16px;
+    }
+    .gate-overlay .gate-title {
+      font: 700 22px/1.3 system-ui, sans-serif;
+      max-width: 480px;
+      margin-bottom: 12px;
+    }
+    .gate-overlay .gate-body {
+      font: 400 16px/1.5 system-ui, sans-serif;
+      max-width: 420px;
+      opacity: .92;
+      margin-bottom: 24px;
+    }
+    .gate-overlay .gate-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .gate-overlay .gate-actions a,
+    .gate-overlay .gate-actions button {
+      background: rgba(255,255,255,.14);
+      border: 1.5px solid rgba(255,255,255,.4);
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 12px;
+      font: 600 15px/1 system-ui, sans-serif;
+      text-decoration: none;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .gate-overlay .gate-actions a:active,
+    .gate-overlay .gate-actions button:active { transform: scale(.98); }
+    @media (max-width: 480px) {
+      .gate-overlay .gate-mark  { font-size: 80px; }
+      .gate-overlay .gate-title { font-size: 19px; }
+      .gate-overlay .gate-body  { font-size: 15px; }
+    }
   </style>
 </head>
 
@@ -291,6 +357,50 @@
     scanViewport.className = "scan-viewport state-" + s;
   }
 
+  // ========== Payload type inspector (v5.7.1 universal-ingress) ==========
+  // HELLO / HELLO_Z payloads may carry one of several `type` discriminators:
+  //   (none) / "hello"   → legacy receipt-exchange HELLO (existing flow)
+  //   "device_key"       → orange-state attendee QR from v5.7.0b doorman flow
+  //   "assist_request"   → v5.6.0 AssistQR (forward compat)
+  // Decoding the payload to inspect `type` lets scan.html act as a single
+  // point of contact for every IRLid QR variation, regardless of which
+  // surface generated it.
+  async function decodePayloadType(payloadB64, isCompressed) {
+    try {
+      const obj = isCompressed
+        ? await irlidDecompressFromB64url(payloadB64)
+        : irlidDecodeB64urlJson(payloadB64);
+      return (obj && typeof obj.type === "string") ? obj.type : null;
+    } catch { return null; }
+  }
+
+  // ========== Fullscreen gating overlay helper (v5.7.1) ==========
+  // For non-receipt envelopes (device_key, assist_request, future types),
+  // scan.html shows a full-viewport coloured banner instead of redirecting
+  // to accept.html. Captain's directive: prevent users from fiddling with
+  // back buttons before reading the instructions.
+  function showGate(state, title, body, actions) {
+    const overlay = document.getElementById("gateOverlay");
+    if (!overlay) return;
+    overlay.dataset.state = state || "orange";
+    overlay.querySelector(".gate-title").textContent = title || "";
+    overlay.querySelector(".gate-body").textContent  = body  || "";
+    const mark = overlay.querySelector(".gate-mark");
+    mark.textContent = state === "green" ? "✓"
+                      : state === "red"   ? "!"
+                      : "?";
+    const actionsContainer = overlay.querySelector(".gate-actions");
+    actionsContainer.innerHTML = "";
+    for (const a of (actions || [])) {
+      const el = document.createElement(a.href ? "a" : "button");
+      el.textContent = a.label;
+      if (a.href) el.href = a.href;
+      if (a.onclick) el.addEventListener("click", a.onclick);
+      actionsContainer.appendChild(el);
+    }
+    overlay.classList.add("active");
+  }
+
   // ========== QR Classify ==========
   function classify(text){
     const t = (text || "").trim();
@@ -298,6 +408,27 @@
     if (t.startsWith("R:"))  return { kind:"RESP",   v: t.slice(2) };
     if (t.startsWith("HZ:")) return { kind:"HELLO_Z", v: t.slice(3) };
     if (t.startsWith("H:"))  return { kind:"HELLO",  v: t.slice(2) };
+    if (t.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: t.slice(3) };
+    if (t.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: t.slice(2) };
+
+    // v5.7.1: scan.html URL with ?type=…&payload=… (camera scanning a URL-encoded QR).
+    // Same scheme as ingestUrlPayload() at script-eval time — kept in sync there.
+    try {
+      const u = new URL(t);
+      const path = (u.pathname || "").toLowerCase();
+      if (path.endsWith("/scan.html") || path.endsWith("scan.html")) {
+        const payload = u.searchParams.get("payload") || "";
+        if (payload.startsWith("HZ:")) return { kind:"HELLO_Z",      v: payload.slice(3) };
+        if (payload.startsWith("H:"))  return { kind:"HELLO",        v: payload.slice(2) };
+        if (payload.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: payload.slice(3) };
+        if (payload.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: payload.slice(2) };
+        // Compact-form fallbacks
+        const h  = u.searchParams.get("h");  if (h)  return { kind:"HELLO",        v: h  };
+        const hz = u.searchParams.get("hz"); if (hz) return { kind:"HELLO_Z",      v: hz };
+        const d  = u.searchParams.get("d");  if (d)  return { kind:"DEVICE_KEY",   v: d  };
+        const dz = u.searchParams.get("dz"); if (dz) return { kind:"DEVICE_KEY_Z", v: dz };
+      }
+    } catch {}
 
     const rxHelloZ  = /(?:^|[#&])HZ=([^&]+)/;
     const rxHello   = /(?:^|[#&])HELLO=([^&]+)/;
@@ -831,9 +962,37 @@
         dbg("Scanned: " + c.kind);
 
         // HELLO → redirect to accept.html to show Accept QR
-        if (c.kind === "HELLO" || c.kind === "HELLO_Z") {
+        // v5.7.1: HELLO / DEVICE_KEY \u2192 inspect payload type, dispatch accordingly.
+        // HELLO/HELLO_Z prefix is shared between receipt-exchange (legacy)
+        // and orange-state device_key QRs (v5.7.0b doorman flow).
+        // DEVICE_KEY/DEVICE_KEY_Z prefix is the explicit forward-compat form.
+        if (c.kind === "HELLO" || c.kind === "HELLO_Z" || c.kind === "DEVICE_KEY" || c.kind === "DEVICE_KEY_Z") {
+          const isCompressed = c.kind === "HELLO_Z" || c.kind === "DEVICE_KEY_Z";
+          const explicitDeviceKey = c.kind === "DEVICE_KEY" || c.kind === "DEVICE_KEY_Z";
+          const payloadType = explicitDeviceKey
+            ? "device_key"
+            : await decodePayloadType(c.v || "", isCompressed);
+          if (payloadType === "device_key") {
+            setStatus("Staff-scan QR detected.");
+            showGate("orange",
+              "This QR is for staff scanning",
+              "Hand this phone to a member of staff at the venue's check-in. The staff dashboard scanner will read this code and complete your entry.",
+              [{ label: "Back to Home", href: "index.html" }]
+            );
+            return;
+          }
+          if (payloadType === "assist_request") {
+            setStatus("Assist-request QR detected.");
+            showGate("orange",
+              "This QR is for staff",
+              "An assist request was created on a phone scanning the venue. Hand this phone to staff if you're at the venue.",
+              [{ label: "Back to Home", href: "index.html" }]
+            );
+            return;
+          }
+          // Default \u2014 receipt-exchange HELLO, redirect to accept.html (legacy flow)
           setStatus("HELLO detected. Redirecting to Accept page\u2026");
-          if (c.kind === "HELLO_Z") {
+          if (isCompressed) {
             location.href = "accept.html#HZ=" + c.v;
           } else {
             location.href = "accept.html#HELLO=" + c.v;
@@ -968,7 +1127,75 @@
       setStatus("Tap 'Start Camera' to begin scanning.");
       dbg("Auto-start failed: " + e);
     }
-  })();
+    // ========== URL-param ingest (v5.7.1 single point of contact) ==========
+  // Canonical scheme (matches v5.7.0b-polish org-entry.html encoding):
+  //   https://irlid.co.uk/scan.html?type=<envelope_type>&payload=<H:/HZ:...>
+  // Examples:
+  //   ?type=device_key&payload=HZ:eyJ0...     (orange-state attendee QR)
+  //   ?type=assist_request&payload=H:eyJ0...  (v5.6.0 AssistQR — forward-compat)
+  //
+  // Compact-form fallbacks (forward-compat / hand-built test URLs):
+  //   ?h=<bare-base64>   ?hz=<bare-base64>    (HELLO)
+  //   ?d=<bare-base64>   ?dz=<bare-base64>    (device_key)
+  //
+  // Native scanners (Android camera, Google Lens, etc.) open the URL,
+  // scan.html parses the payload server-free, dispatches based on type.
+  async function ingestUrlPayload() {
+    try {
+      const params = new URL(location.href).searchParams;
+      let payload = null, isCompressed = false, explicitType = null;
+
+      // Canonical scheme: ?type=<envelope>&payload=<H:/HZ:...>
+      if (params.has("type") && params.has("payload")) {
+        explicitType = params.get("type");
+        const rawPayload = params.get("payload") || "";
+        if (rawPayload.startsWith("HZ:")) { payload = rawPayload.slice(3); isCompressed = true;  }
+        else if (rawPayload.startsWith("H:"))  { payload = rawPayload.slice(2); isCompressed = false; }
+        else if (rawPayload.startsWith("DZ:")) { payload = rawPayload.slice(3); isCompressed = true;  }
+        else if (rawPayload.startsWith("D:"))  { payload = rawPayload.slice(2); isCompressed = false; }
+        else { payload = rawPayload; isCompressed = false; } // bare payload, assume uncompressed
+      }
+      // Compact-form fallbacks
+      else if (params.has("h"))  { payload = params.get("h");  isCompressed = false; }
+      else if (params.has("hz")) { payload = params.get("hz"); isCompressed = true;  }
+      else if (params.has("d"))  { payload = params.get("d");  isCompressed = false; explicitType = "device_key"; }
+      else if (params.has("dz")) { payload = params.get("dz"); isCompressed = true;  explicitType = "device_key"; }
+      if (!payload) return false;
+
+      const payloadType = explicitType || await decodePayloadType(payload, isCompressed);
+
+      if (payloadType === "device_key") {
+        showGate("orange",
+          "This QR is for staff scanning",
+          "Hand this phone to a member of staff at the venue's check-in. The staff dashboard scanner will read this code and complete your entry.",
+          [{ label: "Back to Home", href: "index.html" }]
+        );
+        return true;
+      }
+      if (payloadType === "assist_request") {
+        showGate("orange",
+          "This QR is for staff",
+          "An assist request was created on a phone scanning the venue. Hand this phone to staff if you're at the venue.",
+          [{ label: "Back to Home", href: "index.html" }]
+        );
+        return true;
+      }
+      // Default — treat as a receipt-exchange HELLO, redirect to accept.html
+      if (isCompressed) {
+        location.href = "accept.html#HZ=" + payload;
+      } else {
+        location.href = "accept.html#HELLO=" + payload;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  // Run once on script-eval (DOM elements are already in place since this
+  // script lives at the end of <body>). If a payload is found, dispatch
+  // happens immediately and the camera scanner UI is bypassed.
+  ingestUrlPayload();
+})();
 </script>
 
 
@@ -979,5 +1206,17 @@
     &nbsp;&middot;&nbsp;
     IRLid&trade;
   </footer>
+<!-- ===== Fullscreen gating overlay (v5.7.1) ===== -->
+<!-- Shown when scan.html receives a non-receipt envelope (device_key, -->
+<!-- assist_request, future types). Hidden by default; showGate() activates. -->
+<div class="gate-overlay" id="gateOverlay" data-state="orange" role="dialog" aria-live="polite" aria-modal="true">
+  <div class="gate-mark">?</div>
+  <div class="gate-title">This QR is for staff scanning</div>
+  <div class="gate-body">Hand this phone to a member of staff at the venue's check-in.</div>
+  <div class="gate-actions">
+    <a href="index.html">Back to Home</a>
+  </div>
+</div>
+
 </body>
 </html>
