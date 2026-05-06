@@ -131,6 +131,7 @@ Goal: <one-line restatement>.
 Pattern to copy (if any): <existing code reference>.
 Branch: codex/<topic-slug>.
 PR title: [codex] <vX.Y.Z> — <task name>.
+Expected PR scope: <Small (~50 lines, Captain auto-merge OK) | Medium (~50–200 lines, 60s eyeball) | Large (200+ lines or new endpoints/schema/UI surface, read description + acceptance match before merge)>.
 Acceptance: <pointer to brief section>.
 Out of scope: <pointer to out-of-scope section>.
 Single PR. Stop and raise if scope expands.
