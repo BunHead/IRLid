@@ -411,6 +411,25 @@
     if (t.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: t.slice(3) };
     if (t.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: t.slice(2) };
 
+    // v5.7.1: scan.html URL with ?type=…&payload=… (camera scanning a URL-encoded QR).
+    // Same scheme as ingestUrlPayload() at script-eval time — kept in sync there.
+    try {
+      const u = new URL(t);
+      const path = (u.pathname || "").toLowerCase();
+      if (path.endsWith("/scan.html") || path.endsWith("scan.html")) {
+        const payload = u.searchParams.get("payload") || "";
+        if (payload.startsWith("HZ:")) return { kind:"HELLO_Z",      v: payload.slice(3) };
+        if (payload.startsWith("H:"))  return { kind:"HELLO",        v: payload.slice(2) };
+        if (payload.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: payload.slice(3) };
+        if (payload.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: payload.slice(2) };
+        // Compact-form fallbacks
+        const h  = u.searchParams.get("h");  if (h)  return { kind:"HELLO",        v: h  };
+        const hz = u.searchParams.get("hz"); if (hz) return { kind:"HELLO_Z",      v: hz };
+        const d  = u.searchParams.get("d");  if (d)  return { kind:"DEVICE_KEY",   v: d  };
+        const dz = u.searchParams.get("dz"); if (dz) return { kind:"DEVICE_KEY_Z", v: dz };
+      }
+    } catch {}
+
     const rxHelloZ  = /(?:^|[#&])HZ=([^&]+)/;
     const rxHello   = /(?:^|[#&])HELLO=([^&]+)/;
     const rxResp    = /(?:^|[#&])RESP=([A-Za-z0-9\-_]+)/;
@@ -1109,26 +1128,41 @@
       dbg("Auto-start failed: " + e);
     }
     // ========== URL-param ingest (v5.7.1 single point of contact) ==========
-  // Allows other IRLid surfaces to encode QRs as
-  //   https://irlid.co.uk/scan.html?h=<payload>     (HELLO-shaped envelope)
-  //   https://irlid.co.uk/scan.html?hz=<payload>    (compressed HELLO)
-  //   https://irlid.co.uk/scan.html?d=<payload>     (explicit device_key)
-  //   https://irlid.co.uk/scan.html?dz=<payload>    (compressed device_key)
+  // Canonical scheme (matches v5.7.0b-polish org-entry.html encoding):
+  //   https://irlid.co.uk/scan.html?type=<envelope_type>&payload=<H:/HZ:...>
+  // Examples:
+  //   ?type=device_key&payload=HZ:eyJ0...     (orange-state attendee QR)
+  //   ?type=assist_request&payload=H:eyJ0...  (v5.6.0 AssistQR — forward-compat)
+  //
+  // Compact-form fallbacks (forward-compat / hand-built test URLs):
+  //   ?h=<bare-base64>   ?hz=<bare-base64>    (HELLO)
+  //   ?d=<bare-base64>   ?dz=<bare-base64>    (device_key)
+  //
   // Native scanners (Android camera, Google Lens, etc.) open the URL,
   // scan.html parses the payload server-free, dispatches based on type.
   async function ingestUrlPayload() {
     try {
       const params = new URL(location.href).searchParams;
-      let payload = null, isCompressed = false, explicitDeviceKey = false;
-      if      (params.has("h"))  { payload = params.get("h");  isCompressed = false; }
+      let payload = null, isCompressed = false, explicitType = null;
+
+      // Canonical scheme: ?type=<envelope>&payload=<H:/HZ:...>
+      if (params.has("type") && params.has("payload")) {
+        explicitType = params.get("type");
+        const rawPayload = params.get("payload") || "";
+        if (rawPayload.startsWith("HZ:")) { payload = rawPayload.slice(3); isCompressed = true;  }
+        else if (rawPayload.startsWith("H:"))  { payload = rawPayload.slice(2); isCompressed = false; }
+        else if (rawPayload.startsWith("DZ:")) { payload = rawPayload.slice(3); isCompressed = true;  }
+        else if (rawPayload.startsWith("D:"))  { payload = rawPayload.slice(2); isCompressed = false; }
+        else { payload = rawPayload; isCompressed = false; } // bare payload, assume uncompressed
+      }
+      // Compact-form fallbacks
+      else if (params.has("h"))  { payload = params.get("h");  isCompressed = false; }
       else if (params.has("hz")) { payload = params.get("hz"); isCompressed = true;  }
-      else if (params.has("d"))  { payload = params.get("d");  isCompressed = false; explicitDeviceKey = true; }
-      else if (params.has("dz")) { payload = params.get("dz"); isCompressed = true;  explicitDeviceKey = true; }
+      else if (params.has("d"))  { payload = params.get("d");  isCompressed = false; explicitType = "device_key"; }
+      else if (params.has("dz")) { payload = params.get("dz"); isCompressed = true;  explicitType = "device_key"; }
       if (!payload) return false;
 
-      const payloadType = explicitDeviceKey
-        ? "device_key"
-        : await decodePayloadType(payload, isCompressed);
+      const payloadType = explicitType || await decodePayloadType(payload, isCompressed);
 
       if (payloadType === "device_key") {
         showGate("orange",
