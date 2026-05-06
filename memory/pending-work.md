@@ -36,6 +36,26 @@
 
 - Delete the `Test 4a` Expected row created tonight via the doorman-flow verification. One-click via Delete expected on the Dashboard.
 
+### Late evening watch — `v5.7.0e` through `v5.7.0p` polish round
+
+Shipped after the doorman-flow verification, before sleep. All test env unless noted.
+
+- `v5.7.0e` — Dashboard compaction + permissions tidy. Staff Auth panel hidden for Developer Bearer (Polish 11 sweep makes it redundant). "Staff scan" header renamed "Process attendee scan." Debug maintenance + Expected attendee management collapsed into `<details>` expanders.
+- `v5.7.0f` — Dashboard reorder (Attendance Today above Process scan) + GDPR default tab (Check-in panel, not Dashboard, on sign-in — public-safe branded screen with no PII).
+- `v5.7.0g` — Cascading delete for full attendee records (Worker `DELETE /org/expected/:id/full` + UI Delete record button). Lead Admin+ only. Worker enforces "check them out first" guard with `?force=true` override for IN-status rows.
+- `v5.7.0h–p` — Live webcam scanner (html5-qrcode, mirrored from live `scan.html` pattern) plus Role column moved out from under Action and CSS polish iterations. Camera viewport renders cleanly; the scanner library starts and reaches the decode loop.
+- **`v5.7.0c-fix` was committed `a303116` with the explicit reader loop. Doorman flow is alive end-to-end on real hardware — verified with the Pixel 4a creating a `linked expected (green)` row in Imbue Ventures.**
+
+**Webcam decode caveat (carry-over).** The TOALLIN USB webcam (and consumer USB webcams generally) struggle to decode QRs even with html5-qrcode running cleanly. Phones decode reliably because phone optics are tuned for it (aggressive autofocus, edge enhancement). Plan B (custom `jsQR + requestAnimationFrame` loop, mirroring the working pattern in live `scan.html` lines 552–570) is available but likely won't fix the hardware-side issue. Realistic deployment shape: phone-as-attendee, tablet-as-scanner. The desktop webcam is a development convenience, not a production scanner.
+
+### `OFFLINE-MODE-PROPOSAL.md` ratified
+
+Promoted to `PROTOCOL.md §16` (live commit `3cb4185`). Tiers 1–3 ship as `v5.5.x` patches. Tier 4 (multi-device offline mesh) ratified as `v6` flagship research-grade work. Original proposal preserved at `archive/OFFLINE-MODE-PROPOSAL.md` (git rename detected, history preserved). `HANDOVER-OfflineShell.md` for `v5.5.12` (PWA shell, Tier 1) drafted in test env, ready for Mr. Data Tuesday morning.
+
+### `BOOTSTRAP §4` strengthened twice in three hours
+
+Branch-state-check rule added (live commit `034f12f`) then strengthened (live commit `914dcdc`) after the rule was tripped a fourth time within the same hour as it shipped. Mandates `git switch main` unconditionally before any push that must land on main, with the recovery dance (cherry-pick + clean-up) written out as a fenced PowerShell block in §4 itself. The pattern is visible enough now that the next Number One inherits both the rule and the receipts of why it exists.
+
 ## Wednesday 6 May 2026 — full `v5.7.0` doorman stack shipped end-to-end
 
 **Today landed a lot. Order of merges, all to test env unless noted:**

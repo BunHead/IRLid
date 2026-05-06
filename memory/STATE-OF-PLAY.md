@@ -23,7 +23,7 @@
 | Item | State |
 |---|---|
 | Active version | **v5.5** (Identity-Bound Sessions) live; **v5.7.0** (Doorman flow) verified end-to-end on real hardware 6 May night; **v5.6** (AssistQR) in flight |
-| Last shipped piece | `v5.7.0c-fix` (commit `a303116`) — explicit reader loop in `doormanDecompressB64urlJson` killed the Process scan hang. Doorman flow now works end-to-end without console workarounds. Pixel 4a → orange QR → screenshot upload → escalation modal → Add at the door → green-state Expected row + attendance. |
+| Last shipped piece | `v5.7.0p` — dashboard polish series (compaction, GDPR default tab, cascading delete record, live webcam scanner, Role column, button alignment) shipped across v5.7.0e–p commits 6 May night. Camera viewport renders cleanly; QR decoding from USB webcam is a hardware-side limitation (phones decode reliably, USB webcams less so — typical of consumer optics). |
 | Codex worker | `irlid-api-test` — connected to D1 `irlid-db-test` |
 
 ---
