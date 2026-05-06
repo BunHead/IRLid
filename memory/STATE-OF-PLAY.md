@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** 6 May 2026, late evening watch (post full-day doorman ship).
+**Last refreshed:** 6 May 2026 night watch — doorman flow verified end-to-end on real hardware.
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
@@ -22,8 +22,8 @@
 
 | Item | State |
 |---|---|
-| Active version | **v5.5** (Identity-Bound Sessions) live; **v5.6** (AssistQR) in flight |
-| Last shipped piece | Full `v5.7.0` doorman stack (Worker `v5.7.0a` + followup endpoint + phone `v5.7.0b/b.1/b.2` + dashboard `v5.7.0c`), plus `v5.5.10/11` polish, all merged 6 May. End-to-end functional pending the `v5.7.0c-followup` scan-widget relocation. |
+| Active version | **v5.5** (Identity-Bound Sessions) live; **v5.7.0** (Doorman flow) verified end-to-end on real hardware 6 May night; **v5.6** (AssistQR) in flight |
+| Last shipped piece | `v5.7.0c-fix` (commit `a303116`) — explicit reader loop in `doormanDecompressB64urlJson` killed the Process scan hang. Doorman flow now works end-to-end without console workarounds. Pixel 4a → orange QR → screenshot upload → escalation modal → Add at the door → green-state Expected row + attendance. |
 | Codex worker | `irlid-api-test` — connected to D1 `irlid-db-test` |
 
 ---
@@ -33,7 +33,8 @@
 | Track | Owner | Tag | Brief | State |
 |---|---|---|---|---|
 | AssistQR / §15 | Mr. Data | `v5.6.0` | `IRLid-TestEnvironment\HANDOVER-AssistQR.md` | Codex branches `codex/assistqr-*`; spec → Worker → phone → dashboard, four-PR stack |
-| Doorman scan widget relocation (unblocks v5.7.0c live testing) | Mr. Data | `v5.7.0c-followup` | (brief in `pending-work.md`) | Found 6 May late evening — orphan from unified Check-in design hides the Process scan widget. Brief sent to Mr. Data end-of-day. Small fix. |
+| Doorman flow verification | ✅ Done 6 May night | `v5.7.0c` + `v5.7.0c-fix` | (closed) | Mr. Data's PR #91 + #92 relocated widget and added diagnostics; Number One's `a303116` killed the decompression hang. Real-hardware test passed on Pixel 4a. |
+| Multi-key bind UI in escalation modal | Mr. Data candidate | `v5.7.0d` | (brief in `pending-work.md`) | Logged 6 May night — escalation modal currently filters out claimed Expected rows so 2nd-device scans force duplicates. Surface bind-additional-key UI; Worker endpoint already exists from `v5.7.0a`. |
 | Dashboard table state bleed on org-switch | Open | `v5.5.9` | (no brief — see `pending-work.md`) | Found 6 May morning. Same shape as `v5.5.5` Branding bleed, on attendance table. |
 | Orange QR centring + screen +3s hold | Open (polish) | `v5.7.0b.x` | (no brief — see `pending-work.md`) | Captain's testing 6 May late evening. Small CSS fixes. |
 | Doorman mode toggle retirement | Open (cleanup) | `v5.7.x cleanup` | (no brief) | Same area as scan-widget-orphan; could fold together. |
@@ -79,7 +80,9 @@ These labels appear in past commits, milestones, archived briefs, and PR titles.
 | Doorman polish (QR maximisation) | `v5.7.0b.1` ✅ shipped 6 May | Maximised QR + level-H + "Hold your phone up" subtitle — PR #88 |
 | Doorman polish (absolute URL) | `v5.7.0b.2` ✅ already shipped via PR #89 | Absolute `https://irlid.co.uk/scan.html` URL |
 | Doorman / §14.17 (dashboard escalation modal) | `v5.7.0c` ✅ shipped 6 May | Scanner type-branch + escalation modal + role-tiered Add — PR #86 |
-| Scan widget orphan (unblocks v5.7.0c) | `v5.7.0c-followup` (in flight) | Found 6 May late evening — relocate scan widget into Dashboard panel after unified Check-in design hid it. Mr. Data assigned. |
+| Scan widget orphan + Process scan handler | `v5.7.0c-followup` ✅ shipped 6 May | Mr. Data PRs #91 (relocate widget) + #92 (`[scan]` diagnostics + textarea-priority + Developer Bearer bypass) |
+| Decompression hang on `HZ:` orange QRs | `v5.7.0c-fix` ✅ shipped 6 May night | Test env commit `a303116` — explicit reader loop in `doormanDecompressB64urlJson`, matches canonical `irlidDecompressFromB64url` pattern in `js/sign.js`. Doorman flow now alive on real hardware. |
+| Multi-key bind UI in escalation modal | `v5.7.0d` (queued) | Logged 6 May night — surface bind-additional-key in escalation modal so 2nd-device scans don't force duplicate Expected rows |
 | Live `scan.html` universal QR ingress | `v5.7.1` ✅ shipped 6 May | Live repo PR #3 — URL-aware `classify()` + fullscreen gating + `?type=`/`?payload=` and compact-form params |
 | OAuth identity link / §14.18 | `v5.8.0` (when shipped) | OAuth optional read-only identity proof + multi-account recovery quorum |
 | Offline-capable operation / §16 | (proposal drafted 6 May) | `OFFLINE-MODE-PROPOSAL.md` candidate at repo root awaiting Captain's ratification |

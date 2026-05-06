@@ -1,8 +1,40 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 6 May 2026 late evening (post-`v5.7.0` doorman stack ship).
+**Last refreshed:** 6 May 2026 night watch — doorman flow verified end-to-end on real hardware.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Wednesday 6 May 2026 night watch — `v5.7.0` doorman flow ALIVE on hardware
+
+**The headline:** the §14.17 doorman flow Captain has been chasing across multiple sessions is live on test env, end-to-end, on real phones. Pixel 4a (unrecognised) → orange device-key QR → 4a screenshot uploaded → desktop dashboard `Decode image` + `Process scan` → escalation modal opens → Add at the door → "Test 4a" Expected row created with `linked expected` green status, attendance row in Today's table.
+
+**What the night watch shipped:**
+
+- `v5.7.0c-fix` (test env, commit `a303116`) — `doormanDecompressB64urlJson` rewritten with explicit reader loop, matching the canonical `irlidDecompressFromB64url` pattern in `js/sign.js`. Closes the silent hang on compressed (`HZ:`) device-key QRs caused by Chrome's `new Response(stream).arrayBuffer()` mishandling of streams that error before emitting chunks. Process scan went from "Processing scan..." forever to clean modal in <100ms.
+- `BOOTSTRAP §4` (live repo, commits `034f12f` then strengthened `914dcdc`) — branch-state-check rule. Pattern observed four times in three days (PROTOCOL.md commit on `codex/v5.7.0a-doorman-worker`, scan.html commit on `no1/scan-universal-ingress`, terminal-still-on-feature-branch after PR #4 merge, then `v5.7.0c-fix` itself landed on `codex/v5.7.0c-followup-2-process-scan-handler` mid-recovery from the third). Strengthened to mandate `git switch main` unconditionally before any push that must land on main; fenced PowerShell recovery dance written out in §4 itself.
+- Stale `codex/v5.7.0c-followup-2-process-scan-handler` branch deleted both ends (closed superseded PR cleanly).
+
+**Live diagnostic on hardware** (post-decompression-fix):
+
+- 4a `pub_fp`: `6vWr4oPZPZRwKB4s` (unrecognised on Imbue Ventures, expected)
+- Console: `[scan] decoded payload {type: 'device_key', pub_fp: '6vWr4oPZPZRwKB4s'}` — the line that never logged before tonight.
+- Status: `Device-key QR opened escalation.`
+- Dashboard row: `Test 4a · 06/05/2026, 19:11 · 0 scans · linked expected (green)`
+- Escalation modal verified: device chip rendered, scanned-at timestamp shown, "Choose from List" populated with three unclaimed Expected rows (Kerry Austin, Some Random, Becky Wetherill), "Add at the door" with role-tiered tabs (Attendee/Staff/Manager/Lead Admin) and First-name/Surname fields.
+
+**v5.7.0c-followup status:** RESOLVED in two waves. First wave was Mr. Data's PR #91 (scan widget relocated into Dashboard panel) + PR #92 (`[scan]` diagnostics + textarea-priority + Developer Bearer bypass) earlier today. Second wave was tonight's decompression hang fix. The flow now works end-to-end without console workarounds.
+
+### Open follow-ups from tonight
+
+- `v5.7.0d` — surface multi-key bind in escalation modal. Currently when a known person scans from a second device (Spencer's 4a alongside the 8 Pro), the existing Expected row is filtered out of "Choose from List" (only unclaimed rows show), so the only path is "Add at the door" which creates a duplicate. Worker endpoint `/org/expected/:id/bind-additional-key` from `v5.7.0a` already exists — UI just needs to (1) show claimed rows distinctly ("already bound to <device-fp-short>") in search results, (2) when picked, fire bind-additional-key, (3) update the Expected row's `device_key_fps[]` array. Mr. Data candidate, Medium PR.
+- `v5.7.0c-fix` consolidation candidate — `OrgCheckin.html` maintains `doormanB64urlDecode/Encode`, `doormanCanonical`, `doormanHashPayload`, `doormanDecompressB64urlJson`, `doormanVerifyDeviceEnvelope` — all duplicates of helpers in `js/sign.js`. Drift risk between the two copies is exactly what bit us tonight. Add `<script src="js/sign.js"></script>` to `OrgCheckin.html` head, drop the doorman duplicates, use canonical names. Mr. Data candidate, Medium PR (~80 lines deleted, a few call sites renamed).
+- `Polish 27` (Task #27) — `decodeDashboardQrPayload` error messages. When a non-payload URL is pasted (e.g. venue check-in URL), atob() throws "string to be decoded is not correctly encoded". Detect URL with no `payload`/`qr`/`irlid` param and emit a useful message instead.
+- `Polish 28` (Task #28) — Staff Auth pill state for Developer Bearer. The `UNAUTHENTICATED` red pill on the Staff Auth panel is misleading when Bearer session is active and `is_developer:true`. Polish 11 sweep means Bearer satisfies staff-gated endpoints — pill should read "Bearer session active" or hide entirely for Developers. Same area as Task #25 (shrink Staff scan panel) — fold together.
+- `Polish 29` (Task #29) — favicon for test env. Console-noise only.
+
+### Cleanup item Captain may handle anytime
+
+- Delete the `Test 4a` Expected row created tonight via the doorman-flow verification. One-click via Delete expected on the Dashboard.
 
 ## Wednesday 6 May 2026 — full `v5.7.0` doorman stack shipped end-to-end
 
