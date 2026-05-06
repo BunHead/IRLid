@@ -120,6 +120,7 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
 - **Mr. Data handover briefs.** Two artefacts per assignment — a `HANDOVER-*.md` brief in the test repo (Mr. Data reads it directly), plus a short copy-pasteable assignment block in chat naming the brief, task, branch, PR title, and what's out of scope. One PR per task unless the brief explicitly stacks them. Substitute `laforge/` and `[laforge]` for Mr. La Forge.
 - **Version naming.** Three-part `vX.Y.Z` for new shipped work — Major (X) for protocol jumps (v3, v4, v5...), Minor (X.Y) for whole features within a major (v5.0–v5.9), Patch (X.Y.Z) for fixes/polish/partials within a minor (v5.5.0–v5.5.9). Map historical labels (Batches A/B/C/C.5/C.6/D, Polish 1–11, old Batch 1–16) under the right minor in `memory/STATE-OF-PLAY.md`. PR title prefix: `[codex] v5.5.x — <topic>` (or `[no1]`, `[laforge]`).
 - **GitHub web links.** When Captain needs to act in the GitHub UI (open a PR, merge, view a commit, manage deployments), give the direct clickable URL — not navigation instructions. Repos: `https://github.com/BunHead/IRLid` (live) and `https://github.com/BunHead/IRLid-TestEnvironment` (test). Common patterns: open PR `…/compare/main...<branch>` · view PR `…/pull/<n>` · view commit `…/commit/<sha>` · deployments `…/deployments` · branches `…/branches`.
+- **Branch-state check before every push.** Before any `git push`, confirm `git status`'s "On branch" line shows the intended target — Captain's terminal frequently retains a feature branch (`codex/*`, `no1/*`) after the corresponding PR merges, and the next push lands on the dead branch instead of `main`. Cheap habit, painful to skip. Standard recovery: `git switch main; git pull; git cherry-pick <sha>` if the commit went to the wrong branch.
 
 Assignment block template:
 
@@ -331,3 +332,5 @@ The current canonical example is in `memory\letters\` — pick the most recent a
 — First draft by Number One, 5 May 2026 afternoon watch (Session 02). Refine in place as patterns evolve. The next Number One who edits this file should add their date below.
 
 — §4 working conventions (copy-paste, Mr. Data briefs, version naming, GitHub web links) added by Number One, 5 May 2026 evening watch (Session 03).
+
+— §4 branch-state check bullet added by Number One, 6 May 2026 evening watch — pattern observed three times in three days (PROTOCOL.md commit on `codex/v5.7.0a-doorman-worker`, scan.html commit on `no1/scan-universal-ingress`, terminal still on `no1/scan-universal-ingress` after PR #4 merge). Cheap one-line save.
