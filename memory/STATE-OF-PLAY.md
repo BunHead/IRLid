@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** 5 May 2026, evening watch (Number One, Session 03).
+**Last refreshed:** 6 May 2026, morning watch.
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
@@ -23,7 +23,7 @@
 | Item | State |
 |---|---|
 | Active version | **v5.5** (Identity-Bound Sessions) live; **v5.6** (AssistQR) in flight |
-| Last shipped piece | `v5.5.4` — Bearer auth across all staff-gated endpoints (PR #80, 5 May) |
+| Last shipped piece | `v5.5.5` — per-org `portalState` + Bearer-aware api_key resolution (PR #82, 6 May), plus `v5.7.0a` Worker (PR #81) merged same morning |
 | Codex worker | `irlid-api-test` — connected to D1 `irlid-db-test` |
 
 ---
@@ -33,9 +33,11 @@
 | Track | Owner | Tag | Brief | State |
 |---|---|---|---|---|
 | AssistQR / §15 | Mr. Data | `v5.6.0` | `IRLid-TestEnvironment\HANDOVER-AssistQR.md` | Codex branches `codex/assistqr-*`; spec → Worker → phone → dashboard, four-PR stack |
-| Settings persistence bug | Mr. Data | `v5.5.5` (when shipped) | `IRLid-TestEnvironment\HANDOVER-Polish11.md` Task 1 | Awaiting Captain's browser repro (toast text + console + D1 row) |
+| Doorman phone (orange-state QR) | Mr. Data | `v5.7.0b` (when shipped) | `IRLid-TestEnvironment\HANDOVER-DoormanEscalation.md` PR 2 | Assigned 6 May morning |
+| Doorman dashboard (escalation modal) | Mr. Data (queued) | `v5.7.0c` (when shipped) | `HANDOVER-DoormanEscalation.md` PR 3 | After `v5.7.0b` |
+| Dashboard table state bleed on org-switch | Open | `v5.5.9` (when shipped) | (no brief yet — see `pending-work.md`) | Found 6 May morning. Same shape as `v5.5.5` Branding bleed, on dashboard attendance/expected state. |
+| Save All Settings UX duplicate button | Open (low priority) | `v5.5.10` (when shipped) | (no brief yet — UX polish only) | Found 6 May. After Captain hit Save theme by mistake instead of Save All Settings. |
 | Staff HELLO QR upload | Mr. Data | `v5.5.6` (when shipped) | `IRLid-TestEnvironment\HANDOVER-Polish11.md` Task 3 | jsQR vendoring landed; UI follow-up open |
-| Doorman escalation / §14.17 | Mr. Data (queued) | `v5.7.0` (when shipped) | `IRLid-TestEnvironment\HANDOVER-DoormanEscalation.md` (TBD) | Awaiting Number One draft after `no1/protocol-1409-1417-regency` PR-merges |
 | YubiKey enrolment | Mr. La Forge | TBD | `IRLid-TestEnvironment\HANDOVER-YubiKey.md` | Awaiting La Forge commissioning |
 
 ---
@@ -44,7 +46,7 @@
 
 | Branch | What | Status |
 |---|---|---|
-| `no1/protocol-1409-1417-regency` (live repo) | §14.9 expansion + §14.17 doorman + §14.18 OAuth/recovery quorum, 3 commits | PR-merge pending |
+| `no1/protocol-1409-1417-regency` (live repo) | §14.9 expansion + §14.17 doorman + §14.18 OAuth/recovery quorum, 3 commits | ✅ Merged 5 May via PR #2 |
 
 ---
 

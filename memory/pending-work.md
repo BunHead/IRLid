@@ -1,8 +1,48 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 5 May 2026 evening (Number One Session 03 — tidy-up watch).
+**Last refreshed:** 6 May 2026 morning (~7am pickup, Captain heading to work).
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Wednesday 6 May 2026 morning watch — `v5.5.5` closed + doorman moving
+
+**Shipped this morning:**
+
+- `v5.5.4` confirmed live + working — PR #80 (Polish 11 Task 2 Bearer sweep) verified post-merge.
+- `v5.5.5` merged + verified end-to-end — PR #82 (portalState + api_key resolution). Browser test: full save round-trip on Imbue Ventures, org-switch loads correct api_key, switch-back restores values from D1, hard-refresh persists. Morale-blocker closed.
+- Stranded doorman brief commit (`8bf88f7`) cherry-picked to test env `main`.
+- `v5.7.0a` Worker merged + deployed (PR #81, multi-key binding + role-gated Add + freshness gate).
+- `v5.7.0b` phone work assigned to Mr. Data (orange-state QR rendering on `org-entry.html`).
+
+**New bug found this morning — `v5.5.9` candidate.** Dashboard table state bleed on org-switch. Switching from Org A to Org B leaves the previous org's Attendance Today rows visible until a hard refresh forces re-fetch. Same shape as the `v5.5.5` Branding bleed but on the dashboard's attendance/expected state surface, not portalState. PR #82 reset portalState on org-switch but didn't touch attendance table render. Likely fix: mirror PR #82's reset pattern in `loadDashboardForOrg()` — clear attendance + expected list state before re-fetching from the new org. Functional confusion, not data corruption.
+
+**Diagnostic notes from this morning:**
+
+- `v5.5.5` initial test failed because Captain clicked "Save theme" (theme-only save) not "Save All Settings" (full payload save). UX confusion masking a working save path. Polish ticket: duplicate "Save All Settings" button near Branding fields. Tag `v5.5.10`.
+- `wrangler` re-authed cleanly via OAuth. D1 query against `irlid-db-test` confirmed both orgs (`Imbue Ventures` + `Test Venue`) present with api_keys matching localStorage exactly.
+- Direct URL test (`https://irlid-api-test.irlid-bunhead.workers.dev/org/settings?key=...`) returned 200 with full settings JSON — confirmed deployed Worker is healthy. Earlier 401 storm was the api_key race PR #82 fixed.
+
+### Queue going forward
+
+- `v5.5.6` — Polish 11 Task 3, jsQR Staff HELLO upload UI (jsQR vendoring already landed; UI follow-up open).
+- `v5.5.7` — Batch C.5, Staff invite scan-in flow (spec'd in PROTOCOL.md §14.15).
+- `v5.5.8` — Batch D, Website-scrape theme extraction (spec'd in §14.13).
+- `v5.5.9` — Dashboard state bleed (new this morning, see above).
+- `v5.5.10` — UX polish, duplicate "Save All Settings" button near Branding (low priority).
+- `v5.6.0` — AssistQR / §15, Mr. Data's continuing primary stack on `codex/assistqr-*` branches.
+- `v5.7.0b` — Doorman phone, Mr. Data assigned this morning.
+- `v5.7.0c` — Doorman dashboard, queued after `v5.7.0b`.
+
+### Mr. Data's plate going into Captain's work day
+
+- `v5.7.0b` doorman phone (assigned, working overnight)
+- `v5.6.0` AssistQR (continuing)
+
+### Mr. La Forge's plate
+
+`HANDOVER-YubiKey.md` ready when commissioned. No change.
+
+---
 
 ## Tuesday 5 May 2026 evening watch — `v5.5.x` consolidation + tidy
 
