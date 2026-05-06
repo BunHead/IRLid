@@ -32,7 +32,7 @@
 - `v5.5.7` — Batch C.5, Staff invite scan-in flow (spec'd in PROTOCOL.md §14.15).
 - `v5.5.8` — Batch D, Website-scrape theme extraction (spec'd in §14.13).
 - `v5.5.9` — Dashboard state bleed (new this morning, see above).
-- `v5.5.10` — UX polish, duplicate "Save All Settings" button near Branding (low priority).
+- `v5.5.10` — **Unify Save buttons. Both must save ABSOLUTELY EVERYTHING.** Captain's restated directive 6 May late-morning: Save All Settings (right panel) AND Save theme (Theme section) should both POST the full payload — basic gates + Branding + theme (with every sub-field: primary, accent, qrFg, palette, bgPalette, darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, cycleMode, bgAnimDuration, cycleAnimDuration). Same handler, same readback verification (must verify theme sub-fields round-trip too, not just basic + Branding), same toast. Acceptance: edit palette → click EITHER button → switch orgs → switch back → palette persists. If Mr. Data's first attempt only added `theme: activeTheme` to the payload without extending readback, the bug isn't truly closed and a second pass is needed.
 - `v5.5.11` — Role-gating sweep: hide action buttons (Delete expected, Clear test attendance, settings affordances) entirely when current role doesn't permit. Found 6 May, see above.
 - `v5.7.0a-followup` — Worker `GET /org/expected/lookup-by-fp/:fp` polling endpoint (closes the gap PR #81 left). Brief drafted 6 May; assigned to Mr. Data.
 - `v5.6.0` — AssistQR / §15, Mr. Data's continuing primary stack on `codex/assistqr-*` branches.
