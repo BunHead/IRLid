@@ -135,6 +135,26 @@
         return WORKER_ALLOWLIST.some(re => re.test(url));
       }
 
+      // v5.7.1c — Return-URL allowlist. After a successful sign-in claim,
+      // org-login.html optionally redirects back to a return URL provided
+      // in the original ?return=... param. Used by the same-device staff
+      // self-serve flow: staff scans attendee orange QR → scan.html
+      // hands off to OrgCheckin.html → that page detects no session and
+      // redirects here with return=<dashboard-url>. After we sign in, we
+      // bounce back to the dashboard so it can pick up the session and
+      // process the original staff scan. Allowlist guards against an
+      // attacker-crafted nonce QR also setting a malicious return URL.
+      const RETURN_ALLOWLIST = [
+        /^https:\/\/bunhead\.github\.io\/IRLid(-TestEnvironment)?\//,
+        /^https:\/\/irlid\.co\.uk\//,
+        /^http:\/\/localhost:\d+\//,
+        /^http:\/\/127\.0\.0\.1:\d+\//
+      ];
+      function returnOk(url) {
+        if (!url) return false;
+        return RETURN_ALLOWLIST.some(re => re.test(url));
+      }
+
       // ── UI helpers ────────────────────────────────────────────────────────
       function setStatus(state, text) {
         const el = document.getElementById("loginStatus");
@@ -235,8 +255,23 @@
           diag("Response " + resp.status + " " + JSON.stringify(data));
 
           if (resp.ok) {
-            setStatus("pass", "Signed in. You may close this tab.");
-            setBtn("Done", true);
+            // v5.7.1c — Same-device staff_scan flow: caller passed
+            // ?return=<url>; after successful claim, redirect back to
+            // it so the originating dashboard tab can pick up the new
+            // session via /org/login/poll and continue. Allowlist
+            // checked above — anything outside known IRLid hosts is
+            // ignored (we just show the "Done" message instead).
+            const returnRaw = (params.get("return") || "").trim();
+            if (returnRaw && returnOk(returnRaw)) {
+              setStatus("pass", "Signed in. Returning to dashboard...");
+              setBtn("Returning...", true);
+              diag("Return URL OK, redirecting in 600ms: " + returnRaw);
+              setTimeout(function () { location.href = returnRaw; }, 600);
+            } else {
+              if (returnRaw) diag("Return URL rejected by allowlist: " + returnRaw);
+              setStatus("pass", "Signed in. You may close this tab.");
+              setBtn("Done", true);
+            }
           } else if (resp.status === 410) {
             setStatus("fail", "QR expired. Get a fresh one from the desktop.");
             setBtn("Try again", false);
