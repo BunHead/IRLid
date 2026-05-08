@@ -974,10 +974,23 @@
             : await decodePayloadType(c.v || "", isCompressed);
           if (payloadType === "device_key") {
             setStatus("Staff-scan QR detected.");
+            // v5.7.1b — Staff can now self-serve. "Open in staff dashboard"
+            // hands the QR off to OrgCheckin.html via hash fragment; the
+            // dashboard's existing v5 sign-in flow handles authentication
+            // (same hardware credential they enrolled when they first
+            // signed in). Already-authenticated sessions auto-restore.
+            // After sign-in, the dashboard auto-processes this scan into
+            // the escalation modal — so staff can complete the doorman
+            // flow entirely from their phone, no desktop required.
+            const staffScanUrl = "https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
+            setStatus("Staff-scan QR detected.");
             showGate("orange",
               "This QR is for staff scanning",
-              "Hand this phone to a member of staff at the venue's check-in. The staff dashboard scanner will read this code and complete your entry.",
-              [{ label: "Back to Home", href: "index.html" }]
+              "Hand this phone to a member of staff at the venue's check-in. Or, if you ARE staff, open this scan in your authenticated dashboard.",
+              [
+                { label: "Open in staff dashboard", href: staffScanUrl },
+                { label: "Back to Home", href: "index.html" }
+              ]
             );
             return;
           }
@@ -1165,10 +1178,15 @@
       const payloadType = explicitType || await decodePayloadType(payload, isCompressed);
 
       if (payloadType === "device_key") {
+        // v5.7.1b — same staff-self-serve hand-off as the camera-scan path.
+        const staffScanUrl = "https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
         showGate("orange",
           "This QR is for staff scanning",
-          "Hand this phone to a member of staff at the venue's check-in. The staff dashboard scanner will read this code and complete your entry.",
-          [{ label: "Back to Home", href: "index.html" }]
+          "Hand this phone to a member of staff at the venue's check-in. Or, if you ARE staff, open this scan in your authenticated dashboard.",
+          [
+            { label: "Open in staff dashboard", href: staffScanUrl },
+            { label: "Back to Home", href: "index.html" }
+          ]
         );
         return true;
       }
