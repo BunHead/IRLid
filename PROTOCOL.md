@@ -3,7 +3,7 @@
 **Status:** Live  
 **Version:** 3  
 **Author:** Spencer Austin  
-**Last updated:** 6 May 2026 — §16 Offline-capable operation added.
+**Last updated:** 8 May 2026 — v5.7.1 history row added (doorman flow alive on hardware + §16 Tier 1 PWA shell + audit mode).
 
 ---
 
@@ -17,6 +17,7 @@
 | v4 | Trust history (depth, location diversity, device consistency); optional WebAuthn bio-metric gate (`bioVerified` cryptographically bound into signed payload); redacted-receipt mode (`gps_hash` replaces lat/lon/acc); hotspot novelty scoring. Shipped 17 April 2026. All optional, off by default. |
 | v5 | Hardware-backed signing keys via WebAuthn / Passkeys — private key lives in Secure Enclave (Apple) / TEE (Android) / TPM (Windows Hello), never extractable. v5 receipts carry a `webauthn` envelope (`authData`, `clientData`) alongside the existing ECDSA `sig` field. Closes localStorage extraction (THREAT-MODEL.md §III.2). Score 70/100 when v5 verifies. Specification in §13. In-implementation, default OFF. |
 | v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. §16 (Offline-capable operation) added 6 May 2026 — adopts offline-first as a design principle, four-tier path (PWA shell → IndexedDB write queue → cached snapshot → multi-device mesh), time-anchoring via §11 tsTokens, blinking-red-dot UI directive. Tiers 1-3 ship as `v5.5.x` patches; Tier 4 graduates to `v6.0` flagship. |
+| v5.7.1 | Doorman flow (§14.17) alive end-to-end on real hardware 6 May 2026 night — three-outcome state machine (green / red / orange) with role-tiered Add at the door (Attendee → Staff → Manager → Lead Admin) and dashboard escalation modal. Receipt format unchanged. §16 Tier 1 (PWA shell) shipped 7 May — Service Worker pre-caches the OrgCheckin.html shell + JS bundle; cache-versioned `irlid-shell-vN`; HTML/navigation requests served network-first so updates propagate without manual cache bumps. Audit mode shipped 8 May — `body.audit-mode` strips chrome and promotes the attendance card to fill the viewport (`requestFullscreen()` + `screen.orientation.lock('landscape')` best-effort) for the airport-arrivals-board view on door-staff tablets. Auto staff sign-in on venue arrival (`org-entry.html` recognises staff-tier devices on the Expected list and diverts to `org-login.html` after the green-confirm hold). |
 
 ---
 
