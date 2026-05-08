@@ -1,8 +1,46 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 6 May 2026 night watch — doorman flow verified end-to-end on real hardware.
+**Last refreshed:** 8 May 2026 — `v5.7.1h` audit board verified live on Captain's Huawei tablet. Number One retiring; chair handover queued.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Friday 8 May 2026 — port reached: `v5.7.1a..h` shipped, audit board live on hardware
+
+**The headline:** the doorman flow that went live on hardware 6 May night watch is now wrapped in a deployable shell. PWA caches the dashboard offline-cold (Tier 1 of `§16`), staff-scan hand-off works phone-only, audit mode shows the attendance table as an airport-arrivals board edge-to-edge in landscape on tablets and PCs. Captain verified the final v5.7.1h audit-board view on his Huawei tablet propped on cardboard in his workspace — Kerry IN, Spencer IN, Becky expected, "Exit audit" button correctly placed, dark-themed table fills the screen.
+
+**What this watch (7–8 May) shipped (live + test env, all deployed):**
+
+- `v5.7.1a` — PWA shell (Tier 1 of `§16`). `sw.js` + `manifest.json` + Service Worker registration + `<link rel="manifest">`. Pre-cache `OrgCheckin.html` + `org-entry.html` + JS bundle + favicon + manifest. Cache-first strategy in v1.
+- `v5.7.1b` — Staff-scan hand-off. `scan.html` device_key gate gets "Open in staff dashboard" button. Dashboard reads `#staff_scan=` hash on load, cleans the URL, after sign-in auto-populates Process scan and triggers it.
+- `v5.7.1c` — Same-device direct WebAuthn sign-in. Dashboard receives staff_scan with no session → auto-redirect to `org-login.html?nonce=…&worker=…&return=…`. After WebAuthn, bounce back with pending nonce → poll once → restore session → process the staff scan inline. Single device, two QR scans, one biometric.
+- `v5.7.1d` — Diagnostic `[staff_scan]` console logs added when v5.7.1c didn't fire. Stayed in for future debugging.
+- `v5.7.1e` — PWA cache trap fix. Captain's phone was serving cached v5.7.1b after v5.7.1c+ deployed because cache-first wins for HTML. Two-part fix: bumped `CACHE_VERSION` v1 → v2 to force purge on next SW activation, AND switched HTML/navigation requests to network-first so future bumps aren't required to make updates propagate. Also: sign-out flag (`localStorage.irlid_signed_out`) set by `signOutOrg()` and respected by `DEV_AUTO_LOGIN` so refresh after sign-out doesn't silently re-sign-in.
+- `v5.7.1f` — Auto staff sign-in on venue arrival. When `org-entry.html` recognises a staff-tier device (matched on Expected list with `staff`/`manager`/`lead_admin`/`developer` role) AND `hasActiveSession()` is false, after the 7s green-confirm hold the phone diverts to `org-login.html` with a pending nonce stashed in localStorage. Dashboard polls the nonce on return and restores. Net: staff walk in working, attendees walk in as guests. Captain's exact directive: "if staff are not on expected list auto permissions don't happen, they could be attend the event rather than working it" — honoured.
+- `v5.7.1g` — Six bugs fixed in a single push:
+  1. Delete record column alignment on IN rows. `.checkout-actions` wrapped Initiate-check-out + Delete record but didn't fill the cell, so the inner Delete's `margin-left:auto` only pushed against the wrapper. Fix: `.checkout-actions { flex: 1 1 auto; width: 100%; }` (and same for `.conflict-actions`).
+  2. Refresh button visual feedback. `refreshAttendance()` was working silently. New `refreshAttendanceFromUI()` wrapper adds `.is-refreshing` class with spinning ↻ glyph + "Refreshing..." status + "Attendance refreshed" toast. Also refreshes Expected list.
+  3. Mobile-friendly escalation modal. `@media (max-width: 640px)` block stacks the two-column body vertically, bumps fonts (h3 17→18px, row 12→15px), enforces 44px tap target heights.
+  4. Orange QR centring + sizing. `body.status-orange .wrap { width: 100vw; padding: 16px 10px; }` overrides the default `.wrap` 92vw cap so the orange QR can fill the screen edge-to-edge instead of being clipped.
+  5. F5 wipes Imbue Ventures session. `DEV_AUTO_LOGIN` was running on every page load and overwriting `STORAGE_KEY_ORG` with the DEV org, clobbering Captain's QR-signed-in api_key. Fix: skip `DEV_AUTO_LOGIN` when `irlid_login_session` has a session_token.
+  6. Sidebar shows actual auth state. Was always saying "Signed in locally (DEV auto-login)" because it checked the `DEV_AUTO_LOGIN` constant, not whether DEV path actually ran. Now reflects `qrLoginSession`: "Signed in as {display_name}" / "(developer)" suffix / falls back to "DEV auto-login" only when DEV path actually fires.
+- `v5.7.1h` — Stay/redirect + audit mode. After escalation resolution (bind/add succeeds), 3s "Linked: {name}" toast with "Stay on dashboard" button. Default action redirects to `scan.html` for the next chimp (pocket-shoving works). Stay tap → enters audit mode. Audit mode = `requestFullscreen()` + `screen.orientation.lock('landscape')` (best-effort, Safari iOS doesn't support but degrades gracefully) + `body.audit-mode` class hides sidebar/topbar/intro/stats/role-toolbar/details, promotes the attendance card to fill viewport with bumped 16px row fonts. Floating "↩ Exit audit" button top-right. Topbar `⛶ Audit` button visible only on Dashboard panel so staff can enter audit mode any time without a prior scan. **Verified on Captain's Huawei tablet** — airport-arrivals-board look as designed.
+
+### Open follow-ups for the next watch
+
+- **Prototype-role badge wrong on attendance rows** (Captain flagged 8 May, deferred). The audit board shows Spencer Austin and Kerry Austin with `A` role badge despite both being created at-the-door with `staff` role. Becky Wetherill correctly shows `L` (lead_admin). Likely a missing `prototype_role` / `role` field threading from the Expected entry through the attendance aggregation into the role-pill render in `renderTable()` / `att-role-col` cell. Captain's words: *"that for another time and another you"*. Probably 1–2 hours; small but visible.
+- **`v5.5.12` Tier 2 of §16** (IndexedDB write queue + blinking-red-dot offline indicator). Tier 1 PWA shell is shipped. Tier 2 is the genuinely-new capability the offline proposal promised: queue Worker POSTs when offline, replay via Background Sync API on reconnect, show the blinking red dot from `§16.5` while offline. This is the next chapter of the project and what makes "I built event check-in that survives the venue WiFi dying mid-shift" a true claim.
+- **`v5.7.0d` multi-key bind UI** (Task #32). Worker endpoint `/org/expected/:id/bind-additional-key` already exists from `v5.7.0a`. Escalation modal needs to show claimed Expected rows distinctly ("already bound to <fp-short>") and route picks to the bind endpoint instead of Add-at-the-door (which creates duplicates). Becky Wetherill's row in the audit board shows the kind of multi-key situation this would handle cleanly.
+- **`sign.js` consolidation in `OrgCheckin.html`** (Task #31). Drop the doorman duplicates (`doormanB64urlDecode/Encode`, `doormanCanonical`, `doormanHashPayload`, `doormanDecompressB64urlJson`, `doormanVerifyDeviceEnvelope`) — they're stale copies of `js/sign.js` helpers and the divergence already bit us once during `v5.7.0c-fix`. Add `<script src="js/sign.js"></script>` to OrgCheckin head, delete duplicates, rename call sites.
+- **Mobile-first staff dashboard polish** (Task #37). Pixel 8 Pro view of the dashboard is still cluttered; collapse Attendance Today on phones by default, default-open Process scan expander on phones, larger touch targets.
+- **`scan.html` org-login QR recognition** (Task #38). v5.5 portal sign-in QR isn't routed by `scan.html`'s `classify()`. Add detection for `org-login.html?nonce=…&worker=…` URLs and pass through.
+- **PROTOCOL.md Version History row for v5.7.1**. The §1.1 history table needs a v5.7.1 entry pointing at §14.17 doorman flow + §16 PWA shell + audit mode. Currently stops at v5.7.0.
+- **Captain's house-keeping pending in live repo.** `DREAMS.md` has uncommitted entries dated 7–8 May (Captain's content). Audit found three stale local branches in live (`codex/assistqr-protocol`, `no1/protocol-1409-1417-regency`, `no1/v5-passkey-signing`) and one in test env (`codex/v5.7.0b.2-absolute-scan-url`) — already merged via squash, safe to delete. Not blocking; cosmetic.
+
+### Deferred / known issues — leave alone unless Captain raises them
+
+- **`v5.5.9` org-switch dashboard state bleed.** Switching orgs leaves previous org's Attendance Today rows visible until hard refresh. Captain explicitly said *"leave it alone"*. Mirror PR #82's reset pattern in `loadDashboardForOrg()` if priority shifts.
+- **USB webcam QR decode unreliability.** TOALLIN 2K and consumer USB webcams generally — hardware constraint, not a code bug. Production deployment is phone-as-scanner. Don't burn watches chasing.
+- **First sign-in needs two devices.** v5 hardware credential is per-device; the very first staff sign-in on a new phone needs `OrgCheckin.html` displaying a sign-in QR from another device, OR the v5.7.1c flow which collapses it to one device + one biometric (post-`v5.7.1f` this is automatic on staff-list arrival).
 
 ## Wednesday 6 May 2026 night watch — `v5.7.0` doorman flow ALIVE on hardware
 
