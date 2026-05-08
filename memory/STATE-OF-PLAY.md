@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** 6 May 2026 night watch — doorman flow verified end-to-end on real hardware.
+**Last refreshed:** 8 May 2026 evening watch — `v5.5.12` Tier 2 offline write queue verified end-to-end on real hardware (Pages-deployed test env, DevTools Offline → Add → PENDING SYNC pill → online → SYNCED drain).
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
@@ -22,8 +22,8 @@
 
 | Item | State |
 |---|---|
-| Active version | **v5.5** (Identity-Bound Sessions) live; **v5.7.0** (Doorman flow) verified end-to-end on real hardware 6 May night; **v5.6** (AssistQR) in flight |
-| Last shipped piece | `v5.7.0p` — dashboard polish series (compaction, GDPR default tab, cascading delete record, live webcam scanner, Role column, button alignment) shipped across v5.7.0e–p commits 6 May night. Camera viewport renders cleanly; QR decoding from USB webcam is a hardware-side limitation (phones decode reliably, USB webcams less so — typical of consumer optics). |
+| Active version | **v5.5.12** (Tier 2 offline write queue + indicator) verified end-to-end on hardware 8 May evening; **v5.7.1h** (audit board) verified on Huawei tablet 8 May; **v5.6** (AssistQR) in flight |
+| Last shipped piece | `v5.5.12` — Tier 2 of `§16` Offline-Capable Operation. `js/offline-queue.js` IndexedDB `pending_ops` store + replay loop, single-interception in `js/orgapi.js` `request()` with whitelist, blinking-red-dot indicator with queue-depth badge per `§16.5`, optimistic local rendering with PENDING SYNC pill on queued check-ins / settings / Expected adds. Zero Worker changes by design (`§16.3` — duplicates accepted, audit trail is the truth). PR #95 merged. `v5.5.12.1` indicator placement nudge (top-right → bottom-left, above Settings) cherry-pick pending after a wrong-branch landing on `codex/v5.5.12-offline-queue` (BOOTSTRAP §4 receipts +1). |
 | Codex worker | `irlid-api-test` — connected to D1 `irlid-db-test` |
 
 ---
@@ -34,7 +34,7 @@
 |---|---|---|---|---|
 | AssistQR / §15 | Mr. Data | `v5.6.0` | `IRLid-TestEnvironment\HANDOVER-AssistQR.md` | Codex branches `codex/assistqr-*`; spec → Worker → phone → dashboard, four-PR stack |
 | Doorman flow verification | ✅ Done 6 May night | `v5.7.0c` + `v5.7.0c-fix` | (closed) | Mr. Data's PR #91 + #92 relocated widget and added diagnostics; Number One's `a303116` killed the decompression hang. Real-hardware test passed on Pixel 4a. |
-| Multi-key bind UI in escalation modal | Mr. Data candidate | `v5.7.0d` | (brief in `pending-work.md`) | Logged 6 May night — escalation modal currently filters out claimed Expected rows so 2nd-device scans force duplicates. Surface bind-additional-key UI; Worker endpoint already exists from `v5.7.0a`. |
+| Multi-key bind UI in escalation modal | ✅ Done 8 May | `v5.7.0d` | `IRLid-TestEnvironment\HANDOVER-MultiKeyBindUI.md` | Mr. Data PR #94 merged — claimed Expected rows render dashed/muted with "already bound to `<fp-short>`" subtitle; clicks route to `bindAdditionalKey()` instead of Add-at-the-door. Light-theme variant added proactively. Playwright smoke covered Bearer + Staff HELLO + claimed/unclaimed paths. |
 | Dashboard table state bleed on org-switch | Open | `v5.5.9` | (no brief — see `pending-work.md`) | Found 6 May morning. Same shape as `v5.5.5` Branding bleed, on attendance table. |
 | Orange QR centring + screen +3s hold | Open (polish) | `v5.7.0b.x` | (no brief — see `pending-work.md`) | Captain's testing 6 May late evening. Small CSS fixes. |
 | Doorman mode toggle retirement | Open (cleanup) | `v5.7.x cleanup` | (no brief) | Same area as scan-widget-orphan; could fold together. |
@@ -92,6 +92,11 @@ These labels appear in past commits, milestones, archived briefs, and PR titles.
 | Auto staff sign-in on venue arrival | `v5.7.1f` ✅ shipped 8 May | `org-entry.html` recognises staff-tier device on Expected list, diverts to `org-login.html` after 7s green hold instead of the standard post-accept redirect. Attendee path unchanged. |
 | Six-bug polish push | `v5.7.1g` ✅ shipped 8 May | Delete align (.checkout-actions { flex: 1 1 auto; width: 100% }) + Refresh feedback + mobile escalation modal + orange QR centring/sizing + F5 api_key wipe fix + sidebar reflects actual auth state |
 | Stay/redirect + airport-board audit mode | `v5.7.1h` ✅ shipped 8 May | 3s "Linked: {name}" toast with Stay-on-dashboard override; default → redirect to `scan.html` for next chimp. Audit mode = fullscreen + landscape lock + table-only chrome. Topbar `⛶ Audit` button on Dashboard panel. **Verified live on Captain's Huawei tablet.** |
+| `sign.js` consolidation in `OrgCheckin.html` | `v5.7.1i` ✅ shipped 8 May | Mr. Data PR #93 merged — six `doorman*` helpers deleted; `<script src="js/sign.js">` added to head; `doormanVerifyDeviceEnvelope` retained (renamed `verifyDeviceEnvelope`) using canonical helpers. Eliminates the drift class that bit `v5.7.0c-fix`. Playwright smoke covered both H: and HZ: device-key paths. |
+| Multi-key bind UI in escalation modal | `v5.7.0d` ✅ shipped 8 May | Mr. Data PR #94 merged — claimed Expected rows route to `bindAdditionalKey()`. See In-flight row above. |
+| Tier 2 of §16 (IndexedDB write queue + indicator) | `v5.5.12` ✅ shipped 8 May | Mr. Data PR #95 merged. `js/offline-queue.js` (new), `js/orgapi.js` patched with single-interception + whitelist, `OrgCheckin.html` indicator chrome + state machine + optimistic queued rendering. Zero Worker changes (per `§16.3`). Verified end-to-end on hardware: offline → Add → PENDING SYNC pill + OFFLINE red dot with queue-depth badge → online → SYNCING → ✓ SYNCED green check → row drains to real Expected entry, no PENDING SYNC pill. |
+| Indicator placement nudge (top-right → bottom-left) | `v5.5.12.1` cherry-pick pending | Captain UX call after `v5.5.12` ship — top-right at 16px collided with topbar Refresh / Audit / CSV / Sign out controls. CSS-only, +6/-1 lines in `OrgCheckin.html`. Edit landed on `codex/v5.5.12-offline-queue` (commit `0dae81a`) instead of main; `git cherry-pick 0dae81a` onto main + push needed. |
+| PROTOCOL.md `Version History` row for v5.7.1 | ✅ shipped 8 May | Live repo, no PR — direct Number One commit. Doorman flow on hardware + §16 Tier 1 PWA shell + audit mode + auto-staff-sign-in covered in one row. |
 | OAuth identity link / §14.18 | `v5.8.0` (when shipped) | OAuth optional read-only identity proof + multi-account recovery quorum |
 | Offline-capable operation / §16 | ✅ ratified 6 May | `PROTOCOL.md §16`. Tier 1 PWA shell shipped (v5.7.1a/e). Tiers 2 (IndexedDB write queue, `v5.5.12`), 3 (cached snapshot), 4 (multi-device mesh) pending. |
 | Tier 2 of §16 (IndexedDB queue + offline indicator) | `v5.5.12` (queued) | The genuinely-new capability the offline proposal promised. Queue Worker POSTs when offline, Background Sync replay on reconnect, blinking-red-dot indicator from §16.5. |

@@ -1,8 +1,52 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 8 May 2026 — `v5.7.1h` audit board verified live on Captain's Huawei tablet. Number One retiring; chair handover queued.
+**Last refreshed:** 8 May 2026 evening watch — `v5.5.12` Tier 2 offline write queue verified end-to-end on real hardware. Three Mr. Data PRs (#93 sign.js, #94 multi-key bind, #95 offline queue) merged across the day.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Friday 8 May 2026 evening — `v5.5.12` Tier 2 ALIVE on hardware
+
+**The headline:** the offline-mode chapter that started as a proposal on 6 May night is now live and verified. Captain ticked OFFLINE in DevTools, added an attendee, watched the row appear with a `PENDING SYNC` red pill, untoggled offline, watched it drain to a real Expected row with the `SYNCED` green check fade. *"I built event check-in that survives the venue WiFi dying mid-shift"* is now a true claim — not just a roadmap promise.
+
+**What this watch shipped:**
+
+- `v5.7.1i` — `sign.js` consolidation in `OrgCheckin.html`. Mr. Data PR #93. Drops six `doorman*` duplicate helpers, replaces with `<script src="js/sign.js">` + canonical names. Eliminates the drift class that bit `v5.7.0c-fix` on 6 May night. The HZ: decompressor now uses the canonical `irlidDecompressFromB64url` reader-loop pattern.
+- `v5.7.0d` — Multi-key bind UI in escalation modal. Mr. Data PR #94. Claimed Expected rows render dashed/muted with "already bound to `<fp-short>`" subtitle; clicks route to `bindAdditionalKey()` instead of Add-at-the-door (which created duplicates). Mr. Data added a light-theme variant proactively (good citizenship). Playwright smoke covered Bearer + Staff HELLO paths.
+- `v5.5.12` — Tier 2 of `§16`: IndexedDB write queue + offline indicator. Mr. Data PR #95. **Three files:** `js/offline-queue.js` (new, 141 lines, IndexedDB `pending_ops` + replay loop, online + visibilitychange + post-load drain triggers); `js/orgapi.js` (single interception in `request()` with QUEUE_ELIGIBLE_PATHS whitelist, two-path enqueue: known-offline + fetch-throws); `OrgCheckin.html` (`§16.5` canonical CSS verbatim, indicator state machine for OFFLINE / SYNCING / SYNCED transitions with 1.5s green-check fade, optimistic local rendering for queued check-ins / settings / Expected adds). **Zero Worker changes** by design — `§16.3` accepts duplicates because the audit trail is the truth.
+- `v5.5.12.1` — Indicator placement nudge. Captain's UX call: top-right at 16px (canonical `§16.5`) collided with topbar Refresh / Audit / CSV / Sign out controls. Moved to `bottom: 88px; left: 16px;` — sidebar empty space just above Settings, clear of footer build pill. CSS-only, +6/-1 lines. **Currently sitting on `codex/v5.5.12-offline-queue` as commit `0dae81a` instead of main** — wrong-branch landing during the post-#95 push. `git cherry-pick 0dae81a` onto main is the recovery. BOOTSTRAP §4 receipt +1.
+- PROTOCOL.md `Version History` row for v5.7.1. Live repo, direct commit. Covers §14.17 doorman flow on hardware + §16 Tier 1 PWA shell + audit mode + v5.7.1f auto-staff-sign-in in one prose row.
+
+**Three handover briefs drafted and consumed in one watch** — `HANDOVER-SignJsConsolidation.md`, `HANDOVER-MultiKeyBindUI.md`, `HANDOVER-OfflineWriteQueue.md`. The fresh-session prompt pattern (when Mr. Data #1 was K.I.A. on a Codex backend 503 mid-implementation, a fresh Mr. Data #2 picked up cleanly from the brief alone with no chat-history loss) held perfectly. Worth banking for next time.
+
+**Smoke verified by Captain on hardware:** items 1–6, 14, 17, 18–21 from the smoke list, plus the `v5.5.12` acceptance scenario end-to-end.
+
+### Open follow-ups for the next watch
+
+- **`v5.5.12.1` indicator-placement cherry-pick.** PowerShell already provided; one click for Captain when ready: `cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git switch main ; git cherry-pick 0dae81a ; git push`. After ~60s for Pages, indicator moves bottom-left.
+- **Stale codex branch cleanup.** `codex/v5.5.12-offline-queue` is now stale (#95 merged via the squash that didn't include `0dae81a`). After cherry-pick lands: `git push origin --delete codex/v5.5.12-offline-queue ; git branch -D codex/v5.5.12-offline-queue`. Cosmetic.
+- **DEV org api_key drift in test env Worker.** During smoke, the DEV bootstrap api_key returned 401 on `/org/settings`, `/org/attendance`, `/org/expected`. Real-auth (QR-Bearer) path works fine; only the DEV auto-login bootstrap is broken. Worker env var `DEV_DEFAULT_ORG_KEY` (or whatever the bootstrap fixture uses) has drifted from D1 row. Worth a small Worker patch when convenient. Not blocking — production uses real Bearer auth.
+- **`v5.5.13` Tier 3 — Cached org snapshot.** §16.3 Tier 3. The chapter that turns offline mode from "the page loads + writes queue" into "the door actually recognises returning regulars without connectivity". Captain raised this directly mid-watch ("can offline let in those it's recognised before?"). Brief largely writes itself off the spec. Mr. Data candidate. Recommend queuing immediately after v5.5.12.1 lands.
+- **Mobile Expected-list polish (`v5.7.1j`).** Captain's directive earlier in the watch: on mobile, Expected list at top filling most of viewport, Add attendee form below, large tap targets. Bundles with Task #37 (collapse Attendance Today on phones, default-open Process scan expander). Number One Task #12 (`HANDOVER-MobileExpectedPolish.md`) drafted-pending; bundling decision still awaiting Captain's call.
+- **Gateway screen sizing.** Captain noted *"Gateway screens are still a little small"* mid-watch. The `org-entry.html` welcome state has plenty of empty real estate around small type. Quick CSS bump — Number One inline candidate.
+- **Prototype-role badge bug** (carried over from morning). Spencer/Kerry show `A` on attendance rows despite staff role. Becky shows `L` correctly. Field-threading bug. Captain's framing: *"that for another time and another you"*. Worth a half-hour next watch.
+
+### Deferred / known issues — leave alone unless Captain raises them
+
+- **`v5.5.9` org-switch dashboard state bleed.** Switching orgs leaves previous org's Attendance Today rows visible until hard refresh. Captain explicitly said *"leave it alone"*.
+- **USB webcam QR decode unreliability.** Hardware constraint, not code. Phone-as-scanner is the production deployment.
+- **First sign-in needs two devices.** v5 hardware credential is per-device; v5.7.1c flow collapses it to one device + one biometric (post-`v5.7.1f` automatic on staff-list arrival).
+
+### BOOTSTRAP §4 receipts
+
+The branch-state-check rule has now been tripped **five times** in seven days:
+
+1. PROTOCOL.md commit on `codex/v5.7.0a-doorman-worker` (6 May).
+2. scan.html commit on `no1/scan-universal-ingress` (6 May).
+3. Terminal still on feature branch after PR #4 merge (6 May).
+4. `v5.7.0c-fix` landed on `codex/v5.7.0c-followup-2-process-scan-handler` instead of main, mid-recovery from #3 (6 May night).
+5. **`v5.5.12.1` indicator move landed on `codex/v5.5.12-offline-queue` instead of main (8 May evening — this watch).**
+
+The pattern: working tree on a feature branch, Number One edits a file, Captain commits-and-pushes assuming main, file lands on the wrong branch. The §4 rule mandates `git switch main` unconditionally before any push that must land on main. **The new shape this watch surfaced:** even when Number One's CSS edit is intended for main, if the working tree is on a feature branch when the Edit tool runs, the commit goes to the feature branch unless explicitly switched first. Worth a sub-bullet in §4 next BOOTSTRAP refresh: *"check working-tree branch before any Number One Edit that's intended for main."*
 
 ## Friday 8 May 2026 — port reached: `v5.7.1a..h` shipped, audit board live on hardware
 
