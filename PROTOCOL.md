@@ -3,7 +3,7 @@
 **Status:** Live  
 **Version:** 3  
 **Author:** Spencer Austin  
-**Last updated:** 8 May 2026 — v5.7.1 history row added (doorman flow alive on hardware + §16 Tier 1 PWA shell + audit mode).
+**Last updated:** 9 May 2026 — §14.18 OAuth identity linkage refined to user-held-envelope design (Captain's GDPR / data-minimisation call). Schema changed: Worker now stores only `link_hash`, not `external_id` or `display_label`. Linking and verification flows documented. Future blockchain anchoring noted as additive layer (consistent with §11 tsTokens).
 
 ---
 
@@ -1461,24 +1461,101 @@ This section captures three related design surfaces that together govern how an 
 
 #### OAuth identity linkage
 
-A `portal_users` row represents the IRLid identity. External provider linkages (Google, Apple, Microsoft, GitHub, etc.) are stored in a many-to-many table:
+A `portal_users` row represents the IRLid identity. External provider linkages (Google, Apple, Microsoft, GitHub, etc.) follow the protocol's data-minimisation philosophy: **the user holds the linkage proof; the Worker holds only its hash for lookup**. This mirrors how receipts work elsewhere in the protocol — the user owns the signed object, the central store is a witness, not a data vault.
+
+A user MAY have zero, one, or many linked providers. Most users will have both a hardware credential (for portal admin operations) and one or more OAuth links (for receipts and recovery). Some — particularly attendees who never administer an org — may have only OAuth or even neither.
+
+##### The link envelope (user-held)
+
+A self-verifying signed object the user stores on their own device (localStorage, IndexedDB, or future user-controlled backup). They are responsible for keeping a copy, just as they are for receipts.
+
+```
+{
+  "v": 1,
+  "type": "oauth_link",
+  "portal_user_id": "...",                 // IRLid user id
+  "provider": "google",                    // 'google' | 'apple' | 'microsoft' | 'github' | ...
+  "external_id": "1234567890",             // provider's stable user id (OIDC `sub`)
+  "display_label": "spencer@gmail.com",    // optional, user's choice; omit for pseudonymous links
+  "linked_at": 1715000000000,
+  "device_pub_jwk": { ... },               // hardware key that authorised the link at link time
+  "device_sig": "...",                     // hardware signature over canonical(payload-without-sig)
+  "provider_proof": {                      // OIDC ID token from the provider, attesting external_id
+    "id_token": "eyJ..."
+  }
+}
+```
+
+The `external_id` is the provider's stable user identifier (OIDC `sub` or equivalent), which does not rotate when the user changes their provider-side email. This protects against silent identity drift if a user changes their email with the provider. Switching, e.g., a Google account from `a@gmail.com` to `b@gmail.com` requires generating a new envelope (the `external_id` differs).
+
+##### The Worker index (hash-only)
+
+The Worker holds only what is needed to confirm an envelope's existence and route recovery quorum operations:
 
 ```sql
 CREATE TABLE portal_user_external_links (
   portal_user_id TEXT NOT NULL REFERENCES portal_users(id),
-  provider       TEXT NOT NULL,         -- 'google' | 'apple' | 'microsoft' | 'github' | ...
-  external_id    TEXT NOT NULL,         -- the provider-side stable user id (OIDC `sub` claim or equivalent)
-  linked_at      INTEGER NOT NULL,      -- ms timestamp
-  display_label  TEXT,                  -- optional friendly label, e.g. "spencer@gmail.com"
-  PRIMARY KEY (portal_user_id, provider)
+  provider       TEXT NOT NULL,         -- duplicated here for query convenience; not authoritative
+  link_hash      TEXT NOT NULL,         -- SHA-256 of canonical(envelope) — proves user has the envelope
+  linked_at      INTEGER NOT NULL,      -- ms timestamp, duplicated for ordering and recovery-quorum diversity checks
+  PRIMARY KEY (portal_user_id, provider, link_hash)
 );
 ```
 
-A user MAY have zero, one, or many linked providers. Most users will have both a hardware credential (for portal admin operations) and one or more OAuth links (for receipts and recovery). Some — particularly attendees who never administer an org — may have only OAuth or even neither.
+**No `external_id`. No `display_label`. No email. No OIDC subject.** Those live in the envelope the user holds. The Worker can confirm *"yes, this user has linked an envelope from this provider"* but cannot enumerate the user's external identifiers, contact emails, or external account names. If the Worker is compromised or compelled, the linkage map (which provider, when linked) is exposed; the *identities behind those links* are not.
 
-The `(portal_user_id, provider)` primary key prevents a single user from linking the same provider twice; switching, e.g., a Google account from `a@gmail.com` to `b@gmail.com` is an unlink-and-relink. The `external_id` column carries the provider's stable user identifier (OIDC `sub` or equivalent), which does not rotate when the user changes their provider-side email. This protects against silent identity drift if a user changes their email with the provider.
+The `(portal_user_id, provider, link_hash)` primary key admits multiple envelopes per user-per-provider over time (e.g. the user re-links after rotating their hardware credential, or replaces a stale envelope after a provider-side identity drift). The most recent `linked_at` for a given `(portal_user_id, provider)` is the active envelope; older rows are historical and used for the recovery quorum's diversity checks.
 
-OAuth linkage does NOT grant or alter portal privileges. It is a recognition mechanism — "this IRLid user controls this Google account" — and its consequences for privilege are governed by the proof hierarchy below.
+##### Linking flow (creating a new link)
+
+1. User opens the Link Provider UI in the dashboard; selects a provider.
+2. Browser performs the standard OIDC authorization-code flow with the chosen provider.
+3. Browser receives the OIDC ID token. **It does NOT send the token to the Worker.**
+4. Browser constructs the link envelope: assembles fields, captures the user's hardware credential signature over `canonical(payload-without-sig)`, embeds the ID token as `provider_proof`.
+5. Browser computes `link_hash = SHA-256(canonical(envelope))`.
+6. Browser POSTs only `{portal_user_id, provider, link_hash, linked_at}` to the Worker. The envelope itself is stored in browser storage.
+7. Worker writes the row.
+
+##### Verification flow (user proves they control a previously-linked provider)
+
+1. User presents the envelope (from their browser storage) along with a fresh OIDC sign-in to the same provider.
+2. Worker recomputes `SHA-256(canonical(envelope))` and matches against the stored `link_hash`. If no match, reject — envelope is forged or tampered.
+3. Worker verifies the envelope's `device_sig` against the user's current hardware credential (or the multi-key set per §14.17). If invalid, reject.
+4. Worker verifies the embedded `provider_proof.id_token` is well-formed and was issued by the provider (signature against provider JWKS, expiry tolerance per §11). If invalid, reject.
+5. Worker verifies the user just completed a fresh OIDC flow at this provider whose `sub` matches the envelope's `external_id`. If mismatch, reject — the envelope is for a different account.
+6. All checks pass → the user has proven they control the linked provider.
+
+##### GDPR position
+
+Under this design, what lives on the Worker (Cloudflare D1 or equivalent) is:
+
+- The IRLid identity row (`portal_users`) — opaque ID, no PII.
+- Hardware fingerprints (`pub_fp`) — non-identifying cryptographic primitives on their own.
+- Linkage hashes and timestamps — proves *that* a link exists, not *what* it is.
+- Per-org Expected entries the org chose to record (`org_expected.first_name`, `surname`) — the org's own legitimate-interest data; the org is the data controller for these.
+
+What does NOT live on the Worker:
+
+- OAuth `sub` claims, email addresses, provider display labels.
+- ID tokens or any provider-issued credentials.
+- The user's mapping between IRLid identity and external account contents.
+
+The user is the data controller of their own identity envelopes. The org is the data controller of its own attendance records. Cloudflare (or whoever hosts the Worker) is a thin processor, holding hashes and routing authentication checks. The protocol minimises what flows to the central layer to the maximum extent compatible with the operations the Worker must perform.
+
+##### Future anchoring (optional, additive)
+
+Link envelopes can be optionally anchored to a public time-witnessing layer when the user wants to prove the envelope existed before time T without trusting the Worker's own `linked_at` timestamp. The mechanism is the same as `§11 tsTokens` on receipts:
+
+- User computes `SHA-256(canonical(envelope))` (already the `link_hash`).
+- User submits the hash to a Trusted Timestamp Authority (RFC 3161), to OpenTimestamps (which writes to Bitcoin), to an Ethereum or L2 anchor contract, or to any other public chain.
+- The returned timestamp token is stored alongside the envelope in the user's storage.
+- A future verifier can independently confirm "this envelope hash existed at or before time T" by checking the public chain — without the Worker, without Cloudflare, without IRLid being online.
+
+Anchoring is additive. The protocol functions without it. Most users will never anchor anything; high-stakes users (legal evidence chains, recovery disputes, multi-decade verification) will anchor selectively. The blockchain becomes one of several optional public witnesses, not the substrate.
+
+##### Privilege
+
+OAuth linkage does NOT grant or alter portal privileges. It is a recognition mechanism — *"this IRLid user controls this external account, demonstrably"* — and its consequences for privilege are governed by the proof hierarchy below.
 
 #### Three-tier proof hierarchy
 
