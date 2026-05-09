@@ -133,6 +133,11 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
     cd "<repo>" ; git switch <feature-branch> ; git stash pop
     ```
     Pattern observed 9 May 2026 morning (BOOTSTRAP §4 receipt #6 within 8 days): v5.7.1m.1 + IRLid logo contrast landed on `codex/v5.7.1m-customization-image-pattern-split` because the working tree was dirty from a wrangler-deploy cycle that left files modified on the codex branch. The chain's `git switch main` aborted; the rest ran on codex. Cherry-pick recovery to follow.
+- **Build pill bumps with version letter changes.** Every Number One inline edit that bumps a version letter (`m` → `m.1`, `m.1` → `n`, `n` → `o`, etc.) MUST include the corresponding `Build vX.Y.Zletter` pill bump in `OrgCheckin.html` (currently around line 2045 in the `.sidebar-footer` div) in the same commit. No drift between what main has and what the pill claims to the user. If a cherry-pick promotes multiple letters at once, bump to the highest letter in the bundle. Discipline observed 9 May 2026 mid-watch after Captain caught Build pill stuck at `v5.7.1h` despite m / m.1 / n / o all having landed; *"if needed (which should be always after a v change), include in first build after break"*. Pill at `v5.7.1p` after this rule was committed; the rule itself is the receipt. Lookup pattern when adding the bump:
+    ```
+    Grep("Build v5\.", path="<test env>/OrgCheckin.html")
+    ```
+    will find the current pill in seconds.
 
 Assignment block template:
 

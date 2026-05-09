@@ -113,10 +113,16 @@ These labels appear in past commits, milestones, archived briefs, and PR titles.
 | **v3** | Base ECDSA P-256 + Haversine + 90s window | 20/100 | Live since first ship |
 | **v4** | Trust history + bio-metric gate | 50/100 | Live since 17 April 2026 |
 | **v5** | Hardware-backed signing (WebAuthn / Passkeys) | 70/100 | **LIVE since 2 May 2026** |
-| **v5.5–v5.9** | Identity-Bound Sessions, AssistQR, Doorman, OAuth identity | (no score change) | v5.5 in test |
-| **v6** | Multi-witness time anchoring + trust network + multi-party custody (drop-off, prison transfers) + IoT/drones (hardware attestation, drone delivery proof — ASE Tech / Wisdom-gated) | 75–90/100 | Roadmap |
+| **v5.5** | Identity-Bound Sessions (QR-scan login, Bearer sessions, doorman primitives, audit board) | (no score change) | **In test env, ready for live port** |
+| **v5.6** | AssistQR (staff-mediated check-in path for unrecognised attendees) | (no score change) | In flight (Mr. Data) |
+| **v5.7** | Doorman flow + audit board + offline tiers (PWA shell, write queue, cached snapshot) + customization panel | (no score change) | **In test env, ready for live port** |
+| **v5.8** | OAuth identity link + recovery quorum (§14.18, refined 9 May to user-held-envelope GDPR-clean shape) | (no score change) | Spec ratified; implementation queued |
+| **v5.9** | **Live port chapter** — promote test env work to `irlid.co.uk`, extend `receipt.html` to render org-checkin envelopes alongside co-presence receipts (Captain's *"event receipts on the receipts page"* goal), W3C compliance threading throughout | (no score change) | **Next major chapter** |
+| **v6** | Trust network + multi-witness time anchoring + multi-party custody (drop-off, prison transfers) + IoT/drones (hardware attestation, drone delivery proof — ASE Tech / Wisdom-gated) + zone-gated VIP access (Captain's *"raised eyebrow"* idea) | 75–90/100 | Roadmap (post v5.9 live port) |
 | **v7** | Zero-knowledge proofs (coordinate hiding → Schnorr → full ZK) | 100/100 | Roadmap |
 | **v8+** | Founders' Quorum / regency / long-term succession (`LONG-TERM-SUCCESSION.md`) | (governance, not score) | Sketch |
+
+*Versioning refinement 9 May 2026 (Captain's call): v6 was previously bundling "live port" with "trust network themes" — two distinct chapters in one bucket. Split: v5.9 carries the live port (the foundation), v6 stays cleanly the trust-network research-grade work that builds on top.*
 
 Within each major, minors carry whole features and patches carry fixes/polish.
 
