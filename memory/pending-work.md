@@ -1,8 +1,51 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 8 May 2026 evening watch — `v5.5.12` Tier 2 offline write queue verified end-to-end on real hardware. Three Mr. Data PRs (#93 sign.js, #94 multi-key bind, #95 offline queue) merged across the day.
+**Last refreshed:** 9 May 2026 morning watch — three more Mr. Data PRs merged (#96 mobile reshape, #97 Tier 3 cached snapshot, #98 customization image-pattern split). PROTOCOL.md §14.18 refined to Option 2 (user-held envelope, GDPR-clean). v5.7.1m.1 + logo contrast + prototype-role badge fix landed on codex branch awaiting cherry-pick. Captain on R&R; bridge held by Number One for log close-out.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Friday 9 May 2026 morning watch — three PRs merged + first Captain-driven UX iteration
+
+**The headline:** the v5.7.1 polish series and v5.5.13 Tier 3 cached snapshot all shipped this morning. Mr. Data ran four quality PRs in succession (93, 94, 95, then 96/97/98 today) without a single revert. The fresh-Mr.-Data-prompt pattern from 8 May evening's K.I.A. continues to hold. Captain raised three architectural questions mid-watch (cross-site recognition, OAuth/blockchain GDPR, drone delivery offline-recipient) all answered substantively and banked into spec or v6 brief notes.
+
+**What this watch (9 May morning) shipped:**
+
+- `v5.7.1j` — mobile dashboard reshape (audit-as-primary). Mr. Data PR #96. On phones: hide Attendance Today + Developer diagnostics + Viewing-as Role; prominent "View Attendance Board" button calls enterAuditMode(); stats 2x2; Process scan default-open; Expected list scrollable max-height 60vh + chunky Add form. Light-theme variant included.
+- `v5.5.13` — Tier 3 cached org snapshot. Mr. Data PR #97. js/offline-snapshot.js (new) + dashboard load-or-snapshot fallback + recogniseDeviceFp() snapshot fallback for offline doorman flow + freshness label on indicator. Single-org scope; cross-org is v5.8 §14.18 territory.
+- `v5.7.1m` — customization panel image-vs-pattern split. Mr. Data PR #98 (Large, +716/-303). Image now top-level Background mode; positioning controls (centre/tile/cover/4 corners); alpha-cycle checkbox so transparent regions of uploaded images let the page palette show through. Worker validation for bgImagePosition + bgImageAlphaCycle.
+- **PROTOCOL.md §14.18 refined to Option 2** (Captain's GDPR call). Worker `portal_user_external_links` now stores only `link_hash`; OAuth `external_id`, email, ID token all live in user-held envelope. New sub-sections: link envelope shape, linking flow, verification flow, GDPR position, future blockchain anchoring as additive layer (consistent with §11 tsTokens pattern).
+
+**Three more briefs drafted and pushed (Mr. Data forwarding queue):**
+
+- `HANDOVER-RecognitionToastTweak.md` — v5.5.13.1 [S], toast → console.log on offline-snapshot match.
+- `HANDOVER-GatewaySizingMobileButtons.md` — v5.7.1k [M], enlarge gateway states (allow/deny/review/identity, NOT orange), site-wide 44×44 mobile buttons, audit-mode refresh button bottom-right.
+- `HANDOVER-CustomizationImagePatternSplit.md` — already shipped via #98 (became v5.7.1m).
+
+**Number One inline work landed (on codex branch — awaiting cherry-pick promotion):**
+
+- `v5.7.1m.1` — Top/Bottom/Left/Right edge anchors added to image position dropdown. 11 total options. Worker validation updated. `wrangler deploy` already ran successfully.
+- `v5.7.1.x` — IRLid fallback logo contrast on sidebar. data-irlid-fallback="true" attribute + theme-aware filter:invert(1) for prefers-color-scheme:light or [data-theme="light"]. Org-uploaded logos render as-is. Mirror of scan.html treatment.
+- **Prototype-role badge bug fix** (the one Captain has been seeing on the audit board for two days). Diagnosed: org_checkins doesn't carry prototype_role; only org_expected does. Fix: client-side join in renderTable() via expected_id → expectedAttendees → prototype_role. Spencer/Kerry now show their actual staff role 'S' instead of defaulting to 'A'. No Worker change.
+
+### Open follow-ups for the next watch
+
+- **PROMOTE the codex branch work to main.** v5.7.1m.1 + logo contrast + prototype-role fix all live on `codex/v5.7.1m-customization-image-pattern-split` (commits 3c3b353 + new badge fix commit). Cherry-pick PowerShell:
+    ```powershell
+    cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git stash ; git switch main ; git pull ; git cherry-pick 3c3b353 ; git cherry-pick <new-badge-fix-sha> ; git push
+    ```
+    After Pages redeploys: hard-refresh, verify the audit board shows correct role badges (Spencer 'S', Kerry 'S', Becky 'L'), verify the new edge-anchor positions in image mode, verify the IRLid logo flips contrast cleanly between light and dark mode.
+- **Stale codex branch cleanup** post promotion: `git push origin --delete codex/v5.7.1m-customization-image-pattern-split ; git branch -D codex/v5.7.1m-customization-image-pattern-split`.
+- **Mr. Data forwarding queue** — `v5.5.13.1` toast tweak [S] and `v5.7.1k` gateway sizing [M] briefs are pushed to test env main, awaiting Captain to forward to Codex when his rate limit resets.
+- **`HANDOVER-V6Promotion.md`** — the master brief for the live port. Substantial document; the rest of the next watch's natural shape. Includes schema unification (5 consolidations identified), phased migration strategy (5 phases each shippable + reversible), W3C compliance threading + dyslexia-friendly type, drone audit window pattern, recognition-mode settings option (prebind/postattribute/both), zone-gated VIP access (Captain's "raised eyebrow" idea — clean primitive on top of org_expected), event-receipts-on-receipts-page goal.
+- **Optional shift-start role confirmation** — banked for v6. Useful when someone holds multiple roles and wants to scope down for the shift. Off by default; orgs opt in.
+
+### BOOTSTRAP §4 receipt #6 — wrong-branch landing under dirty working tree
+
+The branch-state-check rule has now been tripped **six times in eight days**. New shape this morning: even with `git switch main` unconditionally at the start of the PowerShell chain, **`git switch` aborts when the working tree has uncommitted changes**. The rest of the chained command then runs on whatever branch was current. v5.7.1m.1 + logo contrast landed on the codex branch because Captain's working tree was dirty from a `wrangler deploy` cycle that left files modified, and the `git switch main` aborted silently while the chain continued.
+
+**BOOTSTRAP §4 strengthened with a new sub-bullet** documenting the dirty-working-tree variant + recovery PowerShell using `git stash`. Going forward: before any Number One Edit intended for main, ask Captain to confirm `git status` shows BOTH "On branch main" AND a clean working tree.
+
+
 
 ## Friday 8 May 2026 evening — `v5.5.12` Tier 2 ALIVE on hardware
 

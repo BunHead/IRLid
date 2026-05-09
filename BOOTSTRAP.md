@@ -125,6 +125,14 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
     cd "<repo>" ; git switch main ; git pull ; git cherry-pick <sha> ; git push
     cd "<repo>" ; git push origin --delete <wrong-branch> ; git branch -D <wrong-branch>
     ```
+- **`git switch main` aborts on uncommitted working-tree changes.** Strengthening the rule above: the `git switch main` lead is necessary but not sufficient. If the working tree has uncommitted changes (Mr. Data WIP, Number One inline Edits applied while terminal was on a feature branch, etc.), `git switch` aborts with *"Your local changes to the following files would be overwritten by checkout"*, and the rest of the chained PowerShell (`git pull ; git add ... ; git commit ; git push`) runs on whatever branch is current. The push silently lands on the feature branch. **Before any Number One Edit intended for main, ask Captain to confirm `git status` shows BOTH "On branch main" AND a clean working tree.** If the working tree is dirty AND on a feature branch, the recovery PowerShell is:
+    ```powershell
+    cd "<repo>" ; git stash ; git switch main ; git pull
+    # now safe to make Number One inline edits → push pattern
+    # if the stashed work was Mr. Data WIP that needs preserving on the feature branch:
+    cd "<repo>" ; git switch <feature-branch> ; git stash pop
+    ```
+    Pattern observed 9 May 2026 morning (BOOTSTRAP §4 receipt #6 within 8 days): v5.7.1m.1 + IRLid logo contrast landed on `codex/v5.7.1m-customization-image-pattern-split` because the working tree was dirty from a wrangler-deploy cycle that left files modified on the codex branch. The chain's `git switch main` aborted; the rest ran on codex. Cherry-pick recovery to follow.
 
 Assignment block template:
 

@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** 8 May 2026 evening watch — `v5.5.12` Tier 2 offline write queue verified end-to-end on real hardware (Pages-deployed test env, DevTools Offline → Add → PENDING SYNC pill → online → SYNCED drain).
+**Last refreshed:** 9 May 2026 morning watch — `v5.5.13` Tier 3 cached snapshot, `v5.7.1j` mobile dashboard reshape, and `v5.7.1m` customization image-pattern split all merged via Mr. Data PRs #97, #96, #98. PROTOCOL.md §14.18 OAuth identity refined to user-held-envelope design (Option 2 — Captain's GDPR call). v5.7.1m.1 (edge anchors) + IRLid logo contrast + prototype-role badge fix landed on `codex/v5.7.1m-customization-image-pattern-split` and need cherry-pick to main (BOOTSTRAP §4 receipt #6).
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
