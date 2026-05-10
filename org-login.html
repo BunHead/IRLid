@@ -125,8 +125,12 @@
       // attacker chose (not one in the legitimate Worker's table), we still
       // refuse to POST anywhere outside the known IRLid Worker hosts as
       // defence in depth.
+      // v5.9 — added 'org' suffix to allowlist for the new live Org dashboard
+      // Worker at irlid-api-org.irlid-bunhead.workers.dev (Phase 1 of v5.9 live
+      // port). Now matches all three Workers in the irlid-bunhead account:
+      // irlid-api (consumer), irlid-api-test (test env), irlid-api-org (org).
       const WORKER_ALLOWLIST = [
-        /^https:\/\/irlid-api(-test)?\.irlid-bunhead\.workers\.dev\/?$/,
+        /^https:\/\/irlid-api(-test|-org)?\.irlid-bunhead\.workers\.dev\/?$/,
         /^http:\/\/localhost:\d+\/?$/,
         /^http:\/\/127\.0\.0\.1:\d+\/?$/
       ];
