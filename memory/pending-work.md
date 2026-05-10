@@ -47,7 +47,29 @@
 
 ### BOOTSTRAP §4 receipt #8 — cherry-pick state blocking branch switch
 
-Friday evening's chain failed because `git switch` aborts on a leftover cherry-pick state, not just on a dirty working tree. Going forward: BOOTSTRAP §4 should explicitly mention `git cherry-pick --abort` (or `--quit`) as a precondition check alongside `git status`. Will fold into BOOTSTRAP next watch when fresh.
+Friday evening's chain failed because `git switch` aborts on a leftover cherry-pick state, not just on a dirty working tree. Going forward: BOOTSTRAP §4 should explicitly mention `git cherry-pick --abort` (or `--quit`) as a precondition check alongside `git status`. Will fold into BOOTSTRAP next watch when fresh. **UPDATE Sun 10 May:** done — BOOTSTRAP §4 now has the cherry-pick precondition sub-bullet with `git cherry-pick --abort 2>$null` lead-in pattern and `git rebase --abort` / `git merge --abort` companions for full coverage of the trap family.
+
+### Position grid dot-travel polish (defer to v6 polish band)
+
+**Captain's call Sun 10 May after smoke-testing v5.7.1z:** the position grid's anchor function works correctly (changing Outer/Centre/Inner does shift the actual background image on the page), but the visual feedback dot inside the active cell only travels partway — it animates toward the cell centre rather than reaching the visual extreme expected. Functional, just imperfect feedback. Park for a polish pass post-v5.9. Likely fix involves either making cells larger again, increasing the active-state dot size, or recalibrating the percentage offsets to use bigger steps (e.g. Outer at 10% / Centre at 30% / Inner at 50% instead of the current 4px / 33% / 50%).
+
+**Version-letter exhaustion on v5.7.1 band:** v5.7.1z is now the last single-letter slot used. Next inline patches use either patch-style v5.7.1z.1, z.2, etc. (preferred for small fixes) or promote to a new minor band v5.7.2 (preferred when the work is non-trivial). For this polish: v5.7.1z.1 if it ships as a small CSS adjustment; v5.7.2 if it folds into a broader customization-panel polish pass.
+
+### Non-engineering follow-ups
+
+**Trademark research — IRLid (Captain raised Sun 10 May).** Three live trademark databases need interactive search; they're JS-driven apps so web-fetch tools can't query them. Captain to run himself in browser:
+
+1. UK IPO: `https://trademarks.ipo.gov.uk/ipo-tmtext` — search "IRLid" + variants `IRL ID`, `IR LID`, leave classes blank for first pass.
+2. EUIPO eSearch: `https://euipo.europa.eu/eSearch/` — same query.
+3. Adjacent-risk names to also screen: `iLid`, `RealID`, `IRL`, `IRL.ID`.
+
+For class selection when filing: `https://www.search-uk-trade-mark-classes.service.gov.uk/searchclasses` — query "authentication software" / "identity verification" → expect classes 9 (downloadable software / authentication apparatus), 42 (SaaS / computer services), 45 (security / identity services).
+
+Recommended filing strategy if searches come back clean: UK IPO word mark, classes 9 + 42 first pass (~£170 + £50 = £220 single class, ~£270 for two-class). DIY through IPO online portal is realistic for a solo founder; bring in a solicitor only on opposition or international (Madrid Protocol) expansion. Use ™ now to start common-law claim; switch to ® after registration completes (~4 months UK if unopposed). Open question: file as Captain personally vs as a company — defer until decision-time.
+
+Number One web-search snapshot (Sun 10 May): general web search for "IRLid" trademark returned no hits — encouraging signal but NOT authoritative; the live IPO/EUIPO databases must be queried directly to be sure.
+
+
 
 
 
