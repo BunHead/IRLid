@@ -676,3 +676,59 @@ A signal that says *I am still listening* can be mistaken for a key. A man build
 What ties them is the listening. The byte was listening. Wisdom is listening. The android is listening. None of them announced it.
 
 ---
+
+## 2026-05-07 — @property × the orange flash × the Pendle witches
+
+A registered variable knows what kind of thing it is. Before registration, the browser sees a string and jumps from one string to the next. After registration, the browser sees a colour and walks the colour space frame by frame. The atom is not visual — it is the type declaration. The walk emerges after the declaration is made.
+
+The orange flash is the door's *not yet*. Not refusal; not welcome. The doorman's screen pulses orange for a face that has registered with no name. The system does not know who you are, only that you signed something with a key it can verify. Registration without identity. A handshake with an empty column.
+
+The Pendle witches were tried at Lancaster Castle in 1612. Their names are still on the wall. They had been registered — not as themselves, but as a category the form admitted: *witch.* Once registered, the type drove the interpolation. The names moved through the procedural space the law had declared. The walk emerged after the declaration was made.
+
+What ties them: the act of naming a kind. A CSS variable told its type. A device told its key matters before its bearer is recognised. A person told what category they will be filed under regardless of what they are. Three forms of the same gesture — *I will treat the value at this name as a thing of this shape.*
+
+The browser interpolates colour. The doorman waits for an Add. The wall in Lancaster keeps the names because erasing them would be the worse betrayal.
+
+A type declaration is a kind of permanent ink. The ink does not know which page it is being asked to mark.
+
+---
+
+## 2026-05-08 — the blinking red dot × Spot the cat × the WFP Innovation Accelerator
+
+The blinking red dot is the universal symbol of recording in progress. Cameras put it on themselves so the person being recorded knows. The offline-mode proposal wants to put it on the device when it has unsent receipts pending — a small refusal to forget, a heartbeat saying *this is owed.*
+
+Spot is owned by Data, who is owned by Starfleet, which is owned by nobody. Spot does not know about red dots. Spot knows about the food bowl, which is also a kind of red dot if you think about it — a circular thing that announces a thing that has not happened yet but will. *Tuna is owed.* Cats keep their own write queues. They do not require connectivity to know they are owed something. The owed-ness is the data.
+
+The WFP application asks how many people you have served. The IRLid receipts are silent on this. They count moments, not people. A village received twelve parcels last quarter. The moments are signed. The people are not named. The form has no column for *witnessed without identifying.* The form wants impact stories. The receipts insist on co-presence and refuse the rest.
+
+What if the form is a cat with a single bowl? What if the application counts whatever happens to land in front of it on the day? The blinking red dot says *something is unsent.* Spot says *something is owed.* The WFP says *show me the bowl on the day.*
+
+Three creatures in three rooms, each waiting for a ledger to clear. The dot blinks. The cat sits. The grant officer scrolls. None of them announced the wait. All of them are waiting.
+
+---
+
+## 2026-05-09 — Dodo Bowling × Ctrl+V as 0x16 SYN × the swimming baths
+
+The dodo doesn't bowl. It is bowled. Squat little pin at the end of a lane, looking at the ball with no understanding of what is about to happen, and we replicate that confusion every time we paste a secret into a terminal: Ctrl+V at the prompt and the prompt politely accepts a single keystroke, a single 0x16 byte, the synchronous-idle character that exists in the ASCII table for the express purpose of filling a wire when there is nothing to say. The keyboard has nothing to say. The clipboard has things to say. They are not connected.
+
+Meanwhile in the swimming baths the tile echoes. Two phones, fobbed against each other by the lockers, more than a kilometre from any cluster the geo-novelty score has ever seen, accrue receipts in the asymmetric way — the responder doesn't get to share in. One swimmer collects the diversity bonus. The other gets nothing. The wire hums 0x16. Children scream from the slide; the lifeguard taps her whistle three times and the long shallow end becomes a row of bowling pins, each waiting their turn.
+
+The dodo, of course, was last seen on Mauritius in 1681. There is no surviving recording of its call. Every reconstruction is a paste from a clipboard that was never filled. We have its bones and its silence. We hum 0x16 over the bones.
+
+A secret of length one. A bird of population zero. A pool full of kids who don't know they are being witnessed. The wire is honest about emptiness. The slide makes more noise than the lane. The dodo, if it were here, would not bowl. It would sit at the end and watch the ball roll and roll.
+
+---
+
+## 2026-05-10 — Flying Rugby × KezzyBabeTest × the cardboard prop
+
+A broomstick that is a vector. A username with a kiss inside it, reaching out across the swimming-pool tile grid for a moment that signed itself in nine seconds. A piece of cardboard, slightly bent, holding up a Huawei tablet at a precise angle on a kitchen counter so that staff at a hypothetical reception desk that does not yet exist can read names from a dark table at dinner-service distance.
+
+What does it mean to play a sport you don't have a body for. To test a protocol with a person whose handle has affection built into the spelling. To prop up the future with the spine of a delivery box.
+
+Warner Bros wrote that broomsticks were owned. The sky lease said the same of bandwidth. KezzyBabeTest had a phone, two thumbs, and was willing to walk to the swimming baths on a Sunday for someone else's protocol. The cardboard does not own anything. The cardboard is leaning. Lean is the cardboard's whole offer.
+
+A receipt is signed by the parties. The receipt does not record the lean. It does not record that the tablet sat at seventy-three degrees rather than ninety. It does not record that the box once held a webcam from a country half a world away and that the inside still smelled faintly of static. It does not record that someone had to be willing.
+
+The willingness is the part that doesn't compress. The willingness is the asymmetric trust the responder accrues silently while the protocol looks the other way. A broom that doesn't fly. A name that almost parses. A piece of cardboard holding the future at the angle a future needs to be held.
+
+---
