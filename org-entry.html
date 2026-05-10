@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>IRLid Entry</title>
+<!-- v5.7.0s — favicon link kills the GET /favicon.ico 404 from console.
+     v5.7.0t — viewport hardening + web-app-capable meta tags. user-scalable=no
+     prevents accidental pinch-zoom that drifts the orange QR off-centre.
+     mobile-web-app-capable lets Chrome hide its chrome when the page is
+     added to home screen (proper URL-bar hide ships with v5.5.12 PWA). -->
+<link rel="icon" href="favicon.ico" type="image/x-icon">
+<style>
+  :root{
+    --bg:#000000;
+    --fg:#ffffff;
+    --muted:rgba(255,255,255,0.82);
+    --green:#12da73;
+    --amber:#ffb300;
+    --orange:#FF9500;
+    --red:#ff4b4b;
+  }
+
+  * { box-sizing: border-box; }
+
+  /* v5.7.0t — Hard horizontal overflow guard. Captain reported being able
+     to "slide the page around" on the orange screen — a child element
+     pushing wider than the viewport. overflow-x:hidden on both html and
+     body kills any horizontal scroll regardless of which child overflows. */
+  html, body { height: 100%; max-width: 100vw; overflow-x: hidden; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:"Segoe UI", system-ui, sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    transition: background-color 480ms ease;
+  }
+
+  body.status-allow { background: var(--green); }
+  body.status-review { background: var(--amber); }
+  body.status-orange { background: var(--orange); }
+  body.status-deny { background: var(--red); }
+  body.status-identity {
+    background:#3b2b00;
+    overflow:auto;
+  }
+  body.status-orange.status-identity {
+    background:var(--orange);
+  }
+  body.flash-allow { animation: scanOutcomeAllow 620ms ease-out both; }
+  body.flash-review { animation: scanOutcomeReview 620ms ease-out both; }
+  body.flash-deny { animation: scanOutcomeDeny 620ms ease-out both; }
+
+  .wrap{
+    width:min(92vw, 920px);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 20px;
+  }
+
+  .card{
+    width:100%;
+    text-align:center;
+    transform:translateY(-3vh);
+    opacity:0;
+    transition: opacity 320ms ease 120ms, transform 320ms ease 120ms;
+  }
+
+  body.ready .card{
+    opacity:1;
+    transform:translateY(-5vh);
+  }
+
+  .logo{
+    display:none;
+    width:min(58vw, 240px);
+    max-height:180px;
+    object-fit:contain;
+    margin:0 auto 36px;
+    filter:drop-shadow(0 8px 18px rgba(0,0,0,0.18));
+  }
+
+  .logo.show{ display:block; }
+
+  .brand-fallback{
+    display:none;
+    width:min(44vw, 144px);
+    height:min(44vw, 144px);
+    margin:0 auto 36px;
+    border:3px solid rgba(255,255,255,0.82);
+    border-radius:28px;
+    align-items:center;
+    justify-content:center;
+    color:#fff;
+    font-size:clamp(34px, 11vw, 58px);
+    font-weight:800;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  }
+
+  .brand-fallback.show{ display:flex; }
+
+  .icon-shell{
+    width:min(42vw, 270px);
+    height:min(42vw, 270px);
+    margin:0 auto 28px;
+    transform: translateY(-42px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* v5.7.1k — bumped sizing for non-orange gateway states. Orange keeps its
+     v5.7.1g QR-first overrides below. */
+  body:not(.status-orange) .title{ font-size:clamp(40px, 8vw, 96px); }
+  body:not(.status-orange) .subtitle{ font-size:clamp(22px, 4vw, 40px); }
+  body:not(.status-orange) .icon-shell{ width:min(54vw, 340px); height:min(54vw, 340px); }
+  body:not(.status-orange) .logo{ width:min(70vw, 320px); max-height:240px; }
+  body:not(.status-orange) .brand-fallback{ width:min(56vw, 200px); height:min(56vw, 200px); }
+
+  .icon-svg{
+    width:100%;
+    height:100%;
+    overflow:visible;
+  }
+
+  .icon-path{
+    fill:none;
+    stroke:#ffffff;
+    stroke-width:16;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    vector-effect:non-scaling-stroke;
+    filter:drop-shadow(0 10px 18px rgba(0,0,0,0.18));
+  }
+
+  .draw{
+	  stroke-dasharray:1;
+	  stroke-dashoffset:1;
+	  animation: drawMark 620ms ease forwards;
+	}
+
+	.draw-1{
+	  animation-delay: 180ms;
+	}
+
+	.draw-2{
+	  animation-delay: 300ms;
+	}
+
+	.icon-svg{
+	  transform: scale(0.96);
+	  transform-origin: 50% 50%;
+	  animation: iconSettle 260ms ease-out forwards 760ms;
+	}
+
+	@keyframes iconSettle {
+	  0% { transform: scale(0.96); }
+	  70% { transform: scale(1.03); }
+	  100% { transform: scale(1); }
+	}
+
+  @keyframes drawMark {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes scanOutcomeAllow {
+    0% { background:#dfffee; }
+    44% { background:#12da73; }
+    100% { background:var(--green); }
+  }
+
+  @keyframes scanOutcomeReview {
+    0% { background:#fff0bd; }
+    44% { background:#ffb300; }
+    100% { background:#3b2b00; }
+  }
+
+  @keyframes scanOutcomeDeny {
+    0% { background:#ffe0e0; }
+    44% { background:#ff4b4b; }
+    100% { background:var(--red); }
+  }
+
+  .title{
+    margin:0;
+    font-size:clamp(32px, 6vw, 72px);
+    line-height:1.06;
+    font-weight:800;
+    letter-spacing:-0.02em;
+    text-shadow:0 6px 16px rgba(0,0,0,0.12);
+  }
+
+  .subtitle{
+    margin:clamp(18px, 2.8vh, 28px) auto 0;
+    max-width:26ch;
+    font-size:clamp(18px, 3vw, 30px);
+    line-height:1.35;
+    color:var(--muted);
+    font-weight:500;
+    text-shadow:0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  .meta{
+    margin-top:22px;
+    font-size:clamp(13px, 2.2vw, 15px);
+    color:rgba(255,255,255,0.68);
+    letter-spacing:0.02em;
+  }
+
+  .hint{
+    margin-top:14px;
+    font-size:12px;
+    color:rgba(255,255,255,0.58);
+    opacity:0;
+    transition:opacity 200ms ease 650ms;
+  }
+
+  body.ready .hint { opacity:1; }
+
+  .next-btn{
+    display:none;
+    margin:24px auto 0;
+    border:1px solid rgba(255,255,255,0.42);
+    border-radius:999px;
+    padding:11px 18px;
+    background:rgba(0,0,0,0.2);
+    color:#fff;
+    font:inherit;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    box-shadow:0 8px 18px rgba(0,0,0,0.18);
+  }
+
+  .next-btn.show{ display:inline-flex; }
+  .next-btn:focus-visible{ outline:3px solid rgba(255,255,255,0.7); outline-offset:3px; }
+
+  .choice-actions{
+    display:none;
+    gap:10px;
+    justify-content:center;
+    flex-wrap:wrap;
+    margin-top:18px;
+  }
+  .choice-actions.show{ display:flex; }
+  .choice-btn{
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:999px;
+    padding:10px 16px;
+    background:rgba(255,255,255,0.12);
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .choice-btn.primary{
+    background:rgba(63,185,80,0.92);
+    border-color:rgba(63,185,80,0.98);
+    color:#03120a;
+  }
+
+  .identity-picker{
+    display:none;
+    width:min(100%, 560px);
+    margin:24px auto 0;
+    text-align:left;
+  }
+
+  .identity-picker.show{ display:block; }
+
+  .identity-search{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.36);
+    border-radius:8px;
+    padding:12px 14px;
+    background:rgba(0,0,0,0.24);
+    color:#fff;
+    font:inherit;
+    font-size:16px;
+    outline:none;
+  }
+
+  .identity-search::placeholder{ color:rgba(255,255,255,0.62); }
+
+  .identity-list{
+    margin-top:12px;
+    max-height:min(42vh, 360px);
+    overflow:auto;
+    display:grid;
+    gap:8px;
+  }
+
+  .identity-row,
+  .identity-walkin{
+    width:100%;
+    border:1px solid rgba(255,255,255,0.24);
+    border-radius:8px;
+    padding:12px 14px;
+    background:rgba(0,0,0,0.22);
+    color:#fff;
+    font:inherit;
+    text-align:left;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+
+  .identity-row:hover,
+  .identity-row:focus-visible,
+  .identity-walkin:hover,
+  .identity-walkin:focus-visible{
+    background:rgba(255,255,255,0.14);
+    outline:none;
+  }
+
+  .identity-row[disabled]{
+    opacity:0.58;
+    cursor:wait;
+  }
+
+  .identity-row-name{ font-weight:700; }
+  .identity-row-meta{ color:rgba(255,255,255,0.66); font-size:12px; margin-top:3px; }
+  .identity-pill{ flex:0 0 auto; border:1px solid rgba(255,255,255,0.28); border-radius:999px; padding:3px 8px; color:rgba(255,255,255,0.78); font-size:11px; }
+  .identity-error{ min-height:18px; margin-top:10px; color:#ffe4e4; font-size:13px; line-height:1.35; }
+  .identity-walkin{ margin-top:12px; justify-content:center; font-weight:700; }
+  .hello-panel{
+    display:none;
+    width:min(100%, 420px);
+    margin:24px auto 0;
+    padding:14px;
+    border:1px solid rgba(255,255,255,0.24);
+    border-radius:12px;
+    background:rgba(0,0,0,0.18);
+  }
+  .hello-panel.show{ display:block; }
+  .hello-actions{ display:flex; justify-content:center; }
+  .hello-btn{
+    border:1px solid rgba(255,255,255,0.36);
+    border-radius:999px;
+    padding:11px 16px;
+    background:rgba(0,0,0,0.24);
+    color:#fff;
+    font:inherit;
+    font-size:14px;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .hello-btn:focus-visible{ outline:3px solid rgba(255,255,255,0.7); outline-offset:3px; }
+  .hello-qr{
+    display:none;
+    width:240px;
+    height:240px;
+    margin:14px auto 0;
+    padding:10px;
+    border-radius:10px;
+    background:#fff;
+    cursor:zoom-in;
+    touch-action:manipulation;
+  }
+  .hello-qr.show{ display:grid; place-items:center; }
+  .hello-qr canvas,.hello-qr img{ max-width:220px; max-height:220px; }
+  .hello-status{ min-height:17px; margin-top:10px; color:rgba(255,255,255,0.72); font-size:12px; line-height:1.35; text-align:center; }
+  /* v5.7.0v — Hard-lock the orange body to the viewport. position:fixed
+     + inset:0 + overflow:hidden prevents any child element from creating
+     a scrollable area regardless of width. touch-action:none kills the
+     pinch/pan gestures Captain reported being able to use to slide the
+     page around. */
+  body.status-orange{
+    position:fixed !important;
+    inset:0 !important;
+    overflow:hidden !important;
+    touch-action:none !important;
+    width:100vw !important;
+    max-width:100vw !important;
+  }
+  /* v5.7.1g — Widen .wrap on the orange screen so the QR can fill the
+     phone screen properly. Default .wrap caps at min(92vw, 920px) with
+     40px of horizontal padding — fine for the standard cards but it
+     forces the orange "show staff" QR ~50px narrower than it needs to be.
+     The orange screen is a single-purpose dramatic full-bleed view, so
+     stretch it edge-to-edge with minimal padding. Captain's "all the
+     gateway screens have shrunk" was the symptom of my over-conservative
+     prior fix here. */
+  body.status-orange .wrap{
+    width:100vw !important;
+    max-width:100vw !important;
+    padding:16px 10px !important;
+  }
+  body.status-orange .card{ transform:translateY(0); }
+  body.status-orange .icon-shell{ display:none; }
+  body.status-orange .title{
+    font-size:clamp(96px, 24vw, 188px);
+    line-height:0.86;
+    /* v5.7.0t — Defensive centring: parent .card has text-align:center,
+       but explicit on the title element guarantees the "?" stays centred
+       even if a stylesheet override sneaks in later. max-width prevents
+       the giant "?" from contributing to horizontal overflow. */
+    text-align:center;
+    max-width:100%;
+    margin-left:auto;
+    margin-right:auto;
+  }
+  body.status-orange .hello-panel{
+    display:block;
+    /* v5.7.1g — Orange QR centring, third attempt. Previous override used
+       width:min(96vw, 560px) but the panel's grandparent .wrap is only
+       min(92vw, 920px) wide MINUS 40px of horizontal padding. So 96vw
+       overflows the .card container by ~6vw + 40px, margin:auto collapses,
+       and the QR pins to the left. Switching to width:100% with a max-width
+       cap means the panel always fits its parent and margin:auto centres
+       cleanly. */
+    width:100%;
+    max-width:560px;
+    margin:14px auto 0;
+    padding:clamp(10px, 3vw, 16px);
+    border-color:rgba(255,255,255,0.34);
+    background:rgba(0,0,0,0.16);
+  }
+  body.status-orange .hello-actions{ display:none; }
+  body.status-orange .hello-qr{
+    display:grid;
+    place-items:center;
+    /* v5.7.1g — same fix as .hello-panel above. width:100% relative to the
+       (now correctly-centred) panel, capped at 540px, aspect-ratio:1 to
+       keep the QR square without pinning to a vw value that overflows. */
+    width:100%;
+    max-width:540px;
+    aspect-ratio:1;
+    height:auto;
+    max-height:min(66dvh, 540px);
+    margin:0 auto;
+    padding:clamp(10px, 3vw, 18px);
+    border-radius:14px;
+  }
+  body.status-orange .hello-qr canvas,
+  body.status-orange .hello-qr img{ width:100% !important; height:100% !important; max-width:100%; max-height:100%; }
+  .orange-scan-instruction{ display:none; margin:10px auto 0; color:rgba(255,255,255,0.92); font-size:13px; line-height:1.35; font-weight:800; text-align:center; max-width:34ch; }
+  body.status-orange .orange-scan-instruction{ display:block; }
+  body.status-orange .hello-status{ color:rgba(255,255,255,0.86); font-weight:700; }
+
+  @media (max-width: 700px){
+    body.ready .card{
+      transform:translateY(-7vh);
+    }
+    .subtitle, .title{
+      max-width:18ch;
+      margin-left:auto;
+      margin-right:auto;
+    }
+    .logo, .brand-fallback{
+      margin-bottom:32px;
+    }
+    .logo{
+      width:min(70vw, 220px);
+      max-height:150px;
+    }
+    .icon-shell{
+      transform:translateY(-22px);
+      margin-bottom:18px;
+    }
+    .hint{
+      max-width:20ch;
+      margin-left:auto;
+      margin-right:auto;
+    }
+    body.status-identity .card{
+      transform:translateY(0);
+    }
+    .identity-list{
+      max-height:38vh;
+    }
+  }
+
+  /* v5.7.1k — site-wide mobile touch-target floor for the gateway. */
+  @media (max-width: 640px){
+    button, .btn, [role="button"]{
+      min-width:44px;
+      min-height:44px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.flash-allow,
+    body.flash-review,
+    body.flash-deny,
+    .draw,
+    .icon-svg {
+      animation:none;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" id="stateCard">
+      <img id="logo" class="logo" alt="Organisation logo">
+      <div id="brandFallback" class="brand-fallback" aria-hidden="true">IRL</div>
+      <div class="icon-shell" id="iconShell"></div>
+      <h1 class="title" id="title">Welcome to IRLid Event</h1>
+      <div class="subtitle" id="subtitle">You’re checked in</div>
+      <div class="meta" id="meta"></div>
+      <button class="next-btn" id="nextBtn" type="button">Next scan</button>
+      <div class="choice-actions" id="choiceActions"></div>
+      <div class="hint" id="hint"></div>
+      <div class="identity-picker" id="identityPicker">
+        <input class="identity-search" id="identitySearch" type="search" placeholder="Search expected attendees" autocomplete="off">
+        <div class="identity-list" id="identityList"></div>
+        <button class="identity-walkin" id="identityWalkinBtn" type="button">I'm not on the list</button>
+        <div class="identity-error" id="identityError"></div>
+      </div>
+      <div class="hello-panel" id="helloPanel">
+        <!-- v5.7.0x — "Show my check-in QR" button removed. Was unreliable
+             (silent fail when geolocation or sign.js helpers unavailable)
+             and unnecessary now that the orange device-key QR is the
+             canonical attendee-side identity surface. The .hello-qr box
+             below remains because the orange screen renders the
+             device-key QR into it. -->
+        <!-- v6 placeholder: GPS-nearest-staff map widget mounts here.
+             div#nearest-staff-map will render the venue floor with the requesting attendee's
+             position and the closest available staff. v6 brief defines the protocol. -->
+        <div class="hello-qr" id="helloQrBox" aria-label="Attendee HELLO QR"></div>
+        <div class="orange-scan-instruction" id="orangeScanInstruction">Hold your phone up so staff can scan it. You don't need to hand it over.</div>
+        <div class="hello-status" id="helloStatus"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="js/sign.js?v=3.1"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/orgapi.js"></script>
+<script src="js/qr-fullscreen.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const type = (params.get("type") || "").trim().toLowerCase();
+  const orgParam = (params.get("org") || "").trim();
+  const org = orgParam.toLowerCase();
+  const mode = (params.get("mode") || "").trim().toLowerCase();
+  const checkinId = (params.get("checkin") || "").trim();
+  const checkoutNonce = (params.get("nonce") || "").trim();
+  const checkoutToken = (params.get("t") || "").trim();
+  const attendeeName = (params.get("attendee") || params.get("name") || "Alice Smith").trim();
+  const scoreLabel = (params.get("score") || "").trim();
+  const denyReason = (params.get("reason") || "Not on list").trim();
+  let eventName = (params.get("event") || "IRLid Event").trim();
+  const welcomeMessage = (params.get("welcome") || "").trim();
+  const redirectUrl = (params.get("redirect") || "").trim();
+  // v5.7.0v — Optional staff-specific post-accept redirect. Set in
+  // OrgCheckin.html settings ("Staff post-accept redirect URL"). Used at
+  // the orange→linked transition when the resolved Expected entry has a
+  // role of staff/manager/lead_admin/developer; falls back to the
+  // standard redirectUrl otherwise.
+  const staffRedirectUrl = (params.get("staff_redirect") || "").trim();
+  // Holds the resolved role from lookupExpectedByFingerprint so
+  // returnTargetFor / continueVenueWalkin can pick the right redirect.
+  let resolvedRole = "attendee";
+  function isStaffRole(role) {
+    const r = String(role || "").toLowerCase();
+    return r === "staff" || r === "manager" || r === "lead_admin" || r === "developer";
+  }
+
+  // v5.7.1f — Auto staff sign-in helpers.
+  function hasActiveSession() {
+    try {
+      const s = JSON.parse(localStorage.getItem('irlid_login_session') || 'null');
+      return !!(s && s.session_token);
+    } catch (_) { return false; }
+  }
+
+  // Kicks off the Org Portal auth flow from org-entry. Staff scans the
+  // venue check-in QR like any attendee; if the resolved role is staff
+  // (and no session is already active), this fires after the green
+  // check-in confirmation: gets a fresh login nonce, stashes it in
+  // localStorage so the dashboard can poll for it on return, redirects
+  // the same tab to org-login.html for direct WebAuthn. After successful
+  // claim, org-login bounces back to OrgCheckin.html which polls the
+  // pending nonce and restores the session. Net flow: one scan + one
+  // biometric → checked in AND signed in as staff.
+  async function kickoffStaffSignIn() {
+    const initResp = await fetch(API_BASE + "/org/login/init", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+    if (!initResp.ok) throw new Error("Login init failed: " + initResp.status);
+    const initData = await initResp.json();
+    const nonce = initData && initData.nonce;
+    if (!nonce) throw new Error("No nonce returned from /org/login/init");
+    try { localStorage.setItem('irlid_pending_login_nonce', nonce); } catch (_) {}
+    try { localStorage.setItem('irlid_pending_login_worker', API_BASE); } catch (_) {}
+    const dashboardReturn = "https://irlid.co.uk/OrgCheckin.html";
+    const orgLoginUrl = "https://irlid.co.uk/org-login.html"
+      + "?nonce=" + encodeURIComponent(nonce)
+      + "&worker=" + encodeURIComponent(API_BASE)
+      + "&return=" + encodeURIComponent(dashboardReturn);
+    window.location.href = orgLoginUrl;
+  }
+  // ============================================================
+  //  THEME APPLICATION — Batch 6.5, 3 May 2026
+  //  Reads theme overrides from URL params (set by OrgCheckin.html when
+  //  generating Check-in QRs) and applies them to CSS custom properties.
+  //  Also applies light/dark mode if explicitly specified.
+  // ============================================================
+  (function applyOrgEntryTheme() {
+    try {
+      var root = document.documentElement;
+      var primary = params.get('themePrimary');
+      var accent  = params.get('themeAccent');
+      var qrFg    = params.get('themeQrFg');
+      var hex6 = /^#[0-9A-Fa-f]{6}$/;
+      if (primary && hex6.test(primary)) root.style.setProperty('--theme-primary', primary);
+      if (accent  && hex6.test(accent))  root.style.setProperty('--theme-accent',  accent);
+      if (qrFg    && hex6.test(qrFg))    root.style.setProperty('--theme-qr-fg',   qrFg);
+      var mode = params.get('themeMode');
+      if (mode === 'light') root.setAttribute('data-theme', 'light');
+      else if (mode === 'dark') root.setAttribute('data-theme', 'dark');
+      // Palette params for accept-cycle animation: themePalette1..themePalette7
+      for (var i = 1; i <= 7; i++) {
+        var c = params.get('themePalette' + i);
+        if (c && hex6.test(c)) root.style.setProperty('--theme-cycle-' + i, c);
+      }
+    } catch (err) {
+      console.warn('Theme application failed', err);
+    }
+  })();
+
+  // ============================================================
+  //  FIRST-SCAN PLACEHOLDER HOOKS — Batch 6.5, 3 May 2026
+  //  Read the four behaviour-shaping toggles from URL params (set by
+  //  OrgCheckin.html). Stored on a global object so renderIdentityPicker
+  //  and downstream paths can branch on them. Behaviours behind some are
+  //  still scaffolds (server storage for proofRecording / camera flow for
+  //  idPhotoCapture) — but the gating logic is now real.
+  // ============================================================
+  window.IRLID_FIRST_SCAN_FLAGS = (function () {
+    var f = {
+      allowSelfSelection:           params.get('allowSelfSelection')           !== 'false',
+      requireDoormanConfirmation:   params.get('requireDoormanConfirmation')   === 'true',
+      requireAdditionalProof:       params.get('requireAdditionalProof')       === 'true',
+      allowProofRecording:          params.get('allowProofRecording')          === 'true',
+      enableIdPhotoCapture:         params.get('enableIdPhotoCapture')         === 'true'
+    };
+    if (window.console && f.requireDoormanConfirmation) console.info('First-scan flag: doorman confirmation required');
+    if (window.console && f.requireAdditionalProof)     console.info('First-scan flag: additional proof required if unmatched');
+    if (window.console && f.allowProofRecording)        console.info('First-scan flag: proof recording enabled (UI hook only — server storage future work)');
+    if (window.console && f.enableIdPhotoCapture)       console.info('First-scan flag: ID photo capture enabled (camera flow scaffold — getUserMedia not yet wired)');
+    return f;
+  })();
+
+  let logoUrl = (params.get("logo") || "").trim();
+  // v5.7.0x — Default raised 2800 → 7000ms. This is the duration the
+  // post-action result screen (Welcome / Checked out / Identity linked /
+  // Denied) stays before auto-redirect. Captain consistently flagged the
+  // old 2800ms as too short; 7000ms gives enough time to read the message
+  // before the page leaves. Override via ?timeout= URL param if needed.
+  const timeoutMs = Math.max(1200, parseInt(params.get("timeout") || "7000", 10) || 7000);
+  const returnAllowed = !["0", "false", "no", "off"].includes((params.get("returnAllowed") || "1").trim().toLowerCase());
+  const context = (params.get("ctx") || params.get("from") || "").trim().toLowerCase();
+  const isDoormanContext = type === "doorman" && context === "doorman";
+  const isCheckinContext = type === "venue" || type === "checkin";
+
+  let returnTimer = null;
+  let lastTapAt = 0;
+  let identityState = { pub: null, fp: "", expected: [], query: "", busyId: null, error: "" };
+  const ORANGE_POLL_MS = 2000;
+  const ORANGE_QR_TTL_MS = 5 * 60 * 1000;
+  let orangeState = { timer: null, active: false, pub: null, fp: "", cycleStartedAt: 0, pollBusy: false };
+
+  function entryScore() {
+    const parsed = Number.parseInt(scoreLabel, 10);
+    if (!Number.isFinite(parsed)) return 70;
+    return Math.max(0, Math.min(100, parsed));
+  }
+  let helloQrData = "";
+
+  const returnTo = (params.get("returnTo") || "").trim();
+  const API_BASE = "https://irlid-api-org.irlid-bunhead.workers.dev";
+
+  function defaultReturnTarget() {
+	  // v5.7.0y — Default fallback was hardcoded scan.html, dating from
+	  // when scan.html was the legacy entry point. After check-out (or any
+	  // result screen) with no `redirect=` param and no `staff_redirect=`
+	  // role match, users were silently routed to scan.html which makes no
+	  // semantic sense. Returning empty string makes scheduleReturn no-op
+	  // (it already early-returns on falsy target), so the result screen
+	  // stays visible until the user navigates away or the page is closed.
+	  // Explicit returnTo override still wins. The `?return=scan` URL param
+	  // can opt back into the old behaviour if needed.
+	  if (returnTo) return returnTo;
+	  return "";
+	}
+
+  function scanUrlBase() {
+    return "https://irlid.co.uk/scan.html";
+  }
+
+  function returnTargetFor(state) {
+    if (isDoormanContext && (state.status === "review" || state.status === "deny")) return defaultReturnTarget();
+    // v5.7.0v — Staff role gets staff_redirect when present; everyone else
+    // gets the standard redirect. Both fall back to defaultReturnTarget.
+    if (isStaffRole(resolvedRole) && staffRedirectUrl) return staffRedirectUrl;
+    return redirectUrl || defaultReturnTarget();
+  }
+
+  function goNext(target) {
+    clearTimeout(returnTimer);
+    window.location.href = target;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
+
+  function iconMarkup(status) {
+	  if (status === "allow") {
+		return `
+		  <svg class="icon-svg" viewBox="0 0 220 220" aria-hidden="true">
+			<path class="icon-path draw draw-1" pathLength="1" d="M58 118 L97 158"></path>
+			<path class="icon-path draw draw-2" pathLength="1" d="M97 158 L162 70"></path>
+		  </svg>
+		`;
+	  }
+	  if (status === "review") {
+		return `
+		  <svg class="icon-svg" viewBox="0 0 220 220" aria-hidden="true">
+			<path class="icon-path draw draw-1" pathLength="1" d="M92 70c0-18 14-31 33-31 18 0 32 12 32 29 0 14-7 22-21 31-12 8-18 15-18 31"></path>
+			<path class="icon-path draw draw-2" pathLength="1" d="M113 162 L113 170"></path>
+		  </svg>
+		`;
+	  }
+	  return `
+		  <svg class="icon-svg" viewBox="0 0 220 220" aria-hidden="true">
+			<path class="icon-path draw draw-1" pathLength="1" d="M60 14 L160 114"></path>
+			<path class="icon-path draw draw-2" pathLength="1" d="M160 14 L60 114"></path>
+		  </svg>
+		`;
+	}
+
+  function scheduleReturn(target) {
+    clearTimeout(returnTimer);
+    if (!target) return;
+    // Batch 6.5g — Captain's 30 April directive: the orange "pick from list" screen
+    // stays up until human input. No auto-return-to-scan timeout while the identity
+    // picker is on screen. The picker itself adds .status-identity to <body> in
+    // renderIdentityPicker; this guard turns scheduleReturn into a no-op while it's
+    // visible. Inclusive-platform: cognitive time should not be timed out.
+    if (document.body.classList.contains('status-identity')) return;
+    returnTimer = setTimeout(() => {
+      window.location.href = target;
+    }, timeoutMs);
+  }
+
+  function enableDoormanDoubleTap(target) {
+    if (type !== "doorman") return;
+    const hint = document.getElementById("hint");
+    hint.textContent = isDoormanContext ? "Press Esc or Next to scan again" : "Double tap to return faster";
+    document.body.addEventListener("pointerup", () => {
+      const now = Date.now();
+      if (now - lastTapAt < 340) {
+        goNext(target);
+      }
+      lastTapAt = now;
+    });
+  }
+
+  function render(state) {
+    if (state.status !== "orange") {
+      stopOrangePolling();
+      clearOrangeQrDisplay();
+    }
+    const body = document.body;
+    const iconShell = document.getElementById("iconShell");
+    const title = document.getElementById("title");
+    const subtitle = document.getElementById("subtitle");
+    const meta = document.getElementById("meta");
+    const nextBtn = document.getElementById("nextBtn");
+    const choiceActions = document.getElementById("choiceActions");
+    const logo = document.getElementById("logo");
+    const brandFallback = document.getElementById("brandFallback");
+    const identityPicker = document.getElementById("identityPicker");
+    const helloPanel = document.getElementById("helloPanel");
+
+    body.className = "";
+    body.classList.add("status-" + state.status);
+    if (state.status === "allow" || state.status === "deny") body.classList.add("flash-" + state.status);
+    if (identityPicker) identityPicker.classList.remove("show");
+    if (helloPanel) helloPanel.classList.toggle("show", type !== "checkout");
+
+    iconShell.innerHTML = iconMarkup(state.status);
+    title.textContent = state.title;
+    subtitle.textContent = state.subtitle || "";
+    meta.textContent = state.meta || "";
+    if (choiceActions) {
+      choiceActions.classList.remove("show");
+      choiceActions.innerHTML = "";
+    }
+
+    if (logoUrl) {
+      logo.src = logoUrl;
+      logo.classList.add("show");
+      brandFallback.classList.remove("show");
+    } else {
+      logo.removeAttribute("src");
+      logo.classList.remove("show");
+      brandFallback.textContent = initialsFor(eventName);
+      brandFallback.classList.add("show");
+    }
+
+    requestAnimationFrame(() => body.classList.add("ready"));
+
+    const target = returnTargetFor(state);
+    if (nextBtn) {
+      nextBtn.classList.toggle("show", isDoormanContext && (state.status === "review" || state.status === "deny"));
+      nextBtn.onclick = () => goNext(target);
+    }
+    scheduleReturn(target);
+    enableDoormanDoubleTap(target);
+    configureHelloPanel();
+  }
+
+  function applyBranding() {
+    const logo = document.getElementById("logo");
+    const brandFallback = document.getElementById("brandFallback");
+    if (logoUrl) {
+      logo.src = logoUrl;
+      logo.classList.add("show");
+      brandFallback.classList.remove("show");
+    } else {
+      logo.removeAttribute("src");
+      logo.classList.remove("show");
+      brandFallback.textContent = initialsFor(eventName);
+      brandFallback.classList.add("show");
+    }
+  }
+
+  function initialsFor(value) {
+    const words = String(value || "IRL").replace(/[^a-z0-9\s-]/gi, " ").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return "IRL";
+    return words.slice(0, 2).map(word => word[0]).join("").toUpperCase();
+  }
+
+  document.getElementById("logo").addEventListener("error", () => {
+    const logo = document.getElementById("logo");
+    const brandFallback = document.getElementById("brandFallback");
+    logo.removeAttribute("src");
+    logo.classList.remove("show");
+    brandFallback.textContent = initialsFor(eventName);
+    brandFallback.classList.add("show");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !isDoormanContext) return;
+    goNext(defaultReturnTarget());
+  });
+
+  async function renderVenue() {
+    if (!isCheckinContext || !orgParam || typeof getPublicJwk !== "function") {
+      continueVenueWalkin();
+      return;
+    }
+    try {
+      const pub = compactJwk(await getPublicJwk());
+      const fp = await deviceKeyFingerprint(pub);
+      const active = await activeCheckinForDevice(fp);
+      if (active?.active) {
+        renderCheckoutChoice(active);
+        return;
+      }
+      const recognized = await recognizeDevice(fp);
+      if (recognized?.recognized) {
+        if (recognized.name) localStorage.setItem(`irlid_org_name_${orgParam}`, recognized.name);
+        continueVenueWalkin();
+        return;
+      }
+      await renderDoormanEscalation(pub, fp);
+    } catch (err) {
+      console.warn("Venue first-scan identity check failed", err);
+      continueVenueWalkin();
+    }
+  }
+
+  async function continueVenueWalkin(options = {}) {
+    const meta = returnAllowed ? "Re-entry allowed" : "Re-entry not allowed";
+    render({
+      status: "review",
+      title: `Checking in to ${eventName}`,
+      subtitle: "Please wait",
+      meta: "Verifying attendance policy"
+    });
+    try {
+      const payload = await recordVenueCheckin(options);
+      if (payload?.conflict || payload?.expected_name) return;
+      render({
+        status: "allow",
+        title: `Welcome to ${eventName}`,
+        subtitle: welcomeMessage || "You’re checked in",
+        meta
+      });
+    } catch (err) {
+      render({
+        status: "deny",
+        title: "Check-in rejected",
+        subtitle: err.message || "Could not record check-in",
+        meta: "Please ask staff for help"
+      });
+    }
+  }
+
+  function renderCheckoutChoice(details) {
+    const name = details.name || localStorage.getItem(`irlid_org_name_${orgParam}`) || "this attendee";
+    render({
+      status: "review",
+      title: `Check out ${name}?`,
+      subtitle: "This device is already checked in",
+      meta: "Confirm to sign check-out with this phone"
+    });
+    const choiceActions = document.getElementById("choiceActions");
+    if (!choiceActions) return;
+    choiceActions.innerHTML = `
+      <button class="choice-btn primary" id="confirmCheckoutBtn" type="button">Check out</button>
+      <button class="choice-btn" id="stayCheckedInBtn" type="button">Stay checked in</button>
+    `;
+    choiceActions.classList.add("show");
+    document.getElementById("confirmCheckoutBtn")?.addEventListener("click", () => performCheckout(details));
+    document.getElementById("stayCheckedInBtn")?.addEventListener("click", () => {
+      render({
+        status: "allow",
+        title: `Welcome back, ${name}`,
+        subtitle: "Still checked in",
+        meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed"
+      });
+    });
+  }
+
+  async function performCheckout(checkoutDetails) {
+    try {
+      if (!checkoutDetails.org_api_key) checkoutDetails.org_api_key = orgParam;
+      if (!checkoutDetails.checkin_id || !checkoutDetails.nonce) {
+        render({ status: "deny", title: "Check-out unavailable", subtitle: "Missing check-out details", meta: "Ask staff to retry" });
+        return;
+      }
+      const checkoutPayload = { checkin_id: checkoutDetails.checkin_id, nonce: checkoutDetails.nonce, ts: Math.floor(Date.now() / 1000), v: 1 };
+      const payloadHash = await hashPayloadToB64url(checkoutPayload, 3);
+      const signature = await signHashB64url(payloadHash);
+      const result = await postOrg("/org/checkout", { checkin_id: checkoutDetails.checkin_id, checkout_payload: checkoutPayload, signature }, checkoutDetails.org_api_key);
+      render({
+        status: "allow",
+        title: "Checked out",
+        subtitle: "Check-out signed and recorded",
+        meta: result.checkout_method === "signed" ? "Cryptographic proof accepted" : "Check-out recorded"
+      });
+    } catch (err) {
+      render({
+        status: "deny",
+        title: "Check-out rejected",
+        subtitle: err.message || "Could not sign this check-out",
+        meta: "Use the same phone that checked in"
+      });
+    }
+  }
+
+  async function postOrg(path, body, orgKey = orgParam) {
+    if (!orgKey) throw new Error("Missing organisation key");
+    const response = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Org-Key": orgKey },
+      body: JSON.stringify(body)
+    });
+    let data = null;
+    try { data = await response.json(); } catch {}
+    if (!response.ok) throw new Error(data?.error || `Request failed ${response.status}`);
+    return data;
+  }
+
+  async function resolveCheckoutToken(token) {
+    let response;
+    try {
+      response = await fetch(API_BASE + `/org/checkout-token/${encodeURIComponent(token)}`);
+    } catch {
+      throw new Error("Could not resolve this check-out QR. Ask the doorman to retry.");
+    }
+    let data = null;
+    try { data = await response.json(); } catch {}
+    if (!response.ok) {
+      const message = response.status === 410
+        ? "This check-out QR has expired. Ask the doorman to refresh it."
+        : "This check-out QR is no longer valid. Ask the doorman to retry.";
+      throw new Error(data?.error || message);
+    }
+    return data;
+  }
+
+  async function getOrg(path) {
+    const response = await fetch(API_BASE + path);
+    let data = null;
+    try { data = await response.json(); } catch {}
+    if (!response.ok) throw new Error(data?.error || `Request failed ${response.status}`);
+    return data;
+  }
+
+  async function getOrgAuthed(path) {
+    if (!orgParam) throw new Error("Missing organisation key");
+    const response = await fetch(API_BASE + path, { headers: { "X-Org-Key": orgParam } });
+    let data = null;
+    try { data = await response.json(); } catch {}
+    if (!response.ok) throw new Error(data?.error || `Request failed ${response.status}`);
+    return data;
+  }
+
+  async function deviceKeyFingerprint(pub) {
+    const hash = await sha256Bytes(canonical(pub));
+    return b64urlEncode(hash).slice(0, 16);
+  }
+
+  async function recognizedNameForDevice(pub) {
+    const localName = localStorage.getItem(`irlid_org_name_${orgParam}`) || "";
+    const fp = await deviceKeyFingerprint(pub);
+    if (localName) return localName;
+    try {
+      const result = await getOrg(`/org/recognize?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+      if (result?.recognized && result.name) {
+        localStorage.setItem(`irlid_org_name_${orgParam}`, result.name);
+        return result.name;
+      }
+    } catch (err) {
+      console.warn("Venue recognition failed", err);
+    }
+    return "";
+  }
+
+  async function recognizeDevice(fp) {
+    return getOrg(`/org/recognize?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+  }
+
+  async function activeCheckinForDevice(fp) {
+    return getOrg(`/org/active-checkin?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+  }
+
+  async function lookupExpectedByFingerprint(fp) {
+    return getOrgAuthed(`/org/expected/lookup-by-fp/${encodeURIComponent(fp)}`);
+  }
+
+  function setOrangeStatus(message, isError=false) {
+    const el = document.getElementById("helloStatus");
+    if (!el) return;
+    el.textContent = message || "";
+    el.style.color = isError ? "#ffe4e4" : "rgba(255,255,255,0.86)";
+  }
+
+  function stopOrangePolling() {
+    if (orangeState.timer) clearTimeout(orangeState.timer);
+    orangeState.timer = null;
+    orangeState.active = false;
+    orangeState.pollBusy = false;
+  }
+
+  function clearOrangeQrDisplay() {
+    const box = document.getElementById("helloQrBox");
+    if (!box || box.dataset.orangeQr !== "true") return;
+    box.classList.remove("show");
+    box.innerHTML = "";
+    delete box.dataset.orangeQr;
+    delete box.dataset.qrFullscreenPayload;
+    delete box.dataset.qrFullscreenTitle;
+    delete box.dataset.qrFullscreenSubtitle;
+  }
+
+  function scheduleOrangePoll() {
+    if (!orangeState.active) return;
+    if (orangeState.timer) clearTimeout(orangeState.timer);
+    orangeState.timer = setTimeout(pollOrangeResolution, ORANGE_POLL_MS);
+  }
+
+  function resolvedExpectedName(result) {
+    if (!result) return "";
+    const expected = result.expected || {};
+    if (result.expected_name || result.name) return result.expected_name || result.name;
+    return Object.keys(expected).length ? expectedDisplayName(expected) : "";
+  }
+
+  function lookupStatus(result) {
+    const status = String(result?.status || "").toLowerCase();
+    if (status) return status;
+    if (result?.linked || result?.recognized) return "linked";
+    if (result?.rejected) return "rejected";
+    return "pending";
+  }
+
+  async function signedDeviceKeyEnvelope(pub, fp) {
+    const nonceBytes = new Uint8Array(16);
+    crypto.getRandomValues(nonceBytes);
+    const payload = {
+      v: 3,
+      type: "device_key",
+      pub_fp: fp,
+      pub_jwk: pub,
+      ts: Math.floor(Date.now() / 1000),
+      org_code: orgParam,
+      nonce: Array.from(nonceBytes, b => b.toString(16).padStart(2, "0")).join("")
+    };
+    const hash = await hashPayloadToB64url(payload, 3);
+    const sig = await signHashB64url(hash);
+    return { ...payload, hash, sig };
+  }
+
+  async function encodeEnvelopeQr(envelope) {
+    const b64 = irlidEncodeJsonToB64url(envelope);
+    if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
+      return "HZ:" + await irlidCompressToB64url(envelope);
+    }
+    return "H:" + b64;
+  }
+
+  async function buildOrangeScanUrl(envelope) {
+    const url = new URL(scanUrlBase());
+    url.searchParams.set("type", "device_key");
+    url.searchParams.set("payload", await encodeEnvelopeQr(envelope));
+    return url.href;
+  }
+
+  async function refreshOrangeQr() {
+    const box = document.getElementById("helloQrBox");
+    if (!box || !orangeState.pub || !orangeState.fp) return;
+    const envelope = await signedDeviceKeyEnvelope(orangeState.pub, orangeState.fp);
+    helloQrData = await buildOrangeScanUrl(envelope);
+    localStorage.setItem("irlid_last_device_key_b64", irlidEncodeJsonToB64url(envelope));
+    box.innerHTML = "";
+    if (typeof QRCode === "function") {
+      const qrSize = Math.min(720, Math.max(360, Math.floor(Math.min(window.innerWidth || 390, window.innerHeight || 844) * 0.86)));
+      new QRCode(box, { text: helloQrData, width: qrSize, height: qrSize, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H || QRCode.CorrectLevel.M });
+      normalizeHelloQr(box);
+      requestAnimationFrame(() => normalizeHelloQr(box));
+    } else {
+      box.textContent = "QR unavailable";
+    }
+    box.dataset.qrFullscreenPayload = helloQrData;
+    box.dataset.qrFullscreenTitle = "Device key QR";
+    box.dataset.qrFullscreenSubtitle = "Ask staff to scan this orange QR";
+    box.dataset.orangeQr = "true";
+    box.classList.add("show");
+    orangeState.cycleStartedAt = Date.now();
+  }
+
+  async function pollOrangeResolution() {
+    if (!orangeState.active || orangeState.pollBusy) return;
+    if (Date.now() - orangeState.cycleStartedAt >= ORANGE_QR_TTL_MS) {
+      try {
+        await refreshOrangeQr();
+        setOrangeStatus("Waiting for staff to scan...");
+      } catch (err) {
+        console.warn("Could not refresh orange QR", err);
+        setOrangeStatus("Waiting for staff to scan...", true);
+      }
+      scheduleOrangePoll();
+      return;
+    }
+    orangeState.pollBusy = true;
+    try {
+      const result = await lookupExpectedByFingerprint(orangeState.fp);
+      const status = lookupStatus(result);
+      if (status === "linked") {
+        const name = resolvedExpectedName(result);
+        if (name) localStorage.setItem(`irlid_org_name_${orgParam}`, name);
+        // v5.7.0v — Capture the resolved role from the expected entry so
+        // returnTargetFor can choose between the regular and staff
+        // post-accept redirect URLs.
+        const expectedRow = result?.expected || {};
+        resolvedRole = expectedRow.prototype_role || expectedRow.role || "attendee";
+        stopOrangePolling();
+        // v5.7.0v — Hold the orange screen visible for 7s (was 5s) after
+        // staff resolves the doorman flow, so the attendee has time to
+        // register the confirmation before the transition.
+        setOrangeStatus("Identity confirmed - preparing check-in...");
+        await new Promise(r => setTimeout(r, 7000));
+        // v5.7.1f — Auto staff sign-in. If the resolved role is staff
+        // (or higher) AND no session is currently active, route to the
+        // Org Portal auth NOW rather than to the regular post-accept
+        // redirect. Staff walk in working, attendees walk in as guests.
+        // Captain's directive: only trigger if matched in the Expected
+        // list with a staff role — bystanders attending the same event
+        // as guests don't get auto-elevated.
+        if (isStaffRole(resolvedRole) && !hasActiveSession()) {
+          render({
+            status: "review",
+            title: "Staff role detected",
+            subtitle: "Signing you in to start your shift...",
+            meta: name || "This phone is ready"
+          });
+          try {
+            await kickoffStaffSignIn();
+            return; // kickoffStaffSignIn redirects, so we shouldn't reach here
+          } catch (err) {
+            console.warn("Staff auto-sign-in failed, falling through to standard flow:", err);
+            // Fall through to the normal green check-in below.
+          }
+        }
+        render({
+          status: "review",
+          title: "Identity linked",
+          subtitle: "Checking you in",
+          meta: name || "This phone is ready"
+        });
+        await continueVenueWalkin();
+        return;
+      }
+      if (status === "rejected") {
+        stopOrangePolling();
+        // v5.7.0v — 7s hold for rejected path (was 5s).
+        setOrangeStatus("Decision received...");
+        await new Promise(r => setTimeout(r, 7000));
+        render({
+          status: "deny",
+          title: "Check-in rejected",
+          subtitle: result?.reason || "Staff could not approve this device",
+          meta: "Please ask staff for help"
+        });
+        return;
+      }
+      setOrangeStatus("Waiting for staff to scan...");
+    } catch (err) {
+      console.warn("Orange-state lookup failed", err);
+      setOrangeStatus("Waiting for staff to scan...");
+    } finally {
+      orangeState.pollBusy = false;
+    }
+    scheduleOrangePoll();
+  }
+
+  async function renderDoormanEscalation(pub, fp) {
+    clearTimeout(returnTimer);
+    stopOrangePolling();
+    identityState = { pub, fp, expected: [], query: "", busyId: null, error: "" };
+    orangeState = { timer: null, active: true, pub, fp, cycleStartedAt: Date.now(), pollBusy: false };
+
+    const body = document.body;
+    const iconShell = document.getElementById("iconShell");
+    const title = document.getElementById("title");
+    const subtitle = document.getElementById("subtitle");
+    const meta = document.getElementById("meta");
+    const nextBtn = document.getElementById("nextBtn");
+    const picker = document.getElementById("identityPicker");
+    const helloPanel = document.getElementById("helloPanel");
+    const showHelloBtn = document.getElementById("showHelloBtn");
+    const logo = document.getElementById("logo");
+    const brandFallback = document.getElementById("brandFallback");
+
+    body.className = "";
+    body.classList.add("status-orange", "status-identity");
+    if (iconShell) iconShell.innerHTML = "";
+    if (title) title.textContent = "?";
+    if (subtitle) subtitle.textContent = "Get a member of staff";
+    if (meta) meta.textContent = "";
+    if (nextBtn) nextBtn.classList.remove("show");
+    if (picker) picker.classList.remove("show");
+    if (helloPanel) helloPanel.classList.add("show");
+    if (showHelloBtn) showHelloBtn.disabled = false;
+    if (logo) {
+      logo.removeAttribute("src");
+      logo.classList.remove("show");
+    }
+    if (brandFallback) brandFallback.classList.remove("show");
+
+    setOrangeStatus("Waiting for staff to scan...");
+    try {
+      await refreshOrangeQr();
+    } catch (err) {
+      console.warn("Could not create orange device-key QR", err);
+      setOrangeStatus(err.message || "Could not create staff QR", true);
+    }
+    requestAnimationFrame(() => body.classList.add("ready"));
+    scheduleOrangePoll();
+  }
+
+  function expectedDisplayName(row) {
+    return `${row.first_name || ""} ${row.surname || ""}`.trim() || row.name || "Unnamed attendee";
+  }
+
+  async function renderIdentityPicker(pub, fp) {
+    clearTimeout(returnTimer);
+    identityState = { pub, fp, expected: [], query: "", busyId: null, error: "" };
+    const body = document.body;
+    const iconShell = document.getElementById("iconShell");
+    const title = document.getElementById("title");
+    const subtitle = document.getElementById("subtitle");
+    const meta = document.getElementById("meta");
+    const nextBtn = document.getElementById("nextBtn");
+    const picker = document.getElementById("identityPicker");
+    const search = document.getElementById("identitySearch");
+
+    body.className = "";
+    body.classList.add("status-review", "status-identity", "flash-review");
+    iconShell.innerHTML = iconMarkup("review");
+
+    // Batch 6.5g — branch on IRLID_FIRST_SCAN_FLAGS.allowSelfSelection.
+    // When the org has explicitly disabled self-selection, the unrecognised-device
+    // path should not offer a list of names (privacy/process control). Render a
+    // "see organiser" message instead and stop here. Captain's accessibility note:
+    // no auto-redirect — the screen stays put until the attendee speaks to staff.
+    const flags = window.IRLID_FIRST_SCAN_FLAGS || {};
+    if (flags.allowSelfSelection === false) {
+      title.textContent = "See an organiser";
+      subtitle.textContent = "This phone is not yet linked to your name";
+      meta.textContent = "Please ask staff to add you to the expected list";
+      if (nextBtn) nextBtn.classList.remove("show");
+      document.getElementById("helloPanel")?.classList.remove("show");
+      picker.classList.remove("show");
+      applyBranding();
+      requestAnimationFrame(() => body.classList.add("ready"));
+      return;
+    }
+
+    title.textContent = "Choose your name";
+    subtitle.textContent = "This phone is not linked yet";
+    meta.textContent = flags.requireDoormanConfirmation
+      ? "Select yourself from the expected list — staff will confirm"
+      : "Select yourself from the expected list";
+    if (nextBtn) nextBtn.classList.remove("show");
+    document.getElementById("helloPanel")?.classList.remove("show");
+    applyBranding();
+    picker.classList.add("show");
+    requestAnimationFrame(() => body.classList.add("ready"));
+
+    search.value = "";
+    search.oninput = () => {
+      identityState.query = search.value.trim().toLowerCase();
+      renderIdentityRows();
+    };
+    // Batch C polish 4 — "I'm not on the list" should NOT silently auto-create a
+    // checkin row. Captain saw an entry appear in the dashboard with the
+    // attendee_key_id ("JfpA3uQQisWrkGldzD") as the display name because the empty-
+    // name path fell through to `r.id` in the dashboard table renderer.
+    //
+    // Per the dashboard's "When identity is unclear" note (and Captain's design
+    // intent): if the attendee genuinely isn't on the expected list, the flow is
+    // staff-mediated. The phone shows a hold screen ("See an organiser"); staff use
+    // the assisted-identity flow to record an unrecognised attendee. No phone-side
+    // POST.  This keeps the audit trail clean — the only checkins in the database
+    // are ones a real person validated.
+    document.getElementById("identityWalkinBtn").onclick = () => {
+      title.textContent = "See an organiser";
+      subtitle.textContent = "Your name isn't on the expected list yet";
+      meta.textContent = "Please ask staff to add you to the list before checking in";
+      picker.classList.remove("show");
+      if (nextBtn) nextBtn.classList.remove("show");
+      document.getElementById("helloPanel")?.classList.remove("show");
+      applyBranding();
+    };
+
+    try {
+      const result = await getOrgAuthed("/org/expected");
+      identityState.expected = Array.isArray(result?.expected) ? result.expected : [];
+      renderIdentityRows();
+      search.focus({ preventScroll: true });
+    } catch (err) {
+      identityState.error = err.message || "Could not load expected attendees";
+      renderIdentityRows();
+    }
+  }
+
+  function renderIdentityRows() {
+    const list = document.getElementById("identityList");
+    const error = document.getElementById("identityError");
+    if (!list || !error) return;
+    const query = identityState.query;
+    const rows = identityState.expected.filter((row) => expectedDisplayName(row).toLowerCase().includes(query));
+    error.textContent = identityState.error || "";
+    if (identityState.error) {
+      list.innerHTML = "";
+      return;
+    }
+    if (!rows.length) {
+      list.innerHTML = '<div class="identity-row-meta">No matching expected attendees</div>';
+      return;
+    }
+    list.innerHTML = rows.map((row) => {
+      const name = expectedDisplayName(row);
+      const busy = String(identityState.busyId || "") === String(row.id);
+      const meta = row.device_key_fp ? "Already linked" : "Ready to link";
+      const disabled = busy ? " disabled" : "";
+      return `<button class="identity-row" type="button" data-expected-id="${escapeHtml(row.id)}"${disabled}><span><span class="identity-row-name">${escapeHtml(name)}</span><span class="identity-row-meta">${escapeHtml(meta)}</span></span><span class="identity-pill">${busy ? "Linking..." : "Select"}</span></button>`;
+    }).join("");
+    list.querySelectorAll("[data-expected-id]").forEach((button) => {
+      button.addEventListener("click", () => claimIdentity(button.getAttribute("data-expected-id")));
+    });
+  }
+
+  async function claimIdentity(expectedId) {
+    if (!expectedId || identityState.busyId) return;
+    identityState.busyId = expectedId;
+    identityState.error = "";
+    renderIdentityRows();
+    try {
+      if (window.IRLidOrgApi?.claimExpected) {
+        await window.IRLidOrgApi.claimExpected(orgParam, expectedId, identityState.fp);
+      } else {
+        await postOrg(`/org/expected/${encodeURIComponent(expectedId)}/claim`, { device_pub_fp: identityState.fp });
+      }
+      const chosen = identityState.expected.find((row) => String(row.id) === String(expectedId));
+      const name = expectedDisplayName(chosen || {});
+      if (name) localStorage.setItem(`irlid_org_name_${orgParam}`, name);
+      // v5.7.0v — capture role for staff redirect routing on the manual
+      // "Choose from List" path too.
+      resolvedRole = (chosen && (chosen.prototype_role || chosen.role)) || "attendee";
+      // v5.7.1f — Same auto staff sign-in trigger on the manual claim
+      // path. Staff who picked themselves from the list still get
+      // auto-routed to Org Portal auth before the post-accept redirect.
+      if (isStaffRole(resolvedRole) && !hasActiveSession()) {
+        render({
+          status: "review",
+          title: "Staff role detected",
+          subtitle: "Signing you in to start your shift...",
+          meta: name || "This phone is ready"
+        });
+        try {
+          await kickoffStaffSignIn();
+          return;
+        } catch (err) {
+          console.warn("Staff auto-sign-in failed, falling through to standard flow:", err);
+        }
+      }
+      render({
+        status: "review",
+        title: "Identity linked",
+        subtitle: "Checking you in",
+        meta: name || "This phone is ready"
+      });
+      await continueVenueWalkin();
+    } catch (err) {
+      identityState.error = err.status === 409 ? "Already claimed by another device - see organiser" : (err.message || "Could not claim this attendee");
+      identityState.busyId = null;
+      renderIdentityRows();
+    }
+  }
+
+  async function recordVenueCheckin(options = {}) {
+    if (!isCheckinContext || !orgParam || typeof getPublicJwk !== "function") return;
+    const pub = compactJwk(await getPublicJwk());
+    const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: Math.floor(Date.now() / 1000), v: 1 };
+    const helloHash = await hashPayloadToB64url(helloPayload, 3);
+    const cachedName = options.anonymous ? "" : await recognizedNameForDevice(pub);
+    const payload = await postOrg("/org/checkin", {
+      mode: "attendee_scan",
+      helloPayload,
+      helloHash,
+      attendeeLabel: cachedName,
+      name: cachedName,
+      score: entryScore(),
+      bioVerified: false
+    });
+    if (payload?.checkin_id) localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
+    if (payload?.expected_name) localStorage.setItem(`irlid_org_name_${orgParam}`, payload.expected_name);
+    if (payload?.conflict) {
+      render({ status: "review", title: "Identity review", subtitle: "This name is linked to another device", meta: "The doorman can confirm or reject this phone" });
+    } else if (cachedName || payload?.expected_name) {
+      const welcomeName = payload?.expected_name || cachedName;
+      render({ status: "allow", title: `Welcome back, ${welcomeName}`, subtitle: welcomeMessage || "You’re checked in", meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed" });
+    }
+    return payload;
+  }
+
+  function configureHelloPanel() {
+    const btn = document.getElementById("showHelloBtn");
+    if (!btn || btn.dataset.bound === "true") return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", showHelloQr);
+  }
+
+  function setHelloStatus(message, isError=false) {
+    const el = document.getElementById("helloStatus");
+    if (!el) return;
+    el.textContent = message || "";
+    el.style.color = isError ? "#ffe4e4" : "rgba(255,255,255,0.72)";
+  }
+
+  function normalizeHelloQr(target) {
+    target.querySelectorAll("canvas, img").forEach((node) => {
+      const hiddenCanvas = node.tagName === "CANVAS" && getComputedStyle(node).display === "none";
+      if (hiddenCanvas) return;
+      node.style.width = "100%";
+      node.style.height = "100%";
+      node.style.maxWidth = "100%";
+      node.style.maxHeight = "100%";
+      node.style.display = "block";
+    });
+  }
+
+  async function showHelloQr() {
+    clearTimeout(returnTimer);
+    const btn = document.getElementById("showHelloBtn");
+    const box = document.getElementById("helloQrBox");
+    if (!btn || !box) return;
+    btn.disabled = true;
+    btn.textContent = "Creating QR...";
+    setHelloStatus("Getting location and signing HELLO...");
+    try {
+      if (typeof makeSignedHelloAsync !== "function") throw new Error("Signing helpers unavailable");
+      const hello = await makeSignedHelloAsync();
+      const helloB64 = irlidEncodeJsonToB64url(hello);
+      localStorage.setItem("irlid_last_hello_b64", helloB64);
+      if (typeof irlidHasCompression === "function" && irlidHasCompression()) {
+        helloQrData = "HZ:" + await irlidCompressToB64url(hello);
+      } else {
+        helloQrData = "H:" + helloB64;
+      }
+      box.innerHTML = "";
+      if (typeof QRCode === "function") {
+        new QRCode(box, { text: helloQrData, width: 220, height: 220, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        normalizeHelloQr(box);
+        requestAnimationFrame(() => normalizeHelloQr(box));
+      } else {
+        box.textContent = "QR unavailable";
+      }
+      box.dataset.qrFullscreenPayload = helloQrData;
+      box.dataset.qrFullscreenTitle = "My check-in QR";
+      box.dataset.qrFullscreenSubtitle = "Show this HELLO QR to the doorman";
+      box.classList.add("show");
+      setHelloStatus("Show this QR to the doorman. Double-tap it for fullscreen.");
+      if (window.IRLidQrFullscreen) {
+        window.IRLidQrFullscreen.open({
+          payload: helloQrData,
+          title: "My check-in QR",
+          subtitle: "Show this HELLO QR to the doorman"
+        });
+      }
+    } catch (err) {
+      setHelloStatus(err.message || "Could not create check-in QR", true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Refresh my check-in QR";
+    }
+  }
+
+  async function renderCheckout() {
+    try {
+      let checkoutDetails = {
+        org_api_key: orgParam,
+        checkin_id: checkinId,
+        nonce: checkoutNonce,
+        event: eventName,
+        logo: logoUrl
+      };
+      if (checkoutToken) {
+        try {
+          checkoutDetails = await resolveCheckoutToken(checkoutToken);
+        } catch (err) {
+          render({
+            status: "deny",
+            title: "Check-out unavailable",
+            subtitle: err.message || "Could not resolve this check-out QR",
+            meta: "Ask the doorman to retry"
+          });
+          return;
+        }
+        eventName = checkoutDetails.event || eventName;
+        logoUrl = checkoutDetails.logo || logoUrl;
+      }
+      if (!checkoutDetails.org_api_key || !checkoutDetails.checkin_id || !checkoutDetails.nonce) {
+        render({ status: "deny", title: "Check-out unavailable", subtitle: "Missing check-out details", meta: "Ask the doorman to retry" });
+        return;
+      }
+
+      await performCheckout(checkoutDetails);
+    } catch (err) {
+      render({
+        status: "deny",
+        title: "Check-out rejected",
+        subtitle: err.message || "Could not sign this check-out",
+        meta: "Use the same phone that checked in"
+      });
+    }
+  }
+
+  function renderDoormanMock() {
+  const scoreMeta = scoreLabel ? `Score ${scoreLabel}% · ${returnAllowed ? "Re-entry allowed" : "Re-entry not allowed"}` : (returnAllowed ? "Re-entry allowed" : "Re-entry not allowed");
+  if (mode === "review") {
+    render({
+      status: "review",
+      title: attendeeName || "Needs review",
+      subtitle: "Needs doorman review",
+      meta: scoreMeta
+    });
+    return;
+  }
+
+  if (mode === "deny") {
+    render({
+      status: "deny",
+      title: attendeeName || "Not allowed",
+      subtitle: denyReason,
+      meta: scoreMeta
+    });
+    return;
+  }
+
+  if (mode === "allow") {
+    render({
+      status: "allow",
+      title: attendeeName || "Alice Smith",
+      subtitle: "Expected guest",
+      meta: scoreMeta
+    });
+    return;
+  }
+
+  if (org === "warn") {
+    render({
+      status: "review",
+      title: attendeeName || "Needs review",
+      subtitle: "Please check this attendee manually",
+      meta: scoreMeta
+    });
+    return;
+  }
+
+  if (org === "fail") {
+    render({
+      status: "deny",
+      title: attendeeName || "Not allowed",
+      subtitle: denyReason,
+      meta: scoreMeta
+    });
+    return;
+  }
+
+  if (org === "paid") {
+    render({
+      status: "allow",
+      title: "Paid guest",
+      subtitle: "Subscription verified",
+      meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed"
+    });
+    return;
+  }
+
+  render({
+    status: "allow",
+    title: "Alice Smith",
+    subtitle: "Expected guest",
+    meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed"
+  });
+}
+
+if (type === "checkout") {
+    renderCheckout();
+  } else if (isCheckinContext) {
+    renderVenue();
+  } else if (type === "doorman") {
+    renderDoormanMock();
+  } else {
+    render({
+      status: "deny",
+      title: "Not allowed",
+      subtitle: "Missing entry type",
+      meta: "Configuration required"
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+// IRLid organisation portal API client for the live Org Worker.
+(function () {
+  const DEFAULT_BASE_URL = "https://irlid-api-org.irlid-bunhead.workers.dev";
+
+  function getBaseUrl() {
+    return (window.IRLID_ORG_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
+  }
+
+  const QUEUE_ELIGIBLE_PATHS = [
+    "/org/checkin",
+    "/org/checkout",
+    "/org/checkout-token",
+    "/org/expected/create-and-bind",
+    "/org/expected",
+    "/org/conflicts",
+    "/org/settings"
+  ];
+
+  function isQueueEligible(path, method) {
+    if (String(method || "GET").toUpperCase() === "GET") return false;
+    return QUEUE_ELIGIBLE_PATHS.some(p => path === p || path.startsWith(p + "/") || path.startsWith(p + "?"));
+  }
+
+  async function enqueueOfflineRequest(url, method, headers, body) {
+    if (!window.IRLidOfflineQueue) return null;
+    const queued = await window.IRLidOfflineQueue.enqueue({ url, method, headers, body });
+    window.dispatchEvent(new CustomEvent("irlid:queue-changed"));
+    return {
+      queued: true,
+      queued_id: queued && queued.id,
+      idempotency_key: queued && queued.idempotency_key,
+      queued_at: queued && queued.queued_at
+    };
+  }
+
+  async function request(path, options) {
+    const opts = options || {};
+    const method = (opts.method || "GET").toUpperCase();
+    const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    if (opts.orgKey) headers["X-Org-Key"] = opts.orgKey;
+    // Batch C — Bearer session token for user-level endpoints (/user/*). The api_key
+    // and the session token coexist during v5.5: api_key for org-scoped service ops,
+    // Bearer for user-identity ops. Send whichever the caller has supplied.
+    if (opts.sessionToken) headers["Authorization"] = "Bearer " + opts.sessionToken;
+
+    const url = getBaseUrl() + path;
+    const body = opts.body ? JSON.stringify(opts.body) : undefined;
+    const eligible = isQueueEligible(path, method);
+
+    // v5.5.12 - offline queue interception. If we know we are offline, skip
+    // the network attempt entirely; otherwise let fetch fail and fall back to
+    // the queue for whitelisted mutating Worker calls.
+    if (eligible && navigator.onLine === false && window.IRLidOfflineQueue) {
+      return enqueueOfflineRequest(url, method, headers, body);
+    }
+
+    let response;
+    try {
+      response = await fetch(url, { method, headers, body });
+    } catch (err) {
+      if (eligible && window.IRLidOfflineQueue) {
+        return enqueueOfflineRequest(url, method, headers, body);
+      }
+      throw err;
+    }
+
+    let data = null;
+    try { data = await response.json(); } catch {}
+
+    if (!response.ok) {
+      const message = data && data.error ? data.error : `Request failed with status ${response.status}`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    return data;
+  }
+
+  // Public helper — exposes the resolved Worker base URL so callers can encode it
+  // into the login QR (the phone POSTs back to it) and rendering paths can
+  // distinguish prod vs test endpoints without hardcoding.
+  function publicBaseUrl() { return getBaseUrl(); }
+
+  window.IRLidOrgApi = {
+    // PROTOCOL.md §14 — Identity-bound sessions (Batch B).
+    loginInit() {
+      return request("/org/login/init", { method: "POST" });
+    },
+    loginPoll(nonce) {
+      return request("/org/login/poll?nonce=" + encodeURIComponent(nonce));
+    },
+    workerBaseUrl() { return publicBaseUrl(); },
+
+    // PROTOCOL.md §14 — Batch C user-level endpoints, Bearer session token auth.
+    listMyOrgs(sessionToken) {
+      return request("/user/orgs", { sessionToken });
+    },
+    createOrg(sessionToken, payload) {
+      return request("/user/create-org", {
+        method: "POST",
+        sessionToken,
+        body: payload
+      });
+    },
+    scrapeTheme(sessionToken, orgId) {
+      return request(`/user/orgs/${encodeURIComponent(orgId)}/scrape-theme`, {
+        method: "POST",
+        sessionToken,
+        body: {}
+      });
+    },
+    imageProxyUrl(imageUrl) {
+      return publicBaseUrl() + "/util/image-proxy?url=" + encodeURIComponent(imageUrl);
+    },
+
+    registerOrganisation(name) {
+      return request("/org/register", {
+        method: "POST",
+        body: { name }
+      });
+    },
+
+    listAttendance(orgKey) {
+      return request("/org/attendance", {
+        orgKey
+      });
+    },
+
+    // Batch C polish 9 — accepts an optional sessionToken so the Worker can
+    // identify Developer / Lead Admin users authorised to clear non-DEV orgs.
+    // Existing DEV-key callers keep working without the token (worker's
+    // isDebugOrg path).
+    clearTestAttendance(orgKey, includeExpected, sessionToken) {
+      return request("/org/debug/clear-attendance", {
+        method: "POST",
+        orgKey,
+        sessionToken,
+        body: { include_expected: !!includeExpected }
+      });
+    },
+
+    createCheckin(orgKey, body, sessionToken) {
+      return request("/org/checkin", {
+        method: "POST",
+        orgKey,
+        body,
+        sessionToken
+      });
+    },
+
+    authenticateStaff(orgKey, hello) {
+      return request("/org/staff/auth", {
+        method: "POST",
+        orgKey,
+        body: { hello }
+      });
+    },
+
+    checkout(orgKey, body) {
+      return request("/org/checkout", {
+        method: "POST",
+        orgKey,
+        body
+      });
+    },
+
+    checkoutLegacy(orgKey, body) {
+      return request("/org/checkout?checkout_method=legacy", {
+        method: "POST",
+        orgKey,
+        body
+      });
+    },
+
+    createCheckoutToken(orgKey, checkinId) {
+      return request("/org/checkout-token", {
+        method: "POST",
+        orgKey,
+        body: { checkin_id: checkinId }
+      });
+    },
+
+    resolveCheckoutToken(token) {
+      return request(`/org/checkout-token/${encodeURIComponent(token)}`);
+    },
+
+    recognize(orgKey, devicePub) {
+      return request(`/org/recognize?org=${encodeURIComponent(orgKey)}&device_pub=${encodeURIComponent(devicePub)}`);
+    },
+
+    listExpected(orgKey) {
+      return request("/org/expected", {
+        orgKey
+      });
+    },
+
+    createExpected(orgKey, body, sessionToken) {
+      return request("/org/expected", {
+        method: "POST",
+        orgKey,
+        body,
+        sessionToken
+      });
+    },
+
+    deleteExpected(orgKey, id, sessionToken) {
+      return request(`/org/expected/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        orgKey,
+        sessionToken
+      });
+    },
+
+    // v5.7.0g — cascading delete for an attendee record. Removes the
+    // org_checkins history rows, rebind_history, attendee_conflicts, AND
+    // the org_expected row itself. Lead_admin+ only (Worker enforces).
+    // Use only when the attendee row has moved past the "expected" state
+    // (e.g. checked in/out, conflict, invalid) and the regular
+    // deleteExpected button is no longer visible.
+    // v5.7.0j — `force=true` bypasses the Worker's "active checkin must
+    // check out first" guard. Caller passes this when deleting an IN row.
+    deleteExpectedFull(orgKey, id, sessionToken, force) {
+      const path = `/org/expected/${encodeURIComponent(id)}/full${force ? '?force=true' : ''}`;
+      return request(path, {
+        method: "DELETE",
+        orgKey,
+        sessionToken
+      });
+    },
+
+    updateExpected(orgKey, id, body) {
+      return request(`/org/expected/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        orgKey,
+        body
+      });
+    },
+
+    rebindExpected(orgKey, id, body) {
+      return request(`/org/expected/${encodeURIComponent(id)}/rebind`, {
+        method: "POST",
+        orgKey,
+        body
+      });
+    },
+
+    bindAdditionalKey(orgKey, id, body, sessionToken) {
+      return request(`/org/expected/${encodeURIComponent(id)}/bind-additional-key`, {
+        method: "POST",
+        orgKey,
+        body,
+        sessionToken
+      });
+    },
+
+    createAndBindExpected(orgKey, body, sessionToken) {
+      return request("/org/expected/create-and-bind", {
+        method: "POST",
+        orgKey,
+        body,
+        sessionToken
+      });
+    },
+
+    claimExpected(orgKey, id, devicePubFp) {
+      return request(`/org/expected/${encodeURIComponent(id)}/claim`, {
+        method: "POST",
+        orgKey,
+        body: { device_pub_fp: devicePubFp }
+      });
+    },
+
+    resolveConflict(orgKey, id, resolution) {
+      return request(`/org/conflicts/${encodeURIComponent(id)}/resolve`, {
+        method: "POST",
+        orgKey,
+        body: { resolution }
+      });
+    },
+
+    // --- Settings persistence (Batch 6.5, 3 May 2026) ---
+    // Read the org-level settings_json from the Worker. Used by the OrgCheckin
+    // Settings panel on open to load the saved state (theme, palette, branding,
+    // policy toggles). Returns { id, name, slug, settings }.
+    // v6 placeholder: recognition_mode will gate the recognition flow:
+    //   'prebind'       - current behaviour, attendee must be Expected first
+    //   'postattribute' - attendee scans first, gets attributed to an Expected row after
+    //   'both'          - either path allowed
+    // Stub field exists in schema; UI surfaces in v6.
+    getOrgSettings(orgKey) {
+      return request("/org/settings", {
+        orgKey
+      });
+    },
+
+    // Persist a partial settings update server-side. Body keys outside the
+    // Worker's allowlist are silently dropped; theme is validated server-side
+    // (hex shape, contrast against white, palette length cap). Returns
+    // { settings } with the merged current state on success.
+    updateOrgSettings(orgKey, partial) {
+      return request("/org/settings", {
+        method: "POST",
+        orgKey,
+        body: partial
+      });
+    }
+  };
+})();

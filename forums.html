@@ -1,0 +1,70 @@
+<!-- forums.html -->
+<!DOCTYPE html>
+<!-- Deploy: v5.9 forums coming-soon placeholder.
+     v6+ will replace this with the actual community forums surface
+     (likely Discourse-hosted or similar). For now, signals to visitors
+     that the feature is on the roadmap and gives them a way to subscribe
+     for updates via the existing contact channel. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRLid — Forums (coming soon)</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <div class="brand-wrap">
+      <a class="brand" href="index.html" aria-label="IRLid Home">
+        <img src="logo.png" alt="IRLid Logo" id="logo">
+      </a>
+    </div>
+
+    <nav class="site-nav" aria-label="Primary">
+      <a class="nav-btn" href="index.html">Home</a>
+      <a class="nav-btn" href="scan.html">Scan</a>
+
+      <details class="nav-dropdown" id="aboutDropdown">
+        <summary class="nav-btn">Info &#9662;</summary>
+        <div class="dropdown-menu" role="menu" aria-label="Info menu">
+        <a href="check.html">Check</a>
+        <a href="about.html">About</a>
+        <a href="forums.html">Forums</a>
+        <a href="features.html">Features</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      </details>
+
+      <span id="accountSlot"></span>
+    </nav>
+  </header>
+
+  <main class="page-main page-content">
+    <h2>Forums &mdash; coming soon</h2>
+    <p>A community space for IRLid users, venue operators, and curious technologists is on the roadmap. Until it ships, the best places to discuss the protocol and share questions are:</p>
+
+    <h3 style="margin-top:1.4rem;">For now</h3>
+    <ul style="line-height:1.9;">
+      <li>Email <a href="mailto:support@irlid.co.uk">support@irlid.co.uk</a> for questions, bug reports, or feature ideas.</li>
+      <li>See the <a href="about.html">About</a> page for the protocol design and rationale.</li>
+      <li>See <a href="features.html">Features</a> for a current capabilities overview.</li>
+    </ul>
+
+    <h3 style="margin-top:1.4rem;">What's planned</h3>
+    <p>The forums will give:</p>
+    <ul style="line-height:1.9;">
+      <li>Public threads on protocol design, deployment patterns, and trust-network ideas.</li>
+      <li>A space for venue operators to share check-in flows and lessons learned.</li>
+      <li>Member-tier discussions for ongoing supporters of the project.</li>
+    </ul>
+
+    <p style="margin-top:1.6rem; color:#888; font-size:0.92rem;">If you'd like to be notified when forums launch, drop a one-line email to <a href="mailto:support@irlid.co.uk" style="color:#888;">support@irlid.co.uk</a> with the subject line "forums".</p>
+  </main>
+
+  <script src="js/auth.js"></script>
+  <script src="js/backend.js"></script>
+  <script src="js/nav.js"></script>
+</body>
+</html>
