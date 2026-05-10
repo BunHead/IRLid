@@ -29,7 +29,7 @@ VALUES (
   '<UUID - generate with crypto.randomUUID() and paste here>',
   '<venue name - replace>',
   '<venue slug - replace, e.g. captains-test-venue>',
-  '<random 64-char hex - generate with: openssl rand -hex 32>',
+  '<api_key - MUST start with "org_" prefix; generate as: org_<random 64-char hex via openssl rand -hex 32>. The dashboard Service-account login rejects keys not starting with org_. Example: org_1f6acd49f4d2f0bb59fdc4d2f98343c2c9119aceedd31fd6297c9207f3154256>',
   NULL,
   NULL,
   '{}',
