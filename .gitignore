@@ -6,3 +6,7 @@
 Thumbs.db
 
 desktop.ini
+
+# Wrangler local cache (account-bound, not a secret but no value in repo)
+irlid-api-org/.wrangler/
+irlid-api/.wrangler/
