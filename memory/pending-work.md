@@ -1,8 +1,111 @@
 # Pending Work — IRLid
 
-**Last refreshed:** 9 May 2026 morning watch — three more Mr. Data PRs merged (#96 mobile reshape, #97 Tier 3 cached snapshot, #98 customization image-pattern split). PROTOCOL.md §14.18 refined to Option 2 (user-held envelope, GDPR-clean). v5.7.1m.1 + logo contrast + prototype-role badge fix landed on codex branch awaiting cherry-pick. Captain on R&R; bridge held by Number One for log close-out.
+**Last refreshed:** Sunday 10 May 2026 morning watch — Captain set Wednesday 13 May target for Org dashboard live port. Two briefs drafted today: `HANDOVER-PositionGrid.md` (v5.7.1w 9-button position picker + Outer/Centre/Inner anchor, retiring the dangling `0bdcd0b` float toggle by reborning the concept properly inside the grid), and `HANDOVER-V5_9_LivePort.md` (3-phase Path A live port: provision `irlid-api-org` Worker + `irlid-db-org` D1, copy dashboard files into `IRLid` repo, first-org seed + smoke). Path A is deliberately scoped — drone delivery / GPS-nearest-staff / recognition-mode / event-receipts integration deferred to v6 brief, with forward-design placeholders left in code comments at the v6 hook points. Drone work confirmed deferred until Org is fully live (Captain's call). Friday evening's claim that float toggle was cherry-picked to main was wrong — `0bdcd0b` survives only as a dangling object and is being deliberately retired in v5.7.1w. PR #101 codex branch did clean correctly (tip = `f9a3f61`, just Mr. Data's mobile sweep).
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Sunday 10 May 2026 morning watch — Wednesday-deadline live port plan
+
+**The headline:** Captain returned Sunday morning with a Wednesday 13 May target for porting the Org dashboard from test env to live (irlid.co.uk). Sitrep showed test env in good shape (v5.7.1v on main, v5.5.8 deployed) but live repo has NO Org dashboard surface — this is greenfield deployment, not a delta migration. Two briefs drafted to put both threads (UX polish + live port) in motion in parallel.
+
+**Architecture decision for live port (Path A — minimum viable):**
+
+- Stand up SEPARATE live Worker `irlid-api-org` (parallel to existing live `irlid-api` consumer Worker). Wired to NEW production D1 `irlid-db-org`. CORS origin `https://irlid.co.uk`.
+- Source: verbatim copy of `IRLid-TestEnvironment/irlid-api/src/index.js`. No merging into the consumer Worker — independent deployment cycles, lower risk for Wednesday, reversible.
+- Schema: extracted from `irlid-db-test` `.schema` output as a single canonical DDL, pinned as v6 migration baseline.
+- Files copied test→live: `OrgCheckin.html`, `js/orgapi.js`, `js/sign.js`, `js/offline-queue.js`, `js/offline-snapshot.js`, plus referenced QR/SW/asset files. `DEFAULT_BASE_URL` switched to the new Worker URL. DEV bootstrap path gated to test surfaces only.
+- First-org bootstrap via direct D1 insert seed file (Captain runs `wrangler d1 execute --file=...` for his test venue).
+- Forward-design placeholders left in code comments at v6 hook points (drone zone-gating, GPS-nearest-staff map widget mount, recognition_mode field stub, event_meta_json on receipts).
+
+**Captain handoff sequence (target Wed 13 May):**
+
+- Sunday (today): briefs ready.
+- Monday: Captain forwards Phase 1 (Worker + D1 provisioning) to Codex. Mr. Data lands. Captain runs `wrangler d1 create` + `wrangler deploy` PowerShell.
+- Tuesday AM: Phase 2 (file copy + API base URL switch). Mr. Data lands. Captain pushes; GitHub Pages auto-deploys to irlid.co.uk.
+- Tuesday PM: Phase 3 (first-org seed). Mr. Data lands. Captain runs seed PowerShell.
+- Tuesday eve / Wednesday AM: Captain hardware smoke.
+- Wednesday PM: declare v5.9 live.
+
+**Two briefs ready on test env main for forwarding:**
+
+1. `HANDOVER-PositionGrid.md` — v5.7.1w [M], 9-button position picker + Outer/Centre/Inner anchor segmented control + animated dot inside each cell visualising the anchor offset. Replaces the 11-option position dropdown with a spatial picker. Retires the dangling `0bdcd0b` float toggle commit (do NOT cherry-pick it; the float concept is reborn properly inside the grid). Worker validation extends to add `bgImageAnchor: outer|centre|inner`. Build pill bump v5.7.1v → v5.7.1w. Independent of live port — can ship in parallel.
+2. `HANDOVER-V5_9_LivePort.md` — v5.9 Path A [3 phases: M, M, S], live port master brief. Three sequential PRs with hard-stop boundaries so Captain can verify on hardware between phases.
+
+### Open follow-ups for the next watch
+
+- **Captain forwards Phase 1 of live port to Codex** when rate limit resets Monday.
+- **Captain forwards `HANDOVER-PositionGrid.md`** to Codex (independent piece, can run alongside live port phases).
+- **Local main restoration if needed** — Friday's PR #101 cleanup chain ran `git reset --hard f9a3f61` on the wrong branch (likely main) due to a leftover cherry-pick state. Remote main is fine. Captain's recovery PowerShell:
+    ```powershell
+    cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git cherry-pick --abort ; git fetch origin main ; git switch main ; git reset --hard origin/main
+    ```
+    Worth running before any new work, even just to confirm clean state.
+- **v5.5.8 end-to-end smoke** of new scrape endpoints on deployed Worker (still pending from Friday).
+- **Draft `HANDOVER-V6Promotion.md`** — the v6 master brief covering schema unification, drone audit window, zone-gated VIP, GPS-nearest-staff, recognition-mode UI, event-receipts integration, dyslexia-friendly typography. Massive document; the natural shape of the post-v5.9-live watches.
+- **DEV org api_key drift** in test env Worker — still pending.
+- **IRLid logo contrast bug** — proper diagnostic deferred (need scan.html pattern + actual logo asset inspection).
+
+### BOOTSTRAP §4 receipt #8 — cherry-pick state blocking branch switch
+
+Friday evening's chain failed because `git switch` aborts on a leftover cherry-pick state, not just on a dirty working tree. Going forward: BOOTSTRAP §4 should explicitly mention `git cherry-pick --abort` (or `--quit`) as a precondition check alongside `git status`. Will fold into BOOTSTRAP next watch when fresh.
+
+
+
+## Friday 9 May 2026 evening watch close-out — v5.5.8 shipped, PR #101 cleanup parked
+
+**The headline:** Mr. Data's `v5.5.8` Website Theme Extraction (PR #102 [L]) merged cleanly. Captain ran `wrangler deploy` from `irlid-api/` — `irlid-api-test` deployed in 17ms, new `/api/scrape-site` (and image proxy) endpoints now live on the test Worker. Mr. Data's track record: 11 quality PRs in a row, no reverts.
+
+**What this watch shipped:**
+
+- `v5.5.8` — Website Theme Extraction (Settings → Branding). Mr. Data PR #102. Worker scrape endpoint with HTMLRewriter + image proxy (SSRF-protected via allowlist regex), client-side canvas pixel sampler with HSL binning for dominant colour extraction, "Use this colour / logo" picker UI, `websiteUrl` settings persistence. 3 files (`irlid-api/src/index.js` +257/-47, `js/orgapi.js` +20/-10, `OrgCheckin.html` +333/-66). Build pill bumped `v5.7.1u → v5.7.1v`. Mr. Data flagged Worker endpoints were `node --check`'d locally but not curl-tested — `wrangler deploy` ran post-merge but **end-to-end smoke of the new endpoints still pending**.
+- `v5.7.1u.1` — Image float toggle cherry-picked to main earlier in watch (commit `0bdcd0b`). Float toggle now live; needs hardware verification.
+
+**PR #101 cleanup attempted but NOT effective:**
+
+The cleanup PowerShell ran but failed silently mid-chain due to leftover cherry-pick state from earlier in the watch:
+
+```
+fatal: cannot switch branch while cherry-picking
+Consider "git cherry-pick --quit" or "git worktree add"
+HEAD is now at f9a3f61 Mobile sweep customization panel
+Everything up-to-date
+```
+
+Reading the chain: `git switch codex/...` aborted; `git reset --hard f9a3f61` ran on whatever branch was current (likely `main`, since Captain had just `wrangler deploy`'d from `irlid-api/`); `git push --force-with-lease origin codex/...` was a no-op because the local codex branch was never touched. **PR #101 on GitHub still has both commits** (Mr. Data's mobile sweep + my u.1 float toggle).
+
+**Recovery for next watch (in order):**
+
+1. **First, restore local main if it was reset.** Remote main is fine (the failed push targeted codex, not main). Local main may now be at `f9a3f61` (the codex branch tip, missing the v5.5.8 + u.1 cherry-picks):
+    ```powershell
+    cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git cherry-pick --abort ; git fetch origin main ; git switch main ; git reset --hard origin/main
+    ```
+    The `git cherry-pick --abort` clears the leftover cherry-pick state that blocked the original switch. After that, local main matches remote main (which has v5.5.8 + u.1 + everything).
+
+2. **Then redo the PR #101 codex cleanup, this time clean:**
+    ```powershell
+    cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-TestEnvironment" ; git status   # confirm clean working tree, on main
+    git fetch origin codex/v5.7.1v-mobile-sweep-customization ; git switch codex/v5.7.1v-mobile-sweep-customization ; git reset --hard f9a3f61 ; git push --force-with-lease origin codex/v5.7.1v-mobile-sweep-customization ; git switch main
+    ```
+
+3. **Smoke v5.5.8 end-to-end.** Open Settings → Branding, enter a website URL, hit scrape, verify the Worker endpoint returns dominant colours + logo candidates without 5xx. Test with a real org website (e.g. irlid.co.uk itself, or one of the venue sites Captain has handy).
+
+4. **Smoke v5.7.1u.1 image float toggle on hardware.**
+
+### BOOTSTRAP §4 receipt #8 — cherry-pick state blocking branch switch
+
+The branch-state-check rule has now tripped **eight times in nine days**. New shape: `git switch` aborts not only on a dirty working tree (receipt #6 / #7) but also on a leftover cherry-pick state. The chained `git reset --hard` then ran on the wrong branch. Going forward: BOOTSTRAP §4 should mention `git cherry-pick --abort` (or `--quit`) as a precondition check alongside `git status`. Will fold into BOOTSTRAP next watch when fresh.
+
+### Open follow-ups for the next watch
+
+- **Local main restoration + PR #101 cleanup redo** (PowerShell above).
+- **v5.5.8 end-to-end smoke** of new scrape endpoints on deployed Worker.
+- **v5.7.1u.1 image float hardware verification.**
+- **BOOTSTRAP §4 strengthen** with cherry-pick-state precondition.
+- **DEV org api_key drift** in test env Worker — still pending.
+- **HANDOVER-V5_9_LivePort.md** — master brief for the live port chapter; carried over.
+- **IRLid logo contrast bug** — proper diagnostic deferred (need scan.html pattern + actual logo asset inspection).
+
+
 
 ## Friday 9 May 2026 morning watch — three PRs merged + first Captain-driven UX iteration
 
