@@ -7,8 +7,12 @@
 -- Schema note: irlid-api-org/schema.sql defines organisations, not orgs,
 -- and stores default settings in organisations.settings_json. There is no
 -- separate org_settings table in this v5.9 live baseline schema.
-
-BEGIN TRANSACTION;
+--
+-- v5.9 first-run fix 10 May: removed BEGIN TRANSACTION; / COMMIT; wrapper.
+-- D1's remote execute disallows raw SQL transactions ("To execute a transaction,
+-- please use the state.storage.transaction() or state.storage.transactionSync()
+-- APIs instead"); single statements run atomically anyway, so the wrapper was
+-- unnecessary AND blocking.
 
 INSERT INTO organisations (
   id,
@@ -32,5 +36,3 @@ VALUES (
   unixepoch(),
   unixepoch()
 );
-
-COMMIT;
