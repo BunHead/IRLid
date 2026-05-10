@@ -9,4 +9,4 @@ CORS_ORIGIN = "https://irlid.co.uk"
 [[d1_databases]]
 binding = "DB"
 database_name = "irlid-db-org"
-database_id = "<TO BE FILLED IN AFTER wrangler d1 create>"
+database_id = "484dad86-e75c-412e-9423-ca0bb27cdcb8"
