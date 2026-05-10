@@ -2363,9 +2363,18 @@ body #venueQRWrap.cycle-burst-pattern {
 </head>
 <body class="prototype-checkin">
 <div class="sidebar">
+  <!-- v5.9 — Sidebar IRLid/org logo wraps the consumer-home link. Captain UX
+       call: clicking the logo from inside the dashboard returns to
+       irlid.co.uk/index.html (the public IRLid landing), regardless of
+       sign-in state. Universal "logo = home" pattern; predictable for both
+       authenticated staff and accidental visitors. The org-entry public
+       attendee view is reached separately (its own URL); this logo is not
+       a "preview public view" button. -->
   <div class="sidebar-logo">
-    <img id="chromeLogo" src="logo.png" alt="Organisation logo">
-    <div class="sidebar-fallback" style="display:none;">IRL</div>
+    <a href="index.html" aria-label="IRLid home" title="IRLid home" style="display:flex;align-items:center;text-decoration:none;">
+      <img id="chromeLogo" src="logo.png" alt="Organisation logo">
+      <div class="sidebar-fallback" style="display:none;">IRL</div>
+    </a>
   </div>
 
   <div class="org-badge">
