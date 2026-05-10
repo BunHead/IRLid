@@ -997,7 +997,13 @@
             // After sign-in, the dashboard auto-processes this scan into
             // the escalation modal — so staff can complete the doorman
             // flow entirely from their phone, no desktop required.
-            const staffScanUrl = "https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
+            // v5.9.0.6 — was hardcoded to test env's OrgCheckin URL. Now
+            // computes dashboardOrigin from window.location so live serves
+            // live (irlid.co.uk/OrgCheckin.html) and test env stays on
+            // bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html.
+            // Same pattern as OrgCheckin.html's ORIGIN_BASE.
+            const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+            const staffScanUrl = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
             setStatus("Staff-scan QR detected.");
             showGate("orange",
               "This QR is for staff scanning",
@@ -1212,7 +1218,9 @@
 
       if (payloadType === "device_key") {
         // v5.7.1b — same staff-self-serve hand-off as the camera-scan path.
-        const staffScanUrl = "https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
+        // v5.9.0.6 — see camera-scan path: dynamic origin so live -> live, test env -> test env.
+        const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+        const staffScanUrl = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
         showGate("orange",
           "This QR is for staff scanning",
           "Hand this phone to a member of staff at the venue's check-in. Or, if you ARE staff, open this scan in your authenticated dashboard.",
