@@ -2414,7 +2414,7 @@ body #venueQRWrap.cycle-burst-pattern {
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.7</span></div>
   </div>
 </div>
 
@@ -5882,7 +5882,12 @@ function closeEscalationModal() {
 // toast with a Stay-on-dashboard override; default behaviour is to
 // redirect to scan.html so the next QR is one tap away (or zero, if
 // the camera is already running).
-const SCAN_PAGE_URL = 'https://bunhead.github.io/IRLid-TestEnvironment/scan.html';
+// v5.9.0.7 — was hardcoded to test env URL. Now uses ORIGIN_BASE (declared at line ~3247)
+// so the post-resolution redirect targets live's scan.html on live and test env's
+// scan.html on test env. Same trap family as v5.9.0.1 (SCAN_URL + OUTCOME_BASES) and
+// v5.9.0.6 (scan.html staffScanUrl) — fifth instance of file-copy-from-test-env
+// hardcoded URLs surviving into live. Sweep guidance is in BOOTSTRAP §6.
+const SCAN_PAGE_URL = ORIGIN_BASE + '/scan.html';
 const POST_RESOLUTION_HOLD_SECONDS = 3;
 let __postResolutionTimer = null;
 let __postResolutionRemaining = 0;
@@ -6379,7 +6384,10 @@ async function manualCheckin() {
 function loadVenueQR() { generateVenueQR(); showToast('Debug QR refreshed'); }
 function getQrScanDomain() {
   try { return new URL(venueQrPayload || buildVenuePayload()).hostname; }
-  catch { return 'bunhead.github.io'; }
+  // v5.9.0.7 — was hardcoded fallback to 'bunhead.github.io' (test env). Now falls back
+  // to current hostname so live serves live, test env serves test env. Sixth file-copy
+  // hardcoded-URL fix this watch series; BOOTSTRAP §6 sweep guidance applies.
+  catch { return window.location.hostname; }
 }
 function getOrgFingerprint() {
   const key = currentOrg?.api_key || '';
