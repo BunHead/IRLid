@@ -2391,7 +2391,7 @@ body #venueQRWrap.cycle-burst-pattern {
   <div class="nav-bottom">
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.2</span></div>
   </div>
 </div>
 
@@ -5244,6 +5244,26 @@ function staffSessionIsActive() {
   return !!staffAuthSession?.staff_session && Number(staffAuthSession.expires_at) > staffAuthNow();
 }
 function developerBearerSessionIsActive() {
+  // v5.9.0.2 — Also accept a service-account org_-prefixed api_key as
+  // developer-tier auth. The org_ key IS the master credential for the
+  // org; possessing it is by definition developer-equivalent authority
+  // for everything in this org's scope. This unlocks the bootstrap
+  // escalation flow on a fresh live D1 where the qrLoginSession path
+  // requires a registered device which doesn't exist until the first
+  // staff member is added (chicken-and-egg).
+  //
+  // Note: the Worker is the actual security boundary — every /org/*
+  // endpoint validates the api_key Bearer token server-side. This gate
+  // is just a client-side UX guard to avoid showing buttons that would
+  // 401. Treating org_ as developer-tier here matches what the Worker
+  // already accepts.
+  //
+  // Captain's 10 May framing: "I'm supposed to be able to login into
+  // any IRLid dashboard anyway" — yes, possessing the org_ key for a
+  // given org grants full developer powers within that org. Cross-org
+  // developer override (one credential, all orgs) is the v6/§14.18
+  // OAuth identity chapter; for now this is per-org-correct.
+  if (currentOrg?.api_key && typeof currentOrg.api_key === 'string' && currentOrg.api_key.startsWith('org_')) return true;
   return !!(qrLoginSession?.is_developer && qrLoginSession?.session_token);
 }
 function formatStaffAuthExpiry(expiresAt) {
