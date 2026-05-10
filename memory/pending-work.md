@@ -1,8 +1,58 @@
 # Pending Work — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 evening close-out — **`v5.9` LIVE on irlid.co.uk** (3+ days ahead of Captain's Wednesday target). Org dashboard fully ported via Path A: separate Worker provisioned, D1 schema applied, first org seeded, four post-deploy inline patches landed. Service-account sign-in working end-to-end. Public Event Check-in QR generates with right origin, scan.html recognises org QRs. v5 hardware bootstrap deferred to v6.2 OAuth identity chapter (BOOTSTRAP_DEVELOPER_FP secret already configured for that work). Captain on R&R after a marathon watch; bridge held by Number One for log close-out. See `memory/letters/successor-2026-05-10.md` for the watch handoff.
+**Last refreshed:** Sunday 10 May 2026 evening watch 2 close-out — **`v5.9.0.4` LIVE; bootstrap developer recognition fully working.** Diagnostic-first session resolved the v5 hardware-bootstrap rabbit hole inherited from this morning's watch 1. Two real bugs surfaced + fixed in single session: (1) BOOTSTRAP_DEVELOPER_FP secret was 1 byte (Ctrl+V SYN trap from 4 May, hit twice now); (2) `irlid_mock_org` localStorage entry duplicating last 6 chars of api_key (test-env file-copy leftover writing into live storage). Captain's actual phone fp on `irlid.co.uk` RP-ID is **`TvklFsivZk68R67j`**, not `uSwaWJc9r5uSCBbI` as watch-1 successor letter claimed. End-to-end smoke green: Captain signed in via QR-login → first developer membership seeded on Test Event via D1 INSERT → Kerry Austin added as Staff to Expected list → attendance row materialised. Diagnostic Worker reverted in same session; live runs production-clean code (Worker version `430e3b08-f5a5-4683-bd4f-7ca9d7c19e02`). Pill bumped v5.9.0.3 → v5.9.0.4 in same commit (`d982554`). Hand-roll bypass stayed chambered, never fired.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Sunday 10 May 2026 evening watch 2 — `v5.9.0.4` shipped (bootstrap recognition working)
+
+**The headline:** Captain's super-admin login works on live. Diagnostic-first won the watch — bypass never fired.
+
+**What landed (in commit `d982554` + Worker version `430e3b08-...`):**
+
+- **`BOOTSTRAP_DEVELOPER_FP` secret recovered.** Set to `TvklFsivZk68R67j` (Captain's actual phone fp on `irlid.co.uk` RP-ID, computed authoritatively by the diagnostic from his pub_jwk during sign-in). Recovery used the documented stdin-pipe pattern: `"TvklFsivZk68R67j" | npx wrangler secret put BOOTSTRAP_DEVELOPER_FP`. Ctrl+V at the secure-input prompt would have set it to `0x16` SYN char again — same trap as 4 May, second receipt.
+- **First Developer membership seeded** on Test Event. D1 INSERT via `wrangler d1 execute irlid-db-org --remote --command "INSERT INTO org_memberships (user_id, org_id, role, granted_by, granted_at) SELECT id, '0337bf2f-e8a3-48d4-a12b-3f9426354f4f', 'developer', id, strftime('%s','now') FROM portal_users WHERE pub_fp = 'TvklFsivZk68R67j'"`. Self-grant semantics correct for the bootstrap developer.
+- **`irlid_mock_org` localStorage entry deleted** from `https://irlid.co.uk` to recover from a duplicated-api_key state. The mangled value sent was `org_1f6acd49f4d2f0bb59fdc4d2f98343c2c9119aceedd31fd6297c9207f3154256154256` — last 6 chars `154256` duplicated. Root cause: test-env file-copy left a `_mock_` localStorage key that the dashboard fell back on for X-Org-Key after QR-login. After delete + hard-refresh, dashboard fetches clean api_key from `/user/orgs` response.
+- **Pill bumped** `v5.9.0.3 → v5.9.0.4` in `OrgCheckin.html`. Build pill discipline (BOOTSTRAP §4) honoured even on a pure-ops fix because the deployment state IS what the pill reports.
+- **Diagnostic Worker reverted** in same session (33 `[401-trace]` markers added, then stripped clean — Worker code identical to pre-diagnostic state). `wrangler deploy` ran the clean code to Cloudflare; tail confirmed no diagnostic emissions.
+- **End-to-end smoke verified:** sign-in as Developer (Super-Admin) via QR-login → sidebar reflects "Test Event" org name (real, not placeholder) → Add Kerry Austin as Staff to Expected list → 200 OK → attendance row appears in dashboard.
+
+**Diagnostic strategy that won:**
+
+The previous Number One had spent significant effort on `LOGIN_DEBUG=1`-gated debug fields and concluded "the strict equality is failing for opaque reasons". Today's session sidestepped that hypothesis entirely by adopting **unconditional `console.log` at every 401 return path + always-include-debug in the response body** (no LOGIN_DEBUG gate). 33 `[401-trace]` markers across `genericAuthFailed`, `orgLoginClaim`, `requireOrgStaffSession`, `requireDevOrStaffSession`, `requireFreshStaffProof`, `requireSession`, `bootstrapDeveloperFromBearer`, plus the fetch entry. **First retry attempt produced the smoking gun in the response body itself**: `debug_bootstrap_fp_len: 1, debug_bootstrap_fp_first4: ""` — the secret was the SYN char. Total time from "deploy diagnostic" to "smoking gun": ~5 minutes. Lesson banked: when LOGIN_DEBUG-gated diagnostics aren't surfacing the answer, sidestep the gate entirely with unconditional logs — don't waste a watch debating whether the gate is broken.
+
+**Architectural finding (banked for future watches):**
+
+`BOOTSTRAP_DEVELOPER_FP` is a **platform-level developer escape hatch on the Worker**, not a per-org credential. Captain's pub_fp matching the secret grants developer access to ANY org on this Worker via `requireDevOrStaffSession` and `requireFreshStaffProof`. Membership rows are needed only for UX surfacing (org switcher, `/user/orgs` list). For orgs Captain creates via `/user/create-org`, membership is auto-inserted; for orgs created by other paths (seed, future admin tooling), Captain has Worker-level access but needs a manual membership INSERT for UX visibility. This is the right architecture — Worker is the security boundary; client is UX.
+
+### Open follow-ups for the next watch
+
+**Code-side bugs surfaced this watch (not blocking; document and queue):**
+
+- **`irlid_mock_org` localStorage trap (codebase fix needed).** The localStorage delete recovered Captain's session, but the underlying bug remains: somewhere in `OrgCheckin.html` (likely `loadDashboardForOrg` or `loadExistingKey`), `irlid_mock_org` is being read as a fallback for `currentOrg.api_key` when the proper `/user/orgs` value should win. Test env's same-shape "DEV org api_key drift" bug is in pending-work for the same reason. Both stem from test-env-leftover patterns surviving into live. Worth a 15-minute audit on next watch: grep for `irlid_mock_` in OrgCheckin.html and js/orgapi.js, decide whether to (a) gate the fallback by hostname (don't read mock_* on irlid.co.uk), (b) namespace differently per env, or (c) delete the fallback entirely now that QR-login is the default.
+- **Concat semantics (root cause unconfirmed).** The `154256` duplication suggests string-append rather than overwrite somewhere. Could be `localStorage.setItem('irlid_mock_org', JSON.stringify({...prev, api_key: prev.api_key + newKey}))` or similar. Cheap to find with one strategic `console.log` of `currentOrg.api_key` at every assignment site. Bundle with the audit above.
+
+**Polish items (carried from morning watch — sidebar org name now confirmed working, dropped):**
+
+- Footer "Test Environment / Offline-safe" string in OrgCheckin.html sidebar — leftover from test env file copy; should be hostname-conditional. ~5-line edit.
+- "test env" badge on sign-in card — same root cause.
+- ~~Sidebar org name placeholder issue~~ — **resolved this watch.** Once api_key issue was fixed, `/org/settings` succeeds and dashboard picks up real "Test Event" name. Verified live.
+- Forums link in Info dropdown across 12 HTML files — Notepad++ Find-in-Files; Captain's task.
+- `irlid-api-org/.wrangler/cache/wrangler-account.json` accidentally committed — add to `.gitignore` + `git rm`.
+- Slug `imbue-ventures` on Test Event row could rename to `test-event` for consistency. Cosmetic.
+
+**v6.x chapters now properly unlocked** (with bootstrap working):
+
+- **`v6.1` schema unification** — the 17→12 piece. Skeleton in `IRLid-TestEnvironment\HANDOVER-V6Promotion.md`. Now that v5.9 LIVE pinned the production schema baseline AND bootstrap is proven, this chapter has its starting point clear of preconditions.
+- **`v6.2` re-scoped.** Was originally framed as "the chapter that fixes hardware-bootstrap on fresh D1". The bootstrap is now fixed *without* §14.18, so v6.2 can be re-scoped to its actual architectural value: optional second-tier identity proof (OAuth identifier alongside hardware credential) for cross-org account recovery + recognition per `PROTOCOL.md §14.18`. No longer "mandatory unblocking work" — it's the proper next architectural step on its own merits.
+- **Multi-platform admin view (banked, not urgent).** Corollary of today's "bootstrap_fp grants Worker-level access but UX is membership-based" finding. A future admin-only "all orgs on platform" view would let Captain operate any org without per-org membership INSERTs. Not urgent (Captain is the only platform admin).
+
+**Captain operational follow-ups (carried, unchanged):**
+
+- Trademark search at `gov.uk/search-for-trademark` and `euipo.europa.eu/eSearch/`.
+- v5.5.8 website-theme-extraction smoke (folded into "Patreon-equivalent paid tier" milestone).
+
+
 
 ## Sunday 10 May 2026 evening — `v5.9` LIVE shipped
 

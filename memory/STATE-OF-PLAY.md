@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 evening watch — **`v5.9` LIVE on irlid.co.uk** (3+ days ahead of Captain's Wednesday target). Org dashboard fully ported: separate Worker `irlid-api-org` deployed (`https://irlid-api-org.irlid-bunhead.workers.dev`), separate D1 `irlid-db-org` (`484dad86-e75c-412e-9423-ca0bb27cdcb8`) provisioned with full schema (38 queries / 16 tables / 19 indexes), first org "Test Event" seeded with prefixed api_key. Dashboard renders at `irlid.co.uk/OrgCheckin.html`, Service-account sign-in works end-to-end, public Event Check-in QR generates with right origin, scan.html recognises org QRs, phone → org-entry orange flow works. Four post-deploy inline patches landed (v5.9.0.1 scan.html org QR types + dashboard ORIGIN_BASE, v5.9.0.2 developer auth gate widening for org_ keys, v5.9.0.3 null-safe session refs). v5 hardware bootstrap (BOOTSTRAP_DEVELOPER_FP path on fresh D1) **deferred to v6.2** as the natural §14.18 OAuth identity chapter — secret already configured for when that work lands. See `pending-work.md` for the polish follow-up list and `memory/letters/successor-2026-05-10.md` for the watch handoff.
+**Last refreshed:** Sunday 10 May 2026 evening watch 2 — **`v5.9.0.4` LIVE on irlid.co.uk; bootstrap developer recognition fully working.** Diagnostic-first session ran the v5 hardware-bootstrap rabbit hole to ground without resorting to the hand-roll-bypass plan. Two real bugs surfaced and fixed: (1) `BOOTSTRAP_DEVELOPER_FP` secret was 1 byte (`` SYN char) — the Ctrl+V trap from 4 May had bitten the live Worker too. Recovered via stdin pipe (`"TvklFsivZk68R67j" | npx wrangler secret put`); Captain's actual phone fp on irlid.co.uk RP-ID is `TvklFsivZk68R67j`, NOT the `uSwaWJc9r5uSCBbI` the previous successor letter claimed. (2) `irlid_mock_org` localStorage entry was duplicating the last 6 chars of the api_key — test-env file-copy leftover writing into live's localStorage; deleted via DevTools, dashboard now fetches clean api_key from `/user/orgs`. First Captain → Test Event `org_memberships` row INSERTed via D1 (developer role). End-to-end smoke green: signed in as Developer (Super-Admin), added Kerry Austin as Staff to Expected list, attendance row materialised. Diagnostic Worker reverted in same session — live runs production-clean code, just with the recovered secret. See `pending-work.md` for the polish follow-up list (now includes `irlid_mock_org` codebase fix as separate item from the localStorage recovery).
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
@@ -15,11 +15,13 @@
 | **Org dashboard live since** | **10 May 2026 (v5.9 — Path A live port)** |
 | Score with v5 features active | up to 70/100 |
 | Verified surfaces | Edge + Chrome + Windows Hello on Windows 11; Chrome + Pixel 8 Pro fingerprint on Android 10 |
-| Last meaningful change | v5.9 Org dashboard live port (10 May) — file-copy from test env, separate Worker (`irlid-api-org`) + D1 (`irlid-db-org`), Service-account sign-in proven end-to-end |
+| Last meaningful change | v5.9.0.4 (10 May evening) — BOOTSTRAP_DEVELOPER_FP recovered, first developer membership seeded on Test Event, QR-scan login proven end-to-end on live, Add Expected (Kerry Austin / Staff) verified working |
 | Live Worker (Org dashboard) | `irlid-api-org` at `https://irlid-api-org.irlid-bunhead.workers.dev` |
 | Live D1 (Org dashboard) | `irlid-db-org` (`484dad86-e75c-412e-9423-ca0bb27cdcb8`), region WEUR |
 | Live Worker (consumer) | `irlid-api` (untouched by v5.9 port — kept production-stable) |
 | First seeded org | `0337bf2f-e8a3-48d4-a12b-3f9426354f4f` "Test Event" / slug `imbue-ventures` / api_key `org_1f6acd...4256` |
+| Captain's Developer membership | `org_memberships` row inserted 10 May evening — role `developer` on Test Event, `pub_fp` `TvklFsivZk68R67j` |
+| Captain's phone fp on `irlid.co.uk` RP-ID | `TvklFsivZk68R67j` (16 chars) — matches `BOOTSTRAP_DEVELOPER_FP` on the Worker |
 
 ---
 
