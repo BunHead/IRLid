@@ -2391,7 +2391,7 @@ body #venueQRWrap.cycle-burst-pattern {
   <div class="nav-bottom">
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.1</span></div>
   </div>
 </div>
 
@@ -3213,11 +3213,21 @@ const STORAGE_KEY_SETTINGS = "irlid_mock_settings";
 const STORAGE_KEY_EXPECTED = "irlid_mock_expected_attendees";
 const STORAGE_KEY_PORTAL = 'irlid_portal_full_v1';
 const STAFF_AUTH_STORAGE_KEY = 'irlid_staff_auth_session_v1';
-const SCAN_URL = 'https://bunhead.github.io/IRLid-TestEnvironment/scan.html';
+// v5.9.0.1 — Derive origin base from current page location so QR URLs and
+// example URLs resolve to whichever site is serving the dashboard. On live
+// this is https://irlid.co.uk, on test env https://bunhead.github.io/IRLid-
+// TestEnvironment, on localhost https://localhost:PORT/whatever-path. The
+// previous hardcoded 'https://bunhead.github.io/IRLid-TestEnvironment' was
+// causing the LIVE dashboard to generate Event Check-in QRs that pointed
+// phones at the test env Worker (producing 'Invalid API key' rejection
+// because the live api_key didn't exist in irlid-db-test). Captain raised-
+// eyebrow fix 10 May after first live attendee scan.
+const ORIGIN_BASE = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+const SCAN_URL = ORIGIN_BASE + '/scan.html';
 const OUTCOME_BASES = {
-  allow: 'https://bunhead.github.io/IRLid-TestEnvironment/org-entry.html?type=doorman&org=test',
-  review: 'https://bunhead.github.io/IRLid-TestEnvironment/org-entry.html?type=doorman&org=warn',
-  deny: 'https://bunhead.github.io/IRLid-TestEnvironment/org-entry.html?type=doorman&org=fail'
+  allow: ORIGIN_BASE + '/org-entry.html?type=doorman&org=test',
+  review: ORIGIN_BASE + '/org-entry.html?type=doorman&org=warn',
+  deny: ORIGIN_BASE + '/org-entry.html?type=doorman&org=fail'
 };
 const MODE_LABELS = { allow: 'ALLOW', review: 'REVIEW', deny: 'DENY' };
 const PORTAL_DEFAULTS = {
@@ -4282,7 +4292,9 @@ function escapeHtml(s) {
 }
 // =================================================================== /Batch B
 function buildVenuePayload() {
-  const baseUrl = 'https://bunhead.github.io/IRLid-TestEnvironment';
+  // v5.9.0.1 — was hardcoded to test env URL. Now uses ORIGIN_BASE so the
+  // generated QR points to the same origin that's serving this dashboard.
+  const baseUrl = ORIGIN_BASE;
   const type = (currentMode === 'doorman_scan') ? 'doorman' : 'checkin';
   const qp = new URLSearchParams({
     type,
