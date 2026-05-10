@@ -9,6 +9,20 @@
      (bunhead.github.io/IRLid-TestEnvironment/favicon.ico) instead of
      the wrong root path (bunhead.github.io/favicon.ico). -->
 <link rel="icon" href="favicon.ico" type="image/x-icon">
+<!-- v5.9.0.5 — Hostname gate for test-env-leftover strings. The dashboard
+     was file-copied from the test env on 10 May; the "test env" debug
+     badges (h2 spans) and the "Test Environment / Offline-safe" sidebar
+     footer string came along for the ride. On live (irlid.co.uk) those
+     are misleading. This adds an .is-live-env class to <html> before
+     CSS renders, so test-env strings hide and live strings reveal with
+     no flash. Test env (bunhead.github.io) is unaffected. -->
+<script>
+  (function () {
+    if (location.hostname === 'irlid.co.uk') {
+      document.documentElement.classList.add('is-live-env');
+    }
+  })();
+</script>
 <!-- v5.7.1a — PWA shell (Tier 1 of PROTOCOL.md §16). manifest.json gives
      installable-app metadata; theme-color tints the browser chrome on
      supported platforms. Service Worker registration is in the script
@@ -1306,6 +1320,14 @@ body[data-active-panel="checkin"] .content { padding-top: 14px; padding-bottom: 
   color: #7a5500;
 }
 
+/* v5.9.0.5 — Hide test-env strings on live origin. Inline <script> in <head>
+   sets html.is-live-env when location.hostname === 'irlid.co.uk'. The
+   .debug-banner spans live inside h2 elements on the sign-in card; the
+   .env-badge-test/.env-badge-live spans live in the sidebar footer. */
+html.is-live-env .debug-banner { display: none; }
+html:not(.is-live-env) .env-badge-live { display: none; }
+html.is-live-env .env-badge-test { display: none; }
+
 /* Batch C polish 8 — light-mode round 2. Captain's second screenshot showed
    the "Live settings snapshot" panel and the role dropdown (.expected-role-select)
    still dark. */
@@ -2390,8 +2412,9 @@ body #venueQRWrap.cycle-burst-pattern {
 
   <div class="nav-bottom">
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
-    <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.4</span></div>
+    <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
+         v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.5</span></div>
   </div>
 </div>
 
@@ -4127,12 +4150,30 @@ async function freshOrgFromSession(savedOrg) {
   const orgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
   console.log("[v5.5.5] /user/orgs returned:", orgs);
   if (!savedOrg) return orgs[0] || null;
-  return orgs.find(o =>
+  // v5.9.0.5 — Match by stable identifiers first, then fall back to orgs[0].
+  // Captain's savedOrg from a prior Service-account session may lack id+slug
+  // (loadExistingKey at line ~3821 creates {name:'IRLid Test Organisation',
+  // api_key, mode} only — no id, no slug). If the api_key in storage is
+  // ALSO corrupt (10 May incident: irlid_mock_org localStorage left
+  // "...3154256154256" tail-duplicated, source unconfirmed but most likely
+  // a paste-event in existingKeyInput), every find() condition fails and
+  // returns undefined, which throws in the caller and pushes the catch
+  // block at line ~7282 into using the corrupt savedOrg as authoritative.
+  // Falling back to orgs[0] when no match treats /user/orgs as the source
+  // of truth and breaks the corruption cycle. Single-org users always
+  // recover; multi-org users may briefly see the wrong org before switching
+  // (recoverable via the org switcher). The Worker is the security boundary
+  // either way — Bearer auth and api_key both validate server-side.
+  const match = orgs.find(o =>
     (savedOrg.id && o.id === savedOrg.id) ||
     (savedOrg.slug && o.slug === savedOrg.slug) ||
     (savedOrg.api_key && o.api_key === savedOrg.api_key) ||
     (savedOrg.name && o.name === savedOrg.name)
-  ) || null;
+  );
+  if (!match && orgs.length > 0) {
+    console.warn('[v5.9.0.5] freshOrgFromSession: savedOrg fields did not match any /user/orgs entry; falling back to orgs[0] to break potential corruption cycle. savedOrg:', savedOrg, 'orgs[0]:', orgs[0]);
+  }
+  return match || orgs[0] || null;
 }
 
 // Batch C — populate currentOrg from a /user/orgs row (which carries api_key) and
