@@ -2391,7 +2391,7 @@ body #venueQRWrap.cycle-burst-pattern {
   <div class="nav-bottom">
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br>Test Environment / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.3</span></div>
   </div>
 </div>
 
@@ -4588,7 +4588,7 @@ async function addExpectedAttendee() {
     const payload = await window.IRLidOrgApi.createExpected(
       currentOrg.api_key,
       body,
-      developerBearerSessionIsActive() ? qrLoginSession.session_token : undefined
+      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
     if (payload && payload.queued) {
       queueExpectedRow(body, payload);
@@ -4651,7 +4651,7 @@ async function confirmExpectedDelete() {
     await window.IRLidOrgApi.deleteExpected(
       currentOrg.api_key,
       id,
-      developerBearerSessionIsActive() ? qrLoginSession.session_token : undefined
+      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
     expectedAttendees = expectedAttendees.filter(row => String(row.id) !== String(id));
     setExpectedDeleteMode(false);
@@ -5998,7 +5998,7 @@ async function bindEscalationExpected(id) {
       currentOrg.api_key,
       id,
       body,
-      developerBearerSessionIsActive() ? qrLoginSession.session_token : undefined
+      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
     if (result.expected) {
       expectedAttendees = expectedAttendees.map(item => String(item.id) === String(id) ? result.expected : item);
@@ -6035,7 +6035,7 @@ async function bindAdditionalEscalationExpected(id) {
       currentOrg.api_key,
       id,
       body,
-      developerBearerSessionIsActive() ? qrLoginSession.session_token : undefined
+      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
     if (result.expected) {
       expectedAttendees = expectedAttendees.map(item => String(item.id) === String(id) ? result.expected : item);
@@ -6063,7 +6063,7 @@ async function addEscalationAtDoor() {
     return window.IRLidOrgApi.createAndBindExpected(
       currentOrg.api_key,
       body,
-      developerBearerSessionIsActive() ? qrLoginSession.session_token : undefined
+      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
   }
   try {
