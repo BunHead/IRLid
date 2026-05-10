@@ -1,9 +1,9 @@
 ﻿-- IRLid Org dashboard schema, snapshot from irlid-db-test on 2026-05-10. v6 migrations begin from this baseline.
-
-CREATE TABLE _cf_KV (
-        key TEXT PRIMARY KEY,
-        value BLOB
-      ) WITHOUT ROWID;
+-- v5.9-phase1 fix 10 May: removed `CREATE TABLE _cf_KV` (lines 3-6 of original snapshot).
+-- _cf_KV is a Cloudflare D1 internal system table — D1 manages it automatically and
+-- rejects user CREATE attempts on names with the `_cf_` prefix with SQLITE_AUTH.
+-- The test env had it because D1 auto-created it there; it would be auto-created on
+-- the live D1 too, no need (and not allowed) to declare it explicitly.
 
 CREATE TABLE attendee_conflicts (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
