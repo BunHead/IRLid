@@ -1,6 +1,6 @@
 # State of Play — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 morning watch — Captain set Wednesday 13 May target for Org dashboard live port. Two briefs drafted: `HANDOVER-PositionGrid.md` (v5.7.1w 9-button picker + Outer/Centre/Inner anchor, retires dangling `0bdcd0b` float toggle) and `HANDOVER-V5_9_LivePort.md` (3-phase Path A live port — provision separate `irlid-api-org` Worker + `irlid-db-org` D1, copy dashboard files into IRLid live repo, first-org seed + smoke). Drone delivery + GPS-nearest-staff + recognition-mode UI + event-receipts integration all deferred to a future `HANDOVER-V6Promotion.md` per Captain's "Org-first" call; forward-design placeholders left in code comments at the v6 hook points. Friday's claim that `0bdcd0b` was cherry-picked to main was wrong — it's dangling and being deliberately retired in v5.7.1w. PR #101 codex branch cleaned correctly (tip = `f9a3f61`). See `pending-work.md` for the Captain handoff sequence.
+**Last refreshed:** Sunday 10 May 2026 evening watch — **`v5.9` LIVE on irlid.co.uk** (3+ days ahead of Captain's Wednesday target). Org dashboard fully ported: separate Worker `irlid-api-org` deployed (`https://irlid-api-org.irlid-bunhead.workers.dev`), separate D1 `irlid-db-org` (`484dad86-e75c-412e-9423-ca0bb27cdcb8`) provisioned with full schema (38 queries / 16 tables / 19 indexes), first org "Test Event" seeded with prefixed api_key. Dashboard renders at `irlid.co.uk/OrgCheckin.html`, Service-account sign-in works end-to-end, public Event Check-in QR generates with right origin, scan.html recognises org QRs, phone → org-entry orange flow works. Four post-deploy inline patches landed (v5.9.0.1 scan.html org QR types + dashboard ORIGIN_BASE, v5.9.0.2 developer auth gate widening for org_ keys, v5.9.0.3 null-safe session refs). v5 hardware bootstrap (BOOTSTRAP_DEVELOPER_FP path on fresh D1) **deferred to v6.2** as the natural §14.18 OAuth identity chapter — secret already configured for when that work lands. See `pending-work.md` for the polish follow-up list and `memory/letters/successor-2026-05-10.md` for the watch handoff.
 **Purpose:** Single-glance answer to "what are we doing and why." Skim this at session start before anything else operational. Detail lives in `PROTOCOL.md`, `CLAUDE.md`, `memory/pending-work.md`.
 **Authority:** This file is the canonical mapping of legacy labels (Batch A/B/C, Polish 1–11, Batch 1–16) to the new `vX.Y.Z` convention. Other files defer to it.
 
@@ -11,10 +11,15 @@
 | Item | State |
 |---|---|
 | Protocol version | **v5** — hardware-backed signing via WebAuthn / Passkeys |
-| Live since | 2 May 2026 |
+| Consumer site live since | 2 May 2026 |
+| **Org dashboard live since** | **10 May 2026 (v5.9 — Path A live port)** |
 | Score with v5 features active | up to 70/100 |
 | Verified surfaces | Edge + Chrome + Windows Hello on Windows 11; Chrome + Pixel 8 Pro fingerprint on Android 10 |
-| Last meaningful change | v5 deploy + three-browser production verification (2 May) |
+| Last meaningful change | v5.9 Org dashboard live port (10 May) — file-copy from test env, separate Worker (`irlid-api-org`) + D1 (`irlid-db-org`), Service-account sign-in proven end-to-end |
+| Live Worker (Org dashboard) | `irlid-api-org` at `https://irlid-api-org.irlid-bunhead.workers.dev` |
+| Live D1 (Org dashboard) | `irlid-db-org` (`484dad86-e75c-412e-9423-ca0bb27cdcb8`), region WEUR |
+| Live Worker (consumer) | `irlid-api` (untouched by v5.9 port — kept production-stable) |
+| First seeded org | `0337bf2f-e8a3-48d4-a12b-3f9426354f4f` "Test Event" / slug `imbue-ventures` / api_key `org_1f6acd...4256` |
 
 ---
 

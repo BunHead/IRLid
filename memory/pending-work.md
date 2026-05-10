@@ -1,8 +1,76 @@
 # Pending Work — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 morning watch — Captain set Wednesday 13 May target for Org dashboard live port. Two briefs drafted today: `HANDOVER-PositionGrid.md` (v5.7.1w 9-button position picker + Outer/Centre/Inner anchor, retiring the dangling `0bdcd0b` float toggle by reborning the concept properly inside the grid), and `HANDOVER-V5_9_LivePort.md` (3-phase Path A live port: provision `irlid-api-org` Worker + `irlid-db-org` D1, copy dashboard files into `IRLid` repo, first-org seed + smoke). Path A is deliberately scoped — drone delivery / GPS-nearest-staff / recognition-mode / event-receipts integration deferred to v6 brief, with forward-design placeholders left in code comments at the v6 hook points. Drone work confirmed deferred until Org is fully live (Captain's call). Friday evening's claim that float toggle was cherry-picked to main was wrong — `0bdcd0b` survives only as a dangling object and is being deliberately retired in v5.7.1w. PR #101 codex branch did clean correctly (tip = `f9a3f61`, just Mr. Data's mobile sweep).
+**Last refreshed:** Sunday 10 May 2026 evening close-out — **`v5.9` LIVE on irlid.co.uk** (3+ days ahead of Captain's Wednesday target). Org dashboard fully ported via Path A: separate Worker provisioned, D1 schema applied, first org seeded, four post-deploy inline patches landed. Service-account sign-in working end-to-end. Public Event Check-in QR generates with right origin, scan.html recognises org QRs. v5 hardware bootstrap deferred to v6.2 OAuth identity chapter (BOOTSTRAP_DEVELOPER_FP secret already configured for that work). Captain on R&R after a marathon watch; bridge held by Number One for log close-out. See `memory/letters/successor-2026-05-10.md` for the watch handoff.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Sunday 10 May 2026 evening — `v5.9` LIVE shipped
+
+**The headline:** the v5.9 live port chapter shipped today, ~36 hours ahead of Captain's Wednesday 13 May target. The Org dashboard now runs on `irlid.co.uk/OrgCheckin.html` against production-grade Cloudflare infrastructure. Marathon watch — full chapter from "draft brief" to "live, tested, polished" in one continuous session.
+
+**What landed on live (`BunHead/IRLid` main):**
+
+- **Worker `irlid-api-org`** deployed at `https://irlid-api-org.irlid-bunhead.workers.dev`. Verbatim copy of test env Worker source (~2,639 lines of `src/index.js`). CORS_ORIGIN = `https://irlid.co.uk`. Independent of the existing `irlid-api` consumer Worker (which stays untouched and production-stable).
+- **D1 `irlid-db-org`** (`484dad86-e75c-412e-9423-ca0bb27cdcb8`, region WEUR). Schema applied via `wrangler d1 execute --file=schema.sql`. 38 queries / 16 tables / 19 indexes. Pinned as v6.1 schema unification baseline.
+- **Dashboard files** copied test→live via Mr. Data PR #7 (Phase 2): `OrgCheckin.html` (8,110 lines), `org-entry.html` (1,671), `org.html` (35), `js/orgapi.js`, `js/offline-queue.js`, `js/offline-snapshot.js`, `js/qr-fullscreen.js`, `js/vendor/jsqr.min.js` + LICENSE, `manifest.json`, `sw.js`. Build pill bumped to `v5.9`. DEV bootstrap path gated to test surfaces. SW path filter installed to prevent dashboard SW hijacking consumer pages on shared origin. Live's existing `js/sign.js` (Deploy 78) deliberately kept (newer than test env's Deploy 76).
+- **First-org seed** via Mr. Data PR #6 (Phase 3): `irlid-api-org/seed/first-org.sql`. Captain ran with PowerShell-generated UUID + `org_`-prefixed api_key. One row in `organisations` table: `0337bf2f-e8a3-48d4-a12b-3f9426354f4f` "Test Event" / slug `imbue-ventures` / api_key `org_1f6acd49f4d2f0bb59fdc4d2f98343c2c9119aceedd31fd6297c9207f3154256`.
+- **Navbar updates** via my inline edit to `js/nav.js` + new `forums.html`: Organization link added to Account dropdown (3rd position, with "members" pill — Captain's "raised eyebrow" v6 placeholder). Forums coming-soon page created, but the cross-12-HTML-files Find-in-Files for the Info dropdown listing is still pending (see follow-ups below).
+- **Logo wrap** v5.9 inline: dashboard sidebar logo now wraps in `<a href="index.html">` so click returns to consumer home (Captain UX call).
+
+**Four post-deploy inline patches addressed real production-only bugs:**
+
+1. **`v5.9.0.1` (scan.html Deploy 116):** `classify()` extended with ORG_ENTRY + ORG_LOGIN kinds. Phone scanning the dashboard's Event Check-in QR via scan.html was returning "not recognized as IRLid" because classify() only knew about peer-to-peer HELLO/RESP/etc. Now extended; UNKNOWN truly means UNKNOWN.
+2. **`v5.9.0.1` (OrgCheckin.html):** introduced `ORIGIN_BASE` constant derived from `window.location` — replaced 3 hardcoded `https://bunhead.github.io/IRLid-TestEnvironment` references (SCAN_URL, OUTCOME_BASES, buildVenuePayload's baseUrl). LIVE dashboard was generating QRs pointing phones at the test env Worker, causing "Invalid API key" rejection because the live api_key didn't exist in `irlid-db-test`.
+3. **`v5.9.0.2`:** `developerBearerSessionIsActive()` widened to also accept `currentOrg.api_key.startsWith('org_')` as developer-tier auth. Unblocks bootstrap escalation flow on fresh live D1 where the qrLoginSession path requires a registered device that doesn't exist until first staff added (chicken-and-egg). Worker remains the security boundary; this is the matching client-side UX gate.
+4. **`v5.9.0.3`:** null-safe `(qrLoginSession?.session_token || currentOrg?.api_key)` at 5 downstream sites that assumed `qrLoginSession` was non-null when `developerBearerSessionIsActive()` returned true. Triggered by v5.9.0.2 widening; api_key serves as developer credential when no qrLoginSession exists.
+
+**Cleanup operations (also today):**
+
+- D1 cleanup: deleted accidental cruft org row (created when Captain experimentally clicked "Register a new organisation" on the sign-in page). Renamed remaining row to "Test Event" via wrangler UPDATE.
+- Schema fixes committed back to repo: stripped `_cf_KV` system table from schema.sql (D1 SQLITE_AUTH); removed `BEGIN TRANSACTION;`/`COMMIT;` wrapper from seed file (D1 disallows raw SQL transactions); documented `org_` api_key prefix requirement in seed placeholder.
+- `org-login.html` WORKER_ALLOWLIST regex extended to include `irlid-api-org` (was only matching `irlid-api(-test)?`).
+- BOOTSTRAP §4 receipt #8 logged + cherry-pick precondition added to BOOTSTRAP §4. Stash mechanism documented for the dirty-tree case that bit us during the Sunday morning recovery work.
+- Worker temp diagnostic patch reverted, `LOGIN_DEBUG` secret deleted (was added for v5 bootstrap diagnostic; rabbit hole closed — see follow-ups). `BOOTSTRAP_DEVELOPER_FP` secret retained (Captain's phone fp `uSwaWJc9r5uSCBbI`) for v6.2 work.
+
+### What v5.9 LIVE proved on production hardware
+
+Captain ran end-to-end smoke during the watch:
+
+- ✅ Worker provisioned, D1 with full schema applied, first org seeded
+- ✅ Dashboard renders on `irlid.co.uk/OrgCheckin.html` with build pill `v5.9.0.3`
+- ✅ Sidebar shows "Test Event" / "Signed in locally" after Service-account sign-in via `org_` api_key
+- ✅ Logo click → bounces to `irlid.co.uk/index.html` (Captain UX call honoured)
+- ✅ Event Check-in QR generates pointing at `irlid.co.uk/org-entry.html` (post-v5.9.0.1)
+- ✅ scan.html on phone recognises the QR and navigates to org-entry.html (post-v5.9.0.1 scan side)
+- ✅ Phone shows orange "Get a member of staff" screen with attendee HELLO QR
+- ✅ Dashboard's "Process attendee scan" decodes uploaded HELLO image cleanly
+- ✅ Escalation modal opens with right device fingerprint and timestamp
+- ✅ All four navbar dropdown items present including "Organization" with members pill
+
+### What's parked for v6 / post-v5.9 polish
+
+**Headline v6.2 piece (the bootstrap chapter):**
+
+- **v5 hardware-bootstrap on fresh D1** — the deepest-debugged unresolved issue from today. After clicking "Add Lead Admin" in the escalation modal, the dashboard fires the request through but the Worker returns bare `{"error":"auth_failed"}`. Despite extensive instrumentation (`LOGIN_DEBUG=1` secret set, Worker patched with diagnostic logging, both reverted at watch close), the precise rejection point couldn't be pinpointed — debug fields didn't appear in response, console.log didn't surface in `wrangler tail`. Most likely the request hits a code path that doesn't include debug output, OR `LOGIN_DEBUG === "1"` strict equality is failing for an opaque reason (whitespace? encoding?). This entire layer is **specifically what §14.18 OAuth identity / cross-org recognition exists to redesign**. For v6.2 chapter, recommend either (a) adding console.log statements at every 401 return path then re-deploying with LOGIN_DEBUG re-enabled to map the actual rejection, OR (b) directly hand-rolling D1 INSERTs into `users` + `devices` + `org_memberships` to bootstrap Captain's phone manually, then proving the post-bootstrap flows work.
+- **`BOOTSTRAP_DEVELOPER_FP=uSwaWJc9r5uSCBbI`** secret remains configured on the live Worker. When the bootstrap-developer chapter lands, Captain's phone matching that fp on first sign-in will auto-grant Developer role per protocol §14.6 / §14.9.
+
+**Polish items (low priority, can defer or batch):**
+
+- **Footer "Test Environment / Offline-safe" string** in OrgCheckin.html sidebar — leftover from test env file copy. On live, should read just "Offline-safe" or "Live". Hostname-conditional, ~5-line CSS/HTML edit.
+- **"test env" badge on sign-in card** — same root cause, same fix pattern.
+- **Sidebar org name showing "IRLid Test Organisation" placeholder** instead of fetched org name (e.g. "Test Event"). After sign-in via Service-account, the dashboard should `GET /org/settings` and overwrite the localStorage placeholder with the real name. Currently `loadExistingKey()` at line 3802 sets a hardcoded placeholder name and never refetches.
+- **Forums link in Info dropdown** still pending — Captain's Notepad++ bulk Find-in-Files across 12 HTML files. Pattern is `<a href="about.html">About</a>\r\n        <a href="features.html">Features</a>` → add Forums between. `forums.html` coming-soon page already exists.
+- **`irlid-api-org/.wrangler/cache/wrangler-account.json` accidentally committed** to repo. Add to `.gitignore` and remove from tracking.
+- **Position grid Outer/Centre/Inner dot travel** still cosmetically subtle on test env — Captain's earlier note. Functional but visual feedback could be clearer. v5.9.0.x or v6 polish.
+- **Slug "imbue-ventures"** on the Test Event org row could be renamed to "test-event" for consistency. Cosmetic; doesn't affect any URLs.
+- **Schema unification (`v6.1`)** — 17→12 tables across consumer + Org D1s. The brief skeleton in `HANDOVER-V6Promotion.md` covers the 5 consolidations identified. Now that v5.9 LIVE pinned the production schema baseline, this chapter has its starting point.
+
+**Captain operational follow-ups:**
+
+- **Trademark search** — `gov.uk/search-for-trademark` and `euipo.europa.eu/eSearch/` for "IRLid" + variants `IRL ID`, `IR LID`, plus adjacent risk names `iLid`, `RealID`, `IRL`. URLs and class-finder details still in the Sunday morning section of this file. Search not yet run.
+- **`v5.5.8` end-to-end smoke** of the website-theme-extraction Worker endpoints — Mr. Data shipped, Captain wrangler-deployed, but never end-to-end tested. Captain folded into "Patreon-equivalent paid tier" milestone. No blocker for v5.9 LIVE.
+
+
 
 ## Sunday 10 May 2026 morning watch — Wednesday-deadline live port plan
 
