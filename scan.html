@@ -1,4 +1,4 @@
-<!-- scan.html — Pure Scanner — Deploy 115 (v5.7.1: universal QR ingress + fullscreen gating) -->
+<!-- scan.html — Pure Scanner — Deploy 116 (v5.9.0.1: also recognise Event Check-in + Org Sign-in QR types from the live Org dashboard) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -413,6 +413,13 @@
 
     // v5.7.1: scan.html URL with ?type=…&payload=… (camera scanning a URL-encoded QR).
     // Same scheme as ingestUrlPayload() at script-eval time — kept in sync there.
+    // v5.9.0.1: also recognise the dashboard's Event Check-in QR (org-entry.html
+    // ?type=checkin&org=…&event=…) and the Org Sign-in QR (org-login.html
+    // ?nonce=…&worker=…). For both, the URL itself IS the action — the right
+    // behaviour is to navigate the browser to it (handled by the dispatcher
+    // below). Captain's 10 May raised-eyebrow bug: scanning the public Event
+    // Check-in QR with scan.html showed "not recognized as IRLid" because
+    // classify() only knew about peer-to-peer HELLO/RESP/etc. Now extended.
     try {
       const u = new URL(t);
       const path = (u.pathname || "").toLowerCase();
@@ -427,6 +434,14 @@
         const hz = u.searchParams.get("hz"); if (hz) return { kind:"HELLO_Z",      v: hz };
         const d  = u.searchParams.get("d");  if (d)  return { kind:"DEVICE_KEY",   v: d  };
         const dz = u.searchParams.get("dz"); if (dz) return { kind:"DEVICE_KEY_Z", v: dz };
+      }
+      // v5.9.0.1 — Event Check-in QR (public attendee scan-in entry)
+      if (path.endsWith("/org-entry.html") || path.endsWith("org-entry.html")) {
+        return { kind:"ORG_ENTRY", v: t };
+      }
+      // v5.9.0.1 — Org Sign-in QR (staff phone-to-desktop login flow)
+      if (path.endsWith("/org-login.html") || path.endsWith("org-login.html")) {
+        return { kind:"ORG_LOGIN", v: t };
       }
     } catch {}
 
@@ -1058,6 +1073,24 @@
             debugPanel.style.display = "block";
             console.error(e);
           }
+          return;
+        }
+
+        // v5.9.0.1 — Event Check-in QR: navigate to org-entry.html with original
+        // params intact. The org-entry page handles the rest (orange QR for
+        // unrecognised attendees, green check for recognised, etc.). Captain's
+        // 10 May raised-eyebrow fix.
+        if (c.kind === "ORG_ENTRY") {
+          setStatus("Event Check-in QR detected. Opening…");
+          location.href = c.v;
+          return;
+        }
+        // v5.9.0.1 — Org Sign-in QR: navigate to org-login.html with nonce +
+        // worker params intact. The org-login page does the WebAuthn signing
+        // and POSTs the signed envelope to the worker.
+        if (c.kind === "ORG_LOGIN") {
+          setStatus("Org sign-in QR detected. Opening…");
+          location.href = c.v;
           return;
         }
 
