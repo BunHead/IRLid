@@ -1,8 +1,78 @@
 # Pending Work — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 evening watch 2 close-out — **`v5.9.0.4` LIVE; bootstrap developer recognition fully working.** Diagnostic-first session resolved the v5 hardware-bootstrap rabbit hole inherited from this morning's watch 1. Two real bugs surfaced + fixed in single session: (1) BOOTSTRAP_DEVELOPER_FP secret was 1 byte (Ctrl+V SYN trap from 4 May, hit twice now); (2) `irlid_mock_org` localStorage entry duplicating last 6 chars of api_key (test-env file-copy leftover writing into live storage). Captain's actual phone fp on `irlid.co.uk` RP-ID is **`TvklFsivZk68R67j`**, not `uSwaWJc9r5uSCBbI` as watch-1 successor letter claimed. End-to-end smoke green: Captain signed in via QR-login → first developer membership seeded on Test Event via D1 INSERT → Kerry Austin added as Staff to Expected list → attendance row materialised. Diagnostic Worker reverted in same session; live runs production-clean code (Worker version `430e3b08-f5a5-4683-bd4f-7ca9d7c19e02`). Pill bumped v5.9.0.3 → v5.9.0.4 in same commit (`d982554`). Hand-roll bypass stayed chambered, never fired.
+**Last refreshed:** Sunday 10 May 2026 evening watch 2 close (v5.9.0.7) — **full check-in + check-out cycle proven end-to-end on LIVE production with multi-round verification.** FOUR live patches shipped in single watch: `v5.9.0.4` bootstrap fp recovery; `v5.9.0.5` freshOrgFromSession self-heal + hostname-gating; `v5.9.0.6` scan.html dynamic dashboardOrigin; `v5.9.0.7` SCAN_PAGE_URL + getQrScanDomain fallback. Test env got `v5.7.1z.1` (Mr. Data PR #104 + Number One device_key routing fix) same evening. End-to-end LIVE proof: Kerry Austin scan_count=5, Spencer Austin scan_count=4, 7 total check-outs across the testing session, hard-refresh durability verified, sign-in first-time-every-time. **Open UX bug for next watch:** sign-out required two clicks on both phones to register the first time; subsequent sign-outs were instant. Three new BOOTSTRAP §6 pitfalls documented this watch (wrangler-secret Ctrl+V trap, `irlid_mock_*` localStorage trap, hardcoded test-env URLs in file-copies — eight instances surfaced across v5.9.0.1, v5.9.0.6, v5.9.0.7). Watch reaches genuine "stand for a while" milestone on **production**.
+
+**Earlier this watch:** **`v5.9.0.4` LIVE; bootstrap developer recognition fully working.** Diagnostic-first session resolved the v5 hardware-bootstrap rabbit hole inherited from this morning's watch 1. Two real bugs surfaced + fixed in single session: (1) BOOTSTRAP_DEVELOPER_FP secret was 1 byte (Ctrl+V SYN trap from 4 May, hit twice now); (2) `irlid_mock_org` localStorage entry duplicating last 6 chars of api_key (test-env file-copy leftover writing into live storage). Captain's actual phone fp on `irlid.co.uk` RP-ID is **`TvklFsivZk68R67j`**, not `uSwaWJc9r5uSCBbI` as watch-1 successor letter claimed. End-to-end smoke green: Captain signed in via QR-login → first developer membership seeded on Test Event via D1 INSERT → Kerry Austin added as Staff to Expected list → attendance row materialised. Diagnostic Worker reverted in same session; live runs production-clean code (Worker version `430e3b08-f5a5-4683-bd4f-7ca9d7c19e02`). Pill bumped v5.9.0.3 → v5.9.0.4 in same commit (`d982554`). Hand-roll bypass stayed chambered, never fired.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Sunday 10 May 2026 evening watch 2 close — `v5.9.0.6` LIVE doorman flow proven end-to-end
+
+**The headline:** full phone-driven doorman flow works on production. Three live patches in one watch + test env companion patch. The "stand for a while" milestone Captain came for, achieved on **LIVE production** (not just test env).
+
+**Live patches landed (in order):**
+
+- **`v5.9.0.4`** — bootstrap developer recognition working on live. Two real bugs surfaced and fixed: `BOOTSTRAP_DEVELOPER_FP` secret was 1 byte (SYN char from Ctrl+V trap) — recovered via stdin pipe; `irlid_mock_org` localStorage entry held a duplicated api_key (`...3154256154256`) — deleted via DevTools, dashboard fetched clean api_key from `/user/orgs`. Captain QR-login → first developer membership seeded on Test Event via D1 INSERT → Add Kerry Austin as Staff to Expected list verified working. Diagnostic Worker (33 `[401-trace]` markers) reverted clean in same session. Pill bumped v5.9.0.3 → v5.9.0.4. Commit `d982554`.
+- **`v5.9.0.5`** — `freshOrgFromSession` fall-back-to-`orgs[0]` when find() returns no match (breaks the corrupt-savedOrg cycle that bit us) + hostname-gated test-env strings (debug-banner spans hide on live via inline `<script>` setting `html.is-live-env`, footer flips "Test Environment" → "Live"). Pill bumped v5.9.0.4 → v5.9.0.5.
+- **`v5.9.0.6`** — scan.html staff_scan handoff uses dynamic `dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '')`. Was hardcoded to `https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html` in two sites (lines 1000, 1215), sending live attendee phones to test env's dashboard after scanning the orange QR. Now live → live, test env → test env. Pill bumped v5.9.0.5 → v5.9.0.6.
+
+**Test env companion patch:**
+
+- **`v5.7.1z.1`** — Mr. Data PR #104 (orange-QR payload survival, staff_scan localStorage stash/recovery) + Number One device_key routing fix (`mode: 'device_key_scan'` → `mode: 'doorman_scan'` with synthesized helloPayload from `env.pub_jwk` so Worker's `pubKeyId(helloPayload.pub)` lines up). Pill bumped v5.7.1z → v5.7.1z.1. Test env e2e proven separately (Kerry IN 17:59 → OUT lock signed; new IN 18:19 with "Recognised Kerry Austin (live)").
+
+**End-to-end LIVE proof (the milestone):**
+
+- Attendee phone (Pixel 4a) scans `irlid.co.uk` venue check-in QR via camera app
+- Phone navigates to `irlid.co.uk/org-entry.html?type=checkin&org=org_1f6acd...&...`
+- Live's `org-entry.html` calls live Worker `irlid-api-org`, identifies attendee as unrecognised (Kerry was on Expected list but not yet linked to this device fp)
+- Live's org-entry generates orange "Get a member of staff" screen with device-key envelope QR
+- Staff phone (Pixel 8 Pro with developer credential) scans orange QR via camera app
+- Live `scan.html` (with v5.9.0.6 fix) classifies as device_key, gates with "Open in staff dashboard" button
+- Button href is `https://irlid.co.uk/OrgCheckin.html?dev=0#staff_scan=...` (no longer test env's URL)
+- Live OrgCheckin's existing staff_scan handler reads hash, processes scan
+- Recognition path fires (Kerry on Expected list, scanned device_key matches her future identity)
+- INSERT into `org_checkins` with mode=doorman_scan succeeds
+- Phone shows post-resolution toast "Linked: Kerry Austin / Returning to scan in 1s / Stay on dashboard"
+- Desktop dashboard refreshes: Kerry IN at 18:44, scan_count=2 (two successful scans), 70% AVG SCORE met, "Live / Offline-safe" footer, build pill `v5.9.0.6`
+
+**Architectural findings banked this watch:**
+
+- `BOOTSTRAP_DEVELOPER_FP` is platform-level on the Worker (not per-org). Captain's pub_fp matching the secret grants developer access to ANY org via `requireDevOrStaffSession` and `requireFreshStaffProof`. Membership rows are needed only for UX surfacing (org switcher).
+- File-copy-from-test-env hardcoded URLs are a recurring trap. v5.9.0.6 was a third instance (scan.html → test env OrgCheckin); v5.9.0.1 already fixed two earlier ones (scan.html org QR types + dashboard ORIGIN_BASE). Pattern: any `https://bunhead.github.io/IRLid-TestEnvironment/...` in a file that lives at `irlid.co.uk/...` is suspect. Worth a sweep.
+- `irlid_mock_*` localStorage namespace is test-env-leftover surviving file-copy. v5.9.0.5 added self-heal in `freshOrgFromSession` but the underlying `_mock_` naming should probably be hostname-gated or renamed in the next polish pass.
+
+### Open follow-ups for the next watch
+
+**The big one:**
+
+- **Forward-port Mr. Data's PR #104 to live OrgCheckin.html.** v5.9.0.6 fixed scan.html to send staff_scan to live's dashboard, but live's OrgCheckin still has the OLDER (pre-PR-#104) staff_scan handler — no `irlid_pending_staff_scan_payload` localStorage stash, no `staffScanPayloadLooksValid` validator, no recovery on org-login bounce-back. On live, when staff scans the orange QR with no active session, the org-login redirect consumes the hash without stashing it, losing the staff_scan. Forward-port the PR #104 changes (the IIFE block at test env OrgCheckin.html lines ~6856-6922 plus `tryStaffScanRedirectOrPoll` and `tryProcessStaffScanIfPending`) to live's OrgCheckin.html. ~100 lines, well-scoped, candidate for Mr. Data's next brief.
+
+**Code-side bugs surfaced this watch (carried, document for next watch):**
+
+- **Sign-out requires two clicks the first time (live, both phones).** Captain reported at watch close: first sign-out attempt on each phone needed to be clicked twice before it actually registered. Subsequent sign-outs worked instantly. Likely localStorage-clear timing issue or a session-token race in `signOutOrg` (live `OrgCheckin.html`). Investigation candidate: check whether `signOutOrg` is doing `removeItem('irlid_login_session')` + `removeItem(STORAGE_KEY_ORG)` BEFORE clearing in-memory `qrLoginSession`, or whether there's a re-render path that re-reads localStorage between clicks. Small targeted fix, probably a one-line ordering change. NOT a milestone-blocker — workaround is "click twice the first time" — but a UX paper-cut worth a clean fix.
+- **Orange-QR params stripped during scan-transit (test env, `v5.7.1z` band).** Captain reported earlier this watch. Mr. Data's PR #104 fix made payload survive the org-login round-trip via localStorage stash, but a separate path (with no PR #104 stash hit) still sees a bare URL. Worth a small `staffScanPayloadLooksValid` extension to validate IN-MEMORY assignment too, not just localStorage stash. Defensive ~3-line edit.
+- **`irlid_mock_org` codebase fix (carried).** v5.9.0.5 added self-heal but the `_mock_` namespace itself should be cleaned up. 15-min audit: grep for `irlid_mock_` in OrgCheckin.html + js/orgapi.js, decide between hostname-gating, namespacing, or deletion now QR-login is the default.
+
+**Polish items (carried, low priority):**
+
+- ~~Footer "Test Environment / Offline-safe" string~~ — **resolved this watch** (v5.9.0.5 hostname-gating).
+- ~~"test env" badge on sign-in card~~ — **resolved this watch** (v5.9.0.5 hostname-gating, `.debug-banner` hidden on `html.is-live-env`).
+- Forums link in Info dropdown across 12 HTML files — Captain's task (Notepad++ Find-in-Files).
+- `irlid-api-org/.wrangler/cache/wrangler-account.json` accidentally committed — add to `.gitignore` + `git rm`.
+- Slug `imbue-ventures` on Test Event row could rename to `test-event` for consistency. Cosmetic.
+
+**v6.x chapters now properly unlocked (live foundation solid):**
+
+- **`v6.1` schema unification** — the 17→12 piece. Skeleton in `IRLid-TestEnvironment\HANDOVER-V6Promotion.md`. Live now has clean working dashboard + bootstrap + doorman flow; this chapter has full prerequisite coverage.
+- **`v6.2` re-scoped.** Originally framed as "the chapter that fixes hardware-bootstrap". Bootstrap is fixed without §14.18, so v6.2 can be re-scoped to optional second-tier identity proof (OAuth identifier alongside hardware credential) for cross-org account recovery + recognition per `PROTOCOL.md §14.18`. Genuine architectural step on its own merits.
+- **Multi-platform admin view (banked).** Corollary of "bootstrap_fp grants Worker-level access but UX is membership-based." Future admin-only "all orgs on platform" view would let Captain operate any org without per-org INSERT. Not urgent.
+
+**Captain operational follow-ups (carried, unchanged):**
+
+- Trademark search at `gov.uk/search-for-trademark` and `euipo.europa.eu/eSearch/`.
+- v5.5.8 website-theme-extraction smoke (folded into "Patreon-equivalent paid tier" milestone).
+
+
 
 ## Sunday 10 May 2026 evening watch 2 — `v5.9.0.4` shipped (bootstrap recognition working)
 
@@ -29,6 +99,7 @@ The previous Number One had spent significant effort on `LOGIN_DEBUG=1`-gated de
 
 **Code-side bugs surfaced this watch (not blocking; document and queue):**
 
+- **Forward-port Mr. Data's PR #104 from test env to live OrgCheckin.html.** v5.9.0.6 (10 May late) fixed live scan.html to hand staff_scan QRs to live's dashboard instead of test env's, but live's OrgCheckin still has the OLDER (pre-PR-#104) staff_scan handler — no `irlid_pending_staff_scan_payload` localStorage stash, no `staffScanPayloadLooksValid` validator, no recovery on org-login bounce-back. On live, when staff scans the orange QR with no active session, the org-login redirect consumes the hash without stashing it, losing the staff_scan. Forward-port the PR #104 changes (the IIFE block at test env OrgCheckin.html lines ~6856-6922 plus `tryStaffScanRedirectOrPoll` and `tryProcessStaffScanIfPending`) to live's OrgCheckin.html. ~100 lines, well-scoped, candidate for Mr. Data's next brief.
 - **Orange-QR params stripped during scan-transit (test env, `v5.7.1z` band).** Captain reported 10 May late evening: tried to add Kerry via orange/gateway QR flow on test env, v5-verified successfully (auto-staff-sign-in fired correctly), but landed on plain dashboard instead of escalation modal. Root cause appears to be the orange QR's `?type=device_key&payload=H:...` query params didn't survive the scan path — Captain's "Process attendee scan" textarea ended up with bare `https://irlid.co.uk/scan.html` (no params), triggering the "That URL has no recognised QR payload" error. Could be: (a) native scanner stripped params, (b) Kerry's phone generation bug producing bare-URL QRs, (c) clipboard/paste truncation. Needs repro with both phones in hand to identify which path is dropping the payload. Bundled UX consideration: even when sign-in completes, the dashboard could detect a "staff signed in but no scan in progress" state and prompt "Now scan an attendee" — would have prevented the confusion. Mobile-friendly escalation modal (`v5.7.1g`) needs revalidation once orange-QR scan fires properly. Captain noted the experience felt unclear.
 - **`irlid_mock_org` localStorage trap (codebase fix needed).** The localStorage delete recovered Captain's session, but the underlying bug remains: somewhere in `OrgCheckin.html` (likely `loadDashboardForOrg` or `loadExistingKey`), `irlid_mock_org` is being read as a fallback for `currentOrg.api_key` when the proper `/user/orgs` value should win. Test env's same-shape "DEV org api_key drift" bug is in pending-work for the same reason. Both stem from test-env-leftover patterns surviving into live. Worth a 15-minute audit on next watch: grep for `irlid_mock_` in OrgCheckin.html and js/orgapi.js, decide whether to (a) gate the fallback by hostname (don't read mock_* on irlid.co.uk), (b) namespace differently per env, or (c) delete the fallback entirely now that QR-login is the default.
 - **Concat semantics (root cause unconfirmed).** The `154256` duplication suggests string-append rather than overwrite somewhere. Could be `localStorage.setItem('irlid_mock_org', JSON.stringify({...prev, api_key: prev.api_key + newKey}))` or similar. Cheap to find with one strategic `console.log` of `currentOrg.api_key` at every assignment site. Bundle with the audit above.
