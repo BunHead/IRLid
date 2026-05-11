@@ -2414,7 +2414,7 @@ body #venueQRWrap.cycle-burst-pattern {
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.7</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.8</span></div>
   </div>
 </div>
 
@@ -3231,9 +3231,41 @@ const DEV_AUTO_LOGIN = (function () {
 })();
 const DEV_ORG_NAME = "DEV";
 const DEV_ORG_KEY = "org_DEV_IRLID_TEST_ENVIRONMENT";
-const STORAGE_KEY_ORG = "irlid_mock_org";
-const STORAGE_KEY_SETTINGS = "irlid_mock_settings";
-const STORAGE_KEY_EXPECTED = "irlid_mock_expected_attendees";
+// v5.9.0.8 — localStorage key namespace cleaned up. The "_mock_" prefix
+// was a legacy naming from the early prototype days when the dashboard
+// was a pure-mock; in production it's misleading and shows up in DevTools
+// looking like test-env-leftover data. Renamed to "_org_local_*" which
+// describes what these caches actually hold (locally-cached org state).
+// Migration block immediately below copies any pre-existing irlid_mock_*
+// values to the new keys on first boot, then deletes the old. Worker data
+// is the canonical source; these are UI hint caches only, so no data loss
+// even if migration fails.
+const STORAGE_KEY_ORG = "irlid_org_local";
+const STORAGE_KEY_SETTINGS = "irlid_org_local_settings";
+const STORAGE_KEY_EXPECTED = "irlid_org_local_expected_attendees";
+
+// v5.9.0.8 — one-time migration from irlid_mock_* → irlid_org_local_*.
+// Runs unconditionally on every load but is a no-op after the first.
+(function migrateMockKeysToOrgLocal() {
+  const map = [
+    ["irlid_mock_org", STORAGE_KEY_ORG],
+    ["irlid_mock_settings", STORAGE_KEY_SETTINGS],
+    ["irlid_mock_expected_attendees", STORAGE_KEY_EXPECTED]
+  ];
+  for (const [oldKey, newKey] of map) {
+    try {
+      const oldVal = localStorage.getItem(oldKey);
+      if (oldVal !== null && localStorage.getItem(newKey) === null) {
+        localStorage.setItem(newKey, oldVal);
+        console.log("[migrate] copied", oldKey, "->", newKey);
+      }
+      // Always remove the old key (whether we copied or the new one already existed).
+      if (oldVal !== null) {
+        localStorage.removeItem(oldKey);
+      }
+    } catch (_) { /* swallow — UI caches are non-essential */ }
+  }
+})();
 const STORAGE_KEY_PORTAL = 'irlid_portal_full_v1';
 const STAFF_AUTH_STORAGE_KEY = 'irlid_staff_auth_session_v1';
 // v5.9.0.1 — Derive origin base from current page location so QR URLs and
