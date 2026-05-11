@@ -1620,12 +1620,12 @@ html.is-live-env .env-badge-test { display: none; }
   animation: themeAcceptCycle 1.4s ease-out 1;
 }
 @keyframes themeAcceptCycle {
-  0%   { box-shadow: 0 0 0 0 var(--theme-cycle-1), 0 0 0 0 var(--theme-cycle-1); transform: scale(1); filter: saturate(1); }
-  12%  { box-shadow: 0 0 0 10px var(--theme-cycle-2), 0 0 42px 14px var(--theme-cycle-2); transform: scale(1.018); filter: saturate(1.35); }
-  28%  { box-shadow: 0 0 0 18px var(--theme-cycle-3), 0 0 72px 24px var(--theme-cycle-3); transform: scale(1.028); filter: saturate(1.55); }
-  44%  { box-shadow: 0 0 0 24px var(--theme-cycle-4), 0 0 96px 34px var(--theme-cycle-4); transform: scale(1.018); filter: saturate(1.45); }
-  62%  { box-shadow: 0 0 0 18px var(--theme-cycle-5), 0 0 76px 26px var(--theme-cycle-5); transform: scale(1.01); filter: saturate(1.35); }
-  82%  { box-shadow: 0 0 0 10px var(--theme-cycle-6), 0 0 48px 16px var(--theme-cycle-6); transform: scale(1.004); filter: saturate(1.15); }
+  0%   { box-shadow: 0 0 0 0 var(--theme-cycle-1), 0 0 0 0 var(--theme-cycle-1), inset 0 0 0 0 transparent; transform: scale(1); filter: saturate(1); }
+  12%  { box-shadow: 0 0 0 16px var(--theme-cycle-2), 0 0 64px 22px var(--theme-cycle-2), inset 0 0 0 5px rgba(255,255,255,.92); transform: scale(1.018); filter: saturate(1.4); }
+  28%  { box-shadow: 0 0 0 28px var(--theme-cycle-3), 0 0 106px 38px var(--theme-cycle-3), inset 0 0 0 7px rgba(255,255,255,.95); transform: scale(1.028); filter: saturate(1.6); }
+  44%  { box-shadow: 0 0 0 34px var(--theme-cycle-4), 0 0 132px 48px var(--theme-cycle-4), inset 0 0 0 6px rgba(255,255,255,.9); transform: scale(1.018); filter: saturate(1.5); }
+  62%  { box-shadow: 0 0 0 24px var(--theme-cycle-5), 0 0 96px 34px var(--theme-cycle-5), inset 0 0 0 5px rgba(255,255,255,.85); transform: scale(1.01); filter: saturate(1.35); }
+  82%  { box-shadow: 0 0 0 14px var(--theme-cycle-6), 0 0 58px 20px var(--theme-cycle-6), inset 0 0 0 3px rgba(255,255,255,.75); transform: scale(1.004); filter: saturate(1.15); }
   100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; transform: scale(1); filter: saturate(1); }
 }
 @keyframes themeAcceptRingSweep {
@@ -1660,6 +1660,20 @@ html.is-live-env .env-badge-test { display: none; }
   16%  { opacity: .9; }
   60%  { opacity: .78; background-position: 44px 0; }
   100% { opacity: 0; background-position: 88px 0; }
+}
+@keyframes themeAcceptQrBoxRing {
+  0%   { outline-color: transparent; box-shadow: 0 4px 18px rgba(0,0,0,0.25), inset 0 0 0 0 transparent; filter: saturate(1); }
+  14%  { outline-color: var(--theme-cycle-2); box-shadow: 0 0 0 8px rgba(255,255,255,.92), 0 0 38px 10px var(--theme-cycle-2), inset 0 0 0 10px var(--theme-cycle-2); filter: saturate(1.28); }
+  36%  { outline-color: var(--theme-cycle-4); box-shadow: 0 0 0 12px rgba(255,255,255,.96), 0 0 58px 18px var(--theme-cycle-4), inset 0 0 0 14px var(--theme-cycle-4); filter: saturate(1.45); }
+  66%  { outline-color: var(--theme-cycle-6); box-shadow: 0 0 0 8px rgba(255,255,255,.9), 0 0 44px 12px var(--theme-cycle-6), inset 0 0 0 10px var(--theme-cycle-6); filter: saturate(1.22); }
+  100% { outline-color: transparent; box-shadow: 0 4px 18px rgba(0,0,0,0.25), inset 0 0 0 0 transparent; filter: saturate(1); }
+}
+@keyframes themeDenyQrBoxRing {
+  0%   { outline-color: transparent; box-shadow: 0 4px 18px rgba(0,0,0,0.25), inset 0 0 0 0 transparent; filter: saturate(1); }
+  16%  { outline-color: rgba(255, 22, 52, .98); box-shadow: 0 0 0 9px rgba(255,255,255,.9), 0 0 48px 15px rgba(255,22,52,.86), inset 0 0 0 12px rgba(255,22,52,.94); filter: saturate(1.45) contrast(1.12); }
+  38%  { outline-color: rgba(255, 214, 82, .95); box-shadow: 0 0 0 12px rgba(255,255,255,.95), 0 0 62px 20px rgba(255,22,52,.82), inset 0 0 0 16px rgba(255,22,52,.88); }
+  64%  { outline-color: rgba(255, 22, 52, .72); box-shadow: 0 0 0 7px rgba(255,255,255,.85), 0 0 34px 10px rgba(255,22,52,.58), inset 0 0 0 10px rgba(255,22,52,.7); }
+  100% { outline-color: transparent; box-shadow: 0 4px 18px rgba(0,0,0,0.25), inset 0 0 0 0 transparent; filter: saturate(1); }
 }
 
 /* Save status */
@@ -2382,6 +2396,19 @@ body #venueQRWrap.cycle-burst-page {
     themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1,
     themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
+body #venueQRWrap.cycle-accept-glow .qr-box,
+body #venueQRWrap.cycle-burst-page .qr-box,
+body #venueQRWrap.cycle-burst-pattern .qr-box {
+  outline: clamp(5px, 1.2vw, 12px) solid transparent;
+  outline-offset: clamp(3px, .7vw, 8px);
+  animation: themeAcceptQrBoxRing var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-accept-glow,
+body .irlid-qr-fullscreen-holder.cycle-burst-page,
+body .irlid-qr-fullscreen-holder.cycle-burst-pattern {
+  outline: clamp(6px, 1.1vmin, 14px) solid transparent;
+  outline-offset: clamp(4px, .8vmin, 10px);
+}
 body .irlid-qr-fullscreen-holder.cycle-accept-glow::before,
 body .irlid-qr-fullscreen-holder.cycle-burst-page::before,
 body .irlid-qr-fullscreen-holder.cycle-burst-pattern::before,
@@ -2406,7 +2433,8 @@ body #venueQRWrap.cycle-burst-pattern::before,
       var(--theme-cycle-7),
       var(--theme-cycle-1));
   opacity: 0;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
+  filter: drop-shadow(0 0 18px rgba(255,255,255,.72)) saturate(1.25);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -2426,14 +2454,26 @@ body #venueQRWrap.cycle-burst-pattern::after,
   border-radius: 999px;
   pointer-events: none;
   z-index: 7;
-  background: radial-gradient(circle, var(--theme-cycle-3) 0 10%, transparent 58%);
+  background:
+    radial-gradient(circle, rgba(255,255,255,.92) 0 6%, transparent 18%),
+    radial-gradient(circle, var(--theme-cycle-3) 0 18%, transparent 62%);
   opacity: 0;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
+  filter: drop-shadow(0 0 24px var(--theme-cycle-3));
   animation: themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 body .irlid-qr-fullscreen-holder.cycle-deny-burst,
 body #venueQRWrap.cycle-deny-burst {
   animation: themeDenyBurst .82s cubic-bezier(.18,.88,.22,1) 1;
+}
+body #venueQRWrap.cycle-deny-burst .qr-box {
+  outline: clamp(6px, 1.3vw, 14px) solid transparent;
+  outline-offset: clamp(3px, .7vw, 8px);
+  animation: themeDenyQrBoxRing .82s cubic-bezier(.18,.88,.22,1) 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-deny-burst {
+  outline: clamp(6px, 1.1vmin, 14px) solid transparent;
+  outline-offset: clamp(4px, .8vmin, 10px);
 }
 body .irlid-qr-fullscreen-holder.cycle-deny-burst::before,
 body #venueQRWrap.cycle-deny-burst::before,
@@ -2452,7 +2492,8 @@ body #venueQRWrap.cycle-deny-burst::before,
     transparent 38px 54px
   );
   opacity: 0;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
+  filter: drop-shadow(0 0 18px rgba(255, 22, 52, .8));
   animation: themeDenyBands .82s cubic-bezier(.18,.88,.22,1) 1;
 }
 body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
@@ -2597,7 +2638,7 @@ body #venueQRWrap.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.12</span></div>
   </div>
 </div>
 
