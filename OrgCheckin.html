@@ -1045,15 +1045,6 @@ body:not(.developer-bearer-active) .prototype-note { display: none; }
   color: var(--text);
   border-color: var(--line);
 }
-:root[data-theme="light"] .theme-anim-duplicators .dup-btn {
-  background: #ffffff;
-  color: var(--text);
-  border-color: var(--line);
-}
-:root[data-theme="light"] .theme-anim-duplicators .dup-btn:hover {
-  background: #f0f3f7;
-  border-color: var(--blue);
-}
 :root[data-theme="light"] .org-picker-card {
   background: #ffffff;
   border-color: var(--line);
@@ -1423,44 +1414,36 @@ html.is-live-env .env-badge-test { display: none; }
 }
 /* Batch 6.5e → Batch C tidy 2 (4 May 2026 evening) — four-quadrant theme layout.
    Bg palette + Cel palette on row 1; Bg animation + Cel animation on row 2; a
-   central duplicator column spans both rows so its ←/→ buttons sit at the dead
-   intersection of all four panels (Captain's direction). On narrow viewports
-   the grid collapses to a single column with the duplicators between the two
-   palette rows and the two animation rows.
+   v5.9.0.13 removes the central duplicator column: Background and Celebration
+   stay side by side on desktop and stack cleanly on mobile.
 
    .theme-palette-pair / .theme-animation-panels classes are retained as
    fallbacks for any vestigial markup elsewhere; current Settings panel uses
    .theme-fourquad exclusively. */
 .theme-fourquad {
   display: grid;
-  grid-template-columns: 1fr 64px 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: auto auto;
   grid-template-areas:
-    "bgpal  dups celpal"
-    "bganim dups celanim";
-  gap: 12px;
+    "bgpal  celpal"
+    "bganim celanim";
+  gap: 14px;
   margin-top: 14px;
   align-items: stretch;
 }
 .theme-fourquad > .grid-bgpal   { grid-area: bgpal;   margin-top: 0; }
 .theme-fourquad > .grid-celpal  { grid-area: celpal;  margin-top: 0; }
-.theme-fourquad > .grid-dups    { grid-area: dups;    align-self: center; justify-self: center; }
 .theme-fourquad > .grid-bganim  { grid-area: bganim;  margin-top: 0; }
 .theme-fourquad > .grid-celanim { grid-area: celanim; margin-top: 0; }
 @media (max-width: 760px) {
   .theme-fourquad {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto auto;
+    grid-template-rows: auto auto auto auto;
     grid-template-areas:
       "bgpal"
       "celpal"
-      "dups"
       "bganim"
       "celanim";
-  }
-  .theme-fourquad > .grid-dups {
-    /* Horizontal arrow row on mobile, vertical column on desktop */
-    flex-direction: row !important;
   }
 }
 
@@ -1583,7 +1566,7 @@ html.is-live-env .env-badge-test { display: none; }
   color: #fff; font-size: 11px; font-weight: 600;
   transition: background 0.3s;
 }
-.theme-preview-qr-block { position: relative; width: 88px; height: 88px; }
+.theme-preview-qr-block { position: relative; width: 88px; height: 88px; flex: 0 0 88px; }
 .theme-preview-qr {
   width: 88px; height: 88px;
   background: #fff; border-radius: 6px;
@@ -1655,12 +1638,6 @@ html.is-live-env .env-badge-test { display: none; }
   58%  { opacity: .94; transform: rotate(-24deg) scaleX(1); }
   100% { opacity: 0; transform: rotate(-24deg) scaleX(1.12); }
 }
-@keyframes themeDenyBands {
-  0%   { opacity: 0; background-position: 0 0; }
-  16%  { opacity: .9; }
-  60%  { opacity: .78; background-position: 44px 0; }
-  100% { opacity: 0; background-position: 88px 0; }
-}
 @keyframes themeAcceptQrBoxRing {
   0%   { outline-color: transparent; box-shadow: 0 4px 18px rgba(0,0,0,0.25), inset 0 0 0 0 transparent; filter: saturate(1); }
   14%  { outline-color: var(--theme-cycle-2); box-shadow: 0 0 0 8px rgba(255,255,255,.92), 0 0 38px 10px var(--theme-cycle-2), inset 0 0 0 10px var(--theme-cycle-2); filter: saturate(1.28); }
@@ -1683,54 +1660,21 @@ html.is-live-env .env-badge-test { display: none; }
 .theme-save-status.err { color: var(--red); font-weight: 600; }
 /* ================= /THEMING — Batch 6.5 ================= */
 
-/* ============== Batch 6.5b → 6.5f — Animation panels + duplicators + speed sliders ==============
-   Three-column layout: Background panel | duplicator strip | Celebration panel.
-   The duplicator strip in the middle has two arrow buttons that copy mode + palette
-   from one side to the other (durations and intensity stay independent because
-   they have different semantics on the two sides). */
+/* ============== Batch 6.5b → v5.9.0.13 — Animation panels + speed sliders ==============
+   Two-column layout: Background panel | Celebration panel. Duplicator arrows were
+   removed in v5.9.0.13 so Celebration can stand on its own. */
 .theme-animation-panels {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
   margin-top: 14px;
   align-items: stretch;
 }
 @media (max-width: 760px) {
   .theme-animation-panels { grid-template-columns: 1fr; }
-  .theme-anim-duplicators { flex-direction: row !important; justify-content: center !important; }
-}
-.theme-anim-duplicators {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  align-self: stretch;
-}
-.theme-anim-duplicators .dup-btn {
-  width: 36px; height: 36px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  color: var(--text);
-  font-size: 16px; line-height: 1;
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, transform 0.1s, border-color 0.15s;
-}
-.theme-anim-duplicators .dup-btn:hover {
-  background: rgba(255,255,255,0.10);
-  border-color: rgba(255,255,255,0.35);
-}
-.theme-anim-duplicators .dup-btn:active { transform: scale(0.95); }
-.theme-anim-duplicators .dup-label {
-  font-size: 9px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 .theme-anim-panel {
-  padding: 14px;
+  padding: 16px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   background: rgba(255,255,255,0.03);
@@ -1738,7 +1682,7 @@ html.is-live-env .env-badge-test { display: none; }
   flex-direction: column;
   gap: 10px;
 }
-.theme-anim-panel h5 { font-size: 13px; color: #e6edf3; margin: 0; font-weight: 600; }
+.theme-anim-panel h5 { font-size: 14px; color: #e6edf3; margin: 0; font-weight: 700; }
 .theme-anim-sub {
   font-size: 11px; color: var(--muted); line-height: 1.4; margin: 0;
   /* Lock to a 2-line minimum so panels align even if descriptions differ. */
@@ -1751,8 +1695,10 @@ html.is-live-env .env-badge-test { display: none; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 .theme-anim-actions .btn { flex: 1 1 140px; }
+.theme-anim-actions .theme-preview-qr-block { margin-left: auto; }
 .theme-anim-toggle {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12px; color: #dbe6ff; cursor: pointer;
@@ -1875,25 +1821,25 @@ button.theme-preview-button:focus-visible {
 }
 .bg-pos-dot {
   position: absolute;
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--text, #e6edf3);
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  transition: top 200ms ease, left 200ms ease, right 200ms ease, bottom 200ms ease;
+  transition: top 200ms ease, left 200ms ease, right 200ms ease, bottom 200ms ease, transform 200ms ease;
 }
-.bg-pos-cell[aria-pressed="true"] .bg-pos-dot { background: var(--accent, #2f81f7); width: 8px; height: 8px; }
-.bg-pos-cell[data-pos="top-left"]     .bg-pos-dot { top: 4px;  left: 4px;  transform: none; }
-.bg-pos-cell[data-pos="top"]          .bg-pos-dot { top: 4px;  left: 50%;  transform: translateX(-50%); }
-.bg-pos-cell[data-pos="top-right"]    .bg-pos-dot { top: 4px;  left: auto; right: 4px; transform: none; }
-.bg-pos-cell[data-pos="left"]         .bg-pos-dot { top: 50%;  left: 4px;  transform: translateY(-50%); }
+.bg-pos-cell[aria-pressed="true"] .bg-pos-dot { background: var(--accent, #2f81f7); width: 10px; height: 10px; box-shadow: 0 0 0 3px rgba(47,129,247,.16); }
+.bg-pos-cell[data-pos="top-left"]     .bg-pos-dot { top: 9%;  left: 9%;  transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="top"]          .bg-pos-dot { top: 9%;  left: 50%;  transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="top-right"]    .bg-pos-dot { top: 9%;  left: 91%; right: auto; transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="left"]         .bg-pos-dot { top: 50%;  left: 9%;  transform: translate(-50%, -50%); }
 .bg-pos-cell[data-pos="centre"]       .bg-pos-dot { /* base centred is fine */ }
-.bg-pos-cell[data-pos="right"]        .bg-pos-dot { top: 50%;  left: auto; right: 4px; transform: translateY(-50%); }
-.bg-pos-cell[data-pos="bottom-left"]  .bg-pos-dot { top: auto; bottom: 4px; left: 4px;  transform: none; }
-.bg-pos-cell[data-pos="bottom"]       .bg-pos-dot { top: auto; bottom: 4px; left: 50%;  transform: translateX(-50%); }
-.bg-pos-cell[data-pos="bottom-right"] .bg-pos-dot { top: auto; bottom: 4px; left: auto; right: 4px; transform: none; }
+.bg-pos-cell[data-pos="right"]        .bg-pos-dot { top: 50%;  left: 91%; right: auto; transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="bottom-left"]  .bg-pos-dot { top: 91%; bottom: auto; left: 9%;  transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="bottom"]       .bg-pos-dot { top: 91%; bottom: auto; left: 50%;  transform: translate(-50%, -50%); }
+.bg-pos-cell[data-pos="bottom-right"] .bg-pos-dot { top: 91%; bottom: auto; left: 91%; right: auto; transform: translate(-50%, -50%); }
 /* v5.7.1z — Centre anchor rewritten to use percentage + transform so the
    dot CENTER (not top-left corner) lands at 33%/67% positions. Combined
    with Inner (50%/50% transform-centred), this gives even 8px steps
@@ -1901,14 +1847,14 @@ button.theme-preview-button:focus-visible {
    Outer dot centre at ~8px from edge, Centre at 16px, Inner at 24px.
    v5.7.1y's 16px pixel offset put Centre's dot center at ~20px, only
    ~4px from Inner's 24px — visually indistinguishable per Captain. */
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-left"]     .bg-pos-dot { top: 33%; left: 33%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-left"]     .bg-pos-dot { top: 30%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
 .bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top"]          .bg-pos-dot { top: 33%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-right"]    .bg-pos-dot { top: 33%; left: 67%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-right"]    .bg-pos-dot { top: 30%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
 .bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="left"]         .bg-pos-dot { top: 50%; left: 33%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
 .bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="right"]        .bg-pos-dot { top: 50%; left: 67%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-left"]  .bg-pos-dot { top: 67%; left: 33%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-left"]  .bg-pos-dot { top: 70%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
 .bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom"]       .bg-pos-dot { top: 67%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-right"] .bg-pos-dot { top: 67%; left: 67%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-right"] .bg-pos-dot { top: 70%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
 .bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top-left"]     .bg-pos-dot,
 .bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top"]          .bg-pos-dot,
 .bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top-right"]    .bg-pos-dot,
@@ -2361,18 +2307,10 @@ body .irlid-qr-fullscreen-holder.cycle-burst-page,
 body #venueQRWrap.cycle-burst-page {
   animation: themeAcceptPageCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
-@keyframes themeAcceptPatternFlash {
-  0%, 100% { --theme-pattern-fg: rgba(88, 166, 255, 0.0);  --theme-pattern-fg-2: rgba(88, 166, 255, 0.0); }
-  35%, 65% { --theme-pattern-fg: rgba(88, 166, 255, 0.55); --theme-pattern-fg-2: rgba(88, 166, 255, 0.30); }
-}
 body .irlid-qr-fullscreen.cycle-burst-pattern,
 body .irlid-qr-fullscreen-holder.cycle-burst-pattern,
 body #venueQRWrap.cycle-burst-pattern {
-  background-image:
-    radial-gradient(circle at 50% 50%, rgba(255,255,255,.28) 0 5px, transparent 6px),
-    radial-gradient(circle, var(--theme-pattern-fg) 4px, transparent 5px);
-  background-size: 120px 120px, 32px 32px;
-  animation: themeAcceptPatternFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+  animation: themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 body .irlid-qr-fullscreen.cycle-burst-page,
 body .irlid-qr-fullscreen-holder.cycle-accept-glow,
@@ -2444,9 +2382,6 @@ body #venueQRWrap.cycle-burst-pattern::before,
 body .irlid-qr-fullscreen-holder.cycle-accept-glow::after,
 body .irlid-qr-fullscreen-holder.cycle-burst-page::after,
 body .irlid-qr-fullscreen-holder.cycle-burst-pattern::after,
-body #venueQRWrap.cycle-accept-glow::after,
-body #venueQRWrap.cycle-burst-page::after,
-body #venueQRWrap.cycle-burst-pattern::after,
 .theme-preview-qr-cycle.cycle-accept-glow::after {
   content: "";
   position: absolute;
@@ -2475,29 +2410,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst {
   outline: clamp(6px, 1.1vmin, 14px) solid transparent;
   outline-offset: clamp(4px, .8vmin, 10px);
 }
-body .irlid-qr-fullscreen-holder.cycle-deny-burst::before,
-body #venueQRWrap.cycle-deny-burst::before,
-.theme-preview-qr-cycle.cycle-deny-burst::before {
-  content: "";
-  position: absolute;
-  inset: clamp(10px, 2vw, 26px);
-  border-radius: 18px;
-  pointer-events: none;
-  z-index: 10;
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(255, 22, 52, .95) 0 14px,
-    rgba(255, 214, 82, .78) 14px 24px,
-    rgba(255, 22, 52, .95) 24px 38px,
-    transparent 38px 54px
-  );
-  opacity: 0;
-  mix-blend-mode: normal;
-  filter: drop-shadow(0 0 18px rgba(255, 22, 52, .8));
-  animation: themeDenyBands .82s cubic-bezier(.18,.88,.22,1) 1;
-}
 body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
-body #venueQRWrap.cycle-deny-burst::after,
 .theme-preview-qr-cycle.cycle-deny-burst::after {
   content: "";
   position: absolute;
@@ -2638,7 +2551,7 @@ body #venueQRWrap.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13</span></div>
   </div>
 </div>
 
@@ -3103,11 +3016,8 @@ body #venueQRWrap.cycle-deny-burst::after,
                 <!-- Customisable palettes — Background (drives bg cycle / pattern colours)
                      and Celebration (drives accept-cycle burst on successful check-in).
                      Two independent palettes keep the visual languages separate. -->
-                <!-- Batch C tidy 2 (4 May 2026 evening) — four-quadrant layout per Captain's
-                     direction: palette blocks on row 1, animation panels on row 2, central
-                     duplicator column spanning both rows so a single ←/→ press copies the
-                     entire left-side (palette + animation mode) to the right side and vice
-                     versa. Mobile (≤760px) stacks linearly. -->
+                <!-- v5.9.0.13 — four-quadrant layout without BG↔CEL duplicators:
+                     Background and Celebration now remain visually independent. -->
                 <div class="theme-fourquad">
 
                   <div class="theme-palette-block grid-bgpal">
@@ -3132,13 +3042,6 @@ body #venueQRWrap.cycle-deny-burst::after,
                       <button type="button" class="btn btn-secondary btn-sm" id="themePaletteAdd">+ Add colour</button>
                       <button type="button" class="btn btn-secondary btn-sm" id="themePaletteReset">Reset to defaults</button>
                     </div>
-                  </div>
-
-                  <div class="theme-anim-duplicators grid-dups" aria-label="Duplicate all settings between Background and Celebration">
-                    <span class="dup-label">Bg→Cel</span>
-                    <button type="button" class="dup-btn" id="themeDupBgToCel" title="Copy Background's mode + palette colours to Celebration" aria-label="Copy Background's mode and palette to Celebration">→</button>
-                    <button type="button" class="dup-btn" id="themeDupCelToBg" title="Copy Celebration's mode + palette colours to Background" aria-label="Copy Celebration's mode and palette to Background">←</button>
-                    <span class="dup-label">Cel→Bg</span>
                   </div>
 
                   <div class="theme-anim-panel grid-bganim" id="themeBgAnimPanel" data-bg-mode="glow">
@@ -3270,6 +3173,10 @@ body #venueQRWrap.cycle-deny-burst::after,
                     <div class="theme-anim-actions">
                       <button type="button" class="btn btn-secondary btn-sm" id="themePreviewAcceptCycle" data-cycle-mode-hide="off">Preview celebration</button>
                       <button type="button" class="btn btn-secondary btn-sm" id="themePreviewDenyCycle">Preview deny</button>
+                      <div class="theme-preview-qr-block" aria-hidden="true">
+                        <div class="theme-preview-qr" id="themePreviewQrBox"></div>
+                        <div class="theme-preview-qr-cycle" id="themePreviewQrCycle"></div>
+                      </div>
                     </div>
                   </div>
 
@@ -3280,10 +3187,6 @@ body #venueQRWrap.cycle-deny-burst::after,
                   <div class="theme-preview-block">
                     <button type="button" class="theme-preview-button" id="themeSampleButton" title="Click to open the fullscreen QR demo with this theme applied">Sample button</button>
                     <div class="theme-preview-badge">Sample badge</div>
-                  </div>
-                  <div class="theme-preview-qr-block">
-                    <div class="theme-preview-qr" id="themePreviewQrBox"></div>
-                    <div class="theme-preview-qr-cycle" id="themePreviewQrCycle"></div>
                   </div>
                 </div>
 
@@ -8056,20 +7959,18 @@ function _openPaletteSwatchEditor(index, paletteKey) {
 }
 
 function previewAcceptCycle() {
-  // v5.9.0.10 — Preview celebration now uses the same vivid venue-QR burst as
-  // production, plus the compact Settings preview chip for side-by-side tuning.
+  // v5.9.0.13 — Settings preview is local-only. Production animations still
+  // fire from real check-in paths via triggerAcceptCycleAnimation().
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
   if (mode === 'off') return;
   const previewClass = mode === 'page' ? 'cycle-burst-page'
     : mode === 'pattern' ? 'cycle-burst-pattern'
       : 'cycle-accept-glow';
   triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], previewClass, acceptCycleMs());
-  triggerAcceptCycleAnimation();
 }
 
 function previewDenyCycle() {
   triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], 'cycle-deny-burst', denyCycleMs());
-  triggerDenyCycleAnimation();
 }
 
 function acceptCycleMs() {
@@ -8271,36 +8172,6 @@ function wireThemePanel() {
     const v = e.target.value;
     activeTheme.cycleMode = ['off','page','glow','pattern'].indexOf(v) !== -1 ? v : 'glow';
     applyThemeVars(activeTheme); // updates the panel data-cycle-mode attribute for visibility
-  });
-
-  // Batch 6.5f → Batch C tidy 2 — Duplicate buttons in the central column of
-  // the four-quadrant theme grid. Bg → Cel copies bgMode + bgPalette colours
-  // into cycleMode + palette. Cel → Bg copies cycleMode + palette into bgMode
-  // + bgPalette. Durations stay independent (Bg cycle is 5–120s continuous;
-  // Cel burst is 0.5–5s one-shot — same number wouldn't translate). bgIntensity
-  // and bgPattern are Bg-only fields (Cel inherits Bg's pattern at render time
-  // when in pattern mode). Captain's mental model: hit the arrow, the active
-  // side flows to the other side; left to right via →, right to left via ←.
-  // Toasts surface what changed since the change is now visible AT the buttons
-  // (4-quad layout puts both palette and animation panels on each side of the
-  // duplicators, so the visual feedback is co-located with the action).
-  const dupBgToCel = document.getElementById('themeDupBgToCel');
-  if (dupBgToCel) dupBgToCel.addEventListener('click', function () {
-    activeTheme.cycleMode = ['off','page','glow','pattern'].indexOf(activeTheme.bgMode) !== -1 ? activeTheme.bgMode : 'glow';
-    activeTheme.palette = (activeTheme.bgPalette || []).slice(0, 7);
-    if (activeTheme.palette.length === 0) activeTheme.palette = THEME_DEFAULTS.palette.slice();
-    writeThemeToUI();
-    applyThemeVars(activeTheme);
-    showToast('Copied Background → Celebration: mode + ' + activeTheme.palette.length + ' palette colours');
-  });
-  const dupCelToBg = document.getElementById('themeDupCelToBg');
-  if (dupCelToBg) dupCelToBg.addEventListener('click', function () {
-    activeTheme.bgMode = activeTheme.cycleMode;
-    activeTheme.bgPalette = (activeTheme.palette || []).slice(0, 7);
-    if (activeTheme.bgPalette.length === 0) activeTheme.bgPalette = THEME_DEFAULTS.bgPalette.slice();
-    writeThemeToUI();
-    applyThemeVars(activeTheme);
-    showToast('Copied Celebration → Background: mode + ' + activeTheme.bgPalette.length + ' palette colours');
   });
 
   // Celebration palette buttons (existing).
