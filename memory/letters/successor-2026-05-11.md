@@ -66,6 +66,17 @@ Captain verified v5.9.0.13 visually at watch close and surfaced two items Mr. Da
 
 My recommendation: ship `v5.9.0.13.1` as a small Number One inline patch covering the preview-chip anchoring + grid-dot positions (~20-30 lines CSS), BEFORE forwarding v5.9.0.14 to Mr. Data. Then v5.9.0.14 lands on a fully-polished v5.9.0.13.1 baseline.
 
+**ALSO at watch close, Captain found a third item:** check-in success on the dashboard isn't showing the celebration on the venue QR. Production hooks ARE wired (I verified — 4 sites call `triggerAcceptCycleAnimation`, targets include `#venueQRWrap`). So the regression is downstream: either Mr. Data's v5.9.0.13 "halo-only" CSS reduced the effect too far to see at a glance, OR there's a class-not-applied bug introduced by the polish. Investigate with DevTools Animations tab open — if `.cycle-accept-glow` IS being added but the visual is invisible, that's a CSS strength fix (probably needs a stronger box-shadow / saturate boost). If the class is never added, that's a hook regression. Fold the fix into `v5.9.0.13.1` regardless.
+
+### 2. NEW scope from Captain at watch close — Celebration architecture expansion
+
+Captain's "more options more good" continues. After the existing v5.9.0.14 brief (10 accept + 5 deny modes, Vibrant Palette toggles), Captain wants:
+
+- **Orthogonal animation controls:** rotate (direction/speed), zoom in/out (scale intensity), and explicit colour-picker for celebration (separate from Background palette). These are NOT new modes — they're orthogonal axes on top of whatever mode is selected. Substantial scope.
+- **Remove halo glow from Background Animation modes dropdown.** Captain's logic: halo is celebration-only territory. Background should be Off / Page cycle / Pattern / Image — NO Glow option. Existing orgs with `theme.bgMode='glow'` get migrated to `'off'` on load.
+
+Recommendation: split the work. Keep v5.9.0.14 as currently briefed (substantial enough at ~400-700 lines). Add a NEW brief `v5.9.0.15-celebration-orthogonals` covering rotate/zoom/palette-pick + remove-halo-from-bg. That's a logical chapter break — v5.9.0.14 builds the mode infrastructure, v5.9.0.15 adds the orthogonal axes on top. Mr. Data ships them in sequence.
+
 ### 2. v5.9.0.14 Celebration architecture (Mr. Data, when credits reset)
 
 Brief is pushed: `IRLid-TestEnvironment/HANDOVER-CelebrationArchitecture.md`.
