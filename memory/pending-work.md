@@ -1,10 +1,60 @@
 # Pending Work — IRLid
 
-**Last refreshed:** Sunday 10 May 2026 evening watch 2 close (v5.9.0.7) — **full check-in + check-out cycle proven end-to-end on LIVE production with multi-round verification.** FOUR live patches shipped in single watch: `v5.9.0.4` bootstrap fp recovery; `v5.9.0.5` freshOrgFromSession self-heal + hostname-gating; `v5.9.0.6` scan.html dynamic dashboardOrigin; `v5.9.0.7` SCAN_PAGE_URL + getQrScanDomain fallback. Test env got `v5.7.1z.1` (Mr. Data PR #104 + Number One device_key routing fix) same evening. End-to-end LIVE proof: Kerry Austin scan_count=5, Spencer Austin scan_count=4, 7 total check-outs across the testing session, hard-refresh durability verified, sign-in first-time-every-time. **Open UX bug for next watch:** sign-out required two clicks on both phones to register the first time; subsequent sign-outs were instant. Three new BOOTSTRAP §6 pitfalls documented this watch (wrangler-secret Ctrl+V trap, `irlid_mock_*` localStorage trap, hardcoded test-env URLs in file-copies — eight instances surfaced across v5.9.0.1, v5.9.0.6, v5.9.0.7). Watch reaches genuine "stand for a while" milestone on **production**.
+**Last refreshed:** Monday 11 May 2026 morning watch close — **`v5.9.0.13` LIVE; full Settings panel polish + celebration architecture cleanup pass shipped.** Seven patch versions in one watch (v5.9.0.7 → v5.9.0.13). Mr. Data delivered FOUR PRs (staff_scan stash forward-port, device_key routing fix, celebration glow visibility, Settings visual polish); Number One shipped THREE inline patches (mock_org rename, prototype-banner role-gating + celebration hook wiring, Org Terms display field). Two collisions in single-version namespace auto-resolved cleanly via 3-way merge (v5.9.0.8 = mock_org + staff_scan stash; v5.9.0.10 = Org Terms + celebration overhaul). v5.9.0.14 Celebration architecture (10 accept + 5 deny modes, Vibrant Palette toggles) brief pushed and queued for Mr. Data tomorrow when his Codex credits reset (12 May 10:49). Earlier watch state preserved below for continuity.
+
+**Earlier:** Sunday 10 May 2026 evening watch 2 close (v5.9.0.7) — **full check-in + check-out cycle proven end-to-end on LIVE production with multi-round verification.** FOUR live patches shipped in single watch: `v5.9.0.4` bootstrap fp recovery; `v5.9.0.5` freshOrgFromSession self-heal + hostname-gating; `v5.9.0.6` scan.html dynamic dashboardOrigin; `v5.9.0.7` SCAN_PAGE_URL + getQrScanDomain fallback. Test env got `v5.7.1z.1` (Mr. Data PR #104 + Number One device_key routing fix) same evening. End-to-end LIVE proof: Kerry Austin scan_count=5, Spencer Austin scan_count=4, 7 total check-outs across the testing session, hard-refresh durability verified, sign-in first-time-every-time. **Open UX bug for next watch:** sign-out required two clicks on both phones to register the first time; subsequent sign-outs were instant. Three new BOOTSTRAP §6 pitfalls documented this watch (wrangler-secret Ctrl+V trap, `irlid_mock_*` localStorage trap, hardcoded test-env URLs in file-copies — eight instances surfaced across v5.9.0.1, v5.9.0.6, v5.9.0.7). Watch reaches genuine "stand for a while" milestone on **production**.
 
 **Earlier this watch:** **`v5.9.0.4` LIVE; bootstrap developer recognition fully working.** Diagnostic-first session resolved the v5 hardware-bootstrap rabbit hole inherited from this morning's watch 1. Two real bugs surfaced + fixed in single session: (1) BOOTSTRAP_DEVELOPER_FP secret was 1 byte (Ctrl+V SYN trap from 4 May, hit twice now); (2) `irlid_mock_org` localStorage entry duplicating last 6 chars of api_key (test-env file-copy leftover writing into live storage). Captain's actual phone fp on `irlid.co.uk` RP-ID is **`TvklFsivZk68R67j`**, not `uSwaWJc9r5uSCBbI` as watch-1 successor letter claimed. End-to-end smoke green: Captain signed in via QR-login → first developer membership seeded on Test Event via D1 INSERT → Kerry Austin added as Staff to Expected list → attendance row materialised. Diagnostic Worker reverted in same session; live runs production-clean code (Worker version `430e3b08-f5a5-4683-bd4f-7ca9d7c19e02`). Pill bumped v5.9.0.3 → v5.9.0.4 in same commit (`d982554`). Hand-roll bypass stayed chambered, never fired.
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
+
+## Monday 11 May 2026 morning watch close — `v5.9.0.13` LIVE; seven patches in one watch
+
+**The headline:** seven patch versions shipped in a single morning watch covering Settings polish, two latent-bug fixes, two architecture forward-ports, and one new feature (Org Terms display field). Mr. Data shipped four PRs; Number One shipped three inline patches; two collisions auto-resolved cleanly via 3-way GitHub merge.
+
+**Live shipped today:**
+
+- **`v5.9.0.8`** — Mr. Data PR #8 staff_scan localStorage stash/recovery forward-port + Number One inline irlid_mock_* localStorage namespace cleanup. Both claimed v5.9.0.8 in commits — GitHub 3-way merge auto-resolved (both sides → same pill string). Combo release containing both features.
+- **`v5.9.0.9`** — Number One inline: hide .prototype-note banners outside Developer mode (CSS gate via body:not(.developer-bearer-active)) + wire triggerAcceptCycleAnimation() into runRecognisedDeviceKeyCheckin (queued + completed) and runDoormanCheckin (queued + completed). Production check-in paths were bypassing the celebration entirely; Captain's 9 prior production check-ins fired zero celebrations.
+- **`v5.9.0.10`** — Number One Org Terms display field (frontend ~15 touchpoints mirroring welcomeMessage pattern + Worker whitelist + 8000-char length cap; rendered on org-entry.html as informational footer below meta, visible on allow/orange/review states, hidden on deny). Mr. Data PR #9 celebration overhaul (#venueQRWrap targeting, triggerDenyCycleAnimation, Preview deny button, fire site wiring) shipped same version — second clean auto-merge.
+- **`v5.9.0.11`** — Mr. Data PR forward-port of v5.7.1z.1 device_key routing fix to live (runRecognisedDeviceKeyCheckin: mode='device_key_scan' → 'doorman_scan' with synthesized helloPayload from env.pub_jwk; Worker had been silently rejecting the broken mode with 422).
+- **`v5.9.0.12`** — Mr. Data celebration glow visibility fix. Root cause Number One diagnosed: pseudo-element mix-blend-mode:screen invisible against .qr-box white background. Mr. Data removed screen blending and added animated rings directly on .qr-box. Captain confirmed: "Loving the animation on recognised an attendee."
+- **`v5.9.0.13`** — Mr. Data Settings visual polish pass. Five items: halo-only celebration (stripes stripped), BG↔CEL duplicator arrows removed, Preview Celebration/Preview Deny moved beside their buttons (no longer animating over the bottom Sample area), Image position grid dot travel recalibrated and active dots more visible, broader Settings styling audit. Net -129 lines (substantial cleanup).
+
+**Queued for next watch:**
+
+- **`v5.9.0.14`** — Mr. Data brief pushed to test env main: Celebration architecture (10 accept + 5 deny modes, Vibrant Palette toggles on BOTH Background and Celebration panels). Substantive new state: theme.cycleMode expanded from 4 to 10 with backward-compat migration for legacy 'glow'/'page'/'pattern' values; theme.denyMode (new); theme.bgPaletteMode (new); theme.paletteMode (new). Worker validator update + Settings UI for new controls + persistence plumbing + migration logic. Captain's "more options more good — chimp brain like more" direction. Expected scope ~400-700 lines. Mr. Data picks up when his Codex credits reset 12 May 10:49.
+
+**Architectural findings banked this watch:**
+
+- 3-way GitHub auto-merge cleanly handles version collisions when both sides bump pill to the same string. Used twice (v5.9.0.8 mock_org + staff_scan stash; v5.9.0.10 Org Terms + celebration overhaul). Pattern: Number One inline + Mr. Data parallel work can deliberately share a version slot if both touch different code regions of the same file. Don't over-engineer to avoid this — it works.
+- Mr. Data's discipline of refusing to start v5.9.0.14 because precondition (v5.9.0.13 merged on origin/main) wasn't met = good agent behaviour. Captain's tooling reports show the explicit preconditions check. Worth banking as Mr. Data's natural defensive posture.
+- Number One's inline lost-fields verifier caught the Org Terms Worker whitelist bug immediately (v5.9.0.10 first attempt): toast surfaced "Saved but didn't round-trip: orgTerms" because Worker dropped the field silently. Verifier earned its keep within minutes of being added. Pattern: add new setting field → run save round-trip → verifier confirms or flags.
+- Captain's design directive on Celebration was clarified across the morning: "halo only" + "more options more good" = drop the stripes/bands from v5.9.0.12, expand variation count from 4 to 10 (within the halo shape). Vibrant Palette toggle pattern carries to Celebration panel mirroring Background.
+
+### Open follow-ups for the next watch (12 May)
+
+**The headline (Mr. Data candidate when credits reset):**
+
+- **`v5.9.0.14` Celebration architecture** — brief is pushed and waiting. Captain forwards when Mr. Data is back online.
+
+**Captain-side polish from this morning:**
+
+- Sign-out-twice UX paper-cut from 10 May — still parked, hasn't recurred per Captain.
+- Webscraping smoke test (v5.5.8 endpoint) — Captain to verify on live when convenient.
+- Forums link Find-in-Files across 12 HTML files — Captain's task.
+
+**Number-One-side cleanup carried:**
+
+- `irlid-api-org/.wrangler/cache/wrangler-account.json` — already deleted from tracking via .gitignore (commit b400976 earlier). No action.
+- v6.1 schema unification — deferred big chapter; Captain has explicitly said leave it.
+
+**Test env carried items (lower priority):**
+
+- v5.5.9 dashboard table state bleed on org-switch — well-bounded fix candidate when Mr. Data has spare capacity.
+- Orange-QR params-stripped non-stash path — Captain's earlier finding; defensive validator extension.
+
+
 
 ## Sunday 10 May 2026 evening watch 2 close — `v5.9.0.6` LIVE doorman flow proven end-to-end
 
