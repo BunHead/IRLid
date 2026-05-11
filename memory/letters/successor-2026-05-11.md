@@ -56,7 +56,17 @@ That's FIVE PRs end-to-end including #8 and #9 — Mr. Data's most productive wa
 
 ## What's queued (priorities for next watch — 12 May)
 
-### 1. v5.9.0.14 Celebration architecture (Mr. Data, when credits reset)
+### 1. v5.9.0.13 incomplete items (lead with these before v5.9.0.14)
+
+Captain verified v5.9.0.13 visually at watch close and surfaced two items Mr. Data's PR didn't fully land:
+
+- **Preview Celebration/Deny animation mis-anchored on the new preview chip.** Mr. Data DID move the chip beside the Preview buttons, but the animation overlay covers only the chip's lower half rather than centring on it. Likely a CSS position-anchor issue on `#themePreviewQrCycle` post-relocation. Quick fix candidate for `v5.9.0.13.1` (or fold into Mr. Data's next assignment).
+- **Image position grid dot travel STILL only goes toward centre.** Mr. Data recalibrated but Captain's screenshots show all four anchor selections (Outer / Centre / Inner) putting the dot in roughly the same top-left position. Need a more aggressive percentage spread — e.g., Outer at 6%/94% of cell, Centre at exact 50%, Inner at 25%/75%, larger dot size. Same fix candidate.
+- **Phone-side halo verification on real venue QR still pending.** Captain didn't run a phone test before R&R. Worth confirming v5.9.0.13's halo-only result on hardware before pulling the trigger on v5.9.0.14 (and before assuring Captain "the celebration finally works").
+
+My recommendation: ship `v5.9.0.13.1` as a small Number One inline patch covering the preview-chip anchoring + grid-dot positions (~20-30 lines CSS), BEFORE forwarding v5.9.0.14 to Mr. Data. Then v5.9.0.14 lands on a fully-polished v5.9.0.13.1 baseline.
+
+### 2. v5.9.0.14 Celebration architecture (Mr. Data, when credits reset)
 
 Brief is pushed: `IRLid-TestEnvironment/HANDOVER-CelebrationArchitecture.md`.
 

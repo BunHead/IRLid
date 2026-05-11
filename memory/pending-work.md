@@ -34,9 +34,16 @@
 
 ### Open follow-ups for the next watch (12 May)
 
+**v5.9.0.13 incomplete items — Captain verified at watch close, fixes carry to tomorrow:**
+
+- **Preview Celebration/Deny animation still mis-anchored on the new preview chip.** Mr. Data DID move the preview chip beside the Preview buttons per the brief, but the animation overlay covers only the lower half of the chip rather than centring on it. Likely a CSS sizing / position-anchor issue on `#themePreviewQrCycle` post-relocation. Quick CSS fix candidate for v5.9.0.13.x.
+- **Image position grid dot travel STILL clusters at top-left regardless of Outer/Centre/Inner selection.** Mr. Data's recalibration didn't land the way the brief intended — all four anchor selections show dots in roughly the same spot per Captain's screenshots. Need a more aggressive percentage spread (e.g., Outer at 6%/94% of cell, Centre at 50%, Inner at 25%/75%, with larger dot size for visibility). Quick CSS fix candidate for v5.9.0.13.x.
+- **Phone-side halo verification still pending** — Captain didn't test venue QR celebration on phone before R&R. Worth confirming v5.9.0.13's halo-only result on real hardware before pulling the trigger on v5.9.0.14.
+
 **The headline (Mr. Data candidate when credits reset):**
 
-- **`v5.9.0.14` Celebration architecture** — brief is pushed and waiting. Captain forwards when Mr. Data is back online.
+- **`v5.9.0.14` Celebration architecture** — brief is pushed and waiting. Captain forwards when Mr. Data is back online (12 May 10:49 UK time).
+- Consider whether to fold the two v5.9.0.13 incomplete items into the v5.9.0.14 brief OR ship them as a small `v5.9.0.13.x` polish patch first. Recommend latter — v5.9.0.14 is already substantial (~400-700 lines), don't pile more on.
 
 **Captain-side polish from this morning:**
 
