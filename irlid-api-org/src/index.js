@@ -1522,7 +1522,10 @@ async function orgUpdateSettings(request, env) {
     "returnAllowed","allowSelfSelection","requireDoormanConfirmation","requireAdditionalProof",
     "allowProofRecording","enableIdPhotoCapture",
     // --- Branding ---
-    "logoUrl","welcomeMessage","redirectUrl","websiteUrl",
+    // v5.9.0.10 — orgTerms added: optional org-customisable terms/disclaimer text
+    // shown to attendees on org-entry.html (allow/orange/review states). Display-only,
+    // no accept gate. Captain's directive 11 May morning.
+    "logoUrl","welcomeMessage","orgTerms","redirectUrl","websiteUrl",
     // --- Theme (Batch 6.5 → 6.5f) ---
     "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
@@ -1643,6 +1646,9 @@ async function orgUpdateSettings(request, env) {
   if (body.logoUrl !== undefined && typeof body.logoUrl !== "string") return err("logoUrl must be a string");
   if (body.websiteUrl !== undefined && (typeof body.websiteUrl !== "string" || (body.websiteUrl.trim() && !parsePublicHttpUrl(body.websiteUrl)))) return err("websiteUrl must be a public http(s) URL or blank");
   if (body.welcomeMessage !== undefined && typeof body.welcomeMessage === "string" && body.welcomeMessage.length > 2000) return err("welcomeMessage too long (max 2000 chars)");
+  // v5.9.0.10 — orgTerms length cap (larger than welcomeMessage since terms can be lengthier).
+  if (body.orgTerms !== undefined && typeof body.orgTerms !== "string") return err("orgTerms must be a string");
+  if (body.orgTerms !== undefined && typeof body.orgTerms === "string" && body.orgTerms.length > 8000) return err("orgTerms too long (max 8000 chars)");
   if (body.redirectUrl !== undefined && typeof body.redirectUrl !== "string") return err("redirectUrl must be a string");
   for (const k of allowed) { if (body[k] !== undefined) current[k] = body[k]; }
   await env.DB.prepare("UPDATE organisations SET settings_json=?, updated_at=? WHERE id=?")
