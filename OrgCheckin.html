@@ -977,6 +977,14 @@ body[data-active-panel="checkin"] .content { padding-top: 14px; padding-bottom: 
 #panel-checkin #checkoutSettingsCard { margin-top: 9px !important; padding: 9px 11px !important; }
 .prototype-note { margin-bottom: 14px; padding: 10px 12px; border: 1px solid rgba(88,166,255,0.32); border-radius: 8px; background: rgba(88,166,255,0.08); color: #c9ddff; font-size: 12px; line-height: 1.45; }
 .prototype-note strong { color: #f0f6ff; }
+/* v5.9.0.9 — Prototype: disclaimer banners only render in Developer mode.
+   They're useful in dev to mark surfaces that are still prototype-shape,
+   but Lead Admins / Managers / Staff / Attendees landing on a working live
+   dashboard read "Prototype:" as "this site doesn't work yet" and lose trust.
+   Gate via .developer-bearer-active body class — set whenever a Developer-tier
+   Bearer session is active (handleQrLoginSuccess + saved-session restore).
+   Captain's directive 11 May morning. */
+body:not(.developer-bearer-active) .prototype-note { display: none; }
 .prototype-checkin .content { overflow-y: auto; scrollbar-gutter: stable; }
 .prototype-checkin #panel-checkin .two-col { grid-template-columns: minmax(0, 1fr); width: 100%; min-height: calc(100dvh - 182px); }
 .prototype-checkin #panel-checkin .mode-selector,
@@ -2414,7 +2422,7 @@ body #venueQRWrap.cycle-burst-pattern {
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.9</span></div>
   </div>
 </div>
 
@@ -6226,12 +6234,19 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
   if (result && result.queued) {
     addQueuedCheckinRow(body, result);
     flashDoormanPanel('success');
+    // v5.9.0.9 — fire celebration burst on recognised-device queued check-in.
+    // Mirrors the manualCheckin pattern at line ~6411. Captain reported the
+    // celebration animation "does nothing" — root cause was that production
+    // check-in paths (recognised + doorman) bypassed triggerAcceptCycleAnimation.
+    try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
     return;
   }
   await refreshAttendance();
   await refreshExpectedAttendees();
   flashDoormanPanel('success');
+  // v5.9.0.9 — fire celebration burst on recognised-device completed check-in.
+  try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   recognition.source === 'snapshot' ? console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
 }
 async function runDoormanCheckin(env) {
@@ -6262,12 +6277,16 @@ async function runDoormanCheckin(env) {
   if (result && result.queued) {
     addQueuedCheckinRow(body, result);
     flashDoormanPanel('walkin');
+    // v5.9.0.9 — fire celebration burst on doorman queued check-in.
+    try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     showToast('Queued offline - will sync when reconnected.');
     return;
   }
   await refreshAttendance();
   await refreshExpectedAttendees();
   flashDoormanPanel(result.linked ? 'success' : 'walkin');
+  // v5.9.0.9 — fire celebration burst on doorman completed check-in (linked + walkin both qualify).
+  try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   showToast(result.linked ? 'Recognised attendee checked in' : 'Doorman scan recorded');
 }
 function refreshStaffAuthPanel() {
