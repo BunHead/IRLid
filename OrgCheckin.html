@@ -2422,7 +2422,7 @@ body #venueQRWrap.cycle-burst-pattern {
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.10</span></div>
   </div>
 </div>
 
@@ -2837,6 +2837,7 @@ body #venueQRWrap.cycle-burst-pattern {
                   <label class="settings-field"><span>Post-accept redirect URL</span><input id="redirectUrl" type="url" placeholder="https://example.com/welcome"></label>
                   <label class="settings-field"><span>Staff post-accept redirect URL</span><input id="staffRedirectUrl" type="url" placeholder="e.g. https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html (or your org's authenticated staff page)"></label>
                   <label class="settings-field"><span>Custom welcome message</span><textarea id="welcomeMessage" placeholder="Welcome to the venue."></textarea></label>
+                  <label class="settings-field"><span>Organisation terms / disclaimer</span><textarea id="orgTerms" placeholder="Optional informational text shown to attendees at check-in. Display only — not required to accept. e.g. 'By checking in you acknowledge our event safety policy and photo consent terms.'"></textarea></label>
                 </div>
                 <div class="theme-scrape-panel">
                   <div class="theme-scrape-actions">
@@ -3312,11 +3313,12 @@ const PORTAL_DEFAULTS = {
   redirectUrl: '',
   staffRedirectUrl: '',
   welcomeMessage: '',
+  orgTerms: '',
   activeMode: 'allow'
 };
 const PORTAL_IDS = [
   'orgCode','eventCode','minimumTrustScore','biometricRequired','privacyMode','anonymousMode','checkoutRequired','returnAllowed',
-  'allowSelfSelection','requireDoormanConfirmation','requireAdditionalProof','allowProofRecording','enableIdPhotoCapture','logoUrl','websiteUrl','redirectUrl','staffRedirectUrl','welcomeMessage'
+  'allowSelfSelection','requireDoormanConfirmation','requireAdditionalProof','allowProofRecording','enableIdPhotoCapture','logoUrl','websiteUrl','redirectUrl','staffRedirectUrl','welcomeMessage','orgTerms'
 ];
 let currentOrg = null;
 let currentMode = 'attendee_scan';
@@ -3330,6 +3332,7 @@ let settings = {
   logoUrl: '',
   websiteUrl: '',
   welcomeMessage: 'Welcome. Please review and confirm your check-in.',
+  orgTerms: '',
   redirectUrl: '',
   staffRedirectUrl: '',
   allowSelfSelect: true,
@@ -3428,6 +3431,7 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.websiteUrl === 'string') portalState.websiteUrl = src.websiteUrl;
   else if (typeof src.website_url === 'string') portalState.websiteUrl = src.website_url;
   if (typeof src.welcomeMessage === 'string') portalState.welcomeMessage = src.welcomeMessage;
+  if (typeof src.orgTerms === 'string') portalState.orgTerms = src.orgTerms;
   if (typeof src.redirectUrl === 'string') portalState.redirectUrl = src.redirectUrl;
   if (typeof src.staffRedirectUrl === 'string') portalState.staffRedirectUrl = src.staffRedirectUrl;
   if (typeof src.allowSelfSelection === 'boolean') portalState.allowSelfSelection = src.allowSelfSelection;
@@ -4384,6 +4388,7 @@ function buildVenuePayload() {
     returnAllowed: settings.returnAllowed ? '1' : '0'
   });
   if (settings.welcomeMessage) qp.set('welcome', settings.welcomeMessage);
+  if (settings.orgTerms) qp.set('terms', settings.orgTerms);
   if (settings.redirectUrl) qp.set('redirect', settings.redirectUrl);
   if (settings.staffRedirectUrl) qp.set('staff_redirect', settings.staffRedirectUrl);
   if (settings.logoUrl) qp.set('logo', settings.logoUrl);
@@ -4408,6 +4413,7 @@ function collectSettingsFromCanonical() {
     logoUrl: document.getElementById('logoUrl')?.value.trim() || '',
     websiteUrl: document.getElementById('websiteUrl')?.value.trim() || '',
     welcomeMessage: document.getElementById('welcomeMessage')?.value.trim() || '',
+    orgTerms: document.getElementById('orgTerms')?.value.trim() || '',
     redirectUrl: document.getElementById('redirectUrl')?.value.trim() || '',
     staffRedirectUrl: document.getElementById('staffRedirectUrl')?.value.trim() || '',
     allowSelfSelect: !!document.getElementById('allowSelfSelection')?.checked,
@@ -4459,6 +4465,7 @@ async function saveSettings() {
     logoUrl: (document.getElementById('logoUrl')?.value || '').trim(),
     websiteUrl: (document.getElementById('websiteUrl')?.value || '').trim(),
     welcomeMessage: (document.getElementById('welcomeMessage')?.value || '').trim(),
+    orgTerms: (document.getElementById('orgTerms')?.value || '').trim(),
     redirectUrl: (document.getElementById('redirectUrl')?.value || '').trim(),
     staffRedirectUrl: (document.getElementById('staffRedirectUrl')?.value || '').trim(),
     allowSelfSelection: !!document.getElementById('allowSelfSelection')?.checked,
@@ -4529,6 +4536,7 @@ async function saveSettings() {
   if (!eq(payload.redirectUrl, r.redirectUrl)) lost.push('redirectUrl');
   if (!eq(payload.staffRedirectUrl, r.staffRedirectUrl)) lost.push('staffRedirectUrl');
   if (!eq(payload.welcomeMessage, r.welcomeMessage)) lost.push('welcomeMessage');
+  if (!eq(payload.orgTerms, r.orgTerms)) lost.push('orgTerms');
   if (payload.minScore !== r.minScore) lost.push('minScore');
   lost.push(...themeRoundTripMismatches(payload.theme, r.theme));
 
@@ -4554,7 +4562,7 @@ async function saveSettings() {
   showToast('✓ Settings saved and verified');
 }
 function resetSettingsToDefaults() {
-  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false };
+  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false };
   saveJson(STORAGE_KEY_SETTINGS, settings); applySettingsToUI(); syncPortalFromLegacy(); renderPortalAll(); generateVenueQR(); showToast('Settings reset to defaults');
 }
 function renderExpectedAttendees() {
@@ -6660,6 +6668,7 @@ function buildOutcomeUrl(mode) {
   url.searchParams.set('allowProofRecording', String(!!portalState.allowProofRecording));
   url.searchParams.set('enableIdPhotoCapture', String(!!portalState.enableIdPhotoCapture));
   appendOptional(url, 'welcome', (portalState.welcomeMessage || '').trim());
+  appendOptional(url, 'terms', (portalState.orgTerms || '').trim());
   if (mode === 'allow') appendOptional(url, 'redirect', (portalState.redirectUrl || '').trim());
   appendOptional(url, 'logo', (portalState.logoUrl || '').trim());
   return url.toString();
@@ -6690,6 +6699,7 @@ function buildPortalSummaryText() {
     `Logo image URL: ${portalState.logoUrl || '(none)'}`,
     `Website URL: ${portalState.websiteUrl || '(none)'}`,
     `Custom welcome message: ${portalState.welcomeMessage || '(none)'}`,
+    `Organisation terms: ${portalState.orgTerms || '(none)'}`,
     `Post-accept redirect URL: ${portalState.redirectUrl || '(none)'}`,
     `Staff post-accept redirect URL: ${portalState.staffRedirectUrl || '(none)'}`
   ].join('\n');
@@ -6719,6 +6729,7 @@ function syncPortalFromLegacy() {
   portalState.redirectUrl = settings.redirectUrl || '';
   portalState.staffRedirectUrl = settings.staffRedirectUrl || '';
   portalState.welcomeMessage = settings.welcomeMessage || '';
+  portalState.orgTerms = settings.orgTerms || '';
   if (currentOrg?.name && (!portalState.orgCode || portalState.orgCode === 'test')) portalState.orgCode = currentOrg.name.toLowerCase().replace(/\s+/g, '-').slice(0, 24);
   savePortalState();
   setPortalFieldValues();
@@ -6740,6 +6751,7 @@ function syncLegacyFromPortal() {
   settings.redirectUrl = portalState.redirectUrl || '';
   settings.staffRedirectUrl = portalState.staffRedirectUrl || '';
   settings.welcomeMessage = portalState.welcomeMessage || '';
+  settings.orgTerms = portalState.orgTerms || '';
   saveJson(STORAGE_KEY_SETTINGS, settings);
   applySettingsToUI();
 }
@@ -6798,6 +6810,7 @@ function buildPortalSummaryItems() {
     ['Logo URL',        displayValue(portalState.logoUrl)],
     ['Website URL',     displayValue(portalState.websiteUrl)],
     ['Welcome',         displayValue(portalState.welcomeMessage)],
+    ['Org terms',       displayValue(portalState.orgTerms)],
     ['Redirect URL',    displayValue(portalState.redirectUrl)]
   ];
 }

@@ -220,6 +220,31 @@
     letter-spacing:0.02em;
   }
 
+  /* v5.9.0.9 — Organisation terms / disclaimer footer. Optional informational
+     text the org sets in Settings → Branding → Organisation terms. Shown on
+     allow/orange states; suppressed on deny (attendee isn't on-site / accepted
+     yet so terms don't apply visually there). Small, faded, max-width to keep
+     it from competing with the main title/subtitle. Captain's directive
+     11 May morning — display version, no accept gate. */
+  .org-terms-footer{
+    display:none;
+    margin-top:18px;
+    padding:10px 14px;
+    max-width:min(640px, 92vw);
+    margin-left:auto;
+    margin-right:auto;
+    font-size:clamp(11px, 1.8vw, 13px);
+    line-height:1.5;
+    color:rgba(255,255,255,0.55);
+    letter-spacing:0.01em;
+    white-space:pre-wrap;
+    text-align:center;
+    border-top:1px solid rgba(255,255,255,0.15);
+  }
+  body.status-allow .org-terms-footer,
+  body.status-orange .org-terms-footer,
+  body.status-review .org-terms-footer{ display:block; }
+
   .hint{
     margin-top:14px;
     font-size:12px;
@@ -513,6 +538,7 @@
       <h1 class="title" id="title">Welcome to IRLid Event</h1>
       <div class="subtitle" id="subtitle">You’re checked in</div>
       <div class="meta" id="meta"></div>
+      <div class="org-terms-footer" id="orgTermsFooter"></div>
       <button class="next-btn" id="nextBtn" type="button">Next scan</button>
       <div class="choice-actions" id="choiceActions"></div>
       <div class="hint" id="hint"></div>
@@ -557,6 +583,7 @@
   const denyReason = (params.get("reason") || "Not on list").trim();
   let eventName = (params.get("event") || "IRLid Event").trim();
   const welcomeMessage = (params.get("welcome") || "").trim();
+  const orgTerms = (params.get("terms") || "").trim();
   const redirectUrl = (params.get("redirect") || "").trim();
   // v5.7.0v — Optional staff-specific post-accept redirect. Set in
   // OrgCheckin.html settings ("Staff post-accept redirect URL"). Used at
@@ -802,6 +829,10 @@
     title.textContent = state.title;
     subtitle.textContent = state.subtitle || "";
     meta.textContent = state.meta || "";
+    // v5.9.0.9 — Populate org-terms footer (display only, no accept gate).
+    // CSS handles visibility per status — shows on allow/orange/review, hidden on deny.
+    const orgTermsEl = document.getElementById("orgTermsFooter");
+    if (orgTermsEl) orgTermsEl.textContent = orgTerms;
     if (choiceActions) {
       choiceActions.classList.remove("show");
       choiceActions.innerHTML = "";
