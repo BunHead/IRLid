@@ -2597,7 +2597,7 @@ body #venueQRWrap.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.11</span></div>
   </div>
 </div>
 
@@ -6393,12 +6393,28 @@ function addQueuedCheckinRow(body, queuedResult) {
 async function runRecognisedDeviceKeyCheckin(env, recognition) {
   const row = recognition?.row || {};
   const developerBypass = developerBearerSessionIsActive();
+  // v5.9.0.11 — Worker /org/checkin only accepts mode=attendee_scan|doorman_scan;
+  // mode='device_key_scan' was never implemented server-side and was returning
+  // 422 "mode must be attendee_scan or doorman_scan". Recognised device-key scan
+  // is semantically staff scanning a known attendee's device QR -> doorman_scan.
+  // Worker reads helloPayload.pub for pubKeyId / deviceKeyFp, so we synthesize
+  // helloPayload from the device-key envelope: env.pub_jwk -> helloPayload.pub.
+  // env.hash carries the hash of the original device-key envelope (including
+  // pub_fp + nonce + sig); we store it as helloHash so the audit trail keeps
+  // the actually-signed bytes, not a re-hash of the synthetic payload.
+  // Port from test env v5.7.1z.1 (10 May 2026 evening watch 2).
+  const syntheticHelloPayload = {
+    v: env.v || 3,
+    type: 'hello',
+    pub: env.pub_jwk,
+    ts: env.ts,
+    org_code: env.org_code,
+    nonce: env.nonce
+  };
   const body = {
-    mode: 'device_key_scan',
-    devicePayload: env,
-    deviceHash: env.hash || await hashPayloadToB64url(env),
-    device_pub_fp: env.pub_fp,
-    expected_id: row.id || row.expected_id || null,
+    mode: 'doorman_scan',
+    helloPayload: syntheticHelloPayload,
+    helloHash: env.hash || await hashPayloadToB64url(syntheticHelloPayload),
     attendeeLabel: expectedDisplayName(row),
     name: expectedDisplayName(row),
     score: settings.minScore || 50,
