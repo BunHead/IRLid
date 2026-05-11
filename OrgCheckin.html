@@ -1601,22 +1601,65 @@ html.is-live-env .env-badge-test { display: none; }
   z-index: 1; pointer-events: none;
   opacity: 0;
 }
-.theme-preview-qr-cycle.cycling {
+.theme-preview-qr-cycle.cycling,
+.theme-preview-qr-cycle.cycle-accept-glow,
+.theme-preview-qr-cycle.cycle-burst-page,
+.theme-preview-qr-cycle.cycle-burst-pattern {
   opacity: 1;
   animation: themeAcceptCycle 1.4s ease-out 1;
+}
+.theme-preview-qr-cycle.cycle-deny-burst {
+  opacity: 1;
+  animation: themeDenyBurst 0.82s cubic-bezier(.18,.88,.22,1) 1;
+}
+.scan-panel.cycle-deny-burst,
+.checkin-success-overlay.cycle-deny-burst {
+  animation: themeDenyBurst .82s cubic-bezier(.18,.88,.22,1) 1;
 }
 .scan-panel.cycling, .checkin-success-overlay.cycling {
   animation: themeAcceptCycle 1.4s ease-out 1;
 }
 @keyframes themeAcceptCycle {
-  0%   { box-shadow: 0 0 0 4px var(--theme-cycle-1), 0 0 24px var(--theme-cycle-1); }
-  14%  { box-shadow: 0 0 0 4px var(--theme-cycle-2), 0 0 24px var(--theme-cycle-2); }
-  28%  { box-shadow: 0 0 0 4px var(--theme-cycle-3), 0 0 24px var(--theme-cycle-3); }
-  42%  { box-shadow: 0 0 0 4px var(--theme-cycle-4), 0 0 24px var(--theme-cycle-4); }
-  57%  { box-shadow: 0 0 0 4px var(--theme-cycle-5), 0 0 24px var(--theme-cycle-5); }
-  71%  { box-shadow: 0 0 0 4px var(--theme-cycle-6), 0 0 24px var(--theme-cycle-6); }
-  85%  { box-shadow: 0 0 0 4px var(--theme-cycle-7), 0 0 24px var(--theme-cycle-7); }
-  100% { box-shadow: 0 0 0 0   transparent,           0 0 0    transparent; }
+  0%   { box-shadow: 0 0 0 0 var(--theme-cycle-1), 0 0 0 0 var(--theme-cycle-1); transform: scale(1); filter: saturate(1); }
+  12%  { box-shadow: 0 0 0 10px var(--theme-cycle-2), 0 0 42px 14px var(--theme-cycle-2); transform: scale(1.018); filter: saturate(1.35); }
+  28%  { box-shadow: 0 0 0 18px var(--theme-cycle-3), 0 0 72px 24px var(--theme-cycle-3); transform: scale(1.028); filter: saturate(1.55); }
+  44%  { box-shadow: 0 0 0 24px var(--theme-cycle-4), 0 0 96px 34px var(--theme-cycle-4); transform: scale(1.018); filter: saturate(1.45); }
+  62%  { box-shadow: 0 0 0 18px var(--theme-cycle-5), 0 0 76px 26px var(--theme-cycle-5); transform: scale(1.01); filter: saturate(1.35); }
+  82%  { box-shadow: 0 0 0 10px var(--theme-cycle-6), 0 0 48px 16px var(--theme-cycle-6); transform: scale(1.004); filter: saturate(1.15); }
+  100% { box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent; transform: scale(1); filter: saturate(1); }
+}
+@keyframes themeAcceptRingSweep {
+  0%   { opacity: 0; transform: scale(.78) rotate(0deg); }
+  14%  { opacity: .98; transform: scale(.9) rotate(32deg); }
+  48%  { opacity: .92; transform: scale(1.08) rotate(164deg); }
+  76%  { opacity: .42; transform: scale(1.2) rotate(258deg); }
+  100% { opacity: 0; transform: scale(1.32) rotate(360deg); }
+}
+@keyframes themeAcceptCentrePulse {
+  0%   { opacity: 0; transform: scale(.7); }
+  18%  { opacity: .65; transform: scale(1.02); }
+  55%  { opacity: .25; transform: scale(1.18); }
+  100% { opacity: 0; transform: scale(1.42); }
+}
+@keyframes themeDenyBurst {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 45, 70, 0), 0 0 0 0 rgba(255, 45, 70, 0); transform: translateX(0) scale(1); filter: saturate(1); }
+  12%  { box-shadow: 0 0 0 8px rgba(255, 45, 70, .9), 0 0 50px 18px rgba(255, 45, 70, .82); transform: translateX(-6px) scale(1.018); filter: saturate(1.65) contrast(1.12); }
+  24%  { box-shadow: 0 0 0 20px rgba(255, 20, 48, .74), 0 0 88px 30px rgba(255, 20, 48, .74); transform: translateX(6px) scale(1.026); }
+  38%  { box-shadow: 0 0 0 14px rgba(255, 214, 82, .58), 0 0 72px 24px rgba(255, 45, 70, .72); transform: translateX(-4px) scale(1.012); }
+  55%  { box-shadow: 0 0 0 22px rgba(255, 45, 70, .38), 0 0 56px 16px rgba(255, 45, 70, .5); transform: translateX(3px) scale(1); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 45, 70, 0), 0 0 0 0 rgba(255, 45, 70, 0); transform: translateX(0) scale(1); filter: saturate(1); }
+}
+@keyframes themeDenySlash {
+  0%   { opacity: 0; transform: rotate(-24deg) scaleX(.28); }
+  14%  { opacity: .98; transform: rotate(-24deg) scaleX(1.04); }
+  58%  { opacity: .94; transform: rotate(-24deg) scaleX(1); }
+  100% { opacity: 0; transform: rotate(-24deg) scaleX(1.12); }
+}
+@keyframes themeDenyBands {
+  0%   { opacity: 0; background-position: 0 0; }
+  16%  { opacity: .9; }
+  60%  { opacity: .78; background-position: 44px 0; }
+  100% { opacity: 0; background-position: 88px 0; }
 }
 
 /* Save status */
@@ -1687,8 +1730,15 @@ html.is-live-env .env-badge-test { display: none; }
   /* Lock to a 2-line minimum so panels align even if descriptions differ. */
   min-height: calc(1.4em * 2);
 }
-/* Push the Preview button to the bottom so both panels' buttons sit on the same row. */
-.theme-anim-panel > button { margin-top: auto; }
+/* Push the Preview controls to the bottom so both panels' actions sit on the same row. */
+.theme-anim-panel > button,
+.theme-anim-panel > .theme-anim-actions { margin-top: auto; }
+.theme-anim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.theme-anim-actions .btn { flex: 1 1 140px; }
 .theme-anim-toggle {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12px; color: #dbe6ff; cursor: pointer;
@@ -1915,10 +1965,16 @@ body.theme-bg-cycling .qr-pad.active-pad {
 }
 
 /* Override existing celebration animation rules to use configurable duration. */
-.theme-preview-qr-cycle.cycling {
+.theme-preview-qr-cycle.cycling,
+.theme-preview-qr-cycle.cycle-accept-glow,
+.theme-preview-qr-cycle.cycle-burst-page,
+.theme-preview-qr-cycle.cycle-burst-pattern {
   animation: themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
-.scan-panel.cycling, .checkin-success-overlay.cycling {
+.scan-panel.cycling,
+.checkin-success-overlay.cycling,
+.scan-panel.cycle-accept-glow,
+.checkin-success-overlay.cycle-accept-glow {
   animation: themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 
@@ -1943,7 +1999,9 @@ body.theme-bg-cycling .irlid-qr-fullscreen-holder {
 /* Celebration on the fullscreen holder. The first selector with body.theme-bg-cycling
    beats the bg-cycling rule on specificity so the burst overrides during the .cycling window. */
 body.theme-bg-cycling .irlid-qr-fullscreen-holder.cycling,
-.irlid-qr-fullscreen-holder.cycling {
+.irlid-qr-fullscreen-holder.cycling,
+body.theme-bg-cycling .irlid-qr-fullscreen-holder.cycle-accept-glow,
+.irlid-qr-fullscreen-holder.cycle-accept-glow {
   animation: themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 /* ============== /Batch 6.5c ============== */
@@ -2285,6 +2343,7 @@ body.theme-bg-pattern #venueQRWrap {
    body.theme-bg-page-cycle .irlid-qr-fullscreen when celebration fires while
    the Background is also in page-cycle mode. Source order then favours burst. */
 body .irlid-qr-fullscreen.cycle-burst-page,
+body .irlid-qr-fullscreen-holder.cycle-burst-page,
 body #venueQRWrap.cycle-burst-page {
   animation: themeAcceptPageCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
@@ -2293,10 +2352,126 @@ body #venueQRWrap.cycle-burst-page {
   35%, 65% { --theme-pattern-fg: rgba(88, 166, 255, 0.55); --theme-pattern-fg-2: rgba(88, 166, 255, 0.30); }
 }
 body .irlid-qr-fullscreen.cycle-burst-pattern,
+body .irlid-qr-fullscreen-holder.cycle-burst-pattern,
 body #venueQRWrap.cycle-burst-pattern {
-  background-image: radial-gradient(circle, var(--theme-pattern-fg) 2px, transparent 2.5px);
-  background-size: 24px 24px;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.28) 0 5px, transparent 6px),
+    radial-gradient(circle, var(--theme-pattern-fg) 4px, transparent 5px);
+  background-size: 120px 120px, 32px 32px;
   animation: themeAcceptPatternFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen.cycle-burst-page,
+body .irlid-qr-fullscreen-holder.cycle-accept-glow,
+body .irlid-qr-fullscreen-holder.cycle-burst-page,
+body .irlid-qr-fullscreen-holder.cycle-burst-pattern,
+body .irlid-qr-fullscreen-holder.cycle-deny-burst,
+body #venueQRWrap.cycle-accept-glow,
+body #venueQRWrap.cycle-burst-page,
+body #venueQRWrap.cycle-burst-pattern,
+body #venueQRWrap.cycle-deny-burst,
+.theme-preview-qr-cycle.cycle-accept-glow,
+.theme-preview-qr-cycle.cycle-deny-burst {
+  position: relative;
+}
+body .irlid-qr-fullscreen.cycle-burst-page,
+body .irlid-qr-fullscreen-holder.cycle-accept-glow,
+body .irlid-qr-fullscreen-holder.cycle-burst-page,
+body #venueQRWrap.cycle-accept-glow,
+body #venueQRWrap.cycle-burst-page {
+  animation:
+    themeAcceptCycle var(--theme-cycle-anim-duration, 1.4s) ease-out 1,
+    themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-accept-glow::before,
+body .irlid-qr-fullscreen-holder.cycle-burst-page::before,
+body .irlid-qr-fullscreen-holder.cycle-burst-pattern::before,
+body #venueQRWrap.cycle-accept-glow::before,
+body #venueQRWrap.cycle-burst-page::before,
+body #venueQRWrap.cycle-burst-pattern::before,
+.theme-preview-qr-cycle.cycle-accept-glow::before {
+  content: "";
+  position: absolute;
+  inset: clamp(8px, 2.4vw, 28px);
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 8;
+  background:
+    conic-gradient(from 0deg,
+      var(--theme-cycle-1),
+      var(--theme-cycle-2),
+      var(--theme-cycle-3),
+      var(--theme-cycle-4),
+      var(--theme-cycle-5),
+      var(--theme-cycle-6),
+      var(--theme-cycle-7),
+      var(--theme-cycle-1));
+  opacity: 0;
+  mix-blend-mode: screen;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: clamp(10px, 1.8vw, 24px);
+  animation: themeAcceptRingSweep var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-accept-glow::after,
+body .irlid-qr-fullscreen-holder.cycle-burst-page::after,
+body .irlid-qr-fullscreen-holder.cycle-burst-pattern::after,
+body #venueQRWrap.cycle-accept-glow::after,
+body #venueQRWrap.cycle-burst-page::after,
+body #venueQRWrap.cycle-burst-pattern::after,
+.theme-preview-qr-cycle.cycle-accept-glow::after {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 7;
+  background: radial-gradient(circle, var(--theme-cycle-3) 0 10%, transparent 58%);
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-deny-burst,
+body #venueQRWrap.cycle-deny-burst {
+  animation: themeDenyBurst .82s cubic-bezier(.18,.88,.22,1) 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-deny-burst::before,
+body #venueQRWrap.cycle-deny-burst::before,
+.theme-preview-qr-cycle.cycle-deny-burst::before {
+  content: "";
+  position: absolute;
+  inset: clamp(10px, 2vw, 26px);
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 10;
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(255, 22, 52, .95) 0 14px,
+    rgba(255, 214, 82, .78) 14px 24px,
+    rgba(255, 22, 52, .95) 24px 38px,
+    transparent 38px 54px
+  );
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: themeDenyBands .82s cubic-bezier(.18,.88,.22,1) 1;
+}
+body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
+body #venueQRWrap.cycle-deny-burst::after,
+.theme-preview-qr-cycle.cycle-deny-burst::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 47%;
+  height: clamp(18px, 3vw, 44px);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 11;
+  background: linear-gradient(90deg, rgba(255,255,255,.92), rgba(255,30,58,.98), rgba(255,255,255,.92));
+  box-shadow: 0 0 34px 12px rgba(255, 22, 52, .82);
+  opacity: 0;
+  transform-origin: center;
+  animation: themeDenySlash .82s cubic-bezier(.18,.88,.22,1) 1;
 }
 /* ============== /Batch 6.5f ============== */
 /* ============== /Batch 6.5d → 6.5e ============== */
@@ -3051,7 +3226,10 @@ body #venueQRWrap.cycle-burst-pattern {
                         <span>Slow (5s)</span>
                       </div>
                     </div>
-                    <button type="button" class="btn btn-secondary btn-sm" id="themePreviewAcceptCycle" data-cycle-mode-hide="off">Preview celebration</button>
+                    <div class="theme-anim-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" id="themePreviewAcceptCycle" data-cycle-mode-hide="off">Preview celebration</button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="themePreviewDenyCycle">Preview deny</button>
+                    </div>
                   </div>
 
                 </div>
@@ -5820,6 +5998,7 @@ async function processDashboardScan() {
       setDashboardScanStatus('HELLO scan processed.', 'ok');
     }
   } catch (err) {
+    flashDoormanPanel('error');
     setDashboardScanStatus(err.message || 'Could not process scan.', 'error');
   }
 }
@@ -6345,11 +6524,15 @@ function selectMode(mode) {
 let manualCheckinFeedbackTimer = null;
 function flashDoormanPanel(kind) {
   const panel = document.getElementById('doormanPanel');
-  if (!panel) return;
-  panel.classList.remove('flash-success', 'flash-walkin', 'flash-error');
-  void panel.offsetWidth;
-  panel.classList.add(`flash-${kind}`);
-  setTimeout(() => panel.classList.remove(`flash-${kind}`), 340);
+  if (panel) {
+    panel.classList.remove('flash-success', 'flash-walkin', 'flash-error');
+    void panel.offsetWidth;
+    panel.classList.add(`flash-${kind}`);
+    setTimeout(() => panel.classList.remove(`flash-${kind}`), 340);
+  }
+  if (kind === 'error') {
+    try { if (typeof triggerDenyCycleAnimation === 'function') triggerDenyCycleAnimation(); } catch(_) {}
+  }
 }
 function setManualCheckinLoading(isLoading) {
   manualCheckinLoading = isLoading;
@@ -7816,71 +7999,93 @@ function _openPaletteSwatchEditor(index, paletteKey) {
 }
 
 function previewAcceptCycle() {
-  // Batch 6.5f — Preview celebration now fires the actual triggerAcceptCycleAnimation
-  // dispatch so the user sees what their selected cycleMode looks like. Falls back
-  // to the small in-panel preview for glow mode so users get a visual cue even
-  // when the venue QR isn't on screen.
+  // v5.9.0.10 — Preview celebration now uses the same vivid venue-QR burst as
+  // production, plus the compact Settings preview chip for side-by-side tuning.
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
   if (mode === 'off') return;
-  if (mode === 'glow') {
-    const el = document.getElementById('themePreviewQrCycle');
-    if (el) {
-      el.classList.remove('cycling');
-      void el.offsetWidth;
-      el.classList.add('cycling');
-      const ms = Math.max(600, ((activeTheme && activeTheme.cycleAnimDuration) || 1.4) * 1000 + 200);
-      setTimeout(function () { el.classList.remove('cycling'); }, ms);
-    }
-  }
-  // For all non-off modes, also fire the canonical dispatch so any visible canvas
-  // (venue QR wrap on Check-in tab, fullscreen overlay if open) sees the burst.
+  const previewClass = mode === 'page' ? 'cycle-burst-page'
+    : mode === 'pattern' ? 'cycle-burst-pattern'
+      : 'cycle-accept-glow';
+  triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], previewClass, acceptCycleMs());
   triggerAcceptCycleAnimation();
+}
+
+function previewDenyCycle() {
+  triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], 'cycle-deny-burst', denyCycleMs());
+  triggerDenyCycleAnimation();
+}
+
+function acceptCycleMs() {
+  return Math.max(600, ((activeTheme && activeTheme.cycleAnimDuration) || 1.4) * 1000 + 200);
+}
+
+function denyCycleMs() {
+  const acceptMs = acceptCycleMs();
+  return Math.max(520, Math.min(920, Math.round(acceptMs * 0.55)));
+}
+
+function uniqueElements(items) {
+  const seen = new Set();
+  return (items || []).filter(function (el) {
+    if (!el || seen.has(el)) return false;
+    seen.add(el);
+    return true;
+  });
+}
+
+function cycleBurstTargets(includeLegacy) {
+  const targets = [
+    document.getElementById('venueQRWrap'),
+    document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder')
+  ];
+  if (includeLegacy) {
+    targets.push(
+      document.querySelector('.scan-panel.flash-success'),
+      document.querySelector('.checkin-success-overlay'),
+      document.querySelector('.scan-panel')
+    );
+  }
+  return uniqueElements(targets);
+}
+
+function triggerCycleClassOnTargets(targets, className, ms) {
+  uniqueElements(targets).forEach(function (el) {
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    setTimeout(function () { el.classList.remove(className); }, ms);
+  });
 }
 
 function triggerAcceptCycleAnimation() {
   // Public hook — call this from check-in success paths to fire the celebration.
-  // Batch 6.5f — branches on cycleMode rather than acceptCycleEnabled boolean.
+  // v5.9.0.10 — every visible mode targets #venueQRWrap first so the door screen
+  // reads from 3-5m, while preserving the legacy mode dropdown contract.
   // Modes:
   //   off     — no animation at all
-  //   glow    — palette burst around QR boxes (existing behaviour, unchanged)
-  //   page    — one-shot canvas colour cycle (uses bgPalette via page-bg vars)
-  //   pattern — temporarily reveals the pattern overlay on the QR canvas
+  //   glow    — vivid palette halo/ring on venue QR + fullscreen holder
+  //   page    — one-shot canvas colour cycle with the same visible ring
+  //   pattern — high-contrast pattern flash with the same visible ring
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
   if (mode === 'off') return;
-  const ms = Math.max(600, ((activeTheme && activeTheme.cycleAnimDuration) || 1.4) * 1000 + 200);
+  const ms = acceptCycleMs();
 
   if (mode === 'glow') {
-    // Existing behaviour — burst on scan-panel + checkin overlays + fullscreen holder.
-    const candidates = [
-      document.querySelector('.scan-panel.flash-success'),
-      document.querySelector('.checkin-success-overlay'),
-      document.querySelector('.scan-panel'),
-      document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder')
-    ].filter(Boolean);
-    candidates.forEach(function (el) {
-      el.classList.remove('cycling');
-      void el.offsetWidth;
-      el.classList.add('cycling');
-      setTimeout(function () { el.classList.remove('cycling'); }, ms);
-    });
+    triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-accept-glow', ms);
     return;
   }
 
   // For 'page' and 'pattern' celebration variants, target the QR canvas
-  // (.irlid-qr-fullscreen + #venueQRWrap) with a temporary class that runs the
+  // (fullscreen holder + #venueQRWrap) with a temporary class that runs the
   // appropriate one-shot animation. After the burst, the class is removed and
   // the canvas reverts to whatever the Background mode is doing.
-  const canvasTargets = [
-    document.querySelector('.irlid-qr-fullscreen.active'),
-    document.getElementById('venueQRWrap')
-  ].filter(Boolean);
+  const canvasTargets = cycleBurstTargets(false);
   const burstClass = 'cycle-burst-' + mode; // 'cycle-burst-page' or 'cycle-burst-pattern'
-  canvasTargets.forEach(function (el) {
-    el.classList.remove(burstClass);
-    void el.offsetWidth;
-    el.classList.add(burstClass);
-    setTimeout(function () { el.classList.remove(burstClass); }, ms);
-  });
+  triggerCycleClassOnTargets(canvasTargets, burstClass, ms);
+}
+
+function triggerDenyCycleAnimation() {
+  triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-deny-burst', denyCycleMs());
 }
 
 async function loadThemeFromServer() {
@@ -8074,6 +8279,8 @@ function wireThemePanel() {
 
   const previewBtn = document.getElementById('themePreviewAcceptCycle');
   if (previewBtn) previewBtn.addEventListener('click', previewAcceptCycle);
+  const previewDenyBtn = document.getElementById('themePreviewDenyCycle');
+  if (previewDenyBtn) previewDenyBtn.addEventListener('click', previewDenyCycle);
 
   const saveBtn = document.getElementById('themeSaveBtn');
   if (saveBtn) saveBtn.addEventListener('click', saveSettings);
