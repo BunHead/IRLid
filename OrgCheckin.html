@@ -735,6 +735,57 @@ body[data-prototype-role="staff"] .att-table .att-role-col { display: none; }
    Captain's vision: a chimp watching attendance scroll in like an airport
    arrivals board. */
 .post-resolution-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 1100; max-width: 92vw; }
+/* v5.9.0.13.6 — Check-in event banner. Big centre-screen confirmation. */
+.checkin-event-banner {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  z-index: 999999;
+  font-family: inherit;
+  font-size: clamp(28px, 6vmin, 64px);
+  font-weight: 700;
+  line-height: 1.05;
+  padding: 32px 56px;
+  border-radius: 24px;
+  background: rgba(15, 20, 28, 0.96);
+  color: #fff;
+  border: 4px solid #58a6ff;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.6), 0 0 80px rgba(88, 166, 255, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+  text-align: center;
+  max-width: 90vw;
+  letter-spacing: -0.01em;
+}
+.checkin-event-banner.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+.checkin-event-banner.hidden { display: none; }
+.checkin-event-banner .event-action {
+  display: block;
+  font-size: 0.45em;
+  font-weight: 500;
+  color: #58a6ff;
+  margin-top: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+.checkin-event-banner.event-out {
+  border-color: #f85149;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.6), 0 0 80px rgba(248, 81, 73, 0.5);
+}
+.checkin-event-banner.event-out .event-action { color: #ff7b72; }
+:root[data-theme="light"] .checkin-event-banner {
+  background: rgba(255, 255, 255, 0.98);
+  color: #1f2328;
+  border-color: #0969da;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.2), 0 0 80px rgba(9, 105, 218, 0.4);
+}
+:root[data-theme="light"] .checkin-event-banner .event-action { color: #0969da; }
+:root[data-theme="light"] .checkin-event-banner.event-out { border-color: #cf222e; box-shadow: 0 28px 90px rgba(0,0,0,0.2), 0 0 80px rgba(207, 34, 46, 0.4); }
+:root[data-theme="light"] .checkin-event-banner.event-out .event-action { color: #cf222e; }
 .post-resolution-toast.hidden { display: none; }
 .post-resolution-card { display: flex; align-items: center; gap: 14px; background: rgba(13,17,23,0.94); border: 1px solid var(--green); border-radius: 12px; padding: 14px 18px; box-shadow: 0 18px 60px rgba(0,0,0,0.55); backdrop-filter: blur(8px); }
 .post-resolution-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--green); color: #0a1408; font-weight: 800; font-size: 22px; flex: 0 0 36px; }
@@ -2911,7 +2962,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.6</span></div>
   </div>
 </div>
 
@@ -3833,6 +3884,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
      successfully binds/adds an attendee. 3s countdown then auto-redirect to
      scan.html so staff can scan the next chimp. "Stay on dashboard" cancels
      the redirect AND auto-enters audit mode (table-only fullscreen). -->
+<!-- v5.9.0.13.6 — Check-in event banner. Big, fixed centre-screen, fires on
+     every check-in / check-out event whether local or remote-poll-detected.
+     Forces unambiguous visual confirmation regardless of which CSS animation
+     layers are clipped or hidden. Captain's directive: "just print on screen
+     First name Surname checked in/out". -->
+<div class="checkin-event-banner hidden" id="checkinEventBanner" role="status" aria-live="polite" aria-hidden="true"></div>
 <div class="post-resolution-toast hidden" id="postResolutionToast" role="status" aria-live="polite">
   <div class="post-resolution-card">
     <div class="post-resolution-icon" aria-hidden="true">✓</div>
@@ -5515,41 +5572,86 @@ function updateRelativeRefresh() {
   const el = document.getElementById('lastRefresh');
   if (el) el.textContent = relativeRefreshText();
 }
-// v5.9.0.13.2 — Remote check-in poll + celebration trigger. The dashboard
-// doesn't otherwise know when an attendee scans the venue QR remotely
-// (their phone POSTs straight to the Worker; nothing pushes back to the
-// dashboard). This poll loop watches the highest check-in id and fires
-// triggerAcceptCycleAnimation() when a new id appears — but only when the
-// last dashboard-initiated check-in was >4s ago, so we don't double-fire
-// for events the dashboard already animated locally.
-let __lastSeenMaxCheckinId = null;
+// v5.9.0.13.2 — Remote check-in poll + celebration trigger.
+// v5.9.0.13.6 — Per-row event detection (check-in AND check-out) + visible
+// banner via showCheckinEventToast(). The dashboard doesn't otherwise know
+// when an attendee scans the venue QR remotely; this poll loop runs every
+// 4s, compares per-row snapshot, and emits an event for each new row
+// (check-in) or each newly-non-null checkout_at (check-out).
+let __seenRowSnapshot = new Map(); // id -> {checkout_at, name, score}
+let __seenSnapshotInitialised = false;
 let __lastDashboardCheckinAt = 0;
+let __lastToastEventId = null; // dedup against immediate-prior local toast
 let __remoteCheckinPollHandle = null;
 function markDashboardCheckin() { __lastDashboardCheckinAt = Date.now(); }
 window.markDashboardCheckin = markDashboardCheckin;
-function maxCheckinId(checkins) {
-  let max = 0;
-  for (const c of (checkins || [])) {
-    const id = Number(c && c.id);
-    if (id > max) max = id;
-  }
-  return max;
+
+function rowDisplayName(row) {
+  if (!row) return '';
+  const n = (row.name || row.attendee_label || '').toString().trim();
+  return n || '';
 }
+
+function showCheckinEventToast(name, action, opts) {
+  // v5.9.0.13.6 — Big centre-screen banner. Fires on every check-in event
+  // regardless of which animation layers are working. Designed as a
+  // diagnostic + demo signal: when this fires, the trigger is alive.
+  const banner = document.getElementById('checkinEventBanner');
+  if (!banner) { console.warn('[checkin-toast] banner element missing'); return; }
+  const displayName = (name || '').trim() || 'Anonymous';
+  const verb = action === 'out' ? 'checked OUT' : 'checked IN';
+  console.log('[checkin-toast] firing for', displayName, action);
+  banner.classList.remove('hidden', 'event-out');
+  if (action === 'out') banner.classList.add('event-out');
+  banner.innerHTML = escapeHtml(displayName) + '<span class="event-action">' + verb + '</span>';
+  banner.setAttribute('aria-hidden', 'false');
+  void banner.offsetWidth;
+  banner.classList.add('visible');
+  const ms = (opts && opts.holdMs) || 3000;
+  clearTimeout(banner._hideHandle);
+  banner._hideHandle = setTimeout(function () {
+    banner.classList.remove('visible');
+    setTimeout(function () { banner.classList.add('hidden'); banner.setAttribute('aria-hidden', 'true'); }, 260);
+  }, ms);
+}
+window.showCheckinEventToast = showCheckinEventToast;
+
 async function refreshAttendance() {
   if (!currentOrg) return;
   try {
     const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key);
     const checkins = payload.checkins || [];
-    const newMax = maxCheckinId(checkins);
-    // Baseline on first poll so we don't celebrate everything from page load.
-    if (__lastSeenMaxCheckinId === null) {
-      __lastSeenMaxCheckinId = newMax;
-    } else if (newMax > __lastSeenMaxCheckinId) {
+    // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
+    // everything without firing. Subsequent polls compare each row's current
+    // state against the snapshot and emit events for transitions.
+    const events = [];
+    const nextSnapshot = new Map();
+    for (const row of checkins) {
+      const id = row && row.id;
+      if (id == null) continue;
+      const prev = __seenRowSnapshot.get(id);
+      const curr = { checkout_at: row.checkout_at || null, name: rowDisplayName(row), id: id };
+      if (__seenSnapshotInitialised) {
+        if (!prev) {
+          // Fresh check-in row.
+          events.push({ type: 'in', name: rowDisplayName(row), id: id });
+        } else if (!prev.checkout_at && row.checkout_at) {
+          // Existing row got checkout_at set — check-out event.
+          events.push({ type: 'out', name: rowDisplayName(row) || prev.name, id: id });
+        }
+      }
+      nextSnapshot.set(id, curr);
+    }
+    __seenRowSnapshot = nextSnapshot;
+    __seenSnapshotInitialised = true;
+    if (events.length > 0) {
       const tooSoon = (Date.now() - __lastDashboardCheckinAt) < 4000;
-      __lastSeenMaxCheckinId = newMax;
       if (!tooSoon) {
-        // Remote path — fire without marking, so this counts as a true remote event.
-        try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+        events.forEach(function (ev) {
+          if (__lastToastEventId === ev.id) return; // dedupe vs local fire
+          showCheckinEventToast(ev.name, ev.type);
+          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch (_) {}
+        });
       }
     }
     attendanceStats = payload.stats || null;
@@ -5590,7 +5692,11 @@ function stopRemoteCheckinPoll() {
     clearInterval(__remoteCheckinPollHandle);
     __remoteCheckinPollHandle = null;
   }
-  __lastSeenMaxCheckinId = null; // reset baseline so next sign-in re-baselines
+  // Reset snapshot so next sign-in re-baselines without firing toasts for
+  // historical rows.
+  __seenRowSnapshot = new Map();
+  __seenSnapshotInitialised = false;
+  __lastToastEventId = null;
 }
 window.startRemoteCheckinPoll = startRemoteCheckinPoll;
 window.stopRemoteCheckinPoll = stopRemoteCheckinPoll;
@@ -6944,10 +7050,8 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     addQueuedCheckinRow(body, result);
     flashDoormanPanel('success');
     // v5.9.0.9 — fire celebration burst on recognised-device queued check-in.
-    // Mirrors the manualCheckin pattern at line ~6411. Captain reported the
-    // celebration animation "does nothing" — root cause was that production
-    // check-in paths (recognised + doorman) bypassed triggerAcceptCycleAnimation.
-    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
+    try { markDashboardCheckin(); showCheckinEventToast(expectedDisplayName(row), 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
     return;
   }
@@ -6955,7 +7059,8 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
   await refreshExpectedAttendees();
   flashDoormanPanel('success');
   // v5.9.0.9 — fire celebration burst on recognised-device completed check-in.
-  try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
+  try { markDashboardCheckin(); showCheckinEventToast(expectedDisplayName(recognition.row || row), 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   recognition.source === 'snapshot' ? console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
 }
 async function runDoormanCheckin(env) {
@@ -6987,7 +7092,8 @@ async function runDoormanCheckin(env) {
     addQueuedCheckinRow(body, result);
     flashDoormanPanel('walkin');
     // v5.9.0.9 — fire celebration burst on doorman queued check-in.
-    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    // v5.9.0.13.6 — also fire the big centre-screen banner.
+    try { markDashboardCheckin(); showCheckinEventToast('Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     showToast('Queued offline - will sync when reconnected.');
     return;
   }
@@ -6995,7 +7101,8 @@ async function runDoormanCheckin(env) {
   await refreshExpectedAttendees();
   flashDoormanPanel(result.linked ? 'success' : 'walkin');
   // v5.9.0.9 — fire celebration burst on doorman completed check-in (linked + walkin both qualify).
-  try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  // v5.9.0.13.6 — also fire the big centre-screen banner with the name if matched.
+  try { markDashboardCheckin(); showCheckinEventToast(result.expected_name || 'Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   showToast(result.linked ? 'Recognised attendee checked in' : 'Doorman scan recorded');
 }
 function refreshStaffAuthPanel() {
@@ -7132,7 +7239,8 @@ async function manualCheckin() {
     // both qualify (walkin is a softer success — recorded, not on expected list — but
     // still a positive outcome worth celebrating). Errors do NOT trigger; flashDoormanPanel
     // already handles the red flash for those.
-    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
+    try { markDashboardCheckin(); showCheckinEventToast(result.expected_name || label || 'Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     showToast('Check-in recorded');
   } catch (err) {
     flashDoormanPanel('error');
