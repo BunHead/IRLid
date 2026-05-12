@@ -1840,29 +1840,31 @@ button.theme-preview-button:focus-visible {
 .bg-pos-cell[data-pos="bottom-left"]  .bg-pos-dot { top: 91%; bottom: auto; left: 9%;  transform: translate(-50%, -50%); }
 .bg-pos-cell[data-pos="bottom"]       .bg-pos-dot { top: 91%; bottom: auto; left: 50%;  transform: translate(-50%, -50%); }
 .bg-pos-cell[data-pos="bottom-right"] .bg-pos-dot { top: 91%; bottom: auto; left: 91%; right: auto; transform: translate(-50%, -50%); }
-/* v5.7.1z — Centre anchor rewritten to use percentage + transform so the
-   dot CENTER (not top-left corner) lands at 33%/67% positions. Combined
-   with Inner (50%/50% transform-centred), this gives even 8px steps
-   between Outer → Centre → Inner dot centers on a 48px cell:
-   Outer dot centre at ~8px from edge, Centre at 16px, Inner at 24px.
-   v5.7.1y's 16px pixel offset put Centre's dot center at ~20px, only
-   ~4px from Inner's 24px — visually indistinguishable per Captain. */
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-left"]     .bg-pos-dot { top: 30%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top"]          .bg-pos-dot { top: 33%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="top-right"]    .bg-pos-dot { top: 30%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="left"]         .bg-pos-dot { top: 50%; left: 33%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="right"]        .bg-pos-dot { top: 50%; left: 67%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-left"]  .bg-pos-dot { top: 70%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom"]       .bg-pos-dot { top: 67%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-right"] .bg-pos-dot { top: 70%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top-left"]     .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top"]          .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="top-right"]    .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="left"]         .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="right"]        .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-left"]  .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom"]       .bg-pos-dot,
-.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[aria-pressed="true"][data-pos="bottom-right"] .bg-pos-dot {
+/* v5.9.0.13.1 — All 9 dots track anchor depth together so the picker
+   functions as a TRUE preview grid: at a glance you see where the image
+   lands in each of the 9 positions for the currently-chosen anchor.
+   Pre-v5.9.0.13.1 the rules were scoped to [aria-pressed="true"] so only
+   the selected cell's dot moved when anchor changed — Captain's "Outer/
+   Centre/Inner still only moves towards centre" report. Watch-close
+   finding #2.
+   v5.7.1z spacing retained: Outer dot centre at ~8px from cell edge,
+   Centre at ~16px, Inner at the cell centre (24px on a 48px cell). */
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="top-left"]     .bg-pos-dot { top: 30%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="top"]          .bg-pos-dot { top: 33%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="top-right"]    .bg-pos-dot { top: 30%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="left"]         .bg-pos-dot { top: 50%; left: 33%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="right"]        .bg-pos-dot { top: 50%; left: 67%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="bottom-left"]  .bg-pos-dot { top: 70%; left: 30%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="bottom"]       .bg-pos-dot { top: 67%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="centre"] .bg-pos-cell[data-pos="bottom-right"] .bg-pos-dot { top: 70%; left: 70%; right: auto; bottom: auto; transform: translate(-50%, -50%); }
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="top-left"]     .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="top"]          .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="top-right"]    .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="left"]         .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="right"]        .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="bottom-left"]  .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="bottom"]       .bg-pos-dot,
+.bg-pos-grid[data-anchor="inner"] .bg-pos-cell[data-pos="bottom-right"] .bg-pos-dot {
   top: 50%; left: 50%; right: auto; bottom: auto; transform: translate(-50%, -50%);
 }
 /* v5.7.1z — display: flex (was inline-flex) + justify-content: space-between
@@ -2320,11 +2322,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst,
 body #venueQRWrap.cycle-accept-glow,
 body #venueQRWrap.cycle-burst-page,
 body #venueQRWrap.cycle-burst-pattern,
-body #venueQRWrap.cycle-deny-burst,
-.theme-preview-qr-cycle.cycle-accept-glow,
-.theme-preview-qr-cycle.cycle-deny-burst {
+body #venueQRWrap.cycle-deny-burst {
   position: relative;
 }
+/* v5.9.0.13.1 — Preview chip must stay position:absolute (line 1582) so
+   its ::before/::after halo ring overlays the chip via inset:-4px. The
+   previous rule above forced position:relative on the preview chip too,
+   which dropped it back into normal flow and made the halo render BELOW
+   the chip instead of around it. Captain's watch-close finding #1. */
 body .irlid-qr-fullscreen.cycle-burst-page,
 body .irlid-qr-fullscreen-holder.cycle-accept-glow,
 body .irlid-qr-fullscreen-holder.cycle-burst-page,
@@ -2551,7 +2556,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.1</span></div>
   </div>
 </div>
 
