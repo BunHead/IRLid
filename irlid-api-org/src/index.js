@@ -984,8 +984,7 @@ async function orgLoginPoll(request, env) {
 
   // Developer can always create new orgs; lead_admin can also create new orgs (§14.9).
   // Bootstrap dev with no orgs yet still gets can_create_org: true.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const is_developer = !!bootstrapFp && user.pub_fp === bootstrapFp;
+  const is_developer = isBootstrapDeveloperFp(env, user.pub_fp);
   const can_create_org = is_developer
     || orgs.some(o => o.role === "developer" || o.role === "lead_admin");
 
@@ -1074,11 +1073,12 @@ async function orgLoginClaim(request, env) {
   ).bind(fp).first();
 
   if (!user) {
-    // Not a known user. Permitted only if this fp matches BOOTSTRAP_DEVELOPER_FP (§14.6).
-    const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-    if (!bootstrapFp || fp !== bootstrapFp) {
+    // Not a known user. Permitted only if this fp is in BOOTSTRAP_DEVELOPER_FP (§14.6).
+    // Multi-fp (v5.9.0.13.26): secret is comma-separated; any listed fp counts.
+    const bootstrapFps = bootstrapDeveloperFps(env);
+    if (bootstrapFps.length === 0 || !bootstrapFps.includes(fp)) {
       // TEST-ENV DEBUG: include diagnostic detail so Captain can see WHICH path
-      // failed (no bootstrap fp set vs fp != bootstrap fp). Production v5.5 will
+      // failed (no bootstrap fp set vs fp != any configured fp). Production v5.5 will
       // restore the generic auth_failed per §14.10.
       const newFails = (challenge.fail_count || 0) + 1;
       if (newFails >= LOGIN_CLAIM_FAIL_LIMIT) {
@@ -1090,12 +1090,15 @@ async function orgLoginClaim(request, env) {
         await env.DB.prepare(
           "UPDATE login_challenges SET fail_count = ? WHERE nonce = ?"
         ).bind(newFails, nonce).run();
+        const rawLen = (env.BOOTSTRAP_DEVELOPER_FP || "").length;
+        const firstFp = bootstrapFps[0] || "";
         return genericAuthFailed(env, {
-          debug_reason: !bootstrapFp ? "no_bootstrap_fp_configured" : "fp_mismatch",
+          debug_reason: bootstrapFps.length === 0 ? "no_bootstrap_fp_configured" : "fp_mismatch",
           debug_computed_fp: fp,
-          debug_bootstrap_fp_len: bootstrapFp ? bootstrapFp.length : 0,
-          debug_bootstrap_fp_first4: bootstrapFp ? bootstrapFp.slice(0, 4) : "",
-          debug_bootstrap_fp_last4: bootstrapFp ? bootstrapFp.slice(-4) : ""
+          debug_bootstrap_fp_count: bootstrapFps.length,
+          debug_bootstrap_fp_total_len: rawLen,
+          debug_bootstrap_fp_first_first4: firstFp.slice(0, 4),
+          debug_bootstrap_fp_first_last4: firstFp.slice(-4)
         });
       }
     }
@@ -1199,8 +1202,7 @@ async function userListOrgs(request, env) {
   // implicit_membership: true so the UI can label the difference (e.g. "(dev access)").
   // Captain's 4 May expectation that "developer" means "super admin who can fix any
   // org" — confirmed in spec, now matched in implementation.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, user.pub_fp);
   if (isBootstrapDev) {
     const ownIds = new Set(orgs.map(o => o.id));
     const allOrgs = await env.DB.prepare(
@@ -1246,8 +1248,7 @@ async function userCreateOrg(request, env) {
   if (websiteUrl && !/^https?:\/\/[^\s]{3,}$/i.test(websiteUrl)) return err("website_url must be a valid http(s) URL or omitted");
 
   // Authorization check: developer OR has lead_admin/developer role somewhere.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, user.pub_fp);
   let hasAdminRole = false;
   if (!isBootstrapDev) {
     const elevated = await env.DB.prepare(
@@ -1320,8 +1321,7 @@ async function requireOrgThemeAdmin(request, env, orgId) {
     .bind(orgId).first();
   if (!org) return { error: json({ error: "org_not_found" }, 404) };
 
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && ctx.user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, ctx.user.pub_fp);
   if (isBootstrapDev) return { user: ctx.user, org, role: "developer" };
 
   const membership = await env.DB.prepare(
@@ -1939,16 +1939,36 @@ async function bootstrapDeveloperFromBearer(request, env) {
 
   const ctx = await requireSession(request, env);
   if (ctx.error) return null;
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  if (bootstrapFp && ctx.user && ctx.user.pub_fp === bootstrapFp) return ctx.user;
+  if (ctx.user && isBootstrapDeveloperFp(env, ctx.user.pub_fp)) return ctx.user;
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOTSTRAP_DEVELOPER_FP helpers (v5.9.0.13.26 — multi-fp support)
+//
+// The secret accepts a comma-separated list of pub_fps. Each non-empty trimmed
+// fp is recognised as developer-tier. Whitespace-around-comma tolerant. Empty
+// or single-fp secrets behave identically to the pre-multi-fp form, so this
+// is a strict superset of the previous semantics — no migration needed.
+// History: secret was hit twice by the Ctrl+V → 0x16 SYN trap (4 May test env,
+// 10 May live). Multi-fp keeps that diagnostic surface (total length + count)
+// in the test-env debug fields.
+// ─────────────────────────────────────────────────────────────────────────────
+function bootstrapDeveloperFps(env) {
+  return (env.BOOTSTRAP_DEVELOPER_FP || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+function isBootstrapDeveloperFp(env, pub_fp) {
+  if (!pub_fp) return false;
+  return bootstrapDeveloperFps(env).includes(pub_fp);
 }
 
 async function roleForStaffPubFp(env, org, staffPubFp) {
   const fp = String(staffPubFp || "").trim();
   if (!fp) return "staff";
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  if (bootstrapFp && fp === bootstrapFp) return "developer";
+  if (isBootstrapDeveloperFp(env, fp)) return "developer";
 
   const user = await env.DB.prepare(
     "SELECT id FROM portal_users WHERE pub_fp=?"
@@ -2217,8 +2237,7 @@ async function orgDebugClearAttendance(request, env) {
       const ctx = await requireSession(request, env);
       if (!ctx.error) {
         const user = ctx.user;
-        const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-        if (bootstrapFp && user.pub_fp === bootstrapFp) {
+        if (isBootstrapDeveloperFp(env, user.pub_fp)) {
           allowed = true; // Developer — clear any org
         } else {
           // Lead Admin / Developer membership of the requested org.

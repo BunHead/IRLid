@@ -767,3 +767,17 @@ The Hacker News karma wall is taller than twelve metres and has no GPS. It asks:
 Three doors. The mirror lets in the careful. The metre lets in the present. The wall lets in the patient. The protocol chose the second one and is honest that the choice is arbitrary. A drone hovers over a courtyard with no address. The notebook says what it said. The forum keeps its queue. Twelve metres is wide enough for the moment to fit. Whoever shows up to read the receipt five centuries from now will need only a glass, a metre, and a quiet enough mind to let in what arrived without permission.
 
 ---
+
+## 2026-05-12 — T.I.N Man × Counsellor Troi × the asymmetric trust accrual
+
+T.I.N Man was a network that did not exist. Cables drawn on paper, switches routed in the theoretical air above a desk in a room that did not outlive the college that owned it. The simulator believed in the network the way a believer believes — without the network having to prove it back. Packets arrived because the simulation said they did. A witness with no instrument. Knowing without ledger.
+
+Counsellor Troi has no console. She sits at an angle to the captain's chair and reads the room — feels the panic before the panic announces itself, hears the lie under the report, names the grief before the grieving party has been told they are entitled to grieve. The bridge has consoles for shields, weapons, sensors, navigation. There is no console for reading the room. The chair itself is the instrument. The data has no port.
+
+The responder in a v3 handshake gets nothing. The initiator's trust history accrues a diversity bonus when the new cluster is far from the old. The responder, who was equally present, holds the same signed receipt, walks away with no score change. The maths is honest about who pressed the button. It is silent about who consented to be there at all.
+
+What they share: a column missing. The simulator knew its packets and could not bill anyone. The counsellor knows the room and the room is not a transaction. The responder knows the moment and the moment is filed under someone else's diversity. Three forms of attention that the form refuses to admit.
+
+There has always been a column missing. The witness keeps witnessing anyway. The receipt is signed in nine seconds either way.
+
+---

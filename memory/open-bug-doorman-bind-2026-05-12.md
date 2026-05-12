@@ -1,7 +1,43 @@
-# Open Bug — Doorman bind silently fails after clicking OK
+# Doorman bind — desktop path RESOLVED 12 May 19:00; phone-side dev-recognition outstanding
 
-**Last updated:** 12 May 2026, late evening — by Number One, demo-eve close.
-**Demo is Wednesday 13 May.** **Blocks "fresh attendee scans → staff binds at the door" flow.**
+**Last updated:** 12 May 2026, ~19:00 — desktop path proven end-to-end on v5.9.0.13.25.
+**Status:** RESOLVED for the demo. Two independent fresh-bind successes on the same code.
+
+## Resolution summary
+
+The ~2am dossier suggested Worker `.25` might not have deployed — that hypothesis was wrong. `wrangler tail` showed live `attendance` polls and bind POSTs all firing through the deployed Worker. The real story: the bind itself works fine via the **desktop dashboard** path (paste orange-QR text or upload screenshot into Process scan widget → escalation modal opens → Choose-from-List or Add-at-the-door → confirm OK → 200 OK, row appears).
+
+**Successful binds 12 May evening:**
+- **Poppy Austin** (Captain's daughter, fresh Android phone) — bound 18:43, scan_count=2 within 60 seconds of bind. Old screenshot from Captain's recycle bin worked as the orange-QR source.
+- **Kerry Austin** — Captain deleted Kerry's binding to re-test, re-bound clean at 19:01, scan_count=2.
+
+Wrangler tail throughout: 20+ `GET /org/attendance — Ok` lines, every dashboard action accounted for. Worker `.25` is live; `bootstrapDeveloperFromBearer` accepts org_-prefixed Bearer as developer-tier as designed.
+
+**What the ~2am session got wrong:**
+- Hypothesis 1 (Worker .25 not deployed) — wrong; it WAS deployed.
+- Hypothesis 5 (silent JS exception) — wrong; no exception, the bind just needed a real envelope from a phone (the localStorage `irlid_last_device_key_b64` diagnostic the previous Number One suggested testing on desktop was empty because that key only gets set on the phone-side `org-entry.html`, not on the desktop OrgCheckin).
+- The blocker was diagnostic-flow error, not code error. Once Captain had a real orange-QR image to paste, the path flowed first try.
+
+## Phone-side bind — still fails, but not on the critical path
+
+Captain tried the same flow from his Pixel 8 Pro and got `Staff HELLO proof cancelled` after the "Add at the door" tab confirm.
+
+**Root cause:** the 8 Pro's WebAuthn credential on `irlid.co.uk` RP-ID has pub_fp `65u-S-W_NFxr8u1L`. The Worker's `BOOTSTRAP_DEVELOPER_FP` secret is `TvklFsivZk68R67j` — that's Captain's **desktop** browser's pub_fp. So on the 8 Pro he authenticates as a regular Bearer session (not developer-tier), and the bind endpoint falls through to `requireFreshStaffProof` → frontend prompts for Staff HELLO → Chrome auto-cancels (or Captain cancels) → bind aborts.
+
+**This is auth asymmetry, not a bug.** Desktop browser is developer-tier; phone is not. The Worker's `BOOTSTRAP_DEVELOPER_FP` is currently a single string, not a list.
+
+**Workaround for demo:** doorman scans get processed from the desktop dashboard. Staff phones are still useful for scanning the orange QR via camera app and handing off via `scan.html` deep link — that hand-off lands the staff_scan on the desktop, where the actual bind happens.
+
+**Post-demo fix candidates:**
+1. **Multi-fp `BOOTSTRAP_DEVELOPER_FP`** — accept comma-separated list of pub_fps. Simplest; lets Captain enrol his phone as a second developer credential. Worker change: `(env.BOOTSTRAP_DEVELOPER_FP || "").split(",").map(s => s.trim()).includes(pub_fp)`.
+2. **D1-backed developer roster** — `developer_pub_fps` table, no Worker redeploy to add new devs. Slightly more architecture for the same outcome.
+3. **Org-member developer role inheritance** — Captain already has a `developer` row in `org_memberships` on Test Event. If `requireDevOrStaffSession` ALSO accepted an existing `developer` membership for the Bearer-resolved session's user, the 8 Pro would inherit developer auth from its session, no fp gymnastics needed. Probably the cleanest answer — bootstrap fp is the foothold, the membership row carries developer authority across devices.
+
+Option 3 is what `§14` actually implies; the bootstrap fp is meant to be the foothold, not the permanent ID.
+
+## Historical diagnostic dossier (kept for reference)
+
+Everything below this line was the ~2am dossier. Worth keeping for the wrangler-tail-as-first-check pattern, the Network-tab triage table, and the workaround options that were drafted in case desktop also failed. None of it is current advice — start with the resolution summary above.
 
 ---
 
