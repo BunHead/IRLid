@@ -1602,7 +1602,8 @@ async function orgUpdateSettings(request, env) {
                   || validateSubEffect("bg",      c.bg,      { sweep: BG_SWEEPS })
                   || validateSubEffect("qr",      c.qr,      { motion: QR_MOTIONS })
                   || validateSubEffect("glow",    c.glow,    { thickness: GLOW_THICKS, sweep: GLOW_SWEEPS, centrePulse: GLOW_CENTRES, saturation: GLOW_SATS })
-                  || validateSubEffect("pattern", c.pattern, { pattern: PATTERNS });
+                  || validateSubEffect("pattern", c.pattern, { pattern: PATTERNS })
+                  || validateSubEffect("text",    c.text,    {}); // v5.9.0.13.13 simple on/off; no enum fields yet
       if (subErr) return subErr;
     }
     // Batch 6.5b — animation speed controls

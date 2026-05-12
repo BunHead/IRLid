@@ -2121,6 +2121,46 @@ body #venueQRWrap.celebration-pulse.celebration-pulse--strong,
 .celebration-bg-overlay.firing.firing-thrice {
   animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3;
 }
+/* v5.9.0.13.13 — Text effect overlay. Big centre-screen text with fade-in
+   scale-up, brief hold, fade-out. Mr. Data brief will add position/size
+   controls; for now defaults to centre + 56px. */
+@keyframes celebrationTextBurst {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  35%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  72%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}
+.celebration-text-overlay {
+  position: fixed;
+  top: 50%; left: 50%;
+  z-index: 999997;
+  font-family: inherit;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 18px var(--theme-cycle-3, var(--theme-primary));
+  pointer-events: none;
+  text-align: center;
+  max-width: 92vw;
+  letter-spacing: -0.01em;
+  font-size: clamp(36px, 6vw, 80px);
+  line-height: 1.05;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.7);
+  display: none;
+}
+.celebration-text-overlay.firing { display: block; animation: celebrationTextBurst var(--theme-cycle-anim-duration, 1.4s) ease-out 1; }
+.celebration-text-overlay.event-out { text-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 18px #f85149; }
+.celebration-text-overlay .event-action {
+  display: block;
+  font-size: 0.45em;
+  font-weight: 500;
+  color: var(--theme-cycle-3, var(--theme-primary));
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+}
+.celebration-text-overlay.event-out .event-action { color: #ff7b72; }
 /* Preview chip — still gets its own bg cycle as a local indicator. */
 .theme-preview-qr-cycle.celebration-bg { animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
 .theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
@@ -3050,7 +3090,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.13</span></div>
   </div>
 </div>
 
@@ -3773,6 +3813,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                         </div>
                       </div>
 
+                      <!-- v5.9.0.13.13 — Text effect (simple on/off). Mr. Data brief
+                           HANDOVER-CelebrationTextAndIntensity.md will extend this
+                           with template/position/size toggles. For now, fixed
+                           greeting "{name} checked in/out" centre-screen. -->
+                      <div class="celebration-effect" id="celebEffectText">
+                        <label class="celebration-summary" for="celebTextEnabled">
+                          <input type="checkbox" id="celebTextEnabled" />
+                          <span class="celebration-name">Text</span>
+                          <span class="celebration-desc">Large attendee name + action briefly displays on screen.</span>
+                        </label>
+                      </div>
+
                       <div class="celebration-effect" id="celebEffectPattern">
                         <label class="celebration-summary" for="celebPatternEnabled">
                           <input type="checkbox" id="celebPatternEnabled" />
@@ -3980,6 +4032,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
      real DOM element with explicit class control is bulletproof. Trigger adds
      '.firing' (+ '.firing-thrice' for triple-sweep) to start the animation. -->
 <div class="celebration-bg-overlay" id="celebrationBgOverlay" aria-hidden="true"></div>
+<!-- v5.9.0.13.13 — Text effect overlay. Big centre-screen attendee name +
+     action verb. Simple on/off for now; Mr. Data brief extends with template/
+     position/size toggles. Fixed greeting format until then. -->
+<div class="celebration-text-overlay" id="celebrationTextOverlay" aria-hidden="true"></div>
 <div class="post-resolution-toast hidden" id="postResolutionToast" role="status" aria-live="polite">
   <div class="post-resolution-card">
     <div class="post-resolution-icon" aria-hidden="true">✓</div>
@@ -5743,7 +5799,7 @@ async function refreshAttendance() {
         events.forEach(function (ev) {
           if (__lastToastEventId === ev.id) { console.log('[poll] skipping dup event for id', ev.id); return; }
           showCheckinEventToast(ev.name, ev.type);
-          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch (_) {}
+          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name); } catch (_) {}
         });
       }
     }
@@ -7144,7 +7200,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     flashDoormanPanel('success');
     // v5.9.0.9 — fire celebration burst on recognised-device queued check-in.
     // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
-    try { markDashboardCheckin(); showCheckinEventToast(expectedDisplayName(row), 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); const __nm = expectedDisplayName(row); showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
     console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
     return;
   }
@@ -7153,7 +7209,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
   flashDoormanPanel('success');
   // v5.9.0.9 — fire celebration burst on recognised-device completed check-in.
   // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
-  try { markDashboardCheckin(); showCheckinEventToast(expectedDisplayName(recognition.row || row), 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  try { markDashboardCheckin(); const __nm = expectedDisplayName(recognition.row || row); showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
   recognition.source === 'snapshot' ? console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
 }
 async function runDoormanCheckin(env) {
@@ -7186,7 +7242,7 @@ async function runDoormanCheckin(env) {
     flashDoormanPanel('walkin');
     // v5.9.0.9 — fire celebration burst on doorman queued check-in.
     // v5.9.0.13.6 — also fire the big centre-screen banner.
-    try { markDashboardCheckin(); showCheckinEventToast('Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); showCheckinEventToast('Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation('Walk-in'); } catch(_) {}
     showToast('Queued offline - will sync when reconnected.');
     return;
   }
@@ -7195,7 +7251,7 @@ async function runDoormanCheckin(env) {
   flashDoormanPanel(result.linked ? 'success' : 'walkin');
   // v5.9.0.9 — fire celebration burst on doorman completed check-in (linked + walkin both qualify).
   // v5.9.0.13.6 — also fire the big centre-screen banner with the name if matched.
-  try { markDashboardCheckin(); showCheckinEventToast(result.expected_name || 'Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  try { markDashboardCheckin(); const __nm = result.expected_name || 'Walk-in'; showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
   showToast(result.linked ? 'Recognised attendee checked in' : 'Doorman scan recorded');
 }
 function refreshStaffAuthPanel() {
@@ -7333,7 +7389,7 @@ async function manualCheckin() {
     // still a positive outcome worth celebrating). Errors do NOT trigger; flashDoormanPanel
     // already handles the red flash for those.
     // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
-    try { markDashboardCheckin(); showCheckinEventToast(result.expected_name || label || 'Walk-in', 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); const __nm = result.expected_name || label || 'Walk-in'; showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
     showToast('Check-in recorded');
   } catch (err) {
     flashDoormanPanel('error');
@@ -8417,7 +8473,8 @@ const THEME_DEFAULTS = {
     bg:      { enabled: false, sweep: 'once' },
     qr:      { enabled: false, motion: 'wobble' },
     glow:    { enabled: true,  thickness: 'medium', sweep: 'outward', centrePulse: 'on', saturation: 'vivid' },
-    pattern: { enabled: false, pattern: 'dots' }
+    pattern: { enabled: false, pattern: 'dots' },
+    text:    { enabled: false } // v5.9.0.13.13 — simple on/off; Mr. Data brief extends with template/position/size
   }
 };
 const CELEB_PULSE_COLOURS = ['single','cycle'];
@@ -8442,7 +8499,8 @@ function normaliseCelebration(t) {
       bg:      { ...def.bg },
       qr:      { ...def.qr },
       glow:    { ...def.glow,    enabled: false },
-      pattern: { ...def.pattern }
+      pattern: { ...def.pattern },
+      text:    { ...def.text }
     };
     if (mode === 'simple')      seed.pulse.enabled = true;
     else if (mode === 'page')   { seed.bg.enabled = true; seed.glow.enabled = true; }
@@ -8476,6 +8534,9 @@ function normaliseCelebration(t) {
     pattern: {
       enabled: src.pattern && src.pattern.enabled === true,
       pattern: pickEnum(src.pattern && src.pattern.pattern, CELEB_PATTERNS, def.pattern.pattern)
+    },
+    text: {
+      enabled: src.text && src.text.enabled === true
     }
   };
 }
@@ -8589,8 +8650,15 @@ function applyThemeVars(theme) {
   // Batch 6.5d — expose qrFg globally so qr.js + qr-fullscreen.js can read it
   // without having to import this scope. Default '#000000' is preserved.
   window.IRLID_THEME_QR_FG = theme.qrFg || '#000000';
+  // v5.9.0.13.13 — Wrap palette around if shorter than 7. Without this, a
+  // 1-colour palette would only set cycle-1; cycle-2..7 keep their CSS root
+  // defaults (red/orange/yellow/green/blue/purple/pink) and bleed through
+  // animations. Captain: "seems like red is a default 2nd colour". Wrap so
+  // palette = [green] → all 7 cycle-N = green; palette = [red,blue] → cycle
+  // alternates red/blue/red/blue/etc.
+  const paletteLen = (theme.palette && theme.palette.length) || 0;
   for (let i = 0; i < 7; i++) {
-    const c = theme.palette[i] || theme.primary;
+    const c = paletteLen > 0 ? (theme.palette[i % paletteLen] || theme.primary) : theme.primary;
     root.style.setProperty('--theme-cycle-' + (i+1), c);
   }
   let mode = theme.darkMode;
@@ -8847,6 +8915,10 @@ function previewAcceptCycle() {
     }
     // Show the test toast so Captain can see the full feedback in preview.
     try { showCheckinEventToast('Test Attendee', 'in'); } catch (_) {}
+    // v5.9.0.13.13 — fire text overlay if Text effect enabled.
+    if (celeb.text && celeb.text.enabled) {
+      try { fireCelebrationTextOverlay('Test Attendee', 'in'); } catch (_) {}
+    }
     return;
   }
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
@@ -8940,7 +9012,26 @@ function buildCelebrationClassList() {
   return classes;
 }
 
-function triggerAcceptCycleAnimation() {
+// v5.9.0.13.13 — Text overlay helper. Fires the big centre-screen attendee
+// name + verb when the Text effect is enabled. Caller passes the attendee
+// name; falls back to 'Anonymous' if empty.
+function fireCelebrationTextOverlay(name, action) {
+  const overlay = document.getElementById('celebrationTextOverlay');
+  if (!overlay) return;
+  const displayName = (name || '').trim() || 'Anonymous';
+  const verb = action === 'out' ? 'checked OUT' : 'checked IN';
+  overlay.classList.remove('firing', 'event-out');
+  if (action === 'out') overlay.classList.add('event-out');
+  overlay.innerHTML = escapeHtml(displayName) + '<span class="event-action">' + verb + '</span>';
+  void overlay.offsetWidth;
+  overlay.classList.add('firing');
+  const ms = acceptCycleMs();
+  clearTimeout(overlay._hideHandle);
+  overlay._hideHandle = setTimeout(function () { overlay.classList.remove('firing'); }, ms);
+}
+window.fireCelebrationTextOverlay = fireCelebrationTextOverlay;
+
+function triggerAcceptCycleAnimation(attendeeName) {
   // Public hook — call this from check-in success paths to fire the celebration.
   // v5.9.0.13.3 — Layered effect architecture. activeTheme.celebration is a
   // nested object with per-effect enabled flags + variant selectors. Every
@@ -8979,6 +9070,10 @@ function triggerAcceptCycleAnimation() {
         if (celeb.bg.sweep === 'thrice') bgOverlay.classList.add('firing-thrice');
         console.log('[celebration] page-bg overlay fired, classList:', bgOverlay.className);
         setTimeout(function () { bgOverlay.classList.remove('firing', 'firing-thrice'); }, ms);
+      }
+      // v5.9.0.13.13 — Text effect fires the centre-screen text overlay.
+      if (celeb.text && celeb.text.enabled) {
+        fireCelebrationTextOverlay(attendeeName, 'in');
       }
       setTimeout(function () { document.body.classList.remove('celebration-firing'); }, ms);
     } catch (_) {}
@@ -9067,7 +9162,8 @@ function writeThemeToUI() {
       { eff: 'bg',      cbId: 'celebBgEnabled',      detId: 'celebEffectBg'      },
       { eff: 'qr',      cbId: 'celebQrEnabled',      detId: 'celebEffectQr'      },
       { eff: 'glow',    cbId: 'celebGlowEnabled',    detId: 'celebEffectGlow'    },
-      { eff: 'pattern', cbId: 'celebPatternEnabled', detId: 'celebEffectPattern' }
+      { eff: 'pattern', cbId: 'celebPatternEnabled', detId: 'celebEffectPattern' },
+      { eff: 'text',    cbId: 'celebTextEnabled',    detId: 'celebEffectText'    }
     ];
     CEL_UI_MAP.forEach(function (m) {
       const cb = document.getElementById(m.cbId);
@@ -9197,6 +9293,7 @@ function wireThemePanel() {
   wireCelebrationEffect('celebQrEnabled',      'celebEffectQr',      'qr');
   wireCelebrationEffect('celebGlowEnabled',    'celebEffectGlow',    'glow');
   wireCelebrationEffect('celebPatternEnabled', 'celebEffectPattern', 'pattern');
+  wireCelebrationEffect('celebTextEnabled',    'celebEffectText',    'text'); // v5.9.0.13.13
 
   // Chip-group wiring. data-celeb-toggle="pulseColour" → activeTheme.celebration.pulse.colourSource
   const CHIP_TOGGLE_MAP = {
