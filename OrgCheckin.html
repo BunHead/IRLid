@@ -2962,7 +2962,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.7</span></div>
   </div>
 </div>
 
@@ -5624,6 +5624,7 @@ async function refreshAttendance() {
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
     // everything without firing. Subsequent polls compare each row's current
     // state against the snapshot and emit events for transitions.
+    // v5.9.0.13.7 — verbose diagnostic so we can see what the poll sees.
     const events = [];
     const nextSnapshot = new Map();
     for (const row of checkins) {
@@ -5642,13 +5643,15 @@ async function refreshAttendance() {
       }
       nextSnapshot.set(id, curr);
     }
+    console.log('[poll]', new Date().toISOString().slice(11,19), 'rows:', checkins.length, 'initialised:', __seenSnapshotInitialised, 'events:', events.length, events.length ? events : '');
     __seenRowSnapshot = nextSnapshot;
     __seenSnapshotInitialised = true;
     if (events.length > 0) {
       const tooSoon = (Date.now() - __lastDashboardCheckinAt) < 4000;
+      console.log('[poll] events detected. tooSoon (dashboard-local fired recently):', tooSoon);
       if (!tooSoon) {
         events.forEach(function (ev) {
-          if (__lastToastEventId === ev.id) return; // dedupe vs local fire
+          if (__lastToastEventId === ev.id) { console.log('[poll] skipping dup event for id', ev.id); return; }
           showCheckinEventToast(ev.name, ev.type);
           try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch (_) {}
         });
