@@ -2102,15 +2102,26 @@ body #venueQRWrap.celebration-qr .qr-box,
    container's overflow:hidden clips the ::before conic ring, the element's
    own box-shadow extends outside and is visible. */
 @keyframes celebrationGlowEnvelope {
-  0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
-  20%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-primary)), 0 0 64px 22px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.018); }
-  60%  { box-shadow: 0 0 0 24px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), 0 0 96px 32px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.022); }
-  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  /* v5.9.0.13.5 — Hybrid outer + inset box-shadow so the halo is visible
+     both on non-clipping parents (small QR on Check-in panel) AND on
+     clipping parents (.irlid-qr-fullscreen with overflow:hidden). The inset
+     channel renders INSIDE the element, so it survives even when outer
+     shadows get clipped. Modelled on the legacy themeAcceptCycle keyframe
+     pattern that's been working in production since v4. */
+  0%   { box-shadow: 0 0 0 0 transparent,           0 0 0 0 transparent,           inset 0 0 0 0 transparent; transform: scale(1); }
+  20%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-primary)), 0 0 64px 22px var(--theme-cycle-3, var(--theme-primary)), inset 0 0 0 14px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.018); }
+  60%  { box-shadow: 0 0 0 26px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), 0 0 96px 32px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), inset 0 0 0 20px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.022); }
+  100% { box-shadow: 0 0 0 0 transparent,           0 0 0 0 transparent,           inset 0 0 0 0 transparent; transform: scale(1); }
 }
 body .irlid-qr-fullscreen-holder.celebration-glow,
-body #venueQRWrap.celebration-glow,
-.theme-preview-qr-cycle.celebration-glow {
+body #venueQRWrap.celebration-glow {
   position: relative;
+  animation: celebrationGlowEnvelope var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+/* v5.9.0.13.5 — Preview chip keeps its base position:absolute (line 1582)
+   so the chip stays overlaid on the small QR preview. Only the animation
+   needs to apply; no position override here. */
+.theme-preview-qr-cycle.celebration-glow {
   animation: celebrationGlowEnvelope var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 body .irlid-qr-fullscreen-holder.celebration-glow::before,
@@ -2204,6 +2215,25 @@ body #venueQRWrap.celebration-pattern::after,
 .celebration-pattern.celebration-pattern--weave     { --celeb-pattern-image: repeating-linear-gradient(0deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px), repeating-linear-gradient(90deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px); }
 .celebration-pattern.celebration-pattern--chevron   { --celeb-pattern-image: linear-gradient(135deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0, linear-gradient(225deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0; --celeb-pattern-size: 18px 18px; }
 .celebration-pattern.celebration-pattern--isometric { --celeb-pattern-image: linear-gradient(30deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%), linear-gradient(150deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%); --celeb-pattern-size: 24px 24px; }
+/* v5.9.0.13.5 — body-level unmissable visual feedback. Adds a brief
+   viewport-edge halo using inset box-shadow on a sibling pseudo. Survives
+   any parent clipping because it's anchored to <body>. Used as a debug +
+   reassurance signal: even if per-element halo gets clipped, this fires. */
+@keyframes celebrationBodyFlash {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+body.celebration-firing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999998;
+  box-shadow: inset 0 0 0 8px var(--theme-cycle-3, #2f81f7), inset 0 0 64px 12px var(--theme-cycle-3, #2f81f7);
+  opacity: 0;
+  animation: celebrationBodyFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
 /* === /Effect-layer animations ============================== */
 
 .bg-anchor-btn:hover { color: var(--text, #e6edf3); }
@@ -2881,7 +2911,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.5</span></div>
   </div>
 </div>
 
@@ -8692,6 +8722,16 @@ function triggerAcceptCycleAnimation() {
       console.log('[celebration] zero classes — implicit Off, returning');
       return;
     }
+    // v5.9.0.13.5 — Body-level guaranteed visible flash. Adds a temporary
+    // celebration-firing class to <body> with a viewport-edge halo so the
+    // event is unmissable even if the per-element animations get clipped or
+    // hidden. Removed after the burst completes.
+    try {
+      document.body.classList.remove('celebration-firing');
+      void document.body.offsetWidth;
+      document.body.classList.add('celebration-firing');
+      setTimeout(function () { document.body.classList.remove('celebration-firing'); }, ms);
+    } catch (_) {}
     const targets = cycleBurstTargets(true);
     console.log('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
     targets.forEach(function (el) {
