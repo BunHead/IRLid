@@ -3188,7 +3188,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.23</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.24</span></div>
   </div>
 </div>
 
@@ -6798,6 +6798,16 @@ function shortFingerprint(fp) {
 async function verifyDeviceEnvelope(env) {
   if (!env || env.type !== 'device_key') return env;
   if (!env.pub_jwk || !env.pub_fp) throw new Error('Device-key QR missing pub_jwk or pub_fp.');
+  // v5.9.0.13.24 — Stripped doorman QR (no sig/hash) is accepted because the
+  // doorman flow doesn't rely on cryptographic sig at the door — staff verifies
+  // the human in person. The Worker's doorman_scan handler also doesn't verify
+  // sig, so this aligns client + server. Future scans by the BOUND device use
+  // the full v5 hardware-signed envelope (stored in localStorage) on the
+  // recognised path. Only stripped envelopes from the orange-state QR take
+  // this branch.
+  if (!env.hash && !env.sig) {
+    return env; // stripped envelope accepted as-is
+  }
   if (!env.hash || !env.sig) throw new Error('Device-key QR missing signature.');
   if (!window.crypto?.subtle) throw new Error('Secure crypto unavailable for QR verification.');
   const payload = { ...env };
