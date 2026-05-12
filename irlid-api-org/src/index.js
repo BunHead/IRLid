@@ -1565,9 +1565,45 @@ async function orgUpdateSettings(request, env) {
     }
     // Batch 6.5f — Celebration mode (replaces acceptCycleEnabled).
     if (t.cycleMode !== undefined) {
-      if (typeof t.cycleMode !== "string" || ["off","page","glow","pattern"].indexOf(t.cycleMode) === -1) {
-        return "theme.cycleMode must be one of: off, page, glow, pattern";
+      // v5.9.0.13.2 — 'simple' added. v5.9.0.13.3 retains cycleMode as a legacy migration anchor.
+      if (typeof t.cycleMode !== "string" || ["off","simple","page","glow","pattern"].indexOf(t.cycleMode) === -1) {
+        return "theme.cycleMode must be one of: off, simple, page, glow, pattern";
       }
+    }
+    // v5.9.0.13.3 — Layered celebration model. Each of five effects has its
+    // own enabled flag plus a small enum of variant options. Each field is
+    // optional (client omits any sub-effect block it didn't touch).
+    if (t.celebration !== undefined) {
+      const c = t.celebration;
+      if (typeof c !== "object" || c === null) return "theme.celebration must be an object";
+      const PULSE_COLOURS = ["single","cycle"];
+      const PULSE_INTENSITIES = ["subtle","strong"];
+      const BG_SWEEPS = ["once","thrice"];
+      const QR_MOTIONS = ["rotate-cw","rotate-ccw","zoom-in","zoom-out","dissolve-horz","dissolve-vert"];
+      const GLOW_THICKS = ["thin","medium","thick"];
+      const GLOW_SWEEPS = ["outward","inward","rotate"];
+      const GLOW_CENTRES = ["on","off"];
+      const GLOW_SATS = ["muted","vivid","hyper"];
+      const PATTERNS = ["dots","hex","diagonal","checker","grid","weave","chevron","isometric"];
+      function validateSubEffect(name, src, enumChecks) {
+        if (src === undefined) return null;
+        if (typeof src !== "object" || src === null) return "theme.celebration." + name + " must be an object";
+        if (src.enabled !== undefined && typeof src.enabled !== "boolean") return "theme.celebration." + name + ".enabled must be a boolean";
+        for (const key of Object.keys(enumChecks)) {
+          if (src[key] !== undefined) {
+            if (typeof src[key] !== "string" || enumChecks[key].indexOf(src[key]) === -1) {
+              return "theme.celebration." + name + "." + key + " must be one of: " + enumChecks[key].join(", ");
+            }
+          }
+        }
+        return null;
+      }
+      const subErr = validateSubEffect("pulse",   c.pulse,   { colourSource: PULSE_COLOURS, intensity: PULSE_INTENSITIES })
+                  || validateSubEffect("bg",      c.bg,      { sweep: BG_SWEEPS })
+                  || validateSubEffect("qr",      c.qr,      { motion: QR_MOTIONS })
+                  || validateSubEffect("glow",    c.glow,    { thickness: GLOW_THICKS, sweep: GLOW_SWEEPS, centrePulse: GLOW_CENTRES, saturation: GLOW_SATS })
+                  || validateSubEffect("pattern", c.pattern, { pattern: PATTERNS });
+      if (subErr) return subErr;
     }
     // Batch 6.5b — animation speed controls
     if (t.bgAnimEnabled !== undefined && typeof t.bgAnimEnabled !== "boolean") {

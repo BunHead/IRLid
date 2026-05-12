@@ -1898,6 +1898,290 @@ button.theme-preview-button:focus-visible {
   cursor: pointer;
   transition: background 120ms, color 120ms;
 }
+/* ============== v5.9.0.13.3 — Celebration check-round architecture ==============
+   Five orthogonal effect cards (Pulse / Background / QR / Glow / Pattern). Each
+   <details> expands when its checkbox is ticked. Per-effect chip-groups select
+   the variant for that effect; per-chip aria-pressed="true" wins. Layered: any
+   combination can be enabled simultaneously. */
+.celebration-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.celebration-effect {
+  background: var(--surface-2, #1a1f29);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 140ms, background 140ms;
+}
+.celebration-effect[open] { border-color: var(--accent, #2f81f7); }
+.celebration-effect > summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.celebration-effect > summary::-webkit-details-marker { display: none; }
+.celebration-tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.celebration-tick input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--accent, #2f81f7);
+  margin: 0;
+  cursor: pointer;
+}
+.celebration-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e6edf3);
+}
+.celebration-desc {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted, #9aa3b2);
+  align-self: center;
+  line-height: 1.4;
+}
+.celebration-effect-body {
+  margin: 12px 0 0 26px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, #30363d);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.celebration-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.celebration-toggle-label {
+  font-size: 12px;
+  color: var(--muted, #9aa3b2);
+  min-width: 110px;
+}
+.celebration-chip-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.celebration-chip-group--wrap { max-width: 100%; }
+.celebration-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  background: transparent;
+  color: var(--muted, #9aa3b2);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.celebration-chip:hover { color: var(--text, #e6edf3); border-color: var(--accent, #2f81f7); }
+.celebration-chip[aria-pressed="true"] {
+  background: var(--accent, #2f81f7);
+  color: #fff;
+  border-color: var(--accent, #2f81f7);
+}
+:root[data-theme="light"] .celebration-effect { background: var(--surface, #ffffff); border-color: var(--border, #d0d7de); }
+:root[data-theme="light"] .celebration-effect[open] { border-color: var(--accent, #0969da); }
+:root[data-theme="light"] .celebration-name { color: var(--text, #1f2328); }
+:root[data-theme="light"] .celebration-desc { color: var(--muted, #57606a); }
+:root[data-theme="light"] .celebration-toggle-label { color: var(--muted, #57606a); }
+:root[data-theme="light"] .celebration-chip { border-color: var(--border, #d0d7de); color: var(--muted, #57606a); }
+:root[data-theme="light"] .celebration-chip[aria-pressed="true"] { background: var(--accent, #0969da); border-color: var(--accent, #0969da); color: #fff; }
+
+/* === Effect-layer animations =====================================
+   Each effect adds a SHORT-LIVED class on the target (#venueQRWrap +
+   fullscreen holder). They layer because each class drives a separate
+   animation target: box-shadow (Pulse), background-color (Bg), QR transform
+   (QR.qr-box), ::before/::after pseudo-overlays (Glow + Pattern).
+   Existing legacy classes (.cycle-accept-glow / .cycle-burst-page / etc.)
+   remain in place — the legacy dropdown still works during the transition. */
+
+/* Pulse — box-shadow throb, single-swatch by default, intensity dial. */
+@keyframes celebrationPulseSubtle {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  50%  { box-shadow: 0 0 0 10px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))), 0 0 36px 12px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes celebrationPulseStrong {
+  0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  35%  { box-shadow: 0 0 0 22px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))), 0 0 80px 28px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.02); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+body .irlid-qr-fullscreen-holder.celebration-pulse,
+body #venueQRWrap.celebration-pulse,
+.theme-preview-qr-cycle.celebration-pulse { animation: celebrationPulseSubtle var(--theme-cycle-anim-duration, 1.4s) ease-out 1; }
+body .irlid-qr-fullscreen-holder.celebration-pulse.celebration-pulse--strong,
+body #venueQRWrap.celebration-pulse.celebration-pulse--strong,
+.theme-preview-qr-cycle.celebration-pulse.celebration-pulse--strong { animation: celebrationPulseStrong var(--theme-cycle-anim-duration, 1.4s) ease-out 1; }
+
+/* Background — canvas colour cycle through palette. */
+@keyframes celebrationBgOnce {
+  0%   { background-color: var(--theme-cycle-1, var(--theme-primary)); }
+  20%  { background-color: var(--theme-cycle-2, var(--theme-primary)); }
+  40%  { background-color: var(--theme-cycle-3, var(--theme-primary)); }
+  60%  { background-color: var(--theme-cycle-4, var(--theme-primary)); }
+  80%  { background-color: var(--theme-cycle-5, var(--theme-primary)); }
+  100% { background-color: transparent; }
+}
+body .irlid-qr-fullscreen-holder.celebration-bg,
+body #venueQRWrap.celebration-bg,
+.theme-preview-qr-cycle.celebration-bg { animation: celebrationBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
+body .irlid-qr-fullscreen-holder.celebration-bg.celebration-bg--thrice,
+body #venueQRWrap.celebration-bg.celebration-bg--thrice,
+.theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
+
+/* QR — rotate / zoom / dissolve on the QR canvas itself (the .qr-box child). */
+@keyframes celebrationQrRotateCw  { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(8deg);  } }
+@keyframes celebrationQrRotateCcw { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(-8deg); } }
+@keyframes celebrationQrZoomIn    { 0%,100% { transform: scale(1);      } 50% { transform: scale(1.08);   } }
+@keyframes celebrationQrZoomOut   { 0%,100% { transform: scale(1);      } 50% { transform: scale(0.92);   } }
+@keyframes celebrationQrDissolveHorz {
+  0%   { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+  50%  {
+    -webkit-mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 8px);
+            mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 8px);
+  }
+  100% { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+}
+@keyframes celebrationQrDissolveVert {
+  0%   { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+  50%  {
+    -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+            mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
+  }
+  100% { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+}
+body .irlid-qr-fullscreen-holder.celebration-qr .qr-box,
+body #venueQRWrap.celebration-qr .qr-box,
+.theme-preview-qr-cycle.celebration-qr {
+  animation-duration: var(--theme-cycle-anim-duration, 1.4s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+}
+.celebration-qr.celebration-qr--rotate-cw  .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--rotate-cw  { animation-name: celebrationQrRotateCw; }
+.celebration-qr.celebration-qr--rotate-ccw .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--rotate-ccw { animation-name: celebrationQrRotateCcw; }
+.celebration-qr.celebration-qr--zoom-in    .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--zoom-in    { animation-name: celebrationQrZoomIn; }
+.celebration-qr.celebration-qr--zoom-out   .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--zoom-out   { animation-name: celebrationQrZoomOut; }
+.celebration-qr.celebration-qr--dissolve-horz .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--dissolve-horz { animation-name: celebrationQrDissolveHorz; }
+.celebration-qr.celebration-qr--dissolve-vert .qr-box,
+.theme-preview-qr-cycle.celebration-qr.celebration-qr--dissolve-vert { animation-name: celebrationQrDissolveVert; }
+
+/* Glow — conic ring + centre pulse via existing pseudo-overlay strategy.
+   Reuses the v5.9.0.12 ring/pulse keyframes (themeAcceptRingSweep + themeAcceptCentrePulse)
+   so this is the existing halo carved cleanly into its own layer. */
+body .irlid-qr-fullscreen-holder.celebration-glow,
+body #venueQRWrap.celebration-glow,
+.theme-preview-qr-cycle.celebration-glow { position: relative; }
+body .irlid-qr-fullscreen-holder.celebration-glow::before,
+body #venueQRWrap.celebration-glow::before,
+.theme-preview-qr-cycle.celebration-glow::before {
+  content: "";
+  position: absolute;
+  inset: clamp(8px, 2.4vw, 28px);
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 8;
+  background: conic-gradient(from 0deg,
+    var(--theme-cycle-1), var(--theme-cycle-2), var(--theme-cycle-3),
+    var(--theme-cycle-4), var(--theme-cycle-5), var(--theme-cycle-6),
+    var(--theme-cycle-7), var(--theme-cycle-1));
+  opacity: 0;
+  filter: drop-shadow(0 0 18px rgba(255,255,255,.72)) saturate(var(--celeb-glow-sat, 1.25));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  padding: clamp(10px, 1.8vw, 24px);
+  animation: themeAcceptRingSweep var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--thin::before,
+body #venueQRWrap.celebration-glow.celebration-glow--thin::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--thin::before { padding: clamp(4px, 0.8vw, 10px); }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--thick::before,
+body #venueQRWrap.celebration-glow.celebration-glow--thick::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--thick::before { padding: clamp(18px, 3vw, 40px); }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--inward::before,
+body #venueQRWrap.celebration-glow.celebration-glow--inward::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--inward::before { animation-direction: reverse; }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--rotate::before,
+body #venueQRWrap.celebration-glow.celebration-glow--rotate::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--rotate::before { animation: themeAcceptRingSweep var(--theme-cycle-anim-duration, 1.4s) linear 1, glowRotateSpin var(--theme-cycle-anim-duration, 1.4s) linear 1; }
+@keyframes glowRotateSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--muted::before,
+body #venueQRWrap.celebration-glow.celebration-glow--muted::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--muted::before { filter: drop-shadow(0 0 10px rgba(255,255,255,.45)) saturate(0.85); }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--hyper::before,
+body #venueQRWrap.celebration-glow.celebration-glow--hyper::before,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--hyper::before { filter: drop-shadow(0 0 32px rgba(255,255,255,1)) saturate(2); }
+body .irlid-qr-fullscreen-holder.celebration-glow.celebration-glow--centre::after,
+body #venueQRWrap.celebration-glow.celebration-glow--centre::after,
+.theme-preview-qr-cycle.celebration-glow.celebration-glow--centre::after {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 7;
+  background:
+    radial-gradient(circle, rgba(255,255,255,.92) 0 6%, transparent 18%),
+    radial-gradient(circle, var(--theme-cycle-3) 0 18%, transparent 62%);
+  opacity: 0;
+  filter: drop-shadow(0 0 24px var(--theme-cycle-3));
+  animation: themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+
+/* Pattern — tiled overlay flash, ::before psuedo carrying the pattern image. */
+@keyframes celebrationPatternFlash {
+  0%   { opacity: 0; }
+  35%  { opacity: 0.7; }
+  100% { opacity: 0; }
+}
+body .irlid-qr-fullscreen-holder.celebration-pattern,
+body #venueQRWrap.celebration-pattern,
+.theme-preview-qr-cycle.celebration-pattern { position: relative; }
+body .irlid-qr-fullscreen-holder.celebration-pattern::after,
+body #venueQRWrap.celebration-pattern::after,
+.theme-preview-qr-cycle.celebration-pattern::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  background-image: var(--celeb-pattern-image, radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1px, transparent 1.5px));
+  background-size: var(--celeb-pattern-size, 12px 12px);
+  mix-blend-mode: overlay;
+  opacity: 0;
+  animation: celebrationPatternFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
+/* Pattern variants — image + size pairs are injected via JS-set custom props,
+   but we ship sane class-driven defaults here so each Pattern chip works
+   without JS hitting the styles. */
+.celebration-pattern.celebration-pattern--dots      { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1.4px, transparent 2px); --celeb-pattern-size: 14px 14px; }
+.celebration-pattern.celebration-pattern--hex       { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1px, transparent 1.5px); --celeb-pattern-size: 22px 22px; }
+.celebration-pattern.celebration-pattern--diagonal  { --celeb-pattern-image: repeating-linear-gradient(45deg, var(--theme-cycle-3) 0 2px, transparent 2px 14px); }
+.celebration-pattern.celebration-pattern--checker   { --celeb-pattern-image: repeating-conic-gradient(var(--theme-cycle-3) 0 25%, transparent 0 50%); --celeb-pattern-size: 18px 18px; }
+.celebration-pattern.celebration-pattern--grid      { --celeb-pattern-image: linear-gradient(var(--theme-cycle-3) 1px, transparent 1px), linear-gradient(90deg, var(--theme-cycle-3) 1px, transparent 1px); --celeb-pattern-size: 22px 22px; }
+.celebration-pattern.celebration-pattern--weave     { --celeb-pattern-image: repeating-linear-gradient(0deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px), repeating-linear-gradient(90deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px); }
+.celebration-pattern.celebration-pattern--chevron   { --celeb-pattern-image: linear-gradient(135deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0, linear-gradient(225deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0; --celeb-pattern-size: 18px 18px; }
+.celebration-pattern.celebration-pattern--isometric { --celeb-pattern-image: linear-gradient(30deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%), linear-gradient(150deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%); --celeb-pattern-size: 24px 24px; }
+/* === /Effect-layer animations ============================== */
+
 .bg-anchor-btn:hover { color: var(--text, #e6edf3); }
 .bg-anchor-btn[aria-pressed="true"] {
   background: var(--accent, #2f81f7);
@@ -2573,7 +2857,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.3</span></div>
   </div>
 </div>
 
@@ -3172,17 +3456,158 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="theme-anim-panel grid-celanim" id="themeCycleAnimPanel" data-cycle-mode="glow">
                     <h5>Celebration Animation</h5>
                     <p class="theme-anim-sub">A burst that fires on successful check-in. Mirrors Background's mode options but runs as a one-shot using the Celebration palette and Cycle duration below.</p>
-                    <label class="theme-anim-row">
-                      <span>Mode</span>
-                      <select id="themeCycleMode" class="theme-anim-select">
-                        <option value="off">Off (no celebration)</option>
-                        <option value="simple">Simple pulse (quiet)</option>
-                        <option value="page">Page colour cycle (one-shot)</option>
-                        <option value="glow">QR glow halo (default)</option>
-                        <option value="pattern">Pattern flash</option>
-                      </select>
-                    </label>
-                    <div class="theme-anim-speed" data-cycle-mode-hide="off">
+                    <!-- v5.9.0.13.3 — Celebration animation as orthogonal effect check-rounds.
+                         Tick the effects you want layered on a successful check-in. Each
+                         expands to show its own toggle controls. Zero ticks = no celebration.
+                         Legacy themeCycleMode select retained as hidden migration anchor so
+                         saved orgs continue to load cleanly. -->
+                    <select id="themeCycleMode" style="display:none">
+                      <option value="off">off</option>
+                      <option value="simple">simple</option>
+                      <option value="page">page</option>
+                      <option value="glow">glow</option>
+                      <option value="pattern">pattern</option>
+                    </select>
+                    <div class="celebration-effects" role="group" aria-label="Celebration effects">
+
+                      <details class="celebration-effect" id="celebEffectPulse" open>
+                        <summary>
+                          <label class="celebration-tick">
+                            <input type="checkbox" id="celebPulseEnabled" />
+                            <span class="celebration-name">Pulse</span>
+                          </label>
+                          <span class="celebration-desc">Quiet coloured throb around the QR border.</span>
+                        </summary>
+                        <div class="celebration-effect-body">
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Colour source</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="pulseColour">
+                              <button type="button" class="celebration-chip" data-value="single" aria-pressed="true">Single swatch</button>
+                              <button type="button" class="celebration-chip" data-value="cycle" aria-pressed="false">Cycle palette</button>
+                            </div>
+                          </div>
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Intensity</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="pulseIntensity">
+                              <button type="button" class="celebration-chip" data-value="subtle" aria-pressed="true">Subtle</button>
+                              <button type="button" class="celebration-chip" data-value="strong" aria-pressed="false">Strong</button>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details class="celebration-effect" id="celebEffectBg">
+                        <summary>
+                          <label class="celebration-tick">
+                            <input type="checkbox" id="celebBgEnabled" />
+                            <span class="celebration-name">Background</span>
+                          </label>
+                          <span class="celebration-desc">QR canvas cycles palette colours once behind the code.</span>
+                        </summary>
+                        <div class="celebration-effect-body">
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Sweep</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="bgSweep">
+                              <button type="button" class="celebration-chip" data-value="once" aria-pressed="true">Once</button>
+                              <button type="button" class="celebration-chip" data-value="thrice" aria-pressed="false">Three times</button>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details class="celebration-effect" id="celebEffectQr">
+                        <summary>
+                          <label class="celebration-tick">
+                            <input type="checkbox" id="celebQrEnabled" />
+                            <span class="celebration-name">QR</span>
+                          </label>
+                          <span class="celebration-desc">QR itself rotates, zooms, or dissolves briefly.</span>
+                        </summary>
+                        <div class="celebration-effect-body">
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Motion</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="qrMotion">
+                              <button type="button" class="celebration-chip" data-value="rotate-cw" aria-pressed="true">Rotate CW</button>
+                              <button type="button" class="celebration-chip" data-value="rotate-ccw" aria-pressed="false">Rotate CCW</button>
+                              <button type="button" class="celebration-chip" data-value="zoom-in" aria-pressed="false">Zoom in</button>
+                              <button type="button" class="celebration-chip" data-value="zoom-out" aria-pressed="false">Zoom out</button>
+                              <button type="button" class="celebration-chip" data-value="dissolve-horz" aria-pressed="false">Dissolve horz</button>
+                              <button type="button" class="celebration-chip" data-value="dissolve-vert" aria-pressed="false">Dissolve vert</button>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details class="celebration-effect" id="celebEffectGlow">
+                        <summary>
+                          <label class="celebration-tick">
+                            <input type="checkbox" id="celebGlowEnabled" checked />
+                            <span class="celebration-name">Glow</span>
+                          </label>
+                          <span class="celebration-desc">Conic gradient ring sweep plus centre pulse.</span>
+                        </summary>
+                        <div class="celebration-effect-body">
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Ring thickness</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="glowThickness">
+                              <button type="button" class="celebration-chip" data-value="thin" aria-pressed="false">Thin</button>
+                              <button type="button" class="celebration-chip" data-value="medium" aria-pressed="true">Medium</button>
+                              <button type="button" class="celebration-chip" data-value="thick" aria-pressed="false">Thick</button>
+                            </div>
+                          </div>
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Sweep</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="glowSweep">
+                              <button type="button" class="celebration-chip" data-value="outward" aria-pressed="true">Outward</button>
+                              <button type="button" class="celebration-chip" data-value="inward" aria-pressed="false">Inward</button>
+                              <button type="button" class="celebration-chip" data-value="rotate" aria-pressed="false">Rotate</button>
+                            </div>
+                          </div>
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Centre pulse</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="glowCentre">
+                              <button type="button" class="celebration-chip" data-value="on" aria-pressed="true">On</button>
+                              <button type="button" class="celebration-chip" data-value="off" aria-pressed="false">Off</button>
+                            </div>
+                          </div>
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Saturation</span>
+                            <div class="celebration-chip-group" data-celeb-toggle="glowSat">
+                              <button type="button" class="celebration-chip" data-value="muted" aria-pressed="false">Muted</button>
+                              <button type="button" class="celebration-chip" data-value="vivid" aria-pressed="true">Vivid</button>
+                              <button type="button" class="celebration-chip" data-value="hyper" aria-pressed="false">Hyper</button>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                      <details class="celebration-effect" id="celebEffectPattern">
+                        <summary>
+                          <label class="celebration-tick">
+                            <input type="checkbox" id="celebPatternEnabled" />
+                            <span class="celebration-name">Pattern</span>
+                          </label>
+                          <span class="celebration-desc">Tiled pattern overlay flashes once. Eight patterns available.</span>
+                        </summary>
+                        <div class="celebration-effect-body">
+                          <div class="celebration-toggle-row">
+                            <span class="celebration-toggle-label">Pattern</span>
+                            <div class="celebration-chip-group celebration-chip-group--wrap" data-celeb-toggle="patternPick">
+                              <button type="button" class="celebration-chip" data-value="dots" aria-pressed="true">Dots</button>
+                              <button type="button" class="celebration-chip" data-value="hex" aria-pressed="false">Hex</button>
+                              <button type="button" class="celebration-chip" data-value="diagonal" aria-pressed="false">Diagonal</button>
+                              <button type="button" class="celebration-chip" data-value="checker" aria-pressed="false">Checker</button>
+                              <button type="button" class="celebration-chip" data-value="grid" aria-pressed="false">Grid</button>
+                              <button type="button" class="celebration-chip" data-value="weave" aria-pressed="false">Weave</button>
+                              <button type="button" class="celebration-chip" data-value="chevron" aria-pressed="false">Chevron</button>
+                              <button type="button" class="celebration-chip" data-value="isometric" aria-pressed="false">Isometric</button>
+                            </div>
+                          </div>
+                        </div>
+                      </details>
+
+                    </div>
+                    <div class="theme-anim-speed">
                       <label>
                         <span>Cycle duration</span>
                         <span class="theme-anim-speed-value" id="themeCycleAnimDurationValue">1.4s</span>
@@ -7726,10 +8151,79 @@ const THEME_DEFAULTS = {
   bgImagePosition: 'centre',
   bgImageAnchor: 'outer',
   bgImageAlphaCycle: false,
-  cycleMode: 'glow',         // 'off' | 'simple' | 'page' | 'glow' | 'pattern' (Celebration; 'simple' = quiet box-shadow pulse, added v5.9.0.13.2)
+  cycleMode: 'glow',         // 'off' | 'simple' | 'page' | 'glow' | 'pattern' (Celebration; legacy, retained for backward compat — v5.9.0.13.3 layered model in celebration{} below takes precedence)
   bgAnimDuration: 30,        // seconds for one full background cycle (range 5..120)
-  cycleAnimDuration: 1.4     // seconds for one celebration burst (range 0.5..5)
+  cycleAnimDuration: 1.4,    // seconds for one celebration burst (range 0.5..5)
+  // v5.9.0.13.3 — Celebration as orthogonal layered effects. Each effect is
+  // independently enabled with its own variant + sub-controls. Off = zero
+  // effects enabled. Migration from legacy cycleMode happens in normaliseTheme.
+  celebration: {
+    pulse:   { enabled: false, colourSource: 'single', intensity: 'subtle' },
+    bg:      { enabled: false, sweep: 'once' },
+    qr:      { enabled: false, motion: 'rotate-cw' },
+    glow:    { enabled: true,  thickness: 'medium', sweep: 'outward', centrePulse: 'on', saturation: 'vivid' },
+    pattern: { enabled: false, pattern: 'dots' }
+  }
 };
+const CELEB_PULSE_COLOURS = ['single','cycle'];
+const CELEB_PULSE_INTENSITIES = ['subtle','strong'];
+const CELEB_BG_SWEEPS = ['once','thrice'];
+const CELEB_QR_MOTIONS = ['rotate-cw','rotate-ccw','zoom-in','zoom-out','dissolve-horz','dissolve-vert'];
+const CELEB_GLOW_THICKNESSES = ['thin','medium','thick'];
+const CELEB_GLOW_SWEEPS = ['outward','inward','rotate'];
+const CELEB_GLOW_CENTRES = ['on','off'];
+const CELEB_GLOW_SATS = ['muted','vivid','hyper'];
+const CELEB_PATTERNS = ['dots','hex','diagonal','checker','grid','weave','chevron','isometric'];
+function normaliseCelebration(t) {
+  const src = (t && t.celebration) || null;
+  const def = THEME_DEFAULTS.celebration;
+  // Legacy cycleMode → celebration migration (one-way, runs whenever celebration{}
+  // is missing or empty). Captain's pre-v5.9.0.13.3 orgs come up with sensible
+  // defaults that match what they were saving before.
+  if (!src) {
+    const mode = t && t.cycleMode;
+    const seed = {
+      pulse:   { ...def.pulse },
+      bg:      { ...def.bg },
+      qr:      { ...def.qr },
+      glow:    { ...def.glow,    enabled: false },
+      pattern: { ...def.pattern }
+    };
+    if (mode === 'simple')      seed.pulse.enabled = true;
+    else if (mode === 'page')   { seed.bg.enabled = true; seed.glow.enabled = true; }
+    else if (mode === 'pattern'){ seed.pattern.enabled = true; seed.glow.enabled = true; }
+    else if (mode === 'off')    { /* all off */ }
+    else                        seed.glow.enabled = true; // 'glow' or unknown
+    return seed;
+  }
+  const pickEnum = (val, list, fallback) => list.indexOf(val) !== -1 ? val : fallback;
+  return {
+    pulse: {
+      enabled: src.pulse && src.pulse.enabled === true,
+      colourSource: pickEnum(src.pulse && src.pulse.colourSource, CELEB_PULSE_COLOURS, def.pulse.colourSource),
+      intensity: pickEnum(src.pulse && src.pulse.intensity, CELEB_PULSE_INTENSITIES, def.pulse.intensity)
+    },
+    bg: {
+      enabled: src.bg && src.bg.enabled === true,
+      sweep: pickEnum(src.bg && src.bg.sweep, CELEB_BG_SWEEPS, def.bg.sweep)
+    },
+    qr: {
+      enabled: src.qr && src.qr.enabled === true,
+      motion: pickEnum(src.qr && src.qr.motion, CELEB_QR_MOTIONS, def.qr.motion)
+    },
+    glow: {
+      enabled: src.glow && src.glow.enabled === true,
+      thickness: pickEnum(src.glow && src.glow.thickness, CELEB_GLOW_THICKNESSES, def.glow.thickness),
+      sweep: pickEnum(src.glow && src.glow.sweep, CELEB_GLOW_SWEEPS, def.glow.sweep),
+      centrePulse: pickEnum(src.glow && src.glow.centrePulse, CELEB_GLOW_CENTRES, def.glow.centrePulse),
+      saturation: pickEnum(src.glow && src.glow.saturation, CELEB_GLOW_SATS, def.glow.saturation)
+    },
+    pattern: {
+      enabled: src.pattern && src.pattern.enabled === true,
+      pattern: pickEnum(src.pattern && src.pattern.pattern, CELEB_PATTERNS, def.pattern.pattern)
+    }
+  };
+}
 const PAGE_CYCLE_BASE = '#06070C';     // base canvas colour we blend palette into for muted page mode
 const PAGE_MUTED_RATIO = 0.18;          // 18% palette / 82% base — tinted but stays moody
 const PAGE_VIBRANT_RATIO = 0.78;        // 78% palette / 22% base — saturated but slightly shaded
@@ -7768,7 +8262,10 @@ function normalizeThemeForSave(theme) {
     bgImageAlphaCycle: t.bgImageAlphaCycle === true,
     cycleMode: cycleMode,
     bgAnimDuration: typeof t.bgAnimDuration === 'number' ? t.bgAnimDuration : THEME_DEFAULTS.bgAnimDuration,
-    cycleAnimDuration: typeof t.cycleAnimDuration === 'number' ? t.cycleAnimDuration : THEME_DEFAULTS.cycleAnimDuration
+    cycleAnimDuration: typeof t.cycleAnimDuration === 'number' ? t.cycleAnimDuration : THEME_DEFAULTS.cycleAnimDuration,
+    // v5.9.0.13.3 — layered celebration model. normaliseCelebration handles
+    // both fresh-default seeding and legacy cycleMode migration.
+    celebration: normaliseCelebration(t)
   };
 }
 
@@ -8042,15 +8539,29 @@ function _openPaletteSwatchEditor(index, paletteKey) {
 }
 
 function previewAcceptCycle() {
-  // v5.9.0.13 — Settings preview is local-only. Production animations still
-  // fire from real check-in paths via triggerAcceptCycleAnimation().
+  // v5.9.0.13.3 — Preview uses the same layered class list as production.
+  // Settings preview is local-only — production still fires via
+  // triggerAcceptCycleAnimation() from real check-in paths.
+  const ms = acceptCycleMs();
+  const target = document.getElementById('themePreviewQrCycle');
+  if (!target) return;
+  const celeb = activeTheme && activeTheme.celebration;
+  if (celeb) {
+    const classList = buildCelebrationClassList();
+    if (classList.length === 0) return;
+    target.className = target.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ') + ' theme-preview-qr-cycle';
+    void target.offsetWidth;
+    classList.forEach(function (c) { target.classList.add(c); });
+    setTimeout(function () { classList.forEach(function (c) { target.classList.remove(c); }); }, ms);
+    return;
+  }
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
   if (mode === 'off') return;
   const previewClass = mode === 'page' ? 'cycle-burst-page'
     : mode === 'pattern' ? 'cycle-burst-pattern'
       : mode === 'simple' ? 'cycle-simple-pulse'
         : 'cycle-accept-glow';
-  triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], previewClass, acceptCycleMs());
+  triggerCycleClassOnTargets([target], previewClass, ms);
 }
 
 function previewDenyCycle() {
@@ -8099,39 +8610,76 @@ function triggerCycleClassOnTargets(targets, className, ms) {
   });
 }
 
+function buildCelebrationClassList() {
+  // v5.9.0.13.3 — translate activeTheme.celebration into the set of classes
+  // that should be applied to each target for the burst. Each enabled effect
+  // adds its root class plus a per-variant modifier class. The Glow centre
+  // pulse is an additional opt-in class (--centre) gated by centrePulse=on.
+  const celeb = (activeTheme && activeTheme.celebration) || null;
+  const classes = [];
+  if (!celeb) return classes;
+  if (celeb.pulse && celeb.pulse.enabled) {
+    classes.push('celebration-pulse');
+    if (celeb.pulse.intensity === 'strong') classes.push('celebration-pulse--strong');
+  }
+  if (celeb.bg && celeb.bg.enabled) {
+    classes.push('celebration-bg');
+    if (celeb.bg.sweep === 'thrice') classes.push('celebration-bg--thrice');
+  }
+  if (celeb.qr && celeb.qr.enabled) {
+    classes.push('celebration-qr');
+    classes.push('celebration-qr--' + (celeb.qr.motion || 'rotate-cw'));
+  }
+  if (celeb.glow && celeb.glow.enabled) {
+    classes.push('celebration-glow');
+    classes.push('celebration-glow--' + (celeb.glow.thickness || 'medium'));
+    classes.push('celebration-glow--' + (celeb.glow.sweep || 'outward'));
+    classes.push('celebration-glow--' + (celeb.glow.saturation || 'vivid'));
+    if (celeb.glow.centrePulse === 'on') classes.push('celebration-glow--centre');
+  }
+  if (celeb.pattern && celeb.pattern.enabled) {
+    classes.push('celebration-pattern');
+    classes.push('celebration-pattern--' + (celeb.pattern.pattern || 'dots'));
+  }
+  return classes;
+}
+
 function triggerAcceptCycleAnimation() {
   // Public hook — call this from check-in success paths to fire the celebration.
-  // v5.9.0.10 — every visible mode targets #venueQRWrap first so the door screen
-  // reads from 3-5m, while preserving the legacy mode dropdown contract.
-  // Modes:
-  //   off     — no animation at all
-  //   simple  — v5.9.0.13.2 quiet box-shadow pulse around the QR (no overlay layers)
-  //   glow    — vivid palette halo/ring on venue QR + fullscreen holder
-  //   page    — one-shot canvas colour cycle with the same visible ring
-  //   pattern — high-contrast pattern flash with the same visible ring
-  const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
-  if (mode === 'off') return;
+  // v5.9.0.13.3 — Layered effect architecture. activeTheme.celebration is a
+  // nested object with per-effect enabled flags + variant selectors. Every
+  // enabled effect applies its own class(es) to the target. Zero effects
+  // enabled = no celebration (the new "off" state).
+  // Legacy fallback: if celebration{} is somehow missing (very old saves that
+  // skipped normalisation), defer to the legacy cycleMode dispatcher below.
+  const celeb = activeTheme && activeTheme.celebration;
   const ms = acceptCycleMs();
 
-  if (mode === 'simple') {
-    // v5.9.0.13.2 — Simple pulse. Just a coloured box-shadow throb on the QR
-    // border, no conic ring, no central pulse, no canvas effect. The "original
-    // simple Glow" Captain remembered from pre-v5.9.0.12.
-    triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-simple-pulse', ms);
+  if (celeb) {
+    const classList = buildCelebrationClassList();
+    if (classList.length === 0) return; // implicit Off
+    const targets = cycleBurstTargets(true);
+    targets.forEach(function (el) {
+      // Remove any previously-applied celebration classes so reentries reset.
+      el.className = el.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ');
+      // Force reflow so animations restart on each call.
+      void el.offsetWidth;
+      classList.forEach(function (c) { el.classList.add(c); });
+      setTimeout(function () {
+        classList.forEach(function (c) { el.classList.remove(c); });
+      }, ms);
+    });
     return;
   }
 
-  if (mode === 'glow') {
-    triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-accept-glow', ms);
-    return;
-  }
-
-  // For 'page' and 'pattern' celebration variants, target the QR canvas
-  // (fullscreen holder + #venueQRWrap) with a temporary class that runs the
-  // appropriate one-shot animation. After the burst, the class is removed and
-  // the canvas reverts to whatever the Background mode is doing.
+  // Legacy dispatcher — pre-v5.9.0.13.3 path. Should rarely fire because
+  // normalizeThemeForSave seeds celebration{} on every load.
+  const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
+  if (mode === 'off') return;
+  if (mode === 'simple') { triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-simple-pulse', ms); return; }
+  if (mode === 'glow')   { triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-accept-glow', ms); return; }
   const canvasTargets = cycleBurstTargets(false);
-  const burstClass = 'cycle-burst-' + mode; // 'cycle-burst-page' or 'cycle-burst-pattern'
+  const burstClass = 'cycle-burst-' + mode;
   triggerCycleClassOnTargets(canvasTargets, burstClass, ms);
 }
 
@@ -8185,6 +8733,42 @@ function writeThemeToUI() {
   // Batch 6.5f — Celebration Mode select replaces the old Enabled checkbox.
   const cycleModeEl = document.getElementById('themeCycleMode');
   if (cycleModeEl) cycleModeEl.value = activeTheme.cycleMode || 'glow';
+  // v5.9.0.13.3 — reflect saved celebration state on every five-effect checkbox
+  // + chip-group. normaliseCelebration guarantees activeTheme.celebration is
+  // a fully-populated shape — no need to defend against missing fields.
+  if (activeTheme.celebration) {
+    const CEL_UI_MAP = [
+      { eff: 'pulse',   cbId: 'celebPulseEnabled',   detId: 'celebEffectPulse'   },
+      { eff: 'bg',      cbId: 'celebBgEnabled',      detId: 'celebEffectBg'      },
+      { eff: 'qr',      cbId: 'celebQrEnabled',      detId: 'celebEffectQr'      },
+      { eff: 'glow',    cbId: 'celebGlowEnabled',    detId: 'celebEffectGlow'    },
+      { eff: 'pattern', cbId: 'celebPatternEnabled', detId: 'celebEffectPattern' }
+    ];
+    CEL_UI_MAP.forEach(function (m) {
+      const cb = document.getElementById(m.cbId);
+      const det = document.getElementById(m.detId);
+      const enabled = activeTheme.celebration[m.eff].enabled === true;
+      if (cb) cb.checked = enabled;
+      if (det) det.open = enabled;
+    });
+    const CEL_CHIP_TARGETS = {
+      pulseColour:    activeTheme.celebration.pulse.colourSource,
+      pulseIntensity: activeTheme.celebration.pulse.intensity,
+      bgSweep:        activeTheme.celebration.bg.sweep,
+      qrMotion:       activeTheme.celebration.qr.motion,
+      glowThickness:  activeTheme.celebration.glow.thickness,
+      glowSweep:      activeTheme.celebration.glow.sweep,
+      glowCentre:     activeTheme.celebration.glow.centrePulse,
+      glowSat:        activeTheme.celebration.glow.saturation,
+      patternPick:    activeTheme.celebration.pattern.pattern
+    };
+    document.querySelectorAll('.celebration-chip-group').forEach(function (group) {
+      const target = CEL_CHIP_TARGETS[group.dataset.celebToggle];
+      group.querySelectorAll('.celebration-chip').forEach(function (chip) {
+        chip.setAttribute('aria-pressed', chip.dataset.value === target ? 'true' : 'false');
+      });
+    });
+  }
   const modeRadios = document.querySelectorAll('input[name="themeMode"]');
   const v = activeTheme.darkMode === 'auto' ? 'auto' : (activeTheme.darkMode ? 'dark' : 'light');
   modeRadios.forEach(function (r) { r.checked = (r.value === v); });
@@ -8265,6 +8849,63 @@ function wireThemePanel() {
     const v = e.target.value;
     activeTheme.cycleMode = ['off','simple','page','glow','pattern'].indexOf(v) !== -1 ? v : 'glow';
     applyThemeVars(activeTheme); // updates the panel data-cycle-mode attribute for visibility
+  });
+
+  // v5.9.0.13.3 — Celebration check-round wiring. Five orthogonal effect
+  // checkboxes + per-effect chip-group toggle rows. Each tick keeps the
+  // <details> open for the toggles; untick auto-collapses. Chip groups
+  // emit aria-pressed="true" on the active value via single-select semantics.
+  function wireCelebrationEffect(checkboxId, detailsId, effectKey) {
+    const cb = document.getElementById(checkboxId);
+    const det = document.getElementById(detailsId);
+    if (!cb || !det) return;
+    const summary = det.querySelector('summary');
+    // The checkbox is the single source of truth. Its change event sets
+    // both activeTheme.celebration[X].enabled and the <details> open state.
+    cb.addEventListener('change', function () {
+      activeTheme.celebration[effectKey].enabled = cb.checked === true;
+      det.open = cb.checked === true;
+    });
+    // Suppress the native <summary> default toggle so it doesn't fight the
+    // checkbox. Instead, any summary click that ISN'T the checkbox itself
+    // routes through the checkbox via cb.click() so the row label and the
+    // description text both work as a single hit target.
+    if (summary) {
+      summary.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        if (ev.target === cb) return; // native checkbox click already handled
+        cb.click(); // dispatch the checkbox's own click — fires change handler
+      });
+    }
+  }
+  wireCelebrationEffect('celebPulseEnabled',   'celebEffectPulse',   'pulse');
+  wireCelebrationEffect('celebBgEnabled',      'celebEffectBg',      'bg');
+  wireCelebrationEffect('celebQrEnabled',      'celebEffectQr',      'qr');
+  wireCelebrationEffect('celebGlowEnabled',    'celebEffectGlow',    'glow');
+  wireCelebrationEffect('celebPatternEnabled', 'celebEffectPattern', 'pattern');
+
+  // Chip-group wiring. data-celeb-toggle="pulseColour" → activeTheme.celebration.pulse.colourSource
+  const CHIP_TOGGLE_MAP = {
+    pulseColour:    { effect: 'pulse',   prop: 'colourSource' },
+    pulseIntensity: { effect: 'pulse',   prop: 'intensity'    },
+    bgSweep:        { effect: 'bg',      prop: 'sweep'        },
+    qrMotion:       { effect: 'qr',      prop: 'motion'       },
+    glowThickness:  { effect: 'glow',    prop: 'thickness'    },
+    glowSweep:      { effect: 'glow',    prop: 'sweep'        },
+    glowCentre:     { effect: 'glow',    prop: 'centrePulse'  },
+    glowSat:        { effect: 'glow',    prop: 'saturation'   },
+    patternPick:    { effect: 'pattern', prop: 'pattern'      }
+  };
+  document.querySelectorAll('.celebration-chip-group').forEach(function (group) {
+    const toggleKey = group.dataset.celebToggle;
+    const map = CHIP_TOGGLE_MAP[toggleKey];
+    if (!map) return;
+    group.querySelectorAll('.celebration-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        group.querySelectorAll('.celebration-chip').forEach(c => c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'));
+        activeTheme.celebration[map.effect][map.prop] = chip.dataset.value;
+      });
+    });
   });
 
   // Celebration palette buttons (existing).
