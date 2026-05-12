@@ -1978,32 +1978,28 @@ button.theme-preview-button:focus-visible {
   padding: 10px 12px;
   transition: border-color 140ms, background 140ms;
 }
-.celebration-effect[open] { border-color: var(--accent, #2f81f7); }
-.celebration-effect > summary {
+.celebration-effect.open { border-color: var(--accent, #2f81f7); }
+.celebration-effect:not(.open) > .celebration-effect-body { display: none; }
+.celebration-effect > .celebration-summary {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   cursor: pointer;
-  list-style: none;
   user-select: none;
+  margin: 0;
 }
-.celebration-effect > summary::-webkit-details-marker { display: none; }
-.celebration-tick {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-.celebration-tick input[type="checkbox"] {
+.celebration-summary input[type="checkbox"] {
   width: 16px; height: 16px;
   accent-color: var(--accent, #2f81f7);
-  margin: 0;
+  margin: 3px 0 0 0;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .celebration-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text, #e6edf3);
+  flex-shrink: 0;
 }
 .celebration-desc {
   flex: 1;
@@ -2055,7 +2051,7 @@ button.theme-preview-button:focus-visible {
   border-color: var(--accent, #2f81f7);
 }
 :root[data-theme="light"] .celebration-effect { background: var(--surface, #ffffff); border-color: var(--border, #d0d7de); }
-:root[data-theme="light"] .celebration-effect[open] { border-color: var(--accent, #0969da); }
+:root[data-theme="light"] .celebration-effect.open { border-color: var(--accent, #0969da); }
 :root[data-theme="light"] .celebration-name { color: var(--text, #1f2328); }
 :root[data-theme="light"] .celebration-desc { color: var(--muted, #57606a); }
 :root[data-theme="light"] .celebration-toggle-label { color: var(--muted, #57606a); }
@@ -2974,7 +2970,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.9</span></div>
   </div>
 </div>
 
@@ -3585,16 +3581,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <option value="glow">glow</option>
                       <option value="pattern">pattern</option>
                     </select>
+                    <!-- v5.9.0.13.9 — Dropped <details>/<summary> in favour of plain
+                         <div> expander. The previous summary click handler called
+                         ev.preventDefault() which silently suppressed the underlying
+                         checkbox toggle on click. Now: the entire row is a single
+                         <label for="X"> so clicking anywhere routes to the checkbox;
+                         the checkbox change-handler toggles both `enabled` AND the
+                         container's `.open` class. No custom click handler needed. -->
                     <div class="celebration-effects" role="group" aria-label="Celebration effects">
 
-                      <details class="celebration-effect" id="celebEffectPulse" open>
-                        <summary>
-                          <label class="celebration-tick">
-                            <input type="checkbox" id="celebPulseEnabled" />
-                            <span class="celebration-name">Pulse</span>
-                          </label>
+                      <div class="celebration-effect" id="celebEffectPulse">
+                        <label class="celebration-summary" for="celebPulseEnabled">
+                          <input type="checkbox" id="celebPulseEnabled" />
+                          <span class="celebration-name">Pulse</span>
                           <span class="celebration-desc">Quiet coloured throb around the QR border.</span>
-                        </summary>
+                        </label>
                         <div class="celebration-effect-body">
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Colour source</span>
@@ -3611,16 +3612,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
 
-                      <details class="celebration-effect" id="celebEffectBg">
-                        <summary>
-                          <label class="celebration-tick">
-                            <input type="checkbox" id="celebBgEnabled" />
-                            <span class="celebration-name">Background</span>
-                          </label>
+                      <div class="celebration-effect" id="celebEffectBg">
+                        <label class="celebration-summary" for="celebBgEnabled">
+                          <input type="checkbox" id="celebBgEnabled" />
+                          <span class="celebration-name">Background</span>
                           <span class="celebration-desc">QR canvas cycles palette colours once behind the code.</span>
-                        </summary>
+                        </label>
                         <div class="celebration-effect-body">
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Sweep</span>
@@ -3630,16 +3629,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
 
-                      <details class="celebration-effect" id="celebEffectQr">
-                        <summary>
-                          <label class="celebration-tick">
-                            <input type="checkbox" id="celebQrEnabled" />
-                            <span class="celebration-name">QR</span>
-                          </label>
+                      <div class="celebration-effect" id="celebEffectQr">
+                        <label class="celebration-summary" for="celebQrEnabled">
+                          <input type="checkbox" id="celebQrEnabled" />
+                          <span class="celebration-name">QR</span>
                           <span class="celebration-desc">QR itself rotates, zooms, or dissolves briefly.</span>
-                        </summary>
+                        </label>
                         <div class="celebration-effect-body">
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Motion</span>
@@ -3653,16 +3650,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
 
-                      <details class="celebration-effect" id="celebEffectGlow">
-                        <summary>
-                          <label class="celebration-tick">
-                            <input type="checkbox" id="celebGlowEnabled" checked />
-                            <span class="celebration-name">Glow</span>
-                          </label>
+                      <div class="celebration-effect open" id="celebEffectGlow">
+                        <label class="celebration-summary" for="celebGlowEnabled">
+                          <input type="checkbox" id="celebGlowEnabled" checked />
+                          <span class="celebration-name">Glow</span>
                           <span class="celebration-desc">Conic gradient ring sweep plus centre pulse.</span>
-                        </summary>
+                        </label>
                         <div class="celebration-effect-body">
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Ring thickness</span>
@@ -3696,16 +3691,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
 
-                      <details class="celebration-effect" id="celebEffectPattern">
-                        <summary>
-                          <label class="celebration-tick">
-                            <input type="checkbox" id="celebPatternEnabled" />
-                            <span class="celebration-name">Pattern</span>
-                          </label>
+                      <div class="celebration-effect" id="celebEffectPattern">
+                        <label class="celebration-summary" for="celebPatternEnabled">
+                          <input type="checkbox" id="celebPatternEnabled" />
+                          <span class="celebration-name">Pattern</span>
                           <span class="celebration-desc">Tiled pattern overlay flashes once. Eight patterns available.</span>
-                        </summary>
+                        </label>
                         <div class="celebration-effect-body">
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Pattern</span>
@@ -3721,7 +3714,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                             </div>
                           </div>
                         </div>
-                      </details>
+                      </div>
 
                     </div>
                     <div class="theme-anim-speed">
@@ -8944,10 +8937,10 @@ function writeThemeToUI() {
     ];
     CEL_UI_MAP.forEach(function (m) {
       const cb = document.getElementById(m.cbId);
-      const det = document.getElementById(m.detId);
+      const container = document.getElementById(m.detId);
       const enabled = activeTheme.celebration[m.eff].enabled === true;
       if (cb) cb.checked = enabled;
-      if (det) det.open = enabled;
+      if (container) container.classList.toggle('open', enabled);
     });
     const CEL_CHIP_TARGETS = {
       pulseColour:    activeTheme.celebration.pulse.colourSource,
@@ -9053,28 +9046,17 @@ function wireThemePanel() {
   // checkboxes + per-effect chip-group toggle rows. Each tick keeps the
   // <details> open for the toggles; untick auto-collapses. Chip groups
   // emit aria-pressed="true" on the active value via single-select semantics.
-  function wireCelebrationEffect(checkboxId, detailsId, effectKey) {
+  function wireCelebrationEffect(checkboxId, containerId, effectKey) {
+    // v5.9.0.13.9 — Simplified. <label for="..."> in the HTML routes any click
+    // on the summary row to the checkbox. The change handler is the single
+    // source of truth for both the model and the open-state class.
     const cb = document.getElementById(checkboxId);
-    const det = document.getElementById(detailsId);
-    if (!cb || !det) return;
-    const summary = det.querySelector('summary');
-    // The checkbox is the single source of truth. Its change event sets
-    // both activeTheme.celebration[X].enabled and the <details> open state.
+    const container = document.getElementById(containerId);
+    if (!cb || !container) return;
     cb.addEventListener('change', function () {
       activeTheme.celebration[effectKey].enabled = cb.checked === true;
-      det.open = cb.checked === true;
+      container.classList.toggle('open', cb.checked === true);
     });
-    // Suppress the native <summary> default toggle so it doesn't fight the
-    // checkbox. Instead, any summary click that ISN'T the checkbox itself
-    // routes through the checkbox via cb.click() so the row label and the
-    // description text both work as a single hit target.
-    if (summary) {
-      summary.addEventListener('click', function (ev) {
-        ev.preventDefault();
-        if (ev.target === cb) return; // native checkbox click already handled
-        cb.click(); // dispatch the checkbox's own click — fires change handler
-      });
-    }
   }
   wireCelebrationEffect('celebPulseEnabled',   'celebEffectPulse',   'pulse');
   wireCelebrationEffect('celebBgEnabled',      'celebEffectBg',      'bg');
