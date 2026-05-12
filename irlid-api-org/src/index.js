@@ -1901,15 +1901,15 @@ async function requireDevOrStaffSession(request, env, org, staffSessionToken) {
   const staffError = await requireOrgStaffSession(env, org, staffSessionToken);
   if (!staffError) return null;
 
-  const auth = request.headers.get("Authorization") || "";
-  const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());
-  if (m) {
-    const ctx = await requireSession(request, env);
-    if (!ctx.error) {
-      const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-      if (bootstrapFp && ctx.user && ctx.user.pub_fp === bootstrapFp) return null;
-    }
-  }
+  // v5.9.0.13.25 — Reuse the shared bootstrapDeveloperFromBearer helper so the
+  // org_-prefixed-Bearer = developer-tier rule from v5.9.0.13.21 applies here
+  // too. Was previously a duplicated check that only recognised session_token
+  // Bearers with matching pub_fp, missing the api_key Bearer fallback the
+  // frontend uses when qrLoginSession.session_token is unavailable. Result:
+  // Add-at-the-door and Bind-from-list endpoints rejected with 401 even
+  // though the frontend treated the user as developer-tier.
+  const developer = await bootstrapDeveloperFromBearer(request, env);
+  if (developer) return null;
 
   return staffError;
 }
