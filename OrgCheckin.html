@@ -454,10 +454,17 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
 .escalation-row { width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--text); padding: 10px; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .escalation-row:hover { border-color: rgba(255,149,0,0.52); }
 .escalation-row span { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+/* v5.9.0.13.22 — action label ("Bind" / "Add device") is the DIRECT child
+   span of .escalation-row (sibling of the inner <div> with name+meta). Mockup
+   surfaced it; live was inheriting meta styling and rendering it tiny. */
+.escalation-row > span { color: #58a6ff; font-size: 13px; font-weight: 600; flex-shrink: 0; margin-top: 0; }
 .escalation-row.escalation-row-claimed { background: rgba(13,17,23,0.32); border-style: dashed; }
 .escalation-row.escalation-row-claimed:hover { border-color: rgba(120,200,120,0.55); background: rgba(13,17,23,0.55); }
 .escalation-row.escalation-row-claimed strong { opacity: 0.9; }
-.escalation-row.escalation-row-claimed span { color: var(--muted); font-style: italic; }
+.escalation-row.escalation-row-claimed div > span { color: var(--muted); font-style: italic; }
+.escalation-row.escalation-row-claimed > span { color: var(--muted); font-weight: 400; font-style: normal; }
+:root[data-theme="light"] .escalation-row > span { color: #0969da; }
+:root[data-theme="light"] .escalation-row.escalation-row-claimed > span { color: var(--muted); }
 .escalation-empty { color: var(--muted); font-size: 12px; padding: 10px; border: 1px dashed var(--line); border-radius: 7px; }
 .escalation-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .escalation-tab { border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); padding: 6px 10px; cursor: pointer; font-size: 12px; }
@@ -3181,7 +3188,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.21</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.22</span></div>
   </div>
 </div>
 
