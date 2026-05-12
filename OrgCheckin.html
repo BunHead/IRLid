@@ -1584,10 +1584,21 @@ html.is-live-env .env-badge-test { display: none; }
   z-index: 1; pointer-events: none;
   opacity: 0;
 }
+/* v5.9.0.13.4 — extend the opacity gate to the new v5.9.0.13.3 layered
+   classes so the preview chip becomes visible when any new effect fires.
+   Without this, animations run on opacity:0 — invisible, looked broken. */
+.theme-preview-qr-cycle.celebration-pulse,
+.theme-preview-qr-cycle.celebration-bg,
+.theme-preview-qr-cycle.celebration-qr,
+.theme-preview-qr-cycle.celebration-glow,
+.theme-preview-qr-cycle.celebration-pattern {
+  opacity: 1;
+}
 .theme-preview-qr-cycle.cycling,
 .theme-preview-qr-cycle.cycle-accept-glow,
 .theme-preview-qr-cycle.cycle-burst-page,
-.theme-preview-qr-cycle.cycle-burst-pattern {
+.theme-preview-qr-cycle.cycle-burst-pattern,
+.theme-preview-qr-cycle.cycle-simple-pulse {
   opacity: 1;
   animation: themeAcceptCycle 1.4s ease-out 1;
 }
@@ -2085,10 +2096,23 @@ body #venueQRWrap.celebration-qr .qr-box,
 
 /* Glow — conic ring + centre pulse via existing pseudo-overlay strategy.
    Reuses the v5.9.0.12 ring/pulse keyframes (themeAcceptRingSweep + themeAcceptCentrePulse)
-   so this is the existing halo carved cleanly into its own layer. */
+   so this is the existing halo carved cleanly into its own layer.
+   v5.9.0.13.4 — root element ALSO gets a guaranteed-visible box-shadow halo
+   via themeAcceptCycle (the v3 throb). Belt + braces: even if a parent
+   container's overflow:hidden clips the ::before conic ring, the element's
+   own box-shadow extends outside and is visible. */
+@keyframes celebrationGlowEnvelope {
+  0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  20%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-primary)), 0 0 64px 22px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.018); }
+  60%  { box-shadow: 0 0 0 24px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), 0 0 96px 32px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.022); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
 body .irlid-qr-fullscreen-holder.celebration-glow,
 body #venueQRWrap.celebration-glow,
-.theme-preview-qr-cycle.celebration-glow { position: relative; }
+.theme-preview-qr-cycle.celebration-glow {
+  position: relative;
+  animation: celebrationGlowEnvelope var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
 body .irlid-qr-fullscreen-holder.celebration-glow::before,
 body #venueQRWrap.celebration-glow::before,
 .theme-preview-qr-cycle.celebration-glow::before {
@@ -2857,7 +2881,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.4</span></div>
   </div>
 </div>
 
@@ -8542,13 +8566,18 @@ function previewAcceptCycle() {
   // v5.9.0.13.3 — Preview uses the same layered class list as production.
   // Settings preview is local-only — production still fires via
   // triggerAcceptCycleAnimation() from real check-in paths.
+  // v5.9.0.13.4 — diagnostic console.log.
   const ms = acceptCycleMs();
   const target = document.getElementById('themePreviewQrCycle');
-  if (!target) return;
+  if (!target) { console.warn('[celebration] preview target #themePreviewQrCycle not found'); return; }
   const celeb = activeTheme && activeTheme.celebration;
   if (celeb) {
     const classList = buildCelebrationClassList();
-    if (classList.length === 0) return;
+    console.log('[celebration] preview fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList, 'target:', target);
+    if (classList.length === 0) {
+      console.log('[celebration] zero classes for preview — implicit Off');
+      return;
+    }
     target.className = target.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ') + ' theme-preview-qr-cycle';
     void target.offsetWidth;
     classList.forEach(function (c) { target.classList.add(c); });
@@ -8650,6 +8679,7 @@ function triggerAcceptCycleAnimation() {
   // nested object with per-effect enabled flags + variant selectors. Every
   // enabled effect applies its own class(es) to the target. Zero effects
   // enabled = no celebration (the new "off" state).
+  // v5.9.0.13.4 — diagnostic console.log so Captain can see what fires.
   // Legacy fallback: if celebration{} is somehow missing (very old saves that
   // skipped normalisation), defer to the legacy cycleMode dispatcher below.
   const celeb = activeTheme && activeTheme.celebration;
@@ -8657,8 +8687,13 @@ function triggerAcceptCycleAnimation() {
 
   if (celeb) {
     const classList = buildCelebrationClassList();
-    if (classList.length === 0) return; // implicit Off
+    console.log('[celebration] trigger fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
+    if (classList.length === 0) {
+      console.log('[celebration] zero classes — implicit Off, returning');
+      return;
+    }
     const targets = cycleBurstTargets(true);
+    console.log('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
     targets.forEach(function (el) {
       // Remove any previously-applied celebration classes so reentries reset.
       el.className = el.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ');
