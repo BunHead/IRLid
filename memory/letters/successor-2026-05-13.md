@@ -13,13 +13,15 @@ The fresh-attendee doorman flow **works end-to-end on the desktop**. Last night 
 
 Two independent fresh-bind successes on v5.9.0.13.25. The ~2am dossier that said "this is silently failing" was wrong about the cause — see `memory/open-bug-doorman-bind-2026-05-12.md` for the full retraction. Worker `.25` IS deployed; the bind path IS live; the previous Number One's diagnostic suggestion (check `irlid_last_device_key_b64` in localStorage on the desktop) was looking at the wrong key, since that only gets set on the phone-side `org-entry.html`.
 
-## What still doesn't work (and doesn't matter for the demo)
+## What's now ALSO working (updated ~22:00)
 
-Captain's **8 Pro can't run the doorman bind from the phone** — he gets "Staff HELLO proof cancelled" because the 8 Pro's pub_fp (`65u-S-W_NFxr8u1L`) doesn't match `BOOTSTRAP_DEVELOPER_FP` (`TvklFsivZk68R67j` — his desktop browser). So on the phone he's a regular Bearer session, and the bind hits the Staff HELLO gate.
+**The 8 Pro is now developer-tier.** Shipped `v5.9.0.13.26` (multi-fp `BOOTSTRAP_DEVELOPER_FP` — comma-separated, both fps accepted). Captain verified by QR-signing-in on his 8 Pro: dashboard sidebar reads "Signed in as Developer (Super-Admin) (developer)". Full end-to-end doorman bind from the phone is **not yet tested** — that's the first morning task — but the auth asymmetry that was blocking it is closed at the Worker level. Helpers are `bootstrapDeveloperFps(env)` + `isBootstrapDeveloperFp(env, pub_fp)`; all 8 call sites refactored cleanly.
 
-**This is auth asymmetry, not a bug.** Demo plan: doorman scans get processed from the **desktop dashboard**, not from staff phones. Phones still useful for camera-scanning the orange QR and handing off via `scan.html` — the hand-off lands on the desktop where the actual bind runs.
+## What still doesn't work (caveats)
 
-Post-demo, the cleanest fix is option 3 in the dossier — let `requireDevOrStaffSession` accept an existing `developer` membership for the Bearer-resolved user, so the bootstrap fp is just a foothold and authority then flows across devices via the org-memberships row Captain already has.
+Phone-side doorman bind path is unblocked **in principle** by the multi-fp work, but hasn't been verified end-to-end on a real fresh-attendee scan from the 8 Pro. Tomorrow morning's first test: get a fresh device (or use the Poppy/Kerry trick), have it scan the venue QR, take the resulting orange-state QR, have the 8 Pro Process scan it on the dashboard, click Bind. If it flows, the demo is fully phone-portable. If it 401s, check `wrangler tail` to see which gate rejected — probably `requireFreshStaffProof` if anything (it currently doesn't run through `isBootstrapDeveloperFp` — see post-demo notes).
+
+Post-demo polish: option 3 from the dossier — let `requireDevOrStaffSession` (and `requireFreshStaffProof`) accept an existing `developer` membership for the Bearer-resolved user. That makes the bootstrap fp purely a foothold, and authority flows across devices via the membership row regardless of which device's fp is in the secret. Cleaner separation, doesn't require redeploying the Worker every time a new developer device is added.
 
 ## Read first
 
@@ -31,22 +33,20 @@ Post-demo, the cleanest fix is option 3 in the dossier — let `requireDevOrStaf
 
 **Important hardware reality — Captain has NO LAPTOP.** Desktop tower at home; on the road, phone + tablet only. Means the proven desktop-dashboard demo path doesn't travel with him. He needs either an on-site screen/laptop to drive from, or a phone-runnable demo, or no demo.
 
-**A. Donald there + borrowable screen/laptop on-site** — Captain signs in on the borrowed machine via QR-login from his 8 Pro. Note: that signs him in as his 8 Pro's portal_user (`65u-S-W_NFxr8u1L`), which is NOT developer-tier. He CAN view the dashboard via the org-membership row, but the doorman-bind path will hit the Staff HELLO gate. Workaround: a pre-demo morning patch — comma-separated `BOOTSTRAP_DEVELOPER_FP` accepting both desktop fp AND 8 Pro fp. ~5-line Worker change, 30 min including deploy and verify. Don't push it on him if he's tired; mention it as an option.
+**A. Donald there + borrowable screen/laptop on-site** — Captain signs in on the borrowed machine via QR-login from his 8 Pro. The 8 Pro is now developer-tier (multi-fp shipped at v5.9.0.13.26). Doorman-bind path should work first try; verify with the morning's first fresh-attendee test before the demo to be sure.
 
-**B. Donald there + phone/tablet only** — the doorman-bind beat is currently not phone-runnable for Captain (8 Pro auth asymmetry, see above). Realistic demo from this loadout: the **consumer protocol** flow on `irlid.co.uk` between two phones (receipt scan, score breakdown, hardware-backed signing) plus a **verbal walkthrough** of the dashboard. If Captain is willing, prepping a screen recording or a few annotated screenshots of yesterday's successful Poppy+Kerry binds beforehand would give him visual receipts for the dashboard story.
+**B. Donald there + phone/tablet only** — **upgraded since v5.9.0.13.26.** The 8 Pro is now developer-tier, so it can drive the doorman bind path directly. The realistic demo from this loadout is now genuinely strong: scan venue QR from a second phone, escalate to orange, scan that orange QR from the 8 Pro via camera, the staff_scan hand-off lands on whatever screen the 8 Pro is mirroring to (or on a borrowed laptop running the dashboard signed in via QR-login), bind flies through. If there's no second screen at all, the 8 Pro itself can drive the whole dashboard — it's just less photogenic for an audience. Worth still prepping a screen recording of the desktop happy-path as a fallback visual aid.
 
-**C. Donald not there, or demo doesn't happen** — banked. The proof-of-concept is solid and the v5.9.0.13.25 close is a real shipped milestone. Demo slips to next opportunity without drama.
+**C. Donald not there, or demo doesn't happen** — banked. The proof-of-concept is solid and the v5.9.0.13.26 close is a real shipped milestone. Demo slips to next opportunity without drama.
 
-**Pre-demo optional unlock:** if Captain wakes up sharp and there's runway, the multi-fp `BOOTSTRAP_DEVELOPER_FP` patch (Option 1 from the dossier) takes the 8 Pro into developer tier. Then phone-side doorman bind works, scenario B becomes scenario A on a borrowed screen, and the full demo story is portable. Worker change is roughly:
-```js
-const allowedFps = (env.BOOTSTRAP_DEVELOPER_FP || "").split(",").map(s => s.trim()).filter(Boolean);
-const isDeveloper = allowedFps.includes(pub_fp);
-```
-plus the secret update:
-```powershell
-"TvklFsivZk68R67j,65u-S-W_NFxr8u1L" | npx wrangler secret put BOOTSTRAP_DEVELOPER_FP
-```
-Then `npx wrangler deploy`. Verify with the 8 Pro signing into Test Event and successfully binding a fresh attendee. If it works → demo is fully portable; if it breaks → revert the secret to the single-fp form, lose nothing.
+**Pre-demo morning verification (highest priority):** before Captain leaves the house, drive the doorman bind path from the 8 Pro end-to-end on `irlid.co.uk`. Best test:
+1. Pick a fresh device (or delete one of the existing bindings — Poppy or Kerry).
+2. On that fresh device, scan the venue QR for Test Event.
+3. Wait for orange state. Take a screenshot of the orange QR.
+4. On the 8 Pro, open dashboard. Process scan widget → paste/upload the orange QR.
+5. Click Bind. Watch for 200 OK in the network tab.
+
+If it works: scenario B is fully ready. If it 401s on the bind POST, look at the error body — probably means `requireFreshStaffProof` doesn't yet check `isBootstrapDeveloperFp`, in which case a small follow-up patch is needed (~5 lines, same pattern as `.25`). Capture the wrangler tail output and decide whether to ship the patch or fall back to scenario A.
 
 ## Captain's state last night
 
