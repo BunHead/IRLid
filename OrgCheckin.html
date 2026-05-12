@@ -1960,6 +1960,53 @@ button.theme-preview-button:focus-visible {
   cursor: pointer;
   transition: background 120ms, color 120ms;
 }
+/* ============== v5.9.0.13.14 — Role vocabulary panel ==============
+   Preset chips above, five labelled inputs below. Custom preset frees up
+   the inputs for direct editing; named presets disable + populate them
+   so the admin sees the resulting labels before saving. */
+.role-vocab-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.role-vocab-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.role-vocab-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.role-vocab-key {
+  font-weight: 600;
+  color: var(--muted, #9aa3b2);
+}
+.role-vocab-row input[type="text"] {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--surface-2, #1a1f29);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 6px;
+  color: var(--text, #e6edf3);
+  font-size: 13px;
+  font-family: inherit;
+}
+.role-vocab-row input[type="text"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+:root[data-theme="light"] .role-vocab-key { color: var(--muted, #57606a); }
+:root[data-theme="light"] .role-vocab-row input[type="text"] {
+  background: var(--surface, #ffffff);
+  border-color: var(--border, #d0d7de);
+  color: var(--text, #1f2328);
+}
 /* ============== v5.9.0.13.3 — Celebration check-round architecture ==============
    Five orthogonal effect cards (Pulse / Background / QR / Glow / Pattern). Each
    <details> expands when its checkbox is ticked. Per-effect chip-groups select
@@ -3090,7 +3137,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.14</span></div>
   </div>
 </div>
 
@@ -3912,6 +3959,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
                 <div class="mini-actions">
                   <button class="btn btn-secondary btn-sm" type="button" id="copyOutcomeMiniBtn">Copy active URL</button>
+                  <button class="btn btn-primary btn-sm" type="button" id="testFireOutcomeBtn" title="Fires the celebration matching the active mode — same animation a real check-in fires on the Check-in panel">Test fire animation</button>
                 </div>
               </div>
 
@@ -3940,6 +3988,76 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="small-note">This page only prepares and previews test URLs. It does not perform Cloudflare writes or any production attendance action.</div>
             </div>
           </div>
+
+          <!-- v5.9.0.13.14 — Role vocabulary panel. Customise role labels per org
+               so the dashboard shows Student/Lecturer for an education customer
+               or Patient/Nurse for healthcare. Underlying role permissions and
+               policy don't change — this is display-only relabelling. Captain:
+               "(for educational instance): Student = Attendee / Lecturer = Staff
+               / Manager = Manager etc...". Presets land quickly; Custom lets
+               admins fine-tune. -->
+          <div class="qr-tools-card" id="roleVocabularyCard">
+            <div class="qr-tools-header">
+              <h3>Role vocabulary</h3>
+              <p>Rename the roles your team sees in the dashboard and on-screen prompts. Permissions stay the same — this is presentation only.</p>
+            </div>
+            <div class="qr-tools-body">
+              <div class="role-vocab-presets" role="group" aria-label="Preset templates">
+                <button type="button" class="celebration-chip" data-vocab-preset="default" aria-pressed="true">Default</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="education" aria-pressed="false">Education</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="corporate" aria-pressed="false">Corporate</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="healthcare" aria-pressed="false">Healthcare</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="hospitality" aria-pressed="false">Hospitality</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="conference" aria-pressed="false">Conference</button>
+                <button type="button" class="celebration-chip" data-vocab-preset="custom" aria-pressed="false">Custom</button>
+              </div>
+              <div class="role-vocab-rows">
+                <label class="role-vocab-row">
+                  <span class="role-vocab-key">Attendee</span>
+                  <input type="text" id="roleLabelAttendee" maxlength="40" placeholder="Attendee" />
+                </label>
+                <label class="role-vocab-row">
+                  <span class="role-vocab-key">Staff</span>
+                  <input type="text" id="roleLabelStaff" maxlength="40" placeholder="Staff" />
+                </label>
+                <label class="role-vocab-row">
+                  <span class="role-vocab-key">Manager</span>
+                  <input type="text" id="roleLabelManager" maxlength="40" placeholder="Manager" />
+                </label>
+                <label class="role-vocab-row">
+                  <span class="role-vocab-key">Lead admin</span>
+                  <input type="text" id="roleLabelLeadAdmin" maxlength="40" placeholder="Lead admin" />
+                </label>
+                <label class="role-vocab-row">
+                  <span class="role-vocab-key">Developer</span>
+                  <input type="text" id="roleLabelDeveloper" maxlength="40" placeholder="Developer" />
+                </label>
+              </div>
+              <div class="small-note">Save All Settings (above) writes these changes to your org. Dashboard relabelling rolls out alongside this panel — initial pass shows where the labels read; full sweep follows.</div>
+            </div>
+          </div>
+
+          <!-- v5.9.0.13.14 — Website scrape placeholder. Future feature: paste
+               your org's website URL and we'll pull primary colour, accent,
+               logo, and brand text suggestions automatically. Placeholder for
+               now so the panel exists in the layout. -->
+          <div class="qr-tools-card" id="websiteScrapeCard">
+            <div class="qr-tools-header">
+              <h3>Website theme import</h3>
+              <p>Paste your organisation's public website and we'll suggest primary colour, accent, logo, and brand text from the site's metadata. Placeholder — implementation in progress.</p>
+            </div>
+            <div class="qr-tools-body">
+              <label class="settings-field">
+                <span>Source website URL</span>
+                <input type="url" id="websiteScrapeUrl" placeholder="https://www.yourdomain.com" disabled />
+              </label>
+              <div class="settings-actions">
+                <button class="btn btn-secondary" type="button" id="websiteScrapeBtn" disabled>Import suggested theme (coming soon)</button>
+              </div>
+              <div class="small-note">When this lands, it pulls colour palette, logo, and welcome text from the public site. You'll review every suggestion before any of it is saved — nothing applies without your confirmation.</div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -4166,7 +4284,8 @@ let settings = {
   requireDoormanConfirm: true,
   requireProof: true,
   allowProofRecording: true,
-  allowIdPhotoCapture: false
+  allowIdPhotoCapture: false,
+  roleLabels: { attendee: 'Attendee', staff: 'Staff', manager: 'Manager', lead_admin: 'Lead admin', developer: 'Developer' } // v5.9.0.13.14
 };
 let portalState = loadPortalState();
 let attendanceData = [];
@@ -4266,6 +4385,14 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.requireAdditionalProof === 'boolean') portalState.requireAdditionalProof = src.requireAdditionalProof;
   if (typeof src.allowProofRecording === 'boolean') portalState.allowProofRecording = src.allowProofRecording;
   if (typeof src.enableIdPhotoCapture === 'boolean') portalState.enableIdPhotoCapture = src.enableIdPhotoCapture;
+  // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
+  // both portalState and settings so the dashboard helper roleLabel() picks
+  // them up wherever it's called.
+  if (src.roleLabels && typeof src.roleLabels === 'object') {
+    const safe = normaliseRoleLabels(src.roleLabels);
+    portalState.roleLabels = safe;
+    settings.roleLabels = safe;
+  }
   syncLegacyFromPortal();
   savePortalState();
 }
@@ -5233,6 +5360,10 @@ function applySettingsToUI() {
   if (document.getElementById('minimumTrustScore')) document.getElementById('minimumTrustScore').value = normalizeScore(settings.minScore);
   if (document.getElementById('statMin')) document.getElementById('statMin').textContent = (settings.minScore || 50) + '%';
   if (document.getElementById('checkoutLabel')) document.getElementById('checkoutLabel').textContent = (settings.checkoutEnabled !== false) ? '✓ Check-out enabled' : 'Check-out disabled';
+  // v5.9.0.13.14 — role vocabulary inputs reflect persisted labels.
+  if (typeof writeRoleLabelsToUI === 'function') {
+    writeRoleLabelsToUI(settings.roleLabels || defaultRoleLabels());
+  }
   updateChromeLogo();
 }
 function collectSettingsFromCanonical() {
@@ -5253,7 +5384,8 @@ function collectSettingsFromCanonical() {
     requireDoormanConfirm: !!document.getElementById('requireDoormanConfirmation')?.checked,
     requireProof: !!document.getElementById('requireAdditionalProof')?.checked,
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
-    allowIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked
+    allowIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
+    roleLabels: readRoleLabelsFromUI() // v5.9.0.13.14
   };
 }
 // Batch 6.5g — collectSettingsFromQuick() removed. The canonical Settings panel
@@ -5286,6 +5418,101 @@ function syncAllSettingsFrom(source) {
 //    round-trip success, "Saved but X didn't round-trip" if the Worker
 //    accepted but readback shows mismatched values, or "Save failed: <reason>"
 //    if the POST itself errored. No more silent failures.
+// v5.9.0.13.14 — Role vocabulary panel. Customisable role labels per org.
+// Presets land quickly; Custom unlocks the inputs for direct editing.
+const ROLE_VOCAB_KEYS = ['attendee', 'staff', 'manager', 'lead_admin', 'developer'];
+const ROLE_VOCAB_INPUT_IDS = {
+  attendee:   'roleLabelAttendee',
+  staff:      'roleLabelStaff',
+  manager:    'roleLabelManager',
+  lead_admin: 'roleLabelLeadAdmin',
+  developer:  'roleLabelDeveloper'
+};
+const ROLE_VOCAB_PRESETS = {
+  default:     { attendee: 'Attendee', staff: 'Staff',     manager: 'Manager',     lead_admin: 'Lead admin',  developer: 'Developer' },
+  education:   { attendee: 'Student',  staff: 'Lecturer',  manager: 'Course lead', lead_admin: 'Dean',        developer: 'Developer' },
+  corporate:   { attendee: 'Employee', staff: 'Team lead', manager: 'Manager',     lead_admin: 'Director',    developer: 'Developer' },
+  healthcare:  { attendee: 'Patient',  staff: 'Nurse',     manager: 'Doctor',      lead_admin: 'Dept head',   developer: 'Developer' },
+  hospitality: { attendee: 'Guest',    staff: 'Concierge', manager: 'Supervisor',  lead_admin: 'GM',          developer: 'Developer' },
+  conference:  { attendee: 'Delegate', staff: 'Volunteer', manager: 'Organiser',   lead_admin: 'Chair',       developer: 'Developer' }
+};
+function defaultRoleLabels() { return { ...ROLE_VOCAB_PRESETS.default }; }
+function normaliseRoleLabels(input) {
+  const def = ROLE_VOCAB_PRESETS.default;
+  const out = {};
+  for (const key of ROLE_VOCAB_KEYS) {
+    const raw = (input && typeof input[key] === 'string') ? input[key].trim() : '';
+    out[key] = (raw && raw.length <= 40) ? raw : def[key];
+  }
+  return out;
+}
+function readRoleLabelsFromUI() {
+  const out = {};
+  for (const key of ROLE_VOCAB_KEYS) {
+    const el = document.getElementById(ROLE_VOCAB_INPUT_IDS[key]);
+    out[key] = (el && el.value || '').trim() || ROLE_VOCAB_PRESETS.default[key];
+  }
+  return out;
+}
+function writeRoleLabelsToUI(labels) {
+  const safe = normaliseRoleLabels(labels || {});
+  for (const key of ROLE_VOCAB_KEYS) {
+    const el = document.getElementById(ROLE_VOCAB_INPUT_IDS[key]);
+    if (el) el.value = safe[key];
+  }
+  // Reflect which preset matches the current values (or Custom if none).
+  const matchedPreset = Object.keys(ROLE_VOCAB_PRESETS).find(name => {
+    return ROLE_VOCAB_KEYS.every(k => ROLE_VOCAB_PRESETS[name][k] === safe[k]);
+  }) || 'custom';
+  document.querySelectorAll('[data-vocab-preset]').forEach(btn => {
+    btn.setAttribute('aria-pressed', btn.dataset.vocabPreset === matchedPreset ? 'true' : 'false');
+  });
+  // Custom preset = inputs editable; named preset = inputs editable too (so
+  // admin can fine-tune from preset). We keep them ALL editable so the
+  // experience is consistent — picking a preset populates the values; the
+  // admin can then tweak any individual field.
+}
+function wireRoleVocabularyPanel() {
+  document.querySelectorAll('[data-vocab-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const presetName = btn.dataset.vocabPreset;
+      if (presetName === 'custom') {
+        // Custom doesn't change values — just marks the preset as Custom.
+        document.querySelectorAll('[data-vocab-preset]').forEach(b => b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'));
+        return;
+      }
+      const preset = ROLE_VOCAB_PRESETS[presetName];
+      if (!preset) return;
+      writeRoleLabelsToUI(preset);
+    });
+  });
+  // Mark preset as Custom whenever an input changes manually.
+  for (const key of ROLE_VOCAB_KEYS) {
+    const el = document.getElementById(ROLE_VOCAB_INPUT_IDS[key]);
+    if (!el) continue;
+    el.addEventListener('input', () => {
+      const current = readRoleLabelsFromUI();
+      const matchedPreset = Object.keys(ROLE_VOCAB_PRESETS).find(name => {
+        return ROLE_VOCAB_KEYS.every(k => ROLE_VOCAB_PRESETS[name][k] === current[k]);
+      });
+      const target = matchedPreset || 'custom';
+      document.querySelectorAll('[data-vocab-preset]').forEach(b => {
+        b.setAttribute('aria-pressed', b.dataset.vocabPreset === target ? 'true' : 'false');
+      });
+    });
+  }
+}
+// roleLabel(roleKey) — helper for elsewhere in the dashboard. Returns the
+// admin's custom label if set, or the default. Phase 1: function exists +
+// panel persists; Phase 2 (queued) sweeps the dashboard to call this
+// helper at every role-label render site.
+function roleLabel(roleKey) {
+  const labels = (typeof settings !== 'undefined' && settings && settings.roleLabels) ? settings.roleLabels : null;
+  if (labels && typeof labels[roleKey] === 'string' && labels[roleKey].trim()) return labels[roleKey];
+  return ROLE_VOCAB_PRESETS.default[roleKey] || roleKey;
+}
+window.roleLabel = roleLabel;
+
 async function saveSettings() {
   // Read the DOM directly — single source of truth at save time.
   const payload = {
@@ -5306,6 +5533,7 @@ async function saveSettings() {
     requireAdditionalProof: !!document.getElementById('requireAdditionalProof')?.checked,
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
     enableIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
+    roleLabels: readRoleLabelsFromUI(), // v5.9.0.13.14 — role vocabulary panel
     theme: normalizeThemeForSave(typeof activeTheme !== 'undefined' ? activeTheme : null)
   };
 
@@ -5371,6 +5599,14 @@ async function saveSettings() {
   if (!eq(payload.welcomeMessage, r.welcomeMessage)) lost.push('welcomeMessage');
   if (!eq(payload.orgTerms, r.orgTerms)) lost.push('orgTerms');
   if (payload.minScore !== r.minScore) lost.push('minScore');
+  // v5.9.0.13.14 — roleLabels round-trip verifier
+  if (payload.roleLabels) {
+    const sentLabels = normaliseRoleLabels(payload.roleLabels);
+    const recvLabels = normaliseRoleLabels(r.roleLabels);
+    for (const key of ROLE_VOCAB_KEYS) {
+      if (sentLabels[key] !== recvLabels[key]) { lost.push('roleLabels.' + key); break; }
+    }
+  }
   lost.push(...themeRoundTripMismatches(payload.theme, r.theme));
 
   if (lost.length) {
@@ -5395,7 +5631,7 @@ async function saveSettings() {
   showToast('✓ Settings saved and verified');
 }
 function resetSettingsToDefaults() {
-  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false };
+  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false, roleLabels: defaultRoleLabels() };
   saveJson(STORAGE_KEY_SETTINGS, settings); applySettingsToUI(); syncPortalFromLegacy(); renderPortalAll(); generateVenueQR(); showToast('Settings reset to defaults');
 }
 function renderExpectedAttendees() {
@@ -7794,6 +8030,8 @@ function wirePortalFields() {
   // flow: read DOM → mirror to in-memory + localStorage → POST → readback →
   // verify round-trip → toast. No more pre-sync that could prime stale state.
   document.getElementById('savePortalSettingsBtn').addEventListener('click', saveSettings);
+  // v5.9.0.13.14 — wire Role vocabulary preset chips + input change handlers.
+  if (typeof wireRoleVocabularyPanel === 'function') wireRoleVocabularyPanel();
   document.getElementById('themeScrapeBtn')?.addEventListener('click', extractThemeFromWebsite);
   document.getElementById('themeScrapeResults')?.addEventListener('click', (event) => {
     const colourBtn = event.target.closest('[data-scrape-use-colour]');
@@ -8241,6 +8479,27 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   const copyOutcomeMiniBtn = document.getElementById('copyOutcomeMiniBtn');
   if (copyOutcomeMiniBtn) copyOutcomeMiniBtn.addEventListener('click', () => copyText(buildOutcomeUrl(portalState.activeMode)));
+  // v5.9.0.13.14 — Test fire button on QR test tools. Captain: "The QR test tools,
+  // should when scanned do the animations accept/deny as well, like checkin small".
+  // Scanning the actual test QRs from another device wouldn't signal the dashboard
+  // (the test outcome page is local-render-only — no Worker POST). This button
+  // simulates the same animation locally so Captain can demo without two devices.
+  const testFireBtn = document.getElementById('testFireOutcomeBtn');
+  if (testFireBtn) testFireBtn.addEventListener('click', () => {
+    const mode = portalState.activeMode;
+    const name = 'Test Attendee';
+    if (mode === 'allow') {
+      try { showCheckinEventToast(name, 'in'); } catch (_) {}
+      try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(name); } catch (_) {}
+    } else if (mode === 'deny') {
+      try { showCheckinEventToast(name, 'out'); } catch (_) {}
+      try { if (typeof triggerDenyCycleAnimation === 'function') triggerDenyCycleAnimation(); } catch (_) {}
+    } else {
+      // review — no celebration burst; orange state is the venue-QR flow's job.
+      // Fire just the toast as a soft acknowledgement of the test.
+      try { showCheckinEventToast(name, 'in'); } catch (_) {}
+    }
+  });
   document.getElementById('staffAuthBtn')?.addEventListener('click', () => { requestStaffHelloSession('authenticate staff'); });
   document.getElementById('staffAuthClearBtn')?.addEventListener('click', () => clearStaffAuthSession('Staff signed out. Paste another HELLO to authenticate.'));
   document.getElementById('staffHelloDecodeBtn')?.addEventListener('click', decodeStaffHelloImage);

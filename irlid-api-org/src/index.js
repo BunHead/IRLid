@@ -1526,6 +1526,8 @@ async function orgUpdateSettings(request, env) {
     // shown to attendees on org-entry.html (allow/orange/review states). Display-only,
     // no accept gate. Captain's directive 11 May morning.
     "logoUrl","welcomeMessage","orgTerms","redirectUrl","websiteUrl",
+    // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
+    "roleLabels",
     // --- Theme (Batch 6.5 → 6.5f) ---
     "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
@@ -1687,6 +1689,18 @@ async function orgUpdateSettings(request, env) {
   if (body.orgTerms !== undefined && typeof body.orgTerms !== "string") return err("orgTerms must be a string");
   if (body.orgTerms !== undefined && typeof body.orgTerms === "string" && body.orgTerms.length > 8000) return err("orgTerms too long (max 8000 chars)");
   if (body.redirectUrl !== undefined && typeof body.redirectUrl !== "string") return err("redirectUrl must be a string");
+  // v5.9.0.13.14 — Role vocabulary: per-org custom labels for the role chain.
+  if (body.roleLabels !== undefined) {
+    const rl = body.roleLabels;
+    if (typeof rl !== "object" || rl === null || Array.isArray(rl)) return err("roleLabels must be an object");
+    const ROLE_KEYS = ["attendee", "staff", "manager", "lead_admin", "developer"];
+    for (const key of Object.keys(rl)) {
+      if (ROLE_KEYS.indexOf(key) === -1) return err("roleLabels has unknown key: " + key);
+      const val = rl[key];
+      if (typeof val !== "string") return err("roleLabels." + key + " must be a string");
+      if (val.length === 0 || val.length > 40) return err("roleLabels." + key + " must be 1-40 chars");
+    }
+  }
   for (const k of allowed) { if (body[k] !== undefined) current[k] = body[k]; }
   await env.DB.prepare("UPDATE organisations SET settings_json=?, updated_at=? WHERE id=?")
     .bind(JSON.stringify(current), now(), org.id).run();
