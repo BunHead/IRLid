@@ -2066,15 +2066,22 @@ button.theme-preview-button:focus-visible {
    Existing legacy classes (.cycle-accept-glow / .cycle-burst-page / etc.)
    remain in place — the legacy dropdown still works during the transition. */
 
-/* Pulse — box-shadow throb, single-swatch by default, intensity dial. */
+/* Pulse — box-shadow throb cycling through Celebration palette swatches.
+   v5.9.0.13.12 — uses multiple palette stops so it visibly threads colours. */
 @keyframes celebrationPulseSubtle {
   0%   { box-shadow: 0 0 0 0 transparent; }
-  50%  { box-shadow: 0 0 0 10px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))), 0 0 36px 12px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))); }
+  20%  { box-shadow: 0 0 0 8px  var(--theme-cycle-1, var(--theme-primary)), 0 0 28px 10px var(--theme-cycle-1, var(--theme-primary)); }
+  45%  { box-shadow: 0 0 0 10px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))), 0 0 36px 12px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); }
+  70%  { box-shadow: 0 0 0 9px  var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))), 0 0 30px 11px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); }
+  90%  { box-shadow: 0 0 0 5px  var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))), 0 0 18px 6px  var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 @keyframes celebrationPulseStrong {
   0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
-  35%  { box-shadow: 0 0 0 22px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))), 0 0 80px 28px var(--celeb-pulse-colour, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.02); }
+  20%  { box-shadow: 0 0 0 18px var(--theme-cycle-1, var(--theme-primary)), 0 0 64px 22px var(--theme-cycle-1, var(--theme-primary)); transform: scale(1.012); }
+  45%  { box-shadow: 0 0 0 22px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))), 0 0 80px 28px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); transform: scale(1.02); }
+  70%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))), 0 0 66px 22px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); transform: scale(1.015); }
+  90%  { box-shadow: 0 0 0 9px  var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))), 0 0 32px 10px var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.006); }
   100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
 }
 body .irlid-qr-fullscreen-holder.celebration-pulse,
@@ -2099,17 +2106,19 @@ body #venueQRWrap.celebration-pulse.celebration-pulse--strong,
   85%  { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); opacity: 0.4; }
   100% { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); opacity: 0; }
 }
-body.celebration-page-bg-firing::after {
-  content: "";
+/* v5.9.0.13.12 — Dedicated overlay element instead of body::after pseudo. */
+.celebration-bg-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 999996;
   background-color: transparent;
   opacity: 0;
+}
+.celebration-bg-overlay.firing {
   animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1;
 }
-body.celebration-page-bg-firing.celebration-page-bg-firing--thrice::after {
+.celebration-bg-overlay.firing.firing-thrice {
   animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3;
 }
 /* Preview chip — still gets its own bg cycle as a local indicator. */
@@ -2132,8 +2141,10 @@ body.celebration-page-bg-firing.celebration-page-bg-firing--thrice::after {
   80%  { transform: rotate(9deg);   }
   100% { transform: rotate(0deg);   }
 }
-@keyframes celebrationQrRotateCw  { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(18deg);  } }
-@keyframes celebrationQrRotateCcw { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(-18deg); } }
+/* v5.9.0.13.12 — Rotate becomes a full 360° spin (Captain: "prob make rotate
+   do a 360"). Wobble keeps the gentle equal-distance left/right shake. */
+@keyframes celebrationQrRotateCw  { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg);  } }
+@keyframes celebrationQrRotateCcw { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
 @keyframes celebrationQrZoomIn    { 0%,100% { transform: scale(1);      } 50% { transform: scale(1.14);    } }
 @keyframes celebrationQrZoomOut   { 0%,100% { transform: scale(1);      } 50% { transform: scale(0.86);    } }
 /* 4-step dissolve: full → partial gaps → wider gaps → fully gone → return to full.
@@ -2288,8 +2299,11 @@ body #venueQRWrap.celebration-glow.celebration-glow--centre::after,
   100% { opacity: 0; }
 }
 body .irlid-qr-fullscreen-holder.celebration-pattern,
-body #venueQRWrap.celebration-pattern,
-.theme-preview-qr-cycle.celebration-pattern { position: relative; }
+body #venueQRWrap.celebration-pattern { position: relative; }
+/* v5.9.0.13.12 — Preview chip keeps its base position:absolute (line 1582)
+   so the chip stays overlaid on the small QR preview. Same fix as celebration-glow
+   in v5.9.0.13.5. The pattern ::after pseudo still renders because position:absolute
+   provides containing block too. */
 body .irlid-qr-fullscreen-holder.celebration-pattern::after,
 body #venueQRWrap.celebration-pattern::after,
 .theme-preview-qr-cycle.celebration-pattern::after {
@@ -2303,17 +2317,31 @@ body #venueQRWrap.celebration-pattern::after,
   opacity: 0;
   animation: celebrationPatternFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
-/* Pattern variants — image + size pairs are injected via JS-set custom props,
-   but we ship sane class-driven defaults here so each Pattern chip works
-   without JS hitting the styles. */
-.celebration-pattern.celebration-pattern--dots      { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1.4px, transparent 2px); --celeb-pattern-size: 14px 14px; }
-.celebration-pattern.celebration-pattern--hex       { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1px, transparent 1.5px); --celeb-pattern-size: 22px 22px; }
-.celebration-pattern.celebration-pattern--diagonal  { --celeb-pattern-image: repeating-linear-gradient(45deg, var(--theme-cycle-3) 0 2px, transparent 2px 14px); }
-.celebration-pattern.celebration-pattern--checker   { --celeb-pattern-image: repeating-conic-gradient(var(--theme-cycle-3) 0 25%, transparent 0 50%); --celeb-pattern-size: 18px 18px; }
-.celebration-pattern.celebration-pattern--grid      { --celeb-pattern-image: linear-gradient(var(--theme-cycle-3) 1px, transparent 1px), linear-gradient(90deg, var(--theme-cycle-3) 1px, transparent 1px); --celeb-pattern-size: 22px 22px; }
-.celebration-pattern.celebration-pattern--weave     { --celeb-pattern-image: repeating-linear-gradient(0deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px), repeating-linear-gradient(90deg, var(--theme-cycle-3) 0 2px, transparent 2px 10px); }
-.celebration-pattern.celebration-pattern--chevron   { --celeb-pattern-image: linear-gradient(135deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0, linear-gradient(225deg, var(--theme-cycle-3) 25%, transparent 25%) 0 0; --celeb-pattern-size: 18px 18px; }
-.celebration-pattern.celebration-pattern--isometric { --celeb-pattern-image: linear-gradient(30deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%), linear-gradient(150deg, var(--theme-cycle-3) 12%, transparent 12.5%, transparent 87%, var(--theme-cycle-3) 87.5%); --celeb-pattern-size: 24px 24px; }
+/* Pattern variants — v5.9.0.13.12 — each pattern's foreground references a
+   keyframe-animated custom property `--celeb-pattern-colour` so the pattern
+   visibly threads through palette swatches during the flash. The @property
+   registration lets the colour animate smoothly. */
+@property --celeb-pattern-colour {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #58a6ff;
+}
+@keyframes celebrationPatternColourCycle {
+  0%   { --celeb-pattern-colour: var(--theme-cycle-1, var(--theme-primary)); }
+  25%  { --celeb-pattern-colour: var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); }
+  50%  { --celeb-pattern-colour: var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); }
+  75%  { --celeb-pattern-colour: var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); }
+  100% { --celeb-pattern-colour: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); }
+}
+.celebration-pattern { animation: celebrationPatternColourCycle var(--theme-cycle-anim-duration, 1.4s) linear 1; }
+.celebration-pattern.celebration-pattern--dots      { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--celeb-pattern-colour) 1.4px, transparent 2px); --celeb-pattern-size: 14px 14px; }
+.celebration-pattern.celebration-pattern--hex       { --celeb-pattern-image: radial-gradient(circle at 50% 50%, var(--celeb-pattern-colour) 1px, transparent 1.5px); --celeb-pattern-size: 22px 22px; }
+.celebration-pattern.celebration-pattern--diagonal  { --celeb-pattern-image: repeating-linear-gradient(45deg, var(--celeb-pattern-colour) 0 2px, transparent 2px 14px); }
+.celebration-pattern.celebration-pattern--checker   { --celeb-pattern-image: repeating-conic-gradient(var(--celeb-pattern-colour) 0 25%, transparent 0 50%); --celeb-pattern-size: 18px 18px; }
+.celebration-pattern.celebration-pattern--grid      { --celeb-pattern-image: linear-gradient(var(--celeb-pattern-colour) 1px, transparent 1px), linear-gradient(90deg, var(--celeb-pattern-colour) 1px, transparent 1px); --celeb-pattern-size: 22px 22px; }
+.celebration-pattern.celebration-pattern--weave     { --celeb-pattern-image: repeating-linear-gradient(0deg, var(--celeb-pattern-colour) 0 2px, transparent 2px 10px), repeating-linear-gradient(90deg, var(--celeb-pattern-colour) 0 2px, transparent 2px 10px); }
+.celebration-pattern.celebration-pattern--chevron   { --celeb-pattern-image: linear-gradient(135deg, var(--celeb-pattern-colour) 25%, transparent 25%) 0 0, linear-gradient(225deg, var(--celeb-pattern-colour) 25%, transparent 25%) 0 0; --celeb-pattern-size: 18px 18px; }
+.celebration-pattern.celebration-pattern--isometric { --celeb-pattern-image: linear-gradient(30deg, var(--celeb-pattern-colour) 12%, transparent 12.5%, transparent 87%, var(--celeb-pattern-colour) 87.5%), linear-gradient(150deg, var(--celeb-pattern-colour) 12%, transparent 12.5%, transparent 87%, var(--celeb-pattern-colour) 87.5%); --celeb-pattern-size: 24px 24px; }
 /* v5.9.0.13.5 — body-level unmissable visual feedback. Adds a brief
    viewport-edge halo using inset box-shadow on a sibling pseudo. Survives
    any parent clipping because it's anchored to <body>. Used as a debug +
@@ -3022,7 +3050,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.12</span></div>
   </div>
 </div>
 
@@ -3523,7 +3551,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <select id="themeBgMode" class="theme-anim-select">
                         <option value="off">Off (flat dark)</option>
                         <option value="page">Page colour cycle</option>
-                        <option value="glow">QR glow halo</option>
                         <option value="pattern">Pattern</option>
                         <option value="image">Image</option>
                       </select>
@@ -3948,6 +3975,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
      layers are clipped or hidden. Captain's directive: "just print on screen
      First name Surname checked in/out". -->
 <div class="checkin-event-banner hidden" id="checkinEventBanner" role="status" aria-live="polite" aria-hidden="true"></div>
+<!-- v5.9.0.13.12 — Dedicated full-viewport background overlay element. Was a
+     body::after pseudo in earlier versions but couldn't be reliably driven; a
+     real DOM element with explicit class control is bulletproof. Trigger adds
+     '.firing' (+ '.firing-thrice' for triple-sweep) to start the animation. -->
+<div class="celebration-bg-overlay" id="celebrationBgOverlay" aria-hidden="true"></div>
 <div class="post-resolution-toast hidden" id="postResolutionToast" role="status" aria-live="polite">
   <div class="post-resolution-card">
     <div class="post-resolution-icon" aria-hidden="true">✓</div>
@@ -8367,7 +8399,7 @@ const THEME_DEFAULTS = {
   bgPalette:  ['#F44336','#FF9800','#FFEB3B','#4CAF50','#2196F3','#673AB7','#E91E63'],
   darkMode: true,
   // Batch 6.5b → 6.5f
-  bgMode: 'glow',            // 'off' | 'page' | 'glow' | 'pattern' | 'image' (Background; replaces legacy bgAnimEnabled)
+  bgMode: 'off',             // 'off' | 'page' | 'pattern' | 'image' (Background; v5.9.0.13.12 — 'glow' retired from picker; legacy values migrate to 'off')
   bgIntensity: 'muted',      // 'muted' | 'vibrant' — applies when bgMode === 'page' (renamed from bgPalette in 6.5e)
   bgPattern: 'dots',         // pattern id — applies when bgMode === 'pattern'
   bgImageUrl: null,          // admin-uploaded background image; applies when bgMode === 'image'
@@ -8460,7 +8492,10 @@ function normalizeThemeForSave(theme) {
   const t = theme || {};
   let bgMode = t.bgMode;
   if (!bgMode) bgMode = (t.bgAnimEnabled === false) ? 'off' : THEME_DEFAULTS.bgMode;
-  if (['off','page','glow','pattern','image'].indexOf(bgMode) === -1) bgMode = THEME_DEFAULTS.bgMode;
+  // v5.9.0.13.12 — 'glow' retired from Background Anim picker; legacy saves
+  // with bgMode='glow' (halo on QR) migrate silently to 'off' on load.
+  if (bgMode === 'glow') bgMode = 'off';
+  if (['off','page','pattern','image'].indexOf(bgMode) === -1) bgMode = THEME_DEFAULTS.bgMode;
   const bgImageUrl = typeof t.bgImageUrl === 'string' && t.bgImageUrl ? t.bgImageUrl : null;
   if (bgMode === 'pattern' && t.bgPattern === 'custom' && bgImageUrl) bgMode = 'image';
   let bgIntensity = t.bgIntensity;
@@ -8799,11 +8834,15 @@ function previewAcceptCycle() {
     // Page-level background sweep when Background effect is enabled.
     if (celeb.bg && celeb.bg.enabled) {
       try {
-        document.body.classList.remove('celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
-        void document.body.offsetWidth;
-        document.body.classList.add('celebration-page-bg-firing');
-        if (celeb.bg.sweep === 'thrice') document.body.classList.add('celebration-page-bg-firing--thrice');
-        setTimeout(function () { document.body.classList.remove('celebration-page-bg-firing', 'celebration-page-bg-firing--thrice'); }, ms);
+        const bgOverlay = document.getElementById('celebrationBgOverlay');
+        if (bgOverlay) {
+          bgOverlay.classList.remove('firing', 'firing-thrice');
+          void bgOverlay.offsetWidth;
+          bgOverlay.classList.add('firing');
+          if (celeb.bg.sweep === 'thrice') bgOverlay.classList.add('firing-thrice');
+          console.log('[celebration preview] page-bg overlay fired, classList:', bgOverlay.className);
+          setTimeout(function () { bgOverlay.classList.remove('firing', 'firing-thrice'); }, ms);
+        }
       } catch (_) {}
     }
     // Show the test toast so Captain can see the full feedback in preview.
@@ -8928,16 +8967,20 @@ function triggerAcceptCycleAnimation() {
     // Background effect is enabled (Captain: "should be the whole page
     // background, not just the QR").
     try {
-      document.body.classList.remove('celebration-firing', 'celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
+      document.body.classList.remove('celebration-firing');
       void document.body.offsetWidth;
       document.body.classList.add('celebration-firing');
-      if (celeb.bg && celeb.bg.enabled) {
-        document.body.classList.add('celebration-page-bg-firing');
-        if (celeb.bg.sweep === 'thrice') document.body.classList.add('celebration-page-bg-firing--thrice');
+      // v5.9.0.13.12 — Background effect fires the dedicated overlay div.
+      const bgOverlay = document.getElementById('celebrationBgOverlay');
+      if (celeb.bg && celeb.bg.enabled && bgOverlay) {
+        bgOverlay.classList.remove('firing', 'firing-thrice');
+        void bgOverlay.offsetWidth;
+        bgOverlay.classList.add('firing');
+        if (celeb.bg.sweep === 'thrice') bgOverlay.classList.add('firing-thrice');
+        console.log('[celebration] page-bg overlay fired, classList:', bgOverlay.className);
+        setTimeout(function () { bgOverlay.classList.remove('firing', 'firing-thrice'); }, ms);
       }
-      setTimeout(function () {
-        document.body.classList.remove('celebration-firing', 'celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
-      }, ms);
+      setTimeout(function () { document.body.classList.remove('celebration-firing'); }, ms);
     } catch (_) {}
     const targets = cycleBurstTargets(true);
     console.log('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
