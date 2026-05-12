@@ -143,6 +143,26 @@ body.is-offline::before {
   z-index: 100001;
   box-shadow: inset 0 0 0 4px #C62828;
 }
+/* v5.9.0.13.19 — Browser Fullscreen API (used by qr-fullscreen.js
+   line 217 — overlay.requestFullscreen()) hides everything OUTSIDE the
+   fullscreen element. The body-level red strip + pill above are invisible
+   while fullscreen is active. Paint the offline state INSIDE the
+   .irlid-qr-fullscreen element so it stays visible during fullscreen QR. */
+body.is-offline .irlid-qr-fullscreen.active::after {
+  content: "OFFLINE";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 6px #C62828;
+  color: #fff;
+  font: 700 14px/1 system-ui, sans-serif;
+  letter-spacing: 0.2em;
+  text-align: center;
+  padding-top: 14px;
+  background:
+    linear-gradient(to bottom, rgba(198,40,40,0.92) 0, rgba(198,40,40,0.92) 36px, transparent 36px) no-repeat;
+  z-index: 100100;
+}
 .offline-indicator .dot {
   width: 12px; height: 12px; border-radius: 50%;
   background: #C62828;
@@ -3157,7 +3177,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.18</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.19</span></div>
   </div>
 </div>
 
@@ -6116,6 +6136,13 @@ async function refreshAttendanceFromUI() {
     showToast('Sign in to an organisation first', true);
     return;
   }
+  // v5.9.0.13.19 — Refresh-while-offline gives explicit feedback rather than
+  // silently failing. Captain reported the Refresh button looked dead when
+  // clicked offline. Now it confirms the state and explains the next step.
+  if (!navigator.onLine) {
+    showToast('Currently offline — table will catch up automatically when reconnected', true);
+    return;
+  }
   if (btn) btn.classList.add('is-refreshing');
   const lastEl = document.getElementById('lastRefresh');
   if (lastEl) lastEl.textContent = 'Refreshing...';
@@ -6130,6 +6157,7 @@ async function refreshAttendanceFromUI() {
     if (btn) btn.classList.remove('is-refreshing');
   }
   if (ok) showToast('Attendance refreshed');
+  else showToast('Refresh failed — network error', true);
 }
 async function clearTestAttendanceDataset() {
   if (!canClearTestAttendance()) return showToast('Developer role required to clear test attendance', true);
