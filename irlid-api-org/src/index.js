@@ -1529,7 +1529,7 @@ async function orgUpdateSettings(request, env) {
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     // --- Theme (Batch 6.5 → 6.5f) ---
-    "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
+    "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageSymmetric, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
   // Theme validators — defensive, applied before merge.
   function isHex6(v) { return typeof v === "string" && /^#[0-9A-Fa-f]{6}$/.test(v); }
@@ -1669,6 +1669,9 @@ async function orgUpdateSettings(request, env) {
       if (typeof t.bgImagePosition !== "string" || POSITIONS.indexOf(t.bgImagePosition) === -1) {
         return "theme.bgImagePosition must be one of: centre, tile, cover, top, top-left, top-right, bottom, bottom-left, bottom-right, left, right";
       }
+    }
+    if (t.bgImageSymmetric !== undefined && typeof t.bgImageSymmetric !== "boolean") {
+      return "theme.bgImageSymmetric must be boolean";
     }
     if (t.bgImageAlphaCycle !== undefined && typeof t.bgImageAlphaCycle !== "boolean") {
       return "theme.bgImageAlphaCycle must be a boolean";
