@@ -3177,7 +3177,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.19</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.20</span></div>
   </div>
 </div>
 
@@ -6040,6 +6040,16 @@ window.showCheckinEventToast = showCheckinEventToast;
 
 async function refreshAttendance() {
   if (!currentOrg) return;
+  // v5.9.0.13.20 — Skip the poll entirely when offline. Otherwise the snapshot-
+  // fallback path in the catch block replaces attendanceData wholesale, wiping
+  // any optimistic pending_sync rows that addQueuedCheckinRow just added. The
+  // initial cached-snapshot render already happened at sign-in; we only need
+  // the poll once we're back online (the 'online' event listener fires an
+  // immediate catch-up refresh).
+  if (!navigator.onLine) {
+    console.log('[poll] offline — skipping refresh to preserve pending_sync rows');
+    return;
+  }
   try {
     const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key);
     const checkins = payload.checkins || [];
