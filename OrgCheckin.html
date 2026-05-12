@@ -2084,52 +2084,76 @@ body .irlid-qr-fullscreen-holder.celebration-pulse.celebration-pulse--strong,
 body #venueQRWrap.celebration-pulse.celebration-pulse--strong,
 .theme-preview-qr-cycle.celebration-pulse.celebration-pulse--strong { animation: celebrationPulseStrong var(--theme-cycle-anim-duration, 1.4s) ease-out 1; }
 
-/* Background — v5.9.0.13.10 — cycle the WHOLE PAGE background, not just
-   the QR canvas. Captain: "should be the whole page background". Applied
-   to body via the celebration-page-bg-firing class, set by the trigger.
-   Falls through to .qr-box background as a fallback on hosts that don't
-   want to repaint the whole viewport. */
-@keyframes celebrationPageBgOnce {
-  0%   { background-color: var(--theme-cycle-1, var(--theme-primary)); }
-  20%  { background-color: var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); }
-  40%  { background-color: var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); }
-  60%  { background-color: var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); }
-  80%  { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); }
-  100% { background-color: var(--theme-cycle-1, var(--theme-primary)); }
+/* Background — v5.9.0.13.11 — full-viewport fixed-position overlay so the
+   colour wash actually shows over the chrome. Animating body's bg-color
+   does nothing because .sidebar + .main cover the body with their own
+   backgrounds. The overlay uses position:fixed inset:0 and sits ABOVE the
+   chrome (z-index 999996, below body-flash at 999998 and toast at 999999)
+   with 0.45 peak opacity so it tints rather than masks. */
+@keyframes celebrationPageBgOverlay {
+  0%   { background-color: var(--theme-cycle-1, var(--theme-primary)); opacity: 0; }
+  15%  { background-color: var(--theme-cycle-1, var(--theme-primary)); opacity: 0.45; }
+  30%  { background-color: var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); opacity: 0.45; }
+  50%  { background-color: var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); opacity: 0.5; }
+  70%  { background-color: var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); opacity: 0.45; }
+  85%  { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); opacity: 0.4; }
+  100% { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); opacity: 0; }
 }
-body.celebration-page-bg-firing {
-  animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1;
+body.celebration-page-bg-firing::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999996;
+  background-color: transparent;
+  opacity: 0;
+  animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1;
 }
-body.celebration-page-bg-firing.celebration-page-bg-firing--thrice {
-  animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3;
+body.celebration-page-bg-firing.celebration-page-bg-firing--thrice::after {
+  animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3;
 }
 /* Preview chip — still gets its own bg cycle as a local indicator. */
-.theme-preview-qr-cycle.celebration-bg { animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
-.theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
+.theme-preview-qr-cycle.celebration-bg { animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
+.theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationPageBgOverlay var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
 
-/* QR — rotate / zoom / dissolve on the QR canvas itself.
+/* QR — wobble / zoom / dissolve on the QR canvas itself.
    v5.9.0.13.10 — bigger angles + scale so the motion is visible. Also
    targets .theme-preview-qr directly (was only on the chip overlay,
-   which is invisible — so preview QR didn't visibly transform). */
+   which is invisible — so preview QR didn't visibly transform).
+   v5.9.0.13.11 — Rotate CW/CCW replaced with single Wobble (Captain's
+   directive: "same distance left and right"). Dissolve now 4 discrete
+   steps with step-end timing so it visibly progresses through stages
+   rather than smoothly fading. */
+@keyframes celebrationQrWobble    {
+  0%   { transform: rotate(0deg);   }
+  20%  { transform: rotate(-14deg); }
+  40%  { transform: rotate(14deg);  }
+  60%  { transform: rotate(-9deg);  }
+  80%  { transform: rotate(9deg);   }
+  100% { transform: rotate(0deg);   }
+}
 @keyframes celebrationQrRotateCw  { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(18deg);  } }
 @keyframes celebrationQrRotateCcw { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(-18deg); } }
 @keyframes celebrationQrZoomIn    { 0%,100% { transform: scale(1);      } 50% { transform: scale(1.14);    } }
 @keyframes celebrationQrZoomOut   { 0%,100% { transform: scale(1);      } 50% { transform: scale(0.86);    } }
+/* 4-step dissolve: full → partial gaps → wider gaps → fully gone → return to full.
+   Uses step-end timing so the visible state holds for each quarter of the
+   duration rather than smoothly interpolating (Captain wanted discrete frames). */
 @keyframes celebrationQrDissolveHorz {
-  0%   { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
-  50%  {
-    -webkit-mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 8px);
-            mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 8px);
-  }
-  100% { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+  0%   { -webkit-mask: linear-gradient(#000 0 100%);                                                              mask: linear-gradient(#000 0 100%);                                                              opacity: 1; }
+  25%  { -webkit-mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 18px);                       mask: repeating-linear-gradient(0deg, #000 0 14px, transparent 14px 18px);                       opacity: 0.85; }
+  50%  { -webkit-mask: repeating-linear-gradient(0deg, #000 0 8px,  transparent 8px 16px);                        mask: repeating-linear-gradient(0deg, #000 0 8px,  transparent 8px 16px);                        opacity: 0.6;  }
+  75%  { -webkit-mask: repeating-linear-gradient(0deg, #000 0 3px,  transparent 3px 16px);                        mask: repeating-linear-gradient(0deg, #000 0 3px,  transparent 3px 16px);                        opacity: 0.25; }
+  88%  { -webkit-mask: linear-gradient(transparent 0 100%);                                                       mask: linear-gradient(transparent 0 100%);                                                       opacity: 0;    }
+  100% { -webkit-mask: linear-gradient(#000 0 100%);                                                              mask: linear-gradient(#000 0 100%);                                                              opacity: 1;    }
 }
 @keyframes celebrationQrDissolveVert {
-  0%   { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
-  50%  {
-    -webkit-mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
-            mask: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 8px);
-  }
-  100% { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
+  0%   { -webkit-mask: linear-gradient(#000 0 100%);                                                              mask: linear-gradient(#000 0 100%);                                                              opacity: 1; }
+  25%  { -webkit-mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 18px);                      mask: repeating-linear-gradient(90deg, #000 0 14px, transparent 14px 18px);                      opacity: 0.85; }
+  50%  { -webkit-mask: repeating-linear-gradient(90deg, #000 0 8px,  transparent 8px 16px);                       mask: repeating-linear-gradient(90deg, #000 0 8px,  transparent 8px 16px);                       opacity: 0.6;  }
+  75%  { -webkit-mask: repeating-linear-gradient(90deg, #000 0 3px,  transparent 3px 16px);                       mask: repeating-linear-gradient(90deg, #000 0 3px,  transparent 3px 16px);                       opacity: 0.25; }
+  88%  { -webkit-mask: linear-gradient(transparent 0 100%);                                                       mask: linear-gradient(transparent 0 100%);                                                       opacity: 0;    }
+  100% { -webkit-mask: linear-gradient(#000 0 100%);                                                              mask: linear-gradient(#000 0 100%);                                                              opacity: 1;    }
 }
 body .irlid-qr-fullscreen-holder.celebration-qr,
 body #venueQRWrap.celebration-qr .qr-box,
@@ -2139,6 +2163,9 @@ body #venueQRWrap.celebration-qr .qr-box,
   animation-iteration-count: 1;
   transform-origin: center center;
 }
+.celebration-qr.celebration-qr--wobble     .qr-box,
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--wobble,
+.theme-preview-qr.celebration-qr.celebration-qr--wobble      { animation-name: celebrationQrWobble; }
 .celebration-qr.celebration-qr--rotate-cw  .qr-box,
 .irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--rotate-cw,
 .theme-preview-qr.celebration-qr.celebration-qr--rotate-cw   { animation-name: celebrationQrRotateCw; }
@@ -2153,10 +2180,10 @@ body #venueQRWrap.celebration-qr .qr-box,
 .theme-preview-qr.celebration-qr.celebration-qr--zoom-out    { animation-name: celebrationQrZoomOut; }
 .celebration-qr.celebration-qr--dissolve-horz .qr-box,
 .irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--dissolve-horz,
-.theme-preview-qr.celebration-qr.celebration-qr--dissolve-horz { animation-name: celebrationQrDissolveHorz; }
+.theme-preview-qr.celebration-qr.celebration-qr--dissolve-horz { animation-name: celebrationQrDissolveHorz; animation-timing-function: step-end; }
 .celebration-qr.celebration-qr--dissolve-vert .qr-box,
 .irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--dissolve-vert,
-.theme-preview-qr.celebration-qr.celebration-qr--dissolve-vert { animation-name: celebrationQrDissolveVert; }
+.theme-preview-qr.celebration-qr.celebration-qr--dissolve-vert { animation-name: celebrationQrDissolveVert; animation-timing-function: step-end; }
 
 /* Glow — conic ring + centre pulse via existing pseudo-overlay strategy.
    Reuses the v5.9.0.12 ring/pulse keyframes (themeAcceptRingSweep + themeAcceptCentrePulse)
@@ -2995,7 +3022,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.11</span></div>
   </div>
 </div>
 
@@ -3666,12 +3693,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                           <div class="celebration-toggle-row">
                             <span class="celebration-toggle-label">Motion</span>
                             <div class="celebration-chip-group" data-celeb-toggle="qrMotion">
-                              <button type="button" class="celebration-chip" data-value="rotate-cw" aria-pressed="true">Rotate CW</button>
-                              <button type="button" class="celebration-chip" data-value="rotate-ccw" aria-pressed="false">Rotate CCW</button>
+                              <button type="button" class="celebration-chip" data-value="wobble" aria-pressed="true">Wobble</button>
                               <button type="button" class="celebration-chip" data-value="zoom-in" aria-pressed="false">Zoom in</button>
                               <button type="button" class="celebration-chip" data-value="zoom-out" aria-pressed="false">Zoom out</button>
                               <button type="button" class="celebration-chip" data-value="dissolve-horz" aria-pressed="false">Dissolve horz</button>
                               <button type="button" class="celebration-chip" data-value="dissolve-vert" aria-pressed="false">Dissolve vert</button>
+                              <button type="button" class="celebration-chip" data-value="rotate-cw" aria-pressed="false">Rotate CW</button>
+                              <button type="button" class="celebration-chip" data-value="rotate-ccw" aria-pressed="false">Rotate CCW</button>
                             </div>
                           </div>
                         </div>
@@ -8355,7 +8383,7 @@ const THEME_DEFAULTS = {
   celebration: {
     pulse:   { enabled: false, colourSource: 'single', intensity: 'subtle' },
     bg:      { enabled: false, sweep: 'once' },
-    qr:      { enabled: false, motion: 'rotate-cw' },
+    qr:      { enabled: false, motion: 'wobble' },
     glow:    { enabled: true,  thickness: 'medium', sweep: 'outward', centrePulse: 'on', saturation: 'vivid' },
     pattern: { enabled: false, pattern: 'dots' }
   }
@@ -8363,7 +8391,7 @@ const THEME_DEFAULTS = {
 const CELEB_PULSE_COLOURS = ['single','cycle'];
 const CELEB_PULSE_INTENSITIES = ['subtle','strong'];
 const CELEB_BG_SWEEPS = ['once','thrice'];
-const CELEB_QR_MOTIONS = ['rotate-cw','rotate-ccw','zoom-in','zoom-out','dissolve-horz','dissolve-vert'];
+const CELEB_QR_MOTIONS = ['wobble','rotate-cw','rotate-ccw','zoom-in','zoom-out','dissolve-horz','dissolve-vert'];
 const CELEB_GLOW_THICKNESSES = ['thin','medium','thick'];
 const CELEB_GLOW_SWEEPS = ['outward','inward','rotate'];
 const CELEB_GLOW_CENTRES = ['on','off'];

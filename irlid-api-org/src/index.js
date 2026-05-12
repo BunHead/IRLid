@@ -1579,7 +1579,7 @@ async function orgUpdateSettings(request, env) {
       const PULSE_COLOURS = ["single","cycle"];
       const PULSE_INTENSITIES = ["subtle","strong"];
       const BG_SWEEPS = ["once","thrice"];
-      const QR_MOTIONS = ["rotate-cw","rotate-ccw","zoom-in","zoom-out","dissolve-horz","dissolve-vert"];
+      const QR_MOTIONS = ["wobble","rotate-cw","rotate-ccw","zoom-in","zoom-out","dissolve-horz","dissolve-vert"];
       const GLOW_THICKS = ["thin","medium","thick"];
       const GLOW_SWEEPS = ["outward","inward","rotate"];
       const GLOW_CENTRES = ["on","off"];
