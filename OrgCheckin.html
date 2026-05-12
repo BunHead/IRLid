@@ -1602,6 +1602,23 @@ html.is-live-env .env-badge-test { display: none; }
 .scan-panel.cycling, .checkin-success-overlay.cycling {
   animation: themeAcceptCycle 1.4s ease-out 1;
 }
+/* v5.9.0.13.2 — Simple pulse celebration. A quiet, single-colour box-shadow
+   throb around the QR border. No conic ring, no central radial pulse, no
+   canvas effect. Uses --theme-cycle-3 (mid-palette swatch) for a coherent
+   single-colour cue. The "original simple Glow" Captain remembered. */
+@keyframes themeAcceptSimplePulse {
+  0%   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  18%  { box-shadow: 0 0 0 12px var(--theme-cycle-3, var(--theme-primary)), 0 0 48px 16px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.012); }
+  55%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-primary)), 0 0 72px 24px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.018); }
+  100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+}
+body .irlid-qr-fullscreen-holder.cycle-simple-pulse,
+body #venueQRWrap.cycle-simple-pulse,
+.theme-preview-qr-cycle.cycle-simple-pulse,
+.scan-panel.cycle-simple-pulse,
+.checkin-success-overlay.cycle-simple-pulse {
+  animation: themeAcceptSimplePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
+}
 @keyframes themeAcceptCycle {
   0%   { box-shadow: 0 0 0 0 var(--theme-cycle-1), 0 0 0 0 var(--theme-cycle-1), inset 0 0 0 0 transparent; transform: scale(1); filter: saturate(1); }
   12%  { box-shadow: 0 0 0 16px var(--theme-cycle-2), 0 0 64px 22px var(--theme-cycle-2), inset 0 0 0 5px rgba(255,255,255,.92); transform: scale(1.018); filter: saturate(1.4); }
@@ -2556,7 +2573,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.2</span></div>
   </div>
 </div>
 
@@ -3159,6 +3176,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <span>Mode</span>
                       <select id="themeCycleMode" class="theme-anim-select">
                         <option value="off">Off (no celebration)</option>
+                        <option value="simple">Simple pulse (quiet)</option>
                         <option value="page">Page colour cycle (one-shot)</option>
                         <option value="glow">QR glow halo (default)</option>
                         <option value="pattern">Pattern flash</option>
@@ -3987,6 +4005,12 @@ function setSignedInUI(isSignedIn) {
   }
   updateChromeLogo();
   if (isSignedIn) refreshStaffAuthPanel();
+  // v5.9.0.13.2 — start/stop the remote check-in poll alongside signed-in UI.
+  if (isSignedIn) {
+    try { startRemoteCheckinPoll(); } catch (_) {}
+  } else {
+    try { stopRemoteCheckinPoll(); } catch (_) {}
+  }
 }
 async function registerOrg() {
   const name = document.getElementById('orgNameInput').value.trim();
@@ -5012,12 +5036,45 @@ function updateRelativeRefresh() {
   const el = document.getElementById('lastRefresh');
   if (el) el.textContent = relativeRefreshText();
 }
+// v5.9.0.13.2 — Remote check-in poll + celebration trigger. The dashboard
+// doesn't otherwise know when an attendee scans the venue QR remotely
+// (their phone POSTs straight to the Worker; nothing pushes back to the
+// dashboard). This poll loop watches the highest check-in id and fires
+// triggerAcceptCycleAnimation() when a new id appears — but only when the
+// last dashboard-initiated check-in was >4s ago, so we don't double-fire
+// for events the dashboard already animated locally.
+let __lastSeenMaxCheckinId = null;
+let __lastDashboardCheckinAt = 0;
+let __remoteCheckinPollHandle = null;
+function markDashboardCheckin() { __lastDashboardCheckinAt = Date.now(); }
+window.markDashboardCheckin = markDashboardCheckin;
+function maxCheckinId(checkins) {
+  let max = 0;
+  for (const c of (checkins || [])) {
+    const id = Number(c && c.id);
+    if (id > max) max = id;
+  }
+  return max;
+}
 async function refreshAttendance() {
   if (!currentOrg) return;
   try {
     const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key);
+    const checkins = payload.checkins || [];
+    const newMax = maxCheckinId(checkins);
+    // Baseline on first poll so we don't celebrate everything from page load.
+    if (__lastSeenMaxCheckinId === null) {
+      __lastSeenMaxCheckinId = newMax;
+    } else if (newMax > __lastSeenMaxCheckinId) {
+      const tooSoon = (Date.now() - __lastDashboardCheckinAt) < 4000;
+      __lastSeenMaxCheckinId = newMax;
+      if (!tooSoon) {
+        // Remote path — fire without marking, so this counts as a true remote event.
+        try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+      }
+    }
     attendanceStats = payload.stats || null;
-    attendanceData = aggregateAttendees(payload.checkins || []);
+    attendanceData = aggregateAttendees(checkins);
     renderStats(attendanceData, attendanceStats);
     renderTable(attendanceData);
     lastRefreshAt = Date.now();
@@ -5037,6 +5094,27 @@ async function refreshAttendance() {
     showToast(err.message || 'Could not load attendance', true);
   }
 }
+// v5.9.0.13.2 — Background remote-check-in poll. Calls refreshAttendance
+// every 4s while an org is signed in; the new-id detection in
+// refreshAttendance fires the celebration when a remote venue-QR scan
+// lands. Stopped on sign-out via stopRemoteCheckinPoll().
+function startRemoteCheckinPoll() {
+  if (__remoteCheckinPollHandle) return;
+  __remoteCheckinPollHandle = setInterval(function () {
+    if (!currentOrg) return;
+    if (document.hidden) return; // skip when tab backgrounded — no point burning Worker quota
+    refreshAttendance().catch(function () {});
+  }, 4000);
+}
+function stopRemoteCheckinPoll() {
+  if (__remoteCheckinPollHandle) {
+    clearInterval(__remoteCheckinPollHandle);
+    __remoteCheckinPollHandle = null;
+  }
+  __lastSeenMaxCheckinId = null; // reset baseline so next sign-in re-baselines
+}
+window.startRemoteCheckinPoll = startRemoteCheckinPoll;
+window.stopRemoteCheckinPoll = stopRemoteCheckinPoll;
 // v5.7.1g — UI handler for the topbar Refresh button. Wraps refreshAttendance
 // + refreshExpectedAttendees with a visible spin + completion toast so it's
 // obvious the button fired (Captain reported "does it actually do anything?").
@@ -6390,7 +6468,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     // Mirrors the manualCheckin pattern at line ~6411. Captain reported the
     // celebration animation "does nothing" — root cause was that production
     // check-in paths (recognised + doorman) bypassed triggerAcceptCycleAnimation.
-    try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
     return;
   }
@@ -6398,7 +6476,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
   await refreshExpectedAttendees();
   flashDoormanPanel('success');
   // v5.9.0.9 — fire celebration burst on recognised-device completed check-in.
-  try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   recognition.source === 'snapshot' ? console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
 }
 async function runDoormanCheckin(env) {
@@ -6430,7 +6508,7 @@ async function runDoormanCheckin(env) {
     addQueuedCheckinRow(body, result);
     flashDoormanPanel('walkin');
     // v5.9.0.9 — fire celebration burst on doorman queued check-in.
-    try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     showToast('Queued offline - will sync when reconnected.');
     return;
   }
@@ -6438,7 +6516,7 @@ async function runDoormanCheckin(env) {
   await refreshExpectedAttendees();
   flashDoormanPanel(result.linked ? 'success' : 'walkin');
   // v5.9.0.9 — fire celebration burst on doorman completed check-in (linked + walkin both qualify).
-  try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+  try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
   showToast(result.linked ? 'Recognised attendee checked in' : 'Doorman scan recorded');
 }
 function refreshStaffAuthPanel() {
@@ -6575,7 +6653,7 @@ async function manualCheckin() {
     // both qualify (walkin is a softer success — recorded, not on expected list — but
     // still a positive outcome worth celebrating). Errors do NOT trigger; flashDoormanPanel
     // already handles the red flash for those.
-    try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
+    try { markDashboardCheckin(); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(); } catch(_) {}
     showToast('Check-in recorded');
   } catch (err) {
     flashDoormanPanel('error');
@@ -7648,7 +7726,7 @@ const THEME_DEFAULTS = {
   bgImagePosition: 'centre',
   bgImageAnchor: 'outer',
   bgImageAlphaCycle: false,
-  cycleMode: 'glow',         // 'off' | 'page' | 'glow' | 'pattern' (Celebration; replaces legacy acceptCycleEnabled in 6.5f)
+  cycleMode: 'glow',         // 'off' | 'simple' | 'page' | 'glow' | 'pattern' (Celebration; 'simple' = quiet box-shadow pulse, added v5.9.0.13.2)
   bgAnimDuration: 30,        // seconds for one full background cycle (range 5..120)
   cycleAnimDuration: 1.4     // seconds for one celebration burst (range 0.5..5)
 };
@@ -7673,7 +7751,7 @@ function normalizeThemeForSave(theme) {
   if (bgIntensity !== 'muted' && bgIntensity !== 'vibrant') bgIntensity = THEME_DEFAULTS.bgIntensity;
   let cycleMode = t.cycleMode;
   if (!cycleMode) cycleMode = (t.acceptCycleEnabled === false) ? 'off' : THEME_DEFAULTS.cycleMode;
-  if (['off','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
+  if (['off','simple','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
   return {
     primary: t.primary || THEME_DEFAULTS.primary,
     accent:  t.accent  || THEME_DEFAULTS.accent,
@@ -7970,7 +8048,8 @@ function previewAcceptCycle() {
   if (mode === 'off') return;
   const previewClass = mode === 'page' ? 'cycle-burst-page'
     : mode === 'pattern' ? 'cycle-burst-pattern'
-      : 'cycle-accept-glow';
+      : mode === 'simple' ? 'cycle-simple-pulse'
+        : 'cycle-accept-glow';
   triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], previewClass, acceptCycleMs());
 }
 
@@ -8026,12 +8105,21 @@ function triggerAcceptCycleAnimation() {
   // reads from 3-5m, while preserving the legacy mode dropdown contract.
   // Modes:
   //   off     — no animation at all
+  //   simple  — v5.9.0.13.2 quiet box-shadow pulse around the QR (no overlay layers)
   //   glow    — vivid palette halo/ring on venue QR + fullscreen holder
   //   page    — one-shot canvas colour cycle with the same visible ring
   //   pattern — high-contrast pattern flash with the same visible ring
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
   if (mode === 'off') return;
   const ms = acceptCycleMs();
+
+  if (mode === 'simple') {
+    // v5.9.0.13.2 — Simple pulse. Just a coloured box-shadow throb on the QR
+    // border, no conic ring, no central pulse, no canvas effect. The "original
+    // simple Glow" Captain remembered from pre-v5.9.0.12.
+    triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-simple-pulse', ms);
+    return;
+  }
 
   if (mode === 'glow') {
     triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-accept-glow', ms);
@@ -8175,7 +8263,7 @@ function wireThemePanel() {
   const cycleModeEl = document.getElementById('themeCycleMode');
   if (cycleModeEl) cycleModeEl.addEventListener('change', function (e) {
     const v = e.target.value;
-    activeTheme.cycleMode = ['off','page','glow','pattern'].indexOf(v) !== -1 ? v : 'glow';
+    activeTheme.cycleMode = ['off','simple','page','glow','pattern'].indexOf(v) !== -1 ? v : 'glow';
     applyThemeVars(activeTheme); // updates the panel data-cycle-mode attribute for visibility
   });
 
