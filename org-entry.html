@@ -1161,16 +1161,42 @@
     return url.href;
   }
 
+  function lightenEnvelopeForQr(envelope) {
+    // v5.9.0.13.23 — Strip orange-QR payload to the minimum the doorman flow
+    // actually uses: pub_fp + pub_jwk{x,y,kty,crv} + ts + org_code. The full
+    // envelope (with sig/hash/nonce/ext/key_ops) is still stored in localStorage
+    // for future hardware-signed paths; the QR variant just carries what staff-
+    // side binding needs. runDoormanCheckin re-computes helloHash if missing.
+    // Worker's doorman_scan handler doesn't verify sig. Net QR character count
+    // drops roughly 250→100, making the QR much less dense and far more readable
+    // by camera + image upload decoders.
+    const pub = envelope.pub_jwk || {};
+    return {
+      v: envelope.v,
+      type: envelope.type,
+      pub_fp: envelope.pub_fp,
+      pub_jwk: { x: pub.x, y: pub.y, kty: "EC", crv: "P-256" },
+      org_code: envelope.org_code,
+      ts: envelope.ts
+    };
+  }
+
   async function refreshOrangeQr() {
     const box = document.getElementById("helloQrBox");
     if (!box || !orangeState.pub || !orangeState.fp) return;
     const envelope = await signedDeviceKeyEnvelope(orangeState.pub, orangeState.fp);
-    helloQrData = await buildOrangeScanUrl(envelope);
+    const lightEnvelope = lightenEnvelopeForQr(envelope);
+    helloQrData = await buildOrangeScanUrl(lightEnvelope);
+    // localStorage keeps the FULL envelope (sig included) for future signed paths.
     localStorage.setItem("irlid_last_device_key_b64", irlidEncodeJsonToB64url(envelope));
     box.innerHTML = "";
     if (typeof QRCode === "function") {
       const qrSize = Math.min(720, Math.max(360, Math.floor(Math.min(window.innerWidth || 390, window.innerHeight || 844) * 0.86)));
-      new QRCode(box, { text: helloQrData, width: qrSize, height: qrSize, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H || QRCode.CorrectLevel.M });
+      // v5.9.0.13.23 — Error correction Level H → M. With the lighter payload
+      // (above), Level M still gives 15% damage tolerance plus much sparser
+      // QR pattern. Phone screens don't get damaged; the tradeoff is purely
+      // decoder-friendliness, and Level H was the bottleneck.
+      new QRCode(box, { text: helloQrData, width: qrSize, height: qrSize, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
       normalizeHelloQr(box);
       requestAnimationFrame(() => normalizeHelloQr(box));
     } else {
