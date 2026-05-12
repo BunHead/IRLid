@@ -2084,27 +2084,37 @@ body .irlid-qr-fullscreen-holder.celebration-pulse.celebration-pulse--strong,
 body #venueQRWrap.celebration-pulse.celebration-pulse--strong,
 .theme-preview-qr-cycle.celebration-pulse.celebration-pulse--strong { animation: celebrationPulseStrong var(--theme-cycle-anim-duration, 1.4s) ease-out 1; }
 
-/* Background — canvas colour cycle through palette. */
-@keyframes celebrationBgOnce {
+/* Background — v5.9.0.13.10 — cycle the WHOLE PAGE background, not just
+   the QR canvas. Captain: "should be the whole page background". Applied
+   to body via the celebration-page-bg-firing class, set by the trigger.
+   Falls through to .qr-box background as a fallback on hosts that don't
+   want to repaint the whole viewport. */
+@keyframes celebrationPageBgOnce {
   0%   { background-color: var(--theme-cycle-1, var(--theme-primary)); }
-  20%  { background-color: var(--theme-cycle-2, var(--theme-primary)); }
-  40%  { background-color: var(--theme-cycle-3, var(--theme-primary)); }
-  60%  { background-color: var(--theme-cycle-4, var(--theme-primary)); }
-  80%  { background-color: var(--theme-cycle-5, var(--theme-primary)); }
-  100% { background-color: transparent; }
+  20%  { background-color: var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); }
+  40%  { background-color: var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); }
+  60%  { background-color: var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); }
+  80%  { background-color: var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-primary))); }
+  100% { background-color: var(--theme-cycle-1, var(--theme-primary)); }
 }
-body .irlid-qr-fullscreen-holder.celebration-bg,
-body #venueQRWrap.celebration-bg,
-.theme-preview-qr-cycle.celebration-bg { animation: celebrationBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
-body .irlid-qr-fullscreen-holder.celebration-bg.celebration-bg--thrice,
-body #venueQRWrap.celebration-bg.celebration-bg--thrice,
-.theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
+body.celebration-page-bg-firing {
+  animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1;
+}
+body.celebration-page-bg-firing.celebration-page-bg-firing--thrice {
+  animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3;
+}
+/* Preview chip — still gets its own bg cycle as a local indicator. */
+.theme-preview-qr-cycle.celebration-bg { animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 1; }
+.theme-preview-qr-cycle.celebration-bg.celebration-bg--thrice { animation: celebrationPageBgOnce var(--theme-cycle-anim-duration, 1.4s) ease-in-out 3; }
 
-/* QR — rotate / zoom / dissolve on the QR canvas itself (the .qr-box child). */
-@keyframes celebrationQrRotateCw  { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(8deg);  } }
-@keyframes celebrationQrRotateCcw { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(-8deg); } }
-@keyframes celebrationQrZoomIn    { 0%,100% { transform: scale(1);      } 50% { transform: scale(1.08);   } }
-@keyframes celebrationQrZoomOut   { 0%,100% { transform: scale(1);      } 50% { transform: scale(0.92);   } }
+/* QR — rotate / zoom / dissolve on the QR canvas itself.
+   v5.9.0.13.10 — bigger angles + scale so the motion is visible. Also
+   targets .theme-preview-qr directly (was only on the chip overlay,
+   which is invisible — so preview QR didn't visibly transform). */
+@keyframes celebrationQrRotateCw  { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(18deg);  } }
+@keyframes celebrationQrRotateCcw { 0%,100% { transform: rotate(0deg);  } 50% { transform: rotate(-18deg); } }
+@keyframes celebrationQrZoomIn    { 0%,100% { transform: scale(1);      } 50% { transform: scale(1.14);    } }
+@keyframes celebrationQrZoomOut   { 0%,100% { transform: scale(1);      } 50% { transform: scale(0.86);    } }
 @keyframes celebrationQrDissolveHorz {
   0%   { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
   50%  {
@@ -2121,25 +2131,32 @@ body #venueQRWrap.celebration-bg.celebration-bg--thrice,
   }
   100% { -webkit-mask: linear-gradient(#000 0 100%); mask: linear-gradient(#000 0 100%); }
 }
-body .irlid-qr-fullscreen-holder.celebration-qr .qr-box,
+body .irlid-qr-fullscreen-holder.celebration-qr,
 body #venueQRWrap.celebration-qr .qr-box,
-.theme-preview-qr-cycle.celebration-qr {
+.theme-preview-qr.celebration-qr {
   animation-duration: var(--theme-cycle-anim-duration, 1.4s);
   animation-timing-function: ease-in-out;
   animation-iteration-count: 1;
+  transform-origin: center center;
 }
 .celebration-qr.celebration-qr--rotate-cw  .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--rotate-cw  { animation-name: celebrationQrRotateCw; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--rotate-cw,
+.theme-preview-qr.celebration-qr.celebration-qr--rotate-cw   { animation-name: celebrationQrRotateCw; }
 .celebration-qr.celebration-qr--rotate-ccw .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--rotate-ccw { animation-name: celebrationQrRotateCcw; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--rotate-ccw,
+.theme-preview-qr.celebration-qr.celebration-qr--rotate-ccw  { animation-name: celebrationQrRotateCcw; }
 .celebration-qr.celebration-qr--zoom-in    .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--zoom-in    { animation-name: celebrationQrZoomIn; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--zoom-in,
+.theme-preview-qr.celebration-qr.celebration-qr--zoom-in     { animation-name: celebrationQrZoomIn; }
 .celebration-qr.celebration-qr--zoom-out   .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--zoom-out   { animation-name: celebrationQrZoomOut; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--zoom-out,
+.theme-preview-qr.celebration-qr.celebration-qr--zoom-out    { animation-name: celebrationQrZoomOut; }
 .celebration-qr.celebration-qr--dissolve-horz .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--dissolve-horz { animation-name: celebrationQrDissolveHorz; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--dissolve-horz,
+.theme-preview-qr.celebration-qr.celebration-qr--dissolve-horz { animation-name: celebrationQrDissolveHorz; }
 .celebration-qr.celebration-qr--dissolve-vert .qr-box,
-.theme-preview-qr-cycle.celebration-qr.celebration-qr--dissolve-vert { animation-name: celebrationQrDissolveVert; }
+.irlid-qr-fullscreen-holder.celebration-qr.celebration-qr--dissolve-vert,
+.theme-preview-qr.celebration-qr.celebration-qr--dissolve-vert { animation-name: celebrationQrDissolveVert; }
 
 /* Glow — conic ring + centre pulse via existing pseudo-overlay strategy.
    Reuses the v5.9.0.12 ring/pulse keyframes (themeAcceptRingSweep + themeAcceptCentrePulse)
@@ -2153,12 +2170,17 @@ body #venueQRWrap.celebration-qr .qr-box,
      both on non-clipping parents (small QR on Check-in panel) AND on
      clipping parents (.irlid-qr-fullscreen with overflow:hidden). The inset
      channel renders INSIDE the element, so it survives even when outer
-     shadows get clipped. Modelled on the legacy themeAcceptCycle keyframe
-     pattern that's been working in production since v4. */
-  0%   { box-shadow: 0 0 0 0 transparent,           0 0 0 0 transparent,           inset 0 0 0 0 transparent; transform: scale(1); }
-  20%  { box-shadow: 0 0 0 18px var(--theme-cycle-3, var(--theme-primary)), 0 0 64px 22px var(--theme-cycle-3, var(--theme-primary)), inset 0 0 0 14px var(--theme-cycle-3, var(--theme-primary)); transform: scale(1.018); }
-  60%  { box-shadow: 0 0 0 26px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), 0 0 96px 32px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))), inset 0 0 0 20px var(--theme-cycle-5, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.022); }
-  100% { box-shadow: 0 0 0 0 transparent,           0 0 0 0 transparent,           inset 0 0 0 0 transparent; transform: scale(1); }
+     shadows get clipped.
+     v5.9.0.13.10 — cycle through multiple palette colours so it visibly
+     uses the user's Celebration palette, not one swatch. Captain feedback:
+     "good but not using palette colours". */
+  0%   { box-shadow: 0 0 0 0 transparent,            0 0 0 0 transparent,            inset 0 0 0 0 transparent; transform: scale(1); }
+  16%  { box-shadow: 0 0 0 16px var(--theme-cycle-1, var(--theme-primary)), 0 0 56px 20px var(--theme-cycle-1, var(--theme-primary)), inset 0 0 0 12px var(--theme-cycle-1, var(--theme-primary)); transform: scale(1.015); }
+  33%  { box-shadow: 0 0 0 22px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))), 0 0 76px 26px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))), inset 0 0 0 16px var(--theme-cycle-2, var(--theme-cycle-1, var(--theme-primary))); transform: scale(1.02); }
+  50%  { box-shadow: 0 0 0 26px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))), 0 0 96px 32px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))), inset 0 0 0 20px var(--theme-cycle-3, var(--theme-cycle-2, var(--theme-primary))); transform: scale(1.022); }
+  66%  { box-shadow: 0 0 0 24px var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))), 0 0 88px 30px var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))), inset 0 0 0 18px var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary))); transform: scale(1.018); }
+  83%  { box-shadow: 0 0 0 18px var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary)))), 0 0 60px 22px var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary)))), inset 0 0 0 12px var(--theme-cycle-5, var(--theme-cycle-4, var(--theme-cycle-3, var(--theme-primary)))); transform: scale(1.012); }
+  100% { box-shadow: 0 0 0 0 transparent,            0 0 0 0 transparent,            inset 0 0 0 0 transparent; transform: scale(1); }
 }
 body .irlid-qr-fullscreen-holder.celebration-glow,
 body #venueQRWrap.celebration-glow {
@@ -2228,10 +2250,14 @@ body #venueQRWrap.celebration-glow.celebration-glow--centre::after,
   animation: themeAcceptCentrePulse var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
 
-/* Pattern — tiled overlay flash, ::before psuedo carrying the pattern image. */
+/* Pattern — tiled overlay flash, ::before psuedo carrying the pattern image.
+   v5.9.0.13.10 — dropped mix-blend-mode: overlay (it muted the pattern
+   against the white QR background to near-invisibility), boosted peak
+   opacity, and used a more contrasting solid colour from the palette. */
 @keyframes celebrationPatternFlash {
   0%   { opacity: 0; }
-  35%  { opacity: 0.7; }
+  25%  { opacity: 0.92; }
+  60%  { opacity: 0.7; }
   100% { opacity: 0; }
 }
 body .irlid-qr-fullscreen-holder.celebration-pattern,
@@ -2245,9 +2271,8 @@ body #venueQRWrap.celebration-pattern::after,
   inset: 0;
   pointer-events: none;
   z-index: 9;
-  background-image: var(--celeb-pattern-image, radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1px, transparent 1.5px));
-  background-size: var(--celeb-pattern-size, 12px 12px);
-  mix-blend-mode: overlay;
+  background-image: var(--celeb-pattern-image, radial-gradient(circle at 50% 50%, var(--theme-cycle-3) 1.5px, transparent 2px));
+  background-size: var(--celeb-pattern-size, 14px 14px);
   opacity: 0;
   animation: celebrationPatternFlash var(--theme-cycle-anim-duration, 1.4s) ease-out 1;
 }
@@ -2970,7 +2995,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.10</span></div>
   </div>
 </div>
 
@@ -8713,21 +8738,48 @@ function previewAcceptCycle() {
   // Settings preview is local-only — production still fires via
   // triggerAcceptCycleAnimation() from real check-in paths.
   // v5.9.0.13.4 — diagnostic console.log.
+  // v5.9.0.13.10 — also applies celebration classes to the actual preview QR
+  // element (not just the overlay chip) so the QR effect's transforms are
+  // visible; ALSO fires the body-level page-bg cycle when Background effect
+  // is enabled (Captain: "should be the whole page background"); AND fires
+  // the test-name toast so the WHOLE feedback set is visible in preview.
   const ms = acceptCycleMs();
   const target = document.getElementById('themePreviewQrCycle');
+  const previewQrEl = document.getElementById('themePreviewQrBox'); // the actual preview QR element (.theme-preview-qr)
   if (!target) { console.warn('[celebration] preview target #themePreviewQrCycle not found'); return; }
   const celeb = activeTheme && activeTheme.celebration;
   if (celeb) {
     const classList = buildCelebrationClassList();
-    console.log('[celebration] preview fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList, 'target:', target);
+    console.log('[celebration] preview fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
     if (classList.length === 0) {
       console.log('[celebration] zero classes for preview — implicit Off');
       return;
     }
+    // Apply to overlay chip (glow/pulse/bg/pattern visuals).
     target.className = target.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ') + ' theme-preview-qr-cycle';
     void target.offsetWidth;
     classList.forEach(function (c) { target.classList.add(c); });
     setTimeout(function () { classList.forEach(function (c) { target.classList.remove(c); }); }, ms);
+    // Apply QR-effect classes to the actual preview QR element so the
+    // rotate/zoom/dissolve motion is visible (the chip is transparent).
+    if (previewQrEl) {
+      previewQrEl.className = previewQrEl.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ') + ' theme-preview-qr';
+      void previewQrEl.offsetWidth;
+      classList.forEach(function (c) { previewQrEl.classList.add(c); });
+      setTimeout(function () { classList.forEach(function (c) { previewQrEl.classList.remove(c); }); }, ms);
+    }
+    // Page-level background sweep when Background effect is enabled.
+    if (celeb.bg && celeb.bg.enabled) {
+      try {
+        document.body.classList.remove('celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
+        void document.body.offsetWidth;
+        document.body.classList.add('celebration-page-bg-firing');
+        if (celeb.bg.sweep === 'thrice') document.body.classList.add('celebration-page-bg-firing--thrice');
+        setTimeout(function () { document.body.classList.remove('celebration-page-bg-firing', 'celebration-page-bg-firing--thrice'); }, ms);
+      } catch (_) {}
+    }
+    // Show the test toast so Captain can see the full feedback in preview.
+    try { showCheckinEventToast('Test Attendee', 'in'); } catch (_) {}
     return;
   }
   const mode = (activeTheme && activeTheme.cycleMode) || 'glow';
@@ -8741,6 +8793,8 @@ function previewAcceptCycle() {
 
 function previewDenyCycle() {
   triggerCycleClassOnTargets([document.getElementById('themePreviewQrCycle')], 'cycle-deny-burst', denyCycleMs());
+  // v5.9.0.13.10 — also fire the test toast so Captain sees the full feedback.
+  try { showCheckinEventToast('Test Attendee', 'out'); } catch (_) {}
 }
 
 function acceptCycleMs() {
@@ -8842,11 +8896,20 @@ function triggerAcceptCycleAnimation() {
     // celebration-firing class to <body> with a viewport-edge halo so the
     // event is unmissable even if the per-element animations get clipped or
     // hidden. Removed after the burst completes.
+    // v5.9.0.13.10 — also fires body-level page-background cycle when the
+    // Background effect is enabled (Captain: "should be the whole page
+    // background, not just the QR").
     try {
-      document.body.classList.remove('celebration-firing');
+      document.body.classList.remove('celebration-firing', 'celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
       void document.body.offsetWidth;
       document.body.classList.add('celebration-firing');
-      setTimeout(function () { document.body.classList.remove('celebration-firing'); }, ms);
+      if (celeb.bg && celeb.bg.enabled) {
+        document.body.classList.add('celebration-page-bg-firing');
+        if (celeb.bg.sweep === 'thrice') document.body.classList.add('celebration-page-bg-firing--thrice');
+      }
+      setTimeout(function () {
+        document.body.classList.remove('celebration-firing', 'celebration-page-bg-firing', 'celebration-page-bg-firing--thrice');
+      }, ms);
     } catch (_) {}
     const targets = cycleBurstTargets(true);
     console.log('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
