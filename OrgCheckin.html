@@ -482,9 +482,13 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
   .escalation-section p { font-size: 13px; margin-bottom: 12px; }
   .escalation-search { padding: 12px 12px; font-size: 15px; min-height: 44px; }
   .escalation-list { max-height: 44dvh; }
-  .escalation-row { padding: 14px; min-height: 56px; font-size: 15px; }
-  .escalation-row strong { font-size: 15px; }
-  .escalation-row span { font-size: 12px; margin-top: 4px; }
+  /* v5.9.0.13.21 — Captain feedback on phone: Expected list rows hard to
+     read at the door. Bumped name to 17px/700 and the meta subtitle to
+     13px with more breathing room. Row min-height 64px gives thumbs more
+     comfortable tap targets. */
+  .escalation-row { padding: 14px 16px; min-height: 64px; font-size: 15px; gap: 14px; }
+  .escalation-row strong { font-size: 17px; font-weight: 700; line-height: 1.25; }
+  .escalation-row span { font-size: 13px; margin-top: 6px; line-height: 1.35; }
   .escalation-tabs { gap: 8px; margin-bottom: 14px; }
   .escalation-tab { padding: 10px 14px; font-size: 14px; min-height: 40px; }
   .escalation-add-fields { grid-template-columns: 1fr; gap: 12px; }
@@ -3177,7 +3181,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.20</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.21</span></div>
   </div>
 </div>
 

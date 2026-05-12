@@ -1917,6 +1917,26 @@ async function requireDevOrStaffSession(request, env, org, staffSessionToken) {
 async function bootstrapDeveloperFromBearer(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!/^Bearer\s+([A-Za-z0-9_-]{16,})$/.test(auth.trim())) return null;
+  const token = auth.trim().replace(/^Bearer\s+/i, "");
+
+  // v5.9.0.13.21 — org_-prefixed Bearer = the org's master api_key. The
+  // frontend's developerBearerSessionIsActive() helper (OrgCheckin.html
+  // line 6588) already treats org_ keys as developer-tier authority. The
+  // Worker was rejecting them here, causing an asymmetry where the frontend
+  // showed developer-tier UI but Add-at-the-door / fresh-staff-proof
+  // endpoints returned 401 stale_staff_proof. This aligns the two sides:
+  // possession of the api_key IS by definition full authority over the org.
+  // We require the same key to also be presented as X-Org-Key (which orgAuth
+  // has already validated) so a stale token in the wrong context can't
+  // backdoor in.
+  if (token.startsWith("org_")) {
+    const xOrgKey = request.headers.get("X-Org-Key") || "";
+    if (xOrgKey === token) {
+      return { id: null, pub_fp: null, display_name: "Service account (api_key)", api_key_developer: true };
+    }
+    return null;
+  }
+
   const ctx = await requireSession(request, env);
   if (ctx.error) return null;
   const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
