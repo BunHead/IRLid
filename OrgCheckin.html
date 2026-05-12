@@ -122,10 +122,13 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
   /* v5.9.0.13.17 — Promoted from corner badge to a centre-top pill so the
      dashboard offline state is unmissable. Captain reported missing the
      bottom-left placement during smoke testing. Plus a viewport-edge red
-     strip via body.is-offline for absolute clarity. */
+     strip via body.is-offline for absolute clarity.
+     v5.9.0.13.18 — z-index raised above .irlid-qr-fullscreen (100000) so
+     the pill + edge strip are visible during fullscreen venue QR display
+     too. Captain's directive. */
   position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px;
-  z-index: 9999; pointer-events: auto;
+  z-index: 100002; pointer-events: auto;
   background: rgba(198, 40, 40, 0.16);
   border: 1px solid rgba(198, 40, 40, 0.55);
   padding: 8px 16px;
@@ -137,7 +140,7 @@ body.is-offline::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 9998;
+  z-index: 100001;
   box-shadow: inset 0 0 0 4px #C62828;
 }
 .offline-indicator .dot {
@@ -3154,7 +3157,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.17</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.18</span></div>
   </div>
 </div>
 
