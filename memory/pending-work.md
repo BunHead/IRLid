@@ -10,6 +10,50 @@
 **Source of truth.** All other lists defer to this file.
 **Version-naming authority:** `memory/STATE-OF-PLAY.md`.
 
+## Tuesday 12 May 2026 demo-eve close — `v5.9.0.13.20` LIVE; smoke test passed end-to-end on hardware
+
+**The headline:** demo is ready. Six inline patches landed this afternoon on top of Mr. Data's two merged PRs. Full smoke test run through the actual demo flow on real hardware (Huawei tablet in audit mode + phone scanning + dashboard). Every beat lands cleanly.
+
+**Live shipped this afternoon (v5.9.0.13.14 → .20):**
+
+- **`.14`** — QR test tools got "Test fire animation" button (fires accept/deny celebration matching the active mode without needing a second device). Role vocabulary Settings panel (6 presets × 5 role inputs + Worker validator + `roleLabel(roleKey)` helper exposed on window). Website theme import placeholder card (frame for v5.5.8).
+- **`.15` / `.16`** — Mr. Data PRs #105 (Celebration text full controls — template with `{name}` token / position chips top-centre-bottom / size chips small-medium-large-huge) + #106 (per-effect Muted/Vivid intensity for Pulse/Background/QR/Pattern; Glow keeps its 3-stop Muted/Vivid/Hyper). Stacked PRs, merged in order, hardware-verified.
+- **`.17`** — Offline pill promoted to centre-top of viewport with palette colour, pulsing dot. Body viewport-edge red strip (`body.is-offline::before`) for peripheral visibility. Service Worker `CACHE_VERSION` bumped v2→v3 (so pill version updates propagate without manual hard refresh — the SW was serving cached HTML with the old pill). Reconnect-fires-immediate-poll listener so catch-up celebrations fire within seconds of reconnect.
+- **`.18`** — Z-index 100002 on offline indicators (above `.irlid-qr-fullscreen` at 100000) so they remain visible during fullscreen venue QR display.
+- **`.19`** — Discovered the browser Fullscreen API hides body-level fixed-position elements (z-index doesn't matter — the element tree outside the fullscreen overlay isn't rendered). Painted offline state INSIDE `.irlid-qr-fullscreen.active::after` so it survives. Plus `refreshAttendanceFromUI()` now shows an offline-aware toast when clicked offline (was previously a silent dead button).
+- **`.20`** — `refreshAttendance` bails on `!navigator.onLine` so optimistic `pending_sync` rows from `addQueuedCheckinRow` survive the 4-second poll. The snapshot fallback was wiping them.
+
+**Smoke test results (run on hardware):**
+
+- Banner fires within 4s of each scan ✓
+- Celebration effects play smoothly (Pulse + Glow + Pattern + QR + Text + Background) ✓
+- Audit board updates live across devices (Huawei tablet ↔ desktop dashboard) ✓
+- Offline mode preserves optimistic rows with PENDING SYNC pill ✓
+- Reconnect catch-up fires celebrations for remote check-ins that landed while offline ✓
+- Real fullscreen venue QR scan + dashboard celebration loop ✓
+- CSV export — works, has Name/First seen/Last seen/Scan count (Role pending Phase 2) ✓
+- Sign-in/out — first-time-two-clicks paper-cut still present, low priority ⚠
+
+**Two new BOOTSTRAP §6 pitfalls captured:**
+
+- Browser Fullscreen API hides body-level fixed-position elements regardless of z-index — paint state inside the fullscreen element instead.
+- `refreshAttendance` while offline wipes optimistic `pending_sync` rows via the snapshot fallback — bail out of poll when `!navigator.onLine`.
+
+**Open for next watch (post-demo):**
+
+1. **Role vocabulary Phase 2 sweep** — stashed at `codex/wip-role-vocab-csv-column` per Mr. Data. CSV gets Role column at position 5; dashboard render sites (Attendance table Role chip, escalation modal Add buttons, audit board) get rewired through `roleLabel(roleKey)`.
+2. **Two-clicks-first-time sign-out paper-cut** — still parked from 10 May. Low priority.
+3. **Anything that surfaces during the actual demo** — log post-event, address in the lull.
+
+### Demo-eve checklist (Captain to action before Wednesday 13 May)
+
+- [ ] Push `.17`–`.20` if not already on `origin/main`
+- [ ] Hard-refresh demo machine after deploy → confirm pill `v5.9.0.13.20`
+- [ ] Charge phones + Huawei tablet to 100%
+- [ ] Confirm venue WiFi or 4G fallback
+- [ ] Rehearse demo voice for each beat (esp. audit board moment)
+- [ ] Backup path armed: "Test fire animation" button on QR test tools = guaranteed visible celebration without needing two devices
+
 ## Tuesday 12 May 2026 mid-afternoon watch — `v5.9.0.13.13` LIVE; Celebration check-round architecture + name banner
 
 **The headline:** 13 inline patch versions shipped in a single watch rebuilding the Celebration Animation system from a single-mode dropdown into a layered orthogonal-effect architecture, plus shipping the big centre-screen name banner that fires on every check-in event (local AND remote-poll-detected). Captain's chimp-brain testing drove rapid iteration; each round surfaced one root cause, each fix shipped, hard-refresh, retest.
