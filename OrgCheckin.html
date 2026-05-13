@@ -1921,6 +1921,12 @@ button.theme-preview-button:focus-visible {
   background: var(--accent, #2f81f7);
   color: #fff;
 }
+.theme-bg-symmetry-row > span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
 /* v5.7.1y — Cell sizing bumped 36px → 48px so the grid widens to match
    the chip row above (Position/Tile/Cover) and the anchor row below
    (Outer/Centre/Inner) for visual alignment, AND so the dot has clearer
@@ -2740,8 +2746,8 @@ body[data-bg-mode="image"] {
   background-size: auto;
 }
 body[data-bg-mode="image"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"] #venueQRWrap,
+body[data-bg-mode="image"] .irlid-qr-fullscreen .bg-image-mirror,
 #venueQRWrap .bg-image-mirror {
   background-color: var(--theme-page-bg-1, #05070C);
   background-image: var(--theme-bg-image, none);
@@ -2749,44 +2755,30 @@ body[data-bg-mode="image"] #venueQRWrap,
   background-position: center center;
   background-size: auto;
 }
-body[data-bg-mode="image"] .irlid-qr-fullscreen::before,
+body[data-bg-mode="image"] .irlid-qr-fullscreen .bg-image-mirror,
 #venueQRWrap .bg-image-mirror {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  transform: scaleX(-1);
-  display: none;
+  transform: var(--bg-image-mirror-transform, none);
+  display: block;
   background-color: transparent;
 }
-body[data-bg-mode="image"] .irlid-qr-fullscreen::before {
-  content: "";
+body[data-bg-mode="image"] .irlid-qr-fullscreen .bg-image-mirror,
+#venueQRWrap .bg-image-mirror {
   background-image: inherit;
   background-repeat: inherit;
   background-position: inherit;
   background-size: inherit;
 }
-body[data-bg-mode="image"] .irlid-qr-fullscreen > * {
+body[data-bg-mode="image"] .irlid-qr-fullscreen > :not(.bg-image-mirror) {
   position: relative;
   z-index: 1;
 }
 #venueQRWrap > :not(.bg-image-mirror) {
   position: relative;
   z-index: 1;
-}
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-left"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-right"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-left"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-right"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="left"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="right"] .irlid-qr-fullscreen.active::before,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-left"] #venueQRWrap .bg-image-mirror,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-right"] #venueQRWrap .bg-image-mirror,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-left"] #venueQRWrap .bg-image-mirror,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-right"] #venueQRWrap .bg-image-mirror,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="left"] #venueQRWrap .bg-image-mirror,
-body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="right"] #venueQRWrap .bg-image-mirror {
-  display: block;
 }
 body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] .irlid-qr-fullscreen,
 body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] #venueQRWrap {
@@ -3261,7 +3253,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.31</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.32</span></div>
   </div>
 </div>
 
@@ -3494,7 +3486,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
               <div class="checkin-mode-stage" id="checkinModeStage">
                 <div id="venueQRWrap" class="qr-wrap" aria-hidden="false">
-                  <div id="bgImageMirror" class="bg-image-mirror" aria-hidden="true"></div>
                   <div class="qr-box" id="venueQrBox"></div>
                   <div class="qr-info">
                     <h4>Event Check-in QR</h4>
@@ -3824,10 +3815,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                           <button type="button" class="bg-pos-cell" data-pos="bottom"       aria-label="Bottom"       aria-pressed="false"><span class="bg-pos-dot"></span></button>
                           <button type="button" class="bg-pos-cell" data-pos="bottom-right" aria-label="Bottom right" aria-pressed="false"><span class="bg-pos-dot"></span></button>
                         </div>
-                        <label class="setting-row" id="themeBgImageSymmetricRow" style="margin-top: 8px;">
-                          <input type="checkbox" id="bgImageSymmetricCb">
-                          <span>Symmetric (mirror across centre)</span>
-                        </label>
+                        <div class="theme-bg-symmetry-row" id="themeBgImageSymmetryRow" style="margin-top: 8px;">
+                          <span>Symmetry</span>
+                          <div class="bg-pos-mode-chips" role="radiogroup" aria-label="Background image symmetry">
+                            <button type="button" class="bg-pos-mode-chip" data-bg-symmetry-mode="off" aria-pressed="true">Off</button>
+                            <button type="button" class="bg-pos-mode-chip" data-bg-symmetry-mode="horizontal" aria-pressed="false">Horizontal</button>
+                            <button type="button" class="bg-pos-mode-chip" data-bg-symmetry-mode="vertical" aria-pressed="false">Vertical</button>
+                            <button type="button" class="bg-pos-mode-chip" data-bg-symmetry-mode="quad" aria-pressed="false">Quad</button>
+                          </div>
+                          <div class="theme-bg-image-note" style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4;">
+                            Horizontal: mirror across vertical centre (left+right bookends).<br>
+                            Vertical: mirror across horizontal centre (top+bottom bookends).<br>
+                            Quad: image appears at all 4 corners (only when position is a corner).
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <!-- Anchor row: only meaningful when Position mode is active AND a non-centre cell is selected. JS hides this row otherwise. -->
@@ -7875,6 +7876,7 @@ function fullscreenQR() {
       lastRefreshedText: `Last Refreshed: ${fullscreenRefreshStamp()}`,
       refreshPayload: refreshVenueQrPayloadForFullscreen
     });
+    requestAnimationFrame(function () { syncBgImageMirrorLayers(activeTheme); });
     return;
   }
   const orgName = currentOrg?.name || portalState.orgCode || 'IRLid Event';
@@ -8957,7 +8959,7 @@ const THEME_DEFAULTS = {
   bgImageUrl: null,          // admin-uploaded background image; applies when bgMode === 'image'
   bgImagePosition: 'centre',
   bgImageAnchor: 'outer',
-  bgImageSymmetric: false,
+  bgImageSymmetryMode: 'off',
   bgImageAlphaCycle: false,
   cycleMode: 'glow',         // 'off' | 'simple' | 'page' | 'glow' | 'pattern' (Celebration; legacy, retained for backward compat — v5.9.0.13.3 layered model in celebration{} below takes precedence)
   bgAnimDuration: 30,        // seconds for one full background cycle (range 5..120)
@@ -9043,6 +9045,7 @@ const PAGE_VIBRANT_RATIO = 0.78;        // 78% palette / 22% base — saturated 
 const BG_PATTERNS = ['dots','hex','diag','checker','grid','weave','chevron','iso'];
 const BG_IMAGE_POSITIONS = ['centre','tile','cover','top','top-left','top-right','bottom','bottom-left','bottom-right','left','right']; // v5.7.1m.1 — added edge anchors top/bottom/left/right
 const BG_IMAGE_ANCHORS = ['outer','centre','inner'];
+const BG_IMAGE_SYMMETRY_MODES = ['off','horizontal','vertical','quad'];
 let activeTheme = { ...THEME_DEFAULTS, palette: [...THEME_DEFAULTS.palette], bgPalette: [...THEME_DEFAULTS.bgPalette] };
 let _iroPickers = { primary: null, accent: null, qrFg: null };
 
@@ -9062,6 +9065,10 @@ function normalizeThemeForSave(theme) {
   let cycleMode = t.cycleMode;
   if (!cycleMode) cycleMode = (t.acceptCycleEnabled === false) ? 'off' : THEME_DEFAULTS.cycleMode;
   if (['off','simple','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
+  let bgImageSymmetryMode = t.bgImageSymmetryMode;
+  if (BG_IMAGE_SYMMETRY_MODES.indexOf(bgImageSymmetryMode) === -1) {
+    bgImageSymmetryMode = t.bgImageSymmetric === true ? 'horizontal' : THEME_DEFAULTS.bgImageSymmetryMode;
+  }
   return {
     primary: t.primary || THEME_DEFAULTS.primary,
     accent:  t.accent  || THEME_DEFAULTS.accent,
@@ -9075,7 +9082,7 @@ function normalizeThemeForSave(theme) {
     bgImageUrl: bgImageUrl,
     bgImagePosition: BG_IMAGE_POSITIONS.indexOf(t.bgImagePosition) !== -1 ? t.bgImagePosition : THEME_DEFAULTS.bgImagePosition,
     bgImageAnchor: BG_IMAGE_ANCHORS.indexOf(t.bgImageAnchor) !== -1 ? t.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor,
-    bgImageSymmetric: t.bgImageSymmetric === true,
+    bgImageSymmetryMode: bgImageSymmetryMode,
     bgImageAlphaCycle: t.bgImageAlphaCycle === true,
     cycleMode: cycleMode,
     bgAnimDuration: typeof t.bgAnimDuration === 'number' ? t.bgAnimDuration : THEME_DEFAULTS.bgAnimDuration,
@@ -9094,6 +9101,54 @@ function themeRoundTripMismatches(sent, received) {
     if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) lost.push('theme.' + key);
   });
   return lost;
+}
+
+const BG_IMAGE_CORNER_POSITIONS = ['top-left','top-right','bottom-left','bottom-right'];
+const BG_IMAGE_HORIZONTAL_POSITIONS = ['top-left','left','bottom-left','top-right','right','bottom-right'];
+const BG_IMAGE_VERTICAL_POSITIONS = ['top-left','top','top-right','bottom-left','bottom','bottom-right'];
+let _lastBgImageSymmetryWarning = '';
+function bgImageMirrorSpecs(theme) {
+  const mode = BG_IMAGE_SYMMETRY_MODES.indexOf(theme && theme.bgImageSymmetryMode) !== -1 ? theme.bgImageSymmetryMode : 'off';
+  const position = theme && theme.bgImagePosition || 'centre';
+  if (mode === 'horizontal' && BG_IMAGE_HORIZONTAL_POSITIONS.indexOf(position) !== -1) {
+    return [{ role: 'horizontal', transform: 'scaleX(-1)' }];
+  }
+  if (mode === 'vertical' && BG_IMAGE_VERTICAL_POSITIONS.indexOf(position) !== -1) {
+    return [{ role: 'vertical', transform: 'scaleY(-1)' }];
+  }
+  if (mode === 'quad') {
+    if (BG_IMAGE_CORNER_POSITIONS.indexOf(position) === -1) {
+      const warningKey = mode + ':' + position;
+      if (_lastBgImageSymmetryWarning !== warningKey) {
+        console.warn('[theme] Quad background image symmetry ignored for non-corner position:', position);
+        _lastBgImageSymmetryWarning = warningKey;
+      }
+      return [];
+    }
+    return [
+      { role: 'quad-horizontal', transform: 'scaleX(-1)' },
+      { role: 'quad-vertical', transform: 'scaleY(-1)' },
+      { role: 'quad-diagonal', transform: 'scaleX(-1) scaleY(-1)' }
+    ];
+  }
+  return [];
+}
+function renderBgImageMirrors(container, specs) {
+  if (!container) return;
+  container.querySelectorAll(':scope > .bg-image-mirror').forEach(function (node) { node.remove(); });
+  (specs || []).forEach(function (spec) {
+    const mirror = document.createElement('div');
+    mirror.className = 'bg-image-mirror';
+    mirror.setAttribute('aria-hidden', 'true');
+    mirror.dataset.bgImageMirror = spec.role;
+    mirror.style.setProperty('--bg-image-mirror-transform', spec.transform);
+    container.insertBefore(mirror, container.firstChild);
+  });
+}
+function syncBgImageMirrorLayers(theme) {
+  const specs = (theme && theme.bgMode === 'image' && theme.bgImageUrl) ? bgImageMirrorSpecs(theme) : [];
+  renderBgImageMirrors(document.getElementById('venueQRWrap'), specs);
+  renderBgImageMirrors(document.querySelector('.irlid-qr-fullscreen.active'), specs);
 }
 
 function setThemeSaveStatus(message, klass) {
@@ -9175,6 +9230,7 @@ function applyThemeVars(theme) {
   body.removeAttribute('data-bg-image-position');
   body.removeAttribute('data-bg-image-anchor');
   body.removeAttribute('data-bg-image-symmetric');
+  body.removeAttribute('data-bg-image-symmetry-mode');
   body.removeAttribute('data-bg-image-alpha-cycle');
   root.style.removeProperty('--theme-pattern-image');
   root.style.removeProperty('--theme-bg-image');
@@ -9215,7 +9271,7 @@ function applyThemeVars(theme) {
       }
       body.setAttribute('data-bg-image-position', BG_IMAGE_POSITIONS.indexOf(theme.bgImagePosition) !== -1 ? theme.bgImagePosition : THEME_DEFAULTS.bgImagePosition);
       body.setAttribute('data-bg-image-anchor', BG_IMAGE_ANCHORS.indexOf(theme.bgImageAnchor) !== -1 ? theme.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor);
-      body.setAttribute('data-bg-image-symmetric', theme.bgImageSymmetric === true ? 'true' : 'false');
+      body.setAttribute('data-bg-image-symmetry-mode', BG_IMAGE_SYMMETRY_MODES.indexOf(theme.bgImageSymmetryMode) !== -1 ? theme.bgImageSymmetryMode : THEME_DEFAULTS.bgImageSymmetryMode);
       body.setAttribute('data-bg-image-alpha-cycle', theme.bgImageAlphaCycle === true ? 'true' : 'false');
       break;
     case 'glow':
@@ -9229,6 +9285,7 @@ function applyThemeVars(theme) {
   if (bgPanel) bgPanel.setAttribute('data-bg-mode', bgMode);
   const cyclePanel = document.getElementById('themeCycleAnimPanel');
   if (cyclePanel) cyclePanel.setAttribute('data-cycle-mode', theme.cycleMode || 'glow');
+  syncBgImageMirrorLayers(theme);
 
   // Batch 6.5f — write the dynamic pattern colour keyframe so patterns drift
   // through the bgPalette in sync with the cycle. CSS @property + JS-injected
@@ -9701,8 +9758,9 @@ function writeThemeToUI() {
   const bgPatternEl = document.getElementById('themeBgPattern');
   if (bgPatternEl) bgPatternEl.value = BG_PATTERNS.indexOf(activeTheme.bgPattern) !== -1 ? activeTheme.bgPattern : 'dots';
   if (typeof window.syncBgPosUI === 'function') window.syncBgPosUI();
-  const bgImageSymmetricEl = document.getElementById('bgImageSymmetricCb');
-  if (bgImageSymmetricEl) bgImageSymmetricEl.checked = activeTheme.bgImageSymmetric === true;
+  document.querySelectorAll('[data-bg-symmetry-mode]').forEach(function (btn) {
+    btn.setAttribute('aria-pressed', btn.dataset.bgSymmetryMode === (activeTheme.bgImageSymmetryMode || 'off') ? 'true' : 'false');
+  });
   const bgImageAlphaCycleEl = document.getElementById('themeBgImageAlphaCycle');
   if (bgImageAlphaCycleEl) bgImageAlphaCycleEl.checked = activeTheme.bgImageAlphaCycle === true;
   const bgDur = document.getElementById('themeBgAnimDuration');
@@ -9897,12 +9955,12 @@ function wireThemePanel() {
   // (top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right).
   // "tile" and "cover" map directly to the legacy dropdown values 'tile' / 'cover'.
   const bgPosGrid     = document.getElementById('themeBgPositionGrid');
-  const bgPosModeBtns = document.querySelectorAll('.bg-pos-mode-chip');
+  const bgPosModeBtns = document.querySelectorAll('[data-bg-pos-mode]');
   const bgPosCells    = document.querySelectorAll('.bg-pos-cell');
   const bgAnchorRow   = document.getElementById('themeBgAnchorRow');
   const bgAnchorBtns  = document.querySelectorAll('.bg-anchor-btn');
-  const bgImageSymmetricRow = document.getElementById('themeBgImageSymmetricRow');
-  const bgImageSymmetricCb  = document.getElementById('bgImageSymmetricCb');
+  const bgImageSymmetryRow = document.getElementById('themeBgImageSymmetryRow');
+  const bgImageSymmetryBtns = document.querySelectorAll('[data-bg-symmetry-mode]');
 
   function syncBgPosUI() {
     const isTile  = activeTheme.bgImagePosition === 'tile';
@@ -9925,8 +9983,10 @@ function wireThemePanel() {
       bgAnchorRow.style.display = showAnchor ? '' : 'none';
       bgAnchorBtns.forEach(b => b.setAttribute('aria-pressed', b.dataset.bgAnchor === (activeTheme.bgImageAnchor || 'outer') ? 'true' : 'false'));
     }
-    if (bgImageSymmetricRow) bgImageSymmetricRow.style.display = (mode === 'position') ? '' : 'none';
-    if (bgImageSymmetricCb) bgImageSymmetricCb.checked = activeTheme.bgImageSymmetric === true;
+    if (bgImageSymmetryRow) bgImageSymmetryRow.style.display = (mode === 'position') ? '' : 'none';
+    bgImageSymmetryBtns.forEach(function (btn) {
+      btn.setAttribute('aria-pressed', btn.dataset.bgSymmetryMode === (activeTheme.bgImageSymmetryMode || 'off') ? 'true' : 'false');
+    });
   }
   window.syncBgPosUI = syncBgPosUI;
 
@@ -9962,9 +10022,13 @@ function wireThemePanel() {
     activeTheme.bgImageAlphaCycle = e.target.checked === true;
     applyThemeVars(activeTheme);
   });
-  if (bgImageSymmetricCb) bgImageSymmetricCb.addEventListener('change', function (e) {
-    activeTheme.bgImageSymmetric = e.target.checked === true;
-    applyThemeVars(activeTheme);
+  bgImageSymmetryBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const mode = btn.dataset.bgSymmetryMode;
+      activeTheme.bgImageSymmetryMode = BG_IMAGE_SYMMETRY_MODES.indexOf(mode) !== -1 ? mode : 'off';
+      syncBgPosUI();
+      applyThemeVars(activeTheme);
+    });
   });
   syncBgPosUI();
 
@@ -10064,6 +10128,7 @@ function wireThemePanel() {
       // to the fullscreen overlay so the third picker actually changes the QR.
       colorDark: activeTheme.qrFg || '#000000'
     });
+    requestAnimationFrame(function () { syncBgImageMirrorLayers(activeTheme); });
     // Trigger a celebration burst after a beat for the demo flourish.
     // Batch 6.5f — gate on cycleMode !== 'off' instead of acceptCycleEnabled.
     if (activeTheme.cycleMode && activeTheme.cycleMode !== 'off') {
