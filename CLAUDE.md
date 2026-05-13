@@ -2,6 +2,8 @@
 
 This file covers IRLid-specific context. Extended memory is in `memory/` at the repo root — read `memory/MEMORY.md` at session start, then `memory/pending-work.md` for the live priority list. (Note: previously specified as `.claude/memory/`, but `.claude/` is a protected directory in Claude Code environments. Memory was relocated to `memory/` on 26 April 2026 and is now git-tracked.)
 
+**Looking for something you remember but can't find?** Check `archive/INDEX.md` — it's a topic-organised manifest of every archived brief, letter, proposal, and bug dossier, plus pointers to git history for anything older. Maintained at every prune.
+
 ---
 
 ## The Partnership
