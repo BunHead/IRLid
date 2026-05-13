@@ -3160,7 +3160,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 .dashboard-expected-dock #expectedSharedPanel { display: block; }
 .dashboard-expected-dock .expected-list { display: none; }
 .dashboard-expected-dock .checkin-lower-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.75fr); }
-.dashboard-expected-dock .expected-admin-panel h5::after { content: " (Staff add, Manager+ delete)"; color: var(--muted); font-size: 11px; font-weight: 400; }
+.dashboard-expected-dock .expected-admin-panel h5::after { content: attr(data-role-hint); color: var(--muted); font-size: 11px; font-weight: 400; }
 .prototype-role-toolbar { margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 8px; background: #151b23; padding: 12px; }
 .prototype-role-toolbar label { display: flex; align-items: center; gap: 8px; color: #dbe6ff; font-size: 12px; }
 .prototype-role-toolbar select { min-width: 170px; border: 1px solid var(--line); border-radius: 6px; background: #0b1220; color: var(--text); padding: 7px 9px; }
@@ -3261,7 +3261,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.30</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.31</span></div>
   </div>
 </div>
 
@@ -3399,7 +3399,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <option value="developer">Developer</option>
           </select>
         </label>
-        <span>Prototype only: real access should come from a verified Staff HELLO role.</span>
+        <span id="prototypeRoleToolbarHint">Prototype only: real access should come from a verified Staff HELLO role.</span>
       </div>
       <div class="prototype-role-strip" aria-label="Prototype role gates">
         <div class="prototype-role-card" data-role-card="staff"><strong>Staff</strong><span>Add attendees and assist review cases. No delete.</span></div>
@@ -3580,7 +3580,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <summary>Expected attendee management</summary>
                 <div class="checkin-lower-grid">
                   <div class="expected-admin-panel">
-                    <h5>Expected attendee management</h5>
+                    <h5 id="expectedAdminPanelTitle" data-role-hint=" (Staff add, Manager+ delete)">Expected attendee management</h5>
                     <div class="expected-admin-fields">
                       <div class="input-group" style="margin-bottom:0;">
                         <label for="expectedFirstName">First Name</label>
@@ -4932,7 +4932,7 @@ function setSignedInUI(isSignedIn) {
     if (qrLoginSession && qrLoginSession.session_token) {
       const who = (qrLoginSession.display_name || '').trim();
       planLabel = who ? ('Signed in as ' + who) : 'Signed in via Org Portal';
-      if (qrLoginSession.is_developer) planLabel += ' (developer)';
+      if (qrLoginSession.is_developer) planLabel += ' (' + roleLabelFor('developer') + ')';
     } else if (DEV_AUTO_LOGIN) {
       planLabel = 'Signed in locally (DEV auto-login)';
     } else {
@@ -5245,7 +5245,7 @@ function renderOrgPicker(myOrgs, displayName, isDeveloper) {
     card.type = 'button';
     card.className = 'org-picker-card';
     const roleClass = org.implicit_membership ? 'role-implicit' : ('role-' + String(org.role || 'attendee'));
-    const roleLabel = org.implicit_membership ? 'dev access' : (org.role || 'member');
+    const roleLabel = org.implicit_membership ? 'dev access' : (ROLE_VOCAB_KEYS.includes(org.role) ? roleLabelFor(org.role) : (org.role || 'member'));
     card.innerHTML =
       '<div>' +
         '<div class="org-picker-name">' + escapeHtml(org.name) + '</div>' +
@@ -5644,11 +5644,34 @@ function roleLabel(roleKey) {
   return ROLE_VOCAB_PRESETS.default[roleKey] || roleKey;
 }
 window.roleLabel = roleLabel;
+function roleKeyFromLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'attendee';
+  const lower = raw.toLowerCase();
+  if (ROLE_VOCAB_KEYS.includes(lower)) return lower;
+  const normalised = lower.replace(/[\s-]+/g, '_');
+  if (ROLE_VOCAB_KEYS.includes(normalised)) return normalised;
+  const matched = ROLE_VOCAB_KEYS.find(key => window.roleLabel(key).toLowerCase() === lower);
+  if (matched) return matched;
+  console.warn('[csv import] Unknown Role value, defaulting to attendee:', value);
+  return 'attendee';
+}
 function applyRoleLabelsToViewingAs() {
   const sel = document.getElementById('prototypeRoleSelect');
   if (!sel) return;
   Array.from(sel.options).forEach(opt => {
     if (opt.value) opt.textContent = window.roleLabel(opt.value);
+  });
+  const hint = document.getElementById('prototypeRoleToolbarHint');
+  if (hint) hint.textContent = `Prototype only: real access should come from a verified ${roleLabelFor('staff')} HELLO role.`;
+  const expectedTitle = document.getElementById('expectedAdminPanelTitle');
+  if (expectedTitle) expectedTitle.dataset.roleHint = ` (${roleLabelFor('staff')} add, ${roleLabelFor('manager')}+ delete)`;
+  document.querySelectorAll('[data-role-card]').forEach(card => {
+    const key = card.dataset.roleCard;
+    const strong = card.querySelector('strong');
+    const desc = card.querySelector('span');
+    if (strong) strong.textContent = roleLabelFor(key);
+    if (desc) desc.textContent = prototypeRoleDetailFor(key);
   });
 }
 window.applyRoleLabelsToViewingAs = applyRoleLabelsToViewingAs;
@@ -5920,7 +5943,7 @@ async function addExpectedAttendee() {
   }
 }
 function setExpectedDeleteMode(active) {
-  if (active && !canDeleteExpected()) return showToast('Manager role required to delete attendees', true);
+  if (active && !canDeleteExpected()) return showToast(`${roleLabelFor('manager')} role required to delete attendees`, true);
   expectedDeleteMode = active;
   expectedDeleteTargetId = null;
   if (active) cancelExpectedEdit();
@@ -6272,7 +6295,7 @@ async function refreshAttendanceFromUI() {
   else showToast('Refresh failed — network error', true);
 }
 async function clearTestAttendanceDataset() {
-  if (!canClearTestAttendance()) return showToast('Developer role required to clear test attendance', true);
+  if (!canClearTestAttendance()) return showToast(`${roleLabelFor('developer')} role required to clear test attendance`, true);
   if (!currentOrg?.api_key) return showToast('Load the DEV organisation first', true);
   const includeExpected = !!document.getElementById('clearExpectedCheck')?.checked;
   const scope = includeExpected ? 'attendance, conflicts, checkout tokens, and expected attendees' : 'attendance, conflicts, and checkout tokens';
@@ -6389,7 +6412,7 @@ function buildDeleteRecordButton(row) {
   const expectedId = String(row.expected_id || '').trim();
   if (!expectedId || !canDeleteAttendeeRecord()) return '';
   const force = row.active_checkin_id ? 'true' : 'false';
-  return `<button class="btn btn-danger btn-sm record-row-delete" type="button" onclick="deleteAttendeeRecordFromAttendance('${escapeHtml(expectedId)}', ${force})" title="Delete attendee record (lead admin+)">Delete record</button>`;
+  return `<button class="btn btn-danger btn-sm record-row-delete" type="button" onclick="deleteAttendeeRecordFromAttendance('${escapeHtml(expectedId)}', ${force})" title="Delete attendee record (${escapeHtml(roleLabelFor('lead_admin'))}+)">Delete record</button>`;
 }
 function buildCheckoutAction(row) {
   if (row.status === 'conflict' && row.conflict_id) {
@@ -6413,7 +6436,7 @@ function buildCheckoutAction(row) {
   return `<div class="checkout-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="requestCheckout('${safeId}')">Initiate check-out</button>${buildDeleteRecordButton(row)}${error}</div>`;
 }
 async function deleteAttendeeRecordFromAttendance(expectedId, force) {
-  if (!canDeleteAttendeeRecord()) return showToast('Lead Admin role required to delete attendee records', true);
+  if (!canDeleteAttendeeRecord()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendee records`, true);
   if (!currentOrg?.api_key) return showToast('No organisation loaded', true);
   // Find a display name from current attendance / expected lists for the
   // confirm dialog. Fall back to "this attendee" if the row has just been
@@ -6499,7 +6522,7 @@ function buildExpectedRowAction(row) {
 async function deleteExpectedFromAttendance(id) {
   const row = expectedAttendees.find(item => String(item.id) === String(id));
   if (!row) return showToast('Expected attendee not found', true);
-  if (!canDeleteExpected()) return showToast('Manager role required to delete attendees', true);
+  if (!canDeleteExpected()) return showToast(`${roleLabelFor('manager')} role required to delete attendees`, true);
   showExpectedDeleteDialog(row);
 }
 function checkoutNonceFor(checkinId) {
@@ -7030,7 +7053,7 @@ async function startDashboardCameraScan() {
   // prior scanner cleanly, clear the view innerHTML, instantiate a fresh
   // Html5Qrcode against the visible target, start with the same config the
   // live site uses (fps: 15, no qrbox, BarcodeDetector preferred).
-  if (!canScanAttendeeQr()) return setDashboardScanStatus('Manager role required to scan attendee QRs.', 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('manager')} role required to scan attendee QRs.`, 'error');
   if (typeof Html5Qrcode === 'undefined') return setDashboardScanStatus('Camera library not available.', 'error');
   const view = document.getElementById('dashboardScanCameraView');
   const startBtn = document.getElementById('dashboardScanCameraStartBtn');
@@ -7138,7 +7161,7 @@ async function changeDashboardCamera() {
 async function processDashboardScan() {
   const input = document.getElementById('dashboardScanPayloadInput');
   if (!currentOrg) return setDashboardScanStatus('Load an organisation first.', 'error');
-  if (!canScanAttendeeQr()) return setDashboardScanStatus('Manager role required to scan attendee QRs.', 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('manager')} role required to scan attendee QRs.`, 'error');
   const text = (input?.value || '').trim();
   const hasFile = !!document.getElementById('dashboardScanImageInput')?.files?.[0];
   console.log('[scan] processDashboardScan start', {
@@ -7905,16 +7928,32 @@ function normalizeFullscreenQr(qrTarget) {
     node.style.display = 'block';
   });
 }
+function csvEscape(value) {
+  const s = String(value == null ? '' : value);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function attendanceRoleKey(row) {
+  const direct = String(row && row.prototype_role || '').trim().toLowerCase();
+  if (ROLE_VOCAB_KEYS.includes(direct)) return direct;
+  const expectedId = row && row.expected_id != null ? String(row.expected_id) : '';
+  if (expectedId) {
+    const expected = expectedAttendees.find(item => String(item.id) === expectedId);
+    const expectedRole = String(expected && expected.prototype_role || '').trim().toLowerCase();
+    if (ROLE_VOCAB_KEYS.includes(expectedRole)) return expectedRole;
+  }
+  return 'attendee';
+}
 function exportCSV() {
   if (!attendanceData.length) return showToast('No data to export', true);
-  const headers = ['Name or ID','First seen','Last seen','Scan count'];
+  const headers = ['Name or ID','First seen','Last seen','Scan count','Role'];
   const rows = attendanceData.map(r => [
     r.name || r.id || '',
     r.first_seen ? new Date(r.first_seen * 1000).toISOString() : '',
     r.last_seen ? new Date(r.last_seen * 1000).toISOString() : '',
-    r.scan_count || 0
-  ].join(','));
-  const csv = [headers.join(','), ...rows].join('\n');
+    r.scan_count || 0,
+    window.roleLabel(attendanceRoleKey(r))
+  ].map(csvEscape).join(','));
+  const csv = [headers.map(csvEscape).join(','), ...rows].join('\n');
   const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `irlid-attendance-${new Date().toISOString().slice(0,10)}.csv`; a.click();
 }
 
@@ -7964,6 +8003,7 @@ function importExpectedAttendeesFromFile(file) {
       const paidIdx = findIndex(['paid'], -1);
       const subIdx = findIndex(['subscription', 'subscriber', 'member'], -1);
       const linkedIdx = findIndex(['linked', 'matched'], -1);
+      const roleIdx = findIndex(['role'], -1);
       const imported = dataRows.map((cols, i) => {
         const name = (cols[nameIdx] || '').trim();
         if (!name) return null;
@@ -7973,10 +8013,12 @@ function importExpectedAttendeesFromFile(file) {
           name,
           paid: paidIdx >= 0 ? truthy(cols[paidIdx]) : true,
           subscription: subIdx >= 0 ? truthy(cols[subIdx]) : false,
-          linked: linkedIdx >= 0 ? truthy(cols[linkedIdx]) : false
+          linked: linkedIdx >= 0 ? truthy(cols[linkedIdx]) : false,
+          prototype_role: roleIdx >= 0 ? roleKeyFromLabel(cols[roleIdx]) : 'attendee'
         };
       }).filter(Boolean);
       if (!imported.length) return showToast('Could not find attendee names in that file', true);
+      expectedAttendees = imported;
       saveJson(STORAGE_KEY_EXPECTED, imported);
       renderExpectedAttendees();
       showToast(`Imported ${imported.length} expected attendees`);
@@ -7998,7 +8040,7 @@ function updateSettingsSlider(el) {
   el.style.background = `linear-gradient(to right, #58a6ff 0%, #58a6ff ${(v-20)/80*100}%, #30363d ${(v-20)/80*100}%, #30363d 100%)`;
 }
 function openSettingsTo(anchorId) {
-  if (!canUseSettings()) return showToast('Lead Admin role required to change settings', true);
+  if (!canUseSettings()) return showToast(`${roleLabelFor('lead_admin')} role required to change settings`, true);
   showPanel('settings', document.getElementById('navSettings'));
   requestAnimationFrame(() => {
     const el = document.getElementById(anchorId); if (!el) return;
@@ -8286,6 +8328,18 @@ const PROTOTYPE_ROLE_DETAILS = {
   developer: 'Developer can do everything Lead Admin can, plus prototype-only diagnostics while the real Lead Admin role stays clean.'
 };
 const PROTOTYPE_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, developer: 4 };
+function prototypeRoleDetailFor(role) {
+  const label = roleLabelFor(role);
+  const staff = roleLabelFor('staff');
+  const lead = roleLabelFor('lead_admin');
+  return {
+    attendee: `${label} view has no ${staff} dashboard powers.`,
+    staff: `${label} can add attendees and assist review cases. Delete, clear, settings, and staff-role actions stay locked.`,
+    manager: `${label} can add, edit, and delete attendees, plus resolve routine review cases.`,
+    lead_admin: `${label} can do everything in this prototype: attendee management, clear test/event data, event settings, and staff roles.`,
+    developer: `${label} can do everything ${lead} can, plus prototype-only diagnostics while the real ${lead} role stays clean.`
+  }[role] || PROTOTYPE_ROLE_DETAILS.attendee;
+}
 // Batch C polish 5 — Developer role is bootstrap-only.
 // Captain's call (4 May 2026, late evening): "Developer being able to add
 // Developer kinda defeats a few points." Right read. The Developer role exists
@@ -8324,7 +8378,7 @@ function setPrototypeRole(role) {
     card.classList.toggle('active', card.dataset.roleCard === value);
   });
   const detail = document.getElementById('prototypeRoleDetail');
-  if (detail) detail.textContent = PROTOTYPE_ROLE_DETAILS[value];
+  if (detail) detail.textContent = prototypeRoleDetailFor(value);
   const canAddExpected = rank >= PROTOTYPE_ROLE_RANK.staff;
   document.getElementById('expectedAddBtn')?.toggleAttribute('disabled', !canAddExpected);
   document.querySelector('.expected-admin-panel')?.classList.toggle('prototype-permission-disabled', !canAddExpected);
