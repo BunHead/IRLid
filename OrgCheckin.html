@@ -1088,6 +1088,16 @@ body[data-active-panel="checkin"] .content { padding-top: 14px; padding-bottom: 
    Bearer session is active (handleQrLoginSuccess + saved-session restore).
    Captain's directive 11 May morning. */
 body:not(.developer-bearer-active) .prototype-note { display: none; }
+/* v5.9.0.13.34 - Production lockdown: the "Viewing as" role-escalation
+   affordance is developer-only debug surface. Non-developers shouldn't
+   see the toolbar, the per-role detail explainer, the (default-hidden)
+   role cards strip, or the dock wrapper that .prototype-role-dock JS
+   may wrap them into at runtime. Same .developer-bearer-active gate as
+   the prototype-note banner above. */
+body:not(.developer-bearer-active) .prototype-role-toolbar,
+body:not(.developer-bearer-active) .prototype-role-detail,
+body:not(.developer-bearer-active) .prototype-role-strip,
+body:not(.developer-bearer-active) .prototype-role-dock { display: none; }
 .prototype-checkin .content { overflow-y: auto; scrollbar-gutter: stable; }
 .prototype-checkin #panel-checkin .two-col { grid-template-columns: minmax(0, 1fr); width: 100%; min-height: calc(100dvh - 182px); }
 .prototype-checkin #panel-checkin .mode-selector,
@@ -3259,7 +3269,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.33</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.34</span></div>
   </div>
 </div>
 
