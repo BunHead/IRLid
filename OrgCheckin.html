@@ -2740,6 +2740,7 @@ body[data-bg-mode="image"] {
   background-size: auto;
 }
 body[data-bg-mode="image"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"] #venueQRWrap,
 #venueQRWrap .bg-image-mirror {
   background-color: var(--theme-page-bg-1, #05070C);
@@ -2748,6 +2749,7 @@ body[data-bg-mode="image"] #venueQRWrap,
   background-position: center center;
   background-size: auto;
 }
+body[data-bg-mode="image"] .irlid-qr-fullscreen::before,
 #venueQRWrap .bg-image-mirror {
   position: absolute;
   inset: 0;
@@ -2757,10 +2759,27 @@ body[data-bg-mode="image"] #venueQRWrap,
   display: none;
   background-color: transparent;
 }
+body[data-bg-mode="image"] .irlid-qr-fullscreen::before {
+  content: "";
+  background-image: inherit;
+  background-repeat: inherit;
+  background-position: inherit;
+  background-size: inherit;
+}
+body[data-bg-mode="image"] .irlid-qr-fullscreen > * {
+  position: relative;
+  z-index: 1;
+}
 #venueQRWrap > :not(.bg-image-mirror) {
   position: relative;
   z-index: 1;
 }
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-left"] .irlid-qr-fullscreen.active::before,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-right"] .irlid-qr-fullscreen.active::before,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-left"] .irlid-qr-fullscreen.active::before,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-right"] .irlid-qr-fullscreen.active::before,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="left"] .irlid-qr-fullscreen.active::before,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="right"] .irlid-qr-fullscreen.active::before,
 body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-left"] #venueQRWrap .bg-image-mirror,
 body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-right"] #venueQRWrap .bg-image-mirror,
 body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-left"] #venueQRWrap .bg-image-mirror,
@@ -2775,6 +2794,7 @@ body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] #venueQRWrap {
 }
 body[data-bg-mode="image"][data-bg-image-position="tile"],
 body[data-bg-mode="image"][data-bg-image-position="tile"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="tile"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap .bg-image-mirror {
   background-repeat: repeat;
@@ -2783,6 +2803,7 @@ body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap .bg-image
 }
 body[data-bg-mode="image"][data-bg-image-position="cover"],
 body[data-bg-mode="image"][data-bg-image-position="cover"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="cover"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap .bg-image-mirror {
   background-repeat: no-repeat;
@@ -2791,24 +2812,28 @@ body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap .bg-imag
 }
 body[data-bg-mode="image"][data-bg-image-position="top-left"],
 body[data-bg-mode="image"][data-bg-image-position="top-left"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="top-left"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="top-left"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="top-left"] #venueQRWrap .bg-image-mirror {
   background-position: top left;
 }
 body[data-bg-mode="image"][data-bg-image-position="top-right"],
 body[data-bg-mode="image"][data-bg-image-position="top-right"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="top-right"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="top-right"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="top-right"] #venueQRWrap .bg-image-mirror {
   background-position: top right;
 }
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"] #venueQRWrap .bg-image-mirror {
   background-position: bottom left;
 }
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"] .irlid-qr-fullscreen,
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"] .irlid-qr-fullscreen::before,
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"] #venueQRWrap,
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"] #venueQRWrap .bg-image-mirror {
   background-position: bottom right;
@@ -3236,7 +3261,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.28</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.30</span></div>
   </div>
 </div>
 
