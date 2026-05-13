@@ -58,6 +58,7 @@ This is not a one-way instruction chain. Spencer is the Captain, Claude is Numbe
 - The multi-AI approach works: Gemini for copy/marketing, ChatGPT for structured docs, Claude for crypto/code/architecture/strategy
 - Git push always from Spencer's machine — sandbox gets 403. Always provide full PowerShell: `cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git push`
 - PowerShell: use `;` not `&&`, quote paths with spaces
+- **Bash sandbox sees stale OneDrive files** — the Linux mount of `D:\SkyDrive\Pen Drive\WEBSITES` caches aggressively and does not refresh when Windows changes files. Files can appear truncated, missing trailing content, or with frozen mtimes from hours ago. For file inspection / search use Read / Write / Edit / Grep / Glob — those tools use native Windows file access and see the real bytes. Bash is fine for git operations that hit the network (`git fetch`, `git ls-remote`), but anything that reads the working tree — `git status`, `git diff`, `git checkout`, `git reset` — sees the stale view and will mislead. Any git state mutation (renormalisation, lock-file cleanup, branch surgery) belongs in Captain's Windows PowerShell, not the sandbox. Discovered 13 May 2026 evening after a Number One spent half a watch chasing a phantom "corrupt index" that turned out to be a 17-line mount-truncation artefact. Related: this is also why the working-tree CRLF/LF question is hard to investigate from inside the sandbox — bash's view of line endings isn't reliable.
 
 ---
 
