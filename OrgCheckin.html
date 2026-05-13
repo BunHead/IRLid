@@ -3188,7 +3188,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.26</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.29</span></div>
   </div>
 </div>
 
@@ -3599,6 +3599,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <h4>Branding and post-accept behaviour</h4>
                 <div class="settings-grid-3">
                   <label class="settings-field"><span>Logo image URL</span><input id="logoUrl" type="url" placeholder="https://example.com/logo.png"></label>
+                  <label class="settings-field">
+                    <span>Upload logo image</span>
+                    <input type="file" id="logoImageUpload" accept="image/png,image/svg+xml,image/jpeg,image/gif">
+                    <span class="theme-hint">PNG, SVG, JPEG, or GIF up to 500 KB. Animated GIFs are supported but larger files load slower.</span>
+                  </label>
                   <label class="settings-field"><span>Website URL</span><input id="websiteUrl" type="url" placeholder="https://example.com"></label>
                   <label class="settings-field"><span>Post-accept redirect URL</span><input id="redirectUrl" type="url" placeholder="https://example.com/welcome"></label>
                   <label class="settings-field"><span>Staff post-accept redirect URL</span><input id="staffRedirectUrl" type="url" placeholder="e.g. https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html (or your org's authenticated staff page)"></label>
@@ -3719,10 +3724,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                          position/anchor/alpha). Same DOM nodes as before, just relocated. -->
                     <div class="theme-anim-row" data-bg-mode-show="image" id="themeBgImageUploadRow">
                       <span>Upload image</span>
-                      <input type="file" id="themeBgImageUpload" accept="image/png,image/svg+xml,image/jpeg" class="theme-anim-select" />
+                      <input type="file" id="themeBgImageUpload" accept="image/png,image/svg+xml,image/jpeg,image/gif" class="theme-anim-select" />
                     </div>
                     <div class="theme-bg-image-note" data-bg-mode-show="image" id="themeBgImageNote" style="font-size:11px; color:var(--muted); margin-top:4px; line-height:1.4;">
-                      PNG, SVG, or JPEG up to <strong>200&nbsp;KB</strong>. Smaller is better, especially in Tile mode. Larger files inflate per-org storage.
+                      PNG, SVG, JPEG, or GIF up to <strong>500&nbsp;KB</strong>. Animated GIFs are supported but larger files load slower, especially in Tile mode.
                       <br><strong>Responsibility:</strong> upload only images you own or have rights to. IRLid does not pre-screen uploads; abuse is your responsibility under the test-env terms.
                     </div>
                     <!-- v5.7.1w - Background image position picker.
@@ -4316,6 +4321,9 @@ const PORTAL_IDS = [
   'orgCode','eventCode','minimumTrustScore','biometricRequired','privacyMode','anonymousMode','checkoutRequired','returnAllowed',
   'allowSelfSelection','requireDoormanConfirmation','requireAdditionalProof','allowProofRecording','enableIdPhotoCapture','logoUrl','websiteUrl','redirectUrl','staffRedirectUrl','welcomeMessage','orgTerms'
 ];
+const SETTINGS_IMAGE_MAX_BYTES = 500 * 1024;
+const SETTINGS_IMAGE_MIME_RE = /^image\/(png|svg\+xml|jpeg|gif)$/i;
+const SETTINGS_IMAGE_MIME_HELP = 'Only PNG, SVG, JPEG, or GIF allowed';
 let currentOrg = null;
 let currentMode = 'attendee_scan';
 let settings = {
@@ -4773,6 +4781,35 @@ function applyScrapedLogo(url) {
   updateChromeLogo();
   renderPortalAll();
   setThemeSaveStatus('Logo URL updated. Save settings to persist.', 'ok');
+}
+function handleLogoImageUpload(event) {
+  const input = event.target;
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (!SETTINGS_IMAGE_MIME_RE.test(file.type)) {
+    showToast(SETTINGS_IMAGE_MIME_HELP, true);
+    input.value = '';
+    return;
+  }
+  if (file.size > SETTINGS_IMAGE_MAX_BYTES) {
+    showToast('Image too large (' + Math.round(file.size / 1024) + ' KB > 500 KB max). Compress first.', true);
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function (ev) {
+    const dataUri = ev.target.result;
+    const logoUrlInput = document.getElementById('logoUrl');
+    if (logoUrlInput) logoUrlInput.value = dataUri;
+    portalState.logoUrl = dataUri;
+    syncLegacyFromPortal();
+    updateChromeLogo();
+    renderPortalAll();
+    generateVenueQR();
+    showToast('Logo image loaded (' + Math.round(file.size / 1024) + ' KB). Click Save All Settings to persist.');
+  };
+  reader.onerror = function () { showToast('Could not read file', true); };
+  reader.readAsDataURL(file);
 }
 function renderThemeScrapeResults(result, logoSamples) {
   const root = document.getElementById('themeScrapeResults');
@@ -9818,14 +9855,14 @@ function wireThemePanel() {
   if (bgImageUpload) bgImageUpload.addEventListener('change', function (e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (!/^image\/(png|svg\+xml|jpeg)$/i.test(file.type)) {
-      showToast('Only PNG, SVG, or JPEG allowed', true);
+    if (!/^image\/(png|svg\+xml|jpeg|gif)$/i.test(file.type)) {
+      showToast('Only PNG, SVG, JPEG, or GIF allowed', true);
       e.target.value = '';
       return;
     }
-    const MAX_BYTES = 200 * 1024;
+    const MAX_BYTES = 500 * 1024;
     if (file.size > MAX_BYTES) {
-      showToast('Image too large (' + Math.round(file.size/1024) + ' KB > 200 KB max). Compress first.', true);
+      showToast('Image too large (' + Math.round(file.size/1024) + ' KB > 500 KB max). Compress first.', true);
       e.target.value = '';
       return;
     }
@@ -9839,6 +9876,39 @@ function wireThemePanel() {
       showToast('Custom background loaded (' + Math.round(file.size/1024) + ' KB). Click Save theme to persist.');
     };
     reader.onerror = function () { showToast('Could not read file', true); };
+    reader.readAsDataURL(file);
+  });
+
+  // v5.9.0.13.29 — Logo file picker. Mirrors bg-image FileReader pattern but
+  // writes the data URI into the existing #logoUrl text input (which is what
+  // theme.logoUrl reads from at save time). Picker + URL field both end up
+  // setting the same value — user's choice which path they prefer.
+  const logoImageUpload = document.getElementById('logoImageUpload');
+  const logoUrlInput = document.getElementById('logoUrl');
+  if (logoImageUpload && logoUrlInput) logoImageUpload.addEventListener('change', function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!/^image\/(png|svg\+xml|jpeg|gif)$/i.test(file.type)) {
+      showToast('Only PNG, SVG, JPEG, or GIF allowed', true);
+      e.target.value = '';
+      return;
+    }
+    const MAX_BYTES = 500 * 1024;
+    if (file.size > MAX_BYTES) {
+      showToast('Logo too large (' + Math.round(file.size/1024) + ' KB > 500 KB max). Compress first.', true);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function (ev) {
+      const dataUri = ev.target.result;
+      logoUrlInput.value = dataUri;
+      // Fire change so any listeners (preview, theme apply) pick it up.
+      logoUrlInput.dispatchEvent(new Event('change', { bubbles: true }));
+      logoUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
+      showToast('Logo loaded (' + Math.round(file.size/1024) + ' KB). Click Save All Settings to persist.');
+    };
+    reader.onerror = function () { showToast('Could not read logo', true); };
     reader.readAsDataURL(file);
   });
   const bgDurEl = document.getElementById('themeBgAnimDuration');
