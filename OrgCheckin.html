@@ -3236,7 +3236,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.27</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.28</span></div>
   </div>
 </div>
 
@@ -3367,6 +3367,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <div class="prototype-role-toolbar">
         <label for="prototypeRoleSelect">Viewing as
           <select id="prototypeRoleSelect">
+            <option value="attendee">Attendee</option>
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>
             <option value="lead_admin" selected>Lead Admin</option>
@@ -4583,6 +4584,7 @@ function applySnapshotToDashboard(snap) {
     applyServerSettingsToLocalState(snap.settings);
     settings = Object.assign({}, settings, snap.settings);
     saveJson(STORAGE_KEY_SETTINGS, settings);
+    if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   }
   if (snap.theme && typeof normalizeThemeForSave === 'function') {
     activeTheme = normalizeThemeForSave(snap.theme);
@@ -5468,6 +5470,7 @@ function applySettingsToUI() {
   if (typeof writeRoleLabelsToUI === 'function') {
     writeRoleLabelsToUI(settings.roleLabels || defaultRoleLabels());
   }
+  if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   updateChromeLogo();
 }
 function collectSettingsFromCanonical() {
@@ -5616,6 +5619,14 @@ function roleLabel(roleKey) {
   return ROLE_VOCAB_PRESETS.default[roleKey] || roleKey;
 }
 window.roleLabel = roleLabel;
+function applyRoleLabelsToViewingAs() {
+  const sel = document.getElementById('prototypeRoleSelect');
+  if (!sel) return;
+  Array.from(sel.options).forEach(opt => {
+    if (opt.value) opt.textContent = window.roleLabel(opt.value);
+  });
+}
+window.applyRoleLabelsToViewingAs = applyRoleLabelsToViewingAs;
 
 async function saveSettings() {
   // Read the DOM directly — single source of truth at save time.
@@ -5722,11 +5733,13 @@ async function saveSettings() {
 
   // Update portalState from the readback so the UI state matches the Worker.
   applyServerSettingsToLocalState(r);
+  applyRoleLabelsToViewingAs();
   activeTheme = normalizeThemeForSave(r.theme);
   writeThemeToUI();
   applyThemeVars(activeTheme);
   updateChromeLogo();
   renderPortalAll();
+  renderTable(attendanceData);
   setPortalFieldValues();
   await saveCurrentOrgSnapshot('settings-save');
 
@@ -6335,9 +6348,9 @@ function renderTable(rows) {
   }).join('');
 }
 function expectedRoleBadge(role, isCurrentlyIn) {
-  const normalized = roleLabelFor(role) === 'Attendee' ? 'attendee' : String(role || 'attendee').trim().toLowerCase();
+  const normalized = String(role || 'attendee').trim().toLowerCase();
   const label = roleLabelFor(normalized);
-  const short = { attendee: 'A', staff: 'S', manager: 'M', lead_admin: 'L', developer: 'D' }[normalized] || 'A';
+  const short = (label || '?').trim().charAt(0).toUpperCase() || '?';
   // v5.7.1s — Add 'inverted' class when attendee is currently checked in.
   const invertedClass = isCurrentlyIn ? ' inverted' : '';
   return `<span class="role-mini ${escapeHtml(normalized)}${invertedClass}" title="${escapeHtml(label)}${isCurrentlyIn ? ' · currently in' : ''}">${short}</span>`;
@@ -6404,7 +6417,8 @@ function currentPrototypeRole() {
   return document.body.dataset.prototypeRole || document.getElementById('prototypeRoleSelect')?.value || 'lead_admin';
 }
 function prototypeRoleRank() {
-  return PROTOTYPE_ROLE_RANK[currentPrototypeRole()] || PROTOTYPE_ROLE_RANK.lead_admin;
+  const role = currentPrototypeRole();
+  return Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, role) ? PROTOTYPE_ROLE_RANK[role] : PROTOTYPE_ROLE_RANK.lead_admin;
 }
 function roleRankFor(role) {
   return PROTOTYPE_ROLE_RANK[String(role || '').trim().toLowerCase()] || 0;
@@ -6418,7 +6432,8 @@ function effectiveRoleRank() {
   // real Bearer sessions, loadDashboardForOrg() seeds that dropdown from the
   // signed-in org role; the toolbar can then intentionally simulate lower roles.
   if (document.getElementById('prototypeRoleSelect')) return prototypeRoleRank();
-  return realSessionRoleRank() || PROTOTYPE_ROLE_RANK.staff;
+  const rank = realSessionRoleRank();
+  return Number.isFinite(rank) ? rank : PROTOTYPE_ROLE_RANK.staff;
 }
 function canDeleteExpected() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.manager;
@@ -8239,12 +8254,13 @@ function applyCheckinPrototypeLayout() {
   }
 }
 const PROTOTYPE_ROLE_DETAILS = {
+  attendee: 'Attendee view has no staff dashboard powers.',
   staff: 'Staff can add attendees and assist review cases. Delete, clear, settings, and staff-role actions stay locked.',
   manager: 'Manager can add, edit, and delete attendees, plus resolve routine review cases.',
   lead_admin: 'Lead Admin can do everything in this prototype: attendee management, clear test/event data, event settings, and staff membership once Staff HELLO step-up is wired.',
   developer: 'Developer can do everything Lead Admin can, plus prototype-only diagnostics while the real Lead Admin role stays clean.'
 };
-const PROTOTYPE_ROLE_RANK = { staff: 1, manager: 2, lead_admin: 3, developer: 4 };
+const PROTOTYPE_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, developer: 4 };
 // Batch C polish 5 — Developer role is bootstrap-only.
 // Captain's call (4 May 2026, late evening): "Developer being able to add
 // Developer kinda defeats a few points." Right read. The Developer role exists
@@ -8262,13 +8278,8 @@ const EXPECTED_ROLE_OPTIONS = {
   developer: ['attendee', 'staff', 'manager', 'lead_admin']
 };
 function roleLabelFor(role) {
-  return {
-    attendee: 'Attendee',
-    staff: 'Staff',
-    manager: 'Manager',
-    lead_admin: 'Lead Admin',
-    developer: 'Developer'
-  }[role] || 'Attendee';
+  const key = String(role || 'attendee').trim().toLowerCase();
+  return (typeof window.roleLabel === 'function' ? window.roleLabel(key) : null) || ROLE_VOCAB_PRESETS.default[key] || ROLE_VOCAB_PRESETS.default.attendee;
 }
 function updateExpectedRoleOptions(role) {
   const select = document.getElementById('expectedRoleSelect');
@@ -8280,7 +8291,7 @@ function updateExpectedRoleOptions(role) {
 }
 function setPrototypeRole(role) {
   const value = PROTOTYPE_ROLE_DETAILS[role] ? role : 'lead_admin';
-  const rank = PROTOTYPE_ROLE_RANK[value] || 3;
+  const rank = Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, value) ? PROTOTYPE_ROLE_RANK[value] : PROTOTYPE_ROLE_RANK.lead_admin;
   document.body.dataset.prototypeRole = value;
   const select = document.getElementById('prototypeRoleSelect');
   if (select && select.value !== value) select.value = value;
@@ -8617,6 +8628,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createOrgSubmitBtn')?.addEventListener('click', submitCreateOrg);
   const prototypeRoleSelect = document.getElementById('prototypeRoleSelect');
   prototypeRoleSelect?.addEventListener('change', () => setPrototypeRole(prototypeRoleSelect.value));
+  if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   setPrototypeRole(prototypeRoleSelect?.value || 'lead_admin');
   const csvFileInput = document.getElementById('csvFileInput');
   if (csvFileInput) csvFileInput.addEventListener('change', (event) => {
