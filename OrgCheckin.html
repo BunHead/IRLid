@@ -2740,12 +2740,34 @@ body[data-bg-mode="image"] {
   background-size: auto;
 }
 body[data-bg-mode="image"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"] #venueQRWrap {
+body[data-bg-mode="image"] #venueQRWrap,
+#venueQRWrap .bg-image-mirror {
   background-color: var(--theme-page-bg-1, #05070C);
   background-image: var(--theme-bg-image, none);
   background-repeat: no-repeat;
   background-position: center center;
   background-size: auto;
+}
+#venueQRWrap .bg-image-mirror {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform: scaleX(-1);
+  display: none;
+  background-color: transparent;
+}
+#venueQRWrap > :not(.bg-image-mirror) {
+  position: relative;
+  z-index: 1;
+}
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-left"] #venueQRWrap .bg-image-mirror,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="top-right"] #venueQRWrap .bg-image-mirror,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-left"] #venueQRWrap .bg-image-mirror,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="bottom-right"] #venueQRWrap .bg-image-mirror,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="left"] #venueQRWrap .bg-image-mirror,
+body[data-bg-mode="image"][data-bg-image-symmetric="true"][data-bg-image-position="right"] #venueQRWrap .bg-image-mirror {
+  display: block;
 }
 body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] .irlid-qr-fullscreen,
 body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] #venueQRWrap {
@@ -2753,36 +2775,42 @@ body[data-bg-mode="image"][data-bg-image-alpha-cycle="true"] #venueQRWrap {
 }
 body[data-bg-mode="image"][data-bg-image-position="tile"],
 body[data-bg-mode="image"][data-bg-image-position="tile"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="tile"] #venueQRWrap .bg-image-mirror {
   background-repeat: repeat;
   background-position: top left;
   background-size: auto;
 }
 body[data-bg-mode="image"][data-bg-image-position="cover"],
 body[data-bg-mode="image"][data-bg-image-position="cover"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="cover"] #venueQRWrap .bg-image-mirror {
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
 }
 body[data-bg-mode="image"][data-bg-image-position="top-left"],
 body[data-bg-mode="image"][data-bg-image-position="top-left"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-left"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="top-left"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-left"] #venueQRWrap .bg-image-mirror {
   background-position: top left;
 }
 body[data-bg-mode="image"][data-bg-image-position="top-right"],
 body[data-bg-mode="image"][data-bg-image-position="top-right"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-right"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="top-right"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-right"] #venueQRWrap .bg-image-mirror {
   background-position: top right;
 }
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-left"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"] #venueQRWrap .bg-image-mirror {
   background-position: bottom left;
 }
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-right"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"] #venueQRWrap .bg-image-mirror {
   background-position: bottom right;
 }
 /* v5.7.1p — Dashboard flat-bg. Captain UX call after the audit-board
@@ -2829,22 +2857,26 @@ body::after {
    to the named edge. Captain's UX call after v5.7.1m ship. */
 body[data-bg-mode="image"][data-bg-image-position="top"],
 body[data-bg-mode="image"][data-bg-image-position="top"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="top"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top"] #venueQRWrap .bg-image-mirror {
   background-position: top center;
 }
 body[data-bg-mode="image"][data-bg-image-position="bottom"],
 body[data-bg-mode="image"][data-bg-image-position="bottom"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="bottom"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom"] #venueQRWrap .bg-image-mirror {
   background-position: bottom center;
 }
 body[data-bg-mode="image"][data-bg-image-position="left"],
 body[data-bg-mode="image"][data-bg-image-position="left"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="left"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="left"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="left"] #venueQRWrap .bg-image-mirror {
   background-position: center left;
 }
 body[data-bg-mode="image"][data-bg-image-position="right"],
 body[data-bg-mode="image"][data-bg-image-position="right"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="right"] #venueQRWrap {
+body[data-bg-mode="image"][data-bg-image-position="right"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="right"] #venueQRWrap .bg-image-mirror {
   background-position: center right;
 }
 /* v5.7.1w - anchor offsets the image inward by about 12.5% (centre) or 25% (inner)
@@ -2852,53 +2884,69 @@ body[data-bg-mode="image"][data-bg-image-position="right"] #venueQRWrap {
    default that already exists. Centre position ignores anchor entirely. */
 body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 12.5% 12.5%; }
+body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 12.5% 12.5%; }
 body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 50% 12.5%; }
+body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 50% 12.5%; }
 body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 87.5% 12.5%; }
+body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 87.5% 12.5%; }
 body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 12.5% 50%; }
+body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 12.5% 50%; }
 body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 87.5% 50%; }
+body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 87.5% 50%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 12.5% 87.5%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 12.5% 87.5%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 50% 87.5%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 50% 87.5%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="centre"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="centre"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="centre"] #venueQRWrap { background-position: 87.5% 87.5%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="centre"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="centre"] #venueQRWrap .bg-image-mirror { background-position: 87.5% 87.5%; }
 
 body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 25% 25%; }
+body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-left"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 25% 25%; }
 body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 50% 25%; }
+body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 50% 25%; }
 body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 75% 25%; }
+body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="top-right"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 75% 25%; }
 body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 25% 50%; }
+body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="left"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 25% 50%; }
 body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 75% 50%; }
+body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="right"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 75% 50%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 25% 75%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-left"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 25% 75%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 50% 75%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 50% 75%; }
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="inner"],
 body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="inner"] .irlid-qr-fullscreen,
-body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="inner"] #venueQRWrap { background-position: 75% 75%; }
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="inner"] #venueQRWrap,
+body[data-bg-mode="image"][data-bg-image-position="bottom-right"][data-bg-image-anchor="inner"] #venueQRWrap .bg-image-mirror { background-position: 75% 75%; }
 @property --theme-pattern-fg {
   syntax: '<color>';
   inherits: true;
@@ -3319,6 +3367,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <div class="prototype-role-toolbar">
         <label for="prototypeRoleSelect">Viewing as
           <select id="prototypeRoleSelect">
+            <option value="attendee">Attendee</option>
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>
             <option value="lead_admin" selected>Lead Admin</option>
@@ -3420,6 +3469,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
               <div class="checkin-mode-stage" id="checkinModeStage">
                 <div id="venueQRWrap" class="qr-wrap" aria-hidden="false">
+                  <div id="bgImageMirror" class="bg-image-mirror" aria-hidden="true"></div>
                   <div class="qr-box" id="venueQrBox"></div>
                   <div class="qr-info">
                     <h4>Event Check-in QR</h4>
@@ -3754,6 +3804,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                           <button type="button" class="bg-pos-cell" data-pos="bottom"       aria-label="Bottom"       aria-pressed="false"><span class="bg-pos-dot"></span></button>
                           <button type="button" class="bg-pos-cell" data-pos="bottom-right" aria-label="Bottom right" aria-pressed="false"><span class="bg-pos-dot"></span></button>
                         </div>
+                        <label class="setting-row" id="themeBgImageSymmetricRow" style="margin-top: 8px;">
+                          <input type="checkbox" id="bgImageSymmetricCb">
+                          <span>Symmetric (mirror across centre)</span>
+                        </label>
                       </div>
                     </div>
                     <!-- Anchor row: only meaningful when Position mode is active AND a non-centre cell is selected. JS hides this row otherwise. -->
@@ -4538,6 +4592,7 @@ function applySnapshotToDashboard(snap) {
     applyServerSettingsToLocalState(snap.settings);
     settings = Object.assign({}, settings, snap.settings);
     saveJson(STORAGE_KEY_SETTINGS, settings);
+    if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   }
   if (snap.theme && typeof normalizeThemeForSave === 'function') {
     activeTheme = normalizeThemeForSave(snap.theme);
@@ -5452,6 +5507,7 @@ function applySettingsToUI() {
   if (typeof writeRoleLabelsToUI === 'function') {
     writeRoleLabelsToUI(settings.roleLabels || defaultRoleLabels());
   }
+  if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   updateChromeLogo();
 }
 function collectSettingsFromCanonical() {
@@ -5600,6 +5656,14 @@ function roleLabel(roleKey) {
   return ROLE_VOCAB_PRESETS.default[roleKey] || roleKey;
 }
 window.roleLabel = roleLabel;
+function applyRoleLabelsToViewingAs() {
+  const sel = document.getElementById('prototypeRoleSelect');
+  if (!sel) return;
+  Array.from(sel.options).forEach(opt => {
+    if (opt.value) opt.textContent = window.roleLabel(opt.value);
+  });
+}
+window.applyRoleLabelsToViewingAs = applyRoleLabelsToViewingAs;
 
 async function saveSettings() {
   // Read the DOM directly — single source of truth at save time.
@@ -5706,11 +5770,13 @@ async function saveSettings() {
 
   // Update portalState from the readback so the UI state matches the Worker.
   applyServerSettingsToLocalState(r);
+  applyRoleLabelsToViewingAs();
   activeTheme = normalizeThemeForSave(r.theme);
   writeThemeToUI();
   applyThemeVars(activeTheme);
   updateChromeLogo();
   renderPortalAll();
+  renderTable(attendanceData);
   setPortalFieldValues();
   await saveCurrentOrgSnapshot('settings-save');
 
@@ -6319,9 +6385,9 @@ function renderTable(rows) {
   }).join('');
 }
 function expectedRoleBadge(role, isCurrentlyIn) {
-  const normalized = roleLabelFor(role) === 'Attendee' ? 'attendee' : String(role || 'attendee').trim().toLowerCase();
+  const normalized = String(role || 'attendee').trim().toLowerCase();
   const label = roleLabelFor(normalized);
-  const short = { attendee: 'A', staff: 'S', manager: 'M', lead_admin: 'L', developer: 'D' }[normalized] || 'A';
+  const short = (label || '?').trim().charAt(0).toUpperCase() || '?';
   // v5.7.1s — Add 'inverted' class when attendee is currently checked in.
   const invertedClass = isCurrentlyIn ? ' inverted' : '';
   return `<span class="role-mini ${escapeHtml(normalized)}${invertedClass}" title="${escapeHtml(label)}${isCurrentlyIn ? ' · currently in' : ''}">${short}</span>`;
@@ -6388,7 +6454,8 @@ function currentPrototypeRole() {
   return document.body.dataset.prototypeRole || document.getElementById('prototypeRoleSelect')?.value || 'lead_admin';
 }
 function prototypeRoleRank() {
-  return PROTOTYPE_ROLE_RANK[currentPrototypeRole()] || PROTOTYPE_ROLE_RANK.lead_admin;
+  const role = currentPrototypeRole();
+  return Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, role) ? PROTOTYPE_ROLE_RANK[role] : PROTOTYPE_ROLE_RANK.lead_admin;
 }
 function roleRankFor(role) {
   return PROTOTYPE_ROLE_RANK[String(role || '').trim().toLowerCase()] || 0;
@@ -6402,7 +6469,8 @@ function effectiveRoleRank() {
   // real Bearer sessions, loadDashboardForOrg() seeds that dropdown from the
   // signed-in org role; the toolbar can then intentionally simulate lower roles.
   if (document.getElementById('prototypeRoleSelect')) return prototypeRoleRank();
-  return realSessionRoleRank() || PROTOTYPE_ROLE_RANK.staff;
+  const rank = realSessionRoleRank();
+  return Number.isFinite(rank) ? rank : PROTOTYPE_ROLE_RANK.staff;
 }
 function canDeleteExpected() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.manager;
@@ -8223,12 +8291,13 @@ function applyCheckinPrototypeLayout() {
   }
 }
 const PROTOTYPE_ROLE_DETAILS = {
+  attendee: 'Attendee view has no staff dashboard powers.',
   staff: 'Staff can add attendees and assist review cases. Delete, clear, settings, and staff-role actions stay locked.',
   manager: 'Manager can add, edit, and delete attendees, plus resolve routine review cases.',
   lead_admin: 'Lead Admin can do everything in this prototype: attendee management, clear test/event data, event settings, and staff membership once Staff HELLO step-up is wired.',
   developer: 'Developer can do everything Lead Admin can, plus prototype-only diagnostics while the real Lead Admin role stays clean.'
 };
-const PROTOTYPE_ROLE_RANK = { staff: 1, manager: 2, lead_admin: 3, developer: 4 };
+const PROTOTYPE_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, developer: 4 };
 // Batch C polish 5 — Developer role is bootstrap-only.
 // Captain's call (4 May 2026, late evening): "Developer being able to add
 // Developer kinda defeats a few points." Right read. The Developer role exists
@@ -8246,13 +8315,8 @@ const EXPECTED_ROLE_OPTIONS = {
   developer: ['attendee', 'staff', 'manager', 'lead_admin']
 };
 function roleLabelFor(role) {
-  return {
-    attendee: 'Attendee',
-    staff: 'Staff',
-    manager: 'Manager',
-    lead_admin: 'Lead Admin',
-    developer: 'Developer'
-  }[role] || 'Attendee';
+  const key = String(role || 'attendee').trim().toLowerCase();
+  return (typeof window.roleLabel === 'function' ? window.roleLabel(key) : null) || ROLE_VOCAB_PRESETS.default[key] || ROLE_VOCAB_PRESETS.default.attendee;
 }
 function updateExpectedRoleOptions(role) {
   const select = document.getElementById('expectedRoleSelect');
@@ -8264,7 +8328,7 @@ function updateExpectedRoleOptions(role) {
 }
 function setPrototypeRole(role) {
   const value = PROTOTYPE_ROLE_DETAILS[role] ? role : 'lead_admin';
-  const rank = PROTOTYPE_ROLE_RANK[value] || 3;
+  const rank = Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, value) ? PROTOTYPE_ROLE_RANK[value] : PROTOTYPE_ROLE_RANK.lead_admin;
   document.body.dataset.prototypeRole = value;
   const select = document.getElementById('prototypeRoleSelect');
   if (select && select.value !== value) select.value = value;
@@ -8601,6 +8665,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createOrgSubmitBtn')?.addEventListener('click', submitCreateOrg);
   const prototypeRoleSelect = document.getElementById('prototypeRoleSelect');
   prototypeRoleSelect?.addEventListener('change', () => setPrototypeRole(prototypeRoleSelect.value));
+  if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   setPrototypeRole(prototypeRoleSelect?.value || 'lead_admin');
   const csvFileInput = document.getElementById('csvFileInput');
   if (csvFileInput) csvFileInput.addEventListener('change', (event) => {
@@ -8850,6 +8915,7 @@ const THEME_DEFAULTS = {
   bgImageUrl: null,          // admin-uploaded background image; applies when bgMode === 'image'
   bgImagePosition: 'centre',
   bgImageAnchor: 'outer',
+  bgImageSymmetric: false,
   bgImageAlphaCycle: false,
   cycleMode: 'glow',         // 'off' | 'simple' | 'page' | 'glow' | 'pattern' (Celebration; legacy, retained for backward compat — v5.9.0.13.3 layered model in celebration{} below takes precedence)
   bgAnimDuration: 30,        // seconds for one full background cycle (range 5..120)
@@ -8967,6 +9033,7 @@ function normalizeThemeForSave(theme) {
     bgImageUrl: bgImageUrl,
     bgImagePosition: BG_IMAGE_POSITIONS.indexOf(t.bgImagePosition) !== -1 ? t.bgImagePosition : THEME_DEFAULTS.bgImagePosition,
     bgImageAnchor: BG_IMAGE_ANCHORS.indexOf(t.bgImageAnchor) !== -1 ? t.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor,
+    bgImageSymmetric: t.bgImageSymmetric === true,
     bgImageAlphaCycle: t.bgImageAlphaCycle === true,
     cycleMode: cycleMode,
     bgAnimDuration: typeof t.bgAnimDuration === 'number' ? t.bgAnimDuration : THEME_DEFAULTS.bgAnimDuration,
@@ -9065,6 +9132,7 @@ function applyThemeVars(theme) {
   body.removeAttribute('data-pattern');
   body.removeAttribute('data-bg-image-position');
   body.removeAttribute('data-bg-image-anchor');
+  body.removeAttribute('data-bg-image-symmetric');
   body.removeAttribute('data-bg-image-alpha-cycle');
   root.style.removeProperty('--theme-pattern-image');
   root.style.removeProperty('--theme-bg-image');
@@ -9105,6 +9173,7 @@ function applyThemeVars(theme) {
       }
       body.setAttribute('data-bg-image-position', BG_IMAGE_POSITIONS.indexOf(theme.bgImagePosition) !== -1 ? theme.bgImagePosition : THEME_DEFAULTS.bgImagePosition);
       body.setAttribute('data-bg-image-anchor', BG_IMAGE_ANCHORS.indexOf(theme.bgImageAnchor) !== -1 ? theme.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor);
+      body.setAttribute('data-bg-image-symmetric', theme.bgImageSymmetric === true ? 'true' : 'false');
       body.setAttribute('data-bg-image-alpha-cycle', theme.bgImageAlphaCycle === true ? 'true' : 'false');
       break;
     case 'glow':
@@ -9590,6 +9659,8 @@ function writeThemeToUI() {
   const bgPatternEl = document.getElementById('themeBgPattern');
   if (bgPatternEl) bgPatternEl.value = BG_PATTERNS.indexOf(activeTheme.bgPattern) !== -1 ? activeTheme.bgPattern : 'dots';
   if (typeof window.syncBgPosUI === 'function') window.syncBgPosUI();
+  const bgImageSymmetricEl = document.getElementById('bgImageSymmetricCb');
+  if (bgImageSymmetricEl) bgImageSymmetricEl.checked = activeTheme.bgImageSymmetric === true;
   const bgImageAlphaCycleEl = document.getElementById('themeBgImageAlphaCycle');
   if (bgImageAlphaCycleEl) bgImageAlphaCycleEl.checked = activeTheme.bgImageAlphaCycle === true;
   const bgDur = document.getElementById('themeBgAnimDuration');
@@ -9788,6 +9859,8 @@ function wireThemePanel() {
   const bgPosCells    = document.querySelectorAll('.bg-pos-cell');
   const bgAnchorRow   = document.getElementById('themeBgAnchorRow');
   const bgAnchorBtns  = document.querySelectorAll('.bg-anchor-btn');
+  const bgImageSymmetricRow = document.getElementById('themeBgImageSymmetricRow');
+  const bgImageSymmetricCb  = document.getElementById('bgImageSymmetricCb');
 
   function syncBgPosUI() {
     const isTile  = activeTheme.bgImagePosition === 'tile';
@@ -9810,6 +9883,8 @@ function wireThemePanel() {
       bgAnchorRow.style.display = showAnchor ? '' : 'none';
       bgAnchorBtns.forEach(b => b.setAttribute('aria-pressed', b.dataset.bgAnchor === (activeTheme.bgImageAnchor || 'outer') ? 'true' : 'false'));
     }
+    if (bgImageSymmetricRow) bgImageSymmetricRow.style.display = (mode === 'position') ? '' : 'none';
+    if (bgImageSymmetricCb) bgImageSymmetricCb.checked = activeTheme.bgImageSymmetric === true;
   }
   window.syncBgPosUI = syncBgPosUI;
 
@@ -9843,6 +9918,10 @@ function wireThemePanel() {
   const bgImageAlphaCycleEl = document.getElementById('themeBgImageAlphaCycle');
   if (bgImageAlphaCycleEl) bgImageAlphaCycleEl.addEventListener('change', function (e) {
     activeTheme.bgImageAlphaCycle = e.target.checked === true;
+    applyThemeVars(activeTheme);
+  });
+  if (bgImageSymmetricCb) bgImageSymmetricCb.addEventListener('change', function (e) {
+    activeTheme.bgImageSymmetric = e.target.checked === true;
     applyThemeVars(activeTheme);
   });
   syncBgPosUI();
