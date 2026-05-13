@@ -688,7 +688,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 /* v5.7.0k — Seven columns: Name / First seen / Last seen / Scan count /
    Status / Role / Action. Role column carries the small role badge
    (was previously squeezed into the Action cell for expected_only rows).
-   Hidden in staff prototype-view via the body data attribute. */
+   Hidden in attendee prototype-view via the body data attribute. */
 .att-table th:nth-child(1), .att-table td:nth-child(1) { width: 16%; }
 .att-table th:nth-child(2), .att-table td:nth-child(2),
 .att-table th:nth-child(3), .att-table td:nth-child(3) { width: 17%; }
@@ -697,7 +697,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .att-table th:nth-child(6), .att-table td:nth-child(6) { width: 8%; text-align: center; }
 .att-table th:nth-child(7), .att-table td:nth-child(7) { width: 20%; }
 .att-table td:nth-child(7) { overflow: visible; }
-body[data-prototype-role="staff"] .att-table .att-role-col { display: none; }
+body[data-prototype-role="attendee"] .att-table .att-role-col { display: none; }
 .att-action-cell { min-height: 32px; display: flex; align-items: center; gap: 8px; }
 /* v5.7.0l — Right-align every delete button in the action cell.
    v5.7.0q — Equal min-width to align left edges across rows.
@@ -911,6 +911,7 @@ body.audit-mode #attendanceBody { overflow-x: hidden; }
 .btn-secondary { background: var(--line-soft); color: var(--text); border: 1px solid var(--line); }
 .btn-secondary:hover { background: var(--line); }
 .btn-sm { padding: 4px 10px; font-size: 11px; }
+.csv-filter-select { min-height: 25px; border: 1px solid var(--line); border-radius: 6px; background: var(--line-soft); color: var(--text); padding: 4px 8px; font-size: 11px; font-weight: 500; }
 .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 5px; animation: pulse 2s infinite; }
 .attendance-live-dot { box-shadow: 0 0 0 0 rgba(63,185,80,0.35); animation: liveDotPulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
@@ -1378,6 +1379,11 @@ body:not(.developer-bearer-active) .prototype-note { display: none; }
 :root[data-theme="light"] .mini-help { color: var(--muted); }
 :root[data-theme="light"] .prototype-role-toolbar label { color: var(--text); }
 :root[data-theme="light"] .prototype-role-toolbar select {
+  background: #ffffff;
+  color: var(--text);
+  border-color: var(--line);
+}
+:root[data-theme="light"] .csv-filter-select {
   background: #ffffff;
   color: var(--text);
   border-color: var(--line);
@@ -3253,7 +3259,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.32</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.33</span></div>
   </div>
 </div>
 
@@ -3269,6 +3275,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <span id="liveStatus" data-developer-only="true" style="display:none;"><span class="live-dot"></span>Debug</span>
       <button class="btn btn-secondary btn-sm" id="refreshBtn" onclick="refreshAttendanceFromUI()" title="Refresh attendance + expected list"><span class="refresh-glyph" aria-hidden="true">↻</span> Refresh</button>
       <button class="btn btn-secondary btn-sm topbar-action-audit" id="auditModeBtn" onclick="enterAuditMode()" title="Audit mode — full-screen attendance board (best in landscape)" style="display:none;"><span aria-hidden="true">⛶</span> Audit</button>
+      <select class="csv-filter-select" id="csvRoleFilter" title="CSV role filter" aria-label="CSV role filter">
+        <option value="all">All</option>
+        <option value="attendees">Attendees only</option>
+        <option value="staff_plus">Staff+</option>
+      </select>
       <button class="btn btn-secondary btn-sm" id="csvBtn" onclick="exportCSV()">↓ CSV</button>
       <button class="btn btn-secondary btn-sm" id="csvUploadBtn" onclick="triggerCsvUpload()">↑ CSV</button>
       <button class="btn btn-secondary btn-sm" id="signOutBtn" onclick="signOutOrg()">Sign out</button>
@@ -4923,6 +4934,8 @@ function setSignedInUI(isSignedIn) {
   document.getElementById('navCheckin').classList.toggle('hidden', !isSignedIn);
   document.getElementById('refreshBtn').disabled = !isSignedIn;
   document.getElementById('csvBtn').disabled = !isSignedIn;
+  const csvRoleFilter = document.getElementById('csvRoleFilter');
+  if (csvRoleFilter) csvRoleFilter.disabled = !isSignedIn;
   document.getElementById('signOutBtn').disabled = !isSignedIn;
   if (isSignedIn && currentOrg) {
     document.getElementById('sidebarOrgName').textContent = currentOrg.name;
@@ -5803,14 +5816,31 @@ function resetSettingsToDefaults() {
 function renderExpectedAttendees() {
   const root = document.getElementById('expectedAttendeeList'); if (!root) return;
   const rows = ensureExpectedAttendees();
+  const viewingAs = currentPrototypeRole();
   root.innerHTML = rows.map(r => {
     const pill = r.linked ? '<span class="expected-pill ok">linked</span>' : '<span class="expected-pill warn">assist</span>';
     const meta = `${r.paid ? 'paid' : 'unpaid'} · ${r.subscription ? 'subscriber' : 'no sub'}`;
-    return `<div class="expected-item"><div><div>${r.name}</div><div class="expected-meta">${meta}</div></div>${pill}</div>`;
+    return `<div class="expected-item"><div><div>${escapeHtml(nameForViewer(r.name, viewingAs) || 'Unnamed attendee')}</div><div class="expected-meta">${meta}</div></div>${pill}</div>`;
   }).join('');
 }
 function expectedDisplayName(row) {
   return `${row.first_name || ''} ${row.surname || ''}`.trim() || row.name || 'Unnamed attendee';
+}
+function initialsForName(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  return parts.map(part => part.charAt(0).toUpperCase()).join('');
+}
+function nameForViewer(fullName, viewingAs) {
+  const name = String(fullName || '').trim();
+  if (!name) return '';
+  return viewingAs === 'attendee' ? initialsForName(name) : name;
+}
+function expectedNameForViewer(row, viewingAs = currentPrototypeRole()) {
+  return nameForViewer(expectedDisplayName(row), viewingAs) || 'Unnamed attendee';
+}
+function rolesVisibleForViewer(viewingAs = currentPrototypeRole()) {
+  return ['staff', 'manager', 'lead_admin', 'developer'].includes(String(viewingAs || '').trim().toLowerCase());
 }
 function queueExpectedRow(body, queuedResult) {
   const pendingId = 'pending-expected-' + (queuedResult.queued_id || queuedResult.idempotency_key || Date.now());
@@ -5846,14 +5876,18 @@ function renderExpectedAttendeesApiState() {
     const status = r.status || 'assist';
     const pillClass = status === 'linked' ? 'ok' : 'warn';
     const meta = status === 'linked' && r.linked_at ? `linked · ${formatTimestamp(r.linked_at)}` : 'manual · added by admin';
-    const isEditing = String(expectedEditId) === String(r.id);
+    const canEditName = rolesVisibleForViewer();
+    const isEditing = canEditName && String(expectedEditId) === String(r.id);
     const safeId = escapeHtml(String(r.id || ''));
     const deleteButton = canDeleteExpected() && safeId
       ? `<button class="btn btn-danger btn-sm expected-row-delete" type="button" onclick="deleteExpectedFromAttendance('${safeId}')">Delete expected</button>`
       : '';
+    const displayName = expectedNameForViewer(r);
     const nameBlock = isEditing
       ? `<div class="expected-edit-fields"><input id="expectedEditFirst" type="text" value="${escapeHtml(r.first_name || '')}" aria-label="First name"><input id="expectedEditSurname" type="text" value="${escapeHtml(r.surname || '')}" aria-label="Surname"><button class="btn btn-primary btn-sm" type="button" onclick="saveExpectedEdit('${safeId}')">Save</button><button class="btn btn-secondary btn-sm" type="button" onclick="cancelExpectedEdit()">Cancel</button></div>${expectedEditError ? `<div class="expected-row-error">${escapeHtml(expectedEditError)}</div>` : ''}`
-      : `<div class="expected-name-display" onclick="startExpectedEdit('${safeId}')" title="Edit name">${escapeHtml(expectedDisplayName(r))}</div>`;
+      : canEditName
+        ? `<div class="expected-name-display" onclick="startExpectedEdit('${safeId}')" title="Edit name">${escapeHtml(displayName)}</div>`
+        : `<div>${escapeHtml(displayName)}</div>`;
     return `<div class="expected-item${deleteClass}" data-expected-id="${safeId}"><div>${nameBlock}<div class="expected-meta">${escapeHtml(meta)}</div></div><div class="att-action-cell">${deleteButton}<span class="expected-pill ${pillClass}">${escapeHtml(status)}</span></div></div>`;
   }).join('');
   renderTable(attendanceData);
@@ -5995,6 +6029,7 @@ function handleExpectedListClick(event) {
 }
 function startExpectedEdit(id) {
   if (expectedDeleteMode) return;
+  if (!rolesVisibleForViewer()) return;
   expectedEditId = id;
   expectedEditError = '';
   renderExpectedAttendees();
@@ -6373,8 +6408,10 @@ function renderTable(rows) {
   if (!displayRows.length) { document.getElementById('attendanceBody').innerHTML = '<div class="empty-state">No attendees returned from irlid-api-test</div>'; return; }
   document.getElementById('attendanceBody').innerHTML = `<table class="att-table"><thead><tr><th>Name / ID</th><th>First seen</th><th>Last seen</th><th>Scan count</th><th>Status</th><th class="att-role-col">Role</th><th>Action</th></tr></thead><tbody id="attendanceRows"></tbody></table>`;
   const liveTbody = document.getElementById('attendanceRows');
+  const viewingAs = currentPrototypeRole();
   liveTbody.innerHTML = displayRows.map(r => {
-    const displayLabel = r.name || r.id || 'Unknown attendee';
+    const rawLabel = r.name || '';
+    const displayLabel = rawLabel ? nameForViewer(rawLabel, viewingAs) : (r.id || 'Unknown attendee');
     const pendingPill = r.pending_sync ? '<span class="pending-sync-pill">PENDING SYNC</span>' : '';
     const checkinId = r.active_checkin_id || '';
     const methodBadge = r.checkout_method === 'signed'
@@ -7247,19 +7284,21 @@ function renderEscalationExpectedList() {
   if (!root) return;
   const q = (document.getElementById('escalationSearchInput')?.value || '').trim().toLowerCase();
   const candidates = escalationCandidateRows().filter(c => expectedDisplayName(c.row).toLowerCase().includes(q));
+  const viewingAs = currentPrototypeRole();
+  const showRoles = rolesVisibleForViewer(viewingAs);
   if (!candidates.length) {
     root.innerHTML = '<div class="escalation-empty">No Expected entries match.</div>';
     return;
   }
   root.innerHTML = candidates.map(c => {
     const row = c.row;
-    const name = expectedDisplayName(row);
+    const name = expectedNameForViewer(row, viewingAs);
     const role = roleLabelFor(row.prototype_role || 'attendee');
     if (c.claimed) {
-      const meta = [role, 'already bound to ' + escalationFpShort(c.primaryFp)].join(' · ');
+      const meta = (showRoles ? [role, 'already bound to ' + escalationFpShort(c.primaryFp)] : ['already bound to ' + escalationFpShort(c.primaryFp)]).join(' · ');
       return `<button class="escalation-row escalation-row-claimed" type="button" data-bind-additional-id="${escapeHtml(row.id)}"><div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(meta)}</span></div><span>Add device</span></button>`;
     }
-    const meta = [role, row.status || 'assist'].join(' · ');
+    const meta = (showRoles ? [role, row.status || 'assist'] : [row.status || 'assist']).join(' · ');
     return `<button class="escalation-row" type="button" data-bind-expected-id="${escapeHtml(row.id)}"><div><strong>${escapeHtml(name)}</strong><span>${escapeHtml(meta)}</span></div><span>Bind</span></button>`;
   }).join('');
 }
@@ -7945,11 +7984,44 @@ function attendanceRoleKey(row) {
   }
   return 'attendee';
 }
+function csvRoleFilterValue() {
+  return document.getElementById('csvRoleFilter')?.value || 'all';
+}
+function csvRoleFilterAllows(row, filter) {
+  const role = attendanceRoleKey(row);
+  if (filter === 'attendees') return role === 'attendee';
+  if (filter === 'staff_plus') return ['staff', 'manager', 'lead_admin', 'developer'].includes(role);
+  return true;
+}
+function surnameSortParts(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { empty: true, surname: '', first: '' };
+  return {
+    empty: false,
+    surname: parts[parts.length - 1].toLocaleLowerCase(displayLocale()),
+    first: parts[0].toLocaleLowerCase(displayLocale())
+  };
+}
+function compareBySurnameThenFirst(a, b) {
+  const aName = surnameSortParts(a.name || '');
+  const bName = surnameSortParts(b.name || '');
+  if (aName.empty !== bName.empty) return aName.empty ? 1 : -1;
+  const surname = aName.surname.localeCompare(bName.surname, displayLocale(), { sensitivity: 'base' });
+  if (surname) return surname;
+  return aName.first.localeCompare(bName.first, displayLocale(), { sensitivity: 'base' });
+}
 function exportCSV() {
   if (!attendanceData.length) return showToast('No data to export', true);
   const headers = ['Name or ID','First seen','Last seen','Scan count','Role'];
-  const rows = attendanceData.map(r => [
-    r.name || r.id || '',
+  const filter = csvRoleFilterValue();
+  const viewingAs = currentPrototypeRole();
+  const exportRows = attendanceData
+    .filter(r => csvRoleFilterAllows(r, filter))
+    .slice()
+    .sort(compareBySurnameThenFirst);
+  if (!exportRows.length) return showToast('No rows match that CSV filter', true);
+  const rows = exportRows.map(r => [
+    r.name ? nameForViewer(r.name, viewingAs) : (r.id || ''),
     r.first_seen ? new Date(r.first_seen * 1000).toISOString() : '',
     r.last_seen ? new Date(r.last_seen * 1000).toISOString() : '',
     r.scan_count || 0,
