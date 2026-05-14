@@ -2290,8 +2290,16 @@ async function requireSignedAction(body, env, opts) {
       .bind(orgId).first();
     if (!org) return { error: json({ error: "org_not_found" }, 404) };
   }
-  const role = org ? await orgRoleForUser(env, user, org.id) : null;
-  console.log("[requireSignedAction] resolved user_id=" + user.id + " fp=" + fp + " role=" + role + " minRole=" + minRole);
+  // v5.10.0.5 — bootstrap-developer fp is platform-level: it grants developer
+  // access to ANY org without needing an explicit org_memberships row. This
+  // mirrors how requireDevOrStaffSession / userListOrgs already treat
+  // BOOTSTRAP_DEVELOPER_FP. Without this, Captain's bootstrap fp gets role=null
+  // (no membership row) and fails minRole=staff even though the platform-level
+  // grant should clear any role gate.
+  const isBootstrapHere = isBootstrapDeveloperFp(env, fp);
+  let role = org ? await orgRoleForUser(env, user, org.id) : null;
+  if (!role && isBootstrapHere) role = "developer";
+  console.log("[requireSignedAction] resolved user_id=" + user.id + " fp=" + fp + " role=" + role + " minRole=" + minRole + " bootstrap=" + isBootstrapHere);
   if (minRole) {
     const requiredRank = expectedRoleRank(minRole);
     const actualRank   = role ? expectedRoleRank(role) : -1;
