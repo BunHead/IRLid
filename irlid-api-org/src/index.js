@@ -2184,17 +2184,29 @@ async function roleForStaffPubFp(env, org, staffPubFp) {
 //   orgId          — org context the action must match
 //   minRole        — minimum role required (e.g. "staff")
 //   payloadSchema  — optional fn(payload)=>bool for action-specific fields
-async function requireSignedAction(request, env, opts) {
+async function requireSignedAction(body, env, opts) {
+  // v5.10.0.4 — body is now passed in pre-parsed by the caller. Previous
+  // versions took `request` and tried request.clone().json() here, but
+  // callers had already consumed the body via `await request.json()`, so
+  // the clone returned "Invalid JSON" every time. Workers Request bodies
+  // are single-use streams; cloning AFTER consumption gives a drained
+  // stream. The fix is structural: caller parses once, passes the object.
   const expectedType  = String((opts && opts.expectedType) || "").trim();
   const orgId         = String((opts && opts.orgId) || "").trim();
   const minRole       = (opts && opts.minRole) || null;
   const payloadSchema = (opts && opts.payloadSchema) || null;
 
-  let body;
-  try { body = await request.clone().json(); } catch { return { error: err("Invalid JSON") }; }
+  if (!body || typeof body !== "object") {
+    return { error: json({ error: "signed_action_required" }, 400) };
+  }
+
+  // v5.10.0.3 — verbose diagnostics on the bind path while we close the
+  // smoke loop. Remove this block once smoke is green.
+  console.log("[requireSignedAction] entry expectedType=" + opts.expectedType + " orgId=" + opts.orgId + " body_has_signed_action=" + (body.signed_action ? "yes" : "no"));
 
   const env_envelope = body.signed_action || null;
   if (!env_envelope || typeof env_envelope !== "object") {
+    console.log("[requireSignedAction] FAIL signed_action_required");
     return { error: json({ error: "signed_action_required" }, 400) };
   }
   const payload   = env_envelope.payload;
@@ -2202,44 +2214,55 @@ async function requireSignedAction(request, env, opts) {
   const sigB64u   = env_envelope.sig;
   const webauthn  = env_envelope.webauthn;
   if (!payload || !pubJwk || !sigB64u || !webauthn) {
+    console.log("[requireSignedAction] FAIL signed_action_malformed payload=" + !!payload + " pub=" + !!pubJwk + " sig=" + !!sigB64u + " webauthn=" + !!webauthn);
     return { error: json({ error: "signed_action_malformed" }, 400) };
   }
+  console.log("[requireSignedAction] envelope present, type=" + payload.type + " org_id=" + payload.org_id + " nonce=" + String(payload.nonce || "").slice(0, 8));
 
   // 1. Action type discriminator — prevents cross-action replay
   if (payload.type !== expectedType) {
+    console.log("[requireSignedAction] FAIL invalid_action_type got=" + payload.type);
     return { error: json({ error: "invalid_action_type", expected: expectedType, got: payload.type }, 400) };
   }
   // 2. Org context match
   if (orgId && String(payload.org_id || "") !== orgId) {
+    console.log("[requireSignedAction] FAIL invalid_action_org payload_org=" + payload.org_id + " expected=" + orgId);
     return { error: json({ error: "invalid_action_org" }, 400) };
   }
   // 3. Timestamp drift — ±120s replay window
   const t = now();
   const payloadSec = Math.floor(Number(payload.timestamp || 0) / 1000);
   if (!payloadSec || Math.abs(t - payloadSec) > 120) {
+    console.log("[requireSignedAction] FAIL timestamp_drift server=" + t + " payload=" + payloadSec);
     return { error: json({ error: "timestamp_drift", server_t: t, payload_t: payloadSec }, 400) };
   }
   // 4. Nonce anti-replay
   const nonce = String(payload.nonce || "").trim();
   if (!nonce || nonce.length < 16) {
+    console.log("[requireSignedAction] FAIL nonce_required len=" + nonce.length);
     return { error: json({ error: "nonce_required" }, 400) };
   }
   const existing = await env.DB.prepare(
     "SELECT nonce FROM action_nonces WHERE nonce = ? LIMIT 1"
   ).bind(nonce).first();
   if (existing) {
+    console.log("[requireSignedAction] FAIL nonce_already_used");
     return { error: json({ error: "nonce_already_used" }, 400) };
   }
   // 5. Payload schema check
   if (typeof payloadSchema === "function") {
     let schemaOk = false;
     try { schemaOk = !!payloadSchema(payload); } catch (_) { schemaOk = false; }
-    if (!schemaOk) return { error: json({ error: "invalid_action_payload" }, 400) };
+    if (!schemaOk) {
+      console.log("[requireSignedAction] FAIL invalid_action_payload payload_keys=" + Object.keys(payload).join(","));
+      return { error: json({ error: "invalid_action_payload" }, 400) };
+    }
   }
   // 6. Cryptographic verification — same path as orgLoginClaim
   try {
     await verifyV5Envelope(payload, pubJwk, sigB64u, webauthn);
   } catch (e) {
+    console.log("[requireSignedAction] FAIL signature_verify_failed reason=" + String(e && e.message || e).slice(0, 200));
     return { error: json({ error: "signature_verify_failed", reason: String(e && e.message || e).slice(0, 200) }, 401) };
   }
   // 7. Resolve signing user via pub_fp
@@ -2268,13 +2291,16 @@ async function requireSignedAction(request, env, opts) {
     if (!org) return { error: json({ error: "org_not_found" }, 404) };
   }
   const role = org ? await orgRoleForUser(env, user, org.id) : null;
+  console.log("[requireSignedAction] resolved user_id=" + user.id + " fp=" + fp + " role=" + role + " minRole=" + minRole);
   if (minRole) {
     const requiredRank = expectedRoleRank(minRole);
     const actualRank   = role ? expectedRoleRank(role) : -1;
     if (actualRank < requiredRank) {
+      console.log("[requireSignedAction] FAIL insufficient_role actual=" + role + " required=" + minRole);
       return { error: json({ error: "insufficient_role", required: minRole, actual: role || null }, 403) };
     }
   }
+  console.log("[requireSignedAction] OK pass-through to handler");
   // 9. Record the nonce so subsequent attempts fail with nonce_already_used.
   //    Best-effort opportunistic GC of expired rows on the same call.
   await env.DB.prepare(
@@ -2658,7 +2684,8 @@ async function bindAdditionalExpectedKey(request, env, id) {
   // signed envelope tied to the specific action by type discriminator
   // (irlid_bind_v5) and target expected_id. No more "is this session
   // fresh enough" gate; the signature itself IS the freshness proof.
-  const action = await requireSignedAction(request, env, {
+  // v5.10.0.4 — pass body in directly; do NOT pass request (body is already consumed above).
+  const action = await requireSignedAction(body, env, {
     expectedType: "irlid_bind_v5",
     orgId: org.id,
     minRole: "staff",
@@ -2725,7 +2752,8 @@ async function orgExpectedCreateAndBind(request, env) {
   // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof.
   // The signed envelope encodes the specific attendee being created and the
   // device fp being bound; cross-action replay is structurally impossible.
-  const action = await requireSignedAction(request, env, {
+  // v5.10.0.4 — pass body in directly; do NOT pass request (body is already consumed above).
+  const action = await requireSignedAction(body, env, {
     expectedType: "irlid_create_bind_v5",
     orgId: org.id,
     minRole: "staff",

@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v7'; // v5.10.0.1 bump — signActionPayload no longer requires IRLID_V5_ENABLED_KEY flag (only requires credential enrolled); forces v5 WebAuthn path directly
+const CACHE_VERSION = 'irlid-shell-v8'; // v5.10.0.4 bump — Worker fix: requireSignedAction now takes body directly (was failing with "Invalid JSON" because callers consumed request.json() first, leaving request.clone() draining a used stream)
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
