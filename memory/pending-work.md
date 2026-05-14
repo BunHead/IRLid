@@ -1,5 +1,74 @@
 # Pending Work — IRLid
 
+## Thursday 14 May 2026 long watch — Brief A (`v5.9.14`) shipped end-to-end through a regression-and-recovery cycle
+
+**The headline.** Started with the v5.9.14 ship attempt via Mr. Data's PR. Discovered mid-smoke-test that his stale `OrgCheckin.html` baseline had clobbered the entire `.13.1`–`.13.34` celebration overhaul on production. Caught + reverted within ~10 minutes. Hand-ported the additive invite work onto the clean `.13.34` baseline (456 insertions, 1 deletion — additive proof). Then chased a deeper architectural bug across `.14.1`/`.14.2`/`.14.3` patches to deliver Brief A's full guest-onboarding path on real fresh hardware.
+
+**Versions shipped today:**
+- **`v5.9.14`** — staff-invite QR (Brief A clean port). Drops the vestigial `.0` segment from the version scheme — new pill format is `v5.9.<feature>.<inline>`.
+- **`v5.9.14.1`** — SW cache bump `irlid-shell-v3` → `v4` to evict the stale `orgapi.js` that the previous PR's cache had served; also dropped Attendee from the invite role picker (scope creep from Mr. Data; brief specified Staff/Manager only).
+- **`v5.9.14.2`** — Brief A architectural fix in the Worker. `orgLoginClaim` previously rejected non-bootstrap pub_fps with `auth_failed`, creating a chicken-and-egg for fresh-device invite redemption. Refactored to auto-create `portal_users` rows for any validated v5 envelope. Bootstrap fps still get `Developer (Super-Admin)` display name; non-bootstrap get `New member` and zero permissions (memberships still gate actual power).
+- **`v5.9.14.3`** — Phone-self-signin redeem call site. The original v5.9.14 only fired `tryRedeemStaffInviteIfPending` inside `handleQrLoginSuccess` (desktop-polls-phone path). When a fresh phone bounced back from `org-login.html` with a session but no `savedOrg`, the saved-session-restore block was skipped (gated on both being present) and nothing fired the redeem. Added a second call site after `tryStaffInviteRedirectIfNeeded` returns false. SW cache bump `v4` → `v5`.
+
+**Smoke tests passed end-to-end on real hardware:**
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Lead Admin issues invite | ✓ QR rendered, payload `I:` prefixed, 43-char b64url token |
+| 2 | Redeem (existing user) | ✓ 200 OK, membership response, dashboard reloaded |
+| 3 | One-shot enforcement | ✓ 409 `invite_already_redeemed` on second attempt |
+| 4 | Revoke enforcement | ✓ 410 `invite_revoked` after Revoke-before-redeem |
+| 5 | Guest path on Pixel 4a | ✓ Fresh device → scan → WebAuthn enrol (no biometric, PIN only) → bounce-back → redeem → "Signed in to Test Event as member" |
+
+**Real findings (not just smoke):**
+
+- **Hardware-backed signing works without biometrics.** Pixel 4a enrolled and signed cleanly using device PIN/pattern (no fingerprint or face). The "Face ID / fingerprint / Windows Hello" wording in IRLid Settings is illustrative, not prescriptive. Promotion talking point — accessibility win.
+- **The stale-baseline trap and how to spot it.** Mr. Data's PR was `+600/-130`. The 130 deletions were the regression — additive briefs should have near-zero deletions outside explicit refactor scopes. New review discipline: diff each touched file against current `origin/main`, not just check the code against the brief.
+- **Service worker cache-first traps frontend updates.** The SW serves `js/orgapi.js` and `OrgCheckin.html` from cache by default. Frontend changes require `sw.js` `CACHE_VERSION` bump to actually reach devices. Bit us twice today.
+
+**Discipline rules earned (next watch should bank to BOOTSTRAP.md):**
+
+1. Diff Mr. Data's PR files against current `origin/main` — not just verify code against brief.
+2. Bump `sw.js` `CACHE_VERSION` on every frontend JS/HTML change that needs to reach devices.
+3. Generate QRs with raw `I:`/`H:`/`D:` payload, not URL-wrapped — `scan.html`'s classify only recognises payload-prefixed strings or URLs ending in known paths.
+4. Don't paste `I:`-prefixed payloads directly into Windows browser address bars (Chrome treats as drive letter).
+
+**Features/flaws banked for future patches:**
+
+- *Cosmetic, low priority.* "Signed in as member" pill shows after redeem instead of actual role. Worker response doesn't include role in the org object. Five-line fix.
+- *UX gap.* `org-login.html` "Open Settings to enrol" detour loses invite context. Fresh device has to re-scan after enrol. Smooth flow would preserve and resume.
+- *Polish.* `scan.html` could classify `OrgCheckin.html` URLs as `ORG_INVITE` if hash present. Raw-payload QRs work fine; this is convenience only.
+- *Confusing affordance.* "Show login QR" on phones is bidirectional — generates a QR for *another* device to scan. Hide on narrow viewports or add nudge text.
+- *Brief A scope drift.* Pending-invites list view (table with revoke-per-row) — Mr. Data shipped single-active UX. Polish for v5.9.15.
+- *Brief A scope drift.* Expiry chip picker (10/30/60 min) — Mr. Data defaulted to 7 days; brief specified 10-min default. Polish for v5.9.15.
+
+**Captain preferences refined (banked for next watch's CLAUDE.md update):**
+
+- Prose answer first, task instructions after — so he can read while Number One works in parallel.
+- Code in copy-button blocks (triple-backticks).
+- Smoke exhaustively, not surface-only.
+- Monkey-brain humour acknowledged and reciprocated.
+- Lemon and barley water, not tea/coffee/Earl Grey.
+
+**Smoke 6 — Defence in depth ✓ PASSED.** Console fetch from desktop, signed in as Developer. Forged invite-create requests:
+- `role: "lead_admin"` → 400, `{error: "lead_admin_invite_deferred"}` ✓
+- `role: "developer"` → 400, `{error: "lead_admin_invite_deferred"}` ✓
+- `role: "staff"` → 201 (control — proves rejection is specific, not blanket)
+
+Worker enforces the Lead Admin invariant at the create gate. Brief A's §14.9 tightened invariant holds.
+
+**Smoke 7 — Doorman flow regression ✓ PASSED (after initial silent-fail mystery).** First attempt: scanning 4a's orange QR on 8 Pro, "Choose from List → Kerry Austin → OK" returned to list without binding (silent-fail). Second attempt: "Add at the door → Test 4a → Attendee" created the row but left status as `assist` instead of `linked` — same bind step failing. **Hypothesis: stale service worker on the 8 Pro was serving an old `orgapi.js` whose bind-call shape no longer matched the Worker.** After the v5.9.14.3 `CACHE_VERSION` bump (`v4` → `v5`) propagated to the 8 Pro, the doorman flow recovered. End-to-end proof on the dashboard: Test 4a row showing scan_count 1, IN at 11:42, OUT lock signed at 11:44, Action: Done. Confirms discipline rule #2 (bump CACHE_VERSION on every frontend change) just paid for itself in real time.
+
+**Smoke 8 — Audit board fullscreen ✓ PASSED.** Toggle from dashboard topbar rendered the fullscreen attendance table cleanly: Kerry Austin (S=Staff, IN), Spencer Austin (L=Lead Admin, IN), Poppy Austin (A=Attendee, linked expected). Exit audit button top-right functional. v5.9.14.x didn't break the audit feature.
+
+**Final smoke tally: 8/8 PASSED.** Brief A delivered end-to-end on real hardware.
+
+---
+
+## (Earlier same day) — pre-Brief-A material
+
+---
+
 ## Wednesday 13 May 2026 evening close — `v5.9.0.13.34` LIVE; demo never happened, eight PRs landed, two briefs scoped for tomorrow
 
 **The headline:** Donald didn't show at imbue, the demo dissolved, and the morning Number One used the slack to clear six PRs from the back-end of yesterday's idea stream. Afternoon and evening Number Ones each shipped one more. Net: 12 May 22:45 went `v5.9.0.13.26` → 13 May evening `v5.9.0.13.34`. Pressure off, pure forward-progress. Brief A queued, Brief B fully scoped.
