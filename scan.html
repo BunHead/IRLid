@@ -410,6 +410,7 @@
     if (t.startsWith("H:"))  return { kind:"HELLO",  v: t.slice(2) };
     if (t.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: t.slice(3) };
     if (t.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: t.slice(2) };
+    if (t.startsWith("I:"))  return { kind:"ORG_INVITE", v: t.slice(2) };
 
     // v5.7.1: scan.html URL with ?type=…&payload=… (camera scanning a URL-encoded QR).
     // Same scheme as ingestUrlPayload() at script-eval time — kept in sync there.
@@ -429,11 +430,13 @@
         if (payload.startsWith("H:"))  return { kind:"HELLO",        v: payload.slice(2) };
         if (payload.startsWith("DZ:")) return { kind:"DEVICE_KEY_Z", v: payload.slice(3) };
         if (payload.startsWith("D:"))  return { kind:"DEVICE_KEY",   v: payload.slice(2) };
+        if (payload.startsWith("I:"))  return { kind:"ORG_INVITE",   v: payload.slice(2) };
         // Compact-form fallbacks
         const h  = u.searchParams.get("h");  if (h)  return { kind:"HELLO",        v: h  };
         const hz = u.searchParams.get("hz"); if (hz) return { kind:"HELLO_Z",      v: hz };
         const d  = u.searchParams.get("d");  if (d)  return { kind:"DEVICE_KEY",   v: d  };
         const dz = u.searchParams.get("dz"); if (dz) return { kind:"DEVICE_KEY_Z", v: dz };
+        const i  = u.searchParams.get("i");  if (i)  return { kind:"ORG_INVITE",   v: i  };
       }
       // v5.9.0.1 — Event Check-in QR (public attendee scan-in entry)
       if (path.endsWith("/org-entry.html") || path.endsWith("org-entry.html")) {
@@ -1099,6 +1102,12 @@
           location.href = c.v;
           return;
         }
+        if (c.kind === "ORG_INVITE") {
+          const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+          setStatus("Staff invite detected. Opening dashboard…");
+          location.href = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_invite=" + encodeURIComponent(c.v || "");
+          return;
+        }
 
         setStatus("QR detected but not recognized as IRLid.");
       },
@@ -1205,6 +1214,7 @@
         else if (rawPayload.startsWith("H:"))  { payload = rawPayload.slice(2); isCompressed = false; }
         else if (rawPayload.startsWith("DZ:")) { payload = rawPayload.slice(3); isCompressed = true;  }
         else if (rawPayload.startsWith("D:"))  { payload = rawPayload.slice(2); isCompressed = false; }
+        else if (rawPayload.startsWith("I:"))  { payload = rawPayload.slice(2); isCompressed = false; explicitType = "org_invite"; }
         else { payload = rawPayload; isCompressed = false; } // bare payload, assume uncompressed
       }
       // Compact-form fallbacks
@@ -1212,6 +1222,7 @@
       else if (params.has("hz")) { payload = params.get("hz"); isCompressed = true;  }
       else if (params.has("d"))  { payload = params.get("d");  isCompressed = false; explicitType = "device_key"; }
       else if (params.has("dz")) { payload = params.get("dz"); isCompressed = true;  explicitType = "device_key"; }
+      else if (params.has("i"))  { payload = params.get("i");  isCompressed = false; explicitType = "org_invite"; }
       if (!payload) return false;
 
       const payloadType = explicitType || await decodePayloadType(payload, isCompressed);
@@ -1237,6 +1248,11 @@
           "An assist request was created on a phone scanning the venue. Hand this phone to staff if you're at the venue.",
           [{ label: "Back to Home", href: "index.html" }]
         );
+        return true;
+      }
+      if (payloadType === "org_invite") {
+        const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+        location.href = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_invite=" + encodeURIComponent(payload || "");
         return true;
       }
       // Default — treat as a receipt-exchange HELLO, redirect to accept.html

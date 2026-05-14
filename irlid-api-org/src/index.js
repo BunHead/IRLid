@@ -75,6 +75,16 @@ function expectedRoleRank(role) {
   return EXPECTED_ROLE_RANK[expectedMemberRole(role)] ?? 0;
 }
 
+function strictExpectedMemberRole(value) {
+  const role = String(value || "").trim().toLowerCase();
+  return EXPECTED_MEMBER_ROLES.has(role) ? role : null;
+}
+
+function inviteRole(value) {
+  const role = strictExpectedMemberRole(value);
+  return ["attendee", "staff", "manager"].includes(role) ? role : null;
+}
+
 function isInternalHostname(hostname) {
   const host = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
   if (!host || host === "localhost" || host.endsWith(".localhost")) return true;
@@ -1332,6 +1342,164 @@ async function requireOrgThemeAdmin(request, env, orgId) {
     return { error: json({ error: "forbidden", reason: "lead_admin_or_developer_required" }, 403) };
   }
   return { user: ctx.user, org, role };
+}
+
+// v5.9.14 — staff-invite QR helpers (Brief A). Resolves the user's effective
+// role for a given org, honouring the multi-fp BOOTSTRAP_DEVELOPER_FP
+// secret (v5.9.0.13.26+ comma-separated value) via isBootstrapDeveloperFp.
+async function orgRoleForUser(env, user, orgId) {
+  if (user && user.pub_fp && isBootstrapDeveloperFp(env, user.pub_fp)) return "developer";
+  const membership = await env.DB.prepare(
+    "SELECT role FROM org_memberships WHERE org_id = ? AND user_id = ? LIMIT 1"
+  ).bind(orgId, user.id).first();
+  return membership && membership.role ? membership.role : null;
+}
+
+async function requireOrgInviteIssuer(request, env, orgId) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?")
+    .bind(orgId).first();
+  if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (role !== "lead_admin" && role !== "developer") {
+    return { error: json({ error: "forbidden", reason: "lead_admin_or_developer_required" }, 403) };
+  }
+  return { user: ctx.user, org, role };
+}
+
+async function inviteTokenHash(token) {
+  return sha256B64url("org_invite:" + String(token || ""));
+}
+
+function normalizeInviteToken(value) {
+  const text = String(value || "").trim();
+  return text.startsWith("I:") ? text.slice(2).trim() : text;
+}
+
+async function orgInviteCreate(request, env) {
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const orgId = String(body.org_id || body.orgId || "").trim();
+  if (!orgId) return json({ error: "org_id_required" }, 400);
+  const role = strictExpectedMemberRole(body.role || body.prototype_role || "staff");
+  if (!role) return json({ error: "invalid_invite_role" }, 400);
+  if (role === "lead_admin" || role === "developer") {
+    return json({ error: "lead_admin_invite_deferred" }, 400);
+  }
+  const allowedRole = inviteRole(role);
+  if (!allowedRole) return json({ error: "invalid_invite_role" }, 400);
+
+  const issuer = await requireOrgInviteIssuer(request, env, orgId);
+  if (issuer.error) return issuer.error;
+
+  const t = now();
+  const ttl = Math.max(60, Math.min(Number(body.expires_in_s || body.expiresInS || 7 * 86400), 30 * 86400));
+  const token = randomToken();
+  const tokenHash = await inviteTokenHash(token);
+  const label = String(body.label || body.name || "").trim().slice(0, 120) || null;
+  const inviteId = uuid();
+  await env.DB.prepare(
+    "INSERT INTO org_invites (id,org_id,token_hash,role,label,issuer_user_id,issuer_role_at_issue,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)"
+  ).bind(inviteId, issuer.org.id, tokenHash, allowedRole, label, issuer.user.id, issuer.role, t, t + ttl).run();
+
+  return json({
+    invite: {
+      id: inviteId,
+      org_id: issuer.org.id,
+      org_name: issuer.org.name,
+      role: allowedRole,
+      label,
+      created_at: t,
+      expires_at: t + ttl,
+      qr_payload: "I:" + token,
+      token
+    }
+  }, 201);
+}
+
+async function orgInviteRedeem(request, env) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return ctx.error;
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const token = normalizeInviteToken(body.token || body.invite || body.payload);
+  if (!token) return json({ error: "invite_token_required" }, 400);
+  const tokenHash = await inviteTokenHash(token);
+  const invite = await env.DB.prepare(
+    "SELECT i.*, o.name AS org_name, o.slug AS org_slug, o.api_key AS org_api_key, o.settings_json AS org_settings_json " +
+    "FROM org_invites i JOIN organisations o ON o.id = i.org_id WHERE i.token_hash = ? LIMIT 1"
+  ).bind(tokenHash).first();
+  if (!invite) return json({ error: "invite_not_found" }, 404);
+  if (invite.revoked_at) return json({ error: "invite_revoked" }, 410);
+  if (invite.redeemed_at) return json({ error: "invite_already_redeemed" }, 409);
+  const t = now();
+  if (Number(invite.expires_at) <= t) return json({ error: "invite_expired" }, 410);
+  if (invite.role === "lead_admin" || invite.role === "developer") {
+    return json({ error: "lead_admin_invite_deferred" }, 400);
+  }
+
+  const issuer = await env.DB.prepare(
+    "SELECT id, pub_fp FROM portal_users WHERE id = ?"
+  ).bind(invite.issuer_user_id).first();
+  const issuerRole = issuer ? await orgRoleForUser(env, issuer, invite.org_id) : null;
+  if (issuerRole !== "lead_admin" && issuerRole !== "developer") {
+    return json({ error: "invite_issuer_no_longer_authorized" }, 403);
+  }
+
+  const existing = await env.DB.prepare(
+    "SELECT role FROM org_memberships WHERE user_id = ? AND org_id = ? LIMIT 1"
+  ).bind(ctx.user.id, invite.org_id).first();
+  const existingRank = existing ? expectedRoleRank(existing.role) : -1;
+  const inviteRank = expectedRoleRank(invite.role);
+  if (!existing || existingRank < inviteRank) {
+    await env.DB.prepare(
+      "INSERT OR REPLACE INTO org_memberships (user_id,org_id,role,granted_by,granted_at) VALUES (?,?,?,?,?)"
+    ).bind(ctx.user.id, invite.org_id, invite.role, invite.issuer_user_id, t).run();
+  }
+  await env.DB.prepare(
+    "UPDATE org_invites SET redeemed_at = ?, redeemed_by_user_id = ? WHERE id = ?"
+  ).bind(t, ctx.user.id, invite.id).run();
+  let settings = null;
+  try { settings = invite.org_settings_json ? JSON.parse(invite.org_settings_json) : null; } catch (_) {}
+  return json({
+    ok: true,
+    membership: {
+      role: existing && existingRank >= inviteRank ? existing.role : invite.role,
+      user_id: ctx.user.id,
+      granted_at: t,
+      already_member: !!existing
+    },
+    org: {
+      id: invite.org_id,
+      name: invite.org_name,
+      slug: invite.org_slug,
+      api_key: invite.org_api_key,
+      settings,
+      implicit_membership: false
+    }
+  });
+}
+
+async function orgInviteRevoke(request, env) {
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const orgId = String(body.org_id || body.orgId || "").trim();
+  if (!orgId) return json({ error: "org_id_required" }, 400);
+  const issuer = await requireOrgInviteIssuer(request, env, orgId);
+  if (issuer.error) return issuer.error;
+  const inviteId = String(body.invite_id || body.id || "").trim();
+  const token = normalizeInviteToken(body.token || body.invite || body.payload);
+  if (!inviteId && !token) return json({ error: "invite_id_or_token_required" }, 400);
+  const t = now();
+  let result;
+  if (inviteId) {
+    result = await env.DB.prepare(
+      "UPDATE org_invites SET revoked_at = ?, revoked_by_user_id = ? WHERE id = ? AND org_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL"
+    ).bind(t, issuer.user.id, inviteId, issuer.org.id).run();
+  } else {
+    result = await env.DB.prepare(
+      "UPDATE org_invites SET revoked_at = ?, revoked_by_user_id = ? WHERE token_hash = ? AND org_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL"
+    ).bind(t, issuer.user.id, await inviteTokenHash(token), issuer.org.id).run();
+  }
+  return json({ ok: true, revoked: (result.meta?.changes || 0) > 0 });
 }
 
 function absoluteUrl(value, baseUrl) {
@@ -2681,6 +2849,10 @@ export default {
       else if (method === "POST" && path === "/org/login/init")      response = await orgLoginInit(request, env);
       else if (method === "GET"  && path === "/org/login/poll")      response = await orgLoginPoll(request, env);
       else if (method === "POST" && path === "/org/login/claim")     response = await orgLoginClaim(request, env);
+      // v5.9.14 — staff-invite QR endpoints (Brief A).
+      else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
+      else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
+      else if (method === "POST" && path === "/org/invites/revoke")  response = await orgInviteRevoke(request, env);
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);
       else if (method === "POST" && path === "/user/create-org")     response = await userCreateOrg(request, env);

@@ -337,6 +337,18 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .staff-hello-status.error { color: var(--red); }
 .staff-hello-status.ok { color: var(--green); }
 .staff-hello-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+/* v5.9.14 — staff-invite QR styles (Brief A) */
+.invite-staff-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(13,17,23,0.4); }
+.invite-staff-row strong { display: block; font-size: 13px; color: var(--text); }
+.invite-staff-row span { display: block; margin-top: 2px; font-size: 11px; color: var(--muted); }
+.invite-staff-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.invite-staff-grid label { display: grid; gap: 5px; font-size: 12px; color: var(--text); }
+.invite-staff-grid input, .invite-staff-grid select { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; background: #0d1117; color: var(--text); }
+.invite-qr-box { min-height: 190px; display: grid; place-items: center; margin: 12px 0; padding: 12px; background: #fff; border-radius: 8px; color: #24292f; }
+.invite-token-line { word-break: break-all; font-size: 11px; color: var(--muted); line-height: 1.4; }
+.invite-staff-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.invite-status { min-height: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) { .invite-staff-grid { grid-template-columns: 1fr; } }
 .dashboard-scan-box { margin-top: 14px; border: 1px solid var(--line); background: rgba(13,17,23,0.58); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
 .dashboard-scan-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .dashboard-scan-sub { font-size: 11px; color: var(--muted); line-height: 1.35; }
@@ -3269,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.0.13.34</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.14</span></div>
   </div>
 </div>
 
@@ -3657,6 +3669,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <label class="settings-field"><span>Org code</span><input id="orgCode" type="text" value="test"></label>
                   <label class="settings-field"><span>Event code</span><input id="eventCode" type="text" value="demo-night"></label>
                   <label class="settings-field"><span>Minimum Trust Score</span><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70"></label>
+                </div>
+                <div class="invite-staff-row" data-min-role="lead_admin">
+                  <div>
+                    <strong>Staff invites</strong>
+                    <span>Create a single-use QR for a new staff or manager login.</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="inviteStaffBtn" data-min-role="lead_admin">Invite staff</button>
                 </div>
               </div>
 
@@ -4217,6 +4236,33 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="staff-hello-backdrop hidden" id="inviteStaffDialog" role="dialog" aria-modal="true" aria-labelledby="inviteStaffTitle">
+  <div class="staff-hello-modal">
+    <h3 id="inviteStaffTitle">Invite staff</h3>
+    <p>Create a single-use QR. The recipient scans it, signs in with their IRLid passkey, and joins this organisation.</p>
+    <div class="invite-staff-grid">
+      <label>Role
+        <select id="inviteStaffRole">
+          <option value="staff">Staff</option>
+          <option value="manager">Manager</option>
+          <option value="attendee">Attendee</option>
+        </select>
+      </label>
+      <label>Label
+        <input id="inviteStaffLabel" type="text" maxlength="120" placeholder="e.g. front door team">
+      </label>
+    </div>
+    <div class="invite-staff-actions">
+      <button class="btn btn-primary" type="button" id="inviteStaffCreateBtn">Create invite QR</button>
+      <button class="btn btn-secondary" type="button" id="inviteStaffCopyBtn" disabled>Copy payload</button>
+      <button class="btn btn-secondary" type="button" id="inviteStaffRevokeBtn" disabled>Revoke</button>
+      <button class="btn btn-secondary" type="button" id="inviteStaffCloseBtn">Close</button>
+    </div>
+    <div class="invite-status" id="inviteStaffStatus"></div>
+    <div class="invite-qr-box" id="inviteStaffQrBox">No invite yet.</div>
+    <div class="invite-token-line" id="inviteStaffPayloadLine"></div>
+  </div>
+</div>
 <div class="staff-hello-backdrop hidden" id="staffHelloDialog" role="dialog" aria-modal="true" aria-labelledby="staffHelloTitle">
   <div class="staff-hello-modal">
     <h3 id="staffHelloTitle">Authenticate Staff HELLO</h3>
@@ -5435,6 +5481,9 @@ async function loadDashboardForOrg(org) {
   // and we have a Bearer + currentOrg, auto-process it. No-op if the
   // hash didn't include a staff_scan param.
   try { await tryProcessStaffScanIfPending(); } catch (_) {}
+  // v5.9.14 — Sibling: redeem any pending staff invite once we have a
+  // valid session. Brief A. No-op if no pending invite.
+  try { await tryRedeemStaffInviteIfPending(); } catch (err) { console.warn('[staff_invite] redeem failed:', err); }
 }
 
 async function submitCreateOrg() {
@@ -8135,6 +8184,165 @@ function openSettingsTo(anchorId) {
 function showToast(msg, isError=false) { const t = document.getElementById('toast'); t.textContent = msg; t.style.background = isError ? '#da3633' : '#238636'; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500); }
 function copyText(text) { if (!text) return; navigator.clipboard?.writeText(text).then(() => showToast('Copied')).catch(() => window.prompt('Copy this text:', text)); }
 
+// v5.9.14 — staff-invite QR (Brief A). Lead Admin / Developer issues a
+// single-use signed QR via /org/invites/create; recipient scans, signs in
+// with their IRLid Passkey (existing or freshly-minted), and is bound
+// into org_memberships. Guest enrolment is handled by org-login.html
+// which fires for any device without an active session — including
+// brand-new devices that have never used IRLid before. See PROTOCOL §14.
+let activeStaffInvite = null;
+let __staffInvitePending = null;
+const STAFF_INVITE_PENDING_TOKEN_KEY = 'irlid_pending_staff_invite_token';
+function stashPendingStaffInvite(token) {
+  if (!token) return;
+  try { localStorage.setItem(STAFF_INVITE_PENDING_TOKEN_KEY, String(token)); } catch (_) {}
+}
+function readPendingStaffInvite() {
+  try { return localStorage.getItem(STAFF_INVITE_PENDING_TOKEN_KEY) || null; }
+  catch (_) { return null; }
+}
+function clearPendingStaffInvite() {
+  try { localStorage.removeItem(STAFF_INVITE_PENDING_TOKEN_KEY); } catch (_) {}
+}
+function openInviteStaffDialog() {
+  if (!canUseSettings()) return showToast('Lead Admin role required to invite staff', true);
+  const dialog = document.getElementById('inviteStaffDialog');
+  if (!dialog) return;
+  activeStaffInvite = null;
+  const status = document.getElementById('inviteStaffStatus');
+  const qr = document.getElementById('inviteStaffQrBox');
+  const line = document.getElementById('inviteStaffPayloadLine');
+  if (status) status.textContent = '';
+  if (qr) qr.textContent = 'No invite yet.';
+  if (line) line.textContent = '';
+  document.getElementById('inviteStaffCopyBtn').disabled = true;
+  document.getElementById('inviteStaffRevokeBtn').disabled = true;
+  dialog.classList.remove('hidden');
+}
+function closeInviteStaffDialog() {
+  document.getElementById('inviteStaffDialog')?.classList.add('hidden');
+}
+async function createStaffInvite() {
+  if (!currentOrg?.id || !qrLoginSession?.session_token) return showToast('Sign in with a Lead Admin or Developer session first', true);
+  const btn = document.getElementById('inviteStaffCreateBtn');
+  const status = document.getElementById('inviteStaffStatus');
+  const role = document.getElementById('inviteStaffRole')?.value || 'staff';
+  const label = document.getElementById('inviteStaffLabel')?.value || '';
+  if (btn) btn.disabled = true;
+  if (status) { status.textContent = 'Creating invite...'; status.style.color = 'var(--muted)'; }
+  try {
+    const res = await window.IRLidOrgApi.createInvite(qrLoginSession.session_token, {
+      org_id: currentOrg.id,
+      role,
+      label
+    });
+    activeStaffInvite = res.invite;
+    const payload = activeStaffInvite.qr_payload;
+    const box = document.getElementById('inviteStaffQrBox');
+    if (box) {
+      box.innerHTML = '';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(box, { text: payload, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      } else {
+        box.textContent = payload;
+      }
+    }
+    document.getElementById('inviteStaffPayloadLine').textContent = payload;
+    document.getElementById('inviteStaffCopyBtn').disabled = false;
+    document.getElementById('inviteStaffRevokeBtn').disabled = false;
+    if (status) { status.textContent = 'Invite QR ready. It expires in 7 days and can be used once.'; status.style.color = 'var(--green, #7ee787)'; }
+  } catch (err) {
+    const code = err?.data?.error || err?.message || 'Could not create invite';
+    if (status) { status.textContent = code; status.style.color = 'var(--red, #f85149)'; }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+async function revokeActiveStaffInvite() {
+  if (!activeStaffInvite?.id || !currentOrg?.id || !qrLoginSession?.session_token) return;
+  const status = document.getElementById('inviteStaffStatus');
+  try {
+    await window.IRLidOrgApi.revokeInvite(qrLoginSession.session_token, {
+      org_id: currentOrg.id,
+      invite_id: activeStaffInvite.id
+    });
+    if (status) { status.textContent = 'Invite revoked.'; status.style.color = 'var(--green, #7ee787)'; }
+    document.getElementById('inviteStaffRevokeBtn').disabled = true;
+  } catch (err) {
+    if (status) { status.textContent = err?.message || 'Could not revoke invite'; status.style.color = 'var(--red, #f85149)'; }
+  }
+}
+function captureStaffInviteFromHash() {
+  try {
+    const hash = window.location.hash || '';
+    if (!hash) return;
+    const m = hash.match(/[#&]staff_invite=([^&]+)/);
+    if (!m) return;
+    __staffInvitePending = decodeURIComponent(m[1]);
+    stashPendingStaffInvite(__staffInvitePending);
+    const cleanedHash = hash.replace(/[#&]staff_invite=[^&]+/, '').replace(/^&/, '#');
+    history.replaceState(null, '', window.location.pathname + window.location.search + (cleanedHash || ''));
+  } catch (err) {
+    console.warn('[staff_invite] hash capture failed:', err);
+  }
+}
+async function tryStaffInviteRedirectIfNeeded() {
+  if (!__staffInvitePending) __staffInvitePending = readPendingStaffInvite();
+  if (!__staffInvitePending) return false;
+  const savedSession = (() => {
+    try { return JSON.parse(localStorage.getItem('irlid_login_session') || 'null'); }
+    catch (_) { return null; }
+  })();
+  if (savedSession && savedSession.session_token) return false;
+  const pendingNonce = (() => {
+    try { return localStorage.getItem(STAFF_SCAN_PENDING_NONCE_KEY); }
+    catch (_) { return null; }
+  })();
+  if (pendingNonce) return false;
+  try {
+    const initResp = await window.IRLidOrgApi.loginInit();
+    const nonce = initResp && initResp.nonce;
+    if (!nonce) throw new Error('No nonce returned from login init');
+    const workerBase = (typeof window.IRLidOrgApi.workerBaseUrl === 'function')
+      ? window.IRLidOrgApi.workerBaseUrl()
+      : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+    try { localStorage.setItem(STAFF_SCAN_PENDING_NONCE_KEY, nonce); } catch (_) {}
+    try { localStorage.setItem(STAFF_SCAN_PENDING_WORKER_KEY, workerBase); } catch (_) {}
+    stashPendingStaffInvite(__staffInvitePending);
+    const dashboardUrl = window.location.origin + window.location.pathname + window.location.search + '#staff_invite=' + encodeURIComponent(__staffInvitePending);
+    window.location.href = ORG_LOGIN_URL_BASE
+      + '?nonce=' + encodeURIComponent(nonce)
+      + '&worker=' + encodeURIComponent(workerBase)
+      + '&return=' + encodeURIComponent(dashboardUrl);
+    return true;
+  } catch (err) {
+    console.warn('[staff_invite] could not init login for redirect:', err);
+    return false;
+  }
+}
+async function tryRedeemStaffInviteIfPending() {
+  if (!__staffInvitePending) __staffInvitePending = readPendingStaffInvite();
+  if (!__staffInvitePending || !qrLoginSession?.session_token) return false;
+  const token = __staffInvitePending;
+  try {
+    const res = await window.IRLidOrgApi.redeemInvite(qrLoginSession.session_token, token);
+    __staffInvitePending = null;
+    clearPendingStaffInvite();
+    if (res && res.org) {
+      showToast('Invite accepted');
+      await loadDashboardForOrg(res.org);
+      return true;
+    }
+  } catch (err) {
+    const message = err?.data?.error || err?.message || 'Could not redeem invite';
+    showToast(message, true);
+    clearPendingStaffInvite();
+    __staffInvitePending = null;
+    return false;
+  }
+  return false;
+}
+
 function normalizeScore(value, fallback = PORTAL_DEFAULTS.minimumTrustScore) {
   const n = parseInt(value, 10);
   if (!Number.isFinite(n)) return fallback;
@@ -8572,6 +8780,11 @@ function clearPendingStaffScan() {
   }
 })();
 
+// v5.9.14 — Sibling capture for staff_invite hash, fired at boot before any
+// sign-in flow so the pending invite survives the round-trip to org-login.html.
+captureStaffInviteFromHash();
+if (!__staffInvitePending) __staffInvitePending = readPendingStaffInvite();
+
 // v5.7.1c — Same-device staff_scan auth flow.
 // On page load, if we have a pending staff_scan AND no session AND no
 // pending login nonce → redirect to org-login.html for direct WebAuthn.
@@ -8826,6 +9039,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('staffHelloDecodeBtn')?.addEventListener('click', decodeStaffHelloImage);
   document.getElementById('staffHelloSubmitBtn')?.addEventListener('click', authenticateStaffHello);
   document.getElementById('staffHelloCancelBtn')?.addEventListener('click', cancelStaffHelloDialog);
+  // v5.9.14 — staff-invite dialog wiring (Brief A).
+  document.getElementById('inviteStaffBtn')?.addEventListener('click', openInviteStaffDialog);
+  document.getElementById('inviteStaffCreateBtn')?.addEventListener('click', createStaffInvite);
+  document.getElementById('inviteStaffCloseBtn')?.addEventListener('click', closeInviteStaffDialog);
+  document.getElementById('inviteStaffCopyBtn')?.addEventListener('click', () => copyText(activeStaffInvite?.qr_payload || ''));
+  document.getElementById('inviteStaffRevokeBtn')?.addEventListener('click', revokeActiveStaffInvite);
   document.getElementById('staffHelloImageInput')?.addEventListener('change', (event) => {
     const file = event.target.files && event.target.files[0];
     setStaffHelloDialogStatus(file ? `Selected ${file.name}. Click Decode image.` : '');
@@ -9009,6 +9228,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   // staff scan as normal. If we ARE returning from org-login, the
   // pending nonce in localStorage triggers the poll path instead.
   try { await tryStaffScanRedirectOrPoll(); } catch (err) { console.warn('[staff_scan] redirect-or-poll failed:', err); }
+  // v5.9.14 — Sibling: if we arrived with #staff_invite=… and have no
+  // session, redirect to org-login.html for sign-in or new-Passkey
+  // enrolment (guest path). After successful claim, this same dashboard
+  // boots fresh with the session in localStorage and the pending invite
+  // recovered, triggering tryRedeemStaffInviteIfPending() once the org
+  // is loaded. Brief A.
+  try { if (await tryStaffInviteRedirectIfNeeded()) return; } catch (err) { console.warn('[staff_invite] redirect failed:', err); }
 
   setSignedInUI(false); syncLegacyFromPortal(); ensureExpectedAttendees(); renderExpectedAttendees(); renderPortalAll(); showPanel('setup', document.getElementById('navOrganisation'));
   const stored = loadJson(STORAGE_KEY_ORG, null);
