@@ -75,16 +75,6 @@ function expectedRoleRank(role) {
   return EXPECTED_ROLE_RANK[expectedMemberRole(role)] ?? 0;
 }
 
-function strictExpectedMemberRole(value) {
-  const role = String(value || "").trim().toLowerCase();
-  return EXPECTED_MEMBER_ROLES.has(role) ? role : null;
-}
-
-function inviteRole(value) {
-  const role = strictExpectedMemberRole(value);
-  return ["attendee", "staff", "manager"].includes(role) ? role : null;
-}
-
 function isInternalHostname(hostname) {
   const host = String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
   if (!host || host === "localhost" || host.endsWith(".localhost")) return true;
@@ -994,8 +984,7 @@ async function orgLoginPoll(request, env) {
 
   // Developer can always create new orgs; lead_admin can also create new orgs (§14.9).
   // Bootstrap dev with no orgs yet still gets can_create_org: true.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const is_developer = !!bootstrapFp && user.pub_fp === bootstrapFp;
+  const is_developer = isBootstrapDeveloperFp(env, user.pub_fp);
   const can_create_org = is_developer
     || orgs.some(o => o.role === "developer" || o.role === "lead_admin");
 
@@ -1084,11 +1073,12 @@ async function orgLoginClaim(request, env) {
   ).bind(fp).first();
 
   if (!user) {
-    // Not a known user. Permitted only if this fp matches BOOTSTRAP_DEVELOPER_FP (§14.6).
-    const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-    if (!bootstrapFp || fp !== bootstrapFp) {
+    // Not a known user. Permitted only if this fp is in BOOTSTRAP_DEVELOPER_FP (§14.6).
+    // Multi-fp (v5.9.0.13.26): secret is comma-separated; any listed fp counts.
+    const bootstrapFps = bootstrapDeveloperFps(env);
+    if (bootstrapFps.length === 0 || !bootstrapFps.includes(fp)) {
       // TEST-ENV DEBUG: include diagnostic detail so Captain can see WHICH path
-      // failed (no bootstrap fp set vs fp != bootstrap fp). Production v5.5 will
+      // failed (no bootstrap fp set vs fp != any configured fp). Production v5.5 will
       // restore the generic auth_failed per §14.10.
       const newFails = (challenge.fail_count || 0) + 1;
       if (newFails >= LOGIN_CLAIM_FAIL_LIMIT) {
@@ -1100,12 +1090,15 @@ async function orgLoginClaim(request, env) {
         await env.DB.prepare(
           "UPDATE login_challenges SET fail_count = ? WHERE nonce = ?"
         ).bind(newFails, nonce).run();
+        const rawLen = (env.BOOTSTRAP_DEVELOPER_FP || "").length;
+        const firstFp = bootstrapFps[0] || "";
         return genericAuthFailed(env, {
-          debug_reason: !bootstrapFp ? "no_bootstrap_fp_configured" : "fp_mismatch",
+          debug_reason: bootstrapFps.length === 0 ? "no_bootstrap_fp_configured" : "fp_mismatch",
           debug_computed_fp: fp,
-          debug_bootstrap_fp_len: bootstrapFp ? bootstrapFp.length : 0,
-          debug_bootstrap_fp_first4: bootstrapFp ? bootstrapFp.slice(0, 4) : "",
-          debug_bootstrap_fp_last4: bootstrapFp ? bootstrapFp.slice(-4) : ""
+          debug_bootstrap_fp_count: bootstrapFps.length,
+          debug_bootstrap_fp_total_len: rawLen,
+          debug_bootstrap_fp_first_first4: firstFp.slice(0, 4),
+          debug_bootstrap_fp_first_last4: firstFp.slice(-4)
         });
       }
     }
@@ -1209,8 +1202,7 @@ async function userListOrgs(request, env) {
   // implicit_membership: true so the UI can label the difference (e.g. "(dev access)").
   // Captain's 4 May expectation that "developer" means "super admin who can fix any
   // org" — confirmed in spec, now matched in implementation.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, user.pub_fp);
   if (isBootstrapDev) {
     const ownIds = new Set(orgs.map(o => o.id));
     const allOrgs = await env.DB.prepare(
@@ -1256,8 +1248,7 @@ async function userCreateOrg(request, env) {
   if (websiteUrl && !/^https?:\/\/[^\s]{3,}$/i.test(websiteUrl)) return err("website_url must be a valid http(s) URL or omitted");
 
   // Authorization check: developer OR has lead_admin/developer role somewhere.
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, user.pub_fp);
   let hasAdminRole = false;
   if (!isBootstrapDev) {
     const elevated = await env.DB.prepare(
@@ -1330,8 +1321,7 @@ async function requireOrgThemeAdmin(request, env, orgId) {
     .bind(orgId).first();
   if (!org) return { error: json({ error: "org_not_found" }, 404) };
 
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  const isBootstrapDev = bootstrapFp && ctx.user.pub_fp === bootstrapFp;
+  const isBootstrapDev = isBootstrapDeveloperFp(env, ctx.user.pub_fp);
   if (isBootstrapDev) return { user: ctx.user, org, role: "developer" };
 
   const membership = await env.DB.prepare(
@@ -1342,162 +1332,6 @@ async function requireOrgThemeAdmin(request, env, orgId) {
     return { error: json({ error: "forbidden", reason: "lead_admin_or_developer_required" }, 403) };
   }
   return { user: ctx.user, org, role };
-}
-
-async function orgRoleForUser(env, user, orgId) {
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  if (bootstrapFp && user.pub_fp === bootstrapFp) return "developer";
-  const membership = await env.DB.prepare(
-    "SELECT role FROM org_memberships WHERE org_id = ? AND user_id = ? LIMIT 1"
-  ).bind(orgId, user.id).first();
-  return membership && membership.role ? membership.role : null;
-}
-
-async function requireOrgInviteIssuer(request, env, orgId) {
-  const ctx = await requireSession(request, env);
-  if (ctx.error) return { error: ctx.error };
-  const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?")
-    .bind(orgId).first();
-  if (!org) return { error: json({ error: "org_not_found" }, 404) };
-  const role = await orgRoleForUser(env, ctx.user, org.id);
-  if (role !== "lead_admin" && role !== "developer") {
-    return { error: json({ error: "forbidden", reason: "lead_admin_or_developer_required" }, 403) };
-  }
-  return { user: ctx.user, org, role };
-}
-
-async function inviteTokenHash(token) {
-  return sha256B64url("org_invite:" + String(token || ""));
-}
-
-function normalizeInviteToken(value) {
-  const text = String(value || "").trim();
-  return text.startsWith("I:") ? text.slice(2).trim() : text;
-}
-
-async function orgInviteCreate(request, env) {
-  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const orgId = String(body.org_id || body.orgId || "").trim();
-  if (!orgId) return json({ error: "org_id_required" }, 400);
-  const role = strictExpectedMemberRole(body.role || body.prototype_role || "staff");
-  if (!role) return json({ error: "invalid_invite_role" }, 400);
-  if (role === "lead_admin" || role === "developer") {
-    return json({ error: "lead_admin_invite_deferred" }, 400);
-  }
-  const allowedRole = inviteRole(role);
-  if (!allowedRole) return json({ error: "invalid_invite_role" }, 400);
-
-  const issuer = await requireOrgInviteIssuer(request, env, orgId);
-  if (issuer.error) return issuer.error;
-
-  const t = now();
-  const ttl = Math.max(60, Math.min(Number(body.expires_in_s || body.expiresInS || 7 * 86400), 30 * 86400));
-  const token = randomToken();
-  const tokenHash = await inviteTokenHash(token);
-  const label = String(body.label || body.name || "").trim().slice(0, 120) || null;
-  const inviteId = uuid();
-  await env.DB.prepare(
-    "INSERT INTO org_invites (id,org_id,token_hash,role,label,issuer_user_id,issuer_role_at_issue,created_at,expires_at) VALUES (?,?,?,?,?,?,?,?,?)"
-  ).bind(inviteId, issuer.org.id, tokenHash, allowedRole, label, issuer.user.id, issuer.role, t, t + ttl).run();
-
-  return json({
-    invite: {
-      id: inviteId,
-      org_id: issuer.org.id,
-      org_name: issuer.org.name,
-      role: allowedRole,
-      label,
-      created_at: t,
-      expires_at: t + ttl,
-      qr_payload: "I:" + token,
-      token
-    }
-  }, 201);
-}
-
-async function orgInviteRedeem(request, env) {
-  const ctx = await requireSession(request, env);
-  if (ctx.error) return ctx.error;
-  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const token = normalizeInviteToken(body.token || body.invite || body.payload);
-  if (!token) return json({ error: "invite_token_required" }, 400);
-  const tokenHash = await inviteTokenHash(token);
-  const invite = await env.DB.prepare(
-    "SELECT i.*, o.name AS org_name, o.slug AS org_slug, o.api_key AS org_api_key, o.settings_json AS org_settings_json " +
-    "FROM org_invites i JOIN organisations o ON o.id = i.org_id WHERE i.token_hash = ? LIMIT 1"
-  ).bind(tokenHash).first();
-  if (!invite) return json({ error: "invite_not_found" }, 404);
-  if (invite.revoked_at) return json({ error: "invite_revoked" }, 410);
-  if (invite.redeemed_at) return json({ error: "invite_already_redeemed" }, 409);
-  const t = now();
-  if (Number(invite.expires_at) <= t) return json({ error: "invite_expired" }, 410);
-  if (invite.role === "lead_admin" || invite.role === "developer") {
-    return json({ error: "lead_admin_invite_deferred" }, 400);
-  }
-
-  const issuer = await env.DB.prepare(
-    "SELECT id, pub_fp FROM portal_users WHERE id = ?"
-  ).bind(invite.issuer_user_id).first();
-  const issuerRole = issuer ? await orgRoleForUser(env, issuer, invite.org_id) : null;
-  if (issuerRole !== "lead_admin" && issuerRole !== "developer") {
-    return json({ error: "invite_issuer_no_longer_authorized" }, 403);
-  }
-
-  const existing = await env.DB.prepare(
-    "SELECT role FROM org_memberships WHERE user_id = ? AND org_id = ? LIMIT 1"
-  ).bind(ctx.user.id, invite.org_id).first();
-  const existingRank = existing ? expectedRoleRank(existing.role) : -1;
-  const inviteRank = expectedRoleRank(invite.role);
-  if (!existing || existingRank < inviteRank) {
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO org_memberships (user_id,org_id,role,granted_by,granted_at) VALUES (?,?,?,?,?)"
-    ).bind(ctx.user.id, invite.org_id, invite.role, invite.issuer_user_id, t).run();
-  }
-  await env.DB.prepare(
-    "UPDATE org_invites SET redeemed_at = ?, redeemed_by_user_id = ? WHERE id = ?"
-  ).bind(t, ctx.user.id, invite.id).run();
-  let settings = null;
-  try { settings = invite.org_settings_json ? JSON.parse(invite.org_settings_json) : null; } catch (_) {}
-  return json({
-    ok: true,
-    membership: {
-      role: existing && existingRank >= inviteRank ? existing.role : invite.role,
-      user_id: ctx.user.id,
-      granted_at: t,
-      already_member: !!existing
-    },
-    org: {
-      id: invite.org_id,
-      name: invite.org_name,
-      slug: invite.org_slug,
-      api_key: invite.org_api_key,
-      settings,
-      implicit_membership: false
-    }
-  });
-}
-
-async function orgInviteRevoke(request, env) {
-  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const orgId = String(body.org_id || body.orgId || "").trim();
-  if (!orgId) return json({ error: "org_id_required" }, 400);
-  const issuer = await requireOrgInviteIssuer(request, env, orgId);
-  if (issuer.error) return issuer.error;
-  const inviteId = String(body.invite_id || body.id || "").trim();
-  const token = normalizeInviteToken(body.token || body.invite || body.payload);
-  if (!inviteId && !token) return json({ error: "invite_id_or_token_required" }, 400);
-  const t = now();
-  let result;
-  if (inviteId) {
-    result = await env.DB.prepare(
-      "UPDATE org_invites SET revoked_at = ?, revoked_by_user_id = ? WHERE id = ? AND org_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL"
-    ).bind(t, issuer.user.id, inviteId, issuer.org.id).run();
-  } else {
-    result = await env.DB.prepare(
-      "UPDATE org_invites SET revoked_at = ?, revoked_by_user_id = ? WHERE token_hash = ? AND org_id = ? AND redeemed_at IS NULL AND revoked_at IS NULL"
-    ).bind(t, issuer.user.id, await inviteTokenHash(token), issuer.org.id).run();
-  }
-  return json({ ok: true, revoked: (result.meta?.changes || 0) > 0 });
 }
 
 function absoluteUrl(value, baseUrl) {
@@ -1692,8 +1526,10 @@ async function orgUpdateSettings(request, env) {
     // shown to attendees on org-entry.html (allow/orange/review states). Display-only,
     // no accept gate. Captain's directive 11 May morning.
     "logoUrl","welcomeMessage","orgTerms","redirectUrl","websiteUrl",
+    // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
+    "roleLabels",
     // --- Theme (Batch 6.5 → 6.5f) ---
-    "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
+    "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageSymmetryMode, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
   // Theme validators — defensive, applied before merge.
   function isHex6(v) { return typeof v === "string" && /^#[0-9A-Fa-f]{6}$/.test(v); }
@@ -1731,9 +1567,46 @@ async function orgUpdateSettings(request, env) {
     }
     // Batch 6.5f — Celebration mode (replaces acceptCycleEnabled).
     if (t.cycleMode !== undefined) {
-      if (typeof t.cycleMode !== "string" || ["off","page","glow","pattern"].indexOf(t.cycleMode) === -1) {
-        return "theme.cycleMode must be one of: off, page, glow, pattern";
+      // v5.9.0.13.2 — 'simple' added. v5.9.0.13.3 retains cycleMode as a legacy migration anchor.
+      if (typeof t.cycleMode !== "string" || ["off","simple","page","glow","pattern"].indexOf(t.cycleMode) === -1) {
+        return "theme.cycleMode must be one of: off, simple, page, glow, pattern";
       }
+    }
+    // v5.9.0.13.3 — Layered celebration model. Each of five effects has its
+    // own enabled flag plus a small enum of variant options. Each field is
+    // optional (client omits any sub-effect block it didn't touch).
+    if (t.celebration !== undefined) {
+      const c = t.celebration;
+      if (typeof c !== "object" || c === null) return "theme.celebration must be an object";
+      const PULSE_COLOURS = ["single","cycle"];
+      const PULSE_INTENSITIES = ["subtle","strong"];
+      const BG_SWEEPS = ["once","thrice"];
+      const QR_MOTIONS = ["wobble","rotate-cw","rotate-ccw","zoom-in","zoom-out","dissolve-horz","dissolve-vert"];
+      const GLOW_THICKS = ["thin","medium","thick"];
+      const GLOW_SWEEPS = ["outward","inward","rotate"];
+      const GLOW_CENTRES = ["on","off"];
+      const GLOW_SATS = ["muted","vivid","hyper"];
+      const PATTERNS = ["dots","hex","diagonal","checker","grid","weave","chevron","isometric"];
+      function validateSubEffect(name, src, enumChecks) {
+        if (src === undefined) return null;
+        if (typeof src !== "object" || src === null) return "theme.celebration." + name + " must be an object";
+        if (src.enabled !== undefined && typeof src.enabled !== "boolean") return "theme.celebration." + name + ".enabled must be a boolean";
+        for (const key of Object.keys(enumChecks)) {
+          if (src[key] !== undefined) {
+            if (typeof src[key] !== "string" || enumChecks[key].indexOf(src[key]) === -1) {
+              return "theme.celebration." + name + "." + key + " must be one of: " + enumChecks[key].join(", ");
+            }
+          }
+        }
+        return null;
+      }
+      const subErr = validateSubEffect("pulse",   c.pulse,   { colourSource: PULSE_COLOURS, intensity: PULSE_INTENSITIES })
+                  || validateSubEffect("bg",      c.bg,      { sweep: BG_SWEEPS })
+                  || validateSubEffect("qr",      c.qr,      { motion: QR_MOTIONS })
+                  || validateSubEffect("glow",    c.glow,    { thickness: GLOW_THICKS, sweep: GLOW_SWEEPS, centrePulse: GLOW_CENTRES, saturation: GLOW_SATS })
+                  || validateSubEffect("pattern", c.pattern, { pattern: PATTERNS })
+                  || validateSubEffect("text",    c.text,    {}); // v5.9.0.13.13 simple on/off; no enum fields yet
+      if (subErr) return subErr;
     }
     // Batch 6.5b — animation speed controls
     if (t.bgAnimEnabled !== undefined && typeof t.bgAnimEnabled !== "boolean") {
@@ -1797,6 +1670,13 @@ async function orgUpdateSettings(request, env) {
         return "theme.bgImagePosition must be one of: centre, tile, cover, top, top-left, top-right, bottom, bottom-left, bottom-right, left, right";
       }
     }
+    if (typeof t.bgImageSymmetryMode !== "undefined") {
+      const allowed = ["off", "horizontal", "vertical", "quad"];
+      if (!allowed.includes(t.bgImageSymmetryMode)) {
+        return "theme.bgImageSymmetryMode must be one of: " + allowed.join(", ");
+      }
+    }
+    // Tolerate old boolean field for backward compat (don't error, just ignore on save).
     if (t.bgImageAlphaCycle !== undefined && typeof t.bgImageAlphaCycle !== "boolean") {
       return "theme.bgImageAlphaCycle must be a boolean";
     }
@@ -1807,6 +1687,8 @@ async function orgUpdateSettings(request, env) {
   if (body.theme !== undefined) {
     const themeErr = validateTheme(body.theme);
     if (themeErr) return err(themeErr);
+    body.theme = { ...body.theme };
+    delete body.theme.bgImageSymmetric;
   }
   // String length sanity — protect against an admin pasting a 1MB welcome message.
   if (body.logoUrl !== undefined && typeof body.logoUrl !== "string") return err("logoUrl must be a string");
@@ -1816,6 +1698,18 @@ async function orgUpdateSettings(request, env) {
   if (body.orgTerms !== undefined && typeof body.orgTerms !== "string") return err("orgTerms must be a string");
   if (body.orgTerms !== undefined && typeof body.orgTerms === "string" && body.orgTerms.length > 8000) return err("orgTerms too long (max 8000 chars)");
   if (body.redirectUrl !== undefined && typeof body.redirectUrl !== "string") return err("redirectUrl must be a string");
+  // v5.9.0.13.14 — Role vocabulary: per-org custom labels for the role chain.
+  if (body.roleLabels !== undefined) {
+    const rl = body.roleLabels;
+    if (typeof rl !== "object" || rl === null || Array.isArray(rl)) return err("roleLabels must be an object");
+    const ROLE_KEYS = ["attendee", "staff", "manager", "lead_admin", "developer"];
+    for (const key of Object.keys(rl)) {
+      if (ROLE_KEYS.indexOf(key) === -1) return err("roleLabels has unknown key: " + key);
+      const val = rl[key];
+      if (typeof val !== "string") return err("roleLabels." + key + " must be a string");
+      if (val.length === 0 || val.length > 40) return err("roleLabels." + key + " must be 1-40 chars");
+    }
+  }
   for (const k of allowed) { if (body[k] !== undefined) current[k] = body[k]; }
   await env.DB.prepare("UPDATE organisations SET settings_json=?, updated_at=? WHERE id=?")
     .bind(JSON.stringify(current), now(), org.id).run();
@@ -2016,15 +1910,15 @@ async function requireDevOrStaffSession(request, env, org, staffSessionToken) {
   const staffError = await requireOrgStaffSession(env, org, staffSessionToken);
   if (!staffError) return null;
 
-  const auth = request.headers.get("Authorization") || "";
-  const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());
-  if (m) {
-    const ctx = await requireSession(request, env);
-    if (!ctx.error) {
-      const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-      if (bootstrapFp && ctx.user && ctx.user.pub_fp === bootstrapFp) return null;
-    }
-  }
+  // v5.9.0.13.25 — Reuse the shared bootstrapDeveloperFromBearer helper so the
+  // org_-prefixed-Bearer = developer-tier rule from v5.9.0.13.21 applies here
+  // too. Was previously a duplicated check that only recognised session_token
+  // Bearers with matching pub_fp, missing the api_key Bearer fallback the
+  // frontend uses when qrLoginSession.session_token is unavailable. Result:
+  // Add-at-the-door and Bind-from-list endpoints rejected with 401 even
+  // though the frontend treated the user as developer-tier.
+  const developer = await bootstrapDeveloperFromBearer(request, env);
+  if (developer) return null;
 
   return staffError;
 }
@@ -2032,18 +1926,58 @@ async function requireDevOrStaffSession(request, env, org, staffSessionToken) {
 async function bootstrapDeveloperFromBearer(request, env) {
   const auth = request.headers.get("Authorization") || "";
   if (!/^Bearer\s+([A-Za-z0-9_-]{16,})$/.test(auth.trim())) return null;
+  const token = auth.trim().replace(/^Bearer\s+/i, "");
+
+  // v5.9.0.13.21 — org_-prefixed Bearer = the org's master api_key. The
+  // frontend's developerBearerSessionIsActive() helper (OrgCheckin.html
+  // line 6588) already treats org_ keys as developer-tier authority. The
+  // Worker was rejecting them here, causing an asymmetry where the frontend
+  // showed developer-tier UI but Add-at-the-door / fresh-staff-proof
+  // endpoints returned 401 stale_staff_proof. This aligns the two sides:
+  // possession of the api_key IS by definition full authority over the org.
+  // We require the same key to also be presented as X-Org-Key (which orgAuth
+  // has already validated) so a stale token in the wrong context can't
+  // backdoor in.
+  if (token.startsWith("org_")) {
+    const xOrgKey = request.headers.get("X-Org-Key") || "";
+    if (xOrgKey === token) {
+      return { id: null, pub_fp: null, display_name: "Service account (api_key)", api_key_developer: true };
+    }
+    return null;
+  }
+
   const ctx = await requireSession(request, env);
   if (ctx.error) return null;
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  if (bootstrapFp && ctx.user && ctx.user.pub_fp === bootstrapFp) return ctx.user;
+  if (ctx.user && isBootstrapDeveloperFp(env, ctx.user.pub_fp)) return ctx.user;
   return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOTSTRAP_DEVELOPER_FP helpers (v5.9.0.13.26 — multi-fp support)
+//
+// The secret accepts a comma-separated list of pub_fps. Each non-empty trimmed
+// fp is recognised as developer-tier. Whitespace-around-comma tolerant. Empty
+// or single-fp secrets behave identically to the pre-multi-fp form, so this
+// is a strict superset of the previous semantics — no migration needed.
+// History: secret was hit twice by the Ctrl+V → 0x16 SYN trap (4 May test env,
+// 10 May live). Multi-fp keeps that diagnostic surface (total length + count)
+// in the test-env debug fields.
+// ─────────────────────────────────────────────────────────────────────────────
+function bootstrapDeveloperFps(env) {
+  return (env.BOOTSTRAP_DEVELOPER_FP || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+function isBootstrapDeveloperFp(env, pub_fp) {
+  if (!pub_fp) return false;
+  return bootstrapDeveloperFps(env).includes(pub_fp);
 }
 
 async function roleForStaffPubFp(env, org, staffPubFp) {
   const fp = String(staffPubFp || "").trim();
   if (!fp) return "staff";
-  const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-  if (bootstrapFp && fp === bootstrapFp) return "developer";
+  if (isBootstrapDeveloperFp(env, fp)) return "developer";
 
   const user = await env.DB.prepare(
     "SELECT id FROM portal_users WHERE pub_fp=?"
@@ -2312,8 +2246,7 @@ async function orgDebugClearAttendance(request, env) {
       const ctx = await requireSession(request, env);
       if (!ctx.error) {
         const user = ctx.user;
-        const bootstrapFp = (env.BOOTSTRAP_DEVELOPER_FP || "").trim();
-        if (bootstrapFp && user.pub_fp === bootstrapFp) {
+        if (isBootstrapDeveloperFp(env, user.pub_fp)) {
           allowed = true; // Developer — clear any org
         } else {
           // Lead Admin / Developer membership of the requested org.
@@ -2748,9 +2681,6 @@ export default {
       else if (method === "POST" && path === "/org/login/init")      response = await orgLoginInit(request, env);
       else if (method === "GET"  && path === "/org/login/poll")      response = await orgLoginPoll(request, env);
       else if (method === "POST" && path === "/org/login/claim")     response = await orgLoginClaim(request, env);
-      else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
-      else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
-      else if (method === "POST" && path === "/org/invites/revoke")  response = await orgInviteRevoke(request, env);
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);
       else if (method === "POST" && path === "/user/create-org")     response = await userCreateOrg(request, env);

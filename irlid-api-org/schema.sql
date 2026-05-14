@@ -76,22 +76,6 @@ CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NU
 
 CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_code TEXT NOT NULL, first_name TEXT NOT NULL, surname TEXT NOT NULL, status TEXT DEFAULT 'assist', created_at INTEGER NOT NULL, linked_at INTEGER, device_key_fp TEXT, prototype_role TEXT DEFAULT 'attendee');
 
-CREATE TABLE org_invites (
-  id                    TEXT PRIMARY KEY,
-  org_id                TEXT NOT NULL REFERENCES organisations(id),
-  token_hash            TEXT NOT NULL UNIQUE,
-  role                  TEXT NOT NULL CHECK (role IN ('attendee','staff','manager')),
-  label                 TEXT,
-  issuer_user_id        TEXT NOT NULL REFERENCES portal_users(id),
-  issuer_role_at_issue  TEXT NOT NULL,
-  created_at            INTEGER NOT NULL,
-  expires_at            INTEGER NOT NULL,
-  redeemed_at           INTEGER,
-  redeemed_by_user_id   TEXT REFERENCES portal_users(id),
-  revoked_at            INTEGER,
-  revoked_by_user_id    TEXT REFERENCES portal_users(id)
-);
-
 CREATE TABLE org_memberships (
   user_id    TEXT NOT NULL,
   org_id     TEXT NOT NULL,
@@ -207,10 +191,6 @@ CREATE INDEX idx_memberships_user ON org_memberships(user_id);
 CREATE INDEX idx_org_apikey ON organisations(api_key);
 
 CREATE INDEX idx_org_expected_org ON org_expected(org_code);
-
-CREATE INDEX idx_org_invites_org ON org_invites(org_id, created_at);
-
-CREATE INDEX idx_org_invites_token ON org_invites(token_hash);
 
 CREATE INDEX idx_org_slug ON organisations(slug);
 
