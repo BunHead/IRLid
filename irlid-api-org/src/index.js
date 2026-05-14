@@ -1083,44 +1083,28 @@ async function orgLoginClaim(request, env) {
   ).bind(fp).first();
 
   if (!user) {
-    // Not a known user. Permitted only if this fp is in BOOTSTRAP_DEVELOPER_FP (§14.6).
-    // Multi-fp (v5.9.0.13.26): secret is comma-separated; any listed fp counts.
+    // v5.9.14.2 — Brief A guest-onboarding fix. Previously the claim endpoint
+    // only auto-created portal_users rows for BOOTSTRAP_DEVELOPER_FP fingerprints
+    // and rejected everything else with auth_failed. That created a chicken-and-egg
+    // problem for staff-invite QR redemption: the invite endpoint requires a session
+    // (Bearer), the session comes from claim, claim required a pre-existing user.
+    // Since the portal_users row by itself grants no permissions — all power comes
+    // from org_memberships rows — there is no security cost to auto-creating it
+    // here. The WebAuthn UV requirement on each request rate-limits abuse to one
+    // row per user gesture.
+    //
+    // Bootstrap fps still get the "Developer (Super-Admin)" display name and are
+    // implicitly recognised as developers by orgRoleForUser() via isBootstrapDeveloperFp().
+    // Non-bootstrap users get a neutral display name; their memberships and powers
+    // come from invite redemption or doorman bind later.
     const bootstrapFps = bootstrapDeveloperFps(env);
-    if (bootstrapFps.length === 0 || !bootstrapFps.includes(fp)) {
-      // TEST-ENV DEBUG: include diagnostic detail so Captain can see WHICH path
-      // failed (no bootstrap fp set vs fp != any configured fp). Production v5.5 will
-      // restore the generic auth_failed per §14.10.
-      const newFails = (challenge.fail_count || 0) + 1;
-      if (newFails >= LOGIN_CLAIM_FAIL_LIMIT) {
-        await env.DB.prepare(
-          "UPDATE login_challenges SET fail_count = ?, locked_until = ? WHERE nonce = ?"
-        ).bind(newFails, tNow + LOGIN_CLAIM_COOLDOWN_S, nonce).run();
-        return json({ error: "rate_limited", retry_after: LOGIN_CLAIM_COOLDOWN_S }, 429);
-      } else {
-        await env.DB.prepare(
-          "UPDATE login_challenges SET fail_count = ? WHERE nonce = ?"
-        ).bind(newFails, nonce).run();
-        const rawLen = (env.BOOTSTRAP_DEVELOPER_FP || "").length;
-        const firstFp = bootstrapFps[0] || "";
-        return genericAuthFailed(env, {
-          debug_reason: bootstrapFps.length === 0 ? "no_bootstrap_fp_configured" : "fp_mismatch",
-          debug_computed_fp: fp,
-          debug_bootstrap_fp_count: bootstrapFps.length,
-          debug_bootstrap_fp_total_len: rawLen,
-          debug_bootstrap_fp_first_first4: firstFp.slice(0, 4),
-          debug_bootstrap_fp_first_last4: firstFp.slice(-4)
-        });
-      }
-    }
-    // Bootstrap path — create the founding developer user row.
-    // Display name "Developer (Super-Admin)" per Captain's 4 May feedback —
-    // most observers won't parse "Captain" but will understand "Super-Admin".
-    const userId = randomToken().slice(0, 26); // ULID-like length, opaque
-    const bootstrapDisplayName = "Developer (Super-Admin)";
+    const isBootstrap = bootstrapFps.length > 0 && bootstrapFps.includes(fp);
+    const userId = randomToken().slice(0, 26);
+    const displayName = isBootstrap ? "Developer (Super-Admin)" : "New member";
     await env.DB.prepare(
       "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(userId, JSON.stringify(pub_jwk), fp, bootstrapDisplayName, tNow, tNow).run();
-    user = { id: userId, display_name: bootstrapDisplayName };
+    ).bind(userId, JSON.stringify(pub_jwk), fp, displayName, tNow, tNow).run();
+    user = { id: userId, display_name: displayName };
   }
 
   // Issue session.
