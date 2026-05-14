@@ -104,27 +104,6 @@
         body: payload
       });
     },
-    createInvite(sessionToken, payload) {
-      return request("/org/invites/create", {
-        method: "POST",
-        sessionToken,
-        body: payload
-      });
-    },
-    redeemInvite(sessionToken, token) {
-      return request("/org/invites/redeem", {
-        method: "POST",
-        sessionToken,
-        body: { token }
-      });
-    },
-    revokeInvite(sessionToken, payload) {
-      return request("/org/invites/revoke", {
-        method: "POST",
-        sessionToken,
-        body: payload
-      });
-    },
     scrapeTheme(sessionToken, orgId) {
       return request(`/user/orgs/${encodeURIComponent(orgId)}/scrape-theme`, {
         method: "POST",
