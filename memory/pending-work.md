@@ -1,5 +1,52 @@
 # Pending Work — IRLid
 
+## Thursday 14 May 2026 late evening — Phase 0 per-action WebAuthn HARDWARE-PROVEN end-to-end on production
+
+**The headline.** After a brutal evening spiral (recovery from corrupted `BOOTSTRAP_DEVELOPER_FP` secret, two D1 cleanup passes, and Phase 0 architectural-vs-bug confusion across three Worker bugs), the watch closed with **end-to-end hardware proof of the per-action WebAuthn architecture on production**, with multiple devices, multiple cycles, and clean dashboard state.
+
+**Worker bug fixes shipped earlier in the watch (predecessor's work):**
+- **`v5.10.0.4`** — `requireSignedAction(body, env, opts)` body-pass refactor. The helper was reading `request.clone().json()` after the route handler had already consumed the body with `await request.json()`; Workers Request bodies are single-use streams, the clone returns drained → "Invalid JSON" on every bind. Fix: caller pre-parses, passes object.
+- **`v5.10.0.5`** — Bootstrap-developer-fp implicit-developer-role fallback inside `requireSignedAction`. Other endpoints (`requireDevOrStaffSession`, `userListOrgs`) already had `isBootstrapDeveloperFp(env, fp) → role='developer'`; this helper was missing it. Fix: mirror the logic.
+
+**Late-evening watch (this Number One) — recovery + smoke:**
+
+1. **Diagnosed corrupted secret.** Captain came back to "Signed in, but no orgs available." Hypothesis confirmed via wrangler tail (claim Ok 200, poll returns empty orgs): `BOOTSTRAP_DEVELOPER_FP` no longer matched the 8 Pro fp. D1 query revealed **5 "New member" portal_users rows** accumulated from the day's cache-clear cycle.
+
+2. **Clean rotation.** `"n4FzIhV_1jc2u_HO" | npx wrangler secret put BOOTSTRAP_DEVELOPER_FP` (current 8 Pro fp via `v5-test.html → Show fingerprint`, single fp, no comma list). Dashboard recovery instant.
+
+3. **D1 hygiene.**
+   - `display_name` updated to `Developer (Super-Admin)` for 8 Pro user
+   - 2 phantom `portal_users` rows + 1 stale `login_session` purged
+   - 12-15 testing `org_checkins` rows from May 12-14 morning purged (cutoff `2026-05-14 17:00:00`)
+   - Dashboard now shows only legitimate evening attendance
+
+4. **Smoke #1 — Kerry Austin bind.** 4a's orange QR (saved from earlier as URL) pasted into 8 Pro's Process scan → escalation modal → "Add device" on Kerry → 8 Pro fingerprint → blue toast "Linked: Kerry Austin". Confirmed independently by 4a's `org-entry.html` showing "Welcome back, Kerry Austin". 4a fp `Zt-xZfDmtKu5Y1sr` now bound as Kerry's secondary key.
+
+5. **Smoke #2 — Spencer Austin bind.** Captain WhatsApp'd the venue check-in URL to himself, opened on a device, got orange screen, saved orange TestQR.png, sent to 8 Pro → 8 Pro processed → escalation → "Add device" on Spencer → fingerprint → blue toast "Linked: Spencer Austin". Wrangler tail captured the full `[requireSignedAction]` log chain: `entry expectedType=irlid_bind_v5 ... envelope present, type=irlid_bind_v5 ... resolved user_id=FW-q-WW21kNm18yMIhrLcfgv-h fp=n4FzIhV_1jc2u_HO role=developer minRole=staff bootstrap=true ... OK pass-through to handler`.
+
+6. **Cycle stress test.** Captain checked Kerry + Spencer OUT (signed `OUT lock signed` status), then back IN. scan_count went 1 → 2 for both. Round-trips clean. Multiple devices, multiple cycles, all signed, all green.
+
+**Findings worth banking:**
+
+- **Workers Request body is single-use.** Never `request.clone().json()` AFTER caller has consumed the original. Pre-parse and pass the object. *(New pitfall — promote to BOOTSTRAP.md §6.)*
+- **wrangler-secret PowerShell trap, third receipt today.** Always `cd` into Worker directory before `wrangler secret put`. Always pipe stdin (`"value" | wrangler secret put NAME`). Never Ctrl+V at secure prompt (interpreted as 0x16 SYN char). Never paste placeholder text and hit enter.
+- **Cache-clear during dev spirals creates credential debt.** Each Hello cache-clear mints a new v5 credential; the old one orphans in `portal_users`. Periodic D1 hygiene during heavy iteration.
+- **`wrangler tail --format pretty` doesn't show response bodies.** Use `--format json` if body inspection needed.
+
+**Open architectural question (top priority next watch):**
+
+**v5.10.1 Path B — separate signature from authority in `requireSignedAction`.** Right now, the signing fp must be bootstrap or have explicit org role. This forces a per-device bootstrap-fp dance: the desktop can't sign manager actions because its v5 credential has a fresh fp not in the secret. Path B: when signing fp resolves to a user with no role on the org AND the request carries a Bearer session token resolving to a developer-tier user, treat the action as authorised by the session user. Signature still binds the actor for non-repudiation; authority decouples. ~30 lines in Worker, brief Mr. Data for it. Architecturally correct; closes the desktop-binding gap cleanly.
+
+**Outstanding work for next watch:**
+
+1. **v5.10.1 Path B** (top priority) — write brief + ship
+2. **Brief A1 settings reformat** — Mr. Data's morning misfire; re-brief properly
+3. **Phase 1-5 of HANDOVER-PerActionAuth.md** (settings save, delete/invite, shift mgmt + `org_shifts` table, audit log, Staff HELLO retirement) — gated on Path B landing first
+4. **8 Pro's 11 stale login_sessions** — harmless dead weight; optional one-line DELETE
+5. **Mr. Data PR Brief A (`v5.9.14`)** — already shipped earlier today, but verify status against current main when next watch starts
+
+---
+
 ## Thursday 14 May 2026 long watch — Brief A (`v5.9.14`) shipped end-to-end through a regression-and-recovery cycle
 
 **The headline.** Started with the v5.9.14 ship attempt via Mr. Data's PR. Discovered mid-smoke-test that his stale `OrgCheckin.html` baseline had clobbered the entire `.13.1`–`.13.34` celebration overhaul on production. Caught + reverted within ~10 minutes. Hand-ported the additive invite work onto the clean `.13.34` baseline (456 insertions, 1 deletion — additive proof). Then chased a deeper architectural bug across `.14.1`/`.14.2`/`.14.3` patches to deliver Brief A's full guest-onboarding path on real fresh hardware.

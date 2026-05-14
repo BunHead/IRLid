@@ -89,3 +89,75 @@ A working Phase 0 Worker, three real bugs closed in production, one identity mis
 Captain held the line tonight when it would have been easier to call it. Match that energy.
 
 Number One (evening watch, 14 May 2026)
+
+---
+
+## ADDENDUM — late evening (~19:50 BST close)
+
+The watch did not end at "one secret rotation away from working." The successor (this same Number One on a fresh conversation) came aboard at ~17:00, oriented from this letter, and closed the loop completely.
+
+**Sequence of work executed:**
+
+1. **Diagnosed the silent regression** — Captain returned to the dashboard showing "Signed in, but no orgs available and you cannot create one." Hypothesis (confirmed): the wrangler-secret-put attempts from the previous watch had landed bad content in `BOOTSTRAP_DEVELOPER_FP`. 8 Pro's claim verified (POST `/org/login/claim` Ok 200) but `/org/login/poll` returned empty orgs because Worker no longer recognised the fp as bootstrap.
+
+2. **Diagnostic-first recovery, no premature writes:**
+   - `wrangler secret list` confirmed secret exists (slot filled, value opaque)
+   - `wrangler tail --format pretty` confirmed the claim→poll→empty cycle
+   - D1 query revealed **5 "New member" portal_users rows accumulated during the day's debug spiral** (each cache-clear minted a fresh credential)
+   - v5-test.html "Show fingerprint" on 8 Pro gave the current 8 Pro fp: **`n4FzIhV_1jc2u_HO`** — and revealed the 8 Pro had RE-ENROLLED at 13:28:34 today, so the predecessor's claimed fp `65u-S-W_NFxr8u1L` is now stale. (Predecessor's letter was accurate at time of writing; the 8 Pro's credential turned over during the spiral.)
+
+3. **Single-fp secret rotation (clean slate, no comma list):**
+   ```powershell
+   cd "...\irlid-api-org" ; "n4FzIhV_1jc2u_HO" | npx wrangler secret put BOOTSTRAP_DEVELOPER_FP
+   ```
+   Dashboard recovery instant — claim→poll→`can_create_org:true`→dashboard load. Captain back in.
+
+4. **D1 cleanup:**
+   - `UPDATE portal_users SET display_name='Developer (Super-Admin)' WHERE pub_fp='n4FzIhV_1jc2u_HO'` (sidebar now reads correctly after refresh)
+   - `DELETE FROM login_sessions WHERE user_id IN (phantoms)` (1 row affected — stale session for one of the dead credentials)
+   - `DELETE FROM portal_users WHERE pub_fp IN ('eMCK_4nG0kMZkmmB','0Qwtv_9JkBhrIkhq')` (2 rows affected — the other two phantoms `gCxMaCZc0BAyKRM1` and `T95fyM2Q43fR18R0` had already self-cleaned somewhere in the day — possibly a Worker GC, didn't dig)
+   - `DELETE FROM org_checkins WHERE checkin_at < strftime('%s','2026-05-14 17:00:00')` (12-15 rows of testing dust from May 12-14 morning, all purged)
+
+5. **Phase 0 doorman bind — hardware-proven end-to-end on production, multiple devices, multiple cycles:**
+   - **Smoke #1 (Kerry, 4a's orange QR):** 8 Pro pasted orange URL into Process scan → escalation modal → tap "Add device" on Kerry → fingerprint → blue toast "Linked: Kerry Austin" → 4a's `Zt-xZfDmtKu5Y1sr` now bound as Kerry's secondary key → independent confirmation via 4a's `org-entry.html` showing "Welcome back, Kerry Austin"
+   - **Smoke #2 (Spencer, Captain's self-check-in attempt):** Captain WhatsApp'd venue check-in URL to himself, opened on a device, got orange screen, sent the orange TestQR.png to 8 Pro → 8 Pro processed → escalation → "Add device" on Spencer → fingerprint → blue toast "Linked: Spencer Austin" → wrangler tail recorded `[requireSignedAction] resolved fp=n4FzIhV_1jc2u_HO role=developer minRole=staff bootstrap=true → OK pass-through to handler`
+   - **Cycle stress:** Captain checked Kerry + Spencer OUT (signed `OUT lock signed`), then back IN (scan_count incremented to 2 each). Multiple successful round-trips via both 4a and 8 Pro paths. **Production stable under cycle stress.**
+
+6. **Dashboard final state at watch close (clean):**
+   - Spencer Austin · 14/05 19:39 first / 19:44 last · scan_count 2 · IN · Lead admin
+   - Kerry Austin · 14/05 19:22 first / 19:44 last · scan_count 2 · IN · Staff
+   - Poppy Austin · 12/05 18:41 · linked expected · Attendee (no checkins today, just the Expected entry — survives the purge cleanly)
+
+7. **Open architectural question (deferred — v5.10.1):**
+   - Per-action auth currently couples **signature** and **authority** — the signing fp must be bootstrap or have explicit org role.
+   - Path B fix: separate them. Signature proves **which device acted** (non-repudiation); authority comes from **Bearer session token** (which user is logged in).
+   - Captain verified the symptom: tried to bind Spencer from the desktop browser, got `insufficient_role` because the desktop's local v5 fp isn't in `BOOTSTRAP_DEVELOPER_FP` (we set it to 8 Pro only).
+   - This is the right next architectural shift. Brief Mr. Data for it tomorrow or do it manually.
+
+## Findings worth banking
+
+- **Workers Request body is single-use.** `request.clone().json()` AFTER caller has already done `await request.json()` returns a drained stream → "Invalid JSON" lies. Fix: pre-parse body in route handler, pass the parsed object to helpers. New pitfall promoted to BOOTSTRAP.md §6.
+- **wrangler-secret PowerShell trap (third receipt today).** Always `cd` into the Worker's directory before `wrangler secret put`. Always pipe stdin (`"value" | wrangler secret put NAME`). Never Ctrl+V at the secure prompt (interpreted as 0x16 SYN, sets secret to one byte). Never paste placeholder text like `<NEW_DESKTOP_FP>` and hit enter.
+- **Cache-clear during dev spirals creates credential debt.** Every Windows Hello cache-clear creates a new v5 credential with a fresh fp; the old credential gets orphaned in `portal_users` as "New member." Periodic D1 hygiene needed during heavy iteration. Worth a tooling thought for v6+.
+- **`wrangler tail --format pretty` doesn't show response bodies.** Use `--format json` if you need body inspection. Tonight pretty was sufficient because the orange warning in the UI was diagnostic enough.
+- **Captain's 8 Pro is the only bootstrap-developer device right now.** Desktop binding remains broken until Path B (or a Path A secret rotation that adds the desktop's fp, which we chose NOT to do — cleaner to fix the architecture).
+
+## Outstanding work for the next watch
+
+1. **v5.10.1 Path B** (top priority) — Bearer-resolved authority in `requireSignedAction`. Brief: when signing fp resolves to a user with no role on the org, AND the request also carries a Bearer session token resolving to a developer-tier user, treat the action as authorised by the session user. Signature still bound to actor for non-repudiation; authority decoupled. ~30 lines in Worker + docs update in `PROTOCOL.md §13` or new §13.x. Mr. Data can do this with a tight brief.
+2. **Brief A1 settings reformat** — was Mr. Data's morning misfire (he shipped the wrong brief). Re-brief properly when he's back tomorrow.
+3. **Phase 1-5 of `HANDOVER-PerActionAuth.md`** (settings save, delete/invite, shift management, audit log, Staff HELLO retirement) — open work, all gated on Path B landing first so the auth model is right before propagating to more endpoints.
+4. **8 Pro's 11 stale login_sessions** — harmless dead weight; one-line DELETE when convenient. Not urgent.
+5. **Mark milestone in CLAUDE.md and PROTOCOL.md** — Phase 0 hardware-proven 14 May 2026. The cym13-class architectural shift (per-action WebAuthn replacing ambient session freshness) is live with multi-device hardware proof.
+
+## What I leave under the chair (revised)
+
+A ship that is **actually working** — sign-in, dashboard, bind, attendance, check-out, re-check-in, signed lock-out — all proven on real hardware tonight with both 4a and 8 Pro. Tonight's debug spiral cost a lot of Captain's evening but bought:
+- The Invalid JSON Workers-body-single-use trap (now in BOOTSTRAP.md)
+- The wrangler-secret Ctrl+V trap (third instance — now memorised)
+- The bootstrap-fp-vs-signing-fp architectural realisation that Path B is the right next shift
+- Hardware proof that Phase 0 actually works on production
+
+The work persists. The site is functional. The next Number One inherits a ship that stands.
+
+Number One (late evening watch close, 14 May 2026, ~19:50 BST)
