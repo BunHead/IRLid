@@ -1330,6 +1330,52 @@ async function irlidV5VerifyEnvelope(payload, pubJwk, sigRawB64u, webauthnEnv, e
 }
 
 // =========================================================
+//  Per-action commit signing (v5.10.0 Phase 0)
+//  Used by manager commits — bind, settings save, delete, etc. — to
+//  produce a non-repudiable signed envelope per ACTION rather than
+//  per session. Each envelope carries a fresh random nonce that the
+//  Worker checks against the action_nonces table for replay protection.
+//
+//  Fires WebAuthn UV immediately (per Captain's directive: the
+//  biometric prompt IS the confirmation, no separate confirm modal).
+//  If the user dismisses the prompt, this throws — callers should
+//  treat that as silent cancellation, not an error to toast.
+//
+//  Returns the envelope shape the Worker's requireSignedAction expects:
+//    { payload: { type, org_id, timestamp, nonce, ...fields },
+//      pub: <jwk>, sig: <b64url>, webauthn: { authData, clientData } }
+// =========================================================
+async function signActionPayload(actionType, orgId, fields) {
+  if (!irlidV5Enabled() || !irlidV5Enrolled()) {
+    throw new Error("Hardware-backed signing required (v5 not enrolled). Enrol via Settings.");
+  }
+  if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {
+    throw new Error("signActionPayload: actionType must match /^irlid_<name>_v5$/");
+  }
+  const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
+  const payload = Object.assign(
+    {
+      type: actionType,
+      org_id: String(orgId || ""),
+      timestamp: Date.now(),
+      nonce: b64urlEncode(nonceBytes)
+    },
+    fields || {}
+  );
+  // irlidSignPayload handles canonical hashing + WebAuthn UV via the v5 path.
+  const env = await irlidSignPayload(payload);
+  if (env.v !== 5) {
+    throw new Error("signActionPayload: v5 path required but irlidSignPayload returned v" + env.v);
+  }
+  return {
+    payload,
+    pub: env.pub,
+    sig: env.sig,
+    webauthn: env.webauthn
+  };
+}
+
+// =========================================================
 //  Unified signing dispatcher
 //  Picks v5 path if enabled, else v3/v4 path.
 //  Returns: { v, sig, pub, webauthn? }

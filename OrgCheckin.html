@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.9.14.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.0</span></div>
   </div>
 </div>
 
@@ -7544,19 +7544,17 @@ function currentStaffSessionToken() {
 async function bindEscalationExpected(id) {
   const row = expectedAttendees.find(item => String(item.id) === String(id));
   if (!row) return setEscalationStatus('Expected entry not found.', 'error');
-  if (!confirm('Bind this device to ' + expectedDisplayName(row) + '?')) return;
+  // v5.10.0 Phase 0 — fire WebAuthn UV immediately. The biometric/PIN IS
+  // the confirmation; no separate confirm() modal. If the user dismisses
+  // the prompt, signActionPayload throws and we silently exit (no toast).
   try {
-    setEscalationStatus('Binding device...');
+    setEscalationStatus('Approve on your device to bind...');
     const body = escalationBodyBase();
-    if (!developerBearerSessionIsActive()) {
-      let token = currentStaffSessionToken();
-      if (!token) {
-        const session = await requestStaffHelloSession('bind device to Expected entry');
-        if (!session) return setEscalationStatus('Staff HELLO proof cancelled.', 'error');
-        token = session.staff_session;
-      }
-      body.staff_session = token;
-    }
+    const signed = await signActionPayload('irlid_bind_v5', currentOrg.id, {
+      expected_id: Number(id),
+      new_device_key_fp: body.pub_fp || body.device_pub_fp
+    });
+    body.signed_action = signed;
     const result = await window.IRLidOrgApi.bindAdditionalKey(
       currentOrg.api_key,
       id,
@@ -7569,31 +7567,31 @@ async function bindEscalationExpected(id) {
     await refreshExpectedAttendees();
     await refreshAttendance();
     closeEscalationModal();
-    // v5.7.1h — Don't bury the result in a fleeting toast. Show the
-    // post-resolution overlay with a 3s "Stay on dashboard" override and
-    // default-redirect to scan.html for the next chimp.
     showPostResolutionToast(expectedDisplayName(row));
   } catch (err) {
-    if (err.status === 401) clearStaffAuthSession(err.message || 'Staff authentication required.');
-    setEscalationStatus(err.message || 'Could not bind device.', 'error');
+    // v5.10.0 Phase 0 — silent on user-cancelled WebAuthn; toast on real errors
+    const msg = String(err && (err.message || err.data?.error) || '');
+    if (/cancel|aborted|NotAllowedError/i.test(msg)) {
+      setEscalationStatus('');
+      return;
+    }
+    console.warn('[escalation] bindEscalationExpected failed', err);
+    showToast(msg || 'Could not bind device.', true);
+    setEscalationStatus(msg || 'Could not bind device.', 'error');
   }
 }
 async function bindAdditionalEscalationExpected(id) {
   const row = expectedAttendees.find(item => String(item.id) === String(id));
   if (!row) return setEscalationStatus('Expected entry not found.', 'error');
-  if (!confirm('Bind this device as an additional key for ' + expectedDisplayName(row) + '?')) return;
+  // v5.10.0 Phase 0 — biometric/PIN IS the confirmation. No confirm() modal.
   try {
-    setEscalationStatus('Binding additional device...');
+    setEscalationStatus('Approve on your device to add this key...');
     const body = escalationBodyBase();
-    if (!developerBearerSessionIsActive()) {
-      let token = currentStaffSessionToken();
-      if (!token) {
-        const session = await requestStaffHelloSession('bind additional device key');
-        if (!session) return setEscalationStatus('Staff HELLO proof cancelled.', 'error');
-        token = session.staff_session;
-      }
-      body.staff_session = token;
-    }
+    const signed = await signActionPayload('irlid_bind_v5', currentOrg.id, {
+      expected_id: Number(id),
+      new_device_key_fp: body.pub_fp || body.device_pub_fp
+    });
+    body.signed_action = signed;
     const result = await window.IRLidOrgApi.bindAdditionalKey(
       currentOrg.api_key,
       id,
@@ -7608,9 +7606,14 @@ async function bindAdditionalEscalationExpected(id) {
     closeEscalationModal();
     showPostResolutionToast(expectedDisplayName(row));
   } catch (err) {
+    const msg = String(err && (err.message || err.data?.error) || '');
+    if (/cancel|aborted|NotAllowedError/i.test(msg)) {
+      setEscalationStatus('');
+      return;
+    }
     console.warn('[escalation] bindAdditionalKey failed', err);
-    if (err.status === 401) clearStaffAuthSession(err.message || 'Staff authentication required.');
-    setEscalationStatus(err.message || 'Bind failed.', 'error');
+    showToast(msg || 'Bind failed.', true);
+    setEscalationStatus(msg || 'Bind failed.', 'error');
   }
 }
 async function addEscalationAtDoor() {
@@ -7618,39 +7621,37 @@ async function addEscalationAtDoor() {
   const surname = (document.getElementById('escalationSurname')?.value || '').trim();
   if (!firstName || !surname) return setEscalationStatus('Enter first name and surname.', 'error');
   const role = doormanEscalationRole || 'attendee';
-  const body = { ...escalationBodyBase(), first_name: firstName, surname, prototype_role: role };
-  async function submit() {
-    const token = currentStaffSessionToken();
-    if (!developerBearerSessionIsActive() && token) body.staff_session = token;
-    else delete body.staff_session;
-    return window.IRLidOrgApi.createAndBindExpected(
+  const base = escalationBodyBase();
+  // v5.10.0 Phase 0 — per-action WebAuthn replaces Staff HELLO proof.
+  // Biometric/PIN IS the confirmation; no fallback dance.
+  try {
+    setEscalationStatus('Approve on your device to add ' + roleLabelFor(role) + '...');
+    const signed = await signActionPayload('irlid_create_bind_v5', currentOrg.id, {
+      first_name: firstName,
+      surname,
+      role: role,
+      new_device_key_fp: base.pub_fp || base.device_pub_fp
+    });
+    const body = { ...base, first_name: firstName, surname, prototype_role: role, signed_action: signed };
+    const result = await window.IRLidOrgApi.createAndBindExpected(
       currentOrg.api_key,
       body,
       developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
     );
-  }
-  try {
-    setEscalationStatus('Adding ' + roleLabelFor(role) + '...');
-    let result;
-    try {
-      result = await submit();
-    } catch (err) {
-      if (err.status !== 401 || err.message !== 'stale_staff_proof') throw err;
-      clearStaffAuthSession('Fresh Staff HELLO required for Add at the door.');
-      const session = await requestStaffHelloSession('add ' + roleLabelFor(role) + ' at the door');
-      if (!session) return setEscalationStatus('Staff HELLO proof cancelled.', 'error');
-      body.staff_session = session.staff_session;
-      result = await submit();
-    }
     if (result.expected) expectedAttendees.unshift(result.expected);
     await refreshExpectedAttendees();
     await refreshAttendance();
     closeEscalationModal();
-    // v5.7.1h — Same post-resolution flow as bind. Add-at-the-door is the
-    // other terminal "this chimp is dealt with" path.
     showPostResolutionToast(firstName + ' ' + surname + ' (' + roleLabelFor(role) + ')');
   } catch (err) {
-    setEscalationStatus(err.message || 'Could not add at the door.', 'error');
+    const msg = String(err && (err.message || err.data?.error) || '');
+    if (/cancel|aborted|NotAllowedError/i.test(msg)) {
+      setEscalationStatus('');
+      return;
+    }
+    console.warn('[escalation] addEscalationAtDoor failed', err);
+    showToast(msg || 'Could not add at the door.', true);
+    setEscalationStatus(msg || 'Could not add at the door.', 'error');
   }
 }
 function addQueuedCheckinRow(body, queuedResult) {

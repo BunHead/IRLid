@@ -2147,6 +2147,127 @@ async function roleForStaffPubFp(env, org, staffPubFp) {
   return expectedMemberRole(expected?.prototype_role || "staff");
 }
 
+// v5.10.0 Phase 0 — per-action WebAuthn helper for manager commits.
+// Replaces requireFreshStaffProof on the bind endpoints (first phase of
+// a roll-out across all manager commits — see HANDOVER-PerActionAuth.md).
+//
+// Verifies a v5 envelope attached to the request body under the key
+// `signed_action`, confirms it carries the expected action type, that
+// its nonce hasn't been seen before (anti-replay), that its timestamp is
+// within ±120s of now (anti-stale), and that the signing user has the
+// minimum role on the target org. Records the nonce on success so any
+// subsequent presentation rejects with `nonce_already_used`.
+//
+// Returns { user, org, role, payload } on success or { error } on any failure.
+//
+// opts:
+//   expectedType   — required type discriminator (e.g. "irlid_bind_v5")
+//   orgId          — org context the action must match
+//   minRole        — minimum role required (e.g. "staff")
+//   payloadSchema  — optional fn(payload)=>bool for action-specific fields
+async function requireSignedAction(request, env, opts) {
+  const expectedType  = String((opts && opts.expectedType) || "").trim();
+  const orgId         = String((opts && opts.orgId) || "").trim();
+  const minRole       = (opts && opts.minRole) || null;
+  const payloadSchema = (opts && opts.payloadSchema) || null;
+
+  let body;
+  try { body = await request.clone().json(); } catch { return { error: err("Invalid JSON") }; }
+
+  const env_envelope = body.signed_action || null;
+  if (!env_envelope || typeof env_envelope !== "object") {
+    return { error: json({ error: "signed_action_required" }, 400) };
+  }
+  const payload   = env_envelope.payload;
+  const pubJwk    = env_envelope.pub;
+  const sigB64u   = env_envelope.sig;
+  const webauthn  = env_envelope.webauthn;
+  if (!payload || !pubJwk || !sigB64u || !webauthn) {
+    return { error: json({ error: "signed_action_malformed" }, 400) };
+  }
+
+  // 1. Action type discriminator — prevents cross-action replay
+  if (payload.type !== expectedType) {
+    return { error: json({ error: "invalid_action_type", expected: expectedType, got: payload.type }, 400) };
+  }
+  // 2. Org context match
+  if (orgId && String(payload.org_id || "") !== orgId) {
+    return { error: json({ error: "invalid_action_org" }, 400) };
+  }
+  // 3. Timestamp drift — ±120s replay window
+  const t = now();
+  const payloadSec = Math.floor(Number(payload.timestamp || 0) / 1000);
+  if (!payloadSec || Math.abs(t - payloadSec) > 120) {
+    return { error: json({ error: "timestamp_drift", server_t: t, payload_t: payloadSec }, 400) };
+  }
+  // 4. Nonce anti-replay
+  const nonce = String(payload.nonce || "").trim();
+  if (!nonce || nonce.length < 16) {
+    return { error: json({ error: "nonce_required" }, 400) };
+  }
+  const existing = await env.DB.prepare(
+    "SELECT nonce FROM action_nonces WHERE nonce = ? LIMIT 1"
+  ).bind(nonce).first();
+  if (existing) {
+    return { error: json({ error: "nonce_already_used" }, 400) };
+  }
+  // 5. Payload schema check
+  if (typeof payloadSchema === "function") {
+    let schemaOk = false;
+    try { schemaOk = !!payloadSchema(payload); } catch (_) { schemaOk = false; }
+    if (!schemaOk) return { error: json({ error: "invalid_action_payload" }, 400) };
+  }
+  // 6. Cryptographic verification — same path as orgLoginClaim
+  try {
+    await verifyV5Envelope(payload, pubJwk, sigB64u, webauthn);
+  } catch (e) {
+    return { error: json({ error: "signature_verify_failed", reason: String(e && e.message || e).slice(0, 200) }, 401) };
+  }
+  // 7. Resolve signing user via pub_fp
+  const fp = await deviceKeyFp(pubJwk);
+  if (!fp) return { error: json({ error: "fp_compute_failed" }, 400) };
+  let user = await env.DB.prepare(
+    "SELECT id, display_name FROM portal_users WHERE pub_fp = ?"
+  ).bind(fp).first();
+  if (!user) {
+    // Mirror v5.9.14.2's orgLoginClaim auto-create — per-action auth carries
+    // its own cryptographic guarantee, so creating the portal_users row
+    // here is no weaker than the claim path.
+    const userId = randomToken().slice(0, 26);
+    const isBootstrap = isBootstrapDeveloperFp(env, fp);
+    const displayName = isBootstrap ? "Developer (Super-Admin)" : "New member";
+    await env.DB.prepare(
+      "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(userId, JSON.stringify(pubJwk), fp, displayName, t, t).run();
+    user = { id: userId, display_name: displayName };
+  }
+  // 8. Org + role resolution and minRole check
+  let org = null;
+  if (orgId) {
+    org = await env.DB.prepare("SELECT id, name, slug, api_key FROM organisations WHERE id = ?")
+      .bind(orgId).first();
+    if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  }
+  const role = org ? await orgRoleForUser(env, user, org.id) : null;
+  if (minRole) {
+    const requiredRank = expectedRoleRank(minRole);
+    const actualRank   = role ? expectedRoleRank(role) : -1;
+    if (actualRank < requiredRank) {
+      return { error: json({ error: "insufficient_role", required: minRole, actual: role || null }, 403) };
+    }
+  }
+  // 9. Record the nonce so subsequent attempts fail with nonce_already_used.
+  //    Best-effort opportunistic GC of expired rows on the same call.
+  await env.DB.prepare(
+    "INSERT INTO action_nonces (nonce, used_at, expires_at) VALUES (?, ?, ?)"
+  ).bind(nonce, t, t + 600).run();
+  try {
+    await env.DB.prepare("DELETE FROM action_nonces WHERE expires_at < ?").bind(t).run();
+  } catch (_) {}
+
+  return { ok: true, user, org, role, payload };
+}
+
 async function requireFreshStaffProof(request, env, org) {
   const developer = await bootstrapDeveloperFromBearer(request, env);
   if (developer) return { ok: true, role: "developer", developer: true, user: developer };
@@ -2512,15 +2633,33 @@ async function expectedBoundToDevice(env, orgCode, deviceFp) {
 async function bindAdditionalExpectedKey(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const staffError = await requireDevOrStaffSession(request, env, org, body.staff_session || body.staffSession);
-  if (staffError) return staffError;
+
+  // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof
+  // for the doorman bind endpoints. Every bind is now a non-repudiable
+  // signed envelope tied to the specific action by type discriminator
+  // (irlid_bind_v5) and target expected_id. No more "is this session
+  // fresh enough" gate; the signature itself IS the freshness proof.
+  const action = await requireSignedAction(request, env, {
+    expectedType: "irlid_bind_v5",
+    orgId: org.id,
+    minRole: "staff",
+    payloadSchema: (p) => Number(p.expected_id) === Number(id)
+      && typeof p.new_device_key_fp === "string" && p.new_device_key_fp.length >= 8
+  });
+  if (action.error) return action.error;
 
   const pubJwk = body.pub_jwk || body.pub || body.device_pub_jwk;
   if (!validDevicePubJwk(pubJwk)) return err("pub_jwk must be a P-256 public JWK");
-  const pubFp = String(body.pub_fp || body.device_pub_fp || "").trim();
+  const pubFp = String(body.pub_fp || body.device_pub_fp || action.payload.new_device_key_fp || "").trim();
   const computedFp = await deviceKeyFp(pubJwk);
   if (!pubFp) return err("pub_fp required");
   if (pubFp !== computedFp) return err("pub_fp does not match pub_jwk", 422);
+  // Cross-check: the device fp in the signed payload must match what's
+  // being bound. Otherwise an attacker could sign an envelope claiming
+  // to bind device A and submit a body for device B.
+  if (action.payload.new_device_key_fp !== pubFp) {
+    return json({ error: "signed_fp_mismatch" }, 400);
+  }
 
   const expected = await expectedRowWithKeys(env, org.id, id);
   if (!expected) return err("Expected attendee not found", 404);
@@ -2551,8 +2690,6 @@ async function bindAdditionalExpectedKey(request, env, id) {
 
 async function orgExpectedCreateAndBind(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
-  const proof = await requireFreshStaffProof(request, env, org);
-  if (proof.error) return proof.error;
 
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const firstName = (body.first_name || "").trim();
@@ -2566,7 +2703,23 @@ async function orgExpectedCreateAndBind(request, env) {
   if (suppliedFp && suppliedFp !== computedFp) return err("device_pub_fp does not match device_pub_jwk", 422);
   const deviceFp = suppliedFp || computedFp;
 
-  if (!doorRolePermitted(proof.role, prototypeRole)) {
+  // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof.
+  // The signed envelope encodes the specific attendee being created and the
+  // device fp being bound; cross-action replay is structurally impossible.
+  const action = await requireSignedAction(request, env, {
+    expectedType: "irlid_create_bind_v5",
+    orgId: org.id,
+    minRole: "staff",
+    payloadSchema: (p) => p.first_name === firstName
+      && p.surname === surname
+      && p.role === prototypeRole
+      && p.new_device_key_fp === deviceFp
+  });
+  if (action.error) return action.error;
+
+  // Door role permission gate — actor signing the envelope must have a
+  // role permitted to admit the prototypeRole at the door.
+  if (!doorRolePermitted(action.role, prototypeRole)) {
     return json({ error: "role_not_permitted_at_door" }, 403);
   }
   const boundExpectedId = await expectedBoundToDevice(env, org.id, deviceFp);
@@ -2594,7 +2747,7 @@ async function orgExpectedCreateAndBind(request, env) {
     }
     await env.DB.prepare(
       "INSERT OR REPLACE INTO org_memberships (user_id,org_id,role,granted_by,granted_at) VALUES (?,?,?,?,?)"
-    ).bind(user.id, org.id, prototypeRole, proof.user?.id || proof.staff_pub_fp || null, t).run();
+    ).bind(user.id, org.id, prototypeRole, action.user?.id || null, t).run();
     member = { user_id: user.id, org_id: org.id, role: prototypeRole, granted_at: t };
   }
 

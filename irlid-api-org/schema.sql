@@ -230,3 +230,16 @@ CREATE INDEX idx_staff_sessions_org ON org_staff_sessions(org_id, expires_at);
 
 CREATE UNIQUE INDEX idx_staff_sessions_org_hello ON org_staff_sessions(org_id, hello_hash);
 
+-- v5.10.0 Phase 0 (per-action WebAuthn) — anti-replay nonces for per-action
+-- signed envelopes on manager commits. Each envelope carries a 32-byte random
+-- nonce that the Worker records on first use and rejects on any subsequent
+-- presentation within the freshness window. Rows expire ~10 minutes after
+-- creation; a periodic cleanup or per-request GC sweeps stale rows.
+CREATE TABLE action_nonces (
+  nonce      TEXT PRIMARY KEY,
+  used_at    INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+
+CREATE INDEX idx_action_nonces_expires ON action_nonces(expires_at);
+

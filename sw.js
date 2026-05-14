@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v5'; // v5.9.14.3 bump — forces stale OrgCheckin.html eviction so the new tryRedeemStaffInviteIfPending() call site on the phone-self-signin boot path actually reaches devices
+const CACHE_VERSION = 'irlid-shell-v6'; // v5.10.0 bump — forces eviction of stale OrgCheckin.html / js/sign.js / orgapi.js so the new per-action WebAuthn (signActionPayload + bind handlers) reaches devices
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
