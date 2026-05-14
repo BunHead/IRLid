@@ -52,7 +52,7 @@ Canonical signing: sort keys, JSON-stringify, SHA-256, ECDSA P-256 — reuse `ir
 
 ### `POST /org/invites/redeem`
 
-- **Auth:** No session required (this is a first-touch enrolment endpoint).
+- **Auth:** No session required (this is a first-touch enrolment endpoint). **The redeeming device need not be an existing IRLid subscriber** — see "Guest-account redeem flow" below.
 - **Body:** `{ invite_payload: "I:...", new_device_pub_jwk: { kty, crv, x, y }, new_device_pub_fp: "<16-char>" }`.
 - **Behaviour:**
   1. Decode `I:` payload. Verify signature against `issuer_pub_fp` looked up from `org_memberships` for that org.
@@ -63,6 +63,27 @@ Canonical signing: sort keys, JSON-stringify, SHA-256, ECDSA P-256 — reuse `ir
   6. UPDATE `org_invites` row: `status = "redeemed"`, `redeemed_by_fp = new_device_pub_fp`, `redeemed_ts = now`.
 - **Response:** `{ ok: true, org_id, role, member_id }`.
 - **Errors:** `404 invite_unknown`, `409 invite_already_redeemed`, `410 invite_expired`, `400 invite_bad_signature`, `400 lead_admin_invite_deferred`, `403 issuer_role_revoked`.
+
+## Guest-account redeem flow (`scan.html` client side)
+
+**The protocol binds to the device's hardware key, not to a personal IRLid identity.** A staff member who has never used IRLid before must still be able to redeem an invite — their device generates a fresh WebAuthn credential inline at scan time, that becomes their `pub_fp`, and the org membership is bound to it. They're a "guest member" of the org: recognised at the door, but with no consumer receipt history at `irlid.co.uk` until they sign up there separately. If they later do sign up on the same device, the WebAuthn credential is reused (same `pub_fp`) and the org membership automatically appears in their consumer receipts — identity is additive, no migration step.
+
+`scan.html` flow when the `I:` prefix is matched:
+
+1. Detect `I:` prefix → enter invite-redeem flow (don't fall through to attendee/doorman handling).
+2. Decode and display invite summary: `[Org Name]` (looked up from `/org/public-meta?org_id=...` — new tiny public endpoint, returns just `{ name, logo_url }`, no auth, used here and for any future invite-style flows) is inviting you to join as `[Role]`. Tap **Accept** to enrol this device, or **Cancel**.
+3. On Accept — check `navigator.credentials` for an existing IRLid Passkey on this device:
+   - **If present** — reuse the existing `pub_fp` + `pub_jwk`. POST `/org/invites/redeem`. Show success: "You're now [Role] at [Org Name]. Show this device at the door. Your IRLid account already covers this device, so this org will appear in your receipts at `irlid.co.uk`."
+   - **If absent (guest path)** — trigger WebAuthn `navigator.credentials.create` with the existing IRLid relying-party (so a later consumer sign-up reuses the same credential). Compute `pub_fp` from the new public key via the same helper used in consumer sign-up. POST `/org/invites/redeem` with the freshly-minted `pub_fp` + `pub_jwk`. Show success: "You're now [Role] at [Org Name]. Show this device at the door. To see your check-in history across orgs, sign up at irlid.co.uk — your enrolment will carry over automatically."
+4. On any failure (signature bad / expired / already redeemed) — show the specific error from the Worker response. No silent retries.
+
+**Why this works without compromise:**
+
+- The Worker is identical in both branches — it doesn't know or care whether the `pub_fp` it just received was minted ten seconds ago or three years ago. It only cares that the signature verifies and the membership row inserts cleanly.
+- The "consumer IRLid account" is itself just `(pub_fp + WebAuthn credential)` plus optional metadata. A guest member has the same primitives; they simply haven't visited `irlid.co.uk` to layer the consumer profile on top yet.
+- A staff member who later wants receipts only needs to sign up at `irlid.co.uk` from the same device — the consumer flow detects the existing credential and ties the consumer profile to the same `pub_fp`. No data migration; the org membership rows are already keyed on `pub_fp` and remain valid.
+
+**Edge case — guest member loses their device:** they have no consumer recovery path because they have no consumer account. The Lead Admin must `revoke` their `org_memberships` row and issue a fresh invite for the replacement device. Document this in the acceptance criteria.
 
 ### `POST /org/invites/revoke`
 
@@ -116,7 +137,9 @@ The "Invite staff" affordance lives **inside the Settings panel**, not in the da
 
 ## Acceptance criteria
 
-1. **Happy path:** Lead-Admin-signed-in desktop opens Settings, generates an invite (role=Staff), QR appears. Fresh-browser-profile device scans, WebAuthn fires, `org_memberships` row inserted at `role=staff`, returning device signs in via normal flow, sidebar reads "Signed in as Staff." Worker `tail` shows clean traffic.
+1. **Happy path — existing IRLid subscriber:** Lead-Admin-signed-in desktop opens Settings, generates an invite (role=Staff), QR appears. Device with an existing IRLid Passkey scans, the existing credential is reused (no new WebAuthn prompt), `org_memberships` row inserted at `role=staff`, returning device signs in via normal flow, sidebar reads "Signed in as Staff." Worker `tail` shows clean traffic.
+1a. **Guest happy path — no existing IRLid identity:** Same invite, but the scanning device is a fresh browser profile that has never used IRLid. `scan.html` triggers `navigator.credentials.create`, the user approves the biometric, a fresh `pub_fp` is minted, `org_memberships` row inserts cleanly. Device is now recognised at the door at `role=staff`. Visiting `irlid.co.uk` from the same device shows no consumer account yet (correct — they're a guest member). Subsequently signing up at `irlid.co.uk` from the same device reuses the same credential and the org membership appears in the new consumer receipts automatically.
+1b. **Guest device loss:** Document the recovery path — Lead Admin revokes the guest's `org_memberships` row via Settings and issues a fresh invite. There is no consumer-side recovery because there is no consumer account. (Acceptance for this row is documentation, not code; the revoke endpoint already covers the mechanism.)
 2. **One-shot:** Same QR scanned a second time (different fresh device) returns `409 invite_already_redeemed`.
 3. **Expiry:** Generated invite with 10-min expiry, scanned 11 min later returns `410 invite_expired`.
 4. **Tampered signature:** Modifying any byte of the `I:` payload before scanning returns `400 invite_bad_signature`.
