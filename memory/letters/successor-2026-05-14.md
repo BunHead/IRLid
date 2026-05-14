@@ -49,9 +49,29 @@ All eight smokes passed end-to-end. The 4a went from "no IRLid identity at all" 
 - *Brief A scope drift.* Pending-invites list view (table with revoke-per-row) — Mr. Data shipped single-active UX. Polish for v5.9.15.
 - *Brief A scope drift.* Expiry chip picker (10/30/60 min) — Mr. Data defaulted to 7 days; brief specified 10-min default. Polish for v5.9.15.
 
-## Open architectural item — doorman bind silent-fail
+## Open architectural item — doorman bind requires Staff HELLO that developers can't generate
 
-Smoke 7 surfaced a real bug: `Choose from List → Bind` and `Add at the door → Submit` both failed silently on the 8 Pro until the v5.9.14.3 cache bump propagated. The recovered state works, but the underlying silent-failure-with-no-error-toast pattern remains a hazard. When the bind endpoints return non-200 (auth failed, stale staff proof, etc.), the dashboard UI should surface the specific error rather than quietly returning to the list. Polish for v5.9.15 or v5.9.16. Specifically: `processDashboardScan` and the escalation modal's bind handlers in `OrgCheckin.html` should display the Worker's error message inline.
+Captain spent end-of-day chasing what looked like a silent-fail in the doorman bind flow (both `Choose from List → Bind` and `Add at the door → Submit`). The actual culprit, found at watch close: **a red "Staff authentication required" label at the bottom of the escalation modal**, buried below the Add at the door form where users don't naturally look. Two bugs:
+
+**Bug 1: Developer Bearer doesn't satisfy `requireFreshStaffProof`.**
+
+History:
+- v5.5.4 / Polish 11 Task 2 (commit `68f96ff`) shipped developer-Bearer-satisfies-all-staff-gated-endpoints via `requireDevOrStaffSession`.
+- v5.7.0a added multi-key bind endpoints (`/org/expected/:id/bind-additional-key` and `/org/expected/create-and-bind`) with a *separate* helper `requireFreshStaffProof`, requiring a fresh (~60s) Staff HELLO proof.
+- v5.7.0e hid the Staff Auth panel from developer-tier users (CSS body class `developer-bearer-active`), since Bearer "satisfies all staff-gated endpoints."
+- BUT `requireFreshStaffProof` wasn't covered by the Polish 11 sweep. So developers can't satisfy it and can't reach the UI to generate a fresh proof. **Developer-tier users literally cannot use the doorman bind operations through the normal UI.**
+
+**Bug 2: The error surfaces as a red label, not a toast.** The escalation modal has `staff_auth_required` text at the bottom of the Add at the door section. It's not raised as a prominent error. Users (including Captain) miss it entirely and treat the bind as silent-failure.
+
+**Fix for v5.9.15 — two parts:**
+
+**A.** Extend the Polish 11 sweep to `requireFreshStaffProof` — make developer Bearer satisfy it. Mirror what `requireDevOrStaffSession` does. The "fresh" semantic isn't load-bearing when the actor is platform-developer-tier; the cryptographic guarantee comes from the Bearer session that's already in place. One helper change in the Worker, ~5 lines.
+
+**B.** Make the "Staff authentication required" error surface as a `showToast(message, true)` call at the moment the bind endpoint returns the relevant error code, not as a static red label at the bottom of a section. Standard error-surfacing. ~3 lines per call site (there are ~3-4).
+
+Alternative if you don't like A: keep `requireFreshStaffProof` distinct, but show the Staff Auth panel to developers via a separate code path when this specific error is returned. Heavier UX (forces an auth prompt that wouldn't normally appear), but preserves the "fresh proof" semantic for the bind endpoints specifically. Captain's call which path he prefers.
+
+Earlier today there were also two cache-related issues that compounded the diagnosis (stale `orgapi.js` and stale `OrgCheckin.html` from before `CACHE_VERSION` bumps reached devices). Those are now resolved by v5.9.14.3's SW cache bump to `irlid-shell-v5`. The underlying Staff HELLO gate remains the real issue.
 
 ## What's queued for next watch
 
@@ -60,6 +80,17 @@ Brief A1 (`v5.9.15`) is ready to fire at Mr. Data. The brief is on `origin/main`
 > Pull origin/main FIRST. Diff the current OrgCheckin.html before editing. Additive only — your changes should not delete any existing CSS, JS functions, or DOM elements outside the explicit role-gating scope. This brief opens Settings to Manager-tier via per-section data-min-role; nothing else should change.
 
 After A1 ships and is smoke-verified, Brief A2 (`v5.9.16` admin audit log, also already drafted) follows naturally, then Brief A3 (outcome audio with R2 file upload).
+
+## Test cast on the live ship (as of watch close)
+
+So you know who's who in the Test Event Expected list and audit board:
+
+- **Spencer Austin · Lead admin · 8 Pro fp** — Captain himself. Bound to his Pixel 8 Pro (`device_key_fp 65u-S-W_...`). On `BOOTSTRAP_DEVELOPER_FP`, so also developer-tier across the platform.
+- **Kerry Austin · Staff · 8 Pro and (newly) 4a** — Captain's wife. Originally bound to the 8 Pro; multi-key bound to the 4a tonight as her secondary device. The 4a is on the **kezzybabe69 Google account** (Kerry's old Google account), so IRLid's WebAuthn credential is in Google Password Manager — Kerry could sync that to her current primary phone and have IRLid follow her across devices with zero extra setup. (Promotion talking point — *"IRLid identity syncs across your devices via your platform password manager"*.)
+- **Poppy Austin · Attendee** — Captain's daughter. Bound to a fresh Pixel device from earlier testing. Status `linked expected`.
+- **Test 4a · Attendee · 4a** — the test entry we created via Add at the door tonight. Will probably be deleted in favour of the multi-key bind of the 4a onto Kerry's row. Don't worry if you find it in pending state, it's a stub.
+
+**Architectural confirmation Captain wanted on the record:** the dual-use case of a Staff member who can either *attend* an event OR *work* it is exactly what the protocol supports. Staff-role device check-in surfaces green welcome (attending), and `v5.7.1f` auto-redirect kicks in for staff-tier devices to optionally sign them into the dashboard (working) — gracefully ignored if they just want to attend. The `prototype_role` reflects what someone IS to the org, not what they're doing tonight. This is right and shouldn't be changed.
 
 ## Captain's mood at watch close
 
