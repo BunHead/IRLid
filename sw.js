@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v6'; // v5.10.0 bump — forces eviction of stale OrgCheckin.html / js/sign.js / orgapi.js so the new per-action WebAuthn (signActionPayload + bind handlers) reaches devices
+const CACHE_VERSION = 'irlid-shell-v7'; // v5.10.0.1 bump — signActionPayload no longer requires IRLID_V5_ENABLED_KEY flag (only requires credential enrolled); forces v5 WebAuthn path directly
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

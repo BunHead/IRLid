@@ -1346,8 +1346,12 @@ async function irlidV5VerifyEnvelope(payload, pubJwk, sigRawB64u, webauthnEnv, e
 //      pub: <jwk>, sig: <b64url>, webauthn: { authData, clientData } }
 // =========================================================
 async function signActionPayload(actionType, orgId, fields) {
-  if (!irlidV5Enabled() || !irlidV5Enrolled()) {
-    throw new Error("Hardware-backed signing required (v5 not enrolled). Enrol via Settings.");
+  // v5.10.0 Phase 0 — per-action signing requires a v5 credential (not the
+  // separate IRLID_V5_ENABLED_KEY flag, which gates receipt-side dispatch
+  // and may be off even when a credential exists). If no credential, the
+  // caller should be routed through enrol UX before reaching here.
+  if (!irlidV5Enrolled()) {
+    throw new Error("Hardware-backed signing required — no v5 credential on this device. Enrol via Settings.");
   }
   if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {
     throw new Error("signActionPayload: actionType must match /^irlid_<name>_v5$/");
@@ -1362,16 +1366,21 @@ async function signActionPayload(actionType, orgId, fields) {
     },
     fields || {}
   );
-  // irlidSignPayload handles canonical hashing + WebAuthn UV via the v5 path.
-  const env = await irlidSignPayload(payload);
-  if (env.v !== 5) {
-    throw new Error("signActionPayload: v5 path required but irlidSignPayload returned v" + env.v);
-  }
+  // Force the v5 WebAuthn path directly rather than going through the
+  // irlidSignPayload dispatch, which would fall back to v3/v4 localStorage
+  // signing if IRLID_V5_ENABLED_KEY is not "1". Per-action org commits MUST
+  // use v5 WebAuthn (the Worker's requireSignedAction expects a webauthn block).
+  const payloadHashB64u = await hashPayloadToB64url(payload);
+  const payloadHashBytes = b64urlDecode(payloadHashB64u);
+  const v5 = await irlidV5SignPayloadHash(payloadHashBytes);
   return {
     payload,
-    pub: env.pub,
-    sig: env.sig,
-    webauthn: env.webauthn
+    pub: irlidV5GetPublicJwk(),
+    sig: b64urlEncode(v5.sigRaw),
+    webauthn: {
+      authData:   b64urlEncode(v5.authData),
+      clientData: b64urlEncode(v5.clientData)
+    }
   };
 }
 
