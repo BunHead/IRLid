@@ -998,6 +998,25 @@ async function orgLoginPoll(request, env) {
   const can_create_org = is_developer
     || orgs.some(o => o.role === "developer" || o.role === "lead_admin");
 
+  // v5.10.0.2 — Mirror userListOrgs's implicit-developer-access in the poll
+  // response too. Without this, a bootstrap-fp user whose portal_users row
+  // was freshly auto-created (no explicit org_memberships rows yet) sees
+  // "Create your first org" even when orgs already exist on the platform.
+  // PROTOCOL.md §14.9 — developer is a platform-tier role and gets implicit
+  // "see all orgs" rights so they can recover orgs whose lead_admins have
+  // left, perform forensic audits, or simply observe the platform.
+  if (is_developer) {
+    const ownIds = new Set(orgs.map(o => o.id));
+    const allOrgs = await env.DB.prepare(
+      "SELECT id, name, slug FROM organisations ORDER BY created_at DESC"
+    ).all();
+    for (const o of (allOrgs.results || [])) {
+      if (!ownIds.has(o.id)) {
+        orgs.push({ id: o.id, name: o.name, slug: o.slug, role: 'developer', implicit_membership: true });
+      }
+    }
+  }
+
   // Mark challenge consumed (single-shot; subsequent polls 410).
   await env.DB.prepare("UPDATE login_challenges SET consumed = 1 WHERE nonce = ?").bind(nonce).run();
 
