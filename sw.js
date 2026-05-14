@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v3'; // v5.9.0.13.17 bump — forces stale cache eviction so pill version updates propagate without manual hard refresh
+const CACHE_VERSION = 'irlid-shell-v4'; // v5.9.14.1 bump — forces stale orgapi.js eviction so the new redeemInvite/createInvite/revokeInvite helpers from v5.9.14 actually reach runtime
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
