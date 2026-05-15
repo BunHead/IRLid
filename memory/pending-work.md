@@ -1,5 +1,40 @@
 # Pending Work — IRLid
 
+## Friday 15 May 2026 morning — three briefs written before Captain's work day
+
+**The headline.** Before Captain headed to work, this Number One spent ~50 minutes writing the queue documents needed so the afternoon watch / Mr. Data can fire immediately on return. Two new HANDOVER briefs pushed to repo root + one new entry in this file for the CSV completeness item.
+
+**Briefs written (all on `origin/main` after the morning push):**
+
+1. **`HANDOVER-PerActionAuthPathB.md`** — `v5.10.1` Path B brief. Separates signature (non-repudiation, signing fp) from authority (Bearer session resolution) in `requireSignedAction`. Top priority — gates all of Phase 1-5 of `HANDOVER-PerActionAuth.md`. Detailed Worker patch sketch, 5 acceptance tests, risk + rollback path, explicit out-of-scope. Mr. Data prompt-ready.
+
+2. **`HANDOVER-A1-SettingsRoleGating-Refresh.md`** — `v5.10.2` Brief A1 refresh. Re-issues the existing `HANDOVER-SettingsRoleGatingRefactor.md` (still sound in body) with corrected version tag for the post-v5.10 era, precondition discipline baked into the header (push brief BEFORE firing Mr. Data — discipline rule from last night's misfire), `session_user_id` audit log clause aligned with Path B, and 3 extra acceptance criteria layered on top of the original 9.
+
+3. **CSV completeness fix (Path B server-side merge)** — *brief not yet written, scope captured below for next Number One to expand.*
+
+**CSV completeness scope (for the next Number One to write up as a HANDOVER):**
+
+- **Symptom:** Captain ran CSV download Friday morning with filter "All" — got Kerry + Spencer (with `org_checkins` rows) but Poppy was missing (status `linked` in `org_expected`, zero `org_checkins` rows today). Dashboard merges both tables for the "Attendance — Today" view; CSV exporter reads only `org_checkins`. Result: CSV silently shorter than dashboard for `linked` attendees who haven't arrived yet.
+- **Future-forward fix (Path B, server-side):** extend `GET /org/attendance` with `?include_expected=1` flag, OR add new `GET /org/dashboard-rows` endpoint. Worker performs UNION of `org_checkins` (existing today's-attendance query) with `org_expected` rows where `status='linked'` AND no checkin row exists for today. Fields aligned: zero-attendance rows carry `scan_count=0`, `status='linked expected'`, no `last_seen`. Frontend dashboard renderer + CSV exporter both call the merged endpoint; the client-side merge stops existing in two places. ~50 lines Worker + ~10 lines frontend (mostly *removing* duplicate merge logic).
+- **Rejected alternative (Path A, frontend UNION):** quick fix, ~15 lines of JS, but locks the merge logic into the browser. Any non-browser client (MCP, scheduled report, integration) would re-implement or get incomplete data. Decided against per the "server owns data shape" principle that v5.10.0.4 just paid off.
+- **Priority:** Below Path B + A1 Refresh. Pleasant-to-have polish. Captain may want it before any external demo or grant submission, since CSV completeness affects exportable proof.
+
+**Outstanding work list (priority order):**
+
+1. **`v5.10.1` Path B** — Bearer-resolved authority in `requireSignedAction`. Top priority. Brief: `HANDOVER-PerActionAuthPathB.md`.
+2. **`v5.10.2` Brief A1 Refresh** — Settings panel role-gating. Brief: `HANDOVER-A1-SettingsRoleGating-Refresh.md` (refresh) + `HANDOVER-SettingsRoleGatingRefactor.md` (original scope body).
+3. **CSV completeness fix (Path B, server-side merge)** — write brief, then ship. Scope above. ~half-watch's work.
+4. **Phase 1-5 of `HANDOVER-PerActionAuth.md`** — settings save, delete/invite, shift management, audit log, Staff HELLO retirement. Gated on `v5.10.1` Path B landing first.
+5. **8 Pro's 11 stale `login_sessions`** — optional one-line DELETE; harmless dead weight.
+6. **Mr. Data PR Brief A (`v5.9.14`) post-merge verification** — already shipped earlier 14 May; sanity-check against current main when next watch starts.
+
+**Discipline rules earned this morning (to bank in BOOTSTRAP.md next watch):**
+
+- **CSV "All" filter is truthful but misleading** when the UI merges two tables and the export reads only one. Either align the export with the UI's data view, or label the filter scope explicitly ("All attendance events" vs "All people"). Promoted to BOOTSTRAP §6 candidate.
+- **Cosmetic display_name drift after D1 UPDATE persists across browsers until session refresh** — Firefox needed sign-out + sign-back-in to pull the new display_name. Worth a tooling thought: should the Worker push a session-side refresh signal when a portal_user's display_name changes? Defer to future watch.
+
+---
+
 ## Thursday 14 May 2026 late evening — Phase 0 per-action WebAuthn HARDWARE-PROVEN end-to-end on production
 
 **The headline.** After a brutal evening spiral (recovery from corrupted `BOOTSTRAP_DEVELOPER_FP` secret, two D1 cleanup passes, and Phase 0 architectural-vs-bug confusion across three Worker bugs), the watch closed with **end-to-end hardware proof of the per-action WebAuthn architecture on production**, with multiple devices, multiple cycles, and clean dashboard state.
