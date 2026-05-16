@@ -1,5 +1,42 @@
 # Pending Work — IRLid
 
+## Saturday 16 May 2026 morning watch — `v5.10.2` LIVE + bootstrap-pointer chain repair + Settings revamp queued
+
+**The headline.** Three deliverables on a fuzzy day: (1) Mr. Data's `v5.10.1` Path B PR #25 reviewed, smoked on 8 Pro + desktop, merged at `7c7c146`. (2) Retroactive `BOOTSTRAP §10` pointer prepend on the 15 May afternoon successor letter + new `memory/letters/_TEMPLATE-successor-letter.md` scaffold (structural reinforcement so future Number Ones can't credibly omit the pointer block). (3) `v5.10.2` Settings polish ship (`9f7c220`) — `OrgCheckin.html` line 3710 placeholder fixed from `bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html` to `example.com/staff-page`, build pill `v5.10.1 → v5.10.2`, SW cache `irlid-shell-v10 → v11`. Captain hardware-verified live (Spencer scan_count=3, CHECKED IN 1 / CHECKED OUT 2, "Updated just now").
+
+**Versioning convention clarified.** Captain restated BOOTSTRAP §4's existing rule: 3-part `vX.Y.Z` for shipped work + single-letter suffixes (`a`, `b`, `c`) for tiny patches between versions. Drift toward 4-part dotted patches (v5.10.0.5, v5.9.0.13.34) rolled back. Queued briefs adjusted: **A1 refresh → `v5.10.3`** (was tagged `v5.10.2` in `HANDOVER-A1-SettingsRoleGating-Refresh.md`, collides with this watch's polish ship), **A2 audit log → `v5.10.4`**. The brief files themselves need the pill-bump line adjusted before firing Mr. Data — disciplines: push the adjusted brief to origin BEFORE the prompt fires.
+
+**Captain's Settings panel revamp wishlist (deferred to a fresh watch).** Captain flagged Settings UX as "a mess" with many features wanted. Memory pass surfaced the following — partially overlapping existing briefs:
+
+*Already-briefed (waiting on Mr. Data):*
+- **A1** (`v5.10.3`) — open Settings to Manager-tier with per-item `data-min-role` gating. `HANDOVER-A1-SettingsRoleGating-Refresh.md`.
+- **A2** (`v5.10.4`) — admin action audit log surface inside Settings. `HANDOVER-AdminActionAuditLog.md`.
+
+*Easy additions still pending (30–90 min each):*
+- **Logo wobble** — apply existing QR wobble transform to logo element, ~20 lines.
+- **WAV on accept** — `<audio>` + file upload + Worker validator + play on existing check-in event hook, ~50 lines (accessibility win).
+- **GIF import for background** — `image/gif` to Worker validator MIME types + size cap bump + UI accept attribute, ~15 lines. Branch `codex/v5.9.0.13.29-gif-support` at `6d54c97` holds unmerged work; `HANDOVER-GifSupport.md` brief at repo root.
+
+*Medium additions (one watch each):*
+- **Particle-dissolve QR** — Captain's "dragon-breath burnt" effect. Chunk QR into N×N tiles, stagger fall/fade animation downward.
+- **Glow trail** — needs UX clarification first (trail of what — QR edge? celebration centre?).
+
+*Architectural (post-demo, v5.x or v6.x):*
+- **Layer system for effects** — explicit z-stack management as effects multiply. Needs small spec doc first.
+
+*UX cleanup (Captain articulated but not yet itemised):*
+- Settings panel reordering, collapsible defaults, label tightening — Captain to articulate specific items when next fresh. Offer a UX audit draft if that helps.
+
+**Architectural reassurance carried.** Settings panel revamp work is decoupled from check-in / sign-in cryptographic flows. The signing surfaces (`verifyV5Envelope`, `requireSignedAction`, Bearer auth path, `org-entry.html` attendee flow, `scan.html` doorman flow) don't read theme/branding/animation data. Settings writes through `POST /org/settings` to D1 `settings_json`; reads only feed the render layer. v5.10.2 polish is the proof — placeholder text change with zero functional impact, check-in cycle continued working. Discipline for the revamp: diff against current main first (BOOTSTRAP §6 baseline-drift rule), additive PRs only, smoke after each merge.
+
+**Open carryforward items:**
+- `codex/v5.10.1-path-b` branch still on origin — pure housekeeping; PowerShell ready: `git push origin --delete codex/v5.10.1-path-b ; git branch -d codex/v5.10.1-path-b ; git fetch --prune`.
+- `DREAMS.md` uncommitted modification on Captain's working tree — investigate via `git diff DREAMS.md`, commit or revert.
+- CSV completeness HANDOVER — scope sketched in this file's 15 May section, no full HANDOVER doc yet.
+- Phase 1-5 of `HANDOVER-PerActionAuth.md` — gated on Path B (now in main), unblocked.
+
+---
+
 ## Friday 15 May 2026 morning — three briefs written before Captain's work day
 
 **The headline.** Before Captain headed to work, this Number One spent ~50 minutes writing the queue documents needed so the afternoon watch / Mr. Data can fire immediately on return. Two new HANDOVER briefs pushed to repo root + one new entry in this file for the CSV completeness item.
