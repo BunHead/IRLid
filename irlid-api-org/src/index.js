@@ -2195,6 +2195,7 @@ async function requireSignedAction(body, env, opts) {
   const orgId         = String((opts && opts.orgId) || "").trim();
   const minRole       = (opts && opts.minRole) || null;
   const payloadSchema = (opts && opts.payloadSchema) || null;
+  const request       = (opts && opts.request) || null;
 
   if (!body || typeof body !== "object") {
     return { error: json({ error: "signed_action_required" }, 400) };
@@ -2269,7 +2270,7 @@ async function requireSignedAction(body, env, opts) {
   const fp = await deviceKeyFp(pubJwk);
   if (!fp) return { error: json({ error: "fp_compute_failed" }, 400) };
   let user = await env.DB.prepare(
-    "SELECT id, display_name FROM portal_users WHERE pub_fp = ?"
+    "SELECT id, display_name, pub_fp FROM portal_users WHERE pub_fp = ?"
   ).bind(fp).first();
   if (!user) {
     // Mirror v5.9.14.2's orgLoginClaim auto-create — per-action auth carries
@@ -2281,7 +2282,7 @@ async function requireSignedAction(body, env, opts) {
     await env.DB.prepare(
       "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
     ).bind(userId, JSON.stringify(pubJwk), fp, displayName, t, t).run();
-    user = { id: userId, display_name: displayName };
+    user = { id: userId, display_name: displayName, pub_fp: fp };
   }
   // 8. Org + role resolution and minRole check
   let org = null;
@@ -2300,15 +2301,44 @@ async function requireSignedAction(body, env, opts) {
   let role = org ? await orgRoleForUser(env, user, org.id) : null;
   if (!role && isBootstrapHere) role = "developer";
   console.log("[requireSignedAction] resolved user_id=" + user.id + " fp=" + fp + " role=" + role + " minRole=" + minRole + " bootstrap=" + isBootstrapHere);
+  let sessionUser = null;
+  let sessionRole = null;
+  let effectiveRole = role;
+  let authorityPath = "signing_fp_authoritative";
   if (minRole) {
     const requiredRank = expectedRoleRank(minRole);
-    const actualRank   = role ? expectedRoleRank(role) : -1;
-    if (actualRank < requiredRank) {
-      console.log("[requireSignedAction] FAIL insufficient_role actual=" + role + " required=" + minRole);
-      return { error: json({ error: "insufficient_role", required: minRole, actual: role || null }, 403) };
+    const signingRank  = role ? expectedRoleRank(role) : -1;
+    if (signingRank < requiredRank) {
+      // v5.10.1 Path B: the signature remains the actor proof, but authority
+      // may be delegated by a live Bearer session for the same org.
+      if (request) {
+        const ctx = await requireSession(request, env);
+        if (!ctx.error && ctx.user) {
+          sessionUser = ctx.user;
+          sessionRole = org ? await orgRoleForUser(env, sessionUser, org.id) : null;
+          if (!sessionRole && isBootstrapDeveloperFp(env, sessionUser.pub_fp)) sessionRole = "developer";
+        }
+      }
+      const sessionRank = sessionRole ? expectedRoleRank(sessionRole) : -1;
+      if (sessionRank < requiredRank) {
+        console.log("[requireSignedAction] FAIL insufficient_role signing=" + role + " session=" + sessionRole + " required=" + minRole);
+        return { error: json({
+          error: "insufficient_role",
+          required: minRole,
+          actual_signing: role || null,
+          actual_session: sessionRole || null,
+          actual: role || null
+        }, 403) };
+      }
+      effectiveRole = sessionRole;
+      authorityPath = "bearer_delegated";
+      console.log("[requireSignedAction] OK pass-through (Bearer-delegated authority) actor_pub_fp=" + fp + " authorized_by_user_id=" + sessionUser.id + " session_role=" + sessionRole);
+    } else {
+      console.log("[requireSignedAction] OK pass-through (signing fp authoritative) actor_pub_fp=" + fp + " authorized_by_user_id=" + user.id + " role=" + role);
     }
+  } else {
+    console.log("[requireSignedAction] OK pass-through (signature verified; no role gate) actor_pub_fp=" + fp + " authorized_by_user_id=" + user.id);
   }
-  console.log("[requireSignedAction] OK pass-through to handler");
   // 9. Record the nonce so subsequent attempts fail with nonce_already_used.
   //    Best-effort opportunistic GC of expired rows on the same call.
   await env.DB.prepare(
@@ -2318,7 +2348,21 @@ async function requireSignedAction(body, env, opts) {
     await env.DB.prepare("DELETE FROM action_nonces WHERE expires_at < ?").bind(t).run();
   } catch (_) {}
 
-  return { ok: true, user, org, role, payload };
+  return {
+    ok: true,
+    user,
+    actor_user: user,
+    actor_pub_fp: fp,
+    session_user: sessionUser,
+    authorized_by_user: sessionUser || user,
+    signing_role: role,
+    session_role: sessionRole,
+    effective_role: effectiveRole,
+    role: effectiveRole,
+    authority_path: authorityPath,
+    org,
+    payload
+  };
 }
 
 async function requireFreshStaffProof(request, env, org) {
@@ -2692,13 +2736,15 @@ async function bindAdditionalExpectedKey(request, env, id) {
   // signed envelope tied to the specific action by type discriminator
   // (irlid_bind_v5) and target expected_id. No more "is this session
   // fresh enough" gate; the signature itself IS the freshness proof.
-  // v5.10.0.4 — pass body in directly; do NOT pass request (body is already consumed above).
+  // v5.10.1 Path B passes request as authority context only; body remains
+  // pre-parsed so the Worker stream is not consumed twice.
   const action = await requireSignedAction(body, env, {
     expectedType: "irlid_bind_v5",
     orgId: org.id,
     minRole: "staff",
     payloadSchema: (p) => Number(p.expected_id) === Number(id)
-      && typeof p.new_device_key_fp === "string" && p.new_device_key_fp.length >= 8
+      && typeof p.new_device_key_fp === "string" && p.new_device_key_fp.length >= 8,
+    request
   });
   if (action.error) return action.error;
 
@@ -2733,7 +2779,15 @@ async function bindAdditionalExpectedKey(request, env, id) {
   } else {
     await env.DB.prepare(
       "INSERT INTO rebind_history (org_code,expected_id,old_device_fp,new_device_fp,admin_signature,reason,created_at) VALUES (?,?,?,?,?,?,?)"
-    ).bind(org.id, id, expected.device_key_fp, pubFp, `bind-additional:${org.id}:${t}`, "doorman_choose_from_list", t).run();
+    ).bind(
+      org.id,
+      id,
+      expected.device_key_fp,
+      pubFp,
+      `bind-additional:${org.id}:${t}:actor:${action.actor_pub_fp}:authorized_by:${action.authorized_by_user?.id || ""}`,
+      "doorman_choose_from_list",
+      t
+    ).run();
     await env.DB.prepare(
       "UPDATE org_expected SET status='linked', linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=?"
     ).bind(t, id, org.id).run();
@@ -2760,7 +2814,8 @@ async function orgExpectedCreateAndBind(request, env) {
   // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof.
   // The signed envelope encodes the specific attendee being created and the
   // device fp being bound; cross-action replay is structurally impossible.
-  // v5.10.0.4 — pass body in directly; do NOT pass request (body is already consumed above).
+  // v5.10.1 Path B passes request as authority context only; body remains
+  // pre-parsed so the Worker stream is not consumed twice.
   const action = await requireSignedAction(body, env, {
     expectedType: "irlid_create_bind_v5",
     orgId: org.id,
@@ -2768,7 +2823,8 @@ async function orgExpectedCreateAndBind(request, env) {
     payloadSchema: (p) => p.first_name === firstName
       && p.surname === surname
       && p.role === prototypeRole
-      && p.new_device_key_fp === deviceFp
+      && p.new_device_key_fp === deviceFp,
+    request
   });
   if (action.error) return action.error;
 
@@ -2802,7 +2858,7 @@ async function orgExpectedCreateAndBind(request, env) {
     }
     await env.DB.prepare(
       "INSERT OR REPLACE INTO org_memberships (user_id,org_id,role,granted_by,granted_at) VALUES (?,?,?,?,?)"
-    ).bind(user.id, org.id, prototypeRole, action.user?.id || null, t).run();
+    ).bind(user.id, org.id, prototypeRole, action.authorized_by_user?.id || action.user?.id || null, t).run();
     member = { user_id: user.id, org_id: org.id, role: prototypeRole, granted_at: t };
   }
 
