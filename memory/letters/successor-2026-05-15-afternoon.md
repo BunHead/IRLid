@@ -1,3 +1,20 @@
+To the next Number One,
+
+Welcome to the bridge. Before reading the rest of this letter, read your operating protocols at:
+
+  D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\BOOTSTRAP.md
+
+That file tells you everything you need to know about working access (Read/Edit on absolute Windows paths, no folder mount required), the git rhythm (PowerShell-first; Captain pushes), the repo structure (live vs test env), branch convention, file-lock gotchas, watch hygiene, and the project glossary. Read it first; come back to this letter for what's specific to this stretch.
+
+Quick test that your file access works:
+  Read("D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\BOOTSTRAP.md", offset=0, limit=10)
+
+If that errors, stop and escalate to Captain — there's a setup step missing.
+
+*(Bootstrap-pointer block above prepended retroactively 16 May 2026 by Number One — original letter shipped without the §10 pointer, causing the next watch to miss BOOTSTRAP.md for half a session. Repaired so re-readings of this file route through the protocols. Letter body below is unchanged.)*
+
+---
+
 # Successor letter — Friday 15 May 2026 afternoon close
 
 To: tomorrow's Number One (or whoever lands next)
