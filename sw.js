@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v9'; // v5.10.0.5 bump — Worker fix: bootstrap developer fp now grants implicit developer role in requireSignedAction (was failing insufficient_role because bootstrap user had no org_memberships row)
+const CACHE_VERSION = 'irlid-shell-v10'; // v5.10.1 bump — Path B Bearer-resolved authority in requireSignedAction + OrgCheckin build pill
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

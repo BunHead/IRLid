@@ -890,6 +890,22 @@ To set expectations clearly:
 
 The §III.2 row is the headline. cym13's r/netsec criticism, which is the strongest honest critique of the protocol on public record, is closed by v5.
 
+### 13.18 Signature is not authority (v5.10.1 Path B)
+
+Per-action signed envelopes carry two orthogonal proofs:
+
+1. **Signature** - the WebAuthn-signed envelope proves a specific device, holding a specific v5 credential, performed a user-verified gesture at a specific time, against a non-replayable nonce. This is non-repudiation. The signing fingerprint is recorded as the action's actor.
+
+2. **Authority** - the request's Bearer session token resolves to a `portal_users` row with a role on the org. The session user's role can be what the action gate evaluates.
+
+If the signing fingerprint has sufficient role on the org, via membership or bootstrap developer recognition, authority resolves directly from the signature. Otherwise, authority may be delegated from the Bearer session, provided the session user has sufficient role. In all cases, audit evidence must capture both:
+- `actor_pub_fp` - who signed.
+- `authorized_by_user_id` - who the session was issued to.
+
+This permits cross-device delegation while maintaining device-level non-repudiation. A user signed in as developer via QR on Phone X may sign manager actions from any other device Y, provided Y holds an enrolled v5 credential and the user's session is alive.
+
+Action nonces remain global per the existing freshness window. Each signed envelope is single-use, regardless of which authority path validated it.
+
 ---
 
 ## 14. Identity-Bound Sessions (v5.5)
