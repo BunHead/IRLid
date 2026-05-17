@@ -3715,6 +3715,38 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-drill-expected-row .status.ok { color: #c0dd97; }
         .v511-drill-expected-row .status.pending { color: #fac775; }
         .v511-drill-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .v511-rooms-list { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(0,0,0,0.18); overflow: hidden; }
+        .v511-room-row { display: grid; grid-template-columns: 1fr 110px 100px; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: var(--text); }
+        .v511-room-row:last-child { border-bottom: none; }
+        .v511-room-cap { color: var(--muted); font-size: 12px; }
+        .v511-room-actions { display: flex; gap: 4px; justify-content: flex-end; }
+        .v511-cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+        .v511-cal-view-toggle { display: flex; gap: 4px; padding: 3px; background: rgba(0,0,0,0.22); border-radius: 8px; }
+        .v511-cal-view-toggle button { padding: 5px 11px; font-size: 12px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: var(--muted); font-family: inherit; }
+        .v511-cal-view-toggle button.active { background: rgba(105, 168, 255, 0.18); color: var(--text); border-color: rgba(105, 168, 255, 0.4); font-weight: 600; }
+        .v511-cal-room-filter { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+        .v511-cal-room-filter select { height: 28px; font-size: 12px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
+        .v511-room-tag { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 5px; margin-left: 8px; font-weight: 600; vertical-align: 1px; }
+        .v511-room-tag.room-studio1 { background: rgba(105, 168, 255, 0.2); color: #c8e0ff; }
+        .v511-room-tag.room-studio2 { background: rgba(99,153,34,0.2); color: #c0dd97; }
+        .v511-room-tag.room-studio3 { background: rgba(186,117,23,0.2); color: #fac775; }
+        .v511-swimlane-info { padding: 10px 14px; background: rgba(186,117,23,0.08); border: 1px solid rgba(186,117,23,0.25); border-radius: 10px; margin-bottom: 10px; font-size: 12px; color: var(--text); line-height: 1.5; }
+        .v511-swimlane-grid { display: grid; grid-template-columns: 60px repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.18); overflow: hidden; }
+        .v511-swim-header { padding: 9px 8px; background: rgba(11,18,32,0.94); border-bottom: 1px solid var(--line); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+        .v511-swim-header.col-time { color: var(--muted); }
+        .v511-swim-header.col-studio1 { color: #c8e0ff; border-top: 2px solid #58a6ff; }
+        .v511-swim-header.col-studio2 { color: #c0dd97; border-top: 2px solid #639922; }
+        .v511-swim-header.col-studio3 { color: #fac775; border-top: 2px solid #BA7517; }
+        .v511-swim-time { padding: 10px 8px; font-size: 12px; color: var(--muted); border-top: 1px solid rgba(255,255,255,0.04); display: flex; align-items: center; }
+        .v511-swim-cell { padding: 6px; min-height: 52px; border-top: 1px solid rgba(255,255,255,0.04); border-left: 1px solid rgba(255,255,255,0.04); }
+        .v511-swim-cell[data-band="light"] { background: rgba(255,255,255,0.04); }
+        .v511-swim-cell[data-band="dim"] { background: transparent; }
+        .v511-swim-event { padding: 6px 9px; border-radius: 7px; font-size: 12px; cursor: pointer; line-height: 1.3; transition: transform 0.1s; }
+        .v511-swim-event:hover { transform: translateY(-1px); }
+        .v511-swim-event.room-studio1 { background: rgba(105, 168, 255, 0.22); color: #c8e0ff; border-left: 3px solid #58a6ff; }
+        .v511-swim-event.room-studio2 { background: rgba(99,153,34,0.22); color: #c0dd97; border-left: 3px solid #639922; }
+        .v511-swim-event.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left: 3px solid #BA7517; }
+        .v511-swim-event small { display: block; font-size: 10.5px; opacity: 0.85; margin-top: 2px; }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -3764,7 +3796,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
           <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
 
-          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day, full 24-hour view)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
+          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day, across rooms)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
+
+          <div class="v511-cal-toolbar">
+            <div class="v511-cal-view-toggle" role="tablist" aria-label="Calendar view mode">
+              <button type="button" class="active" data-cal-view="list" role="tab" aria-selected="true">List view</button>
+              <button type="button" data-cal-view="swimlane" role="tab" aria-selected="false">Swim-lane view</button>
+            </div>
+            <div class="v511-cal-room-filter">
+              <label for="v511CalRoomFilter">Room:</label>
+              <select id="v511CalRoomFilter">
+                <option value="all">All rooms</option>
+                <option value="studio1">Studio 1</option>
+                <option value="studio2">Studio 2</option>
+                <option value="studio3">Studio 3</option>
+              </select>
+            </div>
+          </div>
+
           <div class="v511-cal-wrap" id="v511CalWrap" role="grid" aria-label="Today's events, 24 hour slots">
             <div class="v511-cal-header" role="row">
               <div class="h" role="columnheader">Start</div><div class="h" role="columnheader">End</div><div class="h" role="columnheader">Event name</div><div class="h" role="columnheader">Cap.</div><div class="h" role="columnheader" aria-label="Actions"></div>
@@ -3776,12 +3825,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-cal-row empty" data-band="dim" data-hour="4" role="row"><div>04:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
             <div class="v511-cal-row empty" data-band="dim" data-hour="5" role="row"><div>05:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
 
-            <div class="v511-cal-row filled" data-band="dim" data-hour="6" role="row"><div>06:00</div><div>07:00</div><div>Sunrise yoga</div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="6" data-room="studio1" role="row"><div>06:00</div><div>07:00</div><div>Sunrise yoga <span class="v511-room-tag room-studio1">Studio 1</span></div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Sunrise yoga &mdash; 06:00 to 07:00 &mdash; capacity 15</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Sunrise yoga" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="06:00" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="07:00" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="15" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 15)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3795,12 +3845,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="dim" data-hour="7" role="row"><div>07:15</div><div>08:15</div><div>Early-bird HIIT</div><div>12</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="7" data-room="studio2" role="row"><div>07:15</div><div>08:15</div><div>Early-bird HIIT <span class="v511-room-tag room-studio2">Studio 2</span></div><div>12</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Early-bird HIIT &mdash; 07:15 to 08:15 &mdash; capacity 12</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Early-bird HIIT" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="07:15" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="08:15" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="12" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 12)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3816,12 +3867,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
             <div class="v511-cal-row empty" data-band="dim" data-hour="8" role="row"><div>08:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="9" role="row"><div>09:00</div><div>10:00</div><div>Beginners pilates <span class="v511-cal-band-tag" style="background: rgba(99,153,34,0.18); color: #c0dd97;">working hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="9" data-room="studio1" role="row"><div>09:00</div><div>10:00</div><div>Beginners pilates <span class="v511-room-tag room-studio1">Studio 1</span> <span class="v511-cal-band-tag" style="background: rgba(99,153,34,0.18); color: #c0dd97;">working hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Beginners pilates &mdash; 09:00 to 10:00 &mdash; capacity 20</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Beginners pilates" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="09:00" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="10:00" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="20" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 20)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3835,12 +3887,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="10" role="row"><div>10:15</div><div>11:15</div><div>Intermediate pilates</div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="10" data-room="studio2" role="row"><div>10:15</div><div>11:15</div><div>Intermediate pilates <span class="v511-room-tag room-studio2">Studio 2</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Intermediate pilates &mdash; 10:15 to 11:15 &mdash; capacity 20</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Intermediate pilates" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="10:15" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="11:15" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="20" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(3 of 20)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3853,12 +3906,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="11" role="row"><div>11:30</div><div>12:30</div><div>Yoga flow</div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="11" data-room="studio1" role="row"><div>11:30</div><div>12:30</div><div>Yoga flow <span class="v511-room-tag room-studio1">Studio 1</span></div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Yoga flow &mdash; 11:30 to 12:30 &mdash; capacity 15</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Yoga flow" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="11:30" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="12:30" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="15" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 15)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Spencer Austin</div><div>Owner</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3872,12 +3926,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="12" role="row"><div>12:45</div><div>13:30</div><div>Lunch stretch</div><div>10</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="12" data-room="studio3" role="row"><div>12:45</div><div>13:30</div><div>Lunch stretch <span class="v511-room-tag room-studio3">Studio 3</span></div><div>10</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Lunch stretch &mdash; 12:45 to 13:30 &mdash; capacity 10</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Lunch stretch" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="12:45" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="13:30" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="10" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(2 of 10)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3891,12 +3946,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
             <div class="v511-cal-row empty" data-band="light" data-hour="13" role="row"><div>13:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="14" role="row"><div>14:00</div><div>15:30</div><div>Spin class</div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="14" data-room="studio2" role="row"><div>14:00</div><div>15:30</div><div>Spin class <span class="v511-room-tag room-studio2">Studio 2</span></div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Spin class &mdash; 14:00 to 15:30 &mdash; capacity 25</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Spin class" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="14:00" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="15:30" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="25" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 25)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Spencer Austin</div><div>Owner</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3912,12 +3968,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
             <div class="v511-cal-row empty" data-band="light" data-hour="15" role="row"><div>15:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="16" role="row"><div>16:00</div><div>17:00</div><div>Kids dance</div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="16" data-room="studio3" role="row"><div>16:00</div><div>17:00</div><div>Kids dance <span class="v511-room-tag room-studio3">Studio 3</span></div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Kids dance &mdash; 16:00 to 17:00 &mdash; capacity 18</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Kids dance" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="16:00" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="17:00" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="18" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(3 of 18)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Poppy Austin</div><div>Instructor</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3930,12 +3987,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="light" data-hour="17" role="row"><div>17:15</div><div>18:15</div><div>Boxing fundamentals</div><div>14</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="17" data-room="studio2" role="row"><div>17:15</div><div>18:15</div><div>Boxing fundamentals <span class="v511-room-tag room-studio2">Studio 2</span></div><div>14</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Boxing fundamentals &mdash; 17:15 to 18:15 &mdash; capacity 14</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Boxing fundamentals" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="17:15" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="18:15" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="14" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(3 of 14)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Spencer Austin</div><div>Owner</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3948,12 +4006,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="dim" data-hour="18" role="row"><div>18:30</div><div>19:30</div><div>Evening pilates <span class="v511-cal-band-tag">off-hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="18" data-room="studio1" role="row"><div>18:30</div><div>19:30</div><div>Evening pilates <span class="v511-room-tag room-studio1">Studio 1</span> <span class="v511-cal-band-tag">off-hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Evening pilates &mdash; 18:30 to 19:30 &mdash; capacity 20</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Evening pilates" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="18:30" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="19:30" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="20" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 20)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3967,12 +4026,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
-            <div class="v511-cal-row filled" data-band="dim" data-hour="19" role="row"><div>19:45</div><div>20:45</div><div>Power yoga</div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="19" data-room="studio1" role="row"><div>19:45</div><div>20:45</div><div>Power yoga <span class="v511-room-tag room-studio1">Studio 1</span></div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Power yoga &mdash; 19:45 to 20:45 &mdash; capacity 18</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Power yoga" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="19:45" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="20:45" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="18" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(3 of 18)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Spencer Austin</div><div>Owner</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -3987,12 +4047,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
             <div class="v511-cal-row empty" data-band="dim" data-hour="20" role="row"><div>20:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
 
-            <div class="v511-cal-row filled" data-band="dim" data-hour="21" role="row"><div>21:00</div><div>22:00</div><div>Late-night meditation</div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="21" data-room="studio3" role="row"><div>21:00</div><div>22:00</div><div>Late-night meditation <span class="v511-room-tag room-studio3">Studio 3</span></div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
             <div class="v511-cal-drilldown" hidden>
               <div class="v511-drill-head"><strong>Late-night meditation &mdash; 21:00 to 22:00 &mdash; capacity 25</strong><button type="button" class="v511-btn v511-btn-mini" data-drill-close>&times; Close</button></div>
               <div class="v511-row"><label>Event name</label><input type="text" value="Late-night meditation" /></div>
               <div class="v511-row"><label>Time &amp; capacity</label><div style="display: flex; gap: 8px; align-items: center;"><input type="text" value="21:00" style="width: 80px;" /><span class="v511-hint">to</span><input type="text" value="22:00" style="width: 80px;" /><span class="v511-hint" style="margin-left: 8px;">capacity</span><input type="number" value="25" style="width: 70px;" /></div></div>
               <div class="v511-row"><label>Override defaults</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Use this event's own duration / grace / min trust score</span></div></div>
+              <div class="v511-row"><label>Room</label><select><option>Studio 1</option><option>Studio 2</option><option>Studio 3</option></select></div>
               <div class="v511-sub" style="margin-top: 12px;">Expected list <span class="v511-hint-inline">(4 of 25)</span></div>
               <div class="v511-drill-expected">
                 <div class="v511-drill-expected-row"><div>Kerry Austin</div><div>Member</div><div class="status ok">&check; linked</div><div><button type="button" class="v511-btn v511-btn-mini" title="Remove">&times;</button></div></div>
@@ -4009,7 +4070,51 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-cal-row empty" data-band="dim" data-hour="22" role="row"><div>22:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
             <div class="v511-cal-row empty" data-band="dim" data-hour="23" role="row"><div>23:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
           </div>
-          <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;"><button type="button" class="v511-btn">+ Add event</button> <span class="v511-hint">12 of 24 slots in use &middot; working hours band (09:00&ndash;17:59) shown brighter</span></div>
+          <div class="v511-cal-swimlane-view" id="v511CalSwimlane" hidden>
+            <div class="v511-swimlane-info"><strong style="color: #fac775;">Swim-lane view</strong> &mdash; rooms as columns, time as rows. Each block is an event in that room at that hour. Showing a 6-hour window below (08:00&ndash;13:00) as a preview; full 24-hour swim-lane + drag-to-create + multi-hour spanning + conflict highlighting are v5.12+ work. <span class="v511-badge v511-badge-design" style="margin-left: 4px;">design-in</span></div>
+            <div class="v511-swimlane-grid">
+              <div class="v511-swim-header col-time">Time</div>
+              <div class="v511-swim-header col-studio1">Studio 1</div>
+              <div class="v511-swim-header col-studio2">Studio 2</div>
+              <div class="v511-swim-header col-studio3">Studio 3</div>
+
+              <div class="v511-swim-time" data-band="dim">08:00</div>
+              <div class="v511-swim-cell" data-band="dim"></div>
+              <div class="v511-swim-cell" data-band="dim"></div>
+              <div class="v511-swim-cell" data-band="dim"></div>
+
+              <div class="v511-swim-time" data-band="light">09:00</div>
+              <div class="v511-swim-cell" data-band="light"><div class="v511-swim-event room-studio1">Beginners pilates<small>09:00&ndash;10:00 &middot; cap 20</small></div></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+
+              <div class="v511-swim-time" data-band="light">10:00</div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"><div class="v511-swim-event room-studio2">Intermediate pilates<small>10:15&ndash;11:15 &middot; cap 20</small></div></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+
+              <div class="v511-swim-time" data-band="light">11:00</div>
+              <div class="v511-swim-cell" data-band="light"><div class="v511-swim-event room-studio1">Yoga flow<small>11:30&ndash;12:30 &middot; cap 15</small></div></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+
+              <div class="v511-swim-time" data-band="light">12:00</div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"><div class="v511-swim-event room-studio3">Lunch stretch<small>12:45&ndash;13:30 &middot; cap 10</small></div></div>
+
+              <div class="v511-swim-time" data-band="light">13:00</div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+              <div class="v511-swim-cell" data-band="light"></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="v511-btn">+ Add event</button>
+            <button type="button" class="v511-btn">&darr; Export day (all rooms, all events)</button>
+            <span class="v511-hint" style="margin-left: auto;">12 of 24 slots in use &middot; working hours band (09:00&ndash;17:59) shown brighter</span>
+          </div>
 
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
 
@@ -4026,6 +4131,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Manager</label><input type="text" value="Studio Manager" /></div>
           <div class="v511-row"><label>Lead admin</label><input type="text" value="Owner" /></div>
           <div class="v511-hint" style="padding: 4px 0;">Developer role is platform-level and is not shown here — it never changes and non-Developer roles can't edit it.</div>
+
+          <div class="v511-sub">Rooms / spaces <span class="v511-hint-inline">(each event runs in one room; rooms have their own venue QR and capacity)</span></div>
+          <div class="v511-rooms-list">
+            <div class="v511-room-row"><div>Studio 1 <span class="v511-hint-inline">— main hall</span></div><div class="v511-room-cap">cap 30</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+            <div class="v511-room-row"><div>Studio 2</div><div class="v511-room-cap">cap 20</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+            <div class="v511-room-row"><div>Studio 3 <span class="v511-hint-inline">— kids room</span></div><div class="v511-room-cap">cap 15</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+          </div>
+          <div style="margin-top: 10px;"><button type="button" class="v511-btn">+ Add room</button> <span class="v511-hint" style="margin-left: 8px;">Each room gets its own venue QR at the entrance; doorman flow scopes to the room you scanned into.</span></div>
 
           <div class="v511-sub">Staff list</div>
           <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
@@ -4222,6 +4335,44 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             });
           });
+
+          // v5.11 mockup — calendar view toggle (List vs Swim-lane).
+          var viewToggles = document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]');
+          var calListView = document.getElementById('v511CalWrap');
+          var calSwimView = document.getElementById('v511CalSwimlane');
+          viewToggles.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var target = btn.getAttribute('data-cal-view');
+              viewToggles.forEach(function (b) {
+                var isActive = b === btn;
+                b.classList.toggle('active', isActive);
+                b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+              });
+              if (calListView) calListView.hidden = (target !== 'list');
+              if (calSwimView) calSwimView.hidden = (target !== 'swimlane');
+            });
+          });
+
+          // v5.11 mockup — room filter in List view. Hides rows + their
+          // drill-downs that don't match the selected room. Empty hour rows
+          // stay visible regardless so the 24-hour shape remains legible.
+          var roomFilter = document.getElementById('v511CalRoomFilter');
+          if (roomFilter) {
+            roomFilter.addEventListener('change', function () {
+              var sel = roomFilter.value;
+              document.querySelectorAll('.v511-cal-row').forEach(function (row) {
+                if (row.classList.contains('empty')) { row.style.display = ''; return; }
+                var rowRoom = row.getAttribute('data-room');
+                var match = (sel === 'all' || rowRoom === sel);
+                row.style.display = match ? '' : 'none';
+                var next = row.nextElementSibling;
+                if (next && next.classList.contains('v511-cal-drilldown')) {
+                  next.style.display = match ? '' : 'none';
+                  if (!match) next.hidden = true;
+                }
+              });
+            });
+          }
 
           // v5.11 mockup — per-event drill-down accordion. Click "Edit" on any
           // filled calendar row to expand the inline panel beneath it (event
