@@ -1178,6 +1178,24 @@ async function requireSession(request, env) {
   return { user };
 }
 
+async function userSignOutAllDevices(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
+  if (!m) return json({ error: "missing_bearer" }, 401);
+  const token = m[1].trim();
+  if (!token) return json({ error: "missing_bearer" }, 401);
+
+  const session = await env.DB.prepare(
+    "SELECT user_id FROM login_sessions WHERE token = ?"
+  ).bind(token).first();
+  if (!session) return json({ error: "auth_failed" }, 401);
+
+  const result = await env.DB.prepare(
+    "DELETE FROM login_sessions WHERE user_id = ?"
+  ).bind(session.user_id).run();
+  return json({ ok: true, sessions_revoked: result.meta?.changes || 0 });
+}
+
 // GET /user/orgs — list orgs the authenticated user belongs to, with role and api_key
 // (api_key is returned to authorized members so the existing X-Org-Key dashboard code
 // can keep working during the v5.5 transition; v6+ will move dashboard ops onto Bearer
@@ -3124,6 +3142,7 @@ export default {
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);
       else if (method === "POST" && path === "/user/create-org")     response = await userCreateOrg(request, env);
+      else if (method === "POST" && path === "/user/sign-out-all-devices") response = await userSignOutAllDevices(request, env);
       else if (method === "POST" && /^\/user\/orgs\/[^/]+\/scrape-theme$/.test(path)) {
         const mScrapeTheme = path.match(/^\/user\/orgs\/([^/]+)\/scrape-theme$/);
         response = await userScrapeTheme(request, env, decodeURIComponent(mScrapeTheme[1]));

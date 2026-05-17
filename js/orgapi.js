@@ -104,6 +104,15 @@
         body: payload
       });
     },
+    async signOutAllDevices(sessionToken) {
+      const resp = await fetch(getBaseUrl() + "/user/sign-out-all-devices", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + sessionToken }
+      });
+      let data = null;
+      try { data = await resp.json(); } catch (_) {}
+      return { ok: resp.ok, status: resp.status, data };
+    },
     createInvite(sessionToken, payload) {
       return request("/org/invites/create", {
         method: "POST",
