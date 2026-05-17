@@ -3756,6 +3756,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-expander[open] > summary { border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-expander-body { padding: 12px 16px 14px; }
         .v511-expander summary .v511-hint-inline { margin-left: 6px; font-weight: 400; }
+        .v511-subtabs { display: flex; gap: 4px; padding: 4px; background: rgba(0,0,0,0.24); border-radius: 8px; margin-bottom: 14px; }
+        .v511-subtabs button { flex: 1 1 auto; padding: 7px 14px; font-size: 12px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: var(--muted); font-family: inherit; }
+        .v511-subtabs button:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+        .v511-subtabs button.active { background: rgba(105, 168, 255, 0.2); color: var(--text); border-color: rgba(105, 168, 255, 0.45); font-weight: 600; }
+        .v511-subpanel { display: none; }
+        .v511-subpanel.active { display: block; }
+        .v511-palette-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 4px 0; }
+        .v511-palette-swatch { width: 38px; height: 38px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.18); cursor: pointer; transition: transform 0.1s; }
+        .v511-palette-swatch:hover { transform: translateY(-1px); }
+        .v511-palette-swatch.empty { background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; border: 1px dashed rgba(255,255,255,0.18); }
+        .v511-celeb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0; }
+        @media (max-width: 640px) { .v511-celeb-grid { grid-template-columns: 1fr; } }
+        .v511-celeb-effect { padding: 9px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; transition: background 0.15s; }
+        .v511-celeb-effect:hover { background: rgba(255,255,255,0.05); }
+        .v511-celeb-effect label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--text); }
+        .v511-celeb-effect .v511-hint { display: block; margin-top: 4px; padding-left: 23px; }
+        .v511-anim-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 7px 0; }
+        .v511-anim-row > label { color: var(--muted); width: 140px; }
+        .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
+        .v511-anim-row input[type=range] { flex: 1; }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -4197,8 +4217,76 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Background</label><span class="v511-hint">Palette &middot; pattern &middot; image &mdash; set inside advanced</span></div>
           <div class="v511-row"><label>Celebration</label><span class="v511-hint">Pulse &middot; background &middot; QR &middot; glow &middot; pattern &middot; text &mdash; inside advanced</span></div>
 
-          <div class="v511-info">The theming surface is intentionally deep. Click <strong style="color: var(--text);">Open advanced theming</strong> to drill into palette wheels, pattern picker, celebration variants, and image controls. The summary stays this short.</div>
-          <div style="margin-top: 12px;"><button type="button" class="v511-btn">Open advanced theming &rarr;</button></div>
+          <div class="v511-info">The theming surface is intentionally deep. The top stays brief; click <strong style="color: var(--text);">Advanced theming</strong> below for palettes, animations, pattern picker, image controls.</div>
+
+          <details class="v511-expander">
+            <summary>Advanced theming <span class="v511-hint-inline">(palettes &amp; animation tabs &mdash; deep customisation)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-subtabs" role="tablist" aria-label="Advanced theming sub-tabs">
+                <button type="button" class="active" data-v511-subtab="palettes" role="tab" aria-selected="true">Palettes</button>
+                <button type="button" data-v511-subtab="animation" role="tab" aria-selected="false">Animation</button>
+              </div>
+
+              <!-- ===== SUB-TAB: PALETTES ===== -->
+              <div class="v511-subpanel active" data-v511-subpanel="palettes" role="tabpanel">
+                <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; used by page-cycle animation and pattern overlay)</span></div>
+                <div class="v511-palette-row">
+                  <div class="v511-palette-swatch" style="background: #DC143C;" title="#DC143C"></div>
+                  <div class="v511-palette-swatch" style="background: #8B0000;" title="#8B0000"></div>
+                  <div class="v511-palette-swatch" style="background: #FF6B6B;" title="#FF6B6B"></div>
+                  <div class="v511-palette-swatch" style="background: #FFB347;" title="#FFB347"></div>
+                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 6px;">
+                  <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
+                  <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
+                </div>
+
+                <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(up to 7 colours; used by the accept-cycle burst on successful check-in)</span></div>
+                <div class="v511-palette-row">
+                  <div class="v511-palette-swatch" style="background: #58a6ff;" title="#58a6ff"></div>
+                  <div class="v511-palette-swatch" style="background: #c0dd97;" title="#c0dd97"></div>
+                  <div class="v511-palette-swatch" style="background: #fac775;" title="#fac775"></div>
+                  <div class="v511-palette-swatch" style="background: #f09595;" title="#f09595"></div>
+                  <div class="v511-palette-swatch" style="background: #af9aec;" title="#af9aec"></div>
+                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                </div>
+                <div style="margin-top: 10px; display: flex; gap: 6px;">
+                  <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
+                  <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
+                </div>
+              </div>
+
+              <!-- ===== SUB-TAB: ANIMATION ===== -->
+              <div class="v511-subpanel" data-v511-subpanel="animation" role="tabpanel" hidden>
+                <div class="v511-sub" style="margin-top: 0;">Background animation <span class="v511-hint-inline">(continuous &mdash; runs throughout the check-in screen)</span></div>
+                <div class="v511-anim-row"><label>Mode</label><select><option>Off (flat dark)</option><option selected>Page colour cycle</option><option>Pattern</option><option>Image</option></select></div>
+                <div class="v511-anim-row"><label>Page intensity</label><select><option selected>Muted (deep tinted)</option><option>Vibrant (palette colours direct)</option></select></div>
+                <div class="v511-anim-row"><label>Pattern</label><select><option>Dots</option><option>Hex grid</option><option>Diagonal stripes</option><option>Checkerboard</option><option>Grid</option><option>Weave</option><option>Chevron</option><option>Isometric</option></select></div>
+                <div class="v511-anim-row"><label>Cycle duration</label><input type="range" min="5" max="120" value="30" /><span class="v511-hint" style="min-width: 40px;">30s</span></div>
+                <div style="margin-top: 8px;"><button type="button" class="v511-btn v511-btn-mini">Preview background</button></div>
+
+                <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(one-shot &mdash; fires on successful check-in)</span></div>
+                <div class="v511-hint" style="padding: 0 0 8px;">Tick the effects you want layered on a successful check-in. Each effect can be combined with others. Zero ticks = no celebration.</div>
+                <div class="v511-celeb-grid">
+                  <div class="v511-celeb-effect"><label><input type="checkbox" /> Pulse</label><span class="v511-hint">Quiet coloured throb around the QR border.</span></div>
+                  <div class="v511-celeb-effect"><label><input type="checkbox" /> Background</label><span class="v511-hint">QR canvas cycles palette colours once behind the code.</span></div>
+                  <div class="v511-celeb-effect"><label><input type="checkbox" /> QR motion</label><span class="v511-hint">Wobble / zoom-in / zoom-out / dissolve / rotate.</span></div>
+                  <div class="v511-celeb-effect"><label><input type="checkbox" checked /> Glow</label><span class="v511-hint">Conic gradient ring sweep plus centre pulse.</span></div>
+                  <div class="v511-celeb-effect"><label><input type="checkbox" /> Pattern</label><span class="v511-hint">Tiled pattern overlay flashes once. Eight patterns available.</span></div>
+                  <div class="v511-celeb-effect"><label><input type="checkbox" /> Text</label><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></div>
+                </div>
+                <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" style="min-width: 40px;">1.4s</span></div>
+                <div style="margin-top: 8px; display: flex; gap: 6px;">
+                  <button type="button" class="v511-btn v511-btn-mini">Preview celebration</button>
+                  <button type="button" class="v511-btn v511-btn-mini">Preview deny</button>
+                </div>
+              </div>
+            </div>
+          </details>
 
           <details class="v511-expander">
             <summary>Post-accept behaviour <span class="v511-hint-inline">(advanced — what happens after the green tick)</span></summary>
@@ -4441,6 +4529,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               });
             });
           }
+
+          // v5.11 mockup — Visual theming → Advanced theming sub-tabs (Palettes / Animation).
+          var subtabs = document.querySelectorAll('.v511-subtabs button[data-v511-subtab]');
+          var subpanels = document.querySelectorAll('.v511-subpanel[data-v511-subpanel]');
+          subtabs.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var target = btn.getAttribute('data-v511-subtab');
+              subtabs.forEach(function (b) {
+                var isActive = b === btn;
+                b.classList.toggle('active', isActive);
+                b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+              });
+              subpanels.forEach(function (p) {
+                var isActive = p.getAttribute('data-v511-subpanel') === target;
+                p.classList.toggle('active', isActive);
+                p.hidden = !isActive;
+              });
+            });
+          });
 
           // v5.11 mockup — per-event drill-down accordion. Click "Edit" on any
           // filled calendar row to expand the inline panel beneath it (event
