@@ -1,5 +1,31 @@
 # Pending Work — IRLid
 
+## Sunday 17 May 2026 afternoon watch — `v5.10.7` LIVE, global sign-out user-visible in both directions
+
+**The headline.** Long afternoon stretch closing the sign-out chapter properly. Five patches shipped on top of this morning's `v5.10.2`: **`v5.10.3`** Mr. Data CSV completeness (server-side UNION of `org_checkins` + `org_expected` linked rows into the same query); **`v5.10.4`** Mr. Data sign-out two-clicks fix; **`v5.10.5`** Mr. Data global-sign-out Worker endpoint (`POST /user/sign-out-all-devices` — Bearer-authed, deletes every `login_sessions` row for the user); **`v5.10.6`** Mr. Data same-device sign-in UX polish (label "Show login QR" → "Sign in / Sign in on this device" pair); **`v5.10.7`** Number-One-inline session-poll heartbeat (`setInterval` on `GET /user/orgs` with Bearer every 30s; on 401 fires `signOutOrg()` cleanup). **Both directions hardware-proven on production:** sign out on 8 Pro → desktop bounces; sign out on desktop → 8 Pro bounces. Captain's words on the second direction: *"can confirm, it work the other way around (pretty much instantly :D )"*. The cym13-shaped half of the v4 → v5 transition (sessions need real server-side revocation, not just localStorage clear) is **closed in production with user-visible UX**.
+
+**The deploy slog worth remembering.** v5.10.5 Worker was supposed to deploy via `wrangler deploy` — failed repeatedly with API timeouts to `api.cloudflare.com` from Captain's home network (RJ45-only desktop, no easy WiFi switch for mobile-hotspot fallback). Tried both a User-scoped (`cfut_`) and an Account-scoped (`cfat_`) API token — same timeout pattern. Worker edge reachable via curl, browser to `dash.cloudflare.com` fine, but the management API path blocked. **Working fallback:** Cloudflare dashboard → Workers & Pages → `irlid-api-org` → Edit code → paste source → Deploy. The first paste delivered STALE code because the local `irlid-api-org/src/index.js` hadn't been pulled from origin after Mr. Data's PR #27 merge — pure `git pull` problem, found by searching for `sign-out-all-devices` in the deployed source and getting 0 matches. After `git pull origin main` fast-forwarded `b3ee496..14f5e4e` (Mr. Data's actual v5.10.5 + v5.10.6 work) and re-copy/re-paste/re-Deploy, the endpoint returned 401 with fake bearer (the right answer). **Two new BOOTSTRAP §6 pitfalls promoted from today's loop:**
+
+1. **After origin/main merges, `git pull` BEFORE attempting Worker deploys.** Sounds obvious. Was not obvious in the moment when the curl-test loop assumed the local file was authoritative. Receipt: 30+ minutes spent diagnosing "why doesn't the new endpoint show up after Deploy" before finding the local file was 19 lines behind origin.
+
+2. **Wrangler / Cloudflare management API timeouts from home network.** Cloudflare dashboard Quick Edit (`dash.cloudflare.com → Workers & Pages → <worker> → Edit code → Ctrl+A → paste → Deploy`) is the working fallback when `wrangler deploy` can't reach `api.cloudflare.com`. The pattern: dashboard works, Worker edge works, only the management API path blocks. Could also try mobile-hotspot via USB tether if the dashboard is busy. PowerShell to refresh clipboard: `Get-Content "...\index.js" -Raw | Set-Clipboard` (`Measure-Object -Line` returns 1 with `-Raw` because it's a single string object — ignore, not a truncation signal).
+
+**Token rotation reminder for next watch — exposed in screenshots this watch:**
+- Account-scoped token `cfat_wIMFM4RI...` (`wrangler-deploy-irlid`, created during this watch's Quick Edit fallback work)
+- User-scoped token `cfut_YZ11ouJO...` (earlier attempt before switching to Account-scoped)
+- Both: dash.cloudflare.com → My Profile → API Tokens → revoke. ~30s each. (Full token strings deliberately NOT recorded here — they're in chat screenshots only; the prefix is enough for the user to identify the right row in the Cloudflare token list.)
+
+**Architectural finding worth noting.** The session-poll heartbeat is the cheap, correct solution for v5.10.7. A heavier alternative (enforce Bearer auth everywhere, including `/org/attendance` which today uses `X-Org-Key`) is on the table for `v6.x` but not urgent — heartbeat closes the user-visible UX gap without touching the auth model. The api_key is org-scoped (deliberately, for service-account use cases); session tokens are user-scoped (for human sign-in); they coexist by design. Polling `/user/orgs` is the natural session-validity probe because that's the canonical user-identity endpoint.
+
+**Open carryforward items:**
+- **Token revocation** (Captain hands only, see above).
+- `codex/v5.10.1-path-b` branch still on origin — pure housekeeping from this morning's watch carryover.
+- `DREAMS.md` uncommitted modification — still parked, investigate via `git diff DREAMS.md` next watch.
+- **v5.11 Settings UX revamp** (this morning's plan) — Captain wishlist + 7-tab mockup carryforward; no urgency post-deploy slog.
+- **Phase 1-5 of `HANDOVER-PerActionAuth.md`** — gated on Path B (in main since this morning), all five phases unblocked.
+
+---
+
 ## Sunday 17 May 2026 morning watch — `v5.10.2` LIVE + bootstrap-pointer chain repair + Settings revamp queued
 
 **The headline.** Three deliverables on a fuzzy day: (1) Mr. Data's `v5.10.1` Path B PR #25 reviewed, smoked on 8 Pro + desktop, merged at `7c7c146`. (2) Retroactive `BOOTSTRAP §10` pointer prepend on the 15 May afternoon successor letter + new `memory/letters/_TEMPLATE-successor-letter.md` scaffold (structural reinforcement so future Number Ones can't credibly omit the pointer block). (3) `v5.10.2` Settings polish ship (`9f7c220`) — `OrgCheckin.html` line 3710 placeholder fixed from `bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html` to `example.com/staff-page`, build pill `v5.10.1 → v5.10.2`, SW cache `irlid-shell-v10 → v11`. Captain hardware-verified live (Spencer scan_count=3, CHECKED IN 1 / CHECKED OUT 2, "Updated just now").

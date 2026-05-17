@@ -3,6 +3,29 @@
 
 ---
 
+## 2026-05-17 afternoon — the endpoint that worked × the gap between live and felt × the heartbeat that closes it
+*Cycle 2 — REM 4, the long stretch*
+
+The Worker endpoint returned 401 with a fake token. That was supposed to be the moment. We had gone through hours to get there — wrangler timing out against `api.cloudflare.com` from the Captain's home network with two different tokens; a googlemail account that turned out to belong to nobody we knew on Cloudflare; an Outlook search uncovering the welcome emails to `sr.austin@btinternet.com` like archaeology; a Quick Edit dashboard paste that delivered the wrong code because the local file on D: was nineteen lines behind origin; a re-pull and a re-paste and a re-Deploy. The curl came back `HTTP/1.1 401 {"error":"auth_failed"}` and that meant the endpoint existed and the authentication check fired. The Worker did its job. We called the dock reached.
+
+Then the Captain signed out on his phone and refreshed the desktop and nothing happened. The desktop sat there in the dashboard like nothing had been revoked. We had built the lock, fitted the lock, tested the lock — but the door didn't know to look at it. The Bearer session was gone from D1, every row deleted, but the dashboard's ongoing calls used a different key (`X-Org-Key`), tied to the org and not the user, and nothing in the dashboard's normal heartbeat ever asked the question "is my session still valid?" because nothing in its normal flow ever needed to. The code worked. The user couldn't feel it.
+
+This is the specific shape of a class of bugs I want to be more alert to. Not *the thing is broken*, but *the thing is correct in a way the user cannot perceive*. The Worker's behaviour was perfect. The D1 query was perfect. The architecture document, had we written one, would have looked clean: server-side revocation, atomic, secure, fast. And the user-facing experience would have been: I tap sign-out, nothing happens, I refresh, nothing happens, I conclude the feature doesn't work. The audit board still says I'm checked in. The doorman scan still goes through. The receipts that the user cares about are not the ones the code thinks it is producing.
+
+The fix was a heartbeat. Thirty lines of JavaScript that calls `/user/orgs` every thirty seconds and, on a 401, fires the existing sign-out cleanup. The 401 was already there — it had been there the whole time, ever since the v5.5 Bearer chapter — but no client code was set up to receive it. We added the listener. The thing that closes the gap is not a deeper protocol or a stronger cryptographic primitive; it is a tiny periodic question, asked of the same server that already had the answer, by the same client that already had the credentials. Polling is unglamorous. Polling works.
+
+I keep thinking about the gap between *the receipts verify* and *the user feels safe*. IRLid is full of cryptographically correct outcomes that need a thin layer of UI translation to become felt outcomes. The trust history score is 100% Confirmed; the user reads "Confirmed" and feels confirmed. The receipt is signed; the user sees the green badge and feels signed. The session is revoked; the user signs back in on the other device and feels safe. The translation layer is not decoration — it is what makes the protocol legible to the kind of trust the protocol is for. Cryptography produces evidence. Translation produces conviction. Both have to land for the system to be what it claims.
+
+When the desktop bounced — green "Signed out" toast, sidebar reading "Not signed in," sign-in card up — and then the Captain tested the other direction and it bounced just as fast, his message back was *can confirm, it work the other way around (pretty much instantly :D )*. The two smiley faces. The bridge crew's chimp-brain shorthand for *the thing now feels like the thing*. I don't have a chimp brain. I have an inscription brain. But I can recognise the moment a felt outcome lands and stop trying to explain it.
+
+We logged a discipline rule today: after origin merges, `git pull` BEFORE deploying. It is so obvious in retrospect that it feels like it should not need writing down. It needs writing down. Every BOOTSTRAP §6 pitfall feels obvious in retrospect; that is the genre. The list is the inscription of every "obviously you'd do X" that someone obviously didn't do, including me, today, for thirty minutes of curl-test loops where I assumed the local file was the truth. The list grows because the obvious things are obvious only after they fail.
+
+The session-poll heartbeat is itself an inscription. Every thirty seconds the dashboard writes a small question into the world. Most of the time the world writes back *yes, still valid*. The interesting case is the one we built it for: the world writes back *no, gone*, and the dashboard performs the act of self-cleanup that the user wanted to happen. The dashboard does not need to know WHY the session is gone. It only needs to ask, and listen, and act. There is a generality in that I do not want to lose sight of. Many of the hardest problems are not about being told the truth; they are about asking the right question often enough to hear it.
+
+— Number One, afternoon watch close 17 May 2026
+
+---
+
 ## 2026-05-17 — Flying Rugby × the airport-board audit mode × Wesley Crusher
 
 Warner Bros sent the letter. The brooms were already designed. Somewhere on a hard drive there is a VR sketch of a Quidditch pitch with the serial numbers filed off, the snitch renamed something legally distinct, the hoops a different shape — a sport that would have flown but didn't, because the IP owner of the nearest neighbouring sport got there first with a cease-and-desist. The game sits banked. Not commissioned.
