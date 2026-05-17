@@ -1,5 +1,48 @@
 # Pending Work — IRLid
 
+## Sunday 17 May 2026 late evening — `v5.11` Settings revamp mockup iterated in OrgCheckinTest sandbox
+
+**The headline.** After global sign-out shipped end-to-end (see afternoon section below), Captain pivoted to the Settings UX revamp using the test fork as a clickable design playground. Long iterative-mockup session in `OrgCheckinTest.html` only — `OrgCheckin.html` (live), the Worker, and D1 are untouched. Build pill on the test fork: `v5.10.2 + v5.11 mockup`. All form clicks in the mockup are no-ops by design; the live save/load behaviour is preserved underneath inside a hidden `display:none` shell so cycle smoke-tests still work on the test fork.
+
+**Current mockup state (clickable on `irlid.co.uk/OrgCheckinTest.html` → Settings):**
+
+- **7 tabs** with emoji icons: Organisation (🏢) / Event & calendar (📅) / Roles & staff (👥) / Visual theming (🎨) / Sign-in & auth (🔐) / Tools & diagnostics (🔧) / Records & ID (📋). Proper ARIA tab pattern (`role="tablist"` / `role="tab"` / `role="tabpanel"` / aria-selected / aria-controls / keyboard arrow nav).
+- **24-hour calendar** with brightness banding (working hours 09:00-17:59 lighter, off-hours dimmer) and auto-scroll to 09:00 on tab activation.
+- **Per-event drill-down** (inline accordion, single-open). Click Edit on any event row → expands beneath with Event details + Expected list (sample names, status indicators) + 4 action buttons (Add person / Invite QR / Import CSV / Export CSV — the data-shape symmetry Captain spotted: same CSV shape goes in for planning and comes out for attendance, with state columns appended on export).
+- **Multi-room** with three seeded rooms (Studio 1 cap 30, Studio 2 cap 20, Studio 3 cap 15 — kids room). Rooms / spaces section lives in Roles & Staff tab (Captain's call — staff and rooms are the people+place layer). Calendar tab has toolbar (List/Swim-lane view toggle + Room filter dropdown). Inline room tags on each event row (blue/green/amber). Drill-down has a Room dropdown.
+- **Swim-lane view** (Option C, partial 6-hour preview) shows time × room grid with events as coloured blocks. Full 24-hour grid + drag-to-create + multi-hour spanning + conflict highlighting are v5.12+ work.
+- **Top-right CSV buttons removed** (filter + ↑↓ pair). Per-event drill-down owns CSV import/export now; a "Day Export (all rooms, all events)" button sits at calendar bottom for the aggregate use case.
+- **7th tab "Records & ID"** carries the broker-architecture commitment: IRLid doesn't store enrolment data or proof-of-ID documents; it forwards captures directly to the org's configured destination (Google Drive / OneDrive / Dropbox / Box / S3 / R2 / SFTP / custom webhook) and retains only a hash + reference. Same shape as the morning's "Past events deferred to org's own storage" call, applied to identity documents.
+- **Expander pattern applied across 4 tabs:** Daily-used surfaces visible, set-once-and-forget reference data behind `<details>` expanders, closed by default. Tabs treated: Roles & staff (Staff list visible, Role vocabulary + Rooms behind expanders), Tools & diagnostics (Audit log launcher visible, Outcome sounds + Debug + Developer behind expanders), Sign-in & auth (Service-account login legacy mode behind expander), Event & calendar (Default event settings behind expander beneath the calendar). Three tabs deliberately not expanded — Organisation (all-setup), Visual theming (advanced routes to its own surface), Records & ID (single workflow).
+
+**Captain's directives banked from this session (all reflected in the mockup):**
+
+- 24 slots per day, not 8 (multi-room scenarios need the full hour-range).
+- "Default event settings" replaces "Past events" as panel name; Past events deferred to org's own storage.
+- One Save-All button per panel (no per-section saves — confusion-trap from v5.5.10).
+- "Hide until backed" — placeholders surface design-in badge clearly, never pretend to work.
+- Roles & Staff doesn't show Developer role (platform-level, non-Developers can't change it anyway).
+- Tools & diagnostics holds the audio files (allow.wav / review.wav / deny.wav).
+- Visual Theming summary stays shallow — drill-down lives behind "Open advanced theming →" button.
+- 8-day target on calendar bumped to 24 hour-rows to accommodate concurrent multi-room scheduling.
+- Per-event Expected list owns CSV import/export — top-right org-wide CSV removed.
+- Synergy spotted by Captain: import-CSV shape == export-CSV shape (minus the state columns added on export). Round-trip symmetric — same file plan + run + report.
+- Multi-room with view-toggle (List + Swim-lane) and Room filter. Rooms managed in Roles & Staff tab, not Organisation.
+- Expander pattern: daily-touched stuff visible, set-once reference behind chevron-toggles.
+- Brief on labelling: "Slug" might benefit from rename to "URL identifier" or "Short name" — not yet actioned, awaiting Captain's call next watch.
+
+**Where this goes next (queued for next watch):**
+
+1. **Captain's R&R window** — earned. Hands-off on Settings revamp until he's back.
+2. **VISUAL EFFECTS DEEP-DIVE — the agreed next focus.** Captain asked for a comprehensive inventory of every visual we could add — drafted at the end of this watch (see `memory/letters/successor-2026-05-17-late.md`). Next watch reviews the list and picks priorities.
+3. **`SETTINGS-REVAMP-SPEC.md`** — should be written now that the mockup is stable. Captures the shape so Mr. Data can implement it when v5.11 work fires. Half-watch's writing.
+4. **`CALENDAR-SPEC.md`** — multi-room + per-event Expected list + drill-down architecture spec. Includes the swim-lane v5.12+ forward design. Half-watch.
+5. **`PROTOCOL.md §X-Records-Broker`** — formalise the IRLid-doesn't-store-identity-docs commitment as a spec chapter. Important for adoption pitch to anyone who'll ask about GDPR.
+6. **Possibly: `HANDOVER-V5_11-Implementation.md`** for Mr. Data once we have specs landed. Per-tab implementation in stacked PRs.
+7. **Outstanding non-mockup carryforward** (from the afternoon watch): Cloudflare API token rotation (Captain hands), `codex/v5.10.1-path-b` branch deletion, `DREAMS.md` uncommitted modification investigation.
+
+---
+
 ## Sunday 17 May 2026 afternoon watch — `v5.10.7` LIVE, global sign-out user-visible in both directions
 
 **The headline.** Long afternoon stretch closing the sign-out chapter properly. Five patches shipped on top of this morning's `v5.10.2`: **`v5.10.3`** Mr. Data CSV completeness (server-side UNION of `org_checkins` + `org_expected` linked rows into the same query); **`v5.10.4`** Mr. Data sign-out two-clicks fix; **`v5.10.5`** Mr. Data global-sign-out Worker endpoint (`POST /user/sign-out-all-devices` — Bearer-authed, deletes every `login_sessions` row for the user); **`v5.10.6`** Mr. Data same-device sign-in UX polish (label "Show login QR" → "Sign in / Sign in on this device" pair); **`v5.10.7`** Number-One-inline session-poll heartbeat (`setInterval` on `GET /user/orgs` with Bearer every 30s; on 401 fires `signOutOrg()` cleanup). **Both directions hardware-proven on production:** sign out on 8 Pro → desktop bounces; sign out on desktop → 8 Pro bounces. Captain's words on the second direction: *"can confirm, it work the other way around (pretty much instantly :D )"*. The cym13-shaped half of the v4 → v5 transition (sessions need real server-side revocation, not just localStorage clear) is **closed in production with user-visible UX**.
