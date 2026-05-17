@@ -3286,7 +3286,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.5</span></div>
   </div>
 </div>
 
@@ -5055,7 +5055,22 @@ async function loadExistingKey() {
   document.getElementById('orgNameInput').value = currentOrg.name || '';
   setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
 }
-function signOutOrg() {
+async function signOutOrg() {
+  // v5.10.5 - Global sign-out revokes every server-side session for this
+  // user first, then local state is cleared as before. Best-effort: if the
+  // network call fails, this device still signs out locally.
+  if (qrLoginSession?.session_token && window.IRLidOrgApi?.signOutAllDevices) {
+    try {
+      const res = await window.IRLidOrgApi.signOutAllDevices(qrLoginSession.session_token);
+      if (res.ok) {
+        console.log(`[signout] Revoked ${res.data?.sessions_revoked ?? '?'} sessions across all devices`);
+      } else {
+        console.warn(`[signout] Global revocation failed (${res.status}); proceeding with local cleanup`);
+      }
+    } catch (e) {
+      console.warn('[signout] Global revocation network error; proceeding with local cleanup', e);
+    }
+  }
   clearStaffAuthSession();
   currentOrg = null;
   // Batch C polish 7 — also clear the QR-login session + saved org so a
