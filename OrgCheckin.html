@@ -3286,7 +3286,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.4</span></div>
   </div>
 </div>
 
@@ -6131,7 +6131,23 @@ async function saveExpectedEdit(id) {
 }
 function aggregateAttendees(checkins) {
   const byAttendee = new Map();
+  const expectedOnlyRows = [];
   (checkins || []).forEach((row) => {
+    if (row && row.expected_only) {
+      expectedOnlyRows.push({
+        id: row.id || `expected:${row.expected_id}`,
+        expected_id: row.expected_id || null,
+        name: row.name || '',
+        first_seen: row.first_seen || null,
+        last_seen: row.last_seen || null,
+        scan_count: 0,
+        status: row.status || 'linked expected',
+        expected_only: true,
+        role: row.role || row.prototype_role || 'attendee',
+        prototype_role: row.prototype_role || row.role || 'attendee'
+      });
+      return;
+    }
     const id = row.status === 'conflict' ? `conflict:${row.conflict_id || row.id}` : (row.attendee_key_id || row.attendee_label || row.name || row.id);
     const firstSeen = row.checkin_at || row.created_at || 0;
     const lastSeen = row.checkout_at || row.checkin_at || row.created_at || 0;
@@ -6171,7 +6187,7 @@ function aggregateAttendees(checkins) {
       existing.status = row.status || existing.status;
     }
   });
-  return Array.from(byAttendee.values()).sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
+  return Array.from(byAttendee.values()).concat(expectedOnlyRows).sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
 }
 function formatTimestamp(ts) {
   return ts ? new Date(ts * 1000).toLocaleString(displayLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
@@ -6275,7 +6291,7 @@ async function refreshAttendance() {
     return;
   }
   try {
-    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key);
+    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key, { includeExpected: true });
     const checkins = payload.checkins || [];
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
     // everything without firing. Subsequent polls compare each row's current
@@ -6284,6 +6300,7 @@ async function refreshAttendance() {
     const events = [];
     const nextSnapshot = new Map();
     for (const row of checkins) {
+      if (row && row.expected_only) continue;
       const id = row && row.id;
       if (id == null) continue;
       const prev = __seenRowSnapshot.get(id);
@@ -6436,14 +6453,9 @@ function renderTable(rows) {
   // v6 placeholder: data-zone attribute for zone-gated VIP access + drone audit window.
   // Future attendance rows can render with a zone badge; entry control surfaces
   // filter by zone. See HANDOVER-V6Promotion.md when drafted.
-  // v5.7.1.x — Prototype-role badge fix. Worker's /org/attendance returns
-  // org_checkins rows which DO NOT carry prototype_role (the column lives
-  // on org_expected, not org_checkins). Without enrichment, every attendee
-  // row defaults to 'A' (Attendee) regardless of staff tier — Spencer/
-  // Kerry both showed 'A' on the audit board for two days despite being
-  // staff-tier. Fix: client-side join via expected_id → expectedAttendees
-  // → prototype_role. Cheap, no Worker change, makes the audit board
-  // truthful about who's working the door.
+  // v5.7.1.x - Prototype-role badge enrichment for existing checkin rows.
+  // v5.10.3 moves expected-only row merging into /org/attendance; this join
+  // remains only to decorate historical org_checkins rows with role labels.
   const expectedById = new Map(
     expectedAttendees.map(e => [String(e.id), e])
   );
@@ -6452,22 +6464,7 @@ function renderTable(rows) {
     const exp = r.expected_id != null ? expectedById.get(String(r.expected_id)) : null;
     return exp ? Object.assign({}, r, { prototype_role: exp.prototype_role || 'attendee' }) : r;
   });
-  const attendanceNames = new Set(enrichedRows.map(r => String(r.name || '').trim().toLowerCase()).filter(Boolean));
-  const expectedRows = expectedAttendees
-    .filter(row => !attendanceNames.has(expectedDisplayName(row).toLowerCase()))
-    .map(row => ({
-      id: `expected:${row.id}`,
-      expected_id: row.id,
-      name: expectedDisplayName(row),
-      first_seen: row.linked_at || row.created_at || null,
-      last_seen: row.linked_at || row.created_at || null,
-      scan_count: 0,
-      status: row.status === 'linked' ? 'expected_linked' : 'expected',
-      expected_only: true,
-      pending_sync: !!row.pending_sync,
-      prototype_role: row.prototype_role || 'attendee'
-    }));
-  const displayRows = enrichedRows.concat(expectedRows);
+  const displayRows = enrichedRows;
   if (!displayRows.length) { document.getElementById('attendanceBody').innerHTML = '<div class="empty-state">No attendees returned from irlid-api-test</div>'; return; }
   document.getElementById('attendanceBody').innerHTML = `<table class="att-table"><thead><tr><th>Name / ID</th><th>First seen</th><th>Last seen</th><th>Scan count</th><th>Status</th><th class="att-role-col">Role</th><th>Action</th></tr></thead><tbody id="attendanceRows"></tbody></table>`;
   const liveTbody = document.getElementById('attendanceRows');
@@ -6480,8 +6477,8 @@ function renderTable(rows) {
     const methodBadge = r.checkout_method === 'signed'
       ? '<span class="checkout-signed-badge">lock signed</span>'
       : (r.checkout_method === 'legacy_button' ? '<span class="checkout-legacy-badge">legacy</span>' : '');
-    const rowStatus = r.status === 'expected' || r.status === 'expected_linked'
-      ? `<span class="expected-pill ${r.status === 'expected_linked' ? 'ok' : 'warn'}">${r.status === 'expected_linked' ? 'linked expected' : 'expected'}</span>`
+    const rowStatus = r.status === 'expected' || r.status === 'expected_linked' || r.status === 'linked expected'
+      ? `<span class="expected-pill ${r.status === 'expected_linked' || r.status === 'linked expected' ? 'ok' : 'warn'}">${r.status === 'expected_linked' || r.status === 'linked expected' ? 'linked expected' : 'expected'}</span>`
       : r.status === 'conflict'
       ? '<span class="status-conflict">? CONFLICT</span>'
       : (r.status === 'invalid' ? '<span class="status-invalid">INVALID</span>' : (checkinId ? '<span class="status-in">● IN</span>' : `<span class="status-out">● OUT</span>${methodBadge}`));
@@ -6491,7 +6488,7 @@ function renderTable(rows) {
     const actionHtml = r.expected_only ? buildExpectedRowAction(r) : buildCheckoutAction(r);
     // v5.7.1s — Pass IN flag so role badge inverts when attendee is
     // currently checked in (active_checkin_id + not expected/conflict/invalid).
-    const isCurrentlyIn = !!checkinId && r.status !== 'expected' && r.status !== 'expected_linked' && r.status !== 'invalid' && r.status !== 'conflict';
+    const isCurrentlyIn = !!checkinId && r.status !== 'expected' && r.status !== 'expected_linked' && r.status !== 'linked expected' && r.status !== 'invalid' && r.status !== 'conflict';
     const roleHtml = expectedRoleBadge(r.prototype_role, isCurrentlyIn);
     return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}</td><td>${r.scan_count || 0}</td><td>${rowStatus}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
   }).join('');
