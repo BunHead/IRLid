@@ -177,6 +177,26 @@
         b.disabled = !!disabled;
       }
 
+      async function persistClaimedSessionLocally() {
+        const pollUrl = workerRaw.replace(/\/$/, "") + "/org/login/poll?nonce=" + encodeURIComponent(nonce);
+        const pollResp = await fetch(pollUrl);
+        let sessionData = null;
+        try { sessionData = await pollResp.json(); } catch (_) { sessionData = {}; }
+        diag("Session poll " + pollResp.status + " " + JSON.stringify(sessionData));
+        if (!pollResp.ok || sessionData.status !== "claimed" || !sessionData.session_token) return null;
+        const session = {
+          session_token: sessionData.session_token,
+          user_id: sessionData.user_id,
+          display_name: sessionData.display_name,
+          can_create_org: !!sessionData.can_create_org,
+          is_developer: !!sessionData.is_developer
+        };
+        localStorage.setItem("irlid_login_session", JSON.stringify(session));
+        localStorage.removeItem("irlid_signed_out");
+        diag("Session persisted locally on this device.");
+        return sessionData;
+      }
+
       // ── Initial validation ────────────────────────────────────────────────
       let canSign = false;
       function init() {
@@ -259,6 +279,11 @@
           diag("Response " + resp.status + " " + JSON.stringify(data));
 
           if (resp.ok) {
+            try {
+              await persistClaimedSessionLocally();
+            } catch (e) {
+              diag("Could not persist session locally: " + (e && e.message ? e.message : e));
+            }
             // v5.7.1c — Same-device staff_scan flow: caller passed
             // ?return=<url>; after successful claim, redirect back to
             // it so the originating dashboard tab can pick up the new
@@ -273,8 +298,11 @@
               setTimeout(function () { location.href = returnRaw; }, 600);
             } else {
               if (returnRaw) diag("Return URL rejected by allowlist: " + returnRaw);
-              setStatus("pass", "Signed in. You may close this tab.");
-              setBtn("Done", true);
+              setStatus("pass", "Signed in. Returning to dashboard...");
+              setBtn("Returning...", true);
+              const dashboardUrl = new URL("OrgCheckin.html", location.href).href;
+              diag("No return URL set; defaulting to " + dashboardUrl);
+              setTimeout(function () { location.href = dashboardUrl; }, 600);
             }
           } else if (resp.status === 410) {
             setStatus("fail", "QR expired. Get a fresh one from the desktop.");

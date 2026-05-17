@@ -3286,7 +3286,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.6</span></div>
   </div>
 </div>
 
@@ -3336,7 +3336,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <!-- Primary path: QR-scan login (PROTOCOL.md §14, Batch B) -->
         <div id="qrLoginPanel">
           <div class="qr-login-stage" id="qrLoginStage" aria-live="polite">
-            <button type="button" class="btn btn-primary" id="qrLoginStartBtn" style="width:100%;">Show login QR</button>
+            <button type="button" class="btn btn-primary" id="signInHereBtn" style="width:100%; margin-bottom:10px;" hidden>Sign in here <span style="display:block; font-size:11px; font-weight:500; opacity:.8;">with this device's fingerprint or Hello</span></button>
+            <button type="button" class="btn btn-secondary" id="qrLoginStartBtn" style="width:100%;">Show login QR <span style="display:block; font-size:11px; font-weight:500; opacity:.8;">for another device to scan</span></button>
           </div>
 
           <div id="qrLoginActive" style="display:none;">
@@ -5127,6 +5128,54 @@ function buildQrLoginUrl() {
   return QR_LOGIN_PAGE
     + '?nonce=' + encodeURIComponent(qrLoginNonce)
     + '&worker=' + encodeURIComponent(workerBase);
+}
+
+async function startSameDeviceSignIn() {
+  const btn = document.getElementById('signInHereBtn');
+  const status = document.getElementById('qrLoginStatus');
+  const idleHtml = "Sign in here <span style=\"display:block; font-size:11px; font-weight:500; opacity:.8;\">with this device's fingerprint or Hello</span>";
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'Signing...'; }
+    if (status) {
+      status.textContent = 'Preparing sign-in...';
+      status.style.color = '#8b949e';
+    }
+
+    const initRes = await window.IRLidOrgApi.loginInit();
+    const nonce = initRes && initRes.nonce;
+    if (!nonce) throw new Error('No nonce returned from login init');
+
+    const payload = { nonce, type: 'irlid_login_v5' };
+    const canonStr = canonical(payload);
+    const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonStr));
+    const sigEnv = await irlidV5SignPayloadHash(new Uint8Array(hashBuf));
+    const pubJwkRaw = localStorage.getItem('irlid_v5_pub_jwk');
+    if (!pubJwkRaw) throw new Error('v5 pub_jwk missing from localStorage');
+
+    await window.IRLidOrgApi.loginClaim({
+      nonce,
+      pub_jwk: compactJwk(JSON.parse(pubJwkRaw)),
+      sig: b64urlEncode(sigEnv.sigRaw),
+      webauthn: {
+        authData: b64urlEncode(sigEnv.authData),
+        clientData: b64urlEncode(sigEnv.clientData)
+      }
+    });
+
+    const sessionData = await window.IRLidOrgApi.loginPoll(nonce);
+    if (!sessionData || sessionData.status !== 'claimed' || !sessionData.session_token) {
+      throw new Error('Session was not returned after claim');
+    }
+    await handleQrLoginSuccess(sessionData);
+  } catch (e) {
+    console.error('[same-device-signin] failed:', e);
+    if (status) {
+      status.textContent = 'Sign-in failed: ' + (e.message || e);
+      status.style.color = '#f85149';
+    }
+    showToast('Sign-in failed: ' + (e.message || e), true);
+    if (btn) { btn.disabled = false; btn.innerHTML = idleHtml; }
+  }
 }
 
 async function startQrLogin() {
@@ -9011,6 +9060,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   syncMobileDashboardShape();
   // Batch B — wire QR-scan login buttons. The handlers no-op gracefully if the
   // panel-setup screen isn't in the DOM yet (auto-login bypassed it).
+  const signInHereBtn = document.getElementById('signInHereBtn');
+  if (signInHereBtn && typeof irlidV5Enrolled === 'function' && irlidV5Enrolled()) {
+    signInHereBtn.hidden = false;
+    signInHereBtn.addEventListener('click', startSameDeviceSignIn);
+  }
   document.getElementById('qrLoginStartBtn')?.addEventListener('click', startQrLogin);
   document.getElementById('qrLoginCancelBtn')?.addEventListener('click', () => cancelQrLogin('Cancelled.'));
   // Batch C polish 7 — signed-in summary buttons
@@ -9263,6 +9317,23 @@ window.addEventListener('DOMContentLoaded', async () => {
   try {
     if (await tryRedeemStaffInviteIfPending()) return;
   } catch (err) { console.warn('[staff_invite] redeem on boot failed:', err); }
+  if (savedSession && savedSession.session_token && !savedOrg) {
+    try {
+      qrLoginSession = savedSession;
+      const r = await window.IRLidOrgApi.listMyOrgs(savedSession.session_token);
+      await handleQrLoginSuccess(Object.assign({}, savedSession, {
+        orgs: Array.isArray(r?.orgs) ? r.orgs : [],
+        is_developer: !!r?.is_developer,
+        display_name: r?.display_name || savedSession.display_name,
+        user_id: r?.user_id || savedSession.user_id
+      }));
+      return;
+    } catch (err) {
+      console.warn('[same-device-signin] saved session restore without org failed:', err);
+      try { localStorage.removeItem('irlid_login_session'); } catch (_) {}
+      qrLoginSession = null;
+    }
+  }
 
   setSignedInUI(false); syncLegacyFromPortal(); ensureExpectedAttendees(); renderExpectedAttendees(); renderPortalAll(); showPanel('setup', document.getElementById('navOrganisation'));
   const stored = loadJson(STORAGE_KEY_ORG, null);
