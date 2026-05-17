@@ -3286,7 +3286,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.7</span></div>
   </div>
 </div>
 
@@ -5057,6 +5057,10 @@ async function loadExistingKey() {
   setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
 }
 async function signOutOrg() {
+  // v5.10.7 — stop the session-poll heartbeat first so we don't fire a
+  // redundant local sign-out from a poll tick that 401s during our own
+  // revocation call below.
+  stopSessionPoll();
   // v5.10.5 - Global sign-out revokes every server-side session for this
   // user first, then local state is cleared as before. Best-effort: if the
   // network call fails, this device still signs out locally.
@@ -5117,6 +5121,43 @@ let qrLoginCountdownTimer = null;
 let qrLoginExpiresAt = 0;
 let qrLoginSession = null;
 const QR_LOGIN_PAGE = 'https://irlid.co.uk/org-login.html';
+
+// v5.10.7 — session-poll: after sign-in, check every 30s that our Bearer
+// session is still valid by hitting /user/orgs. On 401 (e.g. another device
+// triggered global sign-out via /user/sign-out-all-devices), fire the local
+// sign-out cleanup so the dashboard bounces to sign-in without waiting for
+// a manual refresh. Closes the visibility gap left by v5.10.5: the dashboard's
+// ongoing X-Org-Key calls don't notice session revocation, so we need a
+// Bearer-authed heartbeat to learn about it. Non-401 errors (network, 5xx)
+// leave the timer running for the next tick — only an authoritative 401
+// counts as "your session is gone."
+let sessionPollTimer = null;
+const SESSION_POLL_INTERVAL_MS = 30000;
+
+function startSessionPoll() {
+  if (sessionPollTimer) return; // idempotent — safe to call from multiple entry points
+  if (!qrLoginSession?.session_token) return;
+  sessionPollTimer = setInterval(async () => {
+    if (!qrLoginSession?.session_token) { stopSessionPoll(); return; }
+    try {
+      await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
+      // 200 OK — session still valid, do nothing.
+    } catch (err) {
+      if (err && err.status === 401) {
+        console.warn('[session-poll] session revoked server-side; signing out locally');
+        stopSessionPoll();
+        try { await signOutOrg(); } catch (_) {}
+      } else {
+        // Network or 5xx — keep the timer running for the next tick.
+        console.debug('[session-poll] non-401 error, retrying next tick:', err?.message || err);
+      }
+    }
+  }, SESSION_POLL_INTERVAL_MS);
+}
+
+function stopSessionPoll() {
+  if (sessionPollTimer) { clearInterval(sessionPollTimer); sessionPollTimer = null; }
+}
 
 function buildQrLoginUrl() {
   // The page itself lives at irlid.co.uk so v5 credentials (RP-ID-bound to
@@ -5264,6 +5305,9 @@ async function handleQrLoginSuccess(data) {
     is_developer: !!data.is_developer
   };
   try { localStorage.setItem('irlid_login_session', JSON.stringify(qrLoginSession)); } catch (_) {}
+  // v5.10.7 — start the session-validity heartbeat so this device learns
+  // within ~30s if another device triggers global sign-out.
+  startSessionPoll();
   // v5.7.1e — Successful authentication clears the explicit sign-out
   // flag set by signOutOrg. The user is back in; DEV_AUTO_LOGIN is fine
   // to re-engage on subsequent refreshes. (Note: the saved-session
@@ -9247,6 +9291,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const savedOrg = loadJson(STORAGE_KEY_ORG, null);
   if (savedSession && savedSession.session_token && savedOrg && savedOrg.api_key) {
     qrLoginSession = savedSession;
+    // v5.10.7 — restored session: start the validity heartbeat. If the
+    // session was revoked while this tab was closed, the first poll tick
+    // will 401 and bounce us to sign-in cleanly.
+    startSessionPoll();
     // v5.7.1e — A valid restored session clears any lingering "signed out"
     // flag (set by signOutOrg). The user is logged in via persisted state.
     try { localStorage.removeItem('irlid_signed_out'); } catch (_) {}
@@ -9320,6 +9368,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (savedSession && savedSession.session_token && !savedOrg) {
     try {
       qrLoginSession = savedSession;
+      // v5.10.7 — start validity heartbeat (handleQrLoginSuccess below also
+      // calls it, but startSessionPoll is idempotent so the duplicate is fine).
+      startSessionPoll();
       const r = await window.IRLidOrgApi.listMyOrgs(savedSession.session_token);
       await handleQrLoginSuccess(Object.assign({}, savedSession, {
         orgs: Array.isArray(r?.orgs) ? r.orgs : [],

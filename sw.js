@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v15'; // v5.10.6 bump - Same-device sign-in for registered v5 credentials
+const CACHE_VERSION = 'irlid-shell-v16'; // v5.10.7 bump - Session-poll heartbeat so global sign-out is user-visible within 30s
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
