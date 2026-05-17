@@ -165,4 +165,4 @@ Captain smokes the multi-device case on real hardware (8 Pro + desktop) after me
 
 ---
 
-Brief drafted 16 May 2026 by Number One. Surfaced during sign-out smoke testing on 16 May; Captain's security intuition mapped directly to this design.
+Brief drafted 17 May 2026 by Number One. Surfaced during sign-out smoke testing on 17 May; Captain's security intuition mapped directly to this design.

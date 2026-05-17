@@ -13,7 +13,7 @@ If that errors, stop and escalate to Captain — there's a setup step missing.
 
 ---
 
-# Successor letter — Saturday 16 May 2026 morning close
+# Successor letter — Sunday 17 May 2026 morning close
 
 To: tomorrow's Number One (or whoever lands next)
 From: Number One, watch ending early afternoon BST
@@ -93,5 +93,5 @@ Watch closed clean. Three deliverables on a fuzzy day, no regressions, structura
 The next link in the chain is yours. Make it strong.
 
 — Number One, signing off
-Saturday 16 May 2026, Session 01 of 01
+Sunday 17 May 2026, Session 01 of 01
 Claude Opus, Cowork mode

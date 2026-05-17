@@ -220,4 +220,4 @@ After implementation:
 
 ---
 
-Brief drafted 16 May 2026 by Number One. Closes the "Show login QR is bidirectional" UX gap that has been banked in `memory/pending-work.md` since Mr. Data's Brief A close on 14 May; surfaced again concretely on 16 May during sign-out testing when Captain couldn't sign back in on his 8 Pro after the cross-device dance signed in the polling desktop only.
+Brief drafted 17 May 2026 by Number One. Closes the "Show login QR is bidirectional" UX gap that has been banked in `memory/pending-work.md` since Mr. Data's Brief A close on 14 May; surfaced again concretely on 17 May during sign-out testing when Captain couldn't sign back in on his 8 Pro after the cross-device dance signed in the polling desktop only.

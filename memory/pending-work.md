@@ -1,6 +1,6 @@
 # Pending Work — IRLid
 
-## Saturday 16 May 2026 morning watch — `v5.10.2` LIVE + bootstrap-pointer chain repair + Settings revamp queued
+## Sunday 17 May 2026 morning watch — `v5.10.2` LIVE + bootstrap-pointer chain repair + Settings revamp queued
 
 **The headline.** Three deliverables on a fuzzy day: (1) Mr. Data's `v5.10.1` Path B PR #25 reviewed, smoked on 8 Pro + desktop, merged at `7c7c146`. (2) Retroactive `BOOTSTRAP §10` pointer prepend on the 15 May afternoon successor letter + new `memory/letters/_TEMPLATE-successor-letter.md` scaffold (structural reinforcement so future Number Ones can't credibly omit the pointer block). (3) `v5.10.2` Settings polish ship (`9f7c220`) — `OrgCheckin.html` line 3710 placeholder fixed from `bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html` to `example.com/staff-page`, build pill `v5.10.1 → v5.10.2`, SW cache `irlid-shell-v10 → v11`. Captain hardware-verified live (Spencer scan_count=3, CHECKED IN 1 / CHECKED OUT 2, "Updated just now").
 
