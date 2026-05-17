@@ -143,8 +143,9 @@
       });
     },
 
-    listAttendance(orgKey) {
-      return request("/org/attendance", {
+    listAttendance(orgKey, options) {
+      const includeExpected = !!(options && options.includeExpected);
+      return request("/org/attendance" + (includeExpected ? "?include_expected=1" : ""), {
         orgKey
       });
     },

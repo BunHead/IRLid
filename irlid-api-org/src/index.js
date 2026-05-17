@@ -2575,16 +2575,36 @@ async function orgResolveCheckoutToken(request, env, tokenParam) {
 async function orgAttendance(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   const url = new URL(request.url);
+  const includeExpected = url.searchParams.get("include_expected") === "1";
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
   const since = url.searchParams.get("since") ? parseInt(url.searchParams.get("since")) : (now() - 86400);
   const rows = await env.DB.prepare(
     "SELECT id,mode,attendee_label,attendee_key_id,hello_hash,score,bio_verified,gps_hash,checkin_at,checkout_at,duration_s,name,device_key_fp,status,expected_id,conflict_id,CASE WHEN checkout_at IS NOT NULL AND checkout_signature IS NOT NULL THEN 'signed' WHEN checkout_at IS NOT NULL THEN 'legacy_button' ELSE checkout_method END AS checkout_method,checkout_ts FROM org_checkins WHERE org_id=? AND checkin_at>=? ORDER BY checkin_at DESC LIMIT ?"
   ).bind(org.id, since, limit).all();
-  const total_in = rows.results.filter(r => !r.checkout_at && r.status !== "invalid").length;
-  const total_out = rows.results.filter(r => r.checkout_at && r.status !== "invalid").length;
-  const avg_score = rows.results.length ? Math.round(rows.results.reduce((s,r) => s+(r.score||0), 0) / rows.results.length) : 0;
-  const bio_count = rows.results.filter(r => r.bio_verified).length;
-  return json({ checkins: rows.results, stats: { total: rows.results.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+  const checkins = rows.results || [];
+  const total_in = checkins.filter(r => !r.checkout_at && r.status !== "invalid").length;
+  const total_out = checkins.filter(r => r.checkout_at && r.status !== "invalid").length;
+  const avg_score = checkins.length ? Math.round(checkins.reduce((s,r) => s+(r.score||0), 0) / checkins.length) : 0;
+  const bio_count = checkins.filter(r => r.bio_verified).length;
+  if (!includeExpected) {
+    return json({ checkins, stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+  }
+  const expected = await env.DB.prepare(
+    "SELECT e.id AS expected_id,(TRIM(COALESCE(e.first_name,'') || ' ' || COALESCE(e.surname,''))) AS name,COALESCE(e.prototype_role,'attendee') AS role,COALESCE(e.prototype_role,'attendee') AS prototype_role FROM org_expected e WHERE e.org_code=? AND e.status='linked' AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.expected_id=e.id AND date(c.checkin_at,'unixepoch')=date('now')) ORDER BY LOWER(e.surname) ASC, LOWER(e.first_name) ASC, e.id ASC"
+  ).bind(org.id, org.id).all();
+  const expectedRows = (expected.results || []).map(row => ({
+    id: `expected:${row.expected_id}`,
+    expected_id: row.expected_id,
+    name: row.name,
+    role: row.role,
+    prototype_role: row.prototype_role,
+    scan_count: 0,
+    status: "linked expected",
+    first_seen: null,
+    last_seen: null,
+    expected_only: true
+  }));
+  return json({ checkins: checkins.concat(expectedRows), stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
 }
 
 function isDebugOrg(org) {
