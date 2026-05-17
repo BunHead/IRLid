@@ -3728,6 +3728,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <button type="button" data-v511-tab="theme"><span class="v511-tab-icon" aria-hidden="true">&#x1F3A8;</span>4. Visual theming</button>
           <button type="button" data-v511-tab="auth"><span class="v511-tab-icon" aria-hidden="true">&#x1F510;</span>5. Sign-in &amp; auth</button>
           <button type="button" data-v511-tab="tools"><span class="v511-tab-icon" aria-hidden="true">&#x1F527;</span>6. Tools &amp; diagnostics</button>
+          <button type="button" data-v511-tab="records"><span class="v511-tab-icon" aria-hidden="true">&#x1F4CB;</span>7. Records &amp; ID</button>
         </div>
 
         <!-- ===== TAB 1: ORGANISATION ===== -->
@@ -3872,6 +3873,55 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Bootstrap fp</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">n4FzIhV_1jc2u_HO</span></div>
           <div class="v511-row"><label>Worker URL</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-api-org.irlid-bunhead.workers.dev</span></div>
           <div class="v511-row"><label>D1 binding</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-db-org</span></div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 7: RECORDS &amp; ID ===== -->
+        <section class="v511-panel" data-v511-panel="records">
+          <div class="v511-head"><h3>Records &amp; ID</h3><span class="v511-badge v511-badge-design">design-in</span></div>
+
+          <div class="v511-info" style="margin-top: 0; margin-bottom: 16px; padding: 12px 14px; background: rgba(105, 168, 255, 0.08); border-color: rgba(105, 168, 255, 0.25); color: var(--text);">
+            <strong>IRLid doesn't store these records.</strong> When enrolment data or proof-of-ID is captured at check-in, IRLid forwards it directly to your configured storage destination &mdash; Google&nbsp;Drive, OneDrive, your own SFTP, etc. We retain a hash and reference only, for verification. Your org owns the data; IRLid brokers the capture.
+          </div>
+
+          <div class="v511-sub">Storage destination</div>
+          <div class="v511-row"><label>Status</label><div><span class="v511-badge v511-badge-design" style="margin-right: 6px;">not configured</span><span class="v511-hint">Records capture is OFF until a destination is connected.</span></div></div>
+          <div class="v511-row"><label>Connector</label><select>
+            <option>None &mdash; don't capture records</option>
+            <option>Google Drive (OAuth)</option>
+            <option>OneDrive / SharePoint (OAuth)</option>
+            <option>Dropbox (OAuth)</option>
+            <option>Box (OAuth)</option>
+            <option>S3 / Cloudflare R2 (credentials)</option>
+            <option>Self-hosted SFTP / WebDAV</option>
+            <option>Custom webhook URL</option>
+          </select></div>
+          <div class="v511-row"><label>Folder path</label><input type="text" placeholder="/IRLid/enrolment-records/" /></div>
+          <div style="margin-top: 10px;"><button type="button" class="v511-btn">Connect storage &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">OAuth opens in a new window; credential-based connectors prompt inline.</span></div>
+
+          <div class="v511-sub">What to capture at check-in</div>
+          <div class="v511-row"><label>Photo ID</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Driving licence / passport / national ID. Image upload from device camera.</span></div></div>
+          <div class="v511-row"><label>Date of birth</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">For age-gated events.</span></div></div>
+          <div class="v511-row"><label>Address</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">For correspondence and emergency contact.</span></div></div>
+          <div class="v511-row"><label>Emergency contact</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Name + phone &mdash; common for kids' classes, gyms, outdoor activities.</span></div></div>
+          <div class="v511-row"><label>Medical / dietary</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Allergies, conditions, dietary requirements. Handled per your org's privacy policy.</span></div></div>
+          <div class="v511-row"><label>Signed waiver</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">PDF or signature image, generated at first check-in.</span></div></div>
+          <div class="v511-row"><label>Custom fields</label><div><button type="button" class="v511-btn v511-btn-mini">+ Add custom field</button> <span class="v511-hint" style="margin-left: 8px;">For org-specific data (membership number, year group, etc.)</span></div></div>
+
+          <div class="v511-sub">Privacy &amp; retention</div>
+          <div class="v511-row"><label>IRLid retains</label><select>
+            <option>Hash + reference only (recommended)</option>
+            <option>Hash + reference + capture timestamp</option>
+            <option>None &mdash; broker-only mode</option>
+          </select></div>
+          <div class="v511-row"><label>Encryption in transit</label><div><span class="v511-hint">Always on &mdash; TLS 1.3 to your storage destination.</span></div></div>
+          <div class="v511-row"><label>Encryption at rest</label><div><span class="v511-hint">Your storage destination's responsibility. IRLid doesn't hold copies to encrypt.</span></div></div>
+          <div class="v511-row"><label>Right to be forgotten</label><div><button type="button" class="v511-btn v511-btn-mini">Open RTBF helper &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">Removes IRLid's hash + reference. You delete the original from your storage.</span></div></div>
+
+          <div class="v511-info" style="margin-top: 12px;">
+            <strong style="color: var(--text);">Why this matters.</strong> Holding identity documents creates legal weight (GDPR, retention obligations, breach reporting). IRLid stays out of that pipeline by design &mdash; we never see the document body, only a hash that lets us prove a record was captured if you need to attest to it later. The org owns the data; IRLid owns the proof-of-capture.
+          </div>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
