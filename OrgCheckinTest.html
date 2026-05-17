@@ -3805,25 +3805,31 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel active" data-v511-panel="org">
           <div class="v511-head"><h3>Organisation</h3><span class="v511-badge v511-badge-backed">backed</span></div>
           <div class="v511-row"><label>Display name</label><input type="text" value="Test Event" /></div>
-          <div class="v511-row"><label>Slug</label><input type="text" value="imbue-ventures" disabled style="opacity: 0.55;" /></div>
+          <div class="v511-row"><label>Slug</label><div><input type="text" value="imbue-ventures" disabled style="opacity: 0.55; width: 100%;" /><span class="v511-hint" style="display: block; margin-top: 4px;">URL-safe short name. Auto-generated from Display name. Used in receipt URLs and the api_key prefix. Read-only — changing it would break existing receipts that reference this org.</span></div></div>
           <div class="v511-row"><label>Website</label><input type="url" value="https://example.com" /></div>
           <div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn">Upload logo</button> <span class="v511-hint">PNG / SVG / JPEG, &le; 200 KB</span></div></div>
           <div class="v511-row"><label>Description</label><input type="text" value="Co-presence verification for events" /></div>
           <div class="v511-row"><label>Org terms / disclaimer</label><textarea placeholder="Optional informational text shown at check-in."></textarea></div>
           <div class="v511-row"><label>Contact email</label><input type="text" value="hello@example.com" /></div>
 
-          <div class="v511-sub">Brand polish <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Hero / banner image</label><div><button type="button" class="v511-btn" disabled>Upload banner</button> <span class="v511-hint">Distinct from logo — top-of-page artwork on attendee check-in pages.</span></div></div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Tagline</label><input type="text" placeholder="Movement for everybody" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Footer text</label><input type="text" placeholder="© Imbue Ventures 2026 · Studio open Mon–Sat" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Privacy policy URL</label><input type="url" placeholder="https://example.com/privacy" disabled /></div>
-          <div class="v511-sub">Contact info on check-in <span class="v511-hint-inline">(YOUR info shown TO attendees; nothing collected from them)</span> <span class="v511-badge v511-badge-design" style="margin-left: 4px;">design-in</span></div>
-          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Phone number</label><input type="tel" placeholder="0115 123 4567" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Address</label><input type="text" placeholder="12 High Street, Derby DE1 1AA" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Public email</label><input type="email" placeholder="hello@example.com" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Emergency notice</label><textarea placeholder="In an emergency, follow staff instructions. Studio is at..." disabled></textarea></div>
-          <div class="v511-hint" style="padding: 4px 0;">Each item is opt-in. Default off — no contact info shows on check-in pages unless the org turns it on.</div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Theme from website</label><div><button type="button" class="v511-btn" disabled>Extract palette + logo</button> <span class="v511-hint">Reads your public website for colour palette, logo, and welcome text suggestions. You review every suggestion before any of it is saved.</span></div></div>
+          <details class="v511-expander">
+            <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row" style="opacity: 0.6;"><label>Hero / banner image</label><div><button type="button" class="v511-btn" disabled>Upload banner</button> <span class="v511-hint">Distinct from logo — top-of-page artwork on attendee check-in pages.</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Tagline</label><input type="text" placeholder="Movement for everybody" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Footer text</label><input type="text" placeholder="© Imbue Ventures 2026 · Studio open Mon–Sat" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Privacy policy URL</label><input type="url" placeholder="https://example.com/privacy" disabled /></div>
+
+              <div class="v511-sub" style="margin-top: 14px;">Contact info on check-in <span class="v511-hint-inline">(YOUR info shown TO attendees; nothing collected from them)</span></div>
+              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Phone number</label><input type="tel" placeholder="0115 123 4567" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Address</label><input type="text" placeholder="12 High Street, Derby DE1 1AA" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Public email</label><input type="email" placeholder="hello@example.com" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Emergency notice</label><textarea placeholder="In an emergency, follow staff instructions. Studio is at..." disabled></textarea></div>
+              <div class="v511-hint" style="padding: 4px 0;">Each item is opt-in. Default off — no contact info shows on check-in pages unless the org turns it on.</div>
+
+              <div class="v511-row" style="opacity: 0.6; margin-top: 12px;"><label>Theme from website</label><div><button type="button" class="v511-btn" disabled>Extract palette + logo</button> <span class="v511-hint">Reads your public website for colour palette, logo, and welcome text suggestions. You review every suggestion before any of it is saved.</span></div></div>
+            </div>
+          </details>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>

@@ -31,10 +31,20 @@
 - Expander pattern: daily-touched stuff visible, set-once reference behind chevron-toggles.
 - Brief on labelling: "Slug" might benefit from rename to "URL identifier" or "Short name" — not yet actioned, awaiting Captain's call next watch.
 
+**Continued iteration after this section was written (very-late watch, all in the test fork):**
+
+- Visuals inventory drafted; Captain reviewed and tightened scope. **In:** A check-in/out celebration, B QR styling, D calendar/schedule, E identity/attendee, F dashboard/live data, I accessibility (with W3C cert ambition). **Out:** C general branding/themes, G receipts (gaudy, back-burner), H UI micro-interactions (too much going on), J depth/glass. **K v6+:** design with maybe in mind.
+- Sticky calendar toolbar made then reverted — looked strange when table scrolled past.
+- Contact info display reworked to per-item opt-in pattern (4 separate checkboxes — phone / address / public email / emergency notice — all default off). Reinforces Captain's recurring "option for all, default everything off (unless necessary)" principle.
+- Post-accept behaviour moved out of Event & calendar's Default event settings expander → into Visual theming tab as a new expander. Captain's call: it's a visual/flow setting, not an event-data setting. Event & calendar carries a one-line breadcrumb pointing to its new home.
+- Visual theming → Advanced theming expander built with two ARIA-compliant sub-tabs (Palettes + Animation). Replaces the "Open advanced theming" dead-end placeholder. Palettes sub-tab shows Background + Celebration palette swatches with Add/Reset. Animation sub-tab shows Background animation controls + Celebration 6-effect grid.
+- Org tab slimmed: Brand polish + Contact info + Theme scrape all wrapped in a single `Brand polish & contact info` expander (closed by default). Captain flagged "too much on Org now" — restored the lean 7-row main view.
+- Slug field gained an explanatory hint inline ("URL-safe short name. Auto-generated from Display name. Used in receipt URLs and the api_key prefix. Read-only — changing it would break existing receipts"). Captain mentioned he still couldn't remember what slug was; the in-UI hint removes the need to ask next time.
+
 **Where this goes next (queued for next watch):**
 
 1. **Captain's R&R window** — earned. Hands-off on Settings revamp until he's back.
-2. **VISUAL EFFECTS DEEP-DIVE — the agreed next focus.** Captain asked for a comprehensive inventory of every visual we could add — drafted at the end of this watch (see `memory/letters/successor-2026-05-17-late.md`). Next watch reviews the list and picks priorities.
+2. **VISUAL EFFECTS DEEP-DIVE — the agreed next focus.** Captain asked for a comprehensive inventory of every visual we could add — drafted at the end of this watch (see `memory/letters/successor-2026-05-17-late.md`). Scope now tightened (see above). Next watch picks priorities within the in-scope categories.
 3. **`SETTINGS-REVAMP-SPEC.md`** — should be written now that the mockup is stable. Captures the shape so Mr. Data can implement it when v5.11 work fires. Half-watch's writing.
 4. **`CALENDAR-SPEC.md`** — multi-room + per-event Expected list + drill-down architecture spec. Includes the swim-lane v5.12+ forward design. Half-watch.
 5. **`PROTOCOL.md §X-Records-Broker`** — formalise the IRLid-doesn't-store-identity-docs commitment as a spec chapter. Important for adoption pitch to anyone who'll ask about GDPR.
