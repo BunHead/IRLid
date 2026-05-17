@@ -3670,6 +3670,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-tabs button { flex: 1 1 auto; padding: 9px 11px; font-size: 12.5px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; transition: all 0.15s; font-family: inherit; }
         .v511-tabs button:hover { background: rgba(255,255,255,0.04); color: var(--text); }
         .v511-tabs button.active { background: rgba(105, 168, 255, 0.16); color: var(--text); border-color: rgba(105, 168, 255, 0.4); font-weight: 600; }
+        .v511-tab-icon { display: inline-block; margin-right: 6px; font-size: 14px; vertical-align: -1px; opacity: 0.92; }
         .v511-panel { display: none; background: linear-gradient(180deg, rgba(25,36,64,0.92), rgba(19,28,49,0.96)); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
         .v511-panel.active { display: block; }
         .v511-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
@@ -3721,12 +3722,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <div class="v511-banner"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
 
         <div class="v511-tabs" role="tablist" aria-label="Settings sections">
-          <button type="button" class="active" data-v511-tab="org">1. Organisation</button>
-          <button type="button" data-v511-tab="cal">2. Event &amp; calendar</button>
-          <button type="button" data-v511-tab="roles">3. Roles &amp; staff</button>
-          <button type="button" data-v511-tab="theme">4. Visual theming</button>
-          <button type="button" data-v511-tab="auth">5. Sign-in &amp; auth</button>
-          <button type="button" data-v511-tab="tools">6. Tools &amp; diagnostics</button>
+          <button type="button" class="active" data-v511-tab="org"><span class="v511-tab-icon" aria-hidden="true">&#x1F3E2;</span>1. Organisation</button>
+          <button type="button" data-v511-tab="cal"><span class="v511-tab-icon" aria-hidden="true">&#x1F4C5;</span>2. Event &amp; calendar</button>
+          <button type="button" data-v511-tab="roles"><span class="v511-tab-icon" aria-hidden="true">&#x1F465;</span>3. Roles &amp; staff</button>
+          <button type="button" data-v511-tab="theme"><span class="v511-tab-icon" aria-hidden="true">&#x1F3A8;</span>4. Visual theming</button>
+          <button type="button" data-v511-tab="auth"><span class="v511-tab-icon" aria-hidden="true">&#x1F510;</span>5. Sign-in &amp; auth</button>
+          <button type="button" data-v511-tab="tools"><span class="v511-tab-icon" aria-hidden="true">&#x1F527;</span>6. Tools &amp; diagnostics</button>
         </div>
 
         <!-- ===== TAB 1: ORGANISATION ===== -->
