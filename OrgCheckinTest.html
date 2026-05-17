@@ -3694,11 +3694,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-btn-primary:hover { background: rgba(105, 168, 255, 0.3); }
         .v511-btn-mini { padding: 3px 9px; font-size: 11px; }
         .v511-save { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
-        .v511-cal-wrap { max-height: 480px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
-        .v511-cal { display: grid; grid-template-columns: 70px 70px 1fr 60px 70px; gap: 0 8px; font-size: 12px; }
-        .v511-cal .h { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 8px 6px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.03); position: sticky; top: 0; }
-        .v511-cal .c { padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text); }
-        .v511-cal .c.dim { color: var(--muted); font-style: italic; opacity: 0.55; }
+        .v511-cal-wrap { max-height: 420px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.18); }
+        .v511-cal-header { display: grid; grid-template-columns: 70px 70px 1fr 60px 70px; gap: 0 8px; padding: 0 10px; background: rgba(11,18,32,0.94); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+        .v511-cal-header .h { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 9px 0; }
+        .v511-cal-row { display: grid; grid-template-columns: 70px 70px 1fr 60px 70px; gap: 0 8px; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; align-items: center; transition: background 0.15s; }
+        .v511-cal-row:last-child { border-bottom: none; }
+        .v511-cal-row > div { color: var(--text); }
+        .v511-cal-row[data-band="dim"] { background: transparent; }
+        .v511-cal-row[data-band="light"] { background: rgba(255,255,255,0.05); }
+        .v511-cal-row.empty > div:not(:last-child) { color: var(--muted); font-style: italic; opacity: 0.55; }
+        .v511-cal-row[data-band="light"].empty > div:not(:last-child) { opacity: 0.7; }
+        .v511-cal-band-tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); background: rgba(255,255,255,0.04); margin-left: 8px; }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -3714,14 +3720,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <div class="v511-mockup">
         <div class="v511-banner"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
 
-        <nav class="v511-tabs" aria-label="v5.11 Settings tabs">
+        <div class="v511-tabs" role="tablist" aria-label="Settings sections">
           <button type="button" class="active" data-v511-tab="org">1. Organisation</button>
           <button type="button" data-v511-tab="cal">2. Event &amp; calendar</button>
           <button type="button" data-v511-tab="roles">3. Roles &amp; staff</button>
           <button type="button" data-v511-tab="theme">4. Visual theming</button>
           <button type="button" data-v511-tab="auth">5. Sign-in &amp; auth</button>
           <button type="button" data-v511-tab="tools">6. Tools &amp; diagnostics</button>
-        </nav>
+        </div>
 
         <!-- ===== TAB 1: ORGANISATION ===== -->
         <section class="v511-panel active" data-v511-panel="org">
@@ -3747,37 +3753,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
           <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
 
-          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
-          <div class="v511-cal-wrap">
-            <div class="v511-cal">
-              <div class="h">Start</div><div class="h">End</div><div class="h">Event name</div><div class="h">Cap.</div><div class="h"></div>
-              <div class="c">06:00</div><div class="c">07:00</div><div class="c">Sunrise yoga</div><div class="c">15</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">07:15</div><div class="c">08:15</div><div class="c">Early-bird HIIT</div><div class="c">12</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">09:00</div><div class="c">10:00</div><div class="c">Beginners pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">10:15</div><div class="c">11:15</div><div class="c">Intermediate pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">11:30</div><div class="c">12:30</div><div class="c">Yoga flow</div><div class="c">15</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">12:45</div><div class="c">13:30</div><div class="c">Lunch stretch</div><div class="c">10</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">14:00</div><div class="c">15:30</div><div class="c">Spin class</div><div class="c">25</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">16:00</div><div class="c">17:00</div><div class="c">Kids dance</div><div class="c">18</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">17:15</div><div class="c">18:15</div><div class="c">Boxing fundamentals</div><div class="c">14</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">18:30</div><div class="c">19:30</div><div class="c">Evening pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">19:45</div><div class="c">20:45</div><div class="c">Power yoga</div><div class="c">18</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c">21:00</div><div class="c">22:00</div><div class="c">Late-night meditation</div><div class="c">25</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
-              <div class="c dim">+ slot 13</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 14</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 15</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 16</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 17</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 18</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 19</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 20</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 21</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 22</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 23</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
-              <div class="c dim">+ slot 24</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day, full 24-hour view)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
+          <div class="v511-cal-wrap" id="v511CalWrap" role="grid" aria-label="Today's events, 24 hour slots">
+            <div class="v511-cal-header" role="row">
+              <div class="h" role="columnheader">Start</div><div class="h" role="columnheader">End</div><div class="h" role="columnheader">Event name</div><div class="h" role="columnheader">Cap.</div><div class="h" role="columnheader" aria-label="Actions"></div>
             </div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="0" role="row"><div>00:00</div><div>&mdash;</div><div>empty <span class="v511-cal-band-tag">off-hours</span></div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="1" role="row"><div>01:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="2" role="row"><div>02:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="3" role="row"><div>03:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="4" role="row"><div>04:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="5" role="row"><div>05:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="6" role="row"><div>06:00</div><div>07:00</div><div>Sunrise yoga</div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="7" role="row"><div>07:15</div><div>08:15</div><div>Early-bird HIIT</div><div>12</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="8" role="row"><div>08:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="9" role="row"><div>09:00</div><div>10:00</div><div>Beginners pilates <span class="v511-cal-band-tag" style="background: rgba(99,153,34,0.18); color: #c0dd97;">working hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="10" role="row"><div>10:15</div><div>11:15</div><div>Intermediate pilates</div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="11" role="row"><div>11:30</div><div>12:30</div><div>Yoga flow</div><div>15</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="12" role="row"><div>12:45</div><div>13:30</div><div>Lunch stretch</div><div>10</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row empty" data-band="light" data-hour="13" role="row"><div>13:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="14" role="row"><div>14:00</div><div>15:30</div><div>Spin class</div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row empty" data-band="light" data-hour="15" role="row"><div>15:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="16" role="row"><div>16:00</div><div>17:00</div><div>Kids dance</div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="light" data-hour="17" role="row"><div>17:15</div><div>18:15</div><div>Boxing fundamentals</div><div>14</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="18" role="row"><div>18:30</div><div>19:30</div><div>Evening pilates <span class="v511-cal-band-tag">off-hours</span></div><div>20</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="19" role="row"><div>19:45</div><div>20:45</div><div>Power yoga</div><div>18</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="20" role="row"><div>20:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row filled" data-band="dim" data-hour="21" role="row"><div>21:00</div><div>22:00</div><div>Late-night meditation</div><div>25</div><div><button type="button" class="v511-btn v511-btn-mini">Edit</button></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="22" role="row"><div>22:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
+            <div class="v511-cal-row empty" data-band="dim" data-hour="23" role="row"><div>23:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
           </div>
-          <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;"><button type="button" class="v511-btn">+ Add event</button> <span class="v511-hint">12 of 24 slots in use</span></div>
+          <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;"><button type="button" class="v511-btn">+ Add event</button> <span class="v511-hint">12 of 24 slots in use &middot; working hours band (09:00&ndash;17:59) shown brighter</span></div>
 
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
 
@@ -3874,11 +3880,71 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         (function () {
           var tabs = document.querySelectorAll('.v511-tabs button[data-v511-tab]');
           var panels = document.querySelectorAll('.v511-panel[data-v511-panel]');
+
+          // Wire up ARIA identity links so screen readers announce the tab pattern
+          // correctly. Each tab gets an id; the matching panel gets aria-labelledby
+          // pointing at it, and the tab gets aria-controls pointing at the panel.
+          tabs.forEach(function (btn) {
+            var target = btn.getAttribute('data-v511-tab');
+            btn.id = 'v511-tab-' + target;
+            btn.setAttribute('role', 'tab');
+            btn.setAttribute('aria-controls', 'v511-panel-' + target);
+            btn.setAttribute('aria-selected', btn.classList.contains('active') ? 'true' : 'false');
+            btn.setAttribute('tabindex', btn.classList.contains('active') ? '0' : '-1');
+          });
+          panels.forEach(function (p) {
+            var name = p.getAttribute('data-v511-panel');
+            p.id = 'v511-panel-' + name;
+            p.setAttribute('role', 'tabpanel');
+            p.setAttribute('aria-labelledby', 'v511-tab-' + name);
+            p.setAttribute('tabindex', '0');
+            if (!p.classList.contains('active')) p.hidden = true;
+          });
+
+          function activate(target, focusTab) {
+            tabs.forEach(function (b) {
+              var isActive = b.getAttribute('data-v511-tab') === target;
+              b.classList.toggle('active', isActive);
+              b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+              b.setAttribute('tabindex', isActive ? '0' : '-1');
+              if (isActive && focusTab) b.focus();
+            });
+            panels.forEach(function (p) {
+              var isActive = p.getAttribute('data-v511-panel') === target;
+              p.classList.toggle('active', isActive);
+              p.hidden = !isActive;
+            });
+            // v5.11 mockup — when Calendar tab activates, scroll its row container
+            // so 09:00 is at the top of view (Captain's UX directive — the working
+            // day, not midnight, is where the eye should land).
+            if (target === 'cal') {
+              window.requestAnimationFrame(function () {
+                var wrap = document.getElementById('v511CalWrap');
+                var nine = wrap && wrap.querySelector('.v511-cal-row[data-hour="9"]');
+                if (wrap && nine) {
+                  var headerHeight = wrap.querySelector('.v511-cal-header');
+                  headerHeight = headerHeight ? headerHeight.offsetHeight : 0;
+                  wrap.scrollTop = nine.offsetTop - headerHeight - 4;
+                }
+              });
+            }
+          }
+
           tabs.forEach(function (btn) {
             btn.addEventListener('click', function () {
-              var target = btn.getAttribute('data-v511-tab');
-              tabs.forEach(function (b) { b.classList.toggle('active', b === btn); });
-              panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-v511-panel') === target); });
+              activate(btn.getAttribute('data-v511-tab'), false);
+            });
+            btn.addEventListener('keydown', function (e) {
+              var current = Array.prototype.indexOf.call(tabs, btn);
+              var next = null;
+              if (e.key === 'ArrowRight') next = (current + 1) % tabs.length;
+              else if (e.key === 'ArrowLeft') next = (current - 1 + tabs.length) % tabs.length;
+              else if (e.key === 'Home') next = 0;
+              else if (e.key === 'End') next = tabs.length - 1;
+              if (next !== null) {
+                e.preventDefault();
+                activate(tabs[next].getAttribute('data-v511-tab'), true);
+              }
             });
           });
         })();
