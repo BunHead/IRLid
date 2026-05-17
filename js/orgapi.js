@@ -91,6 +91,12 @@
     loginPoll(nonce) {
       return request("/org/login/poll?nonce=" + encodeURIComponent(nonce));
     },
+    loginClaim(payload) {
+      return request("/org/login/claim", {
+        method: "POST",
+        body: payload
+      });
+    },
     workerBaseUrl() { return publicBaseUrl(); },
 
     // PROTOCOL.md §14 — Batch C user-level endpoints, Bearer session token auth.
