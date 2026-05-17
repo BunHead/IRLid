@@ -3747,6 +3747,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-swim-event.room-studio2 { background: rgba(99,153,34,0.22); color: #c0dd97; border-left: 3px solid #639922; }
         .v511-swim-event.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left: 3px solid #BA7517; }
         .v511-swim-event small { display: block; font-size: 10.5px; opacity: 0.85; margin-top: 2px; }
+        .v511-expander { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0; margin-top: 12px; }
+        .v511-expander > summary { padding: 12px 16px 12px 38px; cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--text); user-select: none; list-style: none; position: relative; transition: background 0.15s; }
+        .v511-expander > summary::-webkit-details-marker { display: none; }
+        .v511-expander > summary::before { content: "▸"; position: absolute; left: 16px; top: 50%; transform: translateY(-50%); transition: transform 0.2s; color: var(--muted); font-size: 11px; }
+        .v511-expander[open] > summary::before { transform: translateY(-50%) rotate(90deg); }
+        .v511-expander > summary:hover { background: rgba(255,255,255,0.03); }
+        .v511-expander[open] > summary { border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .v511-expander-body { padding: 12px 16px 14px; }
+        .v511-expander summary .v511-hint-inline { margin-left: 6px; font-weight: 400; }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -3788,13 +3797,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
         <section class="v511-panel" data-v511-panel="cal">
           <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-design">design-in</span></div>
-
-          <div class="v511-sub">Default event settings</div>
-          <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
-          <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
-          <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
-          <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
-          <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
 
           <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day, across rooms)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
 
@@ -4118,6 +4120,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
 
+          <details class="v511-expander">
+            <summary>Default event settings <span class="v511-hint-inline">(applied to any new event unless the event overrides them)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
+              <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
+              <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
+              <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
+              <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
+            </div>
+          </details>
+
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
 
@@ -4125,27 +4138,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="roles">
           <div class="v511-head"><h3>Roles &amp; staff</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
-          <div class="v511-sub">Role vocabulary <span class="v511-hint-inline">(rename what each role is called in YOUR org)</span></div>
-          <div class="v511-row"><label>Attendee</label><input type="text" value="Member" /></div>
-          <div class="v511-row"><label>Staff</label><input type="text" value="Instructor" /></div>
-          <div class="v511-row"><label>Manager</label><input type="text" value="Studio Manager" /></div>
-          <div class="v511-row"><label>Lead admin</label><input type="text" value="Owner" /></div>
-          <div class="v511-hint" style="padding: 4px 0;">Developer role is platform-level and is not shown here — it never changes and non-Developer roles can't edit it.</div>
-
-          <div class="v511-sub">Rooms / spaces <span class="v511-hint-inline">(each event runs in one room; rooms have their own venue QR and capacity)</span></div>
-          <div class="v511-rooms-list">
-            <div class="v511-room-row"><div>Studio 1 <span class="v511-hint-inline">— main hall</span></div><div class="v511-room-cap">cap 30</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
-            <div class="v511-room-row"><div>Studio 2</div><div class="v511-room-cap">cap 20</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
-            <div class="v511-room-row"><div>Studio 3 <span class="v511-hint-inline">— kids room</span></div><div class="v511-room-cap">cap 15</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
-          </div>
-          <div style="margin-top: 10px;"><button type="button" class="v511-btn">+ Add room</button> <span class="v511-hint" style="margin-left: 8px;">Each room gets its own venue QR at the entrance; doorman flow scopes to the room you scanned into.</span></div>
-
-          <div class="v511-sub">Staff list</div>
+          <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
           <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
           <div class="v511-staff"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
           <div class="v511-staff"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
 
           <div style="margin-top: 14px;"><button type="button" class="v511-btn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
+
+          <details class="v511-expander">
+            <summary>Role vocabulary <span class="v511-hint-inline">(rename what each role is called in YOUR org)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>Attendee</label><input type="text" value="Member" /></div>
+              <div class="v511-row"><label>Staff</label><input type="text" value="Instructor" /></div>
+              <div class="v511-row"><label>Manager</label><input type="text" value="Studio Manager" /></div>
+              <div class="v511-row"><label>Lead admin</label><input type="text" value="Owner" /></div>
+              <div class="v511-hint" style="padding: 4px 0;">Developer role is platform-level and is not shown here — it never changes and non-Developer roles can't edit it.</div>
+            </div>
+          </details>
+
+          <details class="v511-expander">
+            <summary>Rooms / spaces <span class="v511-hint-inline">(each event runs in one room; rooms have their own venue QR and capacity)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-rooms-list">
+                <div class="v511-room-row"><div>Studio 1 <span class="v511-hint-inline">— main hall</span></div><div class="v511-room-cap">cap 30</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+                <div class="v511-room-row"><div>Studio 2</div><div class="v511-room-cap">cap 20</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+                <div class="v511-room-row"><div>Studio 3 <span class="v511-hint-inline">— kids room</span></div><div class="v511-room-cap">cap 15</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
+              </div>
+              <div style="margin-top: 10px;"><button type="button" class="v511-btn">+ Add room</button> <span class="v511-hint" style="margin-left: 8px;">Each room gets its own venue QR at the entrance; doorman flow scopes to the room you scanned into.</span></div>
+            </div>
+          </details>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
@@ -4176,9 +4197,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label>Session expiry</label><select><option selected>24 hours (sliding)</option><option>12 hours</option><option>7 days</option></select></div>
           <div class="v511-row"><label>Session-poll interval</label><div><span class="v511-hint">30 seconds (v5.10.7) &mdash; fixed</span></div></div>
 
-          <div class="v511-sub">Service-account login <span class="v511-hint-inline">(legacy)</span></div>
-          <div class="v511-row"><label>API key</label><input type="text" placeholder="org_..." /></div>
-          <div class="v511-hint" style="padding: 4px 0;">Use only for non-interactive integrations. Bearer + QR sign-in is preferred for humans.</div>
+          <details class="v511-expander">
+            <summary>Service-account login <span class="v511-hint-inline">(legacy mode for non-interactive integrations)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>API key</label><input type="text" placeholder="org_..." /></div>
+              <div class="v511-hint" style="padding: 4px 0;">Use only for non-interactive integrations. Bearer + QR sign-in is preferred for humans.</div>
+            </div>
+          </details>
 
           <div class="v511-danger-zone">
             <div class="v511-sub">Sign-out</div>
@@ -4194,22 +4219,34 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="tools">
           <div class="v511-head"><h3>Tools &amp; diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
-          <div class="v511-sub">Outcome sounds <span class="v511-hint-inline">(played on check-in resolution)</span></div>
-          <div class="v511-audio"><span class="icon" style="background: rgba(99, 153, 34, 0.25); color: #c0dd97;">&check;</span><span class="name">Allow</span><span class="file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-          <div class="v511-audio"><span class="icon" style="background: rgba(186, 117, 23, 0.25); color: #fac775;">?</span><span class="name">Review</span><span class="file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-          <div class="v511-audio"><span class="icon" style="background: rgba(226, 75, 74, 0.25); color: #f09595;">&times;</span><span class="name">Deny</span><span class="file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-
-          <div class="v511-sub">Audit log</div>
+          <div class="v511-sub">Audit log <span class="v511-hint-inline">(the daily launcher — see what changed and when)</span></div>
           <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
 
-          <div class="v511-sub">Debug</div>
-          <div class="v511-row"><label>Debug pill</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Show "Debug" indicator in top-right</span></div></div>
-          <div class="v511-row"><label>Verbose logging</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
+          <details class="v511-expander">
+            <summary>Outcome sounds <span class="v511-hint-inline">(played on check-in resolution)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-audio"><span class="icon" style="background: rgba(99, 153, 34, 0.25); color: #c0dd97;">&check;</span><span class="name">Allow</span><span class="file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+              <div class="v511-audio"><span class="icon" style="background: rgba(186, 117, 23, 0.25); color: #fac775;">?</span><span class="name">Review</span><span class="file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+              <div class="v511-audio"><span class="icon" style="background: rgba(226, 75, 74, 0.25); color: #f09595;">&times;</span><span class="name">Deny</span><span class="file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+            </div>
+          </details>
 
-          <div class="v511-sub">Developer <span class="v511-badge v511-badge-dev" style="margin-left: 6px;">developer-only</span></div>
-          <div class="v511-row"><label>Bootstrap fp</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">n4FzIhV_1jc2u_HO</span></div>
-          <div class="v511-row"><label>Worker URL</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-api-org.irlid-bunhead.workers.dev</span></div>
-          <div class="v511-row"><label>D1 binding</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-db-org</span></div>
+          <details class="v511-expander">
+            <summary>Debug <span class="v511-hint-inline">(test-fire controls, console verbosity)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>Debug pill</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Show "Debug" indicator in top-right</span></div></div>
+              <div class="v511-row"><label>Verbose logging</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
+            </div>
+          </details>
+
+          <details class="v511-expander">
+            <summary>Developer <span class="v511-badge v511-badge-dev" style="margin-left: 6px;">developer-only</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>Bootstrap fp</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">n4FzIhV_1jc2u_HO</span></div>
+              <div class="v511-row"><label>Worker URL</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-api-org.irlid-bunhead.workers.dev</span></div>
+              <div class="v511-row"><label>D1 binding</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-db-org</span></div>
+            </div>
+          </details>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
