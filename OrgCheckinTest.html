@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 (test)</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup</span></div>
   </div>
 </div>
 
@@ -3655,7 +3655,237 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     </div>
 
     <div class="panel" id="panel-settings">
-      <div class="settings-shell">
+      <!-- ================================================================ -->
+      <!-- v5.11 SETTINGS REVAMP MOCKUP — added 17 May 2026 (sandbox-only).   -->
+      <!-- This block renders a click-through 6-tab prototype for review.    -->
+      <!-- The legacy settings-shell below is preserved (display:none) so    -->
+      <!-- the existing save/load JS still finds its element IDs and any     -->
+      <!-- non-visual side effects continue to work in the test fork.        -->
+      <!-- ================================================================ -->
+      <style>
+        .v511-mockup { padding: 16px 18px; }
+        .v511-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255, 199, 117, 0.12); border: 1px solid rgba(255, 199, 117, 0.35); border-radius: 12px; margin-bottom: 14px; font-size: 12px; color: var(--text); }
+        .v511-banner strong { color: #ffc775; }
+        .v511-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; }
+        .v511-tabs button { flex: 1 1 auto; padding: 9px 11px; font-size: 12.5px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; transition: all 0.15s; font-family: inherit; }
+        .v511-tabs button:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+        .v511-tabs button.active { background: rgba(105, 168, 255, 0.16); color: var(--text); border-color: rgba(105, 168, 255, 0.4); font-weight: 600; }
+        .v511-panel { display: none; background: linear-gradient(180deg, rgba(25,36,64,0.92), rgba(19,28,49,0.96)); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+        .v511-panel.active { display: block; }
+        .v511-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+        .v511-head h3 { font-size: 15px; margin: 0; flex: 1; }
+        .v511-badge { font-size: 10.5px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .v511-badge-backed { background: rgba(99, 153, 34, 0.2); color: #c0dd97; }
+        .v511-badge-design { background: rgba(186, 117, 23, 0.2); color: #fac775; }
+        .v511-badge-dev { background: rgba(255,255,255,0.08); color: var(--muted); }
+        .v511-sub { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: var(--text); }
+        .v511-sub:first-child { margin-top: 0; }
+        .v511-sub .v511-hint-inline { font-weight: 400; color: var(--muted); margin-left: 6px; font-size: 11.5px; }
+        .v511-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: center; padding: 7px 0; font-size: 13px; }
+        .v511-row > label, .v511-row > .l { color: var(--muted); }
+        .v511-row input[type=text], .v511-row input[type=url], .v511-row input[type=number], .v511-row select, .v511-row textarea { width: 100%; height: 32px; font-size: 13px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; font-family: inherit; }
+        .v511-row textarea { height: auto; min-height: 52px; padding: 8px 10px; }
+        .v511-row input:focus, .v511-row select:focus, .v511-row textarea:focus { outline: none; border-color: rgba(105,168,255,0.6); box-shadow: 0 0 0 3px rgba(105,168,255,0.12); }
+        .v511-hint { font-size: 11.5px; color: var(--muted); }
+        .v511-swatch { display: inline-block; width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.18); vertical-align: middle; margin-right: 6px; }
+        .v511-btn { padding: 7px 13px; font-size: 12.5px; background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; cursor: pointer; font-family: inherit; }
+        .v511-btn:hover { background: rgba(255,255,255,0.08); }
+        .v511-btn-primary { background: rgba(105, 168, 255, 0.2); border-color: rgba(105, 168, 255, 0.5); color: #c8e0ff; font-weight: 600; }
+        .v511-btn-primary:hover { background: rgba(105, 168, 255, 0.3); }
+        .v511-btn-mini { padding: 3px 9px; font-size: 11px; }
+        .v511-save { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+        .v511-cal-wrap { max-height: 480px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+        .v511-cal { display: grid; grid-template-columns: 70px 70px 1fr 60px 70px; gap: 0 8px; font-size: 12px; }
+        .v511-cal .h { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 8px 6px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.03); position: sticky; top: 0; }
+        .v511-cal .c { padding: 7px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text); }
+        .v511-cal .c.dim { color: var(--muted); font-style: italic; opacity: 0.55; }
+        .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .v511-staff:last-of-type { border-bottom: none; }
+        .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
+        .v511-audio { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; margin-bottom: 6px; font-size: 13px; }
+        .v511-audio .icon { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+        .v511-audio .name { flex: 1; }
+        .v511-audio .file { font-size: 11px; color: var(--muted); font-family: var(--font-mono, monospace); }
+        .v511-info { padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+        .v511-danger-zone { margin-top: 14px; padding: 12px; border: 1px solid rgba(226, 75, 74, 0.3); border-radius: 10px; background: rgba(226, 75, 74, 0.06); }
+        .v511-danger-zone .v511-sub { color: #f09595; margin-top: 0; }
+      </style>
+
+      <div class="v511-mockup">
+        <div class="v511-banner"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
+
+        <nav class="v511-tabs" aria-label="v5.11 Settings tabs">
+          <button type="button" class="active" data-v511-tab="org">1. Organisation</button>
+          <button type="button" data-v511-tab="cal">2. Event &amp; calendar</button>
+          <button type="button" data-v511-tab="roles">3. Roles &amp; staff</button>
+          <button type="button" data-v511-tab="theme">4. Visual theming</button>
+          <button type="button" data-v511-tab="auth">5. Sign-in &amp; auth</button>
+          <button type="button" data-v511-tab="tools">6. Tools &amp; diagnostics</button>
+        </nav>
+
+        <!-- ===== TAB 1: ORGANISATION ===== -->
+        <section class="v511-panel active" data-v511-panel="org">
+          <div class="v511-head"><h3>Organisation</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-row"><label>Display name</label><input type="text" value="Test Event" /></div>
+          <div class="v511-row"><label>Slug</label><input type="text" value="imbue-ventures" disabled style="opacity: 0.55;" /></div>
+          <div class="v511-row"><label>Website</label><input type="url" value="https://example.com" /></div>
+          <div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn">Upload logo</button> <span class="v511-hint">PNG / SVG / JPEG, &le; 200 KB</span></div></div>
+          <div class="v511-row"><label>Description</label><input type="text" value="Co-presence verification for events" /></div>
+          <div class="v511-row"><label>Org terms / disclaimer</label><textarea placeholder="Optional informational text shown at check-in."></textarea></div>
+          <div class="v511-row"><label>Contact email</label><input type="text" value="hello@example.com" /></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
+        <section class="v511-panel" data-v511-panel="cal">
+          <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-design">design-in</span></div>
+
+          <div class="v511-sub">Default event settings</div>
+          <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
+          <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
+          <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
+          <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
+          <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
+
+          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
+          <div class="v511-cal-wrap">
+            <div class="v511-cal">
+              <div class="h">Start</div><div class="h">End</div><div class="h">Event name</div><div class="h">Cap.</div><div class="h"></div>
+              <div class="c">06:00</div><div class="c">07:00</div><div class="c">Sunrise yoga</div><div class="c">15</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">07:15</div><div class="c">08:15</div><div class="c">Early-bird HIIT</div><div class="c">12</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">09:00</div><div class="c">10:00</div><div class="c">Beginners pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">10:15</div><div class="c">11:15</div><div class="c">Intermediate pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">11:30</div><div class="c">12:30</div><div class="c">Yoga flow</div><div class="c">15</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">12:45</div><div class="c">13:30</div><div class="c">Lunch stretch</div><div class="c">10</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">14:00</div><div class="c">15:30</div><div class="c">Spin class</div><div class="c">25</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">16:00</div><div class="c">17:00</div><div class="c">Kids dance</div><div class="c">18</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">17:15</div><div class="c">18:15</div><div class="c">Boxing fundamentals</div><div class="c">14</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">18:30</div><div class="c">19:30</div><div class="c">Evening pilates</div><div class="c">20</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">19:45</div><div class="c">20:45</div><div class="c">Power yoga</div><div class="c">18</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c">21:00</div><div class="c">22:00</div><div class="c">Late-night meditation</div><div class="c">25</div><div class="c"><button type="button" class="v511-btn v511-btn-mini">Edit</button></div>
+              <div class="c dim">+ slot 13</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 14</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 15</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 16</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 17</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 18</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 19</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 20</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 21</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 22</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 23</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+              <div class="c dim">+ slot 24</div><div class="c dim">—</div><div class="c dim">empty</div><div class="c dim">—</div><div class="c"></div>
+            </div>
+          </div>
+          <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;"><button type="button" class="v511-btn">+ Add event</button> <span class="v511-hint">12 of 24 slots in use</span></div>
+
+          <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 3: ROLES &amp; STAFF ===== -->
+        <section class="v511-panel" data-v511-panel="roles">
+          <div class="v511-head"><h3>Roles &amp; staff</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+
+          <div class="v511-sub">Role vocabulary <span class="v511-hint-inline">(rename what each role is called in YOUR org)</span></div>
+          <div class="v511-row"><label>Attendee</label><input type="text" value="Member" /></div>
+          <div class="v511-row"><label>Staff</label><input type="text" value="Instructor" /></div>
+          <div class="v511-row"><label>Manager</label><input type="text" value="Studio Manager" /></div>
+          <div class="v511-row"><label>Lead admin</label><input type="text" value="Owner" /></div>
+          <div class="v511-hint" style="padding: 4px 0;">Developer role is platform-level and is not shown here — it never changes and non-Developer roles can't edit it.</div>
+
+          <div class="v511-sub">Staff list</div>
+          <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+          <div class="v511-staff"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+          <div class="v511-staff"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+
+          <div style="margin-top: 14px;"><button type="button" class="v511-btn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 4: VISUAL THEMING ===== -->
+        <section class="v511-panel" data-v511-panel="theme">
+          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+
+          <div class="v511-row"><label>Primary colour</label><div><span class="v511-swatch" style="background: #DC143C;"></span><span class="v511-hint">#DC143C</span></div></div>
+          <div class="v511-row"><label>Accent colour</label><div><span class="v511-swatch" style="background: #58a6ff;"></span><span class="v511-hint">#58a6ff</span></div></div>
+          <div class="v511-row"><label>QR foreground</label><div><span class="v511-swatch" style="background: #000000;"></span><span class="v511-hint">#000000</span></div></div>
+          <div class="v511-row"><label>Light/dark mode</label><select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select></div>
+          <div class="v511-row"><label>Background</label><span class="v511-hint">Palette &middot; pattern &middot; image &mdash; set inside advanced</span></div>
+          <div class="v511-row"><label>Celebration</label><span class="v511-hint">Pulse &middot; background &middot; QR &middot; glow &middot; pattern &middot; text &mdash; inside advanced</span></div>
+
+          <div class="v511-info">The theming surface is intentionally deep. Click <strong style="color: var(--text);">Open advanced theming</strong> to drill into palette wheels, pattern picker, celebration variants, and image controls. The summary stays this short.</div>
+          <div style="margin-top: 12px;"><button type="button" class="v511-btn">Open advanced theming &rarr;</button></div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 5: SIGN-IN &amp; AUTH ===== -->
+        <section class="v511-panel" data-v511-panel="auth">
+          <div class="v511-head"><h3>Sign-in &amp; auth</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+
+          <div class="v511-row"><label>QR sign-in</label><div><input type="checkbox" checked style="vertical-align: middle;" /> <span class="v511-hint">Enable WebAuthn QR-scan login (recommended)</span></div></div>
+          <div class="v511-row"><label>Same-device sign-in</label><div><input type="checkbox" checked style="vertical-align: middle;" /> <span class="v511-hint">Show "Sign in on this device" button (v5.10.6)</span></div></div>
+          <div class="v511-row"><label>Session expiry</label><select><option selected>24 hours (sliding)</option><option>12 hours</option><option>7 days</option></select></div>
+          <div class="v511-row"><label>Session-poll interval</label><div><span class="v511-hint">30 seconds (v5.10.7) &mdash; fixed</span></div></div>
+
+          <div class="v511-sub">Service-account login <span class="v511-hint-inline">(legacy)</span></div>
+          <div class="v511-row"><label>API key</label><input type="text" placeholder="org_..." /></div>
+          <div class="v511-hint" style="padding: 4px 0;">Use only for non-interactive integrations. Bearer + QR sign-in is preferred for humans.</div>
+
+          <div class="v511-danger-zone">
+            <div class="v511-sub">Sign-out</div>
+            <button type="button" class="v511-btn">Sign out (this device)</button>
+            <button type="button" class="v511-btn" style="margin-left: 6px;">Sign out of all devices</button>
+            <div class="v511-hint" style="margin-top: 8px;">Either button revokes server-side; other devices bounce within 30s (v5.10.5 + v5.10.7).</div>
+          </div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+
+        <!-- ===== TAB 6: TOOLS &amp; DIAGNOSTICS ===== -->
+        <section class="v511-panel" data-v511-panel="tools">
+          <div class="v511-head"><h3>Tools &amp; diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+
+          <div class="v511-sub">Outcome sounds <span class="v511-hint-inline">(played on check-in resolution)</span></div>
+          <div class="v511-audio"><span class="icon" style="background: rgba(99, 153, 34, 0.25); color: #c0dd97;">&check;</span><span class="name">Allow</span><span class="file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+          <div class="v511-audio"><span class="icon" style="background: rgba(186, 117, 23, 0.25); color: #fac775;">?</span><span class="name">Review</span><span class="file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+          <div class="v511-audio"><span class="icon" style="background: rgba(226, 75, 74, 0.25); color: #f09595;">&times;</span><span class="name">Deny</span><span class="file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+
+          <div class="v511-sub">Audit log</div>
+          <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
+
+          <div class="v511-sub">Debug</div>
+          <div class="v511-row"><label>Debug pill</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Show "Debug" indicator in top-right</span></div></div>
+          <div class="v511-row"><label>Verbose logging</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
+
+          <div class="v511-sub">Developer <span class="v511-badge v511-badge-dev" style="margin-left: 6px;">developer-only</span></div>
+          <div class="v511-row"><label>Bootstrap fp</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">n4FzIhV_1jc2u_HO</span></div>
+          <div class="v511-row"><label>Worker URL</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-api-org.irlid-bunhead.workers.dev</span></div>
+          <div class="v511-row"><label>D1 binding</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-db-org</span></div>
+
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+        </section>
+      </div>
+
+      <script>
+        (function () {
+          var tabs = document.querySelectorAll('.v511-tabs button[data-v511-tab]');
+          var panels = document.querySelectorAll('.v511-panel[data-v511-panel]');
+          tabs.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var target = btn.getAttribute('data-v511-tab');
+              tabs.forEach(function (b) { b.classList.toggle('active', b === btn); });
+              panels.forEach(function (p) { p.classList.toggle('active', p.getAttribute('data-v511-panel') === target); });
+            });
+          });
+        })();
+      </script>
+      <!-- ================ /v5.11 MOCKUP — legacy settings-shell below is preserved (hidden) ================ -->
+
+      <div class="settings-shell" style="display: none;">
         <div class="settings-stack">
           <div class="settings-card">
             <div class="settings-card-header">
