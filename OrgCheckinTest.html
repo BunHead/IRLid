@@ -3720,7 +3720,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-room-row:last-child { border-bottom: none; }
         .v511-room-cap { color: var(--muted); font-size: 12px; }
         .v511-room-actions { display: flex; gap: 4px; justify-content: flex-end; }
-        .v511-cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: rgba(13, 18, 32, 0.96); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; position: sticky; top: 8px; z-index: 5; }
+        .v511-cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
         .v511-cal-view-toggle { display: flex; gap: 4px; padding: 3px; background: rgba(0,0,0,0.22); border-radius: 8px; }
         .v511-cal-view-toggle button { padding: 5px 11px; font-size: 12px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; color: var(--muted); font-family: inherit; }
         .v511-cal-view-toggle button.active { background: rgba(105, 168, 255, 0.18); color: var(--text); border-color: rgba(105, 168, 255, 0.4); font-weight: 600; }
@@ -3797,7 +3797,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row" style="opacity: 0.6;"><label>Tagline</label><input type="text" placeholder="Movement for everybody" disabled /></div>
           <div class="v511-row" style="opacity: 0.6;"><label>Footer text</label><input type="text" placeholder="© Imbue Ventures 2026 · Studio open Mon–Sat" disabled /></div>
           <div class="v511-row" style="opacity: 0.6;"><label>Privacy policy URL</label><input type="url" placeholder="https://example.com/privacy" disabled /></div>
-          <div class="v511-row" style="opacity: 0.6;"><label>Contact info on check-in</label><div><textarea placeholder="Call us on 0115 123 4567 · 12 High Street, Derby DE1 1AA" disabled style="opacity: 1;"></textarea><span class="v511-hint" style="display: block; margin-top: 4px;">YOUR contact info, shown to attendees at check-in (org → attendee). No attendee data is collected here.</span></div></div>
+          <div class="v511-sub">Contact info on check-in <span class="v511-hint-inline">(YOUR info shown TO attendees; nothing collected from them)</span> <span class="v511-badge v511-badge-design" style="margin-left: 4px;">design-in</span></div>
+          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Phone number</label><input type="tel" placeholder="0115 123 4567" disabled /></div>
+          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Address</label><input type="text" placeholder="12 High Street, Derby DE1 1AA" disabled /></div>
+          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Public email</label><input type="email" placeholder="hello@example.com" disabled /></div>
+          <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Emergency notice</label><textarea placeholder="In an emergency, follow staff instructions. Studio is at..." disabled></textarea></div>
+          <div class="v511-hint" style="padding: 4px 0;">Each item is opt-in. Default off — no contact info shows on check-in pages unless the org turns it on.</div>
           <div class="v511-row" style="opacity: 0.6;"><label>Theme from website</label><div><button type="button" class="v511-btn" disabled>Extract palette + logo</button> <span class="v511-hint">Reads your public website for colour palette, logo, and welcome text suggestions. You review every suggestion before any of it is saved.</span></div></div>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
@@ -4137,18 +4142,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
               <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
               <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
-
-              <div class="v511-sub" style="margin-top: 16px;">Post-accept behaviour <span class="v511-hint-inline">(what happens after the green tick)</span></div>
-              <div class="v511-row"><label>Custom welcome message</label><textarea placeholder="Welcome to the studio."></textarea></div>
-              <div class="v511-row"><label>Post-accept redirect</label><input type="url" placeholder="https://example.com/welcome" /></div>
-              <div class="v511-row"><label>Staff post-accept redirect</label><input type="url" placeholder="e.g. https://example.com/staff-page" /></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>Dwell time before redirect</label><div><select disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>First-time vs returning</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>Time-aware greeting</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>Add to calendar</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>Email confirmation</label><div><select disabled><option>Off</option><option>Opt-in (attendee chooses)</option><option>Always send</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>SMS confirmation</label><div><select disabled><option>Off</option><option>Opt-in (attendee chooses)</option><option>Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-hint" style="margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">Receipts themselves are downloadable at <strong style="color: var(--text);">irlid.co.uk/check.html</strong> — they don't live on this page.</div>
+              <div class="v511-hint" style="margin-top: 8px; padding: 6px 0;">Post-accept behaviour (welcome message, redirects, dwell time, email/SMS) lives in <strong style="color: var(--text);">Visual theming → Post-accept behaviour</strong> — it's a visual/flow setting, not an event-data setting.</div>
             </div>
           </details>
 
@@ -4205,6 +4199,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-info">The theming surface is intentionally deep. Click <strong style="color: var(--text);">Open advanced theming</strong> to drill into palette wheels, pattern picker, celebration variants, and image controls. The summary stays this short.</div>
           <div style="margin-top: 12px;"><button type="button" class="v511-btn">Open advanced theming &rarr;</button></div>
+
+          <details class="v511-expander">
+            <summary>Post-accept behaviour <span class="v511-hint-inline">(advanced — what happens after the green tick)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label>Custom welcome message</label><textarea placeholder="Welcome to the studio."></textarea></div>
+              <div class="v511-row"><label>Post-accept redirect</label><input type="url" placeholder="https://example.com/welcome" /></div>
+              <div class="v511-row"><label>Staff post-accept redirect</label><input type="url" placeholder="e.g. https://example.com/staff-page" /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Dwell time before redirect</label><div><select disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>First-time vs returning</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Time-aware greeting</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Add to calendar</label><div><input type="checkbox" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Email confirmation</label><div><select disabled><option>Off</option><option>Opt-in (attendee chooses)</option><option>Always send</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>SMS confirmation</label><div><select disabled><option>Off</option><option>Opt-in (attendee chooses)</option><option>Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-hint" style="margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">Receipts themselves are downloadable at <strong style="color: var(--text);">irlid.co.uk/check.html</strong> — they don't live on this page.</div>
+            </div>
+          </details>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
