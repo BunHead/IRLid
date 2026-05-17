@@ -5032,7 +5032,7 @@ async function registerOrg() {
     document.getElementById('existingKeyInput').value = currentOrg.api_key;
     document.getElementById('setupForm').style.display = 'none';
     document.getElementById('setupResult').style.display = 'block';
-    showSetupMessage('Organisation registered with irlid-api-test.', false);
+    showSetupMessage('Organisation registered with irlid-api-org.', false);
   } catch (err) {
     showSetupMessage(err.message || 'Could not register organisation.', true);
   }
@@ -6463,7 +6463,7 @@ function renderTable(rows) {
       prototype_role: row.prototype_role || 'attendee'
     }));
   const displayRows = enrichedRows.concat(expectedRows);
-  if (!displayRows.length) { document.getElementById('attendanceBody').innerHTML = '<div class="empty-state">No attendees returned from irlid-api-test</div>'; return; }
+  if (!displayRows.length) { document.getElementById('attendanceBody').innerHTML = '<div class="empty-state">No attendees returned from irlid-api-org</div>'; return; }
   document.getElementById('attendanceBody').innerHTML = `<table class="att-table"><thead><tr><th>Name / ID</th><th>First seen</th><th>Last seen</th><th>Scan count</th><th>Status</th><th class="att-role-col">Role</th><th>Action</th></tr></thead><tbody id="attendanceRows"></tbody></table>`;
   const liveTbody = document.getElementById('attendanceRows');
   const viewingAs = currentPrototypeRole();
