@@ -922,6 +922,11 @@ body.audit-mode #attendanceBody { overflow-x: hidden; }
 .btn-primary:hover { background: #2ea043; }
 .btn-secondary { background: var(--line-soft); color: var(--text); border: 1px solid var(--line); }
 .btn-secondary:hover { background: var(--line); }
+#signOutBtn, #signedInSignOutBtn {
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
 .btn-sm { padding: 4px 10px; font-size: 11px; }
 .csv-filter-select { min-height: 25px; border: 1px solid var(--line); border-radius: 6px; background: var(--line-soft); color: var(--text); padding: 4px 8px; font-size: 11px; font-weight: 500; }
 .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 5px; animation: pulse 2s infinite; }
@@ -3281,7 +3286,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.3</span></div>
   </div>
 </div>
 
