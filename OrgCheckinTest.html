@@ -3776,6 +3776,44 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row > label { color: var(--muted); width: 140px; }
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
         .v511-anim-row input[type=range] { flex: 1; }
+        /* v5.11 theme preview at top of Visual theming tab */
+        .v511-theme-preview { display: grid; grid-template-columns: 1fr 220px; gap: 14px; align-items: stretch; margin-bottom: 16px; }
+        @media (max-width: 720px) { .v511-theme-preview { grid-template-columns: 1fr; } }
+        .v511-theme-preview-stage { position: relative; background: linear-gradient(180deg, #DC143C 0%, #8B0000 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 20px; transition: filter 0.3s; }
+        .v511-theme-preview-stage.firing-allow { animation: v511PreviewAllow 1.4s ease-out; }
+        .v511-theme-preview-stage.firing-review { animation: v511PreviewReview 1.4s ease-out; }
+        .v511-theme-preview-stage.firing-deny { animation: v511PreviewDeny 1.4s ease-out; }
+        .v511-theme-preview-stage.firing-background { animation: v511PreviewBackground 3s ease-in-out; }
+        @keyframes v511PreviewAllow { 0% { box-shadow: inset 0 0 0 0 #c0dd97; } 30% { box-shadow: inset 0 0 80px 4px #c0dd97; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+        @keyframes v511PreviewReview { 0% { box-shadow: inset 0 0 0 0 #fac775; } 30% { box-shadow: inset 0 0 80px 4px #fac775; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+        @keyframes v511PreviewDeny { 0% { box-shadow: inset 0 0 0 0 #f09595; } 15% { transform: translateX(-4px); } 25% { transform: translateX(4px); } 35% { box-shadow: inset 0 0 80px 4px #f09595; transform: translateX(0); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
+        @keyframes v511PreviewBackground { 0% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(120deg); } 100% { filter: hue-rotate(0deg); } }
+        .v511-theme-preview-banner { color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+        .v511-theme-preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #000; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .v511-theme-preview-caption { margin-top: 14px; color: rgba(255,255,255,0.85); font-size: 11px; text-align: center; }
+        .v511-theme-preview-controls { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 12px; }
+        .v511-theme-preview-controls label { font-size: 11.5px; color: var(--muted); }
+        .v511-theme-preview-controls select { height: 32px; font-size: 12.5px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; }
+        .v511-theme-preview-controls .v511-hint { font-size: 11px; line-height: 1.4; }
+        /* v5.11 Org tab masthead */
+        .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); border: 1px solid rgba(105,168,255,0.22); border-radius: 14px; }
+        .v511-masthead-name { font-size: 22px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.2; }
+        .v511-masthead-slug { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 8px; background: rgba(255,255,255,0.06); color: var(--muted); border-radius: 5px; }
+        .v511-masthead-tagline { margin-top: 8px; font-size: 13px; color: var(--muted); font-style: italic; }
+        .v511-masthead-logo { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; max-height: 110px; background: rgba(255,255,255,0.92); border-radius: 12px; color: #0d1220; font-weight: 700; font-size: 32px; letter-spacing: -1px; }
+        @media (max-width: 640px) { .v511-masthead { grid-template-columns: 1fr; text-align: center; } .v511-masthead-logo { max-width: 110px; margin: 0 auto; } }
+        /* v5.11 calendar now-line + Jump to now */
+        .v511-cal-wrap { position: relative; }
+        .v511-cal-now-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #ff6b6b; box-shadow: 0 0 6px rgba(255, 107, 107, 0.5); pointer-events: none; z-index: 3; }
+        .v511-cal-now-label { position: absolute; left: 8px; top: -10px; background: #ff6b6b; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .v511-jump-now-btn { padding: 6px 12px; font-size: 12px; background: rgba(255, 107, 107, 0.15); color: #ff8888; border: 1px solid rgba(255, 107, 107, 0.4); border-radius: 7px; cursor: pointer; font-family: inherit; }
+        .v511-jump-now-btn:hover { background: rgba(255, 107, 107, 0.25); }
+        /* v5.11 WAV file slots inside Visual theming → QR sub-tab */
+        .v511-wav-slots { margin-top: 10px; display: grid; gap: 6px; }
+        .v511-wav-slot { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-size: 12.5px; }
+        .v511-wav-slot .v511-wav-icon { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+        .v511-wav-slot .v511-wav-name { flex: 1; }
+        .v511-wav-slot .v511-wav-file { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono, monospace); }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -3804,6 +3842,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <!-- ===== TAB 1: ORGANISATION ===== -->
         <section class="v511-panel active" data-v511-panel="org">
           <div class="v511-head"><h3>Organisation</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+
+          <!-- Branded masthead — captain's directive: tab opens with the org's identity at the top, not a form row -->
+          <div class="v511-masthead">
+            <div>
+              <h2 class="v511-masthead-name">Test Event</h2>
+              <span class="v511-masthead-slug">imbue-ventures</span>
+              <div class="v511-masthead-tagline">Co-presence verification for events</div>
+            </div>
+            <div class="v511-masthead-logo">IRL</div>
+          </div>
+
           <div class="v511-row"><label>Display name</label><input type="text" value="Test Event" /></div>
           <div class="v511-row"><label>Slug</label><div><input type="text" value="imbue-ventures" disabled style="opacity: 0.55; width: 100%;" /><span class="v511-hint" style="display: block; margin-top: 4px;">URL-safe short name. Auto-generated from Display name. Used in receipt URLs and the api_key prefix. Read-only — changing it would break existing receipts that reference this org.</span></div></div>
           <div class="v511-row"><label>Website</label><input type="url" value="https://example.com" /></div>
@@ -3845,14 +3894,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <button type="button" class="active" data-cal-view="list" role="tab" aria-selected="true">List view</button>
               <button type="button" data-cal-view="swimlane" role="tab" aria-selected="false">Swim-lane view</button>
             </div>
-            <div class="v511-cal-room-filter">
-              <label for="v511CalRoomFilter">Room:</label>
-              <select id="v511CalRoomFilter">
-                <option value="all">All rooms</option>
-                <option value="studio1">Studio 1</option>
-                <option value="studio2">Studio 2</option>
-                <option value="studio3">Studio 3</option>
-              </select>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button type="button" class="v511-jump-now-btn" id="v511JumpNowBtn" title="Centre the calendar on the current time">↳ Jump to now</button>
+              <div class="v511-cal-room-filter">
+                <label for="v511CalRoomFilter">Room:</label>
+                <select id="v511CalRoomFilter">
+                  <option value="all">All rooms</option>
+                  <option value="studio1">Studio 1</option>
+                  <option value="studio2">Studio 2</option>
+                  <option value="studio3">Studio 3</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -3860,6 +3912,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-cal-header" role="row">
               <div class="h" role="columnheader">Start</div><div class="h" role="columnheader">End</div><div class="h" role="columnheader">Event name</div><div class="h" role="columnheader">Cap.</div><div class="h" role="columnheader" aria-label="Actions"></div>
             </div>
+            <div class="v511-cal-now-line" id="v511CalNowLine" aria-hidden="true"><span class="v511-cal-now-label">Now</span></div>
             <div class="v511-cal-row empty" data-band="dim" data-hour="0" role="row"><div>00:00</div><div>&mdash;</div><div>empty <span class="v511-cal-band-tag">off-hours</span></div><div>&mdash;</div><div></div></div>
             <div class="v511-cal-row empty" data-band="dim" data-hour="1" role="row"><div>01:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
             <div class="v511-cal-row empty" data-band="dim" data-hour="2" role="row"><div>02:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
@@ -4216,26 +4269,43 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="theme">
           <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
+          <!-- Theme preview at top — the live "what your attendees see" view -->
+          <div class="v511-theme-preview">
+            <div class="v511-theme-preview-stage" id="v511ThemePreviewStage">
+              <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
+              <div class="v511-theme-preview-qr">▦</div>
+              <div class="v511-theme-preview-caption">Live preview of the current theme. Save All applies pending edits; Sample fires the selected outcome.</div>
+            </div>
+            <div class="v511-theme-preview-controls">
+              <label for="v511SamplePicker">Sample outcome</label>
+              <select id="v511SamplePicker">
+                <option value="allow" selected>✓ Allow celebration</option>
+                <option value="review">? Review</option>
+                <option value="deny">× Deny</option>
+                <option value="background">Background only</option>
+              </select>
+              <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">Sample</button>
+              <span class="v511-hint">Fires the visual + WAV for the selected outcome against the preview.</span>
+            </div>
+          </div>
+
           <div class="v511-row"><label>Primary colour</label><div><span class="v511-swatch" style="background: #DC143C;"></span><span class="v511-hint">#DC143C</span></div></div>
           <div class="v511-row"><label>Accent colour</label><div><span class="v511-swatch" style="background: #58a6ff;"></span><span class="v511-hint">#58a6ff</span></div></div>
-          <div class="v511-row"><label>QR foreground</label><div><span class="v511-swatch" style="background: #000000;"></span><span class="v511-hint">#000000</span></div></div>
           <div class="v511-row"><label>Light/dark mode</label><select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select></div>
-          <div class="v511-row"><label>Background</label><span class="v511-hint">Palette &middot; pattern &middot; image &mdash; set inside advanced</span></div>
-          <div class="v511-row"><label>Celebration</label><span class="v511-hint">Pulse &middot; background &middot; QR &middot; glow &middot; pattern &middot; text &mdash; inside advanced</span></div>
 
-          <div class="v511-info">The theming surface is intentionally deep. The top stays brief; click <strong style="color: var(--text);">Advanced theming</strong> below for palettes, animations, pattern picker, image controls.</div>
+          <div class="v511-info">Top stays brief. For palettes, animation, image controls, and WAV sounds, expand <strong style="color: var(--text);">Advanced theming</strong> below — split into <strong style="color: var(--text);">Background</strong> (everything behind the QR) and <strong style="color: var(--text);">QR</strong> (everything about the QR and its celebration).</div>
 
           <details class="v511-expander">
-            <summary>Advanced theming <span class="v511-hint-inline">(palettes &amp; animation tabs &mdash; deep customisation)</span></summary>
+            <summary>Advanced theming <span class="v511-hint-inline">(Background &amp; QR sub-tabs — deep customisation)</span></summary>
             <div class="v511-expander-body">
               <div class="v511-subtabs" role="tablist" aria-label="Advanced theming sub-tabs">
-                <button type="button" class="active" data-v511-subtab="palettes" role="tab" aria-selected="true">Palettes</button>
-                <button type="button" data-v511-subtab="animation" role="tab" aria-selected="false">Animation</button>
+                <button type="button" class="active" data-v511-subtab="background" role="tab" aria-selected="true">Background</button>
+                <button type="button" data-v511-subtab="qr" role="tab" aria-selected="false">QR</button>
               </div>
 
-              <!-- ===== SUB-TAB: PALETTES ===== -->
-              <div class="v511-subpanel active" data-v511-subpanel="palettes" role="tabpanel">
-                <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; used by page-cycle animation and pattern overlay)</span></div>
+              <!-- ===== SUB-TAB: BACKGROUND ===== -->
+              <div class="v511-subpanel active" data-v511-subpanel="background" role="tabpanel">
+                <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; used by page-cycle and pattern overlay)</span></div>
                 <div class="v511-palette-row">
                   <div class="v511-palette-swatch" style="background: #DC143C;" title="#DC143C"></div>
                   <div class="v511-palette-swatch" style="background: #8B0000;" title="#8B0000"></div>
@@ -4250,7 +4320,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
                 </div>
 
-                <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(up to 7 colours; used by the accept-cycle burst on successful check-in)</span></div>
+                <div class="v511-sub" style="margin-top: 20px;">Background animation <span class="v511-hint-inline">(continuous &mdash; runs throughout the check-in screen)</span></div>
+                <div class="v511-anim-row"><label>Mode</label><select><option>Off (flat dark)</option><option selected>Page colour cycle</option><option>Pattern</option><option>Image</option></select></div>
+                <div class="v511-anim-row"><label>Page intensity</label><select><option selected>Muted (deep tinted)</option><option>Vibrant (palette colours direct)</option></select></div>
+                <div class="v511-anim-row"><label>Pattern</label><select><option>Dots</option><option>Hex grid</option><option>Diagonal stripes</option><option>Checkerboard</option><option>Grid</option><option>Weave</option><option>Chevron</option><option>Isometric</option></select></div>
+                <div class="v511-anim-row"><label>Image (optional)</label><div style="flex: 1; display: flex; gap: 8px; align-items: center;"><button type="button" class="v511-btn v511-btn-mini">Upload</button><span class="v511-hint">PNG / SVG / JPEG, ≤ 200 KB</span></div></div>
+                <div class="v511-anim-row"><label>Cycle duration</label><input type="range" min="5" max="120" value="30" /><span class="v511-hint" style="min-width: 40px;">30s</span></div>
+                <div class="v511-hint" style="margin-top: 10px;">Use the Sample button at the top with <strong style="color: var(--text);">Background only</strong> selected to fire just the background animation cycle.</div>
+              </div>
+
+              <!-- ===== SUB-TAB: QR ===== -->
+              <div class="v511-subpanel" data-v511-subpanel="qr" role="tabpanel" hidden>
+                <div class="v511-sub" style="margin-top: 0;">QR foreground</div>
+                <div class="v511-row"><label>Colour</label><div><span class="v511-swatch" style="background: #000000;"></span><span class="v511-hint">#000000 — the dark modules of the QR itself.</span></div></div>
+
+                <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(used by the accept-cycle burst on successful check-in)</span></div>
                 <div class="v511-palette-row">
                   <div class="v511-palette-swatch" style="background: #58a6ff;" title="#58a6ff"></div>
                   <div class="v511-palette-swatch" style="background: #c0dd97;" title="#c0dd97"></div>
@@ -4264,16 +4348,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
                   <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
                 </div>
-              </div>
-
-              <!-- ===== SUB-TAB: ANIMATION ===== -->
-              <div class="v511-subpanel" data-v511-subpanel="animation" role="tabpanel" hidden>
-                <div class="v511-sub" style="margin-top: 0;">Background animation <span class="v511-hint-inline">(continuous &mdash; runs throughout the check-in screen)</span></div>
-                <div class="v511-anim-row"><label>Mode</label><select><option>Off (flat dark)</option><option selected>Page colour cycle</option><option>Pattern</option><option>Image</option></select></div>
-                <div class="v511-anim-row"><label>Page intensity</label><select><option selected>Muted (deep tinted)</option><option>Vibrant (palette colours direct)</option></select></div>
-                <div class="v511-anim-row"><label>Pattern</label><select><option>Dots</option><option>Hex grid</option><option>Diagonal stripes</option><option>Checkerboard</option><option>Grid</option><option>Weave</option><option>Chevron</option><option>Isometric</option></select></div>
-                <div class="v511-anim-row"><label>Cycle duration</label><input type="range" min="5" max="120" value="30" /><span class="v511-hint" style="min-width: 40px;">30s</span></div>
-                <div style="margin-top: 8px;"><button type="button" class="v511-btn v511-btn-mini">Preview background</button></div>
 
                 <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(one-shot &mdash; fires on successful check-in)</span></div>
                 <div class="v511-hint" style="padding: 0 0 8px;">Tick the effects you want layered on a successful check-in. Each effect can be combined with others. Zero ticks = no celebration.</div>
@@ -4286,10 +4360,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-celeb-effect"><label><input type="checkbox" /> Text</label><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></div>
                 </div>
                 <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" style="min-width: 40px;">1.4s</span></div>
-                <div style="margin-top: 8px; display: flex; gap: 6px;">
-                  <button type="button" class="v511-btn v511-btn-mini">Preview celebration</button>
-                  <button type="button" class="v511-btn v511-btn-mini">Preview deny</button>
+
+                <div class="v511-sub" style="margin-top: 20px;">Outcome sounds <span class="v511-hint-inline">(played with the celebration; fired by Sample button at top)</span></div>
+                <div class="v511-wav-slots">
+                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span><span class="v511-wav-name">Allow</span><span class="v511-wav-file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(186,117,23,0.25); color: #fac775;">?</span><span class="v511-wav-name">Review</span><span class="v511-wav-file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(226,75,74,0.25); color: #f09595;">×</span><span class="v511-wav-name">Deny</span><span class="v511-wav-file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
                 </div>
+                <div class="v511-hint" style="margin-top: 8px;">Sample button at the top is the single fire point for sound + visual together. The per-section Preview buttons that used to live here have been retired.</div>
               </div>
             </div>
           </details>
@@ -4346,15 +4424,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-sub">Audit log <span class="v511-hint-inline">(the daily launcher — see what changed and when)</span></div>
           <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
-
-          <details class="v511-expander">
-            <summary>Outcome sounds <span class="v511-hint-inline">(played on check-in resolution)</span></summary>
-            <div class="v511-expander-body">
-              <div class="v511-audio"><span class="icon" style="background: rgba(99, 153, 34, 0.25); color: #c0dd97;">&check;</span><span class="name">Allow</span><span class="file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-              <div class="v511-audio"><span class="icon" style="background: rgba(186, 117, 23, 0.25); color: #fac775;">?</span><span class="name">Review</span><span class="file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-              <div class="v511-audio"><span class="icon" style="background: rgba(226, 75, 74, 0.25); color: #f09595;">&times;</span><span class="name">Deny</span><span class="file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-            </div>
-          </details>
 
           <details class="v511-expander">
             <summary>Debug <span class="v511-hint-inline">(test-fire controls, console verbosity)</span></summary>
@@ -4464,18 +4533,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               p.classList.toggle('active', isActive);
               p.hidden = !isActive;
             });
-            // v5.11 mockup — when Calendar tab activates, scroll its row container
-            // so 09:00 is at the top of view (Captain's UX directive — the working
-            // day, not midnight, is where the eye should land).
+            // v5.11 mockup — when Calendar tab activates, scroll to the current
+            // hour (or 09:00 if outside working hours). Now-line position also
+            // updates on tab activation. Captain's UX: the eye should land on
+            // where "now" is, not where the table starts.
             if (target === 'cal') {
               window.requestAnimationFrame(function () {
-                var wrap = document.getElementById('v511CalWrap');
-                var nine = wrap && wrap.querySelector('.v511-cal-row[data-hour="9"]');
-                if (wrap && nine) {
-                  var headerHeight = wrap.querySelector('.v511-cal-header');
-                  headerHeight = headerHeight ? headerHeight.offsetHeight : 0;
-                  wrap.scrollTop = nine.offsetTop - headerHeight - 4;
-                }
+                positionNowLine();
+                scrollCalToNow();
               });
             }
           }
@@ -4536,7 +4601,59 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           }
 
-          // v5.11 mockup — Visual theming → Advanced theming sub-tabs (Palettes / Animation).
+          // v5.11 mockup — calendar now-line + Jump-to-now.
+          // Now-line is positioned by hour (and minute fraction) relative to the
+          // calendar rows. Each row is roughly the same height; we measure from
+          // the actual row positions to handle band-tinting / event-row size
+          // variation correctly.
+          function positionNowLine() {
+            var wrap = document.getElementById('v511CalWrap');
+            var line = document.getElementById('v511CalNowLine');
+            if (!wrap || !line) return;
+            var now = new Date();
+            var hour = now.getHours();
+            var minuteFrac = now.getMinutes() / 60;
+            var thisRow = wrap.querySelector('.v511-cal-row[data-hour="' + hour + '"]');
+            var nextRow = wrap.querySelector('.v511-cal-row[data-hour="' + ((hour + 1) % 24) + '"]');
+            if (!thisRow) return;
+            var rowTop = thisRow.offsetTop;
+            var rowHeight = nextRow ? (nextRow.offsetTop - thisRow.offsetTop) : thisRow.offsetHeight;
+            line.style.top = (rowTop + (rowHeight * minuteFrac)) + 'px';
+          }
+          function scrollCalToNow() {
+            var wrap = document.getElementById('v511CalWrap');
+            if (!wrap) return;
+            var line = document.getElementById('v511CalNowLine');
+            var header = wrap.querySelector('.v511-cal-header');
+            var headerH = header ? header.offsetHeight : 0;
+            if (line) {
+              var target = line.offsetTop - headerH - (wrap.clientHeight / 2) + 20;
+              wrap.scrollTop = Math.max(0, target);
+            }
+          }
+          positionNowLine();
+          setInterval(positionNowLine, 60 * 1000); // refresh every minute
+          var jumpNowBtn = document.getElementById('v511JumpNowBtn');
+          if (jumpNowBtn) jumpNowBtn.addEventListener('click', function () { positionNowLine(); scrollCalToNow(); });
+
+          // v5.11 mockup — Visual theming Sample button. Fires the celebration
+          // animation matching the dropdown selection against the theme preview
+          // stage. WAV playback would happen here in real impl (audio elements
+          // not wired in the mockup).
+          var sampleBtn = document.getElementById('v511SampleBtn');
+          var samplePicker = document.getElementById('v511SamplePicker');
+          var sampleStage = document.getElementById('v511ThemePreviewStage');
+          if (sampleBtn && samplePicker && sampleStage) {
+            sampleBtn.addEventListener('click', function () {
+              var outcome = samplePicker.value;
+              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny', 'firing-background');
+              // Reflow to restart the CSS animation
+              void sampleStage.offsetWidth;
+              sampleStage.classList.add('firing-' + outcome);
+            });
+          }
+
+          // v5.11 mockup — Visual theming → Advanced theming sub-tabs (Background / QR).
           var subtabs = document.querySelectorAll('.v511-subtabs button[data-v511-subtab]');
           var subpanels = document.querySelectorAll('.v511-subpanel[data-v511-subpanel]');
           subtabs.forEach(function (btn) {
