@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.3</span></div>
   </div>
 </div>
 
@@ -4153,27 +4153,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background-position: var(--bg-image-pos, center);
           background-repeat: var(--bg-image-repeat, no-repeat);
         }
-        /* Tier 4.1.2 — Symmetry now COMPOSES with the scale slider instead of
-           overriding it. JS sets --sym-size to a percent based on scale × symmetry
-           base (40% for horiz/vert, 35% for quad); the rules below just pin the
-           positions. This way bumping the scale slider visibly enlarges/shrinks
-           the symmetric copies — fixing the "scale effect disappears" bug. */
+        /* Tier 4.1.3 — TRUE mirror via canvas-generated variants.
+           On image upload, JS renders the source through a hidden <canvas> at
+           1×, -1×, 1y, -1y and exposes the data URLs as:
+             --bg-image-url       original
+             --bg-image-url-mx    mirrored across X (left↔right flip)
+             --bg-image-url-my    mirrored across Y (top↔bottom flip)
+             --bg-image-url-mxy   both axes flipped (180° point-mirror)
+           Symmetry rules consume them so each copy is a real mirror, not just
+           a duplicate. Variants fall back to the original if not yet generated.
+
+           Anchor in symmetry mode: --sym-outer-x/--sym-inner-x and y twins
+           shift the symmetric positions for Inner/Outer (anchor offset = ±12).
+           Centre = the defaults (0% / 100%). */
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-horizontal::after {
-          background-image: var(--bg-image-url, none), var(--bg-image-url, none);
-          background-position: 0% center, 100% center;
-          background-size: var(--sym-size, 40%) auto, var(--sym-size, 40%) auto;
+          background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none));
+          background-position: var(--sym-outer-x, 0%) center, var(--sym-inner-x, 100%) center;
+          background-size: var(--sym-size, 20%) auto, var(--sym-size, 20%) auto;
           background-repeat: no-repeat;
         }
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-vertical::after {
-          background-image: var(--bg-image-url, none), var(--bg-image-url, none);
-          background-position: center 0%, center 100%;
-          background-size: auto var(--sym-size, 40%), auto var(--sym-size, 40%);
+          background-image: var(--bg-image-url, none), var(--bg-image-url-my, var(--bg-image-url, none));
+          background-position: center var(--sym-outer-y, 0%), center var(--sym-inner-y, 100%);
+          background-size: auto var(--sym-size, 20%), auto var(--sym-size, 20%);
           background-repeat: no-repeat;
         }
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::after {
-          background-image: var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none);
-          background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%;
-          background-size: var(--sym-size, 35%) auto;
+          background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none)), var(--bg-image-url-my, var(--bg-image-url, none)), var(--bg-image-url-mxy, var(--bg-image-url, none));
+          background-position: var(--sym-outer-x, 0%) var(--sym-outer-y, 0%), var(--sym-inner-x, 100%) var(--sym-outer-y, 0%), var(--sym-outer-x, 0%) var(--sym-inner-y, 100%), var(--sym-inner-x, 100%) var(--sym-inner-y, 100%);
+          background-size: var(--sym-size, 17%) auto;
           background-repeat: no-repeat;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
@@ -5633,38 +5641,43 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var pct = Math.round((Math.pow(2, v / 100) - 1) * 100);
             return sign + v + ' (' + (pct >= 0 ? '+' : '') + pct + '%)';
           }
-          // Anchor offset map: Outer pushes the image AWAY from centre (toward
-          // the chosen position edge), Inner pulls it toward centre, Centre is
-          // neutral. Implemented by tweaking the background-position percentages.
+          // Tier 4.1.3 — Anchor offset: Outer bleeds image past edge; Inner pulls
+          // toward centre; Centre = neutral. Offset value is in percentage points.
           var ANCHOR_OFFSET = { outer: 12, centre: 0, center: 0, inner: -12 };
           function applyImagePositioning() {
             if (!sampleStage) return;
             var activeCell = document.querySelector('#v511BgPosGrid .v511-bg-pos-cell[aria-pressed="true"]');
             var posKey = activeCell ? activeCell.getAttribute('data-pos') : 'centre';
             var basePos = POS_MAP[posKey] || '50% 50%';
-            // Apply anchor offset (Outer pushes the image past the edge for a bleed
-            // effect; Inner pulls it back toward centre; Centre = position as-is).
-            // background-position accepts negative percentages and >100% just fine.
             var anchorChip = document.querySelector('.v511-chips[data-chip-group="bgAnchor"] .v511-chip[aria-pressed="true"]');
             var anchorKey = anchorChip ? anchorChip.textContent.trim().toLowerCase() : 'centre';
             var offset = ANCHOR_OFFSET[anchorKey] || 0;
+
+            // Non-symmetry: nudge --bg-image-pos by anchor offset
             var m = basePos.match(/(-?\d+)%\s+(-?\d+)%/);
             if (m && offset !== 0) {
               var x = parseInt(m[1], 10);
               var y = parseInt(m[2], 10);
-              // Outer (offset>0): values move AWAY from centre; Inner (offset<0): TOWARD centre.
-              // No clamping — letting the image bleed off-frame is the point of Outer.
               if (x < 50) x = x - offset; else if (x > 50) x = x + offset;
               if (y < 50) y = y - offset; else if (y > 50) y = y + offset;
               basePos = x + '% ' + y + '%';
             }
             sampleStage.style.setProperty('--bg-image-pos', basePos);
 
+            // Symmetry-position vars (P4: anchor now affects symmetric copies too)
+            // Outer = move both copies AWAY from centre (bleed); Inner = TOWARD centre.
+            sampleStage.style.setProperty('--sym-outer-x', (0 - offset) + '%');
+            sampleStage.style.setProperty('--sym-inner-x', (100 + offset) + '%');
+            sampleStage.style.setProperty('--sym-outer-y', (0 - offset) + '%');
+            sampleStage.style.setProperty('--sym-inner-y', (100 + offset) + '%');
+
             var modeChip = document.querySelector('.v511-chips[data-chip-group="bgPosMode"] .v511-chip[aria-pressed="true"]');
             var modeLabel = modeChip ? modeChip.textContent.trim() : 'Position';
             var mult = scaleMultiplier();
-            // Base natural sizes per mode (percent of stage)
-            var baseSize = modeLabel === 'Tile' ? 25 : 50;
+            // P3 — Base natural sizes HALVED per Captain's "start position should
+            // be what is currently -100%" feedback. Position 25 (was 50), Tile 12
+            // (was 25), Symmetry horiz/vert 20 (was 40), quad 17 (was 35).
+            var baseSize = modeLabel === 'Tile' ? 12 : 25;
             var sized = Math.round(baseSize * mult);
             if (modeLabel === 'Cover') {
               sampleStage.style.setProperty('--bg-image-size', 'cover');
@@ -5673,9 +5686,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               sampleStage.style.setProperty('--bg-image-size', sized + '% auto');
               sampleStage.style.setProperty('--bg-image-repeat', modeLabel === 'Tile' ? 'repeat' : 'no-repeat');
             }
-            // Symmetry × scale composition — the bg-symmetry-* rules read --sym-size.
-            // Base 40% for horiz/vert, 35% for quad, multiplied by scale.
-            var symBase = sampleStage.classList.contains('bg-symmetry-quad') ? 35 : 40;
+            var symBase = sampleStage.classList.contains('bg-symmetry-quad') ? 17 : 20;
             var symSized = Math.round(symBase * mult);
             sampleStage.style.setProperty('--sym-size', symSized + '%');
           }
@@ -5755,13 +5766,46 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           // ===========================================================
           // v5.11 Tier 2 — Background image upload
+          // Tier 4.1.3 — also generates true mirror variants via canvas and
+          // stashes the data URLs on window._v511ImageData for the save cycle.
           // ===========================================================
           var bgImageUpload = document.getElementById('v511BgImageUpload');
+          // Generate mirrored variants by rendering through a hidden canvas.
+          // Returns { orig, mx, my, mxy } where each is a PNG data URL.
+          function v511GenerateMirrorVariants(srcDataUrl, cb) {
+            var img = new Image();
+            img.onload = function () {
+              function flip(flipX, flipY) {
+                var canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth || img.width;
+                canvas.height = img.naturalHeight || img.height;
+                var ctx = canvas.getContext('2d');
+                ctx.save();
+                ctx.translate(flipX ? canvas.width : 0, flipY ? canvas.height : 0);
+                ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+                ctx.drawImage(img, 0, 0);
+                ctx.restore();
+                try { return canvas.toDataURL('image/png'); }
+                catch (e) { return srcDataUrl; } // CORS-tainted fallback to original
+              }
+              cb({ orig: srcDataUrl, mx: flip(true, false), my: flip(false, true), mxy: flip(true, true) });
+            };
+            img.onerror = function () { cb({ orig: srcDataUrl, mx: srcDataUrl, my: srcDataUrl, mxy: srcDataUrl }); };
+            img.src = srcDataUrl;
+          }
+          // Apply an image-variant bundle to the stage's CSS vars + stash for save.
+          function v511ApplyImageVariants(variants) {
+            if (!sampleStage || !variants) return;
+            sampleStage.style.setProperty('--bg-image-url', 'url("' + variants.orig + '")');
+            sampleStage.style.setProperty('--bg-image-url-mx', 'url("' + variants.mx + '")');
+            sampleStage.style.setProperty('--bg-image-url-my', 'url("' + variants.my + '")');
+            sampleStage.style.setProperty('--bg-image-url-mxy', 'url("' + variants.mxy + '")');
+            window._v511ImageData = variants;
+          }
           if (bgImageUpload) {
             bgImageUpload.addEventListener('change', function (e) {
               var file = e.target.files && e.target.files[0];
               if (!file) return;
-              // Guard against oversized uploads — match the 200KB hint
               if (file.size > 220 * 1024) {
                 alert('Image too large (over 200KB). Pick a smaller file.');
                 bgImageUpload.value = '';
@@ -5770,9 +5814,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var reader = new FileReader();
               reader.onload = function (evt) {
                 if (!sampleStage) return;
-                sampleStage.style.setProperty('--bg-image-url', 'url("' + evt.target.result + '")');
-                // Auto-switch Background Mode to Image so the upload is visible immediately
-                if (bgModeSelect) { bgModeSelect.value = 'image'; applyBgState(); }
+                v511GenerateMirrorVariants(evt.target.result, function (variants) {
+                  v511ApplyImageVariants(variants);
+                  if (bgModeSelect) { bgModeSelect.value = 'image'; applyBgState(); }
+                  if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                });
               };
               reader.onerror = function () { alert('Failed to read image file.'); };
               reader.readAsDataURL(file);
@@ -5865,8 +5911,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var pressedCell = grid.querySelector('.v511-bg-pos-cell[aria-pressed="true"]');
               if (pressedCell) posCellIdx = Array.prototype.indexOf.call(grid.children, pressedCell);
             }
+            // Tier 4.1.3 — generic capture of every form field with an ID across
+            // all v5.11 panels. Catches Org tab fields, calendar drill-down,
+            // role-vocab inputs etc. that aren't part of the per-mode set.
+            // Skips: file inputs (can't restore programmatically), already-tracked
+            // IDs (per-mode + named fields below).
+            var TRACKED_IDS = {
+              v511LightDarkMode:1, v511BgMode:1, v511BgPattern:1, v511BgDuration:1,
+              v511BgImageScale:1, v511CelDuration:1, v511QrFg:1, v511BgImageUpload:1
+            };
+            // Tracked per-mode IDs also live in PER_MODE_FIELD_IDS — skip those too
+            PER_MODE_FIELD_IDS.forEach(function (id) { TRACKED_IDS[id] = 1; });
+            var formGlobal = {};
+            document.querySelectorAll('[data-v511-panel] input[id], [data-v511-panel] select[id], [data-v511-panel] textarea[id]').forEach(function (el) {
+              if (TRACKED_IDS[el.id]) return;
+              if (el.type === 'file' || el.type === 'color') return;
+              formGlobal[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+            });
             return {
-              v: 1,
+              v: 2,
               currentMode: currentMode,
               modeStates: modeStates,
               lightDark: (document.getElementById('v511LightDarkMode') || {}).value || '',
@@ -5879,7 +5942,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgPalette: bgPalette,
               celPalette: celPalette,
               chips: chips,
-              posCellIdx: posCellIdx
+              posCellIdx: posCellIdx,
+              imageData: window._v511ImageData || null,
+              formGlobal: formGlobal
             };
           }
 
@@ -5892,10 +5957,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             v511PulseTimer = setTimeout(function () { pill.classList.remove('is-pulsing'); }, 900);
           }
           function v511SaveNow() {
+            var state = v511CaptureState();
             try {
-              localStorage.setItem(V511_LS_KEY, JSON.stringify(v511CaptureState()));
+              localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
               v511PulseSaved();
-            } catch (e) { /* quota or JSON error — silent */ }
+              return;
+            } catch (e) {
+              // Quota exceeded — most likely cause is the image data URLs.
+              // Fall back to saving everything EXCEPT the image and warn once.
+              try {
+                state.imageData = null;
+                localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
+                v511PulseSaved();
+                if (!window._v511QuotaWarned) {
+                  window._v511QuotaWarned = true;
+                  console.warn('[v5.11 mockup] localStorage quota hit; image upload not persisted. Everything else saved fine.');
+                }
+              } catch (e2) { /* nothing more we can do */ }
+            }
           }
 
           function v511SaveDebounced() {
@@ -5909,7 +5988,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (!raw) return false;
             var s;
             try { s = JSON.parse(raw); } catch (e) { return false; }
-            if (!s || s.v !== 1) return false;
+            if (!s || (s.v !== 1 && s.v !== 2)) return false;
 
             // 1. Restore per-mode state map (overwrites seeded defaults).
             if (s.modeStates) {
@@ -6022,6 +6101,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (samplePicker) samplePicker.value = s.currentMode;
             }
             try { loadMode(currentMode); } catch (e) {}
+
+            // 6.5. Tier 4.1.3 — restore generic form fields across all panels
+            if (s.formGlobal && typeof s.formGlobal === 'object') {
+              Object.keys(s.formGlobal).forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                var v = s.formGlobal[id];
+                if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!v;
+                else el.value = v;
+              });
+            }
+            // 6.6. Tier 4.1.3 — restore image data URL + mirrored variants
+            if (s.imageData && s.imageData.orig) {
+              try { v511ApplyImageVariants(s.imageData); } catch (e) {}
+            }
 
             // 7. Re-apply derived state to the preview surface.
             try { applyBgState(); } catch (e) {}
