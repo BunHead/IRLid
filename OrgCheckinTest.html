@@ -3818,6 +3818,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
         .v511-theme-preview .v511-theme-preview-banner { font-size: 18px; }
         .v511-theme-preview .v511-theme-preview-qr { width: 160px; height: 160px; font-size: 100px; }
+        /* v5.11 Tier 1: bg-mode overlays on top of mode-tinted base background.
+           The mode tint sets the base colour (green/amber/red for Allow/Review/Deny);
+           bg-mode-page overlays a cycling palette gradient; bg-mode-pattern overlays
+           a repeating CSS pattern; bg-mode-image is the placeholder for Tier 2. */
+        .v511-theme-preview-stage::before, .v511-theme-preview-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+        .v511-theme-preview-stage::before { z-index: 1; }
+        .v511-theme-preview-stage::after { z-index: 2; }
+        .v511-theme-preview-stage > * { position: relative; z-index: 3; }
+        .v511-theme-preview-stage.bg-mode-page::before { opacity: 0.6; background: linear-gradient(135deg, #DC143C, #8B0000, #FF6B6B, #FFB347, #DC143C); background-size: 400% 400%; animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite; }
+        @keyframes v511BgPageCycle { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        .v511-theme-preview-stage.bg-mode-pattern::after { opacity: 0.5; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-dots::after { background-image: radial-gradient(circle, rgba(255,255,255,0.4) 1.5px, transparent 1.8px); background-size: 18px 18px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-hex::after { background-image: radial-gradient(circle at 50% 0%, rgba(255,255,255,0.3) 2px, transparent 2.4px), radial-gradient(circle at 0% 50%, rgba(255,255,255,0.3) 2px, transparent 2.4px), radial-gradient(circle at 100% 50%, rgba(255,255,255,0.3) 2px, transparent 2.4px); background-size: 28px 28px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-diag::after { background-image: repeating-linear-gradient(45deg, transparent 0 6px, rgba(255,255,255,0.18) 6px 8px); }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-checker::after { background-image: linear-gradient(45deg, rgba(255,255,255,0.18) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.18) 75%), linear-gradient(45deg, rgba(255,255,255,0.18) 25%, transparent 25%, transparent 75%, rgba(255,255,255,0.18) 75%); background-size: 24px 24px; background-position: 0 0, 12px 12px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-grid::after { background-image: linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px); background-size: 20px 20px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-weave::after { background-image: linear-gradient(90deg, rgba(255,255,255,0.18) 50%, transparent 50%), linear-gradient(rgba(255,255,255,0.18) 50%, transparent 50%); background-size: 12px 12px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-chevron::after { background-image: linear-gradient(135deg, rgba(255,255,255,0.18) 25%, transparent 25%), linear-gradient(225deg, rgba(255,255,255,0.18) 25%, transparent 25%); background-size: 16px 16px; }
+        .v511-theme-preview-stage.bg-mode-pattern.pattern-iso::after { background-image: linear-gradient(30deg, rgba(255,255,255,0.18) 12%, transparent 12.5%), linear-gradient(150deg, rgba(255,255,255,0.18) 12%, transparent 12.5%), linear-gradient(30deg, rgba(255,255,255,0.18) 87%, transparent 87.5%); background-size: 22px 38px; }
+        /* v5.11 Tier 1: celebration effect classes that the Sample button toggles on
+           the stage. Each effect is independent; multiple can layer simultaneously. */
+        .v511-theme-preview-stage.cel-pulse .v511-theme-preview-qr { animation: v511CelPulse var(--cel-cycle-dur, 1.4s) ease-out; }
+        @keyframes v511CelPulse { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.7); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(255,255,255,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
+        .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
+        @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 currentColor); } 50% { filter: brightness(1.2) drop-shadow(0 0 24px #58a6ff); } 100% { filter: brightness(1) drop-shadow(0 0 0 currentColor); } }
+        .v511-theme-preview-stage.cel-qr .v511-theme-preview-qr { animation: v511CelQr var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        @keyframes v511CelQr { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+        .v511-theme-preview-stage.cel-text::before { content: 'Welcome back!'; position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: #fff; font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 1; z-index: 4; animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
+        /* Tier 1 save-button transient state */
+        .v511-btn.is-saved { background: rgba(99, 153, 34, 0.25); border-color: rgba(99, 153, 34, 0.5); color: #c0dd97; }
         .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
         .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #5a3e0c 0%, #2d1e05 100%); }
         .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #5e1a1a 0%, #2e0a0a 100%); }
@@ -4299,7 +4330,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
           </div>
 
-          <div class="v511-row"><label>Light/dark mode</label><select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select></div>
+          <div class="v511-row"><label for="v511LightDarkMode">Light/dark mode</label><select id="v511LightDarkMode"><option value="auto">Auto (follow OS)</option><option value="light">Light</option><option value="dark" selected>Dark</option></select></div>
 
           <details class="v511-expander">
             <summary>Advanced theming <span class="v511-hint-inline">(Background &amp; QR sub-tabs — deep customisation)</span></summary>
@@ -4327,11 +4358,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
 
                 <div class="v511-sub" style="margin-top: 20px;">Background animation <span class="v511-hint-inline">(continuous &mdash; runs throughout the check-in screen)</span></div>
-                <div class="v511-anim-row"><label>Mode</label><select><option>Off (flat dark)</option><option selected>Page colour cycle</option><option>Pattern</option><option>Image</option></select></div>
-                <div class="v511-anim-row"><label>Page intensity</label><select><option selected>Muted (deep tinted)</option><option>Vibrant (palette colours direct)</option></select></div>
-                <div class="v511-anim-row"><label>Pattern</label><select><option>Dots</option><option>Hex grid</option><option>Diagonal stripes</option><option>Checkerboard</option><option>Grid</option><option>Weave</option><option>Chevron</option><option>Isometric</option></select></div>
+                <div class="v511-anim-row"><label for="v511BgMode">Mode</label><select id="v511BgMode"><option value="off">Off (flat dark)</option><option value="page" selected>Page colour cycle</option><option value="pattern">Pattern</option><option value="image">Image</option></select></div>
+                <div class="v511-anim-row"><label for="v511BgIntensity">Page intensity</label><select id="v511BgIntensity"><option value="muted" selected>Muted (deep tinted)</option><option value="vibrant">Vibrant (palette colours direct)</option></select></div>
+                <div class="v511-anim-row"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
                 <div class="v511-anim-row"><label>Image (optional)</label><div style="flex: 1; display: flex; gap: 8px; align-items: center;"><button type="button" class="v511-btn v511-btn-mini">Upload</button><span class="v511-hint">PNG / SVG / JPEG, ≤ 200 KB</span></div></div>
-                <div class="v511-anim-row"><label>Cycle duration</label><input type="range" min="5" max="120" value="30" /><span class="v511-hint" style="min-width: 40px;">30s</span></div>
+                <div class="v511-anim-row"><label for="v511BgDuration">Cycle duration</label><input type="range" id="v511BgDuration" min="5" max="120" value="30" /><span class="v511-hint" id="v511BgDurationLabel" style="min-width: 40px;">30s</span></div>
                 <div class="v511-hint" style="margin-top: 10px;">Use the Sample button at the top with <strong style="color: var(--text);">Background only</strong> selected to fire just the background animation cycle.</div>
               </div>
 
@@ -4365,23 +4396,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-celeb-effect"><label><input type="checkbox" /> Pattern</label><span class="v511-hint">Tiled pattern overlay flashes once. Eight patterns available.</span></div>
                   <div class="v511-celeb-effect"><label><input type="checkbox" /> Text</label><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></div>
                 </div>
-                <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" style="min-width: 40px;">1.4s</span></div>
-
-                <div class="v511-sub" style="margin-top: 20px;">Outcome sound <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></div>
-                <div class="v511-wav-slot" id="v511ActiveWavSlot">
-                  <span class="v511-wav-icon" id="v511WavIcon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span>
-                  <span class="v511-wav-name" id="v511WavName">Allow</span>
-                  <span class="v511-wav-file" id="v511WavFile">allow.wav</span>
-                  <button type="button" class="v511-btn v511-btn-mini">Replace</button>
-                </div>
-                <div class="v511-hint" style="margin-top: 8px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired.</div>
+                <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" id="v511CelDuration" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" id="v511CelDurationLabel" style="min-width: 40px;">1.4s</span></div>
+                <div class="v511-hint" style="margin-top: 10px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired. Outcome sound for the active mode lives in <strong style="color: var(--text);">Post-Accept/Review/Deny Behaviour</strong> below.</div>
               </div>
             </div>
           </details>
 
           <details class="v511-expander">
-            <summary>Post-accept behaviour <span class="v511-hint-inline">(advanced — what happens after the green tick)</span></summary>
+            <summary><span id="v511PostAcceptSummary">Post-Accept behaviour</span> <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></summary>
             <div class="v511-expander-body">
+              <div class="v511-sub" style="margin-top: 0;">Outcome sound <span class="v511-hint-inline">(played when this mode fires; same file fired by Sample button at top)</span></div>
+              <div class="v511-wav-slot" id="v511ActiveWavSlot" style="margin-bottom: 14px;">
+                <span class="v511-wav-icon" id="v511WavIcon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span>
+                <span class="v511-wav-name" id="v511WavName">Allow</span>
+                <span class="v511-wav-file" id="v511WavFile">allow.wav</span>
+                <button type="button" class="v511-btn v511-btn-mini">Replace</button>
+              </div>
               <div class="v511-row"><label>Custom welcome message</label><textarea placeholder="Welcome to the studio."></textarea></div>
               <div class="v511-row"><label>Post-accept redirect</label><input type="url" placeholder="https://example.com/welcome" /></div>
               <div class="v511-row"><label>Staff post-accept redirect</label><input type="url" placeholder="e.g. https://example.com/staff-page" /></div>
@@ -4395,7 +4425,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
           </details>
 
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511VisualSaveBtn">Save all settings</button></div>
         </section>
 
         <!-- ===== TAB 5: SIGN-IN &amp; AUTH ===== -->
@@ -4654,12 +4684,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var jumpNowBtn = document.getElementById('v511JumpNowBtn');
           if (jumpNowBtn) jumpNowBtn.addEventListener('click', function () { positionNowLine(); scrollCalToNow(); });
 
-          // v5.11 mockup — Visual theming active-mode dropdown + Sample button.
-          // The dropdown sets the "active mode" context for the entire Visual
-          // theming tab: preview-stage background colour tints to match, the
-          // ACTIVE MODE label updates, and the single-row Outcome sound swaps
-          // to show that mode's WAV. Sample button fires the celebration
-          // animation against the preview (visual + WAV in real impl).
+          // ===========================================================
+          // v5.11 Tier 1 — Visual theming live wiring
+          // ===========================================================
           var sampleBtn = document.getElementById('v511SampleBtn');
           var samplePicker = document.getElementById('v511SamplePicker');
           var sampleStage = document.getElementById('v511ThemePreviewStage');
@@ -4667,11 +4694,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var wavIcon = document.getElementById('v511WavIcon');
           var wavName = document.getElementById('v511WavName');
           var wavFile = document.getElementById('v511WavFile');
+          var postAcceptSummary = document.getElementById('v511PostAcceptSummary');
+
           var MODE_LABELS = {
-            allow:  { label: 'ACTIVE MODE: ALLOW',  wavName: 'Allow',  wavFile: 'allow.wav',  iconChar: '✓', iconBg: 'rgba(99,153,34,0.25)',  iconColor: '#c0dd97' },
-            review: { label: 'ACTIVE MODE: REVIEW', wavName: 'Review', wavFile: 'review.wav', iconChar: '?', iconBg: 'rgba(186,117,23,0.25)', iconColor: '#fac775' },
-            deny:   { label: 'ACTIVE MODE: DENY',   wavName: 'Deny',   wavFile: 'deny.wav',   iconChar: '×', iconBg: 'rgba(226,75,74,0.25)',  iconColor: '#f09595' }
+            allow:  { label: 'ACTIVE MODE: ALLOW',  wavName: 'Allow',  wavFile: 'allow.wav',  iconChar: '✓', iconBg: 'rgba(99,153,34,0.25)',  iconColor: '#c0dd97', expanderTitle: 'Post-Accept behaviour', tone: { freq: 880, dur: 0.18, type: 'sine' } },
+            review: { label: 'ACTIVE MODE: REVIEW', wavName: 'Review', wavFile: 'review.wav', iconChar: '?', iconBg: 'rgba(186,117,23,0.25)', iconColor: '#fac775', expanderTitle: 'Post-Review behaviour', tone: { freq: 440, dur: 0.25, type: 'sine' } },
+            deny:   { label: 'ACTIVE MODE: DENY',   wavName: 'Deny',   wavFile: 'deny.wav',   iconChar: '×', iconBg: 'rgba(226,75,74,0.25)',  iconColor: '#f09595', expanderTitle: 'Post-Deny behaviour', tone: { freq: 220, dur: 0.4,  type: 'sawtooth' } }
           };
+
           function applyActiveMode(mode) {
             var cfg = MODE_LABELS[mode] || MODE_LABELS.allow;
             if (sampleStage) sampleStage.setAttribute('data-mode', mode);
@@ -4679,17 +4709,121 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (wavIcon) { wavIcon.textContent = cfg.iconChar; wavIcon.style.background = cfg.iconBg; wavIcon.style.color = cfg.iconColor; }
             if (wavName) wavName.textContent = cfg.wavName;
             if (wavFile) wavFile.textContent = cfg.wavFile;
+            if (postAcceptSummary) postAcceptSummary.textContent = cfg.expanderTitle;
           }
           if (samplePicker) {
             samplePicker.addEventListener('change', function () { applyActiveMode(samplePicker.value); });
           }
+
+          // ---- Web Audio for outcome tones (no .wav files needed in mockup) ----
+          var audioCtx = null;
+          function playOutcomeTone(mode) {
+            try {
+              var AC = window.AudioContext || window.webkitAudioContext;
+              if (!AC) return;
+              if (!audioCtx) audioCtx = new AC();
+              var cfg = (MODE_LABELS[mode] || MODE_LABELS.allow).tone;
+              var osc = audioCtx.createOscillator();
+              var gain = audioCtx.createGain();
+              osc.connect(gain); gain.connect(audioCtx.destination);
+              osc.type = cfg.type;
+              osc.frequency.value = cfg.freq;
+              gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + cfg.dur);
+              osc.start();
+              osc.stop(audioCtx.currentTime + cfg.dur);
+            } catch (_) {}
+          }
+
+          // ---- Sample button: reads checked celebration effects, fires animation + tone ----
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
-              // Reflow to restart the CSS animation
-              void sampleStage.offsetWidth;
+              // Read which celebration effects are ticked (only the QR sub-tab's grid)
+              var qrPanel = document.querySelector('.v511-subpanel[data-v511-subpanel="qr"]');
+              var effects = [];
+              if (qrPanel) {
+                qrPanel.querySelectorAll('.v511-celeb-effect input[type=checkbox]:checked').forEach(function (cb) {
+                  // First word in the label after the checkbox is the effect name
+                  var labelText = cb.parentElement.textContent.trim().toLowerCase();
+                  if (labelText.indexOf('pulse') === 0) effects.push('pulse');
+                  else if (labelText.indexOf('background') === 0) effects.push('bg');
+                  else if (labelText.indexOf('qr motion') === 0) effects.push('qr');
+                  else if (labelText.indexOf('glow') === 0) effects.push('glow');
+                  else if (labelText.indexOf('pattern') === 0) effects.push('cel-pattern');
+                  else if (labelText.indexOf('text') === 0) effects.push('text');
+                });
+              }
+              // Clear previous firing state + effect classes
+              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny', 'cel-pulse', 'cel-bg', 'cel-qr', 'cel-glow', 'cel-pattern', 'cel-text');
+              void sampleStage.offsetWidth; // reflow to restart animations
               sampleStage.classList.add('firing-' + outcome);
+              effects.forEach(function (e) { sampleStage.classList.add('cel-' + e); });
+              playOutcomeTone(outcome);
+              // Auto-clear celebration effect classes after the cycle so they don't linger
+              var celDurEl = document.getElementById('v511CelDuration');
+              var celDur = celDurEl ? parseFloat(celDurEl.value) : 1.4;
+              setTimeout(function () { effects.forEach(function (e) { sampleStage.classList.remove('cel-' + e); }); }, celDur * 1000 + 200);
+            });
+          }
+
+          // ---- Light/dark mode toggle ----
+          var lightDarkSelect = document.getElementById('v511LightDarkMode');
+          if (lightDarkSelect) {
+            lightDarkSelect.addEventListener('change', function () {
+              var val = lightDarkSelect.value;
+              if (val === 'light') document.documentElement.setAttribute('data-theme', 'light');
+              else if (val === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+              else document.documentElement.removeAttribute('data-theme');
+            });
+          }
+
+          // ---- Background animation Mode + Pattern + Duration ----
+          var bgModeSelect = document.getElementById('v511BgMode');
+          var bgPatternSelect = document.getElementById('v511BgPattern');
+          var bgDurSlider = document.getElementById('v511BgDuration');
+          var bgDurLabel = document.getElementById('v511BgDurationLabel');
+          function applyBgState() {
+            if (!sampleStage) return;
+            sampleStage.classList.remove('bg-mode-off', 'bg-mode-page', 'bg-mode-pattern', 'bg-mode-image');
+            sampleStage.classList.remove('pattern-dots', 'pattern-hex', 'pattern-diag', 'pattern-checker', 'pattern-grid', 'pattern-weave', 'pattern-chevron', 'pattern-iso');
+            var mode = bgModeSelect ? bgModeSelect.value : 'page';
+            sampleStage.classList.add('bg-mode-' + mode);
+            if (mode === 'pattern' && bgPatternSelect) {
+              sampleStage.classList.add('pattern-' + bgPatternSelect.value);
+            }
+          }
+          if (bgModeSelect) bgModeSelect.addEventListener('change', applyBgState);
+          if (bgPatternSelect) bgPatternSelect.addEventListener('change', applyBgState);
+          if (bgDurSlider) {
+            bgDurSlider.addEventListener('input', function () {
+              if (sampleStage) sampleStage.style.setProperty('--bg-cycle-dur', bgDurSlider.value + 's');
+              if (bgDurLabel) bgDurLabel.textContent = bgDurSlider.value + 's';
+            });
+          }
+          applyBgState(); // initial state on load
+
+          // ---- Celebration cycle duration ----
+          var celDurSlider = document.getElementById('v511CelDuration');
+          var celDurLabel = document.getElementById('v511CelDurationLabel');
+          if (celDurSlider) {
+            celDurSlider.addEventListener('input', function () {
+              if (sampleStage) sampleStage.style.setProperty('--cel-cycle-dur', celDurSlider.value + 's');
+              if (celDurLabel) celDurLabel.textContent = celDurSlider.value + 's';
+            });
+          }
+
+          // ---- Save All Settings: flash confirm + re-apply current state to preview ----
+          var visualSaveBtn = document.getElementById('v511VisualSaveBtn');
+          if (visualSaveBtn) {
+            visualSaveBtn.addEventListener('click', function () {
+              applyBgState();
+              if (bgDurSlider && sampleStage) sampleStage.style.setProperty('--bg-cycle-dur', bgDurSlider.value + 's');
+              if (celDurSlider && sampleStage) sampleStage.style.setProperty('--cel-cycle-dur', celDurSlider.value + 's');
+              var orig = visualSaveBtn.textContent;
+              visualSaveBtn.textContent = '✓ Saved — preview updated';
+              visualSaveBtn.classList.add('is-saved');
+              setTimeout(function () { visualSaveBtn.textContent = orig; visualSaveBtn.classList.remove('is-saved'); }, 1800);
             });
           }
 
