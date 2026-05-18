@@ -3816,12 +3816,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row--stacked { align-items: flex-start; }
         .v511-anim-row--stacked > label { padding-top: 6px; }
         .v511-bg-pos-controls { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .v511-bg-pos-grid { display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 34px); gap: 4px; }
-        .v511-bg-pos-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.1s, border-color 0.1s; }
-        .v511-bg-pos-cell:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
-        .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); }
-        .v511-bg-pos-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); }
-        .v511-bg-pos-cell[aria-pressed="true"] .v511-bg-pos-dot { background: #fff; box-shadow: 0 0 6px rgba(105,168,255,0.55); }
+        .v511-bg-pos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 320px; max-width: 100%; }
+        .v511-bg-pos-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.15s, border-color 0.15s, transform 0.15s; aspect-ratio: 1; }
+        .v511-bg-pos-cell:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); }
+        .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); transform: scale(1.04); }
+        .v511-bg-pos-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.45); transition: background 0.15s, box-shadow 0.15s, transform 0.15s; }
+        .v511-bg-pos-cell[aria-pressed="true"] .v511-bg-pos-dot { background: #fff; box-shadow: 0 0 10px rgba(105,168,255,0.7); transform: scale(1.2); }
         :root[data-theme="light"] .v511-bg-pos-cell { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
         :root[data-theme="light"] .v511-bg-pos-cell:hover { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.25); }
         :root[data-theme="light"] .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); }
@@ -3991,7 +3991,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-wav-slot .v511-wav-file { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono, monospace); }
         /* v5.11 theme preview — wider, 16:9 fullscreen-style aspect, per-mode background */
         .v511-theme-preview { display: block; margin-bottom: 14px; }
-        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
+        .v511-theme-preview-stage { position: relative; aspect-ratio: var(--preview-aspect, 16 / 9); width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
         .v511-theme-preview .v511-theme-preview-banner { font-size: 18px; }
         .v511-theme-preview .v511-theme-preview-qr { width: 160px; height: 160px; font-size: 100px; }
         /* v5.11 Tier 1: bg-mode overlays on top of mode-tinted base background.
@@ -4515,7 +4515,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow" title="Double-click anywhere to fullscreen the preview (Esc to exit)">
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
-              <div class="v511-theme-preview-qr" id="v511PreviewQrBox" aria-label="Sample QR code"></div>
+              <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
               <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
             </div>
             <div class="v511-theme-preview-controls-strip">
@@ -4717,7 +4717,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <span class="v511-wav-icon" id="v511WavIcon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span>
                 <span class="v511-wav-name" id="v511WavName">Allow</span>
                 <span class="v511-wav-file" id="v511WavFile">allow.wav</span>
-                <button type="button" class="v511-btn v511-btn-mini">Replace</button>
+                <input type="file" id="v511WavUpload" accept="audio/wav,audio/mpeg,audio/ogg,audio/*" style="display: none;" />
+                <button type="button" class="v511-btn v511-btn-mini" id="v511WavReplaceBtn">Replace</button>
               </div>
               <div class="v511-row"><label for="v511PaWelcome">Custom welcome message</label><textarea id="v511PaWelcome" placeholder="Welcome to the studio."></textarea></div>
               <div class="v511-row"><label for="v511PaRedirect">Post-accept redirect</label><input type="url" id="v511PaRedirect" placeholder="https://example.com/welcome" /></div>
@@ -5022,9 +5023,27 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             samplePicker.addEventListener('change', function () { applyActiveMode(samplePicker.value); });
           }
 
-          // ---- Web Audio for outcome tones (no .wav files needed in mockup) ----
+          // ---- Audio: uploaded WAV preferred, Web Audio synth as fallback ----
+          // Uploaded WAVs are stored per-mode as data URLs so each outcome
+          // (Allow/Review/Deny) can have its own custom sound. Replace button
+          // triggers the hidden file input.
           var audioCtx = null;
+          var uploadedWavs = { allow: null, review: null, deny: null };
+          var uploadedWavNames = { allow: null, review: null, deny: null };
+
           function playOutcomeTone(mode) {
+            // Play uploaded WAV for this mode if available
+            var dataUrl = uploadedWavs[mode];
+            if (dataUrl) {
+              try {
+                var audio = new Audio(dataUrl);
+                audio.volume = 0.7;
+                var p = audio.play();
+                if (p && typeof p.catch === 'function') p.catch(function () {});
+                return;
+              } catch (_) { /* fall through to synth */ }
+            }
+            // Fallback: Web-Audio-synthesised tone
             try {
               var AC = window.AudioContext || window.webkitAudioContext;
               if (!AC) return;
@@ -5040,6 +5059,34 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               osc.start();
               osc.stop(audioCtx.currentTime + cfg.dur);
             } catch (_) {}
+          }
+
+          // Wire Replace button → hidden file input → store data URL for active mode
+          var wavReplaceBtn = document.getElementById('v511WavReplaceBtn');
+          var wavUpload = document.getElementById('v511WavUpload');
+          if (wavReplaceBtn && wavUpload) {
+            wavReplaceBtn.addEventListener('click', function () { wavUpload.click(); });
+            wavUpload.addEventListener('change', function (e) {
+              var file = e.target.files && e.target.files[0];
+              if (!file) return;
+              if (file.size > 2 * 1024 * 1024) {
+                alert('Audio file too large (over 2MB). Pick a shorter clip.');
+                wavUpload.value = '';
+                return;
+              }
+              var reader = new FileReader();
+              reader.onload = function (evt) {
+                // typeof samplePicker.value resolves to current active mode
+                var mode = samplePicker ? samplePicker.value : 'allow';
+                uploadedWavs[mode] = evt.target.result;
+                uploadedWavNames[mode] = file.name;
+                var wavFileEl = document.getElementById('v511WavFile');
+                if (wavFileEl) wavFileEl.textContent = file.name;
+              };
+              reader.onerror = function () { alert('Failed to read audio file.'); };
+              reader.readAsDataURL(file);
+              wavUpload.value = ''; // allow re-uploading same file later
+            });
           }
 
           // ---- Sample button: reads checked celebration effects, fires animation + tone ----
@@ -5318,27 +5365,53 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // ===========================================================
           // Real QR: replace the static QR.png placeholder with a QRCode.js-
           // generated canvas honouring the QR foreground colour input.
+          // Generate at 400x400 so the QR stays crisp when the preview is
+          // scaled up (especially in fullscreen).
           var qrFgInput = document.getElementById('v511QrFg');
           var qrBox = document.getElementById('v511PreviewQrBox');
           function renderPreviewQr() {
-            if (!qrBox || !window.QRCode) return;
+            if (!qrBox) return;
             var color = qrFgInput ? qrFgInput.value : '#000000';
             qrBox.innerHTML = '';
+            if (!window.QRCode) {
+              qrBox.innerHTML = '<div style="font-size: 100px; line-height: 1; padding: 30px; color: #000;">▦</div>';
+              return;
+            }
             try {
               new QRCode(qrBox, {
                 text: 'https://irlid.co.uk/check-in/sample-preview',
-                width: 160,
-                height: 160,
+                width: 400,
+                height: 400,
                 colorDark: color,
                 colorLight: '#ffffff',
                 correctLevel: QRCode.CorrectLevel.M
               });
             } catch (e) {
-              qrBox.innerHTML = '<div style="font-size: 100px; line-height: 1; padding: 30px;">▦</div>';
+              qrBox.innerHTML = '<div style="font-size: 100px; line-height: 1; padding: 30px; color: #000;">▦</div>';
             }
           }
           if (qrFgInput) qrFgInput.addEventListener('input', renderPreviewQr);
-          renderPreviewQr();
+          // Defer first render to next tick so layout has settled
+          window.requestAnimationFrame(renderPreviewQr);
+
+          // Dynamic preview aspect ratio: match window.screen aspect so the
+          // preview frame is the same shape in fullscreen and non-fullscreen.
+          // Cap to a sensible range (16:9 to 21:9) for very wide screens, and
+          // fall back to 16:9 on portrait or unknown.
+          function applyPreviewAspect() {
+            if (!sampleStage) return;
+            var w = (window.screen && window.screen.width) || window.innerWidth;
+            var h = (window.screen && window.screen.height) || window.innerHeight;
+            if (!w || !h) { sampleStage.style.setProperty('--preview-aspect', '16 / 9'); return; }
+            var ratio = w / h;
+            // Portrait → use 16:9 default (preview is in a landscape settings page)
+            if (ratio < 1) ratio = 16 / 9;
+            // Cap super-wide screens at 21:9
+            if (ratio > 21 / 9) ratio = 21 / 9;
+            sampleStage.style.setProperty('--preview-aspect', ratio.toFixed(4) + ' / 1');
+          }
+          applyPreviewAspect();
+          window.addEventListener('resize', applyPreviewAspect);
 
           // Image positioning: the 9-cell grid maps to CSS background-position
           // values; the Position/Tile/Cover chips map to background-size /
