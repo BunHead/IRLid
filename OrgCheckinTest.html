@@ -3815,9 +3815,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-wav-slot .v511-wav-file { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono, monospace); }
         /* v5.11 theme preview — wider, 16:9 fullscreen-style aspect, per-mode background */
         .v511-theme-preview { display: block; margin-bottom: 14px; }
-        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; transition: background 0.25s; }
-        .v511-theme-preview .v511-theme-preview-banner { font-size: 22px; }
-        .v511-theme-preview .v511-theme-preview-qr { width: 220px; height: 220px; font-size: 140px; }
+        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
+        .v511-theme-preview .v511-theme-preview-banner { font-size: 18px; }
+        .v511-theme-preview .v511-theme-preview-qr { width: 160px; height: 160px; font-size: 100px; }
         .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
         .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #5a3e0c 0%, #2d1e05 100%); }
         .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #5e1a1a 0%, #2e0a0a 100%); }
