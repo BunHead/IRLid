@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.2</span></div>
   </div>
 </div>
 
@@ -3967,24 +3967,36 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row > label { color: var(--muted); width: 140px; }
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
         .v511-anim-row input[type=range] { flex: 1; }
-        /* Tier 4.1.1 — Active-mode tint on the SETTINGS panel itself (was on the
-           preview stage). Gives a subtle visual cue of which mode is being edited:
-           Allow = green, Review = amber, Deny = red. Layered as a soft top-to-bottom
-           wash via the panel's ::before so form contrast stays readable. */
-        .v511-panel[data-v511-panel="theme"] { position: relative; }
+        /* Tier 4.1.2 — Active-mode tint now wraps the WHOLE Visual theming panel
+           as a coloured frame: border ring + outer glow + faint inset wash so it
+           reads as a ring around the editing surface, not a top splash. */
+        .v511-panel[data-v511-panel="theme"] {
+          position: relative;
+          padding: 16px; border-radius: 14px;
+          border: 2px solid rgba(255,255,255,0.05);
+          box-shadow: 0 0 0 0 transparent;
+          transition: border-color 0.35s ease, box-shadow 0.35s ease, background 0.35s ease;
+        }
         .v511-panel[data-v511-panel="theme"]::before {
-          content: ''; position: absolute; inset: -10px -10px auto -10px; height: 320px;
-          pointer-events: none; z-index: 0; opacity: 0.32; border-radius: 12px;
+          content: ''; position: absolute; inset: 0; pointer-events: none;
+          z-index: 0; opacity: 1; border-radius: 12px;
           transition: background 0.35s ease;
-          background: linear-gradient(180deg, transparent 0%, transparent 100%);
+          background: transparent;
         }
         .v511-panel[data-v511-panel="theme"] > * { position: relative; z-index: 1; }
-        .v511-panel[data-v511-panel="theme"][data-mode="allow"]::before  { background: linear-gradient(180deg, rgba(72, 140, 50, 0.55) 0%, rgba(45, 80, 22, 0.22) 40%, transparent 100%); }
-        .v511-panel[data-v511-panel="theme"][data-mode="review"]::before { background: linear-gradient(180deg, rgba(210, 145, 30, 0.55) 0%, rgba(120, 80, 12, 0.22) 40%, transparent 100%); }
-        .v511-panel[data-v511-panel="theme"][data-mode="deny"]::before   { background: linear-gradient(180deg, rgba(200, 60, 60, 0.55) 0%, rgba(110, 26, 26, 0.22) 40%, transparent 100%); }
-        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="allow"]::before  { background: linear-gradient(180deg, rgba(143, 191, 108, 0.5) 0%, rgba(143, 191, 108, 0.16) 40%, transparent 100%); }
-        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="review"]::before { background: linear-gradient(180deg, rgba(232, 176, 74, 0.5) 0%, rgba(232, 176, 74, 0.16) 40%, transparent 100%); }
-        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="deny"]::before   { background: linear-gradient(180deg, rgba(232, 128, 128, 0.5) 0%, rgba(232, 128, 128, 0.16) 40%, transparent 100%); }
+        /* Allow = green ring */
+        .v511-panel[data-v511-panel="theme"][data-mode="allow"]  { border-color: rgba(143, 191, 108, 0.55); box-shadow: inset 0 0 28px rgba(72, 140, 50, 0.22), 0 0 22px rgba(72, 140, 50, 0.18); }
+        .v511-panel[data-v511-panel="theme"][data-mode="allow"]::before  { background: radial-gradient(circle at 50% 0%, rgba(72, 140, 50, 0.22) 0%, transparent 65%); }
+        /* Review = amber ring */
+        .v511-panel[data-v511-panel="theme"][data-mode="review"] { border-color: rgba(232, 176, 74, 0.55); box-shadow: inset 0 0 28px rgba(210, 145, 30, 0.22), 0 0 22px rgba(210, 145, 30, 0.18); }
+        .v511-panel[data-v511-panel="theme"][data-mode="review"]::before { background: radial-gradient(circle at 50% 0%, rgba(210, 145, 30, 0.22) 0%, transparent 65%); }
+        /* Deny = red ring */
+        .v511-panel[data-v511-panel="theme"][data-mode="deny"]   { border-color: rgba(232, 128, 128, 0.55); box-shadow: inset 0 0 28px rgba(200, 60, 60, 0.22), 0 0 22px rgba(200, 60, 60, 0.18); }
+        .v511-panel[data-v511-panel="theme"][data-mode="deny"]::before   { background: radial-gradient(circle at 50% 0%, rgba(200, 60, 60, 0.22) 0%, transparent 65%); }
+        /* Light-mode equivalents — slightly stronger glow to push through the brighter base */
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="allow"]  { border-color: rgba(143, 191, 108, 0.7); box-shadow: inset 0 0 28px rgba(143, 191, 108, 0.18), 0 0 22px rgba(143, 191, 108, 0.20); }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="review"] { border-color: rgba(232, 176, 74, 0.7);  box-shadow: inset 0 0 28px rgba(232, 176, 74, 0.18),  0 0 22px rgba(232, 176, 74, 0.20); }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="deny"]   { border-color: rgba(232, 128, 128, 0.7); box-shadow: inset 0 0 28px rgba(232, 128, 128, 0.18), 0 0 22px rgba(232, 128, 128, 0.20); }
         /* Small "Editing: ALLOW" pill above the preview to reinforce the cue */
         .v511-mode-badge {
           display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
@@ -3998,6 +4010,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="allow"]  .v511-mode-badge { color: #2d5016; }
         :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="review"] .v511-mode-badge { color: #5a3e0c; }
         :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="deny"]   .v511-mode-badge { color: #5e1a1a; }
+        /* Tier 4.1.2 — "Saved" pulse pill: confirms localStorage save fired */
+        .v511-saved-pulse {
+          display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+          padding: 4px 10px; border-radius: 999px; margin-left: 6px;
+          background: rgba(99, 153, 34, 0.22); color: #c0dd97; border: 1px solid rgba(99, 153, 34, 0.45);
+          opacity: 0; transition: opacity 0.2s ease, transform 0.25s ease;
+          transform: translateY(-2px);
+          pointer-events: none;
+        }
+        .v511-saved-pulse.is-pulsing { opacity: 1; transform: translateY(0); }
+        :root[data-theme="light"] .v511-saved-pulse { background: rgba(99, 153, 34, 0.18); color: #2f5d10; border-color: rgba(99, 153, 34, 0.55); }
         /* v5.11 theme preview at top of Visual theming tab */
         .v511-theme-preview-stage.firing-allow { animation: v511PreviewAllow 1.4s ease-out; }
         .v511-theme-preview-stage.firing-review { animation: v511PreviewReview 1.4s ease-out; }
@@ -4040,29 +4063,30 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage { position: relative; aspect-ratio: var(--preview-aspect, 16 / 9); width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
         .v511-theme-preview .v511-theme-preview-banner { font-size: 18px; }
         .v511-theme-preview .v511-theme-preview-qr { width: 160px; height: 160px; font-size: 100px; }
-        /* v5.11 Tier 1: bg-mode overlays on top of mode-tinted base background.
-           The mode tint sets the base colour (green/amber/red for Allow/Review/Deny);
-           bg-mode-page overlays a cycling palette gradient; bg-mode-pattern overlays
-           a repeating CSS pattern; bg-mode-image is the placeholder for Tier 2. */
-        .v511-theme-preview-stage::before, .v511-theme-preview-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
-        .v511-theme-preview-stage::before { z-index: 1; }
-        .v511-theme-preview-stage::after { z-index: 2; }
-        .v511-theme-preview-stage > * { position: relative; z-index: 3; }
-        /* Tier 4.1.1 — Page colour cycle now uses the Background palette via
-           var(--bg-pal-1..5). Cascading fallbacks keep short palettes coherent:
-           if a user only has 2 swatches, slots 3-5 fall back to slot 2 to slot 1
-           so the gradient still works and never bleeds the old hardcoded reds. */
-        .v511-theme-preview-stage.bg-mode-page::before {
+        /* Tier 4.1.2 — Unified palette base under every mode.
+           ::before is ALWAYS the palette gradient cycle (z-1). It runs in all
+           bg modes (None/Pattern/Image) and with any swatch count: cascading
+           fallbacks mean a single-colour palette collapses to a solid one-tone
+           (no visible cycle), while two or more colours cycle continuously
+           through the palette positions.
+           ::after (z-2) is the mode-conditional overlay — Pattern or Image.
+           cel-bg-overlay (z-3) is the celebration palette flash.
+           Real DOM children (QR, banner, caption) sit at z-4. */
+        .v511-theme-preview-stage::before, .v511-theme-preview-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; transition: opacity 0.3s; }
+        .v511-theme-preview-stage::before {
+          z-index: 1;
           opacity: 0.85;
           background: linear-gradient(135deg,
-            var(--bg-pal-1, #DC143C) 0%,
-            var(--bg-pal-2, var(--bg-pal-1, #8B0000)) 25%,
-            var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #FF6B6B))) 50%,
-            var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #FFB347)))) 75%,
-            var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #DC143C))))) 100%);
+            var(--bg-pal-1, #1a1a1a) 0%,
+            var(--bg-pal-2, var(--bg-pal-1, #1a1a1a)) 25%,
+            var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #1a1a1a))) 50%,
+            var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #1a1a1a)))) 75%,
+            var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #1a1a1a))))) 100%);
           background-size: 400% 400%;
           animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite;
         }
+        .v511-theme-preview-stage::after { z-index: 2; opacity: 0; }
+        .v511-theme-preview-stage > * { position: relative; z-index: 4; }
         @keyframes v511BgPageCycle { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         .v511-theme-preview-stage.bg-mode-pattern::after { opacity: 0.5; }
         .v511-theme-preview-stage.bg-mode-pattern.pattern-dots::after { background-image: radial-gradient(circle, rgba(255,255,255,0.4) 1.5px, transparent 1.8px); background-size: 18px 18px; }
@@ -4080,7 +4104,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
         /* Default cel-qr motion (Wobble) defined below via [data-qr-motion="wobble"] rule */
-        .v511-theme-preview-stage.cel-text::before { content: 'Welcome back!'; position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 1; z-index: 4; animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        /* Tier 4.1.2 — Cel-text moved off ::before (which now permanently carries
+           the palette gradient) onto a dedicated DOM element so the celebration
+           text doesn't blow out the palette base while it fires. */
+        .v511-cel-text-overlay { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); z-index: 4; opacity: 0; pointer-events: none; }
+        .v511-cel-text-overlay::before { content: 'Welcome back!'; }
+        .v511-theme-preview-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 4.1 — Background celebration: a real overlay flashes through the
            celebration palette colours (--cel-pal-1..3) so changing the celebration
@@ -4089,7 +4118,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            bg::before (z-1) and content (z-3) inside the stage. */
         .v511-theme-preview-stage > .v511-cel-bg-overlay {
           position: absolute; inset: 0; pointer-events: none;
-          z-index: 2; opacity: 0;
+          z-index: 3; opacity: 0;
           background: linear-gradient(135deg,
             var(--cel-pal-1, #66e0ff) 0%,
             var(--cel-pal-2, var(--cel-pal-1, #66e0ff)) 50%,
@@ -4110,40 +4139,41 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
         .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
-        /* Tier 3 — Image background mode with CSS-variable-driven position/size/repeat
-           Position grid sets --bg-image-pos (e.g. "0% 0%" for top-left, "50% 50%" for centre).
-           Position/Tile/Cover sets --bg-image-size and --bg-image-repeat.
-           Alpha cycle adds .bg-alpha-cycle class which animates opacity. */
-        .v511-theme-preview-stage.bg-mode-image::before {
+        /* Tier 4.1.2 — Image bg overlay now lives on ::after so the palette
+           cycle on ::before is always visible underneath. Drives:
+             --bg-image-url        url(...) data URL from upload
+             --bg-image-pos        9-cell grid position (e.g. "0% 0%" top-left)
+             --bg-image-size       Position/Tile/Cover sizing (JS-computed)
+             --bg-image-repeat     no-repeat | repeat
+           Alpha cycle dropped (G.2 — was a large odd button doing little). */
+        .v511-theme-preview-stage.bg-mode-image::after {
           opacity: 1;
           background-image: var(--bg-image-url, none);
           background-size: var(--bg-image-size, contain);
           background-position: var(--bg-image-pos, center);
           background-repeat: var(--bg-image-repeat, no-repeat);
         }
-        .v511-theme-preview-stage.bg-mode-image.bg-alpha-cycle::before { animation: v511BgAlphaCycle var(--bg-cycle-dur, 30s) ease-in-out infinite; }
-        @keyframes v511BgAlphaCycle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
-        /* Tier 3.6 — Off mode shows the FIRST background palette colour as a flat backdrop
-           so changing the first swatch gives immediate visual feedback. */
-        .v511-theme-preview-stage.bg-mode-off { background: var(--bg-pal-1, #1a1a1a) !important; }
-        /* Tier 3.6 — Symmetry mockup layouts. Not true mirror (CSS can't flip background-image
-           per-layer), but renders the image at the symmetric LOCATIONS it would occupy. */
-        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-horizontal::before {
+        /* Tier 4.1.2 — Symmetry now COMPOSES with the scale slider instead of
+           overriding it. JS sets --sym-size to a percent based on scale × symmetry
+           base (40% for horiz/vert, 35% for quad); the rules below just pin the
+           positions. This way bumping the scale slider visibly enlarges/shrinks
+           the symmetric copies — fixing the "scale effect disappears" bug. */
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-horizontal::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url, none);
           background-position: 0% center, 100% center;
-          background-size: 40% auto, 40% auto;
+          background-size: var(--sym-size, 40%) auto, var(--sym-size, 40%) auto;
           background-repeat: no-repeat;
         }
-        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-vertical::before {
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-vertical::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url, none);
           background-position: center 0%, center 100%;
-          background-size: auto 40%, auto 40%;
+          background-size: auto var(--sym-size, 40%), auto var(--sym-size, 40%);
           background-repeat: no-repeat;
         }
-        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::before {
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none);
           background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%;
-          background-size: 35% auto;
+          background-size: var(--sym-size, 35%) auto;
           background-repeat: no-repeat;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
@@ -4632,7 +4662,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 4: VISUAL THEMING ===== -->
         <section class="v511-panel" data-v511-panel="theme" data-mode="allow">
-          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span></div>
+          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span> <span class="v511-saved-pulse" id="v511SavedPulse" aria-live="polite">&#10003; Saved</span></div>
 
           <!-- Theme preview at top — full-width, fullscreen-aspect.
                Tier 4.1.1: mode tint moved off the preview; the preview now shows
@@ -4643,6 +4673,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                    on the stage triggers a palette-driven gradient flash that uses --cel-pal-1..3
                    instead of the old hue-rotate filter (which ignored the celebration palette). -->
               <div class="v511-cel-bg-overlay" aria-hidden="true"></div>
+              <!-- Tier 4.1.2 — celebration text overlay (was ::before; moved to a DOM element
+                   so it can co-exist with the always-on palette gradient on ::before). -->
+              <div class="v511-cel-text-overlay" aria-hidden="true"></div>
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
@@ -4688,8 +4721,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
 
                 <div class="v511-sub" style="margin-top: 20px;">Background animation <span class="v511-hint-inline">(continuous &mdash; runs throughout the check-in screen)</span></div>
-                <div class="v511-anim-row"><label for="v511BgMode">Mode</label><select id="v511BgMode"><option value="off">Off (flat dark)</option><option value="page" selected>Page colour cycle</option><option value="pattern">Pattern</option><option value="image">Image</option></select></div>
-                <div class="v511-anim-row" data-bg-mode-show="page"><label for="v511BgIntensity">Page intensity</label><select id="v511BgIntensity"><option value="muted" selected>Muted (deep tinted)</option><option value="vibrant">Vibrant (palette colours direct)</option></select></div>
+                <div class="v511-anim-row"><label for="v511BgMode">Overlay</label><select id="v511BgMode"><option value="off" selected>None (palette only)</option><option value="pattern">Pattern</option><option value="image">Image</option></select></div>
+                <div class="v511-anim-row" data-bg-mode-show="off"><label for="v511BgIntensity">Palette intensity</label><select id="v511BgIntensity"><option value="muted" selected>Muted (deep tinted)</option><option value="vibrant">Vibrant (palette colours direct)</option></select></div>
                 <div class="v511-anim-row" data-bg-mode-show="pattern"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
                 <!-- Image upload + image-mode-only settings (position grid, symmetry, anchor, alpha cycle) -->
                 <div class="v511-anim-row" data-bg-mode-show="image"><label for="v511BgImageUpload">Image (optional)</label><div style="flex: 1; display: flex; gap: 8px; align-items: center;"><input type="file" id="v511BgImageUpload" accept="image/png,image/jpeg,image/svg+xml" style="font-size: 11px; color: var(--muted);" /><span class="v511-hint">PNG / SVG / JPEG, ≤ 200 KB. Uploading auto-switches Mode to Image.</span></div></div>
@@ -4734,15 +4767,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     </div>
                   </div>
 
-                  <div class="v511-anim-row"><label for="v511BgImageScale">Image scale</label><input type="range" id="v511BgImageScale" min="10" max="150" value="50" /><span class="v511-hint" id="v511BgImageScaleLabel" style="min-width: 40px;">50%</span></div>
-
-                  <div class="v511-anim-row"><label for="v511BgAlphaCycle">Alpha cycle</label>
-                    <label class="v511-toggle"><input type="checkbox" id="v511BgAlphaCycle" /><span class="v511-toggle-track"><span class="v511-toggle-knob"></span></span></label>
-                  </div>
+                  <!-- Tier 4.1.2 — Image scale slider is now BIDIRECTIONAL.
+                       0 = starting size (the natural Position default).
+                       Negative goes smaller, positive goes larger.
+                       Mapping is exponential (powers of 2 per 100 units): -100 = 0.5×, 0 = 1×, +100 = 2×. -->
+                  <div class="v511-anim-row"><label for="v511BgImageScale">Image scale</label><input type="range" id="v511BgImageScale" min="-100" max="100" value="0" step="1" /><span class="v511-hint" id="v511BgImageScaleLabel" style="min-width: 60px;">0 (natural)</span></div>
                 </div>
 
-                <div class="v511-anim-row" data-bg-mode-show="page,pattern,image"><label for="v511BgDuration">Cycle duration</label><input type="range" id="v511BgDuration" min="5" max="120" value="30" /><span class="v511-hint" id="v511BgDurationLabel" style="min-width: 40px;">30s</span></div>
-                <div class="v511-hint" style="margin-top: 10px;">Use the Sample button at the top with <strong style="color: var(--text);">Background only</strong> selected to fire just the background animation cycle.</div>
+                <!-- Tier 4.1.2 — Alpha cycle row removed (G.2). Pulse/Glow already cover "draw the eye". -->
+                <div class="v511-anim-row"><label for="v511BgDuration">Cycle duration</label><input type="range" id="v511BgDuration" min="5" max="120" value="30" /><span class="v511-hint" id="v511BgDurationLabel" style="min-width: 40px;">30s</span></div>
+                <div class="v511-hint" style="margin-top: 10px;">The palette runs as a cycling gradient under every overlay choice. <strong style="color: var(--text);">One swatch = solid colour, no cycle.</strong> Two or more = cycle through them. Cycle duration controls speed.</div>
               </div>
 
               <!-- ===== SUB-TAB: QR ===== -->
@@ -5271,14 +5305,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var bgDurLabel = document.getElementById('v511BgDurationLabel');
           function applyBgState() {
             if (!sampleStage) return;
-            sampleStage.classList.remove('bg-mode-off', 'bg-mode-page', 'bg-mode-pattern', 'bg-mode-image');
+            // Tier 4.1.2 — palette gradient is always-on via ::before; modes
+            // only select what OVERLAY (::after) sits on top: none / pattern / image.
+            sampleStage.classList.remove('bg-mode-off', 'bg-mode-pattern', 'bg-mode-image');
             sampleStage.classList.remove('pattern-dots', 'pattern-hex', 'pattern-diag', 'pattern-checker', 'pattern-grid', 'pattern-weave', 'pattern-chevron', 'pattern-iso');
-            var mode = bgModeSelect ? bgModeSelect.value : 'page';
+            var mode = bgModeSelect ? bgModeSelect.value : 'off';
+            // Coerce legacy 'page' (dropped option) → 'off' for backward-compat
+            if (mode === 'page') mode = 'off';
             sampleStage.classList.add('bg-mode-' + mode);
             if (mode === 'pattern' && bgPatternSelect) {
               sampleStage.classList.add('pattern-' + bgPatternSelect.value);
             }
-            // Show/hide the mode-specific rows (data-bg-mode-show="page,pattern,image" etc.)
             document.querySelectorAll('[data-bg-mode-show]').forEach(function (row) {
               var visibleIn = row.getAttribute('data-bg-mode-show').split(',').map(function (s) { return s.trim(); });
               row.style.display = visibleIn.indexOf(mode) !== -1 ? '' : 'none';
@@ -5577,35 +5614,77 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'bottom':       '50% 100%',
             'bottom-right': '100% 100%'
           };
+          // Tier 4.1.2 — Bidirectional scale slider (-100..+100, 0 = natural).
+          // Exponential mapping: scale_multiplier = 2^(slider / 100).
+          // -100 → 0.5×, 0 → 1×, +50 → ~1.41×, +100 → 2×.
+          // Base "natural" sizes per mode:
+          //   Position  → 50% of stage (the previous default)
+          //   Tile      → 25% of stage
+          //   Cover     → covers stage (scale ignored)
+          //   Symmetry  → 40% (horiz/vert) or 35% (quad) — the --sym-size CSS var
+          function scaleMultiplier() {
+            var el = document.getElementById('v511BgImageScale');
+            var v = el ? parseFloat(el.value) : 0;
+            return Math.pow(2, v / 100);
+          }
+          function formatScaleLabel(v) {
+            if (v === 0) return '0 (natural)';
+            var sign = v > 0 ? '+' : '';
+            var pct = Math.round((Math.pow(2, v / 100) - 1) * 100);
+            return sign + v + ' (' + (pct >= 0 ? '+' : '') + pct + '%)';
+          }
+          // Anchor offset map: Outer pushes the image AWAY from centre (toward
+          // the chosen position edge), Inner pulls it toward centre, Centre is
+          // neutral. Implemented by tweaking the background-position percentages.
+          var ANCHOR_OFFSET = { outer: 12, centre: 0, center: 0, inner: -12 };
           function applyImagePositioning() {
             if (!sampleStage) return;
-            // Read position cell selection
             var activeCell = document.querySelector('#v511BgPosGrid .v511-bg-pos-cell[aria-pressed="true"]');
             var posKey = activeCell ? activeCell.getAttribute('data-pos') : 'centre';
-            sampleStage.style.setProperty('--bg-image-pos', POS_MAP[posKey] || '50% 50%');
-            // Read Position/Tile/Cover mode chip
+            var basePos = POS_MAP[posKey] || '50% 50%';
+            // Apply anchor offset (Outer pushes the image past the edge for a bleed
+            // effect; Inner pulls it back toward centre; Centre = position as-is).
+            // background-position accepts negative percentages and >100% just fine.
+            var anchorChip = document.querySelector('.v511-chips[data-chip-group="bgAnchor"] .v511-chip[aria-pressed="true"]');
+            var anchorKey = anchorChip ? anchorChip.textContent.trim().toLowerCase() : 'centre';
+            var offset = ANCHOR_OFFSET[anchorKey] || 0;
+            var m = basePos.match(/(-?\d+)%\s+(-?\d+)%/);
+            if (m && offset !== 0) {
+              var x = parseInt(m[1], 10);
+              var y = parseInt(m[2], 10);
+              // Outer (offset>0): values move AWAY from centre; Inner (offset<0): TOWARD centre.
+              // No clamping — letting the image bleed off-frame is the point of Outer.
+              if (x < 50) x = x - offset; else if (x > 50) x = x + offset;
+              if (y < 50) y = y - offset; else if (y > 50) y = y + offset;
+              basePos = x + '% ' + y + '%';
+            }
+            sampleStage.style.setProperty('--bg-image-pos', basePos);
+
             var modeChip = document.querySelector('.v511-chips[data-chip-group="bgPosMode"] .v511-chip[aria-pressed="true"]');
             var modeLabel = modeChip ? modeChip.textContent.trim() : 'Position';
-            // Read scale slider (10-150%)
-            var scaleSliderEl = document.getElementById('v511BgImageScale');
-            var scale = scaleSliderEl ? parseInt(scaleSliderEl.value, 10) : 50;
-            if (modeLabel === 'Tile') {
-              sampleStage.style.setProperty('--bg-image-size', scale + '% auto');
-              sampleStage.style.setProperty('--bg-image-repeat', 'repeat');
-            } else if (modeLabel === 'Cover') {
+            var mult = scaleMultiplier();
+            // Base natural sizes per mode (percent of stage)
+            var baseSize = modeLabel === 'Tile' ? 25 : 50;
+            var sized = Math.round(baseSize * mult);
+            if (modeLabel === 'Cover') {
               sampleStage.style.setProperty('--bg-image-size', 'cover');
               sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
-            } else { // Position
-              sampleStage.style.setProperty('--bg-image-size', scale + '% auto');
-              sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
+            } else {
+              sampleStage.style.setProperty('--bg-image-size', sized + '% auto');
+              sampleStage.style.setProperty('--bg-image-repeat', modeLabel === 'Tile' ? 'repeat' : 'no-repeat');
             }
+            // Symmetry × scale composition — the bg-symmetry-* rules read --sym-size.
+            // Base 40% for horiz/vert, 35% for quad, multiplied by scale.
+            var symBase = sampleStage.classList.contains('bg-symmetry-quad') ? 35 : 40;
+            var symSized = Math.round(symBase * mult);
+            sampleStage.style.setProperty('--sym-size', symSized + '%');
           }
-          // Image scale slider live-updates the bg-image-size
+          // Image scale slider live-updates the bg-image-size and label
           var bgScaleSlider = document.getElementById('v511BgImageScale');
           var bgScaleLabel = document.getElementById('v511BgImageScaleLabel');
           if (bgScaleSlider) {
             bgScaleSlider.addEventListener('input', function () {
-              if (bgScaleLabel) bgScaleLabel.textContent = bgScaleSlider.value + '%';
+              if (bgScaleLabel) bgScaleLabel.textContent = formatScaleLabel(parseFloat(bgScaleSlider.value));
               applyImagePositioning();
             });
           }
@@ -5623,10 +5702,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (groupKey === 'bgAnchor') {
               var grid = document.getElementById('v511BgPosGrid');
               if (grid) grid.setAttribute('data-anchor', chip.textContent.toLowerCase().trim());
+              applyImagePositioning(); // re-compute position with new anchor offset
             }
             if (groupKey === 'bgSymmetry' && sampleStage) {
               sampleStage.classList.remove('bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
               sampleStage.classList.add('bg-symmetry-' + chip.textContent.toLowerCase().trim());
+              applyImagePositioning(); // recompute --sym-size for the new symmetry base
             }
             if (groupKey === 'qrMotion' && sampleStage) {
               var motionKey = chip.textContent.toLowerCase().trim().replace(/\s+/g, '-');
@@ -5650,14 +5731,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           });
           applyCelPaletteToPreview();
 
-          // Alpha cycle toggle: animates the image bg opacity when ticked
-          var alphaCycleToggle = document.getElementById('v511BgAlphaCycle');
-          if (alphaCycleToggle) {
-            alphaCycleToggle.addEventListener('change', function () {
-              if (!sampleStage) return;
-              sampleStage.classList.toggle('bg-alpha-cycle', alphaCycleToggle.checked);
-            });
-          }
+          // Tier 4.1.2 — Alpha cycle handler retired (G.2). Pulse/Glow already handle "draw the eye".
 
           // Layer numbers: each celebration effect card gets a 1..N badge
           // reflecting its DOM position (1 = bottom layer, N = top). Updates
@@ -5809,9 +5883,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             };
           }
 
+          var v511PulseTimer = null;
+          function v511PulseSaved() {
+            var pill = document.getElementById('v511SavedPulse');
+            if (!pill) return;
+            pill.classList.add('is-pulsing');
+            if (v511PulseTimer) clearTimeout(v511PulseTimer);
+            v511PulseTimer = setTimeout(function () { pill.classList.remove('is-pulsing'); }, 900);
+          }
           function v511SaveNow() {
             try {
               localStorage.setItem(V511_LS_KEY, JSON.stringify(v511CaptureState()));
+              v511PulseSaved();
             } catch (e) { /* quota or JSON error — silent */ }
           }
 
@@ -5858,25 +5941,42 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             setVal('v511CelDuration', s.celDuration);
             setVal('v511QrFg', s.qrFg);
 
-            // 3. Restore palette inputs + push to CSS variables on the stage.
-            if (Array.isArray(s.bgPalette)) {
-              var bgInputs = document.querySelectorAll('.v511-bg-palette-row input[type="color"]');
-              s.bgPalette.forEach(function (v, i) {
-                if (bgInputs[i]) {
-                  bgInputs[i].value = v;
-                  if (sampleStage) sampleStage.style.setProperty('--bg-pal-' + (i + 1), v);
-                }
+            // 3. Restore palettes — REBUILD the row DOM to match the saved
+            //    swatch count (Tier 4.1.2 fix for "saves QR but not Background").
+            //    Previously the load only set values into pre-existing inputs;
+            //    any swatches added via "+ Add colour" got lost on refresh
+            //    because the default HTML has 4 BG / 5 CEL slots.
+            function rebuildPaletteRow(rowSelector, colors, varPrefix) {
+              if (!Array.isArray(colors) || colors.length === 0) return;
+              var row = document.querySelector(rowSelector);
+              if (!row) return;
+              // Strip existing real swatches (keep empty placeholders for visual + budget)
+              row.querySelectorAll('.v511-palette-swatch-wrap').forEach(function (w) { w.remove(); });
+              var emptyPlaceholders = row.querySelectorAll('.v511-palette-swatch.empty');
+              // Insert one wrap per saved colour, before any empty placeholder
+              colors.forEach(function (v, i) {
+                var wrap = document.createElement('div');
+                wrap.className = 'v511-palette-swatch-wrap';
+                var inp = document.createElement('input');
+                inp.type = 'color';
+                inp.className = 'v511-palette-swatch';
+                inp.value = v;
+                inp.title = 'Pick colour';
+                var rm = document.createElement('button');
+                rm.type = 'button';
+                rm.className = 'v511-palette-swatch-remove';
+                rm.setAttribute('aria-label', 'Remove colour');
+                rm.title = 'Remove';
+                rm.textContent = '×';
+                wrap.appendChild(inp);
+                wrap.appendChild(rm);
+                if (emptyPlaceholders[0]) row.insertBefore(wrap, emptyPlaceholders[0]);
+                else row.appendChild(wrap);
+                if (sampleStage) sampleStage.style.setProperty(varPrefix + (i + 1), v);
               });
             }
-            if (Array.isArray(s.celPalette)) {
-              var celInputs = document.querySelectorAll('.v511-cel-palette-row input[type="color"]');
-              s.celPalette.forEach(function (v, i) {
-                if (celInputs[i]) {
-                  celInputs[i].value = v;
-                  if (sampleStage) sampleStage.style.setProperty('--cel-pal-' + (i + 1), v);
-                }
-              });
-            }
+            rebuildPaletteRow('.v511-bg-palette-row', s.bgPalette, '--bg-pal-');
+            rebuildPaletteRow('.v511-cel-palette-row', s.celPalette, '--cel-pal-');
 
             // 4. Restore chip aria-pressed states + their visual side-effects.
             if (s.chips) {
