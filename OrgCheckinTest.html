@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.6</span></div>
   </div>
 </div>
 
@@ -3804,10 +3804,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* v5.11 Tier 2.6 — real QR image in preview + dblclick fullscreen */
         .v511-theme-preview-qr { padding: 8px; }
         .v511-theme-preview-qr img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
-        .v511-theme-preview-stage { cursor: zoom-in; }
+        /* Tier 4.1.6 — Preview and fullscreen now render IDENTICALLY (just at
+           different absolute sizes). Stage is a container; children use cqi
+           (% of container inline-size) so QR, banner, caption, mode label,
+           celebration text all scale in lockstep with the stage width. No
+           more "QR changes size and images move when fullscreening". */
+        .v511-theme-preview-stage { cursor: zoom-in; container-type: inline-size; }
         .v511-theme-preview-stage:fullscreen { cursor: zoom-out; padding: 0; }
-        .v511-theme-preview-stage:fullscreen .v511-theme-preview-qr { width: 50vmin; height: 50vmin; }
-        .v511-theme-preview-stage:fullscreen .v511-theme-preview-banner { font-size: 32px; }
         .v511-theme-preview-stage:fullscreen .v511-theme-preview-caption { display: none; }
         /* v5.11 Tier 2.6 — Image settings panel (Position / Symmetry / Anchor / Alpha cycle) */
         .v511-image-settings { display: none; padding: 8px 0; }
@@ -4055,9 +4058,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511PreviewAllow { 0% { box-shadow: inset 0 0 0 0 rgba(192,221,151,0); } 30% { box-shadow: inset 0 0 80px 8px rgba(192,221,151,0.85); } 100% { box-shadow: inset 0 0 0 0 rgba(192,221,151,0); } }
         @keyframes v511PreviewReview { 0% { box-shadow: inset 0 0 0 0 rgba(250,199,117,0); } 30% { box-shadow: inset 0 0 80px 8px rgba(250,199,117,0.85); } 100% { box-shadow: inset 0 0 0 0 rgba(250,199,117,0); } }
         @keyframes v511PreviewDeny { 0% { box-shadow: inset 0 0 0 0 rgba(240,149,149,0); } 15% { transform: translateX(-4px); } 25% { transform: translateX(4px); } 35% { box-shadow: inset 0 0 80px 8px rgba(240,149,149,0.85); transform: translateX(0); } 100% { box-shadow: inset 0 0 0 0 rgba(240,149,149,0); } }
-        .v511-theme-preview-banner { color: #fff; font-size: 18px; font-weight: 600; margin-bottom: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
-        .v511-theme-preview-qr { width: 160px; height: 160px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 96px; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
-        .v511-theme-preview-caption { margin-top: 14px; color: rgba(255,255,255,0.9); font-size: 11px; text-align: center; }
+        /* Tier 4.1.6 — Banner/QR/caption sized in cqi (% of stage width).
+           QR is 28% of stage width with aspect-ratio 1; banner is 3.2cqi,
+           caption 1.4cqi. Scale identically in preview and fullscreen. */
+        .v511-theme-preview-banner { color: #fff; font-size: 3.2cqi; font-weight: 600; margin-bottom: 2.5cqi; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+        .v511-theme-preview-qr { width: 28cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+        .v511-theme-preview-caption { margin-top: 2.5cqi; color: rgba(255,255,255,0.9); font-size: 1.4cqi; text-align: center; }
         /* v5.11 Org tab masthead */
         .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); border: 1px solid rgba(105,168,255,0.22); border-radius: 14px; }
         .v511-masthead-name { font-size: 22px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.2; }
@@ -4088,8 +4094,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* v5.11 theme preview — wider, 16:9 fullscreen-style aspect, per-mode background */
         .v511-theme-preview { display: block; margin-bottom: 14px; }
         .v511-theme-preview-stage { position: relative; aspect-ratio: var(--preview-aspect, 16 / 9); width: 100%; max-height: 48vh; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px; transition: background 0.25s; }
-        .v511-theme-preview .v511-theme-preview-banner { font-size: 18px; }
-        .v511-theme-preview .v511-theme-preview-qr { width: 160px; height: 160px; font-size: 100px; }
+        /* Tier 4.1.6 — pixel overrides removed; cqi sizing above handles both
+           preview and fullscreen at identical proportions. */
         /* Tier 4.1.2 — Unified palette base under every mode.
            ::before is ALWAYS the palette gradient cycle (z-1). It runs in all
            bg modes (None/Pattern/Image) and with any swatch count: cascading
@@ -4134,7 +4140,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 4.1.2 — Cel-text moved off ::before (which now permanently carries
            the palette gradient) onto a dedicated DOM element so the celebration
            text doesn't blow out the palette base while it fires. */
-        .v511-cel-text-overlay { position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); z-index: 4; opacity: 0; pointer-events: none; }
+        .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 2.6cqi; text-shadow: 0 1px 4px rgba(0,0,0,0.6); z-index: 4; opacity: 0; pointer-events: none; }
         .v511-cel-text-overlay::before { content: 'Welcome back!'; }
         .v511-theme-preview-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
@@ -4244,7 +4250,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            the settings panel below. Stage gets a neutral baseline that the
            user's palette layers on top of. */
         .v511-theme-preview-stage { background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%); }
-        .v511-theme-preview-mode-label { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; padding: 4px 9px; background: rgba(0,0,0,0.42); color: #fff; border-radius: 5px; text-transform: uppercase; }
+        /* Tier 4.1.6 — Mode label also sized in cqi so it stays proportional in fullscreen. */
+        .v511-theme-preview-mode-label { position: absolute; top: 1.3cqi; right: 1.5cqi; font-size: 1.5cqi; font-weight: 700; letter-spacing: 0.6px; padding: 0.5cqi 1.2cqi; background: rgba(0,0,0,0.42); color: #fff; border-radius: 0.6cqi; text-transform: uppercase; }
         .v511-theme-preview-controls-strip { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; flex-wrap: wrap; }
         .v511-theme-preview-controls-strip > label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
         .v511-theme-preview-controls-strip select { height: 32px; font-size: 12.5px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; }
@@ -4729,6 +4736,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">▶ Sample</button>
               <span class="v511-hint">Settings below apply to the active mode. Switch mode to edit a different outcome's celebration + sound.</span>
             </div>
+            <!-- Tier 4.1.6 — Screen dimensions readout. Shows the user's screen
+                 size in px so they know what the fullscreen target is. -->
+            <div class="v511-screen-dims" id="v511ScreenDims" style="font-size: 11px; color: var(--muted); margin: 6px 0 0 6px;">
+              Preview matches your screen: <span id="v511ScreenW">—</span> × <span id="v511ScreenH">—</span> px. What you see here is what fullscreen will render — proportions identical.
+            </div>
           </div>
 
           <div class="v511-row"><label for="v511LightDarkMode">Light/dark mode</label><select id="v511LightDarkMode"><option value="auto">Auto (follow OS)</option><option value="light">Light</option><option value="dark" selected>Dark</option></select></div>
@@ -4754,7 +4766,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 6px;">
-                  <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
+                  <button type="button" class="v511-btn v511-btn-mini v511-palette-add">+ Add colour</button>
                   <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
                 </div>
 
@@ -4833,7 +4845,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 6px;">
-                  <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
+                  <button type="button" class="v511-btn v511-btn-mini v511-palette-add">+ Add colour</button>
                   <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
                 </div>
 
@@ -5557,6 +5569,48 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             applyCelPaletteToPreview();
           });
 
+          // Tier 4.1.6 — "+ Add colour" button. Creates a new swatch wrap with
+          // a random hex colour, inserts it before any empty placeholders in
+          // the same palette row. Caps at 7 swatches per row.
+          document.addEventListener('click', function (e) {
+            var addBtn = e.target.closest('.v511-palette-add');
+            if (!addBtn) return;
+            var row = addBtn.closest('.v511-palette-row') || (addBtn.parentElement && addBtn.parentElement.previousElementSibling);
+            // The Add button lives in a wrapping div NEXT TO the palette row,
+            // not inside it. Walk up and find the sibling palette row.
+            if (!row || !row.classList.contains('v511-palette-row')) {
+              var section = addBtn.closest('.v511-subpanel') || document;
+              row = section.querySelector('.v511-palette-row');
+            }
+            if (!row) return;
+            var existing = row.querySelectorAll('.v511-palette-swatch-wrap').length;
+            if (existing >= 7) { alert('Maximum 7 colours per palette.'); return; }
+            var wrap = document.createElement('div');
+            wrap.className = 'v511-palette-swatch-wrap';
+            var inp = document.createElement('input');
+            inp.type = 'color';
+            inp.className = 'v511-palette-swatch';
+            // Pick a colour that contrasts with the existing first swatch
+            inp.value = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+            inp.title = 'Pick colour';
+            var rm = document.createElement('button');
+            rm.type = 'button';
+            rm.className = 'v511-palette-swatch-remove';
+            rm.setAttribute('aria-label', 'Remove colour');
+            rm.title = 'Remove';
+            rm.textContent = '×';
+            wrap.appendChild(inp);
+            wrap.appendChild(rm);
+            // Insert before the first empty placeholder
+            var firstEmpty = row.querySelector('.v511-palette-swatch.empty');
+            if (firstEmpty) row.insertBefore(wrap, firstEmpty);
+            else row.appendChild(wrap);
+            // Re-apply palettes so the new colour flows into the preview vars
+            applyBgPaletteToPreview();
+            applyCelPaletteToPreview();
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          });
+
           // Double-click anywhere on preview stage → fullscreen (Esc to exit)
           if (sampleStage) {
             sampleStage.addEventListener('dblclick', function () {
@@ -5636,11 +5690,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (!sampleStage) return;
             var w = (window.screen && window.screen.width) || window.innerWidth;
             var h = (window.screen && window.screen.height) || window.innerHeight;
+            // Tier 4.1.6 — paint the screen dimensions readout under Active mode
+            var dimW = document.getElementById('v511ScreenW');
+            var dimH = document.getElementById('v511ScreenH');
+            if (dimW) dimW.textContent = w || '?';
+            if (dimH) dimH.textContent = h || '?';
             if (!w || !h) { sampleStage.style.setProperty('--preview-aspect', '16 / 9'); return; }
             var ratio = w / h;
-            // Portrait → use 16:9 default (preview is in a landscape settings page)
             if (ratio < 1) ratio = 16 / 9;
-            // Cap super-wide screens at 21:9
             if (ratio > 21 / 9) ratio = 21 / 9;
             sampleStage.style.setProperty('--preview-aspect', ratio.toFixed(4) + ' / 1');
           }
@@ -5685,7 +5742,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           //   Inner   = strong PULL inward
           //   Centre  = neutral (image sits at the chosen grid position)
           //   Outer   = strong BLEED outward past the edge
-          var ANCHOR_OFFSET = { outer: 25, centre: 0, center: 0, inner: -20 };
+          // Tier 4.1.6 — Outer reduced from 25 to 12 (image at +25 was completely
+          // off-screen per Captain). Inner stays at -20 for strong pull.
+          var ANCHOR_OFFSET = { outer: 12, centre: 0, center: 0, inner: -20 };
           // Tier 4.1.4 — Mirror a "X% Y%" position string across an axis.
           // axis ∈ 'x' | 'y' | 'xy'. Used by symmetry modes so the user's chosen
           // position grid drives all copies (top-left + horizontal → top-right pair).
