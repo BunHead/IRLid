@@ -4029,8 +4029,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
         .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, rgba(255,255,255,0.6) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
-        /* Tier 2 — Image background mode */
-        .v511-theme-preview-stage.bg-mode-image::before { opacity: 1; background-image: var(--bg-image-url, none); background-size: cover; background-position: center; }
+        /* Tier 3 — Image background mode with CSS-variable-driven position/size/repeat
+           Position grid sets --bg-image-pos (e.g. "0% 0%" for top-left, "50% 50%" for centre).
+           Position/Tile/Cover sets --bg-image-size and --bg-image-repeat.
+           Alpha cycle adds .bg-alpha-cycle class which animates opacity. */
+        .v511-theme-preview-stage.bg-mode-image::before {
+          opacity: 1;
+          background-image: var(--bg-image-url, none);
+          background-size: var(--bg-image-size, contain);
+          background-position: var(--bg-image-pos, center);
+          background-repeat: var(--bg-image-repeat, no-repeat);
+        }
+        .v511-theme-preview-stage.bg-mode-image.bg-alpha-cycle::before { animation: v511BgAlphaCycle var(--bg-cycle-dur, 30s) ease-in-out infinite; }
+        @keyframes v511BgAlphaCycle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        /* Tier 3 — layer-number badge on celebration effect headers */
+        .v511-layer-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; background: rgba(105, 168, 255, 0.18); color: #c8e0ff; border: 1px solid rgba(105, 168, 255, 0.4); border-radius: 4px; font-size: 10px; font-weight: 700; font-family: var(--font-mono, monospace); }
+        :root[data-theme="light"] .v511-layer-num { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
+        /* Generated QR canvas/img sizing inside the preview-qr container */
+        .v511-theme-preview-qr canvas, .v511-theme-preview-qr img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
         /* Tier 1 save-button transient state */
         .v511-btn.is-saved { background: rgba(99, 153, 34, 0.25); border-color: rgba(99, 153, 34, 0.5); color: #c0dd97; }
         .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
@@ -4499,7 +4515,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow" title="Double-click anywhere to fullscreen the preview (Esc to exit)">
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
-              <div class="v511-theme-preview-qr"><img src="QR.png" alt="Sample QR" /></div>
+              <div class="v511-theme-preview-qr" id="v511PreviewQrBox" aria-label="Sample QR code"></div>
               <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
             </div>
             <div class="v511-theme-preview-controls-strip">
@@ -4600,7 +4616,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <!-- ===== SUB-TAB: QR ===== -->
               <div class="v511-subpanel" data-v511-subpanel="qr" role="tabpanel" hidden>
                 <div class="v511-sub" style="margin-top: 0;">QR foreground</div>
-                <div class="v511-row"><label>Colour</label><div><span class="v511-swatch" style="background: #000000;"></span><span class="v511-hint">#000000 — the dark modules of the QR itself.</span></div></div>
+                <div class="v511-row"><label for="v511QrFg">Colour</label><div style="display: flex; align-items: center; gap: 10px;"><input type="color" id="v511QrFg" class="v511-palette-swatch" value="#000000" /><span class="v511-hint">The dark modules of the QR. Preview updates live.</span></div></div>
 
                 <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(click a swatch to pick; used by the accept-cycle burst on successful check-in)</span></div>
                 <div class="v511-palette-row v511-cel-palette-row">
@@ -4623,7 +4639,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <div class="v511-celeb-grid" id="v511CelEffectsGrid">
                   <div class="v511-celeb-effect" draggable="true" data-effect="pulse">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPulse" /><span class="v511-celeb-effect-name">Pulse</span><span class="v511-hint">Quiet coloured throb around the QR border.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -4634,7 +4650,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                   <div class="v511-celeb-effect" draggable="true" data-effect="bg">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffBg" /><span class="v511-celeb-effect-name">Background</span><span class="v511-hint">QR canvas cycles palette colours once behind the code.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -4644,7 +4660,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                   <div class="v511-celeb-effect" draggable="true" data-effect="qr">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffQr" /><span class="v511-celeb-effect-name">QR motion</span><span class="v511-hint">Wobble / zoom / dissolve / rotate.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -4654,7 +4670,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                   <div class="v511-celeb-effect" draggable="true" data-effect="glow">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffGlow" checked /><span class="v511-celeb-effect-name">Glow</span><span class="v511-hint">Conic gradient ring sweep plus centre pulse.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -4667,7 +4683,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                   <div class="v511-celeb-effect" draggable="true" data-effect="pattern">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPattern" /><span class="v511-celeb-effect-name">Pattern</span><span class="v511-hint">Tiled pattern overlay flashes once.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -4677,7 +4693,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                   <div class="v511-celeb-effect" draggable="true" data-effect="text">
                     <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
                       <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffText" /><span class="v511-celeb-effect-name">Text</span><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></label>
                     </div>
                     <div class="v511-celeb-effect-body">
@@ -5292,6 +5308,111 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               posGrid.querySelectorAll('.v511-bg-pos-cell').forEach(function (c) {
                 c.setAttribute('aria-pressed', c === cell ? 'true' : 'false');
               });
+              applyImagePositioning();
+            });
+          }
+
+          // ===========================================================
+          // v5.11 Tier 3 — Real QR generation + image positioning + alpha cycle
+          // + layer numbers + fire order based on drag
+          // ===========================================================
+          // Real QR: replace the static QR.png placeholder with a QRCode.js-
+          // generated canvas honouring the QR foreground colour input.
+          var qrFgInput = document.getElementById('v511QrFg');
+          var qrBox = document.getElementById('v511PreviewQrBox');
+          function renderPreviewQr() {
+            if (!qrBox || !window.QRCode) return;
+            var color = qrFgInput ? qrFgInput.value : '#000000';
+            qrBox.innerHTML = '';
+            try {
+              new QRCode(qrBox, {
+                text: 'https://irlid.co.uk/check-in/sample-preview',
+                width: 160,
+                height: 160,
+                colorDark: color,
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.M
+              });
+            } catch (e) {
+              qrBox.innerHTML = '<div style="font-size: 100px; line-height: 1; padding: 30px;">▦</div>';
+            }
+          }
+          if (qrFgInput) qrFgInput.addEventListener('input', renderPreviewQr);
+          renderPreviewQr();
+
+          // Image positioning: the 9-cell grid maps to CSS background-position
+          // values; the Position/Tile/Cover chips map to background-size /
+          // background-repeat. JS reads the active selections and sets CSS
+          // variables on the preview stage that the bg-mode-image::before rule
+          // already consumes.
+          var POS_MAP = {
+            'top-left':     '0% 0%',
+            'top':          '50% 0%',
+            'top-right':    '100% 0%',
+            'left':         '0% 50%',
+            'centre':       '50% 50%',
+            'right':        '100% 50%',
+            'bottom-left':  '0% 100%',
+            'bottom':       '50% 100%',
+            'bottom-right': '100% 100%'
+          };
+          function applyImagePositioning() {
+            if (!sampleStage) return;
+            // Read position cell selection
+            var activeCell = document.querySelector('#v511BgPosGrid .v511-bg-pos-cell[aria-pressed="true"]');
+            var posKey = activeCell ? activeCell.getAttribute('data-pos') : 'centre';
+            sampleStage.style.setProperty('--bg-image-pos', POS_MAP[posKey] || '50% 50%');
+            // Read Position/Tile/Cover mode chip
+            var modeChip = document.querySelector('.v511-chips[data-chip-group="bgPosMode"] .v511-chip[aria-pressed="true"]');
+            var modeLabel = modeChip ? modeChip.textContent.trim() : 'Position';
+            if (modeLabel === 'Tile') {
+              sampleStage.style.setProperty('--bg-image-size', 'auto');
+              sampleStage.style.setProperty('--bg-image-repeat', 'repeat');
+            } else if (modeLabel === 'Cover') {
+              sampleStage.style.setProperty('--bg-image-size', 'cover');
+              sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
+            } else { // Position
+              sampleStage.style.setProperty('--bg-image-size', 'contain');
+              sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
+            }
+          }
+          // Hook the Position/Tile/Cover chip group to also reapply on change
+          document.addEventListener('click', function (e) {
+            var chip = e.target.closest('.v511-chip');
+            if (!chip) return;
+            var group = chip.parentElement;
+            if (!group) return;
+            var groupKey = group.getAttribute('data-chip-group');
+            if (groupKey === 'bgPosMode') applyImagePositioning();
+          });
+          applyImagePositioning(); // initial
+
+          // Alpha cycle toggle: animates the image bg opacity when ticked
+          var alphaCycleToggle = document.getElementById('v511BgAlphaCycle');
+          if (alphaCycleToggle) {
+            alphaCycleToggle.addEventListener('change', function () {
+              if (!sampleStage) return;
+              sampleStage.classList.toggle('bg-alpha-cycle', alphaCycleToggle.checked);
+            });
+          }
+
+          // Layer numbers: each celebration effect card gets a 1..N badge
+          // reflecting its DOM position (1 = bottom layer, N = top). Updates
+          // after any drag-reorder; ties drag-order to a visible-on-screen
+          // signal so Captain can confirm at a glance.
+          function updateLayerNumbers() {
+            var cards = document.querySelectorAll('.v511-celeb-effect[draggable="true"]');
+            cards.forEach(function (card, idx) {
+              var badge = card.querySelector('.v511-layer-num');
+              if (badge) badge.textContent = String(idx + 1);
+            });
+          }
+          updateLayerNumbers();
+          // Re-run after every drop (use the existing DnD container)
+          var celGrid = document.getElementById('v511CelEffectsGrid');
+          if (celGrid) {
+            celGrid.addEventListener('drop', function () {
+              window.requestAnimationFrame(updateLayerNumbers);
             });
           }
 
