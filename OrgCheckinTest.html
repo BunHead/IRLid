@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1</span></div>
   </div>
 </div>
 
@@ -4040,9 +4040,31 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Default cel-qr motion (Wobble) defined below via [data-qr-motion="wobble"] rule */
         .v511-theme-preview-stage.cel-text::before { content: 'Welcome back!'; position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 1; z-index: 4; animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
-        /* Tier 2 — Background celebration: stage backdrop flashes through cel palette once */
-        .v511-theme-preview-stage.cel-bg { animation: v511CelBgFlash var(--cel-cycle-dur, 1.4s) ease-in-out; }
-        @keyframes v511CelBgFlash { 0% { filter: brightness(1) saturate(1); } 25% { filter: brightness(1.3) saturate(1.5) hue-rotate(40deg); } 50% { filter: brightness(1.4) saturate(1.6) hue-rotate(80deg); } 75% { filter: brightness(1.3) saturate(1.5) hue-rotate(40deg); } 100% { filter: brightness(1) saturate(1); } }
+        /* Tier 4.1 — Background celebration: a real overlay flashes through the
+           celebration palette colours (--cel-pal-1..3) so changing the celebration
+           palette swatches actually shows up. Replaces the Tier 2 filter hue-rotate
+           which was palette-agnostic. The .v511-cel-bg-overlay div sits between
+           bg::before (z-1) and content (z-3) inside the stage. */
+        .v511-theme-preview-stage > .v511-cel-bg-overlay {
+          position: absolute; inset: 0; pointer-events: none;
+          z-index: 2; opacity: 0;
+          background: linear-gradient(135deg,
+            var(--cel-pal-1, #66e0ff) 0%,
+            var(--cel-pal-2, var(--cel-pal-1, #66e0ff)) 50%,
+            var(--cel-pal-3, var(--cel-pal-1, #66e0ff)) 100%);
+          background-size: 200% 200%;
+          mix-blend-mode: screen;
+        }
+        .v511-theme-preview-stage.cel-bg > .v511-cel-bg-overlay { animation: v511CelBgPaletteFlash var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        @keyframes v511CelBgPaletteFlash {
+          0% { opacity: 0; background-position: 0% 0%; }
+          30% { opacity: 0.55; }
+          50% { opacity: 0.78; background-position: 50% 50%; }
+          70% { opacity: 0.55; }
+          100% { opacity: 0; background-position: 100% 100%; }
+        }
+        /* Light mode: drop screen blend (the dark base it relies on isn't there) */
+        :root[data-theme="light"] .v511-theme-preview-stage > .v511-cel-bg-overlay { mix-blend-mode: multiply; }
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
         .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
@@ -4570,6 +4592,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <!-- Theme preview at top — full-width, fullscreen-aspect, per-mode background -->
           <div class="v511-theme-preview">
             <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow" title="Double-click anywhere to fullscreen the preview (Esc to exit)">
+              <!-- Tier 4.1 — celebration palette overlay. Normally invisible. The .cel-bg class
+                   on the stage triggers a palette-driven gradient flash that uses --cel-pal-1..3
+                   instead of the old hue-rotate filter (which ignored the celebration palette). -->
+              <div class="v511-cel-bg-overlay" aria-hidden="true"></div>
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
@@ -5673,6 +5699,216 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             });
           }
+
+          // ===========================================================
+          // v5.11 Tier 4.1 — localStorage persistence
+          // ===========================================================
+          // Survives page refresh by storing the mockup's design state in
+          // localStorage. Skips image data URLs and WAV uploads (size — both
+          // are megabyte-class data URLs); everything else round-trips.
+          //
+          // To reset to seeded defaults: open DevTools console and run
+          //   localStorage.removeItem('v511_mockup_state_v1')
+          // then refresh the page.
+          var V511_LS_KEY = 'v511_mockup_state_v1';
+          var v511SaveTimer = null;
+
+          function v511CaptureState() {
+            // Snapshot the active mode's CURRENT form values into modeStates so
+            // the saved blob is consistent with what's on screen at save time.
+            try { snapshotMode(currentMode); } catch (e) {}
+            var bgPalette = [];
+            document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (i) { bgPalette.push(i.value); });
+            var celPalette = [];
+            document.querySelectorAll('.v511-cel-palette-row input[type="color"]').forEach(function (i) { celPalette.push(i.value); });
+            var chips = {};
+            document.querySelectorAll('[data-chip-group]').forEach(function (group) {
+              var key = group.getAttribute('data-chip-group');
+              var pressed = group.querySelector('[aria-pressed="true"]');
+              if (pressed && key) chips[key] = pressed.textContent.trim();
+            });
+            var posCellIdx = -1;
+            var grid = document.querySelector('.v511-bg-pos-grid');
+            if (grid) {
+              var pressedCell = grid.querySelector('.v511-bg-pos-cell[aria-pressed="true"]');
+              if (pressedCell) posCellIdx = Array.prototype.indexOf.call(grid.children, pressedCell);
+            }
+            return {
+              v: 1,
+              currentMode: currentMode,
+              modeStates: modeStates,
+              lightDark: (document.getElementById('v511LightDarkMode') || {}).value || '',
+              bgMode: (document.getElementById('v511BgMode') || {}).value || '',
+              bgPattern: (document.getElementById('v511BgPattern') || {}).value || '',
+              bgDuration: (document.getElementById('v511BgDuration') || {}).value || '',
+              bgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '',
+              celDuration: (document.getElementById('v511CelDuration') || {}).value || '',
+              qrFg: (document.getElementById('v511QrFg') || {}).value || '',
+              bgPalette: bgPalette,
+              celPalette: celPalette,
+              chips: chips,
+              posCellIdx: posCellIdx
+            };
+          }
+
+          function v511SaveNow() {
+            try {
+              localStorage.setItem(V511_LS_KEY, JSON.stringify(v511CaptureState()));
+            } catch (e) { /* quota or JSON error — silent */ }
+          }
+
+          function v511SaveDebounced() {
+            if (v511SaveTimer) clearTimeout(v511SaveTimer);
+            v511SaveTimer = setTimeout(v511SaveNow, 300);
+          }
+
+          function v511LoadState() {
+            var raw;
+            try { raw = localStorage.getItem(V511_LS_KEY); } catch (e) { return false; }
+            if (!raw) return false;
+            var s;
+            try { s = JSON.parse(raw); } catch (e) { return false; }
+            if (!s || s.v !== 1) return false;
+
+            // 1. Restore per-mode state map (overwrites seeded defaults).
+            if (s.modeStates) {
+              Object.keys(s.modeStates).forEach(function (mode) {
+                if (modeStates[mode]) {
+                  Object.keys(s.modeStates[mode]).forEach(function (id) {
+                    modeStates[mode][id] = s.modeStates[mode][id];
+                  });
+                }
+              });
+            }
+
+            // 2. Restore global form values (selects, ranges, color inputs).
+            function setVal(id, val) {
+              if (val == null || val === '') return;
+              var el = document.getElementById(id);
+              if (!el) return;
+              el.value = val;
+              if (el.type === 'range' && el.dispatchEvent) el.dispatchEvent(new Event('input'));
+            }
+            setVal('v511LightDarkMode', s.lightDark);
+            if (s.lightDark === 'light') document.documentElement.setAttribute('data-theme', 'light');
+            else if (s.lightDark === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+            else if (s.lightDark === 'auto') document.documentElement.removeAttribute('data-theme');
+            setVal('v511BgMode', s.bgMode);
+            setVal('v511BgPattern', s.bgPattern);
+            setVal('v511BgDuration', s.bgDuration);
+            setVal('v511BgImageScale', s.bgImageScale);
+            setVal('v511CelDuration', s.celDuration);
+            setVal('v511QrFg', s.qrFg);
+
+            // 3. Restore palette inputs + push to CSS variables on the stage.
+            if (Array.isArray(s.bgPalette)) {
+              var bgInputs = document.querySelectorAll('.v511-bg-palette-row input[type="color"]');
+              s.bgPalette.forEach(function (v, i) {
+                if (bgInputs[i]) {
+                  bgInputs[i].value = v;
+                  if (sampleStage) sampleStage.style.setProperty('--bg-pal-' + (i + 1), v);
+                }
+              });
+            }
+            if (Array.isArray(s.celPalette)) {
+              var celInputs = document.querySelectorAll('.v511-cel-palette-row input[type="color"]');
+              s.celPalette.forEach(function (v, i) {
+                if (celInputs[i]) {
+                  celInputs[i].value = v;
+                  if (sampleStage) sampleStage.style.setProperty('--cel-pal-' + (i + 1), v);
+                }
+              });
+            }
+
+            // 4. Restore chip aria-pressed states + their visual side-effects.
+            if (s.chips) {
+              Object.keys(s.chips).forEach(function (groupKey) {
+                var group = document.querySelector('[data-chip-group="' + groupKey + '"]');
+                if (!group) return;
+                var targetText = s.chips[groupKey];
+                group.querySelectorAll('.v511-chip').forEach(function (c) {
+                  c.setAttribute('aria-pressed', c.textContent.trim() === targetText ? 'true' : 'false');
+                });
+                if (sampleStage) {
+                  if (groupKey === 'bgSymmetry') {
+                    sampleStage.classList.remove('bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
+                    sampleStage.classList.add('bg-symmetry-' + (targetText || 'off').toLowerCase().trim());
+                  }
+                  if (groupKey === 'qrMotion') {
+                    sampleStage.setAttribute('data-qr-motion', (targetText || 'wobble').toLowerCase().trim().replace(/\s+/g, '-'));
+                  }
+                }
+                if (groupKey === 'bgAnchor') {
+                  var anchorGrid = document.querySelector('.v511-bg-pos-grid');
+                  if (anchorGrid) {
+                    var raw = (targetText || 'Centre').toLowerCase().trim();
+                    var anchorMap = { o: 'outer', outer: 'outer', c: 'centre', centre: 'centre', center: 'centre', i: 'inner', inner: 'inner' };
+                    anchorGrid.setAttribute('data-anchor', anchorMap[raw] || 'centre');
+                  }
+                }
+              });
+            }
+
+            // 5. Restore position grid cell.
+            if (typeof s.posCellIdx === 'number' && s.posCellIdx >= 0) {
+              var pgrid = document.querySelector('.v511-bg-pos-grid');
+              if (pgrid && pgrid.children[s.posCellIdx]) {
+                Array.prototype.forEach.call(pgrid.children, function (c) { c.setAttribute('aria-pressed', 'false'); });
+                pgrid.children[s.posCellIdx].setAttribute('aria-pressed', 'true');
+              }
+            }
+
+            // 6. Restore active mode + sample picker, then load that mode into the form.
+            if (s.currentMode && modeStates[s.currentMode]) {
+              currentMode = s.currentMode;
+              if (samplePicker) samplePicker.value = s.currentMode;
+            }
+            try { loadMode(currentMode); } catch (e) {}
+
+            // 7. Re-apply derived state to the preview surface.
+            try { applyBgState(); } catch (e) {}
+            try { applyImagePositioning(); } catch (e) {}
+            try { renderPreviewQr(); } catch (e) {}
+            if (sampleStage && currentMode) sampleStage.setAttribute('data-mode', currentMode);
+            return true;
+          }
+
+          // Wire every relevant change/input to the debounced save via event
+          // delegation. Catches form inputs, palette colours, chip clicks, and
+          // celebration card reordering without enumerating each handler.
+          document.addEventListener('input', function (e) {
+            if (e.target && (e.target.closest('[data-v511-panel]') || e.target.closest('.v511-theme-preview'))) {
+              v511SaveDebounced();
+            }
+          });
+          document.addEventListener('change', function (e) {
+            if (e.target && (e.target.closest('[data-v511-panel]') || e.target.closest('.v511-theme-preview'))) {
+              v511SaveDebounced();
+            }
+          });
+          document.addEventListener('click', function (e) {
+            var t = e.target;
+            if (!t || !t.closest) return;
+            if (t.closest('.v511-chip') || t.closest('.v511-bg-pos-cell')) {
+              v511SaveDebounced();
+            }
+          });
+          document.addEventListener('dragend', function (e) {
+            if (e.target && e.target.classList && e.target.classList.contains('v511-celeb-effect')) {
+              v511SaveDebounced();
+            }
+          });
+
+          // Load on init — deferred one frame so the prior handlers have set
+          // their initial state (otherwise our load gets overwritten by their
+          // first applyBgState/loadMode calls running on script execution).
+          window.requestAnimationFrame(function () {
+            var loaded = v511LoadState();
+            try {
+              if (loaded) console.log('[v5.11 mockup] Restored saved state from localStorage. Run localStorage.removeItem("' + V511_LS_KEY + '") to reset.');
+              else console.log('[v5.11 mockup] No saved state — starting from defaults.');
+            } catch (e) {}
+          });
         })();
       </script>
       <!-- ================ /v5.11 MOCKUP — legacy settings-shell below is preserved (hidden) ================ -->
