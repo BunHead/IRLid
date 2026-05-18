@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.1</span></div>
   </div>
 </div>
 
@@ -3927,10 +3927,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-chip:hover { background: rgba(0,0,0,0.08); color: var(--text); }
         :root[data-theme="light"] .v511-chip[aria-pressed="true"] { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
         /* Preview stage in light mode — lighter gradients, dark text */
-        :root[data-theme="light"] .v511-theme-preview-stage { border-color: rgba(0,0,0,0.12); }
-        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #d4ecb9 0%, #8fbf6c 100%); }
-        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #ffe2a8 0%, #e8b04a 100%); }
-        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #ffd1d1 0%, #e88080 100%); }
+        :root[data-theme="light"] .v511-theme-preview-stage { border-color: rgba(0,0,0,0.12); background: linear-gradient(180deg, #f4f4f4 0%, #e6e6e6 100%); }
         :root[data-theme="light"] .v511-theme-preview-banner { color: #1a1a1a; text-shadow: 0 1px 3px rgba(255,255,255,0.7); }
         :root[data-theme="light"] .v511-theme-preview-caption { color: rgba(0,0,0,0.75); }
         :root[data-theme="light"] .v511-theme-preview-mode-label { background: rgba(255,255,255,0.7); color: #1a1a1a; }
@@ -3970,6 +3967,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row > label { color: var(--muted); width: 140px; }
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
         .v511-anim-row input[type=range] { flex: 1; }
+        /* Tier 4.1.1 — Active-mode tint on the SETTINGS panel itself (was on the
+           preview stage). Gives a subtle visual cue of which mode is being edited:
+           Allow = green, Review = amber, Deny = red. Layered as a soft top-to-bottom
+           wash via the panel's ::before so form contrast stays readable. */
+        .v511-panel[data-v511-panel="theme"] { position: relative; }
+        .v511-panel[data-v511-panel="theme"]::before {
+          content: ''; position: absolute; inset: -10px -10px auto -10px; height: 320px;
+          pointer-events: none; z-index: 0; opacity: 0.32; border-radius: 12px;
+          transition: background 0.35s ease;
+          background: linear-gradient(180deg, transparent 0%, transparent 100%);
+        }
+        .v511-panel[data-v511-panel="theme"] > * { position: relative; z-index: 1; }
+        .v511-panel[data-v511-panel="theme"][data-mode="allow"]::before  { background: linear-gradient(180deg, rgba(72, 140, 50, 0.55) 0%, rgba(45, 80, 22, 0.22) 40%, transparent 100%); }
+        .v511-panel[data-v511-panel="theme"][data-mode="review"]::before { background: linear-gradient(180deg, rgba(210, 145, 30, 0.55) 0%, rgba(120, 80, 12, 0.22) 40%, transparent 100%); }
+        .v511-panel[data-v511-panel="theme"][data-mode="deny"]::before   { background: linear-gradient(180deg, rgba(200, 60, 60, 0.55) 0%, rgba(110, 26, 26, 0.22) 40%, transparent 100%); }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="allow"]::before  { background: linear-gradient(180deg, rgba(143, 191, 108, 0.5) 0%, rgba(143, 191, 108, 0.16) 40%, transparent 100%); }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="review"]::before { background: linear-gradient(180deg, rgba(232, 176, 74, 0.5) 0%, rgba(232, 176, 74, 0.16) 40%, transparent 100%); }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="deny"]::before   { background: linear-gradient(180deg, rgba(232, 128, 128, 0.5) 0%, rgba(232, 128, 128, 0.16) 40%, transparent 100%); }
+        /* Small "Editing: ALLOW" pill above the preview to reinforce the cue */
+        .v511-mode-badge {
+          display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+          padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+          background: rgba(255,255,255,0.08); color: var(--text); border: 1px solid rgba(255,255,255,0.12);
+          transition: background 0.25s, border-color 0.25s, color 0.25s;
+        }
+        .v511-panel[data-v511-panel="theme"][data-mode="allow"]  .v511-mode-badge { background: rgba(72,140,50,0.30);  border-color: rgba(143,191,108,0.55); color: #d4ecb9; }
+        .v511-panel[data-v511-panel="theme"][data-mode="review"] .v511-mode-badge { background: rgba(210,145,30,0.30); border-color: rgba(232,176,74,0.55);  color: #ffe2a8; }
+        .v511-panel[data-v511-panel="theme"][data-mode="deny"]   .v511-mode-badge { background: rgba(200,60,60,0.30);  border-color: rgba(232,128,128,0.55); color: #ffd1d1; }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="allow"]  .v511-mode-badge { color: #2d5016; }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="review"] .v511-mode-badge { color: #5a3e0c; }
+        :root[data-theme="light"] .v511-panel[data-v511-panel="theme"][data-mode="deny"]   .v511-mode-badge { color: #5e1a1a; }
         /* v5.11 theme preview at top of Visual theming tab */
         .v511-theme-preview-stage.firing-allow { animation: v511PreviewAllow 1.4s ease-out; }
         .v511-theme-preview-stage.firing-review { animation: v511PreviewReview 1.4s ease-out; }
@@ -4020,7 +4048,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage::before { z-index: 1; }
         .v511-theme-preview-stage::after { z-index: 2; }
         .v511-theme-preview-stage > * { position: relative; z-index: 3; }
-        .v511-theme-preview-stage.bg-mode-page::before { opacity: 0.6; background: linear-gradient(135deg, #DC143C, #8B0000, #FF6B6B, #FFB347, #DC143C); background-size: 400% 400%; animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite; }
+        /* Tier 4.1.1 — Page colour cycle now uses the Background palette via
+           var(--bg-pal-1..5). Cascading fallbacks keep short palettes coherent:
+           if a user only has 2 swatches, slots 3-5 fall back to slot 2 to slot 1
+           so the gradient still works and never bleeds the old hardcoded reds. */
+        .v511-theme-preview-stage.bg-mode-page::before {
+          opacity: 0.85;
+          background: linear-gradient(135deg,
+            var(--bg-pal-1, #DC143C) 0%,
+            var(--bg-pal-2, var(--bg-pal-1, #8B0000)) 25%,
+            var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #FF6B6B))) 50%,
+            var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #FFB347)))) 75%,
+            var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #DC143C))))) 100%);
+          background-size: 400% 400%;
+          animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite;
+        }
         @keyframes v511BgPageCycle { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         .v511-theme-preview-stage.bg-mode-pattern::after { opacity: 0.5; }
         .v511-theme-preview-stage.bg-mode-pattern.pattern-dots::after { background-image: radial-gradient(circle, rgba(255,255,255,0.4) 1.5px, transparent 1.8px); background-size: 18px 18px; }
@@ -4128,9 +4170,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-qr canvas, .v511-theme-preview-qr img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
         /* Tier 1 save-button transient state */
         .v511-btn.is-saved { background: rgba(99, 153, 34, 0.25); border-color: rgba(99, 153, 34, 0.5); color: #c0dd97; }
-        .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
-        .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #5a3e0c 0%, #2d1e05 100%); }
-        .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #5e1a1a 0%, #2e0a0a 100%); }
+        /* Tier 4.1.1 — Preview stage no longer carries the A/R/D mode tint.
+           The preview should show ONLY what the end-user will see — the user's
+           own bg choice (Off/Page-cycle/Pattern/Image). The mode cue moved to
+           the settings panel below. Stage gets a neutral baseline that the
+           user's palette layers on top of. */
+        .v511-theme-preview-stage { background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%); }
         .v511-theme-preview-mode-label { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; padding: 4px 9px; background: rgba(0,0,0,0.42); color: #fff; border-radius: 5px; text-transform: uppercase; }
         .v511-theme-preview-controls-strip { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; flex-wrap: wrap; }
         .v511-theme-preview-controls-strip > label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
@@ -4586,10 +4631,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         </section>
 
         <!-- ===== TAB 4: VISUAL THEMING ===== -->
-        <section class="v511-panel" data-v511-panel="theme">
-          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+        <section class="v511-panel" data-v511-panel="theme" data-mode="allow">
+          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span></div>
 
-          <!-- Theme preview at top — full-width, fullscreen-aspect, per-mode background -->
+          <!-- Theme preview at top — full-width, fullscreen-aspect.
+               Tier 4.1.1: mode tint moved off the preview; the preview now shows
+               only what the end-user will see. Active-mode cue is on this panel. -->
           <div class="v511-theme-preview">
             <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow" title="Double-click anywhere to fullscreen the preview (Esc to exit)">
               <!-- Tier 4.1 — celebration palette overlay. Normally invisible. The .cel-bg class
@@ -5312,16 +5359,27 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (el.type === 'range' && el.dispatchEvent) el.dispatchEvent(new Event('input'));
             });
           }
-          // Hook the active-mode dropdown to snapshot OLD + load NEW
+          // Tier 4.1.1 — Apply mode to both the preview stage's data-mode AND the
+          // settings panel's data-mode (so the panel tint + Editing badge update).
+          var themePanel = document.querySelector('.v511-panel[data-v511-panel="theme"]');
+          var modeBadge = document.getElementById('v511ModeBadge');
+          function applyModeCue(mode) {
+            if (sampleStage) sampleStage.setAttribute('data-mode', mode);
+            if (themePanel) themePanel.setAttribute('data-mode', mode);
+            if (modeBadge) modeBadge.textContent = 'EDITING: ' + (mode || 'allow').toUpperCase();
+          }
+          // Hook the active-mode dropdown to snapshot OLD + load NEW + update cues
           if (samplePicker) {
             samplePicker.addEventListener('change', function () {
               snapshotMode(currentMode);
               currentMode = samplePicker.value;
               loadMode(currentMode);
+              applyModeCue(currentMode);
             });
           }
           // Initial load: pour the Allow defaults into the form on page boot
           loadMode('allow');
+          applyModeCue('allow');
 
           // ===========================================================
           // v5.11 Tier 2.5 — Celebration effect expanders + chip groups + drag-to-reorder
@@ -5870,6 +5928,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             try { applyImagePositioning(); } catch (e) {}
             try { renderPreviewQr(); } catch (e) {}
             if (sampleStage && currentMode) sampleStage.setAttribute('data-mode', currentMode);
+            try { applyModeCue(currentMode); } catch (e) {}
             return true;
           }
 
