@@ -3826,9 +3826,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Outer pulls the dot OUT (towards the cell's outward corner relative to grid centre).
            Centre keeps it dead centre. Inner pulls it IN (towards grid centre). */
         .v511-bg-pos-grid { --anchor-offset: 0px; }
-        .v511-bg-pos-grid[data-anchor="outer"] { --anchor-offset: 11px; }
+        .v511-bg-pos-grid[data-anchor="outer"] { --anchor-offset: 16px; }
         .v511-bg-pos-grid[data-anchor="centre"] { --anchor-offset: 0px; }
-        .v511-bg-pos-grid[data-anchor="inner"] { --anchor-offset: -11px; }
+        .v511-bg-pos-grid[data-anchor="inner"] { --anchor-offset: -16px; }
         .v511-bg-pos-cell .v511-bg-pos-dot { transition: transform 0.25s ease, background 0.15s, box-shadow 0.15s; }
         .v511-bg-pos-cell[data-pos="top-left"]     .v511-bg-pos-dot { transform: translate(calc(-1 * var(--anchor-offset)), calc(-1 * var(--anchor-offset))); }
         .v511-bg-pos-cell[data-pos="top"]          .v511-bg-pos-dot { transform: translate(0, calc(-1 * var(--anchor-offset))); }
@@ -4034,18 +4034,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* v5.11 Tier 1: celebration effect classes that the Sample button toggles on
            the stage. Each effect is independent; multiple can layer simultaneously. */
         .v511-theme-preview-stage.cel-pulse .v511-theme-preview-qr { animation: v511CelPulse var(--cel-cycle-dur, 1.4s) ease-out; }
-        @keyframes v511CelPulse { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.7); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(255,255,255,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
+        @keyframes v511CelPulse { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.7)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
         .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        .v511-theme-preview-stage.cel-qr .v511-theme-preview-qr { animation: v511CelQr var(--cel-cycle-dur, 1.4s) ease-in-out; }
-        @keyframes v511CelQr { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
-        .v511-theme-preview-stage.cel-text::before { content: 'Welcome back!'; position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: #fff; font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 1; z-index: 4; animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        /* Default cel-qr motion (Wobble) defined below via [data-qr-motion="wobble"] rule */
+        .v511-theme-preview-stage.cel-text::before { content: 'Welcome back!'; position: absolute; bottom: 22px; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 18px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); opacity: 1; z-index: 4; animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 2 — Background celebration: stage backdrop flashes through cel palette once */
         .v511-theme-preview-stage.cel-bg { animation: v511CelBgFlash var(--cel-cycle-dur, 1.4s) ease-in-out; }
         @keyframes v511CelBgFlash { 0% { filter: brightness(1) saturate(1); } 25% { filter: brightness(1.3) saturate(1.5) hue-rotate(40deg); } 50% { filter: brightness(1.4) saturate(1.6) hue-rotate(80deg); } 75% { filter: brightness(1.3) saturate(1.5) hue-rotate(40deg); } 100% { filter: brightness(1) saturate(1); } }
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
-        .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, rgba(255,255,255,0.6) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
         /* Tier 3 — Image background mode with CSS-variable-driven position/size/repeat
            Position grid sets --bg-image-pos (e.g. "0% 0%" for top-left, "50% 50%" for centre).
@@ -4060,6 +4059,46 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         .v511-theme-preview-stage.bg-mode-image.bg-alpha-cycle::before { animation: v511BgAlphaCycle var(--bg-cycle-dur, 30s) ease-in-out infinite; }
         @keyframes v511BgAlphaCycle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        /* Tier 3.6 — Off mode shows the FIRST background palette colour as a flat backdrop
+           so changing the first swatch gives immediate visual feedback. */
+        .v511-theme-preview-stage.bg-mode-off { background: var(--bg-pal-1, #1a1a1a) !important; }
+        /* Tier 3.6 — Symmetry mockup layouts. Not true mirror (CSS can't flip background-image
+           per-layer), but renders the image at the symmetric LOCATIONS it would occupy. */
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-horizontal::before {
+          background-image: var(--bg-image-url, none), var(--bg-image-url, none);
+          background-position: 0% center, 100% center;
+          background-size: 40% auto, 40% auto;
+          background-repeat: no-repeat;
+        }
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-vertical::before {
+          background-image: var(--bg-image-url, none), var(--bg-image-url, none);
+          background-position: center 0%, center 100%;
+          background-size: auto 40%, auto 40%;
+          background-repeat: no-repeat;
+        }
+        .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::before {
+          background-image: var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none), var(--bg-image-url, none);
+          background-position: 0% 0%, 100% 0%, 0% 100%, 100% 100%;
+          background-size: 35% auto;
+          background-repeat: no-repeat;
+        }
+        /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
+           applied when .cel-qr class is on the stage. */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="wobble"] .v511-theme-preview-qr,
+        .v511-theme-preview-stage.cel-qr:not([data-qr-motion]) .v511-theme-preview-qr { animation: v511CelQrWobble var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="zoom-in"] .v511-theme-preview-qr { animation: v511CelQrZoomIn var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="zoom-out"] .v511-theme-preview-qr { animation: v511CelQrZoomOut var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="rotate-cw"] .v511-theme-preview-qr { animation: v511CelQrRotateCw var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="rotate-ccw"] .v511-theme-preview-qr { animation: v511CelQrRotateCcw var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve-horz"] .v511-theme-preview-qr { animation: v511CelQrDissolveH var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve-vert"] .v511-theme-preview-qr { animation: v511CelQrDissolveV var(--cel-cycle-dur, 1.4s) ease-out; }
+        @keyframes v511CelQrWobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
+        @keyframes v511CelQrZoomIn { 0% { transform: scale(0.4); opacity: 0.4; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes v511CelQrZoomOut { 0% { transform: scale(1); opacity: 1; } 60% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes v511CelQrRotateCw { 0% { transform: rotate(0); } 100% { transform: rotate(360deg); } }
+        @keyframes v511CelQrRotateCcw { 0% { transform: rotate(0); } 100% { transform: rotate(-360deg); } }
+        @keyframes v511CelQrDissolveH { 0% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(0.05); opacity: 0.2; } 100% { transform: scaleX(1); opacity: 1; } }
+        @keyframes v511CelQrDissolveV { 0% { transform: scaleY(1); opacity: 1; } 50% { transform: scaleY(0.05); opacity: 0.2; } 100% { transform: scaleY(1); opacity: 1; } }
         /* Tier 3 — layer-number badge on celebration effect headers */
         .v511-layer-num { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; background: rgba(105, 168, 255, 0.18); color: #c8e0ff; border: 1px solid rgba(105, 168, 255, 0.4); border-radius: 4px; font-size: 10px; font-weight: 700; font-family: var(--font-mono, monospace); }
         :root[data-theme="light"] .v511-layer-num { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
@@ -4621,6 +4660,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <button type="button" class="v511-chip" aria-pressed="false">Inner</button>
                     </div>
                   </div>
+
+                  <div class="v511-anim-row"><label for="v511BgImageScale">Image scale</label><input type="range" id="v511BgImageScale" min="10" max="150" value="50" /><span class="v511-hint" id="v511BgImageScaleLabel" style="min-width: 40px;">50%</span></div>
 
                   <div class="v511-anim-row"><label for="v511BgAlphaCycle">Alpha cycle</label>
                     <label class="v511-toggle"><input type="checkbox" id="v511BgAlphaCycle" /><span class="v511-toggle-track"><span class="v511-toggle-knob"></span></span></label>
@@ -5461,20 +5502,33 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Read Position/Tile/Cover mode chip
             var modeChip = document.querySelector('.v511-chips[data-chip-group="bgPosMode"] .v511-chip[aria-pressed="true"]');
             var modeLabel = modeChip ? modeChip.textContent.trim() : 'Position';
+            // Read scale slider (10-150%)
+            var scaleSliderEl = document.getElementById('v511BgImageScale');
+            var scale = scaleSliderEl ? parseInt(scaleSliderEl.value, 10) : 50;
             if (modeLabel === 'Tile') {
-              sampleStage.style.setProperty('--bg-image-size', 'auto');
+              sampleStage.style.setProperty('--bg-image-size', scale + '% auto');
               sampleStage.style.setProperty('--bg-image-repeat', 'repeat');
             } else if (modeLabel === 'Cover') {
               sampleStage.style.setProperty('--bg-image-size', 'cover');
               sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
-            } else { // Position — keep image small enough that positioning has visible effect
-              sampleStage.style.setProperty('--bg-image-size', '50% auto');
+            } else { // Position
+              sampleStage.style.setProperty('--bg-image-size', scale + '% auto');
               sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
             }
           }
+          // Image scale slider live-updates the bg-image-size
+          var bgScaleSlider = document.getElementById('v511BgImageScale');
+          var bgScaleLabel = document.getElementById('v511BgImageScaleLabel');
+          if (bgScaleSlider) {
+            bgScaleSlider.addEventListener('input', function () {
+              if (bgScaleLabel) bgScaleLabel.textContent = bgScaleSlider.value + '%';
+              applyImagePositioning();
+            });
+          }
           // Hook the chip groups that affect the preview: Position/Tile/Cover
-          // mode AND Anchor (Outer/Centre/Inner) — Anchor sets data-anchor on
-          // the position grid so the dots shift visually inside their cells.
+          // mode, Anchor (Outer/Centre/Inner), Symmetry (Off/Horz/Vert/Quad),
+          // and QR motion variant. Each routes to its own CSS class or
+          // data-attribute on the stage.
           document.addEventListener('click', function (e) {
             var chip = e.target.closest('.v511-chip');
             if (!chip) return;
@@ -5485,6 +5539,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (groupKey === 'bgAnchor') {
               var grid = document.getElementById('v511BgPosGrid');
               if (grid) grid.setAttribute('data-anchor', chip.textContent.toLowerCase().trim());
+            }
+            if (groupKey === 'bgSymmetry' && sampleStage) {
+              sampleStage.classList.remove('bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
+              sampleStage.classList.add('bg-symmetry-' + chip.textContent.toLowerCase().trim());
+            }
+            if (groupKey === 'qrMotion' && sampleStage) {
+              var motionKey = chip.textContent.toLowerCase().trim().replace(/\s+/g, '-');
+              sampleStage.setAttribute('data-qr-motion', motionKey);
             }
           });
           applyImagePositioning(); // initial
