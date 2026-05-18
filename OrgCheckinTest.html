@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.7</span></div>
   </div>
 </div>
 
@@ -4062,7 +4062,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            QR is 28% of stage width with aspect-ratio 1; banner is 3.2cqi,
            caption 1.4cqi. Scale identically in preview and fullscreen. */
         .v511-theme-preview-banner { color: #fff; font-size: 3.2cqi; font-weight: 600; margin-bottom: 2.5cqi; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
-        .v511-theme-preview-qr { width: 28cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+        .v511-theme-preview-qr { width: 24cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
         .v511-theme-preview-caption { margin-top: 2.5cqi; color: rgba(255,255,255,0.9); font-size: 1.4cqi; text-align: center; }
         /* v5.11 Org tab masthead */
         .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); border: 1px solid rgba(105,168,255,0.22); border-radius: 14px; }
@@ -4721,7 +4721,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <!-- Tier 4.1.2 — celebration text overlay (was ::before; moved to a DOM element
                    so it can co-exist with the always-on palette gradient on ::before). -->
               <div class="v511-cel-text-overlay" aria-hidden="true"></div>
-              <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
+              <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">DETECTED SCAN RES: —</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
               <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
@@ -4736,11 +4736,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">▶ Sample</button>
               <span class="v511-hint">Settings below apply to the active mode. Switch mode to edit a different outcome's celebration + sound.</span>
             </div>
-            <!-- Tier 4.1.6 — Screen dimensions readout. Shows the user's screen
-                 size in px so they know what the fullscreen target is. -->
-            <div class="v511-screen-dims" id="v511ScreenDims" style="font-size: 11px; color: var(--muted); margin: 6px 0 0 6px;">
-              Preview matches your screen: <span id="v511ScreenW">—</span> × <span id="v511ScreenH">—</span> px. What you see here is what fullscreen will render — proportions identical.
-            </div>
+            <!-- Tier 4.1.7 — Screen-dims row removed; resolution now lives in the
+                 top-right preview badge (DETECTED SCAN RES: W × H) to avoid duplication. -->
+            <span id="v511ScreenW" hidden></span><span id="v511ScreenH" hidden></span>
           </div>
 
           <div class="v511-row"><label for="v511LightDarkMode">Light/dark mode</label><select id="v511LightDarkMode"><option value="auto">Auto (follow OS)</option><option value="light">Light</option><option value="dark" selected>Dark</option></select></div>
@@ -5695,6 +5693,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var dimH = document.getElementById('v511ScreenH');
             if (dimW) dimW.textContent = w || '?';
             if (dimH) dimH.textContent = h || '?';
+            // Tier 4.1.7 — paint the preview top-right badge with the detected resolution
+            var resBadge = document.getElementById('v511ThemePreviewModeLabel');
+            if (resBadge && w && h) resBadge.textContent = 'DETECTED SCAN RES: ' + w + ' × ' + h;
             if (!w || !h) { sampleStage.style.setProperty('--preview-aspect', '16 / 9'); return; }
             var ratio = w / h;
             if (ratio < 1) ratio = 16 / 9;
@@ -5742,9 +5743,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           //   Inner   = strong PULL inward
           //   Centre  = neutral (image sits at the chosen grid position)
           //   Outer   = strong BLEED outward past the edge
-          // Tier 4.1.6 — Outer reduced from 25 to 12 (image at +25 was completely
-          // off-screen per Captain). Inner stays at -20 for strong pull.
-          var ANCHOR_OFFSET = { outer: 12, centre: 0, center: 0, inner: -20 };
+          // Tier 4.1.7 — Anchor magnitudes halved again per Captain ("further")
+          // Outer 12 → 6 (mild bleed), Inner -20 → -10 (mild pull). Centre stays neutral.
+          var ANCHOR_OFFSET = { outer: 6, centre: 0, center: 0, inner: -10 };
           // Tier 4.1.4 — Mirror a "X% Y%" position string across an axis.
           // axis ∈ 'x' | 'y' | 'xy'. Used by symmetry modes so the user's chosen
           // position grid drives all copies (top-left + horizontal → top-right pair).
