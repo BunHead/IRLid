@@ -3777,43 +3777,53 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
         .v511-anim-row input[type=range] { flex: 1; }
         /* v5.11 theme preview at top of Visual theming tab */
-        .v511-theme-preview { display: grid; grid-template-columns: 1fr 220px; gap: 14px; align-items: stretch; margin-bottom: 16px; }
-        @media (max-width: 720px) { .v511-theme-preview { grid-template-columns: 1fr; } }
-        .v511-theme-preview-stage { position: relative; background: linear-gradient(180deg, #DC143C 0%, #8B0000 100%); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; min-height: 280px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 20px; transition: filter 0.3s; }
         .v511-theme-preview-stage.firing-allow { animation: v511PreviewAllow 1.4s ease-out; }
         .v511-theme-preview-stage.firing-review { animation: v511PreviewReview 1.4s ease-out; }
         .v511-theme-preview-stage.firing-deny { animation: v511PreviewDeny 1.4s ease-out; }
-        .v511-theme-preview-stage.firing-background { animation: v511PreviewBackground 3s ease-in-out; }
-        @keyframes v511PreviewAllow { 0% { box-shadow: inset 0 0 0 0 #c0dd97; } 30% { box-shadow: inset 0 0 80px 4px #c0dd97; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
-        @keyframes v511PreviewReview { 0% { box-shadow: inset 0 0 0 0 #fac775; } 30% { box-shadow: inset 0 0 80px 4px #fac775; } 100% { box-shadow: inset 0 0 0 0 transparent; } }
-        @keyframes v511PreviewDeny { 0% { box-shadow: inset 0 0 0 0 #f09595; } 15% { transform: translateX(-4px); } 25% { transform: translateX(4px); } 35% { box-shadow: inset 0 0 80px 4px #f09595; transform: translateX(0); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
-        @keyframes v511PreviewBackground { 0% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(120deg); } 100% { filter: hue-rotate(0deg); } }
-        .v511-theme-preview-banner { color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
-        .v511-theme-preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 80px; color: #000; line-height: 1; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        .v511-theme-preview-caption { margin-top: 14px; color: rgba(255,255,255,0.85); font-size: 11px; text-align: center; }
-        .v511-theme-preview-controls { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 12px; }
-        .v511-theme-preview-controls label { font-size: 11.5px; color: var(--muted); }
-        .v511-theme-preview-controls select { height: 32px; font-size: 12.5px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; }
-        .v511-theme-preview-controls .v511-hint { font-size: 11px; line-height: 1.4; }
+        @keyframes v511PreviewAllow { 0% { box-shadow: inset 0 0 0 0 rgba(192,221,151,0); } 30% { box-shadow: inset 0 0 80px 8px rgba(192,221,151,0.85); } 100% { box-shadow: inset 0 0 0 0 rgba(192,221,151,0); } }
+        @keyframes v511PreviewReview { 0% { box-shadow: inset 0 0 0 0 rgba(250,199,117,0); } 30% { box-shadow: inset 0 0 80px 8px rgba(250,199,117,0.85); } 100% { box-shadow: inset 0 0 0 0 rgba(250,199,117,0); } }
+        @keyframes v511PreviewDeny { 0% { box-shadow: inset 0 0 0 0 rgba(240,149,149,0); } 15% { transform: translateX(-4px); } 25% { transform: translateX(4px); } 35% { box-shadow: inset 0 0 80px 8px rgba(240,149,149,0.85); transform: translateX(0); } 100% { box-shadow: inset 0 0 0 0 rgba(240,149,149,0); } }
+        .v511-theme-preview-banner { color: #fff; font-size: 18px; font-weight: 600; margin-bottom: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+        .v511-theme-preview-qr { width: 160px; height: 160px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 96px; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+        .v511-theme-preview-caption { margin-top: 14px; color: rgba(255,255,255,0.9); font-size: 11px; text-align: center; }
         /* v5.11 Org tab masthead */
         .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); border: 1px solid rgba(105,168,255,0.22); border-radius: 14px; }
         .v511-masthead-name { font-size: 22px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.2; }
         .v511-masthead-slug { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 8px; background: rgba(255,255,255,0.06); color: var(--muted); border-radius: 5px; }
         .v511-masthead-tagline { margin-top: 8px; font-size: 13px; color: var(--muted); font-style: italic; }
-        .v511-masthead-logo { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; max-height: 110px; background: rgba(255,255,255,0.92); border-radius: 12px; color: #0d1220; font-weight: 700; font-size: 32px; letter-spacing: -1px; }
+        .v511-masthead-logo { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; max-height: 110px; padding: 10px; border-radius: 12px; }
+        .v511-masthead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; filter: var(--irlid-logo-filter, invert(1)); }
+        :root[data-theme="light"] .v511-masthead-logo img { filter: none; }
+        :root[data-theme="dark"] .v511-masthead-logo img { filter: invert(1); }
         @media (max-width: 640px) { .v511-masthead { grid-template-columns: 1fr; text-align: center; } .v511-masthead-logo { max-width: 110px; margin: 0 auto; } }
         /* v5.11 calendar now-line + Jump to now */
         .v511-cal-wrap { position: relative; }
-        .v511-cal-now-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid #ff6b6b; box-shadow: 0 0 6px rgba(255, 107, 107, 0.5); pointer-events: none; z-index: 3; }
-        .v511-cal-now-label { position: absolute; left: 8px; top: -10px; background: #ff6b6b; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .v511-cal-now-line { position: absolute; left: 0; right: 0; height: 0; border-top: 1.5px solid rgba(255, 107, 107, 0.55); box-shadow: 0 0 4px rgba(255, 107, 107, 0.25); pointer-events: none; z-index: 3; }
+        .v511-cal-now-label { position: absolute; right: 8px; top: -10px; background: rgba(255, 107, 107, 0.85); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* Past events: rows ENTIRELY before the now-line get their Edit button greyed out.
+           Discovered by JS adding .event-past to filled rows where end-time < now. */
+        .v511-cal-row.event-past { opacity: 0.55; }
+        .v511-cal-row.event-past button { opacity: 0.5; pointer-events: none; cursor: not-allowed; }
         .v511-jump-now-btn { padding: 6px 12px; font-size: 12px; background: rgba(255, 107, 107, 0.15); color: #ff8888; border: 1px solid rgba(255, 107, 107, 0.4); border-radius: 7px; cursor: pointer; font-family: inherit; }
         .v511-jump-now-btn:hover { background: rgba(255, 107, 107, 0.25); }
-        /* v5.11 WAV file slots inside Visual theming → QR sub-tab */
-        .v511-wav-slots { margin-top: 10px; display: grid; gap: 6px; }
+        /* v5.11 single-line WAV slot inside Visual theming → QR sub-tab.
+           Shows ONLY the currently-active mode's sound; switching the active-mode
+           dropdown at the top of the tab swaps the visible row. */
         .v511-wav-slot { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; font-size: 12.5px; }
         .v511-wav-slot .v511-wav-icon { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
         .v511-wav-slot .v511-wav-name { flex: 1; }
         .v511-wav-slot .v511-wav-file { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono, monospace); }
+        /* v5.11 theme preview — wider, 16:9 fullscreen-style aspect, per-mode background */
+        .v511-theme-preview { display: block; margin-bottom: 14px; }
+        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; max-height: 380px; width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: background 0.25s; }
+        .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
+        .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #5a3e0c 0%, #2d1e05 100%); }
+        .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #5e1a1a 0%, #2e0a0a 100%); }
+        .v511-theme-preview-mode-label { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.6px; padding: 4px 9px; background: rgba(0,0,0,0.42); color: #fff; border-radius: 5px; text-transform: uppercase; }
+        .v511-theme-preview-controls-strip { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .v511-theme-preview-controls-strip > label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+        .v511-theme-preview-controls-strip select { height: 32px; font-size: 12.5px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; }
+        .v511-theme-preview-controls-strip .v511-hint { flex: 1; min-width: 200px; font-size: 11.5px; }
         .v511-staff { display: grid; grid-template-columns: 1fr 160px 70px; gap: 10px; align-items: center; padding: 8px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         .v511-staff:last-of-type { border-bottom: none; }
         .v511-staff select { height: 28px; font-size: 12px; padding: 0 8px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; }
@@ -3850,7 +3860,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <span class="v511-masthead-slug">imbue-ventures</span>
               <div class="v511-masthead-tagline">Co-presence verification for events</div>
             </div>
-            <div class="v511-masthead-logo">IRL</div>
+            <div class="v511-masthead-logo"><img src="logo.png" alt="IRLid logo" data-irlid-fallback="true" /></div>
           </div>
 
           <div class="v511-row"><label>Display name</label><input type="text" value="Test Event" /></div>
@@ -4269,28 +4279,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="theme">
           <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
-          <!-- Theme preview at top — the live "what your attendees see" view -->
+          <!-- Theme preview at top — full-width, fullscreen-aspect, per-mode background -->
           <div class="v511-theme-preview">
-            <div class="v511-theme-preview-stage" id="v511ThemePreviewStage">
+            <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow">
+              <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr">▦</div>
-              <div class="v511-theme-preview-caption">Live preview of the current theme. Save All applies pending edits; Sample fires the selected outcome.</div>
+              <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome.</div>
             </div>
-            <div class="v511-theme-preview-controls">
-              <label for="v511SamplePicker">Sample outcome</label>
+            <div class="v511-theme-preview-controls-strip">
+              <label for="v511SamplePicker">Active mode:</label>
               <select id="v511SamplePicker">
-                <option value="allow" selected>✓ Allow celebration</option>
+                <option value="allow" selected>✓ Allow</option>
                 <option value="review">? Review</option>
                 <option value="deny">× Deny</option>
-                <option value="background">Background only</option>
               </select>
-              <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">Sample</button>
-              <span class="v511-hint">Fires the visual + WAV for the selected outcome against the preview.</span>
+              <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">▶ Sample</button>
+              <span class="v511-hint">Settings below apply to the active mode. Switch mode to edit a different outcome's celebration + sound.</span>
             </div>
           </div>
 
-          <div class="v511-row"><label>Primary colour</label><div><span class="v511-swatch" style="background: #DC143C;"></span><span class="v511-hint">#DC143C</span></div></div>
-          <div class="v511-row"><label>Accent colour</label><div><span class="v511-swatch" style="background: #58a6ff;"></span><span class="v511-hint">#58a6ff</span></div></div>
           <div class="v511-row"><label>Light/dark mode</label><select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select></div>
 
           <div class="v511-info">Top stays brief. For palettes, animation, image controls, and WAV sounds, expand <strong style="color: var(--text);">Advanced theming</strong> below — split into <strong style="color: var(--text);">Background</strong> (everything behind the QR) and <strong style="color: var(--text);">QR</strong> (everything about the QR and its celebration).</div>
@@ -4361,13 +4369,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
                 <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" style="min-width: 40px;">1.4s</span></div>
 
-                <div class="v511-sub" style="margin-top: 20px;">Outcome sounds <span class="v511-hint-inline">(played with the celebration; fired by Sample button at top)</span></div>
-                <div class="v511-wav-slots">
-                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span><span class="v511-wav-name">Allow</span><span class="v511-wav-file">allow.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(186,117,23,0.25); color: #fac775;">?</span><span class="v511-wav-name">Review</span><span class="v511-wav-file">review.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
-                  <div class="v511-wav-slot"><span class="v511-wav-icon" style="background: rgba(226,75,74,0.25); color: #f09595;">×</span><span class="v511-wav-name">Deny</span><span class="v511-wav-file">deny.wav</span><button type="button" class="v511-btn v511-btn-mini">Replace</button></div>
+                <div class="v511-sub" style="margin-top: 20px;">Outcome sound <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></div>
+                <div class="v511-wav-slot" id="v511ActiveWavSlot">
+                  <span class="v511-wav-icon" id="v511WavIcon" style="background: rgba(99,153,34,0.25); color: #c0dd97;">✓</span>
+                  <span class="v511-wav-name" id="v511WavName">Allow</span>
+                  <span class="v511-wav-file" id="v511WavFile">allow.wav</span>
+                  <button type="button" class="v511-btn v511-btn-mini">Replace</button>
                 </div>
-                <div class="v511-hint" style="margin-top: 8px;">Sample button at the top is the single fire point for sound + visual together. The per-section Preview buttons that used to live here have been retired.</div>
+                <div class="v511-hint" style="margin-top: 8px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired.</div>
               </div>
             </div>
           </details>
@@ -4619,6 +4628,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var rowTop = thisRow.offsetTop;
             var rowHeight = nextRow ? (nextRow.offsetTop - thisRow.offsetTop) : thisRow.offsetHeight;
             line.style.top = (rowTop + (rowHeight * minuteFrac)) + 'px';
+            // Grey-out past events: any filled row whose hour is strictly before
+            // the current hour is treated as "ended" and its Edit button locked.
+            // Current-hour row stays interactive (the event might still be running).
+            wrap.querySelectorAll('.v511-cal-row.filled').forEach(function (row) {
+              var rowHour = parseInt(row.getAttribute('data-hour'), 10);
+              if (isFinite(rowHour) && rowHour < hour) row.classList.add('event-past');
+              else row.classList.remove('event-past');
+            });
           }
           function scrollCalToNow() {
             var wrap = document.getElementById('v511CalWrap');
@@ -4636,17 +4653,39 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var jumpNowBtn = document.getElementById('v511JumpNowBtn');
           if (jumpNowBtn) jumpNowBtn.addEventListener('click', function () { positionNowLine(); scrollCalToNow(); });
 
-          // v5.11 mockup — Visual theming Sample button. Fires the celebration
-          // animation matching the dropdown selection against the theme preview
-          // stage. WAV playback would happen here in real impl (audio elements
-          // not wired in the mockup).
+          // v5.11 mockup — Visual theming active-mode dropdown + Sample button.
+          // The dropdown sets the "active mode" context for the entire Visual
+          // theming tab: preview-stage background colour tints to match, the
+          // ACTIVE MODE label updates, and the single-row Outcome sound swaps
+          // to show that mode's WAV. Sample button fires the celebration
+          // animation against the preview (visual + WAV in real impl).
           var sampleBtn = document.getElementById('v511SampleBtn');
           var samplePicker = document.getElementById('v511SamplePicker');
           var sampleStage = document.getElementById('v511ThemePreviewStage');
+          var sampleModeLabel = document.getElementById('v511ThemePreviewModeLabel');
+          var wavIcon = document.getElementById('v511WavIcon');
+          var wavName = document.getElementById('v511WavName');
+          var wavFile = document.getElementById('v511WavFile');
+          var MODE_LABELS = {
+            allow:  { label: 'ACTIVE MODE: ALLOW',  wavName: 'Allow',  wavFile: 'allow.wav',  iconChar: '✓', iconBg: 'rgba(99,153,34,0.25)',  iconColor: '#c0dd97' },
+            review: { label: 'ACTIVE MODE: REVIEW', wavName: 'Review', wavFile: 'review.wav', iconChar: '?', iconBg: 'rgba(186,117,23,0.25)', iconColor: '#fac775' },
+            deny:   { label: 'ACTIVE MODE: DENY',   wavName: 'Deny',   wavFile: 'deny.wav',   iconChar: '×', iconBg: 'rgba(226,75,74,0.25)',  iconColor: '#f09595' }
+          };
+          function applyActiveMode(mode) {
+            var cfg = MODE_LABELS[mode] || MODE_LABELS.allow;
+            if (sampleStage) sampleStage.setAttribute('data-mode', mode);
+            if (sampleModeLabel) sampleModeLabel.textContent = cfg.label;
+            if (wavIcon) { wavIcon.textContent = cfg.iconChar; wavIcon.style.background = cfg.iconBg; wavIcon.style.color = cfg.iconColor; }
+            if (wavName) wavName.textContent = cfg.wavName;
+            if (wavFile) wavFile.textContent = cfg.wavFile;
+          }
+          if (samplePicker) {
+            samplePicker.addEventListener('change', function () { applyActiveMode(samplePicker.value); });
+          }
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny', 'firing-background');
+              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
               // Reflow to restart the CSS animation
               void sampleStage.offsetWidth;
               sampleStage.classList.add('firing-' + outcome);
