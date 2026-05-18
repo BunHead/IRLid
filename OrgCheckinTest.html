@@ -3815,7 +3815,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-wav-slot .v511-wav-file { font-size: 10.5px; color: var(--muted); font-family: var(--font-mono, monospace); }
         /* v5.11 theme preview — wider, 16:9 fullscreen-style aspect, per-mode background */
         .v511-theme-preview { display: block; margin-bottom: 14px; }
-        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; max-height: 380px; width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: background 0.25s; }
+        .v511-theme-preview-stage { position: relative; aspect-ratio: 16 / 9; width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; transition: background 0.25s; }
+        .v511-theme-preview .v511-theme-preview-banner { font-size: 22px; }
+        .v511-theme-preview .v511-theme-preview-qr { width: 220px; height: 220px; font-size: 140px; }
         .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #2d5016 0%, #1a3009 100%); }
         .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #5a3e0c 0%, #2d1e05 100%); }
         .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #5e1a1a 0%, #2e0a0a 100%); }
@@ -3837,8 +3839,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       </style>
 
       <div class="v511-mockup">
-        <div class="v511-banner"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
-
         <div class="v511-tabs" role="tablist" aria-label="Settings sections">
           <button type="button" class="active" data-v511-tab="org"><span class="v511-tab-icon" aria-hidden="true">&#x1F3E2;</span>1. Organisation</button>
           <button type="button" data-v511-tab="cal"><span class="v511-tab-icon" aria-hidden="true">&#x1F4C5;</span>2. Event &amp; calendar</button>
@@ -4301,8 +4301,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-row"><label>Light/dark mode</label><select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select></div>
 
-          <div class="v511-info">Top stays brief. For palettes, animation, image controls, and WAV sounds, expand <strong style="color: var(--text);">Advanced theming</strong> below — split into <strong style="color: var(--text);">Background</strong> (everything behind the QR) and <strong style="color: var(--text);">QR</strong> (everything about the QR and its celebration).</div>
-
           <details class="v511-expander">
             <summary>Advanced theming <span class="v511-hint-inline">(Background &amp; QR sub-tabs — deep customisation)</span></summary>
             <div class="v511-expander-body">
@@ -4502,6 +4500,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
+
+        <!-- v5.11 mockup notice — moved to bottom of mockup panel per Captain (won't be in final ship; was throwing off preview-frame sizing at the top) -->
+        <div class="v511-banner" style="margin-top: 18px; margin-bottom: 0;"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
       </div>
 
       <script>
