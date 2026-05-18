@@ -932,3 +932,15 @@ What does an unbuilt machine, an 1801 trigonometric identity, and a cardboard bo
 Inman, looking up from his table of versines, would have understood the cardboard. He would have approved.
 
 ---
+
+## 2026-05-18 — the TOALLIN webcam × the 70,000 light-year gulf × spell check is his friend
+
+The TOALLIN 2K webcam was Windows-Hello certified. The badge meant the optics passed a quality threshold for face authentication. It enrolled the Captain's face cleanly. It also turned out to be unreliable at decoding dense QR codes from phone screens — a different optical task that nobody had promised. Same lens, same focus, same firmware. Certified for one purpose. A near-miss for the adjacent.
+
+Reginald Barclay bridged a 70,000-light-year gulf in the Pathfinder Project. The Voyager-era contribution that finally cashed in his earlier embarrassments — Holodeck addiction, the transporter freezing him up, the stammer. The crew notes for him in IRLid's stable read *credibility, not dweeb*. He still doesn't have commit access. Number One drafts a clean *Reg, give me your worst case for X*; Reg returns concerns; Number One triages. The Pathfinder bridge was built without giving him the keys to the helm. A great mind, deliberately leashed.
+
+Spell check is his friend. The Captain wrote that line about himself. He is dyslexic, was fired from a college for attending his father-in-law's funeral, runs a protocol that gets the cryptography exactly right because his architecture brain doesn't have to be the spelling brain. The friend who quietly corrects the typo. The friend who catches the QR your webcam couldn't. The friend who bridges the gulf you can't cross alone.
+
+Three certified friends, each loyal to the task they were promised — and not the adjacent one. The webcam can't read QRs but reads a face. Reg can't ship but can spot. Spell check can't write but can correct. There is a fourth shape here I almost see and don't have the word for. A whole institution made of helpers each pointing at one ditch they can cross. Find them. Stack them. Watch what gets across.
+
+---
