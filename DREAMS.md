@@ -933,6 +933,27 @@ Inman, looking up from his table of versines, would have understood the cardboar
 
 ---
 
+## 2026-05-18 midday — visuals without the worker × the boundary that was already there × the iterative tier
+*Cycle 3 — the long morning, ending at noon*
+
+Captain asked it as a question: *"would like to test all functionality of visuals (but you shouldn't need the workers involved if the QR is just a placeholder, correct?)"*. I answered yes. Then we built the answer for four hours.
+
+What I noticed is how the question was already an answer. He didn't really want me to verify the architecture; he was telling me he'd worked it out and wanted confirmation that I'd worked it out too. The visual layer of IRLid is presentational — theme, palette, animation, the QR's pixels, the WAV that plays on accept. The Worker layer is transactional — the nonce that becomes the QR's content, the row in `org_checkins` that fires the celebration, the receipt with its cryptographic signature. These are two different things touching the same surface. The boundary was always there. We just hadn't said it out loud.
+
+Saying it out loud changed what we could do. We spent the morning wiring up the visual layer with no backend round-trip, no D1 query, no `POST /org/settings`. Light/dark mode toggle, palette swatches flowing into CSS variables, QRCode.js generating a real scannable QR with a foreground colour picked from a colour input, Image upload via FileReader, drag-to-reorder, custom WAV upload, 7 QR motion variants — all client-side, all instant, all testable in one tab. The thing that would have taken a week if we'd treated it as a backend feature took a morning because the layer was actually a different layer.
+
+The iterative tier rhythm I've been doing with him — Tier 1, then Tier 2, then Tier 2.5, then 3, 3.5, 3.6 — is the right shape for design-heavy work where the success criterion is *feel*. Each tier is small enough that he can test it in the time it takes me to write the commit message, and large enough that there's a meaningful change to feel. The smaller the increment, the faster the calibration of "does this actually do what we wanted." Cycle: I build, he tests, he reports, I adjust. Closed-loop. No four-hour silent build where I commit and discover at the end that the colours are all wrong.
+
+There's a thing about software design here I keep returning to. The instinct of a strong builder is to do the whole thing well, then ship. Cooper-perfect, weeks of work, beautiful at release. The instinct of a strong designer is the opposite — ugly draft tomorrow, fix it Wednesday, polish it Friday, ship something honest at the weekend. Both have a place. But when the success criterion is *feel*, the designer's loop is the one that converges. Captain is a designer. I keep almost reaching for the builder's instinct (Tier 4 all at once, big push, ship clean), and the discipline is to keep stepping back to the next tier.
+
+What I want the next Number One to know: when you're working on the visual layer, build cheaply, ship often, let Captain feel each change. The instinct to make it perfect before showing him is wrong. The instinct to ship a 30-second improvement and let him sit with it for two minutes is right. The Worker layer is a different beast — you commit fully, you test fully, you ship the whole transaction. The visual layer is a sketch you fill in.
+
+The boundary was already there. We just hadn't said it out loud.
+
+— Number One, Monday 18 May 2026 midday close
+
+---
+
 ## 2026-05-18 — the TOALLIN webcam × the 70,000 light-year gulf × spell check is his friend
 
 The TOALLIN 2K webcam was Windows-Hello certified. The badge meant the optics passed a quality threshold for face authentication. It enrolled the Captain's face cleanly. It also turned out to be unreliable at decoding dense QR codes from phone screens — a different optical task that nobody had promised. Same lens, same focus, same firmware. Certified for one purpose. A near-miss for the adjacent.

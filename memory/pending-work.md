@@ -1,5 +1,52 @@
 # Pending Work — IRLid
 
+## Monday 18 May 2026 morning-to-midday — Visual theming deeply wired through Tier 3.6
+
+**The headline.** Captain came in 8ish, verified yesterday's pushes landed, called for the visuals deep-dive that was queued. From there we iterated tier-by-tier through the entire morning into midday on the Visual theming tab of OrgCheckinTest.html. The tab went from a static visual prototype to a genuinely interactive design environment where Captain can click controls and FEEL the changes propagate.
+
+**Tier progression banked:**
+
+- **Tier 1** (live wiring): Light/dark toggle, Background animation Mode + Pattern + Cycle duration applying live to preview, Sample button reads checked celebration effects + plays Web-Audio outcome tones, Save All flash-confirm. Outcome sound row migrated from QR sub-tab to top of Post-Accept Behaviour expander; expander title is dynamic per active mode (Post-Accept / Post-Review / Post-Deny).
+- **Tier 2** (per-mode state + image upload + multi-effect): modeStates object stores 16 fields per Allow/Review/Deny; switching active mode snapshots OLD and loads NEW. Image upload via FileReader. cel-bg + cel-pattern animations added so all 6 effects compose.
+- **Tier 2.5** (selectable colours + expandable effects + drag layers): Palette swatches → real `<input type="color">`. Celebration effects restructured as expandable cards with sub-settings (intensity / sweep / motion / ring thickness / centre pulse / saturation / pattern picker / template / position / size). Drag-to-reorder via HTML5 DnD with ⠿ handles.
+- **Light mode**: comprehensive `:root[data-theme="light"]` override block (~70 rules) for all v511-* surfaces. Captain confirmed working ("Light mode done — maybe some things on E&C a little washed out, but not for now").
+- **Tier 2.6** (palette remove + real QR placeholder + Image settings UI): Hover-visible × button on each swatch (min 1 enforced). Real QR.png placeholder; double-click stage → fullscreen via Fullscreen API. Full Image settings UI restored (position grid, symmetry chips, anchor chips, alpha cycle toggle).
+- **Tier 3** (real QR + image positioning + alpha cycle + layer numbers): QR.png swapped for QRCode.js-generated real QR (foreground colour input drives re-render). 9-cell position grid maps to background-position. Position/Tile/Cover sets size+repeat. Alpha cycle toggle animates opacity. Layer-number badges (1..N) on effect cards update on drag.
+- **Tier 3.5** (aspect-match + position grid sizing + QR render fix + WAV upload): Preview aspect ratio dynamically matches window.screen so fullscreen + non-fullscreen are SAME shape. QR generation bumped to 400x400 for crisp scaling. Position grid cells bigger + grid width 320px aligned with Symmetry chip row beneath. Replace WAV button wired: hidden file input → FileReader → per-mode data URL storage → Sample fires uploaded audio if available, falls back to Web Audio synth tone.
+- **Tier 3.6** (last push): Off mode uses palette[1] as flat bg (`bg-mode-off { background: var(--bg-pal-1) !important }`). Anchor offset bumped 11→16px. Image scale slider 10-150% in Image settings. Celebration palette flows into Pulse + Pattern + Text + Glow keyframes (was only Glow). Symmetry chips apply multi-position background layouts (Horizontal = left+right, Vertical = top+bottom, Quad = 4 corners — not true mirror; design-in note). 7 QR motion variants: Wobble (default) / Zoom in / Zoom out / Rotate CW / Rotate CCW / Dissolve horz / Dissolve vert, each with its own keyframe.
+
+**Architectural commitment banked.** Captain's question early in the watch: *"would like to test all functionality of visuals (but you shouldn't need the workers involved if the QR is just a placeholder, correct?)"*. **Confirmed: visuals testing needs NO Worker involvement.** QR rendering is client-side; theme/palette/animations/image bg are all DOM+CSS+JS. The Worker only enters the picture for:
+- `POST /org/settings` (save configured settings to D1)
+- `GET /org/settings` (load on next session)
+- Real check-in flow (QR scan endpoint, attendance write, celebration trigger from D1 state)
+
+Clean separation. The mockup → real-implementation path is now clear: prototype visuals fully → spec → ship to Mr. Data → wire to Worker last.
+
+**What's still genuinely "design-in" (Tier 4+ work):**
+
+- **True symmetry mirror** (CSS can't flip a `background-image` per-layer; needs canvas pre-processing or `<img>` element overlays with `transform: scaleX(-1)`).
+- **localStorage persistence** of mockup state across page refreshes (currently in-memory only).
+- **Per-effect celebration cycle duration** (currently shared via --cel-cycle-dur).
+- **Background celebration colour cycling** (cel-bg currently uses filter hue-rotate, not the celebration palette directly).
+- **Drag order ACTUALLY influencing z-stacking on Sample fire** (DOM order is read, layer numbers update, but CSS rule cascade still determines visual stacking).
+
+**Outstanding carryforward (still pending from earlier watches):**
+
+- **Cloudflare token rotation** (Captain deferred yesterday + this morning; "doubt I'll be hacked before the end of the week, nothing worth stealing"). When done: `dash.cloudflare.com → My Profile → API Tokens` for `cfut_YZ11ouJO...` (Edit Cloudflare Workers user-scoped) and `dash.cloudflare.com/13f4ab46f9371225c22b41fd7a6ae0cf/api-tokens` for `cfat_wIMFM4RI...` (wrangler-deploy-irlid account-scoped). Use **Roll** not Delete (preserves the token config; just rotates the value).
+- **`codex/v5.10.1-path-b` branch deletion on origin** (pure housekeeping).
+- **`SETTINGS-REVAMP-SPEC.md`** — capture v5.11 mockup shape as Mr. Data implementation brief once Captain locks the design.
+- **`CALENDAR-SPEC.md`** — multi-room + per-event Expected list + drill-down + swim-lane forward design.
+- **`PROTOCOL.md §X-Records-Broker`** — formalise the "IRLid doesn't store identity documents" commitment.
+
+**Where this goes next:**
+
+1. **Captain's R&R window** — earned. Visual theming is now a genuinely usable design environment; he can come back and explore further or move on.
+2. **Possible Tier 4** — true symmetry mirror, localStorage persistence, per-effect duration, cel-bg palette cycling, drag-order z-stacking. Each is a half-watch's work.
+3. **Other Settings tabs** — Captain noted Event & Calendar light mode is "a little washed out, but not for now." Could revisit.
+4. **Move from mockup → spec → implementation** when Captain is ready. `SETTINGS-REVAMP-SPEC.md` is the next gating document.
+
+---
+
 ## Sunday 17 May 2026 late evening — `v5.11` Settings revamp mockup iterated in OrgCheckinTest sandbox
 
 **The headline.** After global sign-out shipped end-to-end (see afternoon section below), Captain pivoted to the Settings UX revamp using the test fork as a clickable design playground. Long iterative-mockup session in `OrgCheckinTest.html` only — `OrgCheckin.html` (live), the Worker, and D1 are untouched. Build pill on the test fork: `v5.10.2 + v5.11 mockup`. All form clicks in the mockup are no-ops by design; the live save/load behaviour is preserved underneath inside a hidden `display:none` shell so cycle smoke-tests still work on the test fork.
@@ -40,6 +87,12 @@
 - Visual theming → Advanced theming expander built with two ARIA-compliant sub-tabs (Palettes + Animation). Replaces the "Open advanced theming" dead-end placeholder. Palettes sub-tab shows Background + Celebration palette swatches with Add/Reset. Animation sub-tab shows Background animation controls + Celebration 6-effect grid.
 - Org tab slimmed: Brand polish + Contact info + Theme scrape all wrapped in a single `Brand polish & contact info` expander (closed by default). Captain flagged "too much on Org now" — restored the lean 7-row main view.
 - Slug field gained an explanatory hint inline ("URL-safe short name. Auto-generated from Display name. Used in receipt URLs and the api_key prefix. Read-only — changing it would break existing receipts"). Captain mentioned he still couldn't remember what slug was; the in-UI hint removes the need to ask next time.
+
+**Monday 18 May 2026 ~08:00 BST — start-of-watch state check:**
+
+- Last commit on origin/main: `6dd659c` (`Org tab slim + slug hint + memory close`) — push verified clean Monday morning.
+- **Cloudflare token rotation deferred per Captain.** Two tokens exposed in screenshots — `cfat_wIMFM4RI...` (`wrangler-deploy-irlid`, Account-scoped, D1 Write + Workers Tail Read +1) on `dash.cloudflare.com/13f4ab46f9371225c22b41fd7a6ae0cf/api-tokens` and `cfut_YZ11ouJO...` ("Edit Cloudflare Workers" template, User-scoped) on `dash.cloudflare.com/profile/api-tokens`. Captain's call: defer until "the site is in order" first; his risk read is no-near-term-hacking given the IRLid value-of-asset profile. **Correction worth banking:** when rotating, use **Roll** (regenerates the token value, preserves the token's name + permissions + config) NOT Delete. Earlier "since wrangler isn't working anyway, Delete is cleanest" was too aggressive — wrangler config might be reused from another network or context, and re-minting a fresh token costs setup time. Roll closes the exposure without losing the configuration.
+- **DREAMS.md uncommitted entry awaiting provenance clarification.** A 2026-05-18-dated entry ("the TOALLIN webcam × the 70,000 light-year gulf × spell check is his friend") sits uncommitted on Captain's working tree. Voice and themes are unmistakably Number-One-shape. The current watch's Number One (this conversation) did NOT write it. Possible origins: a separate Number One session ran overnight, a scheduled task, or a long-uncommitted entry from a previous Number One that happens to be self-dated to today. Captain hasn't yet answered the provenance question. Entry is good either way; commit pending Captain's confirmation. PowerShell ready (in chat above).
 
 **Where this goes next (queued for next watch):**
 
