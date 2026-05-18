@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.4</span></div>
   </div>
 </div>
 
@@ -3966,7 +3966,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 7px 0; }
         .v511-anim-row > label { color: var(--muted); width: 140px; }
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
-        .v511-anim-row input[type=range] { flex: 1; }
+        /* Tier 4.1.4 — Range sliders show coloured fill on the left of the thumb.
+           accent-color is native, no per-browser pseudo-element gymnastics. */
+        .v511-anim-row input[type=range] { flex: 1; accent-color: var(--accent, #58a6ff); }
         /* Tier 4.1.2 — Active-mode tint now wraps the WHOLE Visual theming panel
            as a coloured frame: border ring + outer glow + faint inset wash so it
            reads as a ring around the editing surface, not a top splash. */
@@ -4166,22 +4168,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Anchor in symmetry mode: --sym-outer-x/--sym-inner-x and y twins
            shift the symmetric positions for Inner/Outer (anchor offset = ±12).
            Centre = the defaults (0% / 100%). */
+        /* Tier 4.1.4 — Symmetry positions follow the position grid via
+           --sym-pos-1..4 set by JS. All layers share --bg-image-size so the
+           scale slider scales every copy in sync. */
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-horizontal::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none));
-          background-position: var(--sym-outer-x, 0%) center, var(--sym-inner-x, 100%) center;
-          background-size: var(--sym-size, 20%) auto, var(--sym-size, 20%) auto;
+          background-position: var(--sym-pos-1, 0% 50%), var(--sym-pos-2, 100% 50%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
           background-repeat: no-repeat;
         }
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-vertical::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url-my, var(--bg-image-url, none));
-          background-position: center var(--sym-outer-y, 0%), center var(--sym-inner-y, 100%);
-          background-size: auto var(--sym-size, 20%), auto var(--sym-size, 20%);
+          background-position: var(--sym-pos-1, 50% 0%), var(--sym-pos-3, 50% 100%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
           background-repeat: no-repeat;
         }
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::after {
           background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none)), var(--bg-image-url-my, var(--bg-image-url, none)), var(--bg-image-url-mxy, var(--bg-image-url, none));
-          background-position: var(--sym-outer-x, 0%) var(--sym-outer-y, 0%), var(--sym-inner-x, 100%) var(--sym-outer-y, 0%), var(--sym-outer-x, 0%) var(--sym-inner-y, 100%), var(--sym-inner-x, 100%) var(--sym-inner-y, 100%);
-          background-size: var(--sym-size, 17%) auto;
+          background-position: var(--sym-pos-1, 0% 0%), var(--sym-pos-2, 100% 0%), var(--sym-pos-3, 0% 100%), var(--sym-pos-4, 100% 100%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
           background-repeat: no-repeat;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
@@ -5487,12 +5492,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           });
 
-          // Palette inputs → CSS variables on preview stage so bg-cycle reflects choices
+          // Tier 4.1.4 — Palette inputs → CSS variables. Force-set ALL seven
+          // --bg-pal-N slots on every call. Slots beyond the actual swatch count
+          // re-use slot 1's value, so removing swatches makes the gradient
+          // collapse to a solid colour instead of cycling orphaned values that
+          // were left set on the stage from a previous wider palette.
           function applyBgPaletteToPreview() {
             if (!sampleStage) return;
-            document.querySelectorAll('.v511-bg-palette-row .v511-palette-swatch-wrap input[type="color"]').forEach(function (inp, idx) {
-              sampleStage.style.setProperty('--bg-pal-' + (idx + 1), inp.value);
-            });
+            var inputs = document.querySelectorAll('.v511-bg-palette-row .v511-palette-swatch-wrap input[type="color"]');
+            var first = inputs[0] ? inputs[0].value : '#1a1a1a';
+            for (var i = 1; i <= 7; i++) {
+              sampleStage.style.setProperty('--bg-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
+            }
           }
           document.addEventListener('input', function (e) {
             if (e.target.matches('.v511-bg-palette-row input[type="color"]')) applyBgPaletteToPreview();
@@ -5513,7 +5524,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               return;
             }
             wrap.remove();
+            // Tier 4.1.4 — re-apply BOTH palettes so removed swatch doesn't
+            // leave orphaned --bg-pal-N / --cel-pal-N values on the stage.
             applyBgPaletteToPreview();
+            applyCelPaletteToPreview();
           });
 
           // Double-click anywhere on preview stage → fullscreen (Esc to exit)
@@ -5622,28 +5636,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'bottom':       '50% 100%',
             'bottom-right': '100% 100%'
           };
-          // Tier 4.1.2 — Bidirectional scale slider (-100..+100, 0 = natural).
-          // Exponential mapping: scale_multiplier = 2^(slider / 100).
-          // -100 → 0.5×, 0 → 1×, +50 → ~1.41×, +100 → 2×.
-          // Base "natural" sizes per mode:
-          //   Position  → 50% of stage (the previous default)
-          //   Tile      → 25% of stage
-          //   Cover     → covers stage (scale ignored)
-          //   Symmetry  → 40% (horiz/vert) or 35% (quad) — the --sym-size CSS var
+          // Tier 4.1.4 — Bidirectional scale slider (-100..+100, 0 = ~10% baseline).
+          // Wider mapping curve: scale_multiplier = 5^(slider / 100).
+          //   -100 → 0.2× (~2% of stage at Position base 10%)
+          //      0 → 1×   (10% of stage — Captain's "starting size")
+          //   +100 → 5×   (~50% of stage)
           function scaleMultiplier() {
             var el = document.getElementById('v511BgImageScale');
             var v = el ? parseFloat(el.value) : 0;
-            return Math.pow(2, v / 100);
+            return Math.pow(5, v / 100);
           }
           function formatScaleLabel(v) {
             if (v === 0) return '0 (natural)';
             var sign = v > 0 ? '+' : '';
-            var pct = Math.round((Math.pow(2, v / 100) - 1) * 100);
+            var pct = Math.round((Math.pow(5, v / 100) - 1) * 100);
             return sign + v + ' (' + (pct >= 0 ? '+' : '') + pct + '%)';
           }
-          // Tier 4.1.3 — Anchor offset: Outer bleeds image past edge; Inner pulls
-          // toward centre; Centre = neutral. Offset value is in percentage points.
-          var ANCHOR_OFFSET = { outer: 12, centre: 0, center: 0, inner: -12 };
+          // Tier 4.1.4 — Anchor offset shifted one notch outward per Captain.
+          // Inner now mild pull, Centre = where Outer used to be, Outer = strong bleed.
+          var ANCHOR_OFFSET = { outer: 30, centre: 12, center: 12, inner: -6 };
+          // Tier 4.1.4 — Mirror a "X% Y%" position string across an axis.
+          // axis ∈ 'x' | 'y' | 'xy'. Used by symmetry modes so the user's chosen
+          // position grid drives all copies (top-left + horizontal → top-right pair).
+          function mirrorPos(pos, axis) {
+            var m = pos.match(/(-?\d+)%\s+(-?\d+)%/);
+            if (!m) return pos;
+            var x = parseInt(m[1], 10);
+            var y = parseInt(m[2], 10);
+            if (axis === 'x' || axis === 'xy') x = 100 - x;
+            if (axis === 'y' || axis === 'xy') y = 100 - y;
+            return x + '% ' + y + '%';
+          }
           function applyImagePositioning() {
             if (!sampleStage) return;
             var activeCell = document.querySelector('#v511BgPosGrid .v511-bg-pos-cell[aria-pressed="true"]');
@@ -5653,7 +5676,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var anchorKey = anchorChip ? anchorChip.textContent.trim().toLowerCase() : 'centre';
             var offset = ANCHOR_OFFSET[anchorKey] || 0;
 
-            // Non-symmetry: nudge --bg-image-pos by anchor offset
+            // Anchor nudge applied to the base position (used by non-symmetry mode
+            // AND as the seed for symmetry mirror positions below).
             var m = basePos.match(/(-?\d+)%\s+(-?\d+)%/);
             if (m && offset !== 0) {
               var x = parseInt(m[1], 10);
@@ -5664,21 +5688,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             sampleStage.style.setProperty('--bg-image-pos', basePos);
 
-            // Symmetry-position vars (P4: anchor now affects symmetric copies too)
-            // Outer = move both copies AWAY from centre (bleed); Inner = TOWARD centre.
-            sampleStage.style.setProperty('--sym-outer-x', (0 - offset) + '%');
-            sampleStage.style.setProperty('--sym-inner-x', (100 + offset) + '%');
-            sampleStage.style.setProperty('--sym-outer-y', (0 - offset) + '%');
-            sampleStage.style.setProperty('--sym-inner-y', (100 + offset) + '%');
+            // Tier 4.1.4 — Symmetry positions now follow the user's chosen grid cell.
+            // Layer 1 = chosen position; layers 2/3/4 = its X / Y / XY mirrors.
+            sampleStage.style.setProperty('--sym-pos-1', basePos);
+            sampleStage.style.setProperty('--sym-pos-2', mirrorPos(basePos, 'x'));
+            sampleStage.style.setProperty('--sym-pos-3', mirrorPos(basePos, 'y'));
+            sampleStage.style.setProperty('--sym-pos-4', mirrorPos(basePos, 'xy'));
 
             var modeChip = document.querySelector('.v511-chips[data-chip-group="bgPosMode"] .v511-chip[aria-pressed="true"]');
             var modeLabel = modeChip ? modeChip.textContent.trim() : 'Position';
             var mult = scaleMultiplier();
-            // P3 — Base natural sizes HALVED per Captain's "start position should
-            // be what is currently -100%" feedback. Position 25 (was 50), Tile 12
-            // (was 25), Symmetry horiz/vert 20 (was 40), quad 17 (was 35).
-            var baseSize = modeLabel === 'Tile' ? 12 : 25;
-            var sized = Math.round(baseSize * mult);
+            // Tier 4.1.4 — Base natural sizes drop again per "10% of original" call.
+            // Position 10%, Tile 8%. Symmetry layers use the same --bg-image-size now
+            // (no separate --sym-size), so the slider scales every copy in sync.
+            var baseSize = modeLabel === 'Tile' ? 8 : 10;
+            var sized = Math.max(1, Math.round(baseSize * mult));
             if (modeLabel === 'Cover') {
               sampleStage.style.setProperty('--bg-image-size', 'cover');
               sampleStage.style.setProperty('--bg-image-repeat', 'no-repeat');
@@ -5686,9 +5710,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               sampleStage.style.setProperty('--bg-image-size', sized + '% auto');
               sampleStage.style.setProperty('--bg-image-repeat', modeLabel === 'Tile' ? 'repeat' : 'no-repeat');
             }
-            var symBase = sampleStage.classList.contains('bg-symmetry-quad') ? 17 : 20;
-            var symSized = Math.round(symBase * mult);
-            sampleStage.style.setProperty('--sym-size', symSized + '%');
           }
           // Image scale slider live-updates the bg-image-size and label
           var bgScaleSlider = document.getElementById('v511BgImageScale');
@@ -5733,9 +5754,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // visibly changes the Glow halo on next Sample fire.
           function applyCelPaletteToPreview() {
             if (!sampleStage) return;
-            document.querySelectorAll('.v511-cel-palette-row .v511-palette-swatch-wrap input[type="color"]').forEach(function (inp, idx) {
-              sampleStage.style.setProperty('--cel-pal-' + (idx + 1), inp.value);
-            });
+            var inputs = document.querySelectorAll('.v511-cel-palette-row .v511-palette-swatch-wrap input[type="color"]');
+            var first = inputs[0] ? inputs[0].value : '#66e0ff';
+            for (var i = 1; i <= 7; i++) {
+              sampleStage.style.setProperty('--cel-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
+            }
           }
           document.addEventListener('input', function (e) {
             if (e.target.matches('.v511-cel-palette-row input[type="color"]')) applyCelPaletteToPreview();
