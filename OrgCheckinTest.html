@@ -3766,12 +3766,144 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-palette-swatch { width: 38px; height: 38px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.18); cursor: pointer; transition: transform 0.1s; }
         .v511-palette-swatch:hover { transform: translateY(-1px); }
         .v511-palette-swatch.empty { background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 18px; border: 1px dashed rgba(255,255,255,0.18); }
-        .v511-celeb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 4px 0; }
-        @media (max-width: 640px) { .v511-celeb-grid { grid-template-columns: 1fr; } }
-        .v511-celeb-effect { padding: 9px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; transition: background 0.15s; }
-        .v511-celeb-effect:hover { background: rgba(255,255,255,0.05); }
-        .v511-celeb-effect label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 7px; cursor: pointer; color: var(--text); }
-        .v511-celeb-effect .v511-hint { display: block; margin-top: 4px; padding-left: 23px; }
+        /* v5.11 Tier 2.5 — Celebration effects as expandable + draggable cards */
+        .v511-celeb-grid { display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+        .v511-celeb-effect { padding: 0; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; transition: background 0.15s, border-color 0.15s, opacity 0.15s; overflow: hidden; }
+        .v511-celeb-effect:hover { background: rgba(255,255,255,0.045); }
+        .v511-celeb-effect.dragging { opacity: 0.35; }
+        .v511-celeb-effect.drag-over { border-color: rgba(105,168,255,0.55); background: rgba(105,168,255,0.08); }
+        .v511-celeb-effect-header { display: flex; align-items: center; gap: 10px; padding: 9px 12px; }
+        .v511-drag-handle { color: var(--muted); font-size: 16px; cursor: grab; user-select: none; padding: 0 2px; line-height: 1; }
+        .v511-drag-handle:active { cursor: grabbing; }
+        .v511-celeb-effect-summary { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer; flex: 1; color: var(--text); flex-wrap: wrap; }
+        .v511-celeb-effect-summary .v511-celeb-effect-name { font-weight: 500; }
+        .v511-celeb-effect-summary .v511-hint { font-weight: 400; flex: 1; min-width: 140px; }
+        .v511-celeb-effect-body { padding: 4px 14px 12px 38px; border-top: 1px solid rgba(255,255,255,0.05); display: none; }
+        .v511-celeb-effect.open .v511-celeb-effect-body { display: block; }
+        .v511-effect-chip-group { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; flex-wrap: wrap; }
+        .v511-effect-chip-label { font-size: 11.5px; color: var(--muted); min-width: 90px; padding-top: 4px; }
+        .v511-chips { display: flex; gap: 4px; flex-wrap: nowrap; }
+        .v511-chips.v511-chips-wrap { flex-wrap: wrap; }
+        .v511-chip { padding: 4px 10px; font-size: 11.5px; background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; cursor: pointer; font-family: inherit; transition: background 0.1s, color 0.1s, border-color 0.1s; }
+        .v511-chip:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+        .v511-chip[aria-pressed="true"] { background: rgba(105, 168, 255, 0.2); color: var(--text); border-color: rgba(105, 168, 255, 0.5); font-weight: 600; }
+        /* Selectable palette swatches — colour input styled to look like a swatch tile */
+        input[type="color"].v511-palette-swatch { width: 38px; height: 38px; padding: 0; border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; cursor: pointer; background: transparent; flex-shrink: 0; }
+        input[type="color"].v511-palette-swatch::-webkit-color-swatch-wrapper { padding: 0; border: none; border-radius: 6px; }
+        input[type="color"].v511-palette-swatch::-webkit-color-swatch { border: none; border-radius: 6px; }
+        input[type="color"].v511-palette-swatch::-moz-color-swatch { border: none; border-radius: 6px; }
+        input[type="color"].v511-palette-swatch:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.35); }
+
+        /* ===================================================================== */
+        /* v5.11 mockup — LIGHT MODE overrides                                   */
+        /* The mockup CSS uses rgba(255,255,255,X) for translucent surfaces      */
+        /* throughout — invisible on a light page. Invert to rgba(0,0,0,X) for   */
+        /* surfaces, swap dark input bg for white, lighten preview gradients,    */
+        /* invert preview text colour. Triggered by :root[data-theme="light"].   */
+        /* ===================================================================== */
+        :root[data-theme="light"] .v511-banner { background: rgba(255, 199, 117, 0.22); border-color: rgba(186, 117, 23, 0.45); }
+        :root[data-theme="light"] .v511-banner strong { color: #854f0b; }
+        :root[data-theme="light"] .v511-tabs { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-tabs button { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-tabs button:hover { background: rgba(0,0,0,0.04); color: var(--text); }
+        :root[data-theme="light"] .v511-tabs button.active { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
+        :root[data-theme="light"] .v511-panel { background: linear-gradient(180deg, #ffffff, #f3f5f8); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-head { border-bottom-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-sub { color: var(--text); }
+        :root[data-theme="light"] .v511-row input[type=text],
+        :root[data-theme="light"] .v511-row input[type=url],
+        :root[data-theme="light"] .v511-row input[type=email],
+        :root[data-theme="light"] .v511-row input[type=tel],
+        :root[data-theme="light"] .v511-row input[type=number],
+        :root[data-theme="light"] .v511-row select,
+        :root[data-theme="light"] .v511-row textarea { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-info { background: rgba(105, 168, 255, 0.08); border-color: rgba(105, 168, 255, 0.3); color: var(--text); }
+        :root[data-theme="light"] .v511-expander { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-expander > summary { color: var(--text); }
+        :root[data-theme="light"] .v511-expander > summary:hover { background: rgba(0,0,0,0.04); }
+        :root[data-theme="light"] .v511-expander[open] > summary { border-bottom-color: rgba(0,0,0,0.07); }
+        :root[data-theme="light"] .v511-expander > summary::before { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-toolbar { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-cal-view-toggle { background: rgba(0,0,0,0.05); }
+        :root[data-theme="light"] .v511-cal-view-toggle button { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-view-toggle button:hover { background: rgba(0,0,0,0.04); color: var(--text); }
+        :root[data-theme="light"] .v511-cal-view-toggle button.active { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
+        :root[data-theme="light"] .v511-cal-room-filter { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-room-filter select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-cal-wrap { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-cal-header { background: #f3f5f8; border-bottom-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-cal-header .h { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-row { border-bottom-color: rgba(0,0,0,0.05); }
+        :root[data-theme="light"] .v511-cal-row > div { color: var(--text); }
+        :root[data-theme="light"] .v511-cal-row[data-band="light"] { background: rgba(0,0,0,0.035); }
+        :root[data-theme="light"] .v511-cal-row.empty > div:not(:last-child) { color: rgba(0,0,0,0.4); }
+        :root[data-theme="light"] .v511-cal-band-tag { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-drilldown { background: rgba(105, 168, 255, 0.07); border-color: rgba(105, 168, 255, 0.25); }
+        :root[data-theme="light"] .v511-drill-head { color: var(--text); border-bottom-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-drill-expected { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-drill-expected-row { border-bottom-color: rgba(0,0,0,0.05); color: var(--text); }
+        :root[data-theme="light"] .v511-staff { border-bottom-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-staff select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); height: 28px; }
+        :root[data-theme="light"] .v511-rooms-list { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-room-row { border-bottom-color: rgba(0,0,0,0.05); color: var(--text); }
+        :root[data-theme="light"] .v511-room-cap { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-wav-slot { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-wav-slot .v511-wav-file { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-btn { background: rgba(0,0,0,0.04); color: var(--text); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-btn:hover { background: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-btn-primary { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
+        :root[data-theme="light"] .v511-btn-primary:hover { background: rgba(105, 168, 255, 0.32); }
+        :root[data-theme="light"] .v511-btn.is-saved { background: rgba(99, 153, 34, 0.22); border-color: rgba(99, 153, 34, 0.55); color: #3b6d11; }
+        :root[data-theme="light"] .v511-celeb-effect { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-celeb-effect:hover { background: rgba(0,0,0,0.045); }
+        :root[data-theme="light"] .v511-celeb-effect.drag-over { border-color: rgba(105,168,255,0.55); background: rgba(105,168,255,0.08); }
+        :root[data-theme="light"] .v511-celeb-effect-body { border-top-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-celeb-effect-summary { color: var(--text); }
+        :root[data-theme="light"] .v511-drag-handle { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-effect-chip-label { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-chip { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.55); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-chip:hover { background: rgba(0,0,0,0.08); color: var(--text); }
+        :root[data-theme="light"] .v511-chip[aria-pressed="true"] { background: rgba(105, 168, 255, 0.22); color: #185fa5; border-color: rgba(105, 168, 255, 0.5); }
+        /* Preview stage in light mode — lighter gradients, dark text */
+        :root[data-theme="light"] .v511-theme-preview-stage { border-color: rgba(0,0,0,0.12); }
+        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="allow"] { background: linear-gradient(180deg, #d4ecb9 0%, #8fbf6c 100%); }
+        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="review"] { background: linear-gradient(180deg, #ffe2a8 0%, #e8b04a 100%); }
+        :root[data-theme="light"] .v511-theme-preview-stage[data-mode="deny"] { background: linear-gradient(180deg, #ffd1d1 0%, #e88080 100%); }
+        :root[data-theme="light"] .v511-theme-preview-banner { color: #1a1a1a; text-shadow: 0 1px 3px rgba(255,255,255,0.7); }
+        :root[data-theme="light"] .v511-theme-preview-caption { color: rgba(0,0,0,0.75); }
+        :root[data-theme="light"] .v511-theme-preview-mode-label { background: rgba(255,255,255,0.7); color: #1a1a1a; }
+        :root[data-theme="light"] .v511-theme-preview-controls-strip { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-theme-preview-controls-strip select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-theme-preview-controls-strip > label { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-anim-row > label { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-anim-row select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-masthead { background: linear-gradient(135deg, rgba(105,168,255,0.16) 0%, rgba(105,168,255,0.05) 100%); border-color: rgba(105,168,255,0.32); }
+        :root[data-theme="light"] .v511-masthead-name { color: var(--text); }
+        :root[data-theme="light"] .v511-masthead-slug { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.6); }
+        :root[data-theme="light"] .v511-masthead-tagline { color: rgba(0,0,0,0.65); }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swimlane-grid { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-header { background: #f3f5f8; }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-header.col-time { color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-time { color: rgba(0,0,0,0.55); border-top-color: rgba(0,0,0,0.05); }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-cell { border-top-color: rgba(0,0,0,0.05); border-left-color: rgba(0,0,0,0.05); }
+        :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-cell[data-band="light"] { background: rgba(0,0,0,0.035); }
+        :root[data-theme="light"] .v511-swimlane-info { background: rgba(186,117,23,0.08); border-color: rgba(186,117,23,0.3); color: var(--text); }
+        :root[data-theme="light"] .v511-palette-swatch { border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-palette-swatch.empty { background: rgba(0,0,0,0.04); color: rgba(0,0,0,0.4); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] input[type="color"].v511-palette-swatch { border-color: rgba(0,0,0,0.2); }
+        :root[data-theme="light"] input[type="color"].v511-palette-swatch:hover { border-color: rgba(0,0,0,0.4); }
+        :root[data-theme="light"] .v511-jump-now-btn { background: rgba(220, 20, 60, 0.12); color: #a32d2d; border-color: rgba(220, 20, 60, 0.4); }
+        :root[data-theme="light"] .v511-jump-now-btn:hover { background: rgba(220, 20, 60, 0.2); }
+        :root[data-theme="light"] .v511-cal-now-line { border-top-color: rgba(220, 20, 60, 0.6); box-shadow: 0 0 4px rgba(220, 20, 60, 0.25); }
+        :root[data-theme="light"] .v511-cal-now-label { background: rgba(220, 20, 60, 0.85); }
+        :root[data-theme="light"] .v511-danger-zone { background: rgba(226, 75, 74, 0.06); border-color: rgba(226, 75, 74, 0.32); }
+        :root[data-theme="light"] .v511-danger-zone .v511-sub { color: #a32d2d; }
+        :root[data-theme="light"] .v511-cal-drilldown .v511-row input[type=text],
+        :root[data-theme="light"] .v511-cal-drilldown .v511-row input[type=url],
+        :root[data-theme="light"] .v511-cal-drilldown .v511-row input[type=number],
+        :root[data-theme="light"] .v511-cal-drilldown .v511-row select,
+        :root[data-theme="light"] .v511-cal-drilldown .v511-row textarea { background: #fff; }
+        /* Room tag colour-coding stays consistent (tint backgrounds work in both modes) */
         .v511-anim-row { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 7px 0; }
         .v511-anim-row > label { color: var(--muted); width: 140px; }
         .v511-anim-row select { flex: 1; height: 30px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; font-size: 12px; }
@@ -4350,15 +4482,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
               <!-- ===== SUB-TAB: BACKGROUND ===== -->
               <div class="v511-subpanel active" data-v511-subpanel="background" role="tabpanel">
-                <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; used by page-cycle and pattern overlay)</span></div>
-                <div class="v511-palette-row">
-                  <div class="v511-palette-swatch" style="background: #DC143C;" title="#DC143C"></div>
-                  <div class="v511-palette-swatch" style="background: #8B0000;" title="#8B0000"></div>
-                  <div class="v511-palette-swatch" style="background: #FF6B6B;" title="#FF6B6B"></div>
-                  <div class="v511-palette-swatch" style="background: #FFB347;" title="#FFB347"></div>
-                  <div class="v511-palette-swatch empty" title="Add">+</div>
-                  <div class="v511-palette-swatch empty" title="Add">+</div>
-                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; click a swatch to pick; used by page-cycle and pattern overlay)</span></div>
+                <div class="v511-palette-row v511-bg-palette-row">
+                  <input type="color" class="v511-palette-swatch" value="#dc143c" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#8b0000" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#ff6b6b" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#ffb347" title="Pick colour" />
+                  <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
+                  <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
+                  <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 6px;">
                   <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
@@ -4379,15 +4511,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <div class="v511-sub" style="margin-top: 0;">QR foreground</div>
                 <div class="v511-row"><label>Colour</label><div><span class="v511-swatch" style="background: #000000;"></span><span class="v511-hint">#000000 — the dark modules of the QR itself.</span></div></div>
 
-                <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(used by the accept-cycle burst on successful check-in)</span></div>
-                <div class="v511-palette-row">
-                  <div class="v511-palette-swatch" style="background: #58a6ff;" title="#58a6ff"></div>
-                  <div class="v511-palette-swatch" style="background: #c0dd97;" title="#c0dd97"></div>
-                  <div class="v511-palette-swatch" style="background: #fac775;" title="#fac775"></div>
-                  <div class="v511-palette-swatch" style="background: #f09595;" title="#f09595"></div>
-                  <div class="v511-palette-swatch" style="background: #af9aec;" title="#af9aec"></div>
-                  <div class="v511-palette-swatch empty" title="Add">+</div>
-                  <div class="v511-palette-swatch empty" title="Add">+</div>
+                <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(click a swatch to pick; used by the accept-cycle burst on successful check-in)</span></div>
+                <div class="v511-palette-row v511-cel-palette-row">
+                  <input type="color" class="v511-palette-swatch" value="#58a6ff" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#c0dd97" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#fac775" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#f09595" title="Pick colour" />
+                  <input type="color" class="v511-palette-swatch" value="#af9aec" title="Pick colour" />
+                  <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
+                  <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 6px;">
                   <button type="button" class="v511-btn v511-btn-mini">+ Add colour</button>
@@ -4396,13 +4528,73 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                 <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(one-shot &mdash; fires on successful check-in)</span></div>
                 <div class="v511-hint" style="padding: 0 0 8px;">Tick the effects you want layered on a successful check-in. Each effect can be combined with others. Zero ticks = no celebration.</div>
-                <div class="v511-celeb-grid">
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffPulse" /> Pulse</label><span class="v511-hint">Quiet coloured throb around the QR border.</span></div>
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffBg" /> Background</label><span class="v511-hint">QR canvas cycles palette colours once behind the code.</span></div>
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffQr" /> QR motion</label><span class="v511-hint">Wobble / zoom-in / zoom-out / dissolve / rotate.</span></div>
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffGlow" checked /> Glow</label><span class="v511-hint">Conic gradient ring sweep plus centre pulse.</span></div>
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffPattern" /> Pattern</label><span class="v511-hint">Tiled pattern overlay flashes once. Eight patterns available.</span></div>
-                  <div class="v511-celeb-effect"><label><input type="checkbox" id="v511CelEffText" /> Text</label><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></div>
+                <div class="v511-hint" style="padding: 0 0 8px;">Drag the ⠿ handle to reorder layers (first = bottom, last = top). Tick a box to enable + expand that effect's sub-settings.</div>
+                <div class="v511-celeb-grid" id="v511CelEffectsGrid">
+                  <div class="v511-celeb-effect" draggable="true" data-effect="pulse">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPulse" /><span class="v511-celeb-effect-name">Pulse</span><span class="v511-hint">Quiet coloured throb around the QR border.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Intensity</span><div class="v511-chips" data-chip-group="intensity"><button type="button" class="v511-chip" aria-pressed="true">Subtle</button><button type="button" class="v511-chip" aria-pressed="false">Strong</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Colour source</span><div class="v511-chips" data-chip-group="colourSource"><button type="button" class="v511-chip" aria-pressed="true">Single swatch</button><button type="button" class="v511-chip" aria-pressed="false">Cycle palette</button></div></div>
+                    </div>
+                  </div>
+
+                  <div class="v511-celeb-effect" draggable="true" data-effect="bg">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffBg" /><span class="v511-celeb-effect-name">Background</span><span class="v511-hint">QR canvas cycles palette colours once behind the code.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Sweep</span><div class="v511-chips" data-chip-group="bgSweep"><button type="button" class="v511-chip" aria-pressed="true">Once</button><button type="button" class="v511-chip" aria-pressed="false">Three times</button></div></div>
+                    </div>
+                  </div>
+
+                  <div class="v511-celeb-effect" draggable="true" data-effect="qr">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffQr" /><span class="v511-celeb-effect-name">QR motion</span><span class="v511-hint">Wobble / zoom / dissolve / rotate.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Motion</span><div class="v511-chips v511-chips-wrap" data-chip-group="qrMotion"><button type="button" class="v511-chip" aria-pressed="true">Wobble</button><button type="button" class="v511-chip" aria-pressed="false">Zoom in</button><button type="button" class="v511-chip" aria-pressed="false">Zoom out</button><button type="button" class="v511-chip" aria-pressed="false">Rotate CW</button><button type="button" class="v511-chip" aria-pressed="false">Rotate CCW</button><button type="button" class="v511-chip" aria-pressed="false">Dissolve horz</button><button type="button" class="v511-chip" aria-pressed="false">Dissolve vert</button></div></div>
+                    </div>
+                  </div>
+
+                  <div class="v511-celeb-effect" draggable="true" data-effect="glow">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffGlow" checked /><span class="v511-celeb-effect-name">Glow</span><span class="v511-hint">Conic gradient ring sweep plus centre pulse.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Ring thickness</span><div class="v511-chips" data-chip-group="glowThickness"><button type="button" class="v511-chip" aria-pressed="false">Thin</button><button type="button" class="v511-chip" aria-pressed="true">Medium</button><button type="button" class="v511-chip" aria-pressed="false">Thick</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Sweep</span><div class="v511-chips" data-chip-group="glowSweep"><button type="button" class="v511-chip" aria-pressed="true">Outward</button><button type="button" class="v511-chip" aria-pressed="false">Inward</button><button type="button" class="v511-chip" aria-pressed="false">Rotate</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Centre pulse</span><div class="v511-chips" data-chip-group="glowCentre"><button type="button" class="v511-chip" aria-pressed="true">On</button><button type="button" class="v511-chip" aria-pressed="false">Off</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Saturation</span><div class="v511-chips" data-chip-group="glowSat"><button type="button" class="v511-chip" aria-pressed="false">Muted</button><button type="button" class="v511-chip" aria-pressed="true">Vivid</button><button type="button" class="v511-chip" aria-pressed="false">Hyper</button></div></div>
+                    </div>
+                  </div>
+
+                  <div class="v511-celeb-effect" draggable="true" data-effect="pattern">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPattern" /><span class="v511-celeb-effect-name">Pattern</span><span class="v511-hint">Tiled pattern overlay flashes once.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Pattern</span><div class="v511-chips v511-chips-wrap" data-chip-group="patternPick"><button type="button" class="v511-chip" aria-pressed="true">Dots</button><button type="button" class="v511-chip" aria-pressed="false">Hex</button><button type="button" class="v511-chip" aria-pressed="false">Diagonal</button><button type="button" class="v511-chip" aria-pressed="false">Checker</button><button type="button" class="v511-chip" aria-pressed="false">Grid</button><button type="button" class="v511-chip" aria-pressed="false">Weave</button><button type="button" class="v511-chip" aria-pressed="false">Chevron</button><button type="button" class="v511-chip" aria-pressed="false">Isometric</button></div></div>
+                    </div>
+                  </div>
+
+                  <div class="v511-celeb-effect" draggable="true" data-effect="text">
+                    <div class="v511-celeb-effect-header">
+                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span>
+                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffText" /><span class="v511-celeb-effect-name">Text</span><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></label>
+                    </div>
+                    <div class="v511-celeb-effect-body">
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Template</span><div class="v511-chips" data-chip-group="textTemplate"><button type="button" class="v511-chip" aria-pressed="true">Name only</button><button type="button" class="v511-chip" aria-pressed="false">Name + action</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Position</span><div class="v511-chips" data-chip-group="textPosition"><button type="button" class="v511-chip" aria-pressed="false">Top</button><button type="button" class="v511-chip" aria-pressed="true">Centre</button><button type="button" class="v511-chip" aria-pressed="false">Bottom</button></div></div>
+                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Size</span><div class="v511-chips" data-chip-group="textSize"><button type="button" class="v511-chip" aria-pressed="false">Small</button><button type="button" class="v511-chip" aria-pressed="true">Medium</button><button type="button" class="v511-chip" aria-pressed="false">Large</button></div></div>
+                    </div>
+                  </div>
                 </div>
                 <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" id="v511CelDuration" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" id="v511CelDurationLabel" style="min-width: 40px;">1.4s</span></div>
                 <div class="v511-hint" style="margin-top: 10px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired. Outcome sound for the active mode lives in <strong style="color: var(--text);">Post-Accept/Review/Deny Behaviour</strong> below.</div>
@@ -4886,6 +5078,79 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // Initial load: pour the Allow defaults into the form on page boot
           loadMode('allow');
+
+          // ===========================================================
+          // v5.11 Tier 2.5 — Celebration effect expanders + chip groups + drag-to-reorder
+          // ===========================================================
+          // Each celebration effect card expands its sub-settings body when its
+          // checkbox is ticked (matches the legacy theming pattern from the live
+          // OrgCheckin code). Chip groups behave as single-select within their
+          // [data-chip-group] container. Effects can be drag-reordered for
+          // layer ordering — first in DOM = bottom of the visual stack, last
+          // in DOM = top.
+          document.querySelectorAll('.v511-celeb-effect input[type="checkbox"]').forEach(function (cb) {
+            function syncOpen() { var card = cb.closest('.v511-celeb-effect'); if (card) card.classList.toggle('open', cb.checked); }
+            cb.addEventListener('change', syncOpen);
+            syncOpen(); // initial state on load (Glow is checked by default)
+          });
+
+          // Chip groups — single-select within their data-chip-group container
+          document.addEventListener('click', function (e) {
+            var chip = e.target.closest('.v511-chip');
+            if (!chip) return;
+            var group = chip.parentElement;
+            if (!group || !group.hasAttribute('data-chip-group')) return;
+            group.querySelectorAll('.v511-chip').forEach(function (c) {
+              c.setAttribute('aria-pressed', c === chip ? 'true' : 'false');
+            });
+          });
+
+          // Drag-to-reorder for celebration effects (HTML5 native DnD)
+          var draggedEffect = null;
+          document.querySelectorAll('.v511-celeb-effect[draggable="true"]').forEach(function (card) {
+            card.addEventListener('dragstart', function (e) {
+              draggedEffect = card;
+              card.classList.add('dragging');
+              if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', card.getAttribute('data-effect') || ''); } catch (_) {} }
+            });
+            card.addEventListener('dragend', function () {
+              card.classList.remove('dragging');
+              document.querySelectorAll('.v511-celeb-effect.drag-over').forEach(function (c) { c.classList.remove('drag-over'); });
+              draggedEffect = null;
+            });
+            card.addEventListener('dragover', function (e) {
+              if (!draggedEffect || draggedEffect === card) return;
+              e.preventDefault();
+              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+              card.classList.add('drag-over');
+            });
+            card.addEventListener('dragleave', function () { card.classList.remove('drag-over'); });
+            card.addEventListener('drop', function (e) {
+              e.preventDefault();
+              card.classList.remove('drag-over');
+              if (!draggedEffect || draggedEffect === card) return;
+              var grid = card.parentElement;
+              if (!grid) return;
+              // Compare positions to decide whether to insert before or after
+              var cards = Array.prototype.slice.call(grid.children);
+              var draggedIdx = cards.indexOf(draggedEffect);
+              var dropIdx = cards.indexOf(card);
+              if (draggedIdx < dropIdx) grid.insertBefore(draggedEffect, card.nextSibling);
+              else grid.insertBefore(draggedEffect, card);
+            });
+          });
+
+          // Palette inputs → CSS variables on preview stage so bg-cycle reflects choices
+          function applyBgPaletteToPreview() {
+            if (!sampleStage) return;
+            document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (inp, idx) {
+              sampleStage.style.setProperty('--bg-pal-' + (idx + 1), inp.value);
+            });
+          }
+          document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (inp) {
+            inp.addEventListener('input', applyBgPaletteToPreview);
+          });
+          applyBgPaletteToPreview();
 
           // ===========================================================
           // v5.11 Tier 2 — Background image upload
