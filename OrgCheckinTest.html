@@ -3793,6 +3793,50 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         input[type="color"].v511-palette-swatch::-webkit-color-swatch { border: none; border-radius: 6px; }
         input[type="color"].v511-palette-swatch::-moz-color-swatch { border: none; border-radius: 6px; }
         input[type="color"].v511-palette-swatch:hover { transform: translateY(-1px); border-color: rgba(255,255,255,0.35); }
+        /* v5.11 Tier 2.6 — palette swatch remove button (hover-visible X) */
+        .v511-palette-swatch-wrap { position: relative; display: inline-block; }
+        .v511-palette-swatch-remove { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; padding: 0; border-radius: 50%; background: rgba(0,0,0,0.75); color: #fff; border: 1.5px solid rgba(255,255,255,0.4); font-size: 12px; font-weight: 600; line-height: 1; cursor: pointer; opacity: 0; transition: opacity 0.15s; display: flex; align-items: center; justify-content: center; font-family: inherit; }
+        .v511-palette-swatch-wrap:hover .v511-palette-swatch-remove,
+        .v511-palette-swatch-wrap:focus-within .v511-palette-swatch-remove { opacity: 1; }
+        .v511-palette-swatch-remove:hover { background: #c92626; }
+        :root[data-theme="light"] .v511-palette-swatch-remove { background: rgba(0,0,0,0.7); border-color: rgba(255,255,255,0.85); }
+        :root[data-theme="light"] .v511-palette-swatch-remove:hover { background: #c92626; }
+        /* v5.11 Tier 2.6 — real QR image in preview + dblclick fullscreen */
+        .v511-theme-preview-qr { padding: 8px; }
+        .v511-theme-preview-qr img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; display: block; }
+        .v511-theme-preview-stage { cursor: zoom-in; }
+        .v511-theme-preview-stage:fullscreen { cursor: zoom-out; padding: 0; }
+        .v511-theme-preview-stage:fullscreen .v511-theme-preview-qr { width: 50vmin; height: 50vmin; }
+        .v511-theme-preview-stage:fullscreen .v511-theme-preview-banner { font-size: 32px; }
+        .v511-theme-preview-stage:fullscreen .v511-theme-preview-caption { display: none; }
+        /* v5.11 Tier 2.6 — Image settings panel (Position / Symmetry / Anchor / Alpha cycle) */
+        .v511-image-settings { display: none; padding: 8px 0; }
+        .v511-theme-preview-stage[data-bg-mode="image"] ~ * .v511-image-settings,
+        .bg-mode-is-image .v511-image-settings { display: block; }
+        .v511-anim-row--stacked { align-items: flex-start; }
+        .v511-anim-row--stacked > label { padding-top: 6px; }
+        .v511-bg-pos-controls { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .v511-bg-pos-grid { display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 34px); gap: 4px; }
+        .v511-bg-pos-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.1s, border-color 0.1s; }
+        .v511-bg-pos-cell:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+        .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); }
+        .v511-bg-pos-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); }
+        .v511-bg-pos-cell[aria-pressed="true"] .v511-bg-pos-dot { background: #fff; box-shadow: 0 0 6px rgba(105,168,255,0.55); }
+        :root[data-theme="light"] .v511-bg-pos-cell { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
+        :root[data-theme="light"] .v511-bg-pos-cell:hover { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.25); }
+        :root[data-theme="light"] .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); }
+        :root[data-theme="light"] .v511-bg-pos-dot { background: rgba(0,0,0,0.4); }
+        :root[data-theme="light"] .v511-bg-pos-cell[aria-pressed="true"] .v511-bg-pos-dot { background: #185fa5; }
+        /* Toggle switch for Alpha cycle */
+        .v511-toggle { position: relative; display: inline-block; width: 40px; height: 22px; cursor: pointer; }
+        .v511-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+        .v511-toggle-track { position: absolute; inset: 0; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); border-radius: 11px; transition: background 0.15s, border-color 0.15s; }
+        .v511-toggle-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: rgba(255,255,255,0.7); border-radius: 50%; transition: transform 0.15s, background 0.15s; }
+        .v511-toggle input:checked + .v511-toggle-track { background: rgba(105,168,255,0.4); border-color: rgba(105,168,255,0.65); }
+        .v511-toggle input:checked + .v511-toggle-track .v511-toggle-knob { transform: translateX(18px); background: #fff; }
+        :root[data-theme="light"] .v511-toggle-track { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-toggle-knob { background: rgba(0,0,0,0.7); }
+        :root[data-theme="light"] .v511-toggle input:checked + .v511-toggle-track .v511-toggle-knob { background: #185fa5; }
 
         /* ===================================================================== */
         /* v5.11 mockup — LIGHT MODE overrides                                   */
@@ -4452,11 +4496,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <!-- Theme preview at top — full-width, fullscreen-aspect, per-mode background -->
           <div class="v511-theme-preview">
-            <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow">
+            <div class="v511-theme-preview-stage" id="v511ThemePreviewStage" data-mode="allow" title="Double-click anywhere to fullscreen the preview (Esc to exit)">
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">ACTIVE MODE: ALLOW</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
-              <div class="v511-theme-preview-qr">▦</div>
-              <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome.</div>
+              <div class="v511-theme-preview-qr"><img src="QR.png" alt="Sample QR" /></div>
+              <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
             </div>
             <div class="v511-theme-preview-controls-strip">
               <label for="v511SamplePicker">Active mode:</label>
@@ -4484,10 +4528,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-subpanel active" data-v511-subpanel="background" role="tabpanel">
                 <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; click a swatch to pick; used by page-cycle and pattern overlay)</span></div>
                 <div class="v511-palette-row v511-bg-palette-row">
-                  <input type="color" class="v511-palette-swatch" value="#dc143c" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#8b0000" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#ff6b6b" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#ffb347" title="Pick colour" />
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#dc143c" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#8b0000" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#ff6b6b" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#ffb347" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
@@ -4501,7 +4545,54 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <div class="v511-anim-row"><label for="v511BgMode">Mode</label><select id="v511BgMode"><option value="off">Off (flat dark)</option><option value="page" selected>Page colour cycle</option><option value="pattern">Pattern</option><option value="image">Image</option></select></div>
                 <div class="v511-anim-row"><label for="v511BgIntensity">Page intensity</label><select id="v511BgIntensity"><option value="muted" selected>Muted (deep tinted)</option><option value="vibrant">Vibrant (palette colours direct)</option></select></div>
                 <div class="v511-anim-row"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
+                <!-- Image upload + image-mode-only settings (position grid, symmetry, anchor, alpha cycle) -->
                 <div class="v511-anim-row"><label for="v511BgImageUpload">Image (optional)</label><div style="flex: 1; display: flex; gap: 8px; align-items: center;"><input type="file" id="v511BgImageUpload" accept="image/png,image/jpeg,image/svg+xml" style="font-size: 11px; color: var(--muted);" /><span class="v511-hint">PNG / SVG / JPEG, ≤ 200 KB. Uploading auto-switches Mode to Image.</span></div></div>
+
+                <div class="v511-image-settings" id="v511ImageSettings">
+                  <div class="v511-anim-row v511-anim-row--stacked"><label>Image position</label>
+                    <div class="v511-bg-pos-controls">
+                      <div class="v511-chips" data-chip-group="bgPosMode">
+                        <button type="button" class="v511-chip" aria-pressed="true">Position</button>
+                        <button type="button" class="v511-chip" aria-pressed="false">Tile</button>
+                        <button type="button" class="v511-chip" aria-pressed="false">Cover</button>
+                      </div>
+                      <div class="v511-bg-pos-grid" id="v511BgPosGrid" role="radiogroup" aria-label="Image position on the canvas">
+                        <button type="button" class="v511-bg-pos-cell" data-pos="top-left"     aria-label="Top left"     aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="top"          aria-label="Top"          aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="top-right"    aria-label="Top right"    aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="left"         aria-label="Left"         aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell v511-bg-pos-cell--centre" data-pos="centre" aria-label="Centre" aria-pressed="true"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="right"        aria-label="Right"        aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="bottom-left"  aria-label="Bottom left"  aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="bottom"       aria-label="Bottom"       aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                        <button type="button" class="v511-bg-pos-cell" data-pos="bottom-right" aria-label="Bottom right" aria-pressed="false"><span class="v511-bg-pos-dot"></span></button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="v511-anim-row"><label>Symmetry</label>
+                    <div class="v511-chips" data-chip-group="bgSymmetry">
+                      <button type="button" class="v511-chip" aria-pressed="true">Off</button>
+                      <button type="button" class="v511-chip" aria-pressed="false">Horizontal</button>
+                      <button type="button" class="v511-chip" aria-pressed="false">Vertical</button>
+                      <button type="button" class="v511-chip" aria-pressed="false">Quad</button>
+                    </div>
+                  </div>
+                  <div class="v511-hint" style="padding: 0 0 6px;">Horizontal: mirror across vertical centre (left+right bookends). Vertical: mirror across horizontal centre (top+bottom bookends). Quad: image appears at all 4 corners (only when position is a corner).</div>
+
+                  <div class="v511-anim-row"><label>Anchor</label>
+                    <div class="v511-chips" data-chip-group="bgAnchor">
+                      <button type="button" class="v511-chip" aria-pressed="false">Outer</button>
+                      <button type="button" class="v511-chip" aria-pressed="true">Centre</button>
+                      <button type="button" class="v511-chip" aria-pressed="false">Inner</button>
+                    </div>
+                  </div>
+
+                  <div class="v511-anim-row"><label for="v511BgAlphaCycle">Alpha cycle</label>
+                    <label class="v511-toggle"><input type="checkbox" id="v511BgAlphaCycle" /><span class="v511-toggle-track"><span class="v511-toggle-knob"></span></span></label>
+                  </div>
+                </div>
+
                 <div class="v511-anim-row"><label for="v511BgDuration">Cycle duration</label><input type="range" id="v511BgDuration" min="5" max="120" value="30" /><span class="v511-hint" id="v511BgDurationLabel" style="min-width: 40px;">30s</span></div>
                 <div class="v511-hint" style="margin-top: 10px;">Use the Sample button at the top with <strong style="color: var(--text);">Background only</strong> selected to fire just the background animation cycle.</div>
               </div>
@@ -4513,11 +4604,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                 <div class="v511-sub" style="margin-top: 18px;">Celebration palette <span class="v511-hint-inline">(click a swatch to pick; used by the accept-cycle burst on successful check-in)</span></div>
                 <div class="v511-palette-row v511-cel-palette-row">
-                  <input type="color" class="v511-palette-swatch" value="#58a6ff" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#c0dd97" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#fac775" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#f09595" title="Pick colour" />
-                  <input type="color" class="v511-palette-swatch" value="#af9aec" title="Pick colour" />
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#58a6ff" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#c0dd97" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#fac775" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#f09595" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
+                  <div class="v511-palette-swatch-wrap"><input type="color" class="v511-palette-swatch" value="#af9aec" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">×</button></div>
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                   <div class="v511-palette-swatch empty" title="Empty slot — use + Add colour below">+</div>
                 </div>
@@ -5143,14 +5234,66 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Palette inputs → CSS variables on preview stage so bg-cycle reflects choices
           function applyBgPaletteToPreview() {
             if (!sampleStage) return;
-            document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (inp, idx) {
+            document.querySelectorAll('.v511-bg-palette-row .v511-palette-swatch-wrap input[type="color"]').forEach(function (inp, idx) {
               sampleStage.style.setProperty('--bg-pal-' + (idx + 1), inp.value);
             });
           }
-          document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (inp) {
-            inp.addEventListener('input', applyBgPaletteToPreview);
+          document.addEventListener('input', function (e) {
+            if (e.target.matches('.v511-bg-palette-row input[type="color"]')) applyBgPaletteToPreview();
           });
           applyBgPaletteToPreview();
+
+          // Palette swatch removal (hover-visible × button). Keeps minimum 1
+          // swatch per palette row.
+          document.addEventListener('click', function (e) {
+            var removeBtn = e.target.closest('.v511-palette-swatch-remove');
+            if (!removeBtn) return;
+            var wrap = removeBtn.closest('.v511-palette-swatch-wrap');
+            var row = wrap && wrap.parentElement;
+            if (!wrap || !row) return;
+            var filledWraps = row.querySelectorAll('.v511-palette-swatch-wrap');
+            if (filledWraps.length <= 1) {
+              alert('Need at least one colour in the palette.');
+              return;
+            }
+            wrap.remove();
+            applyBgPaletteToPreview();
+          });
+
+          // Double-click anywhere on preview stage → fullscreen (Esc to exit)
+          if (sampleStage) {
+            sampleStage.addEventListener('dblclick', function () {
+              if (!document.fullscreenElement) {
+                if (sampleStage.requestFullscreen) sampleStage.requestFullscreen();
+                else if (sampleStage.webkitRequestFullscreen) sampleStage.webkitRequestFullscreen();
+              } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+              }
+            });
+          }
+
+          // Background-mode = Image: show the richer Image settings panel
+          // (position grid, symmetry, anchor, alpha cycle). Other modes hide it.
+          function updateImageSettingsVisibility() {
+            var imageSettings = document.getElementById('v511ImageSettings');
+            if (!imageSettings || !bgModeSelect) return;
+            imageSettings.style.display = (bgModeSelect.value === 'image') ? 'block' : 'none';
+          }
+          if (bgModeSelect) bgModeSelect.addEventListener('change', updateImageSettingsVisibility);
+          updateImageSettingsVisibility();
+
+          // Position grid: single-select cell, mirrors the chip-group pattern
+          var posGrid = document.getElementById('v511BgPosGrid');
+          if (posGrid) {
+            posGrid.addEventListener('click', function (e) {
+              var cell = e.target.closest('.v511-bg-pos-cell');
+              if (!cell) return;
+              posGrid.querySelectorAll('.v511-bg-pos-cell').forEach(function (c) {
+                c.setAttribute('aria-pressed', c === cell ? 'true' : 'false');
+              });
+            });
+          }
 
           // ===========================================================
           // v5.11 Tier 2 — Background image upload
