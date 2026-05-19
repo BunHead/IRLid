@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.6</span></div>
   </div>
 </div>
 
@@ -4182,7 +4182,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 4.3.2 — Text overlay z-index BUMPED to 6 so it sits above content
            (z-4) and the cel-fx-layer (z-5). Caption was visually masking it. */
         .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 4cqi; text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); z-index: 6; opacity: 0; pointer-events: none; }
-        .v511-cel-text-overlay::before { content: 'Welcome back!'; }
+        /* Tier 4.3.6 — Text content now set via JS textContent (reads custom
+           welcome message from Post-Accept). ::before rules retired. */
         .v511-theme-preview-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         /* Text overlay setting variants */
         .v511-theme-preview-stage[data-cel-text-pos="top"]    .v511-cel-text-overlay { top: 3cqi; bottom: auto; }
@@ -4191,9 +4192,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage[data-cel-text-size="small"]  .v511-cel-text-overlay { font-size: 2.4cqi; }
         .v511-theme-preview-stage[data-cel-text-size="medium"] .v511-cel-text-overlay { font-size: 4cqi; }
         .v511-theme-preview-stage[data-cel-text-size="large"]  .v511-cel-text-overlay { font-size: 6cqi; }
-        .v511-theme-preview-stage[data-cel-text-template="name"]            .v511-cel-text-overlay::before { content: 'Welcome, Kerry!'; }
-        .v511-theme-preview-stage[data-cel-text-template="name + action"]   .v511-cel-text-overlay::before { content: 'Kerry — checked in'; }
-        .v511-theme-preview-stage[data-cel-text-template="welcome"]         .v511-cel-text-overlay::before { content: 'Welcome back!'; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 4.1 — Background celebration: a real overlay flashes through the
            celebration palette colours (--cel-pal-1..3) so changing the celebration
@@ -4905,8 +4903,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                    instead of the old hue-rotate filter (which ignored the celebration palette). -->
               <div class="v511-cel-bg-overlay" aria-hidden="true"></div>
               <!-- Tier 4.1.2 — celebration text overlay (was ::before; moved to a DOM element
-                   so it can co-exist with the always-on palette gradient on ::before). -->
-              <div class="v511-cel-text-overlay" aria-hidden="true"></div>
+                   so it can co-exist with the always-on palette gradient on ::before).
+                   Tier 4.3.6 — text content set dynamically by JS from active mode's
+                   Custom welcome message; this initial string is just a sane default. -->
+              <div class="v511-cel-text-overlay" aria-hidden="true">Welcome back!</div>
               <!-- Tier 4.2 — generic celebration FX layer for the new sequence effects
                    (confetti, sparkles, ripple, camera flash, spotlight, flame, etc.).
                    z-index above content so overlay effects visibly cover the QR briefly. -->
@@ -5591,6 +5591,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (s.position) stage.setAttribute('data-cel-text-pos', s.position);
               if (s.size) stage.setAttribute('data-cel-text-size', s.size);
               if (s.template) stage.setAttribute('data-cel-text-template', s.template);
+              // Tier 4.3.6 — Pipe the active mode's Custom welcome message into
+              // the text overlay. Template chips wrap the message:
+              //   welcome      → message verbatim
+              //   name         → "Welcome, Kerry!" (uses message as the welcome word)
+              //   name+action  → "Kerry — checked in"
+              var ms = modeStates[currentMode] || {};
+              var liveMsg = (document.getElementById('v511PaWelcome') || {}).value;
+              var baseMsg = (typeof liveMsg === 'string' && liveMsg.length ? liveMsg : (ms.v511PaWelcome || 'Welcome back!'));
+              var tmpl = s.template || 'welcome';
+              var finalText;
+              if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Kerry!';
+              else if (tmpl === 'name + action') finalText = 'Kerry — checked in';
+              else                                finalText = baseMsg;
+              var overlay = stage.querySelector('.v511-cel-text-overlay');
+              if (overlay) overlay.textContent = finalText;
             }
             if (item.effect === 'pattern' && s.pattern) {
               stage.setAttribute('data-cel-pattern-style', s.pattern);
