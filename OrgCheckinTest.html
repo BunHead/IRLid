@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.16</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.17</span></div>
   </div>
 </div>
 
@@ -4330,6 +4330,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Particles: glitch (digital corruption flicker) */
         .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
         @keyframes v511CelGlitch { 0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: translate(0); } 20% { filter: hue-rotate(90deg) saturate(2); transform: translate(-2px, 1px); } 40% { filter: hue-rotate(-90deg) saturate(2); transform: translate(2px, -1px); } 60% { filter: hue-rotate(180deg) saturate(2); transform: translate(-1px, 2px); } 80% { filter: hue-rotate(-45deg) saturate(2); transform: translate(1px, -2px); } }
+        /* Tier 4.3.17 — Glitch kind variants (data-cel-glitch-kind).
+           hue = colour shift only; displace = positional jitter only;
+           both = default (existing combined keyframe). */
+        .v511-theme-preview-stage.cel-glitch[data-cel-glitch-kind="hue"]      { animation-name: v511CelGlitchHue; }
+        .v511-theme-preview-stage.cel-glitch[data-cel-glitch-kind="displace"] { animation-name: v511CelGlitchDisplace; }
+        @keyframes v511CelGlitchHue      { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 20% { filter: hue-rotate(90deg) saturate(2); } 40% { filter: hue-rotate(-120deg) saturate(2); } 60% { filter: hue-rotate(180deg) saturate(2.2); } 80% { filter: hue-rotate(-45deg) saturate(1.8); } }
+        @keyframes v511CelGlitchDisplace { 0%, 100% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 3px); } 80% { transform: translate(2px, -3px); } }
         /* Tier 4.2 — Library + sequence two-pane UI */
         .v511-cel-builder { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 10px; }
         @media (max-width: 720px) { .v511-cel-builder { grid-template-columns: 1fr; } }
