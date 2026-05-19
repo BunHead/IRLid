@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.2</span></div>
   </div>
 </div>
 
@@ -4208,6 +4208,93 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         /* Light mode: drop screen blend (the dark base it relies on isn't there) */
         :root[data-theme="light"] .v511-theme-preview-stage > .v511-cel-bg-overlay { mix-blend-mode: multiply; }
+        /* Tier 4.2 — generic FX layer for sequence-model celebration effects.
+           Sits above content (z-5 vs content z-4) so overlay effects can briefly
+           cover the QR / banner. Default invisible; per-effect class brings it
+           to life with its own background + animation. */
+        .v511-theme-preview-stage > .v511-cel-fx-layer {
+          position: absolute; inset: 0; pointer-events: none;
+          z-index: 5; opacity: 0;
+        }
+        /* Tier 4.2 — 14 new celebration effect keyframes. Sequential model: each
+           is added briefly to sampleStage by playSequence(), runs once, removed. */
+        /* Light: outer-glow (border-only inset glow) */
+        .v511-theme-preview-stage.cel-outer-glow { animation: v511CelOuterGlow var(--cel-cycle-dur, 1.4s) ease-out; }
+        @keyframes v511CelOuterGlow { 0%, 100% { box-shadow: inset 0 0 0 0 transparent; } 50% { box-shadow: inset 0 0 60px 12px var(--cel-pal-1, #66e0ff); } }
+        /* Light: spotlight (radial dim with bright centre) */
+        .v511-theme-preview-stage.cel-spotlight > .v511-cel-fx-layer { animation: v511CelSpotlight var(--cel-cycle-dur, 1.4s) ease-in-out; background: radial-gradient(circle at center, transparent 0%, transparent 20%, rgba(0,0,0,0.75) 70%); }
+        @keyframes v511CelSpotlight { 0%, 100% { opacity: 0; } 40%, 60% { opacity: 1; } }
+        /* Light: camera flash (full-screen white pulse) */
+        .v511-theme-preview-stage.cel-cam-flash > .v511-cel-fx-layer { animation: v511CelCamFlash var(--cel-cycle-dur, 0.4s) ease-out; background: #fff; }
+        @keyframes v511CelCamFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
+        /* Light: strobe (brightness flicker — a11y warning row in library) */
+        .v511-theme-preview-stage.cel-strobe { animation: v511CelStrobe var(--cel-cycle-dur, 0.8s) steps(2, jump-none); }
+        @keyframes v511CelStrobe { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(2.5); } }
+        /* Motion: shake (lateral wobble) */
+        .v511-theme-preview-stage.cel-shake { animation: v511CelShake var(--cel-cycle-dur, 0.6s) cubic-bezier(.36,.07,.19,.97); }
+        @keyframes v511CelShake { 10%, 90% { transform: translateX(-3px); } 20%, 80% { transform: translateX(6px); } 30%, 50%, 70% { transform: translateX(-8px); } 40%, 60% { transform: translateX(8px); } }
+        /* Motion: scale punch (whole stage briefly zooms) */
+        .v511-theme-preview-stage.cel-scale-punch { animation: v511CelScalePunch var(--cel-cycle-dur, 0.5s) ease-out; }
+        @keyframes v511CelScalePunch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        /* Motion: iris-wipe (circular reveal that closes then opens) */
+        .v511-theme-preview-stage.cel-iris-wipe { animation: v511CelIrisWipe var(--cel-cycle-dur, 1s) ease-in-out; }
+        @keyframes v511CelIrisWipe { 0%, 100% { clip-path: circle(150% at center); } 50% { clip-path: circle(25% at center); } }
+        /* Motion: ripple (single circular wave from centre) */
+        .v511-theme-preview-stage.cel-ripple > .v511-cel-fx-layer { animation: v511CelRipple var(--cel-cycle-dur, 1.2s) ease-out; border-radius: 50%; border: 4px solid var(--cel-pal-1, #66e0ff); background: transparent; }
+        @keyframes v511CelRipple { 0% { transform: scale(0.1); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+        /* Motion: qr-disappear (QR fades + shrinks to nothing then back) */
+        .v511-theme-preview-stage.cel-qr-disappear .v511-theme-preview-qr { animation: v511CelQrDisappear var(--cel-cycle-dur, 1s) ease-in-out; }
+        @keyframes v511CelQrDisappear { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0; transform: scale(0.2); } }
+        /* Particles: confetti drop (palette particles falling) */
+        .v511-theme-preview-stage.cel-confetti > .v511-cel-fx-layer { animation: v511CelConfetti var(--cel-cycle-dur, 2s) linear; background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px), radial-gradient(circle, var(--cel-pal-2, var(--cel-pal-1, #fac775)) 3px, transparent 3.5px); background-size: 35px 35px, 50px 50px; background-position: 0 -100%, 20px -100%; background-repeat: repeat-x; opacity: 1; }
+        @keyframes v511CelConfetti { 0% { background-position: 0 -100%, 20px -100%; } 100% { background-position: 0 200%, 20px 200%; } }
+        /* Particles: sparkles (twinkling small dots) */
+        .v511-theme-preview-stage.cel-sparkles > .v511-cel-fx-layer { animation: v511CelSparkles var(--cel-cycle-dur, 1.4s) ease-in-out; background-image: radial-gradient(circle, #fff 1.5px, transparent 2px); background-size: 35px 35px; }
+        @keyframes v511CelSparkles { 0%, 100% { opacity: 0; background-size: 0 35px; } 50% { opacity: 1; background-size: 35px 35px; } }
+        /* Particles: generic burst (palette dots expanding) */
+        .v511-theme-preview-stage.cel-particles > .v511-cel-fx-layer { animation: v511CelParticles var(--cel-cycle-dur, 1.4s) ease-out; background-image: radial-gradient(circle, var(--cel-pal-1, #66e0ff) 2px, transparent 2.5px); background-size: 22px 22px; transform-origin: center; }
+        @keyframes v511CelParticles { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
+        /* Particles: flame (warm gradient rising from bottom anchor) */
+        .v511-theme-preview-stage.cel-flame > .v511-cel-fx-layer { animation: v511CelFlame var(--cel-cycle-dur, 1.4s) ease-out; background: radial-gradient(ellipse at center bottom, #ff6b00 0%, #ffb347 35%, transparent 65%); mix-blend-mode: screen; }
+        @keyframes v511CelFlame { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 0.95; transform: scaleY(1) translateY(0); } 100% { opacity: 0; transform: scaleY(1.4) translateY(-40%); } }
+        /* Particles: glitch (digital corruption flicker) */
+        .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
+        @keyframes v511CelGlitch { 0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: translate(0); } 20% { filter: hue-rotate(90deg) saturate(2); transform: translate(-2px, 1px); } 40% { filter: hue-rotate(-90deg) saturate(2); transform: translate(2px, -1px); } 60% { filter: hue-rotate(180deg) saturate(2); transform: translate(-1px, 2px); } 80% { filter: hue-rotate(-45deg) saturate(2); transform: translate(1px, -2px); } }
+        /* Tier 4.2 — Library + sequence two-pane UI */
+        .v511-cel-builder { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 10px; }
+        @media (max-width: 720px) { .v511-cel-builder { grid-template-columns: 1fr; } }
+        .v511-cel-library, .v511-cel-sequence { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 8px 8px 10px; }
+        .v511-cel-library h4, .v511-cel-sequence h4 { margin: 4px 6px 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; justify-content: space-between; align-items: center; }
+        .v511-cel-sequence h4 .v511-cel-seq-count { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+        .v511-cel-lib-group { margin-bottom: 4px; }
+        .v511-cel-lib-group > summary { cursor: pointer; padding: 5px 8px; font-size: 12.5px; font-weight: 600; color: var(--text); list-style: revert; border-radius: 6px; }
+        .v511-cel-lib-group > summary:hover { background: rgba(255,255,255,0.03); }
+        .v511-cel-lib-items { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 4px 0 6px; }
+        .v511-cel-lib-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; cursor: grab; font-size: 11.5px; color: var(--text); font-family: inherit; text-align: left; }
+        .v511-cel-lib-item:hover { background: rgba(105,168,255,0.12); border-color: rgba(105,168,255,0.35); }
+        .v511-cel-lib-item:active { cursor: grabbing; }
+        .v511-cel-lib-item .icon { font-size: 14px; min-width: 14px; }
+        .v511-cel-lib-item.warn { border-color: rgba(232,176,74,0.4); }
+        .v511-cel-seq-list { display: flex; flex-direction: column; gap: 4px; min-height: 70px; padding: 2px; border-radius: 6px; }
+        .v511-cel-seq-list.drag-over { background: rgba(105,168,255,0.06); outline: 2px dashed rgba(105,168,255,0.4); outline-offset: -2px; }
+        .v511-cel-seq-empty { padding: 22px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
+        .v511-cel-seq-item { display: grid; grid-template-columns: auto auto 1fr auto auto auto; gap: 6px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; font-size: 11.5px; }
+        .v511-cel-seq-item:hover { background: rgba(255,255,255,0.06); }
+        .v511-cel-seq-item.dragging { opacity: 0.4; }
+        .v511-cel-seq-item .v511-cel-seq-drag { color: var(--muted); cursor: grab; user-select: none; padding: 0 2px; }
+        .v511-cel-seq-item .v511-cel-seq-num { color: var(--muted); min-width: 14px; font-variant-numeric: tabular-nums; font-size: 10px; }
+        .v511-cel-seq-item .v511-cel-seq-name { color: var(--text); display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .v511-cel-seq-item .v511-cel-seq-dur { width: 50px; padding: 2px 5px; background: rgba(0,0,0,0.3); color: var(--text); border: 1px solid rgba(255,255,255,0.14); border-radius: 5px; font-size: 11px; text-align: right; font-family: inherit; }
+        .v511-cel-seq-item .v511-cel-seq-dur-unit { color: var(--muted); font-size: 10.5px; }
+        .v511-cel-seq-item .v511-cel-seq-remove { background: transparent; color: var(--muted); border: none; cursor: pointer; font-size: 16px; padding: 0 4px; line-height: 1; }
+        .v511-cel-seq-item .v511-cel-seq-remove:hover { color: #f09595; }
+        .v511-cel-seq-item[data-effect="delay"] .v511-cel-seq-name { color: var(--muted); font-style: italic; }
+        .v511-cel-seq-item.full-warn { border-color: rgba(232,176,74,0.5); }
+        :root[data-theme="light"] .v511-cel-library, :root[data-theme="light"] .v511-cel-sequence { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-cel-lib-item, :root[data-theme="light"] .v511-cel-seq-item { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.12); color: var(--text); }
+        :root[data-theme="light"] .v511-cel-lib-item:hover { background: rgba(105,168,255,0.12); }
+        :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-dur { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.2); }
+        :root[data-theme="light"] .v511-cel-seq-empty { border-color: rgba(0,0,0,0.10); color: var(--muted); }
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
         .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
@@ -4760,6 +4847,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <!-- Tier 4.1.2 — celebration text overlay (was ::before; moved to a DOM element
                    so it can co-exist with the always-on palette gradient on ::before). -->
               <div class="v511-cel-text-overlay" aria-hidden="true"></div>
+              <!-- Tier 4.2 — generic celebration FX layer for the new sequence effects
+                   (confetti, sparkles, ripple, camera flash, spotlight, flame, etc.).
+                   z-index above content so overlay effects visibly cover the QR briefly. -->
+              <div class="v511-cel-fx-layer" aria-hidden="true"></div>
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">DETECTED SCAN RES: —</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
@@ -4932,78 +5023,72 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
                 </div>
 
-                <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(one-shot &mdash; fires on successful check-in)</span></div>
-                <div class="v511-hint" style="padding: 0 0 8px;">Tick the effects you want layered on a successful check-in. Each effect can be combined with others. Zero ticks = no celebration.</div>
-                <div class="v511-hint" style="padding: 0 0 8px;">Drag the ⠿ handle to reorder layers (first = bottom, last = top). Tick a box to enable + expand that effect's sub-settings.</div>
-                <div class="v511-celeb-grid" id="v511CelEffectsGrid">
-                  <div class="v511-celeb-effect" draggable="true" data-effect="pulse">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPulse" /><span class="v511-celeb-effect-name">Pulse</span><span class="v511-hint">Quiet coloured throb around the QR border.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Intensity</span><div class="v511-chips" data-chip-group="intensity"><button type="button" class="v511-chip" aria-pressed="true">Subtle</button><button type="button" class="v511-chip" aria-pressed="false">Strong</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Colour source</span><div class="v511-chips" data-chip-group="colourSource"><button type="button" class="v511-chip" aria-pressed="true">Single swatch</button><button type="button" class="v511-chip" aria-pressed="false">Cycle palette</button></div></div>
-                    </div>
+                <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(sequence-based — fires top-to-bottom on successful check-in)</span></div>
+                <div class="v511-hint" style="padding: 0 0 6px;">Drag effects from the <strong style="color:var(--text);">library</strong> into the <strong style="color:var(--text);">sequence</strong>. Each effect has its own duration. Insert <strong style="color:var(--text);">⏱ Delay</strong> rows to time gaps between effects. Max 10 items. Empty sequence = no celebration.</div>
+
+                <div class="v511-cel-builder">
+                  <div class="v511-cel-library">
+                    <h4>Library <span class="v511-hint-inline">(click or drag → sequence)</span></h4>
+
+                    <details class="v511-cel-lib-group">
+                      <summary>Light</summary>
+                      <div class="v511-cel-lib-items">
+                        <button type="button" class="v511-cel-lib-item" data-effect="glow"        draggable="true"><span class="icon">◉</span> Glow halo</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="outer-glow"  draggable="true"><span class="icon">◻</span> Outer edge glow</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="spotlight"   draggable="true"><span class="icon">☼</span> Spotlight</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="cam-flash"   draggable="true"><span class="icon">⚡</span> Camera flash</button>
+                        <button type="button" class="v511-cel-lib-item warn" data-effect="strobe" draggable="true" title="Photosensitive warning"><span class="icon">⚐</span> Strobe ⚠</button>
+                      </div>
+                    </details>
+
+                    <details class="v511-cel-lib-group">
+                      <summary>Motion</summary>
+                      <div class="v511-cel-lib-items">
+                        <button type="button" class="v511-cel-lib-item" data-effect="pulse"        draggable="true"><span class="icon">◎</span> Pulse</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="qr"           draggable="true"><span class="icon">↻</span> QR motion</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="qr-disappear" draggable="true"><span class="icon">✕</span> QR disappear</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="shake"        draggable="true"><span class="icon">↔</span> Shake</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="scale-punch"  draggable="true"><span class="icon">⤢</span> Scale punch</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="iris-wipe"    draggable="true"><span class="icon">◉</span> Iris wipe</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="ripple"       draggable="true"><span class="icon">◯</span> Ripple</button>
+                      </div>
+                    </details>
+
+                    <details class="v511-cel-lib-group">
+                      <summary>Particles</summary>
+                      <div class="v511-cel-lib-items">
+                        <button type="button" class="v511-cel-lib-item" data-effect="confetti"  draggable="true"><span class="icon">✦</span> Confetti drop</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="sparkles"  draggable="true"><span class="icon">✨</span> Sparkles</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="particles" draggable="true"><span class="icon">·</span> Particles</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="flame"     draggable="true"><span class="icon">🔥</span> Flame</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="glitch"    draggable="true"><span class="icon">▦</span> Glitch</button>
+                      </div>
+                    </details>
+
+                    <details class="v511-cel-lib-group">
+                      <summary>Surface</summary>
+                      <div class="v511-cel-lib-items">
+                        <button type="button" class="v511-cel-lib-item" data-effect="bg"          draggable="true"><span class="icon">▮</span> Background flash</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="cel-pattern" draggable="true"><span class="icon">▦</span> Pattern flash</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="text"        draggable="true"><span class="icon">A</span> Text overlay</button>
+                      </div>
+                    </details>
+
+                    <details class="v511-cel-lib-group" open>
+                      <summary>Timing</summary>
+                      <div class="v511-cel-lib-items">
+                        <button type="button" class="v511-cel-lib-item" data-effect="delay" draggable="true"><span class="icon">⏱</span> Delay</button>
+                      </div>
+                    </details>
                   </div>
 
-                  <div class="v511-celeb-effect" draggable="true" data-effect="bg">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffBg" /><span class="v511-celeb-effect-name">Background</span><span class="v511-hint">QR canvas cycles palette colours once behind the code.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Sweep</span><div class="v511-chips" data-chip-group="bgSweep"><button type="button" class="v511-chip" aria-pressed="true">Once</button><button type="button" class="v511-chip" aria-pressed="false">Three times</button></div></div>
-                    </div>
-                  </div>
-
-                  <div class="v511-celeb-effect" draggable="true" data-effect="qr">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffQr" /><span class="v511-celeb-effect-name">QR motion</span><span class="v511-hint">Wobble / zoom / dissolve / rotate.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Motion</span><div class="v511-chips v511-chips-wrap" data-chip-group="qrMotion"><button type="button" class="v511-chip" aria-pressed="true">Wobble</button><button type="button" class="v511-chip" aria-pressed="false">Zoom in</button><button type="button" class="v511-chip" aria-pressed="false">Zoom out</button><button type="button" class="v511-chip" aria-pressed="false">Rotate CW</button><button type="button" class="v511-chip" aria-pressed="false">Rotate CCW</button><button type="button" class="v511-chip" aria-pressed="false">Dissolve horz</button><button type="button" class="v511-chip" aria-pressed="false">Dissolve vert</button></div></div>
-                    </div>
-                  </div>
-
-                  <div class="v511-celeb-effect" draggable="true" data-effect="glow">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffGlow" checked /><span class="v511-celeb-effect-name">Glow</span><span class="v511-hint">Conic gradient ring sweep plus centre pulse.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Ring thickness</span><div class="v511-chips" data-chip-group="glowThickness"><button type="button" class="v511-chip" aria-pressed="false">Thin</button><button type="button" class="v511-chip" aria-pressed="true">Medium</button><button type="button" class="v511-chip" aria-pressed="false">Thick</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Sweep</span><div class="v511-chips" data-chip-group="glowSweep"><button type="button" class="v511-chip" aria-pressed="true">Outward</button><button type="button" class="v511-chip" aria-pressed="false">Inward</button><button type="button" class="v511-chip" aria-pressed="false">Rotate</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Centre pulse</span><div class="v511-chips" data-chip-group="glowCentre"><button type="button" class="v511-chip" aria-pressed="true">On</button><button type="button" class="v511-chip" aria-pressed="false">Off</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Saturation</span><div class="v511-chips" data-chip-group="glowSat"><button type="button" class="v511-chip" aria-pressed="false">Muted</button><button type="button" class="v511-chip" aria-pressed="true">Vivid</button><button type="button" class="v511-chip" aria-pressed="false">Hyper</button></div></div>
-                    </div>
-                  </div>
-
-                  <div class="v511-celeb-effect" draggable="true" data-effect="pattern">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffPattern" /><span class="v511-celeb-effect-name">Pattern</span><span class="v511-hint">Tiled pattern overlay flashes once.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Pattern</span><div class="v511-chips v511-chips-wrap" data-chip-group="patternPick"><button type="button" class="v511-chip" aria-pressed="true">Dots</button><button type="button" class="v511-chip" aria-pressed="false">Hex</button><button type="button" class="v511-chip" aria-pressed="false">Diagonal</button><button type="button" class="v511-chip" aria-pressed="false">Checker</button><button type="button" class="v511-chip" aria-pressed="false">Grid</button><button type="button" class="v511-chip" aria-pressed="false">Weave</button><button type="button" class="v511-chip" aria-pressed="false">Chevron</button><button type="button" class="v511-chip" aria-pressed="false">Isometric</button></div></div>
-                    </div>
-                  </div>
-
-                  <div class="v511-celeb-effect" draggable="true" data-effect="text">
-                    <div class="v511-celeb-effect-header">
-                      <span class="v511-drag-handle" title="Drag to reorder layer" aria-label="Drag to reorder">⠿</span><span class="v511-layer-num" aria-label="Layer position">1</span>
-                      <label class="v511-celeb-effect-summary"><input type="checkbox" id="v511CelEffText" /><span class="v511-celeb-effect-name">Text</span><span class="v511-hint">Large attendee name + action briefly displays on screen.</span></label>
-                    </div>
-                    <div class="v511-celeb-effect-body">
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Template</span><div class="v511-chips" data-chip-group="textTemplate"><button type="button" class="v511-chip" aria-pressed="true">Name only</button><button type="button" class="v511-chip" aria-pressed="false">Name + action</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Position</span><div class="v511-chips" data-chip-group="textPosition"><button type="button" class="v511-chip" aria-pressed="false">Top</button><button type="button" class="v511-chip" aria-pressed="true">Centre</button><button type="button" class="v511-chip" aria-pressed="false">Bottom</button></div></div>
-                      <div class="v511-effect-chip-group"><span class="v511-effect-chip-label">Size</span><div class="v511-chips" data-chip-group="textSize"><button type="button" class="v511-chip" aria-pressed="false">Small</button><button type="button" class="v511-chip" aria-pressed="true">Medium</button><button type="button" class="v511-chip" aria-pressed="false">Large</button></div></div>
-                    </div>
+                  <div class="v511-cel-sequence">
+                    <h4>Sequence <span class="v511-cel-seq-count" id="v511CelSeqCount">0 / 10</span></h4>
+                    <div class="v511-cel-seq-list" id="v511CelSeqList"></div>
+                    <div class="v511-cel-seq-empty" id="v511CelSeqEmpty">Drag effects here to build your celebration</div>
                   </div>
                 </div>
-                <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" id="v511CelDuration" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" id="v511CelDurationLabel" style="min-width: 40px;">1.4s</span></div>
-                <div class="v511-hint" style="margin-top: 10px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired. Outcome sound for the active mode lives in <strong style="color: var(--text);">Accept / Review / Deny behaviour</strong> below.</div>
+                <div class="v511-hint" style="margin-top: 10px;">Sample button at the top plays the sequence for the active mode. Outcome sound for the active mode lives in <strong style="color: var(--text);">Accept / Review / Deny behaviour</strong> below.</div>
                 </div>
               </details>
 
@@ -5397,35 +5482,62 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           }
 
-          // ---- Sample button: reads checked celebration effects, fires animation + tone ----
+          // ---- Sample button (Tier 4.2): plays the current mode's sequence ----
+          // All celebration effect classes that may be applied during playback.
+          var V511_ALL_CEL_CLASSES = [
+            'cel-pulse','cel-bg','cel-qr','cel-glow','cel-pattern','cel-text',
+            'cel-outer-glow','cel-spotlight','cel-cam-flash','cel-strobe',
+            'cel-shake','cel-scale-punch','cel-iris-wipe','cel-ripple','cel-qr-disappear',
+            'cel-confetti','cel-sparkles','cel-particles','cel-flame','cel-glitch'
+          ];
+          function v511ClearCelClasses() {
+            if (!sampleStage) return;
+            sampleStage.classList.remove.apply(sampleStage.classList, V511_ALL_CEL_CLASSES);
+          }
+          // Play the sequence top-to-bottom. Each effect gets its class added for
+          // its own duration, then removed. Delay items just wait the duration.
+          var v511PlayToken = 0;
+          function v511PlaySequence(sequence) {
+            if (!sampleStage) return Promise.resolve();
+            v511ClearCelClasses();
+            var myToken = ++v511PlayToken; // cancel any older in-flight play
+            var i = 0;
+            return new Promise(function (resolve) {
+              function step() {
+                if (myToken !== v511PlayToken) return resolve(); // superseded
+                if (!sequence || i >= sequence.length) return resolve();
+                var item = sequence[i++];
+                var durMs = Math.max(0, Math.round(parseFloat(item.duration || 0) * 1000));
+                if (item.effect === 'delay') {
+                  setTimeout(step, durMs);
+                  return;
+                }
+                var cls = 'cel-' + item.effect;
+                // Force animation duration to match this item's duration so the CSS
+                // keyframe runs exactly as long as the sequence step demands.
+                sampleStage.style.setProperty('--cel-cycle-dur', (durMs / 1000) + 's');
+                void sampleStage.offsetWidth;
+                sampleStage.classList.add(cls);
+                setTimeout(function () {
+                  sampleStage.classList.remove(cls);
+                  step();
+                }, durMs + 20); // small buffer for class teardown
+              }
+              step();
+            });
+          }
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              // Tier 4.1.13 — Read checked effects from the QR-customization block
-              // wherever it now lives in the DOM. Old `[data-v511-subpanel="qr"]`
-              // selector broke at T4.1.9 when sub-tabs were dropped; .v511-celeb-effect
-              // is unique enough on the page that a global query is safe and survives
-              // future restructures.
-              var effects = [];
-              document.querySelectorAll('.v511-celeb-effect input[type=checkbox]:checked').forEach(function (cb) {
-                var labelText = (cb.parentElement && cb.parentElement.textContent || '').trim().toLowerCase();
-                if (labelText.indexOf('pulse') === 0) effects.push('pulse');
-                else if (labelText.indexOf('background') === 0) effects.push('bg');
-                else if (labelText.indexOf('qr motion') === 0) effects.push('qr');
-                else if (labelText.indexOf('glow') === 0) effects.push('glow');
-                else if (labelText.indexOf('pattern') === 0) effects.push('cel-pattern');
-                else if (labelText.indexOf('text') === 0) effects.push('text');
-              });
-              // Clear previous firing state + effect classes
-              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny', 'cel-pulse', 'cel-bg', 'cel-qr', 'cel-glow', 'cel-pattern', 'cel-text');
-              void sampleStage.offsetWidth; // reflow to restart animations
+              v511ClearCelClasses();
+              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
+              void sampleStage.offsetWidth;
               sampleStage.classList.add('firing-' + outcome);
-              effects.forEach(function (e) { sampleStage.classList.add('cel-' + e); });
               playOutcomeTone(outcome);
-              // Auto-clear celebration effect classes after the cycle so they don't linger
-              var celDurEl = document.getElementById('v511CelDuration');
-              var celDur = celDurEl ? parseFloat(celDurEl.value) : 1.4;
-              setTimeout(function () { effects.forEach(function (e) { sampleStage.classList.remove('cel-' + e); }); }, celDur * 1000 + 200);
+              var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
+              v511PlaySequence(seq);
+              // Tier 4.2 — Auto-clear handled per-step inside v511PlaySequence.
+              // Old leftover global timeout retired.
             });
           }
 
@@ -5514,14 +5626,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'v511PaWelcome','v511PaRedirect','v511PaStaffRedirect',
             'v511PaDwell','v511PaFtVsR','v511PaTime','v511PaCal','v511PaEmail','v511PaSms'
           ];
-          // Tier 4.1.12 — Celebration palette is PER-MODE (Captain's call).
-          // Each mode gets its own swatch set keyed to the mode tint (greens for
-          // Allow, ambers for Review, reds for Deny). The palette tracks alongside
-          // the 16 form fields in modeStates via celPalette: [...colors] entries.
+          // Tier 4.2 — Per-mode state now includes a SEQUENCE of celebration items
+          // (effect + duration, or delay + duration). The Sample button plays the
+          // sequence top-to-bottom. Old checkbox fields kept on the object for
+          // migration compatibility but no longer rendered.
           var modeStates = {
-            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#c0dd97', '#8fbf6c', '#2d5016'] },
-            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#fac775', '#e8b04a', '#5a3e0c'] },
-            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#f09595', '#dc3545', '#5e1a1a'] }
+            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+              celPalette: ['#c0dd97', '#8fbf6c', '#2d5016'],
+              sequence: [ { effect: 'glow', duration: 1.4 }, { effect: 'text', duration: 1.4 } ]
+            },
+            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+              celPalette: ['#fac775', '#e8b04a', '#5a3e0c'],
+              sequence: [ { effect: 'pulse', duration: 1.8 } ]
+            },
+            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+              celPalette: ['#f09595', '#dc3545', '#5e1a1a'],
+              sequence: [ { effect: 'shake', duration: 0.6 }, { effect: 'delay', duration: 0.2 }, { effect: 'qr-disappear', duration: 0.8 } ]
+            }
           };
           var currentMode = 'allow';
 
@@ -5563,6 +5684,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
             // Tier 4.1.12 — capture celebration palette into the mode's state
             modeStates[mode].celPalette = snapshotCelPalette();
+            // Tier 4.2 — capture the sequence list as well
+            if (typeof v511ReadSequenceFromDom === 'function') {
+              modeStates[mode].sequence = v511ReadSequenceFromDom();
+            }
           }
           function loadMode(mode) {
             var state = modeStates[mode] || {};
@@ -5576,6 +5701,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
             // Tier 4.1.12 — rebuild celebration palette row for this mode
             if (Array.isArray(state.celPalette)) loadCelPaletteForMode(state.celPalette);
+            // Tier 4.2 — rebuild celebration sequence for this mode
+            if (typeof v511RenderSequence === 'function') {
+              v511RenderSequence(Array.isArray(state.sequence) ? state.sequence : []);
+            }
           }
           // Tier 4.1.1 — Apply mode to both the preview stage's data-mode AND the
           // settings panel's data-mode (so the panel tint + Editing badge update).
@@ -6066,6 +6195,177 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var imageEnable = document.getElementById('v511BgImageEnable');
           if (patternEnable) patternEnable.addEventListener('change', applyBgState);
           if (imageEnable) imageEnable.addEventListener('change', applyBgState);
+
+          // =====================================================================
+          // Tier 4.2 — Celebration animation: library + sequence builder.
+          // Captain's design: drag effects from library into sequence pane,
+          // each item has its own duration, ⏱ Delay items time gaps between.
+          // Sample plays the sequence top-to-bottom. Max 10 items.
+          // =====================================================================
+          var V511_CEL_SEQ_MAX = 10;
+          // Effects directory: keyed by effect id. label drives the sequence-item
+          // display; defaultDur is what a new drag-in gets; icon is the chip icon.
+          var V511_EFFECTS_LIBRARY = {
+            'glow':         { label: 'Glow halo',        icon: '◉', defaultDur: 1.4 },
+            'outer-glow':   { label: 'Outer edge glow',  icon: '◻', defaultDur: 1.4 },
+            'spotlight':    { label: 'Spotlight',        icon: '☼', defaultDur: 1.4 },
+            'cam-flash':    { label: 'Camera flash',     icon: '⚡', defaultDur: 0.4 },
+            'strobe':       { label: 'Strobe ⚠',         icon: '⚐', defaultDur: 0.8 },
+            'pulse':        { label: 'Pulse',            icon: '◎', defaultDur: 1.4 },
+            'qr':           { label: 'QR motion',        icon: '↻', defaultDur: 1.4 },
+            'qr-disappear': { label: 'QR disappear',     icon: '✕', defaultDur: 1.0 },
+            'shake':        { label: 'Shake',            icon: '↔', defaultDur: 0.6 },
+            'scale-punch':  { label: 'Scale punch',      icon: '⤢', defaultDur: 0.5 },
+            'iris-wipe':    { label: 'Iris wipe',        icon: '◉', defaultDur: 1.0 },
+            'ripple':       { label: 'Ripple',           icon: '◯', defaultDur: 1.2 },
+            'confetti':     { label: 'Confetti drop',    icon: '✦', defaultDur: 2.0 },
+            'sparkles':     { label: 'Sparkles',         icon: '✨', defaultDur: 1.4 },
+            'particles':    { label: 'Particles',        icon: '·', defaultDur: 1.4 },
+            'flame':        { label: 'Flame',            icon: '🔥', defaultDur: 1.4 },
+            'glitch':       { label: 'Glitch',           icon: '▦', defaultDur: 0.6 },
+            'bg':           { label: 'Background flash', icon: '▮', defaultDur: 1.4 },
+            'cel-pattern':  { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
+            'text':         { label: 'Text overlay',     icon: 'A', defaultDur: 1.4 },
+            'delay':        { label: '⏱ Delay',          icon: '⏱', defaultDur: 0.3 }
+          };
+
+          var v511CelSeqList = document.getElementById('v511CelSeqList');
+          var v511CelSeqCount = document.getElementById('v511CelSeqCount');
+          var v511CelSeqEmpty = document.getElementById('v511CelSeqEmpty');
+
+          // Render one sequence item (effect or delay) as a DOM row.
+          function v511RenderSequenceItem(item, idx) {
+            var meta = V511_EFFECTS_LIBRARY[item.effect] || { label: item.effect, icon: '?', defaultDur: 1.0 };
+            var row = document.createElement('div');
+            row.className = 'v511-cel-seq-item';
+            row.setAttribute('draggable', 'true');
+            row.setAttribute('data-effect', item.effect);
+            row.innerHTML =
+              '<span class="v511-cel-seq-drag" title="Drag to reorder">⠿</span>' +
+              '<span class="v511-cel-seq-num">' + (idx + 1) + '</span>' +
+              '<span class="v511-cel-seq-name"><span class="icon">' + meta.icon + '</span> ' + meta.label + '</span>' +
+              '<input type="number" class="v511-cel-seq-dur" min="0" max="10" step="0.1" value="' + (item.duration || meta.defaultDur) + '" />' +
+              '<span class="v511-cel-seq-dur-unit">s</span>' +
+              '<button type="button" class="v511-cel-seq-remove" title="Remove">×</button>';
+            return row;
+          }
+
+          function v511RenderSequence(sequence) {
+            if (!v511CelSeqList) return;
+            v511CelSeqList.innerHTML = '';
+            (sequence || []).forEach(function (item, idx) {
+              v511CelSeqList.appendChild(v511RenderSequenceItem(item, idx));
+            });
+            if (v511CelSeqEmpty) v511CelSeqEmpty.style.display = (sequence && sequence.length) ? 'none' : 'block';
+            if (v511CelSeqCount) v511CelSeqCount.textContent = (sequence ? sequence.length : 0) + ' / ' + V511_CEL_SEQ_MAX;
+          }
+
+          // Read sequence back from DOM (used by snapshotMode + save)
+          function v511ReadSequenceFromDom() {
+            var out = [];
+            if (!v511CelSeqList) return out;
+            v511CelSeqList.querySelectorAll('.v511-cel-seq-item').forEach(function (row) {
+              var effect = row.getAttribute('data-effect');
+              var durInput = row.querySelector('.v511-cel-seq-dur');
+              var dur = durInput ? parseFloat(durInput.value) : 1.0;
+              if (!isFinite(dur) || dur < 0) dur = 0;
+              out.push({ effect: effect, duration: dur });
+            });
+            return out;
+          }
+
+          // Append an effect to the sequence (called by library click + drop)
+          function v511AppendToSequence(effectId) {
+            var meta = V511_EFFECTS_LIBRARY[effectId];
+            if (!meta) return;
+            var current = v511ReadSequenceFromDom();
+            if (current.length >= V511_CEL_SEQ_MAX) {
+              alert('Sequence is full (max ' + V511_CEL_SEQ_MAX + ' items). Remove one first.');
+              return;
+            }
+            current.push({ effect: effectId, duration: meta.defaultDur });
+            v511RenderSequence(current);
+            if (modeStates[currentMode]) modeStates[currentMode].sequence = current;
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          }
+
+          // Library click → append. Library drag → handled via dragend below.
+          document.querySelectorAll('.v511-cel-lib-item').forEach(function (item) {
+            item.addEventListener('click', function () { v511AppendToSequence(item.getAttribute('data-effect')); });
+            item.addEventListener('dragstart', function (e) {
+              try { e.dataTransfer.setData('text/v511-effect', item.getAttribute('data-effect')); e.dataTransfer.effectAllowed = 'copy'; } catch (_) {}
+            });
+          });
+
+          // Drop from library OR reorder within sequence (HTML5 DnD)
+          if (v511CelSeqList) {
+            v511CelSeqList.addEventListener('dragover', function (e) {
+              e.preventDefault();
+              v511CelSeqList.classList.add('drag-over');
+            });
+            v511CelSeqList.addEventListener('dragleave', function (e) {
+              if (e.target === v511CelSeqList) v511CelSeqList.classList.remove('drag-over');
+            });
+            v511CelSeqList.addEventListener('drop', function (e) {
+              e.preventDefault();
+              v511CelSeqList.classList.remove('drag-over');
+              var libEffect = null;
+              try { libEffect = e.dataTransfer.getData('text/v511-effect'); } catch (_) {}
+              if (libEffect && V511_EFFECTS_LIBRARY[libEffect]) {
+                v511AppendToSequence(libEffect);
+              }
+            });
+
+            // Within-sequence drag-reorder + remove + duration edit
+            var draggedSeqItem = null;
+            v511CelSeqList.addEventListener('dragstart', function (e) {
+              var row = e.target.closest('.v511-cel-seq-item');
+              if (!row) return;
+              draggedSeqItem = row;
+              row.classList.add('dragging');
+              try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', ''); } catch (_) {}
+            });
+            v511CelSeqList.addEventListener('dragend', function (e) {
+              var row = e.target.closest('.v511-cel-seq-item');
+              if (row) row.classList.remove('dragging');
+              draggedSeqItem = null;
+              // Renumber + persist
+              v511CelSeqList.querySelectorAll('.v511-cel-seq-item .v511-cel-seq-num').forEach(function (n, i) { n.textContent = i + 1; });
+              if (modeStates[currentMode]) modeStates[currentMode].sequence = v511ReadSequenceFromDom();
+              if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+            });
+            v511CelSeqList.addEventListener('dragover', function (e) {
+              if (!draggedSeqItem) return;
+              var target = e.target.closest('.v511-cel-seq-item');
+              if (!target || target === draggedSeqItem) return;
+              var rect = target.getBoundingClientRect();
+              var before = e.clientY < rect.top + rect.height / 2;
+              v511CelSeqList.insertBefore(draggedSeqItem, before ? target : target.nextSibling);
+            });
+
+            v511CelSeqList.addEventListener('click', function (e) {
+              var rm = e.target.closest('.v511-cel-seq-remove');
+              if (rm) {
+                var row = rm.closest('.v511-cel-seq-item');
+                if (row) row.remove();
+                v511CelSeqList.querySelectorAll('.v511-cel-seq-item .v511-cel-seq-num').forEach(function (n, i) { n.textContent = i + 1; });
+                if (modeStates[currentMode]) modeStates[currentMode].sequence = v511ReadSequenceFromDom();
+                if (v511CelSeqEmpty) v511CelSeqEmpty.style.display = v511CelSeqList.children.length ? 'none' : 'block';
+                if (v511CelSeqCount) v511CelSeqCount.textContent = v511CelSeqList.children.length + ' / ' + V511_CEL_SEQ_MAX;
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+              }
+            });
+
+            v511CelSeqList.addEventListener('input', function (e) {
+              var dur = e.target.closest('.v511-cel-seq-dur');
+              if (dur && modeStates[currentMode]) {
+                modeStates[currentMode].sequence = v511ReadSequenceFromDom();
+              }
+            });
+          }
+
+          // Initial render for the active mode (Allow on boot)
+          v511RenderSequence((modeStates[currentMode] && modeStates[currentMode].sequence) || []);
 
           // Tier 4.1.11 — Mount the QR customization expander inside the Post-Accept
           // behaviour body at the marker div (right under Outcome sound / Replace).
