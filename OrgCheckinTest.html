@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.22</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.23</span></div>
   </div>
 </div>
 
@@ -4280,6 +4280,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Motion: scale punch (whole stage briefly zooms) */
         .v511-theme-preview-stage.cel-scale-punch { animation: v511CelScalePunch var(--cel-cycle-dur, 0.5s) ease-out; }
         @keyframes v511CelScalePunch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        /* T4.3.23 — Scale-punch zoom direction + intensity.
+           Zoom: in = scale up then back; out = scale down then back.
+           Intensity: subtle / medium / strong = how far we travel. */
+        @keyframes v511CelScalePunchInSubtle  { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+        @keyframes v511CelScalePunchInStrong  { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
+        @keyframes v511CelScalePunchOut       { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.94); } }
+        @keyframes v511CelScalePunchOutSubtle { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.975); } }
+        @keyframes v511CelScalePunchOutStrong { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.86); } }
+        .v511-theme-preview-stage.cel-scale-punch.cel-int-subtle { animation-name: v511CelScalePunchInSubtle; }
+        .v511-theme-preview-stage.cel-scale-punch.cel-int-strong { animation-name: v511CelScalePunchInStrong; }
+        .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"] { animation-name: v511CelScalePunchOut; }
+        .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"].cel-int-subtle { animation-name: v511CelScalePunchOutSubtle; }
+        .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"].cel-int-strong { animation-name: v511CelScalePunchOutStrong; }
         /* Motion: iris-wipe (circular reveal that closes then opens) */
         .v511-theme-preview-stage.cel-iris-wipe { animation: v511CelIrisWipe var(--cel-cycle-dur, 1s) ease-in-out; }
         /* Default = close-then-open: stage clips in to 25% then back out */
@@ -5650,7 +5663,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-text-pos','data-cel-text-size','data-cel-text-template',
             'data-cel-pattern-style','data-cel-density','data-cel-dir',
             'data-cel-axis','data-cel-count','data-cel-thickness',
-            'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse'
+            'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
+            'data-cel-zoom'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -5704,6 +5718,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.thickness) stage.setAttribute('data-cel-thickness', s.thickness);
             if (s.irisDir) stage.setAttribute('data-cel-iris-dir', s.irisDir);
             if (s.glitchKind) stage.setAttribute('data-cel-glitch-kind', s.glitchKind);
+            // T4.3.23 — Scale-punch zoom direction (in / out)
+            if (s.zoom) stage.setAttribute('data-cel-zoom', s.zoom);
             if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
             if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
             // Tier 4.3.11 — Glow halo sweep setting (outward / inward / rotate)
