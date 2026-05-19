@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.2</span></div>
   </div>
 </div>
 
@@ -4179,9 +4179,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 4.1.2 — Cel-text moved off ::before (which now permanently carries
            the palette gradient) onto a dedicated DOM element so the celebration
            text doesn't blow out the palette base while it fires. */
-        .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: var(--cel-pal-1, #fff); font-weight: 700; font-size: 2.6cqi; text-shadow: 0 1px 4px rgba(0,0,0,0.6); z-index: 4; opacity: 0; pointer-events: none; }
+        /* Tier 4.3.2 — Text overlay z-index BUMPED to 6 so it sits above content
+           (z-4) and the cel-fx-layer (z-5). Caption was visually masking it. */
+        .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 4cqi; text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); z-index: 6; opacity: 0; pointer-events: none; }
         .v511-cel-text-overlay::before { content: 'Welcome back!'; }
         .v511-theme-preview-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        /* Text overlay setting variants */
+        .v511-theme-preview-stage[data-cel-text-pos="top"]    .v511-cel-text-overlay { top: 3cqi; bottom: auto; }
+        .v511-theme-preview-stage[data-cel-text-pos="centre"] .v511-cel-text-overlay { top: 50%; bottom: auto; transform: translateY(-50%); }
+        .v511-theme-preview-stage[data-cel-text-pos="bottom"] .v511-cel-text-overlay { bottom: 3cqi; top: auto; }
+        .v511-theme-preview-stage[data-cel-text-size="small"]  .v511-cel-text-overlay { font-size: 2.4cqi; }
+        .v511-theme-preview-stage[data-cel-text-size="medium"] .v511-cel-text-overlay { font-size: 4cqi; }
+        .v511-theme-preview-stage[data-cel-text-size="large"]  .v511-cel-text-overlay { font-size: 6cqi; }
+        .v511-theme-preview-stage[data-cel-text-template="name"]            .v511-cel-text-overlay::before { content: 'Welcome, Kerry!'; }
+        .v511-theme-preview-stage[data-cel-text-template="name + action"]   .v511-cel-text-overlay::before { content: 'Kerry — checked in'; }
+        .v511-theme-preview-stage[data-cel-text-template="welcome"]         .v511-cel-text-overlay::before { content: 'Welcome back!'; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 4.1 — Background celebration: a real overlay flashes through the
            celebration palette colours (--cel-pal-1..3) so changing the celebration
@@ -4245,18 +4257,36 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Motion: qr-disappear (QR fades + shrinks to nothing then back) */
         .v511-theme-preview-stage.cel-qr-disappear .v511-theme-preview-qr { animation: v511CelQrDisappear var(--cel-cycle-dur, 1s) ease-in-out; }
         @keyframes v511CelQrDisappear { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0; transform: scale(0.2); } }
-        /* Particles: confetti drop (palette particles falling) */
-        .v511-theme-preview-stage.cel-confetti > .v511-cel-fx-layer { animation: v511CelConfetti var(--cel-cycle-dur, 2s) linear; background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px), radial-gradient(circle, var(--cel-pal-2, var(--cel-pal-1, #fac775)) 3px, transparent 3.5px); background-size: 35px 35px, 50px 50px; background-position: 0 -100%, 20px -100%; background-repeat: repeat-x; opacity: 1; }
-        @keyframes v511CelConfetti { 0% { background-position: 0 -100%, 20px -100%; } 100% { background-position: 0 200%, 20px 200%; } }
-        /* Particles: sparkles (twinkling small dots) */
-        .v511-theme-preview-stage.cel-sparkles > .v511-cel-fx-layer { animation: v511CelSparkles var(--cel-cycle-dur, 1.4s) ease-in-out; background-image: radial-gradient(circle, #fff 1.5px, transparent 2px); background-size: 35px 35px; }
-        @keyframes v511CelSparkles { 0%, 100% { opacity: 0; background-size: 0 35px; } 50% { opacity: 1; background-size: 35px 35px; } }
+        /* Particles: confetti — full-area cascade (repeat both axes) so multiple
+           rows are visible at once and scroll downward smoothly. Tier 4.3.2. */
+        .v511-theme-preview-stage.cel-confetti > .v511-cel-fx-layer { animation: v511CelConfetti var(--cel-cycle-dur, 2s) linear; background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px), radial-gradient(circle, var(--cel-pal-2, var(--cel-pal-1, #fac775)) 3px, transparent 3.5px); background-size: 35px 35px, 50px 50px; background-repeat: repeat; opacity: 1; }
+        @keyframes v511CelConfetti { 0% { background-position: 0 0, 20px 0; } 100% { background-position: 0 35px, 20px 50px; } }
+        /* Direction settings — same animation, reversed direction (up) or sideways */
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="b"]  > .v511-cel-fx-layer,
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="bl"] > .v511-cel-fx-layer,
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="br"] > .v511-cel-fx-layer { animation: v511CelConfettiUp var(--cel-cycle-dur, 2s) linear; }
+        @keyframes v511CelConfettiUp { 0% { background-position: 0 35px, 20px 50px; } 100% { background-position: 0 0, 20px 0; } }
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="l"]  > .v511-cel-fx-layer { animation: v511CelConfettiR var(--cel-cycle-dur, 2s) linear; }
+        @keyframes v511CelConfettiR { 0% { background-position: 0 0, 20px 0; } 100% { background-position: 35px 0, 70px 0; } }
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="r"]  > .v511-cel-fx-layer { animation: v511CelConfettiL var(--cel-cycle-dur, 2s) linear; }
+        @keyframes v511CelConfettiL { 0% { background-position: 35px 0, 70px 0; } 100% { background-position: 0 0, 20px 0; } }
+        /* Particles: sparkles (twinkling small dots) — repeat both axes */
+        .v511-theme-preview-stage.cel-sparkles > .v511-cel-fx-layer { animation: v511CelSparkles var(--cel-cycle-dur, 1.4s) ease-in-out; background-image: radial-gradient(circle, #fff 1.5px, transparent 2px); background-size: 35px 35px; background-repeat: repeat; }
+        @keyframes v511CelSparkles { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1); } }
+        /* Sparkles direction = drift */
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="t"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUp; }
+        @keyframes v511CelSparklesDriftUp { 0% { opacity: 0; background-position: 0 50px; } 50% { opacity: 1; background-position: 0 25px; } 100% { opacity: 0; background-position: 0 0; } }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="b"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDn; }
+        @keyframes v511CelSparklesDriftDn { 0% { opacity: 0; background-position: 0 0; } 50% { opacity: 1; background-position: 0 25px; } 100% { opacity: 0; background-position: 0 50px; } }
         /* Particles: generic burst (palette dots expanding) */
         .v511-theme-preview-stage.cel-particles > .v511-cel-fx-layer { animation: v511CelParticles var(--cel-cycle-dur, 1.4s) ease-out; background-image: radial-gradient(circle, var(--cel-pal-1, #66e0ff) 2px, transparent 2.5px); background-size: 22px 22px; transform-origin: center; }
         @keyframes v511CelParticles { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
-        /* Particles: flame (warm gradient rising from bottom anchor) */
+        /* Particles: flame (warm gradient rising from bottom anchor by default) */
         .v511-theme-preview-stage.cel-flame > .v511-cel-fx-layer { animation: v511CelFlame var(--cel-cycle-dur, 1.4s) ease-out; background: radial-gradient(ellipse at center bottom, #ff6b00 0%, #ffb347 35%, transparent 65%); mix-blend-mode: screen; }
         @keyframes v511CelFlame { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 0.95; transform: scaleY(1) translateY(0); } 100% { opacity: 0; transform: scaleY(1.4) translateY(-40%); } }
+        /* Tier 4.3.2 — Flame anchored to image position (uses --bg-image-pos
+           which the image-overlay grid sets). Rises from wherever the image is. */
+        .v511-theme-preview-stage.cel-flame.cel-flame-anchor-image > .v511-cel-fx-layer { background: radial-gradient(ellipse at var(--bg-image-pos, center bottom), #ff6b00 0%, #ffb347 35%, transparent 65%); }
         /* Particles: glitch (digital corruption flicker) */
         .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
         @keyframes v511CelGlitch { 0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: translate(0); } 20% { filter: hue-rotate(90deg) saturate(2); transform: translate(-2px, 1px); } 40% { filter: hue-rotate(-90deg) saturate(2); transform: translate(2px, -1px); } 60% { filter: hue-rotate(180deg) saturate(2); transform: translate(-1px, 2px); } 80% { filter: hue-rotate(-45deg) saturate(2); transform: translate(1px, -2px); } }
@@ -4315,9 +4345,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-cel-settings-empty { border-color: rgba(0,0,0,0.10); }
         :root[data-theme="light"] .v511-cel-dir9-cell { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.12); color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-cel-dir9-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); color: #185fa5; }
-        /* Tier 2 — Pattern celebration: pattern overlay flashes once */
-        .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
-        @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+        /* Tier 4.3.2 — Pattern celebration moved from ::after (which was clobbering
+           the image overlay layer) to .v511-cel-fx-layer so it can co-exist with
+           Image overlay without interfering. Pattern style is selectable. */
+        .v511-theme-preview-stage.cel-pattern > .v511-cel-fx-layer { animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.7)) 2px, transparent 2.4px); background-size: 14px 14px; background-repeat: repeat; }
+        @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.7; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
+        /* Pattern style variants (read from data-cel-pattern-style) */
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="hex"]      > .v511-cel-fx-layer { background-image: radial-gradient(circle at 50% 0%, var(--cel-pal-1, #fff) 2px, transparent 2.4px), radial-gradient(circle at 0% 50%, var(--cel-pal-1, #fff) 2px, transparent 2.4px), radial-gradient(circle at 100% 50%, var(--cel-pal-1, #fff) 2px, transparent 2.4px); background-size: 28px 28px; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="diag"]     > .v511-cel-fx-layer { background-image: repeating-linear-gradient(45deg, transparent 0 6px, var(--cel-pal-1, rgba(255,255,255,0.5)) 6px 8px); background-size: auto; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="checker"]  > .v511-cel-fx-layer { background-image: linear-gradient(45deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 25%, transparent 25%, transparent 75%, var(--cel-pal-1, rgba(255,255,255,0.45)) 75%), linear-gradient(45deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 25%, transparent 25%, transparent 75%, var(--cel-pal-1, rgba(255,255,255,0.45)) 75%); background-size: 24px 24px; background-position: 0 0, 12px 12px; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="grid"]     > .v511-cel-fx-layer { background-image: linear-gradient(var(--cel-pal-1, rgba(255,255,255,0.4)) 1px, transparent 1px), linear-gradient(90deg, var(--cel-pal-1, rgba(255,255,255,0.4)) 1px, transparent 1px); background-size: 20px 20px; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="weave"]    > .v511-cel-fx-layer { background-image: linear-gradient(90deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 50%, transparent 50%), linear-gradient(var(--cel-pal-1, rgba(255,255,255,0.45)) 50%, transparent 50%); background-size: 12px 12px; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="chevron"]  > .v511-cel-fx-layer { background-image: linear-gradient(135deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 25%, transparent 25%), linear-gradient(225deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 25%, transparent 25%); background-size: 16px 16px; }
+        .v511-theme-preview-stage.cel-pattern[data-cel-pattern-style="iso"]      > .v511-cel-fx-layer { background-image: linear-gradient(30deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 12%, transparent 12.5%), linear-gradient(150deg, var(--cel-pal-1, rgba(255,255,255,0.45)) 12%, transparent 12.5%); background-size: 22px 38px; }
         /* Tier 4.1.2 — Image bg overlay now lives on ::after so the palette
            cycle on ::before is always visible underneath. Drives:
              --bg-image-url        url(...) data URL from upload
@@ -5520,9 +5560,53 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'cel-shake','cel-scale-punch','cel-iris-wipe','cel-ripple','cel-qr-disappear',
             'cel-confetti','cel-sparkles','cel-particles','cel-flame','cel-glitch'
           ];
+          var V511_SETTING_CLASSES = [
+            'cel-int-subtle','cel-int-medium','cel-int-strong',
+            'cel-bounce-eff-bounce','cel-bounce-eff-loop',
+            'cel-flame-anchor-image'
+          ];
+          var V511_SETTING_ATTRS = [
+            'data-cel-text-pos','data-cel-text-size','data-cel-text-template',
+            'data-cel-pattern-style','data-cel-density','data-cel-dir',
+            'data-cel-axis','data-cel-count','data-cel-thickness',
+            'data-cel-iris-dir','data-cel-glitch-kind'
+          ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
             sampleStage.classList.remove.apply(sampleStage.classList, V511_ALL_CEL_CLASSES);
+            sampleStage.classList.remove.apply(sampleStage.classList, V511_SETTING_CLASSES);
+            V511_SETTING_ATTRS.forEach(function (a) { sampleStage.removeAttribute(a); });
+          }
+          // Tier 4.3.2 — Apply per-item settings as stage attributes / classes
+          // BEFORE the effect class fires, so CSS rules keyed on data-* / cel-int-*
+          // pick them up. Each effect's setting schema maps to one or more of
+          // these stage hooks; CSS rules read them and adjust the keyframe inputs.
+          function v511ApplyItemSettings(stage, item) {
+            if (!stage || !item || !item.settings) return;
+            var s = item.settings;
+            if (item.effect === 'qr' && s.variant) {
+              stage.setAttribute('data-qr-motion', String(s.variant).replace(/\s+/g, '-'));
+            }
+            if (item.effect === 'text') {
+              if (s.position) stage.setAttribute('data-cel-text-pos', s.position);
+              if (s.size) stage.setAttribute('data-cel-text-size', s.size);
+              if (s.template) stage.setAttribute('data-cel-text-template', s.template);
+            }
+            if (item.effect === 'pattern' && s.pattern) {
+              stage.setAttribute('data-cel-pattern-style', s.pattern);
+            }
+            if (item.effect === 'flame' && s.direction9 === 'image-anchor') {
+              stage.classList.add('cel-flame-anchor-image');
+            }
+            if (s.direction9) stage.setAttribute('data-cel-dir', s.direction9);
+            if (s.axis) stage.setAttribute('data-cel-axis', s.axis);
+            if (s.density) stage.setAttribute('data-cel-density', s.density);
+            if (s.count) stage.setAttribute('data-cel-count', s.count);
+            if (s.thickness) stage.setAttribute('data-cel-thickness', s.thickness);
+            if (s.irisDir) stage.setAttribute('data-cel-iris-dir', s.irisDir);
+            if (s.glitchKind) stage.setAttribute('data-cel-glitch-kind', s.glitchKind);
+            if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
+            if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
           }
           // Play the sequence top-to-bottom. Each effect gets its class added for
           // its own duration, then removed. Delay items just wait the duration.
@@ -5547,6 +5631,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var effectKey = item.effect === 'cel-pattern' ? 'pattern' : item.effect;
                 var cls = 'cel-' + effectKey;
                 sampleStage.style.setProperty('--cel-cycle-dur', (durMs / 1000) + 's');
+                // Tier 4.3.2 — translate item.settings into stage attrs/classes
+                v511ApplyItemSettings(sampleStage, item);
                 void sampleStage.offsetWidth;
                 sampleStage.classList.add(cls);
                 setTimeout(function () {
@@ -6440,10 +6526,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'scale-punch':  [ SETTING_INTENSITY, SETTING_DIR_ZOOM, SETTING_BOUNCE ],
             'iris-wipe':    [ { key: 'irisDir', label: 'Direction', options: ['close-then-open','open-then-close','close only','open only'], default: 'close-then-open' } ],
             'ripple':       [ SETTING_THICKNESS, SETTING_COUNT(3), SETTING_COLOUR ],
-            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR ],
-            'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY ],
+            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR, SETTING_DIR9 ],
+            'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
-            'flame':        [ SETTING_INTENSITY, SETTING_DIR9 ],
+            'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' } ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
