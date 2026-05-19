@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.7</span></div>
   </div>
 </div>
 
@@ -5582,8 +5582,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // pick them up. Each effect's setting schema maps to one or more of
           // these stage hooks; CSS rules read them and adjust the keyframe inputs.
           function v511ApplyItemSettings(stage, item) {
-            if (!stage || !item || !item.settings) return;
-            var s = item.settings;
+            // Tier 4.3.7 — Don't bail on missing settings. Some logic (text-content
+            // piping from custom welcome message) needs to run regardless of
+            // whether the user has touched any chips for this item.
+            if (!stage || !item) return;
+            var s = item.settings || {};
             if (item.effect === 'qr' && s.variant) {
               stage.setAttribute('data-qr-motion', String(s.variant).replace(/\s+/g, '-'));
             }
@@ -6379,6 +6382,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             row.className = 'v511-cel-seq-item';
             row.setAttribute('draggable', 'true');
             row.setAttribute('data-effect', item.effect);
+            // Tier 4.3.7 — stable ID per item so settings survive save-rebuild
+            if (!item.id) item.id = 'seq_' + Math.random().toString(36).slice(2, 10);
+            row.setAttribute('data-seq-id', item.id);
             row.innerHTML =
               '<span class="v511-cel-seq-drag" title="Drag to reorder">⠿</span>' +
               '<span class="v511-cel-seq-num">' + (idx + 1) + '</span>' +
@@ -6400,15 +6406,27 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
 
           // Read sequence back from DOM (used by snapshotMode + save)
+          // Tier 4.3.7 — Settings are preserved across saves by matching DOM rows
+          // back to the current modeStates sequence via data-seq-id. The old version
+          // built every item fresh from row data and silently dropped item.settings,
+          // so any chip selection vanished after the 300ms debounced save fired.
           function v511ReadSequenceFromDom() {
             var out = [];
             if (!v511CelSeqList) return out;
+            var existing = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+            var byId = {};
+            existing.forEach(function (it) { if (it && it.id) byId[it.id] = it; });
             v511CelSeqList.querySelectorAll('.v511-cel-seq-item').forEach(function (row) {
               var effect = row.getAttribute('data-effect');
               var durInput = row.querySelector('.v511-cel-seq-dur');
               var dur = durInput ? parseFloat(durInput.value) : 1.0;
               if (!isFinite(dur) || dur < 0) dur = 0;
-              out.push({ effect: effect, duration: dur });
+              var id = row.getAttribute('data-seq-id') || ('seq_' + Math.random().toString(36).slice(2, 10));
+              row.setAttribute('data-seq-id', id);
+              var newItem = { id: id, effect: effect, duration: dur };
+              var prev = byId[id];
+              if (prev && prev.settings) newItem.settings = prev.settings;
+              out.push(newItem);
             });
             return out;
           }
@@ -6422,7 +6440,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               alert('Sequence is full (max ' + V511_CEL_SEQ_MAX + ' items). Remove one first.');
               return;
             }
-            current.push({ effect: effectId, duration: meta.defaultDur });
+            // Tier 4.3.7 — assign stable ID so settings survive save-rebuild
+            current.push({ id: 'seq_' + Math.random().toString(36).slice(2, 10), effect: effectId, duration: meta.defaultDur });
             v511RenderSequence(current);
             if (modeStates[currentMode]) modeStates[currentMode].sequence = current;
             if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
