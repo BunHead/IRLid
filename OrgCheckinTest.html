@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.11</span></div>
   </div>
 </div>
 
@@ -3822,7 +3822,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anim-row--stacked { align-items: flex-start; }
         .v511-anim-row--stacked > label { padding-top: 6px; }
         .v511-bg-pos-controls { flex: 1; display: flex; flex-direction: column; gap: 10px; }
-        .v511-bg-pos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 320px; max-width: 100%; }
+        /* Tier 4.1.11 — Image-position grid shrunk to match the cycle-direction grid (56px cells). */
+        .v511-bg-pos-grid { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 4px; }
         .v511-bg-pos-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: background 0.15s, border-color 0.15s, transform 0.15s; aspect-ratio: 1; }
         .v511-bg-pos-cell:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); }
         .v511-bg-pos-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); transform: scale(1.04); }
@@ -4787,7 +4788,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                are now top-level expanders. Pattern + Image each carry their
                own enable checkbox in the summary — the Overlay dropdown was
                that toggle in disguise. -->
-                <details class="v511-expander" open>
+                <details class="v511-expander">
                   <summary>Background <span class="v511-hint-inline">(palette + cycle motion — always active under every overlay)</span></summary>
                   <div class="v511-expander-body">
                     <div class="v511-sub" style="margin-top: 0;">Background palette <span class="v511-hint-inline">(up to 7 colours; one swatch = solid colour, two or more = cycle)</span></div>
@@ -4821,11 +4822,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                         <button type="button" class="v511-cycle-dir-cell" data-dir="br" aria-label="From bottom-right" aria-pressed="false">↖</button>
                       </div>
                     </div>
-                    <div class="v511-anim-row"><label for="v511BgBounce">Bounce</label>
-                      <label class="v511-toggle" style="display: inline-flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="v511BgBounce" checked />
-                        <span class="v511-hint">On = colours sweep back and forth. Off = continuous loop in one direction.</span>
-                      </label>
+                    <!-- Tier 4.1.11 — Bounce as a chip group (matches the Transition chip style). -->
+                    <div class="v511-anim-row"><label>Bounce</label>
+                      <div class="v511-chips" data-chip-group="bgBounce">
+                        <button type="button" class="v511-chip" aria-pressed="true" data-bounce="on">On <span class="v511-hint-inline">(sweep back &amp; forth)</span></button>
+                        <button type="button" class="v511-chip" aria-pressed="false" data-bounce="off">Off <span class="v511-hint-inline">(one-way loop)</span></button>
+                      </div>
                     </div>
                     <div class="v511-anim-row"><label>Transition</label>
                       <div class="v511-chips" data-chip-group="bgCycleTrans">
@@ -4837,17 +4839,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
                     <!-- Tier 4.1.10 — Pattern + Image overlays nested INSIDE Background body
                          (they're variants of "what overlays on top of the palette"). -->
+                    <!-- Tier 4.1.11 — Image overlay moved ABOVE Pattern overlay per Captain
+                         (pattern is suppressed when another overlay is active, so Image
+                         takes the precedence slot visually too). -->
                     <details class="v511-expander" style="margin-top: 14px;">
-                      <summary>
-                        <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgPatternEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
-                        Pattern overlay <span class="v511-hint-inline">(tile a CSS pattern on top of the palette)</span>
-                      </summary>
-                  <div class="v511-expander-body">
-                    <div class="v511-anim-row"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
-                      </div>
-                    </details>
-
-                    <details class="v511-expander">
                       <summary>
                         <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgImageEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
                         Image overlay <span class="v511-hint-inline">(branded image with position / symmetry / scale)</span>
@@ -4899,7 +4894,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     </div>
                   </div>
                     </details>
-                    <!-- Tier 4.1.10 — End of Pattern + Image overlays nested under Background -->
+
+                    <details class="v511-expander">
+                      <summary>
+                        <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgPatternEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
+                        Pattern overlay <span class="v511-hint-inline">(tile a CSS pattern on top of the palette)</span>
+                      </summary>
+                      <div class="v511-expander-body">
+                        <div class="v511-anim-row"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
+                      </div>
+                    </details>
+                    <!-- Tier 4.1.10 — End of Image + Pattern overlays nested under Background -->
                   </div>
                 </details>
 
@@ -4998,12 +5003,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   </div>
                 </div>
                 <div class="v511-anim-row" style="margin-top: 12px;"><label>Cycle duration</label><input type="range" id="v511CelDuration" min="0.5" max="5" step="0.1" value="1.4" /><span class="v511-hint" id="v511CelDurationLabel" style="min-width: 40px;">1.4s</span></div>
-                <div class="v511-hint" style="margin-top: 10px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired. Outcome sound for the active mode lives in <strong style="color: var(--text);">Post-Accept/Review/Deny Behaviour</strong> below.</div>
+                <div class="v511-hint" style="margin-top: 10px;">Sample button at the top fires sound + visual together for the active mode. Per-section Preview buttons retired. Outcome sound for the active mode lives in <strong style="color: var(--text);">Accept / Review / Deny behaviour</strong> below.</div>
                 </div>
               </details>
 
           <details class="v511-expander">
-            <summary><span id="v511PostAcceptSummary">Post-Accept behaviour</span> <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></summary>
+            <summary><span id="v511PostAcceptSummary">Accept behaviour</span> <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></summary>
             <div class="v511-expander-body">
               <div class="v511-sub" style="margin-top: 0;">Outcome sound <span class="v511-hint-inline">(played when this mode fires; same file fired by Sample button at top)</span></div>
               <div class="v511-wav-slot" id="v511ActiveWavSlot" style="margin-bottom: 14px;">
@@ -5013,16 +5018,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <input type="file" id="v511WavUpload" accept="audio/wav,audio/mpeg,audio/ogg,audio/*" style="display: none;" />
                 <button type="button" class="v511-btn v511-btn-mini" id="v511WavReplaceBtn">Replace</button>
               </div>
-              <div class="v511-row"><label for="v511PaWelcome">Custom welcome message</label><textarea id="v511PaWelcome" placeholder="Welcome to the studio."></textarea></div>
-              <div class="v511-row"><label for="v511PaRedirect">Post-accept redirect</label><input type="url" id="v511PaRedirect" placeholder="https://example.com/welcome" /></div>
-              <div class="v511-row"><label for="v511PaStaffRedirect">Staff post-accept redirect</label><input type="url" id="v511PaStaffRedirect" placeholder="e.g. https://example.com/staff-page" /></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaDwell">Dwell time before redirect</label><div><select id="v511PaDwell" disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaFtVsR">First-time vs returning</label><div><input type="checkbox" id="v511PaFtVsR" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaTime">Time-aware greeting</label><div><input type="checkbox" id="v511PaTime" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaCal">Add to calendar</label><div><input type="checkbox" id="v511PaCal" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaEmail">Email confirmation</label><div><select id="v511PaEmail" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-row" style="opacity: 0.6;"><label for="v511PaSms">SMS confirmation</label><div><select id="v511PaSms" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-              <div class="v511-hint" style="margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">Receipts themselves are downloadable at <strong style="color: var(--text);">irlid.co.uk/check.html</strong> — they don't live on this page.</div>
+              <!-- Tier 4.1.11 — QR customization mounts HERE (right under Outcome sound)
+                   via JS at init. Marker div anchors the insertion point. -->
+              <div id="v511QrCustMountPoint"></div>
+
+              <!-- Tier 4.1.11 — Remaining post-accept settings grouped into a "Post" sub-expander -->
+              <details class="v511-expander" style="margin-top: 14px;">
+                <summary>Post <span class="v511-hint-inline">(welcome message, redirect, dwell, calendar / email / SMS confirmations)</span></summary>
+                <div class="v511-expander-body">
+                  <div class="v511-row"><label for="v511PaWelcome">Custom welcome message</label><textarea id="v511PaWelcome" placeholder="Welcome to the studio."></textarea></div>
+                  <div class="v511-row"><label for="v511PaRedirect">Post-accept redirect</label><input type="url" id="v511PaRedirect" placeholder="https://example.com/welcome" /></div>
+                  <div class="v511-row"><label for="v511PaStaffRedirect">Staff post-accept redirect</label><input type="url" id="v511PaStaffRedirect" placeholder="e.g. https://example.com/staff-page" /></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaDwell">Dwell time before redirect</label><div><select id="v511PaDwell" disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaFtVsR">First-time vs returning</label><div><input type="checkbox" id="v511PaFtVsR" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaTime">Time-aware greeting</label><div><input type="checkbox" id="v511PaTime" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaCal">Add to calendar</label><div><input type="checkbox" id="v511PaCal" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaEmail">Email confirmation</label><div><select id="v511PaEmail" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaSms">SMS confirmation</label><div><select id="v511PaSms" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-hint" style="margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">Receipts themselves are downloadable at <strong style="color: var(--text);">irlid.co.uk/check.html</strong> — they don't live on this page.</div>
+                </div>
+              </details>
             </div>
           </details>
 
@@ -5298,9 +5313,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var postAcceptSummary = document.getElementById('v511PostAcceptSummary');
 
           var MODE_LABELS = {
-            allow:  { label: 'ACTIVE MODE: ALLOW',  wavName: 'Allow',  wavFile: 'allow.wav',  iconChar: '✓', iconBg: 'rgba(99,153,34,0.25)',  iconColor: '#c0dd97', expanderTitle: 'Post-Accept behaviour', tone: { freq: 880, dur: 0.18, type: 'sine' } },
-            review: { label: 'ACTIVE MODE: REVIEW', wavName: 'Review', wavFile: 'review.wav', iconChar: '?', iconBg: 'rgba(186,117,23,0.25)', iconColor: '#fac775', expanderTitle: 'Post-Review behaviour', tone: { freq: 440, dur: 0.25, type: 'sine' } },
-            deny:   { label: 'ACTIVE MODE: DENY',   wavName: 'Deny',   wavFile: 'deny.wav',   iconChar: '×', iconBg: 'rgba(226,75,74,0.25)',  iconColor: '#f09595', expanderTitle: 'Post-Deny behaviour', tone: { freq: 220, dur: 0.4,  type: 'sawtooth' } }
+            allow:  { label: 'ACTIVE MODE: ALLOW',  wavName: 'Allow',  wavFile: 'allow.wav',  iconChar: '✓', iconBg: 'rgba(99,153,34,0.25)',  iconColor: '#c0dd97', expanderTitle: 'Accept behaviour', tone: { freq: 880, dur: 0.18, type: 'sine' } },
+            review: { label: 'ACTIVE MODE: REVIEW', wavName: 'Review', wavFile: 'review.wav', iconChar: '?', iconBg: 'rgba(186,117,23,0.25)', iconColor: '#fac775', expanderTitle: 'Review behaviour', tone: { freq: 440, dur: 0.25, type: 'sine' } },
+            deny:   { label: 'ACTIVE MODE: DENY',   wavName: 'Deny',   wavFile: 'deny.wav',   iconChar: '×', iconBg: 'rgba(226,75,74,0.25)',  iconColor: '#f09595', expanderTitle: 'Deny behaviour', tone: { freq: 220, dur: 0.4,  type: 'sawtooth' } }
           };
 
           function applyActiveMode(mode) {
@@ -5961,6 +5976,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               sampleStage.classList.remove('bg-trans-fade', 'bg-trans-snap');
               sampleStage.classList.add('bg-trans-' + trans);
             }
+            // Tier 4.1.11 — Bounce chip group (On / Off)
+            if (groupKey === 'bgBounce' && sampleStage) {
+              var bounce = chip.getAttribute('data-bounce') || 'on';
+              sampleStage.classList.remove('bg-bounce-on', 'bg-bounce-off');
+              sampleStage.classList.add('bg-bounce-' + bounce);
+            }
             if (groupKey === 'qrMotion' && sampleStage) {
               var motionKey = chip.textContent.toLowerCase().trim().replace(/\s+/g, '-');
               sampleStage.setAttribute('data-qr-motion', motionKey);
@@ -5998,15 +6019,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             sampleStage.classList.add('bg-dir-' + dir);
           });
 
-          // Tier 4.1.9 — Bounce toggle (alternate vs normal animation-direction)
-          var bounceToggle = document.getElementById('v511BgBounce');
-          if (bounceToggle) {
-            bounceToggle.addEventListener('change', function () {
-              if (!sampleStage) return;
-              sampleStage.classList.remove('bg-bounce-on', 'bg-bounce-off');
-              sampleStage.classList.add('bg-bounce-' + (bounceToggle.checked ? 'on' : 'off'));
-            });
-          }
+          // Tier 4.1.11 — Bounce as a chip group (On / Off). Same effect, button UI.
+          // The chip-click delegation in chip-group handler already toggles aria-pressed;
+          // we additionally apply the bg-bounce-{on|off} class on the stage.
 
           // Tier 4.1.9 — Pattern / Image overlay enable checkboxes drive applyBgState
           var patternEnable = document.getElementById('v511BgPatternEnable');
@@ -6014,16 +6029,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           if (patternEnable) patternEnable.addEventListener('change', applyBgState);
           if (imageEnable) imageEnable.addEventListener('change', applyBgState);
 
-          // Tier 4.1.10 — Mount the QR customization expander inside the Post-Accept
-          // behaviour body so it nests as a sub-expander (Captain's structure call).
-          // HTML stays adjacent in source for readability; DOM move happens at init.
+          // Tier 4.1.11 — Mount the QR customization expander inside the Post-Accept
+          // behaviour body at the marker div (right under Outcome sound / Replace).
           (function mountQrInsidePostAccept() {
             var qrBlock = document.querySelector('.v511-qr-customization-block');
-            var paSummary = document.getElementById('v511PostAcceptSummary');
-            var paDetails = paSummary && paSummary.closest('details');
-            var paBody = paDetails && paDetails.querySelector('.v511-expander-body');
-            if (qrBlock && paBody && qrBlock.parentElement !== paBody) {
-              paBody.appendChild(qrBlock);
+            var mount = document.getElementById('v511QrCustMountPoint');
+            if (qrBlock && mount && qrBlock.parentElement !== mount.parentElement) {
+              mount.parentElement.insertBefore(qrBlock, mount.nextSibling);
             }
           })();
 
