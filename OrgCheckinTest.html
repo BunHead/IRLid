@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.27</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.28</span></div>
   </div>
 </div>
 
@@ -4374,6 +4374,92 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-glitch[data-cel-glitch-kind="displace"] { animation-name: v511CelGlitchDisplace; }
         @keyframes v511CelGlitchHue      { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 20% { filter: hue-rotate(90deg) saturate(2); } 40% { filter: hue-rotate(-120deg) saturate(2); } 60% { filter: hue-rotate(180deg) saturate(2.2); } 80% { filter: hue-rotate(-45deg) saturate(1.8); } }
         @keyframes v511CelGlitchDisplace { 0%, 100% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 3px); } 80% { transform: translate(2px, -3px); } }
+        /* =================================================================
+           T4.3.28 — Celebration sweep: wires the remaining schema settings
+           whose chips/grids were rendered but never read by the CSS.
+           Each block is independent; selectors compose with intensity classes
+           where the existing effect already has them.
+           ================================================================= */
+        /* --- Pulse colour source: cycle palette walks pal-1 → pal-2 → pal-3
+               across the ring expansion. Single (default) keeps pal-1 only. --- */
+        .v511-theme-preview-stage.cel-pulse[data-cel-colour-source="cycle-palette"] .v511-theme-preview-qr                       { animation-name: v511CelPulseCycle; }
+        .v511-theme-preview-stage.cel-pulse[data-cel-colour-source="cycle-palette"].cel-int-subtle .v511-theme-preview-qr        { animation-name: v511CelPulseCycleSubtle; }
+        .v511-theme-preview-stage.cel-pulse[data-cel-colour-source="cycle-palette"].cel-int-strong .v511-theme-preview-qr        { animation-name: v511CelPulseCycleStrong; }
+        @keyframes v511CelPulseCycle       { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0  var(--cel-pal-1, rgba(255,255,255,0.7)); }  33% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 8px  var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.65))); }  66% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 16px var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.45)))); }  100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(0,0,0,0); } }
+        @keyframes v511CelPulseCycleSubtle { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0  var(--cel-pal-1, rgba(255,255,255,0.6)); }  33% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 4px  var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.5))); }  66% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 8px  var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.35)))); }  100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 10px rgba(0,0,0,0); } }
+        @keyframes v511CelPulseCycleStrong { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0  var(--cel-pal-1, rgba(255,255,255,0.85)); } 33% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 14px var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.75))); } 66% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 28px var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.55)))); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 40px rgba(0,0,0,0); } }
+        /* --- Spotlight intensity (gradient extent + darkness) --- */
+        .v511-theme-preview-stage.cel-spotlight.cel-int-subtle > .v511-cel-fx-layer { background: radial-gradient(circle at center, transparent 0%, transparent 30%, rgba(0,0,0,0.45) 80%); }
+        .v511-theme-preview-stage.cel-spotlight.cel-int-strong > .v511-cel-fx-layer { background: radial-gradient(circle at center, transparent 0%, transparent 15%, rgba(0,0,0,0.92) 60%); }
+        /* --- QR-disappear easing + intensity --- */
+        .v511-theme-preview-stage.cel-qr-disappear[data-cel-easing="linear"] .v511-theme-preview-qr { animation-timing-function: linear; }
+        .v511-theme-preview-stage.cel-qr-disappear[data-cel-easing="snap"]   .v511-theme-preview-qr { animation-timing-function: steps(4, jump-none); }
+        .v511-theme-preview-stage.cel-qr-disappear.cel-int-subtle .v511-theme-preview-qr { animation-name: v511CelQrDisappearSubtle; }
+        .v511-theme-preview-stage.cel-qr-disappear.cel-int-strong .v511-theme-preview-qr { animation-name: v511CelQrDisappearStrong; }
+        @keyframes v511CelQrDisappearSubtle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4;  transform: scale(0.65); } }
+        @keyframes v511CelQrDisappearStrong { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0;    transform: scale(0); } }
+        /* --- Flame intensity (peak opacity + height) --- */
+        .v511-theme-preview-stage.cel-flame.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelFlameSubtle; }
+        .v511-theme-preview-stage.cel-flame.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelFlameStrong; }
+        @keyframes v511CelFlameSubtle { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 0.55; transform: scaleY(0.7) translateY(0); }   100% { opacity: 0; transform: scaleY(0.95) translateY(-25%); } }
+        @keyframes v511CelFlameStrong { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 1;    transform: scaleY(1.4) translateY(-5%); } 100% { opacity: 0; transform: scaleY(1.9) translateY(-55%); } }
+        /* --- Sparkles intensity (peak opacity + scale at midpoint) --- */
+        .v511-theme-preview-stage.cel-sparkles.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelSparklesSubtle; }
+        .v511-theme-preview-stage.cel-sparkles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelSparklesStrong; }
+        @keyframes v511CelSparklesSubtle { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 0.55; transform: scale(0.85); } }
+        @keyframes v511CelSparklesStrong { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1;    transform: scale(1.25); } }
+        /* --- Particles intensity (peak scale + opacity) --- */
+        .v511-theme-preview-stage.cel-particles.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelParticlesSubtle; }
+        .v511-theme-preview-stage.cel-particles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelParticlesStrong; }
+        @keyframes v511CelParticlesSubtle { 0% { opacity: 0.6; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.4); } }
+        @keyframes v511CelParticlesStrong { 0% { opacity: 1;   transform: scale(0.25); } 100% { opacity: 0; transform: scale(3); } }
+        /* --- Confetti completes the 9-direction grid + colour source.
+               Existing: 'b'/'bl'/'br' up, 'l' right, 'r' left, default down.
+               New: 't'/'tl'/'tr' explicit down-variants, 'c' central hold. --- */
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="tl"] > .v511-cel-fx-layer { animation: v511CelConfettiDR var(--cel-cycle-dur, 2s) linear; }
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="tr"] > .v511-cel-fx-layer { animation: v511CelConfettiDL var(--cel-cycle-dur, 2s) linear; }
+        .v511-theme-preview-stage.cel-confetti[data-cel-dir="c"]  > .v511-cel-fx-layer { animation: v511CelConfettiHold var(--cel-cycle-dur, 2s) ease-in-out; }
+        @keyframes v511CelConfettiDR   { 0% { background-position: 0 0, 20px 0; }      100% { background-position: 35px 35px, 55px 50px; } }
+        @keyframes v511CelConfettiDL   { 0% { background-position: 0 0, 20px 0; }      100% { background-position: -35px 35px, -15px 50px; } }
+        @keyframes v511CelConfettiHold { 0%, 100% { opacity: 0; } 30%, 70% { opacity: 1; } }
+        .v511-theme-preview-stage.cel-confetti[data-cel-colour-source="single"] > .v511-cel-fx-layer { background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px); background-size: 35px 35px; }
+        /* --- Sparkles direction completes the 9-grid (existing: 't' up, 'b' down).
+               'l'/'r' = horizontal drift, 'c' = no drift just pulse, diagonals = approx. --- */
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="l"]  > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftRight; }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="r"]  > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftLeft; }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="tl"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDR; }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="tr"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDL; }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="bl"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUR; }
+        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="br"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUL; }
+        @keyframes v511CelSparklesDriftRight { 0% { opacity: 0; background-position: -50px 0; } 50% { opacity: 1; background-position: -25px 0; } 100% { opacity: 0; background-position: 0 0; } }
+        @keyframes v511CelSparklesDriftLeft  { 0% { opacity: 0; background-position: 50px 0; }  50% { opacity: 1; background-position: 25px 0; }  100% { opacity: 0; background-position: 0 0; } }
+        @keyframes v511CelSparklesDriftDR    { 0% { opacity: 0; background-position: -35px -35px; } 50% { opacity: 1; background-position: -17px -17px; } 100% { opacity: 0; background-position: 0 0; } }
+        @keyframes v511CelSparklesDriftDL    { 0% { opacity: 0; background-position: 35px -35px; }  50% { opacity: 1; background-position: 17px -17px; }  100% { opacity: 0; background-position: 0 0; } }
+        @keyframes v511CelSparklesDriftUR    { 0% { opacity: 0; background-position: -35px 35px; }  50% { opacity: 1; background-position: -17px 17px; }  100% { opacity: 0; background-position: 0 0; } }
+        @keyframes v511CelSparklesDriftUL    { 0% { opacity: 0; background-position: 35px 35px; }   50% { opacity: 1; background-position: 17px 17px; }   100% { opacity: 0; background-position: 0 0; } }
+        /* --- Particles dir9 — translate the expanding burst toward the chosen
+               direction. Default is centred radial scale; direction layers a
+               translate atop the scale via separate keyframe set. --- */
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="t"]  > .v511-cel-fx-layer { animation-name: v511CelParticlesDown; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="b"]  > .v511-cel-fx-layer { animation-name: v511CelParticlesUp; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="l"]  > .v511-cel-fx-layer { animation-name: v511CelParticlesRight; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="r"]  > .v511-cel-fx-layer { animation-name: v511CelParticlesLeft; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="tl"] > .v511-cel-fx-layer { animation-name: v511CelParticlesDR; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="tr"] > .v511-cel-fx-layer { animation-name: v511CelParticlesDL; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="bl"] > .v511-cel-fx-layer { animation-name: v511CelParticlesUR; }
+        .v511-theme-preview-stage.cel-particles[data-cel-dir="br"] > .v511-cel-fx-layer { animation-name: v511CelParticlesUL; }
+        @keyframes v511CelParticlesDown  { 0% { opacity: 1; transform: scale(0.4) translateY(-30%); } 100% { opacity: 0; transform: scale(2.2) translateY(30%); } }
+        @keyframes v511CelParticlesUp    { 0% { opacity: 1; transform: scale(0.4) translateY(30%); }  100% { opacity: 0; transform: scale(2.2) translateY(-30%); } }
+        @keyframes v511CelParticlesRight { 0% { opacity: 1; transform: scale(0.4) translateX(-30%); } 100% { opacity: 0; transform: scale(2.2) translateX(30%); } }
+        @keyframes v511CelParticlesLeft  { 0% { opacity: 1; transform: scale(0.4) translateX(30%); }  100% { opacity: 0; transform: scale(2.2) translateX(-30%); } }
+        @keyframes v511CelParticlesDR    { 0% { opacity: 1; transform: scale(0.4) translate(-25%, -25%); } 100% { opacity: 0; transform: scale(2.2) translate(25%, 25%); } }
+        @keyframes v511CelParticlesDL    { 0% { opacity: 1; transform: scale(0.4) translate(25%, -25%); }  100% { opacity: 0; transform: scale(2.2) translate(-25%, 25%); } }
+        @keyframes v511CelParticlesUR    { 0% { opacity: 1; transform: scale(0.4) translate(-25%, 25%); }  100% { opacity: 0; transform: scale(2.2) translate(25%, -25%); } }
+        @keyframes v511CelParticlesUL    { 0% { opacity: 1; transform: scale(0.4) translate(25%, 25%); }   100% { opacity: 0; transform: scale(2.2) translate(-25%, -25%); } }
+        /* --- Ripple colour source: cycle palette animates the border colour
+               through pal-1 → pal-2 → pal-3 as the wave expands. --- */
+        .v511-theme-preview-stage.cel-ripple[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer { animation: v511CelRippleCycle var(--cel-cycle-dur, 1.2s) ease-out; }
+        @keyframes v511CelRippleCycle { 0% { transform: scale(0.1); opacity: 1; border-color: var(--cel-pal-1, #66e0ff); } 50% { border-color: var(--cel-pal-2, var(--cel-pal-1, #66e0ff)); } 100% { transform: scale(2); opacity: 0; border-color: var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, #66e0ff))); } }
         /* Tier 4.2 — Library + sequence two-pane UI */
         .v511-cel-builder { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 10px; }
         @media (max-width: 720px) { .v511-cel-builder { grid-template-columns: 1fr; } }
@@ -5714,7 +5800,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-pattern-style','data-cel-density','data-cel-dir',
             'data-cel-axis','data-cel-count','data-cel-thickness',
             'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
-            'data-cel-zoom'
+            'data-cel-zoom',
+            // T4.3.28 — sweep additions
+            'data-cel-colour-source','data-cel-easing'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -5770,6 +5858,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.glitchKind) stage.setAttribute('data-cel-glitch-kind', s.glitchKind);
             // T4.3.23 — Scale-punch zoom direction (in / out)
             if (s.zoom) stage.setAttribute('data-cel-zoom', s.zoom);
+            // T4.3.28 — Colour source (single vs cycle palette) — pulse, confetti, ripple
+            if (s.colourSource) stage.setAttribute('data-cel-colour-source', String(s.colourSource).replace(/\s+/g, '-'));
+            // T4.3.28 — QR-disappear easing (ease / linear / snap)
+            if (s.easing) stage.setAttribute('data-cel-easing', s.easing);
             if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
             if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
             // Tier 4.3.11 — Glow halo sweep setting (outward / inward / rotate)
