@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.10</span></div>
   </div>
 </div>
 
@@ -4834,24 +4834,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       </div>
                     </div>
                     <div class="v511-anim-row"><label for="v511BgDuration">Cycle duration</label><input type="range" id="v511BgDuration" min="5" max="120" value="30" /><span class="v511-hint" id="v511BgDurationLabel" style="min-width: 40px;">30s</span></div>
-                  </div>
-                </details>
 
-                <details class="v511-expander">
-                  <summary>
-                    <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgPatternEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
-                    Pattern overlay <span class="v511-hint-inline">(tile a CSS pattern on top of the palette)</span>
-                  </summary>
+                    <!-- Tier 4.1.10 — Pattern + Image overlays nested INSIDE Background body
+                         (they're variants of "what overlays on top of the palette"). -->
+                    <details class="v511-expander" style="margin-top: 14px;">
+                      <summary>
+                        <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgPatternEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
+                        Pattern overlay <span class="v511-hint-inline">(tile a CSS pattern on top of the palette)</span>
+                      </summary>
                   <div class="v511-expander-body">
                     <div class="v511-anim-row"><label for="v511BgPattern">Pattern</label><select id="v511BgPattern"><option value="dots">Dots</option><option value="hex">Hex grid</option><option value="diag">Diagonal stripes</option><option value="checker">Checkerboard</option><option value="grid">Grid</option><option value="weave">Weave</option><option value="chevron">Chevron</option><option value="iso">Isometric</option></select></div>
-                  </div>
-                </details>
+                      </div>
+                    </details>
 
-                <details class="v511-expander">
-                  <summary>
-                    <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgImageEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
-                    Image overlay <span class="v511-hint-inline">(branded image with position / symmetry / scale)</span>
-                  </summary>
+                    <details class="v511-expander">
+                      <summary>
+                        <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BgImageEnable" /> <span style="font-size: 11px; color: var(--muted);">enable</span></span>
+                        Image overlay <span class="v511-hint-inline">(branded image with position / symmetry / scale)</span>
+                      </summary>
                   <div class="v511-expander-body">
                     <div class="v511-anim-row"><label for="v511BgImageUpload">Image (optional)</label><div style="flex: 1; display: flex; gap: 8px; align-items: center;"><input type="file" id="v511BgImageUpload" accept="image/png,image/jpeg,image/svg+xml" style="font-size: 11px; color: var(--muted);" /><span class="v511-hint">PNG / SVG / JPEG, ≤ 200 KB. Uploading auto-enables this overlay.</span></div></div>
 
@@ -4898,11 +4898,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <div class="v511-anim-row"><label for="v511BgImageScale">Image scale</label><input type="range" id="v511BgImageScale" min="-100" max="100" value="0" step="1" /><span class="v511-hint" id="v511BgImageScaleLabel" style="min-width: 60px;">0 (natural)</span></div>
                     </div>
                   </div>
+                    </details>
+                    <!-- Tier 4.1.10 — End of Pattern + Image overlays nested under Background -->
+                  </div>
                 </details>
 
-              <!-- Tier 4.1.9 — QR subpanel wrapper replaced by a top-level
-                   "QR customization" expander (Background/QR sub-tabs retired). -->
-              <details class="v511-expander">
+              <!-- Tier 4.1.10 — QR customization is now a SUB-EXPANDER of Post-Accept
+                   behaviour (Captain's call). The opening + body + content stay here
+                   structurally but mounted later inside the Post-Accept body. -->
+              <details class="v511-expander v511-qr-customization-block">
                 <summary>QR customization <span class="v511-hint-inline">(foreground colour + celebration palette + effects)</span></summary>
                 <div class="v511-expander-body">
                 <div class="v511-sub" style="margin-top: 0;">QR foreground</div>
@@ -6009,6 +6013,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var imageEnable = document.getElementById('v511BgImageEnable');
           if (patternEnable) patternEnable.addEventListener('change', applyBgState);
           if (imageEnable) imageEnable.addEventListener('change', applyBgState);
+
+          // Tier 4.1.10 — Mount the QR customization expander inside the Post-Accept
+          // behaviour body so it nests as a sub-expander (Captain's structure call).
+          // HTML stays adjacent in source for readability; DOM move happens at init.
+          (function mountQrInsidePostAccept() {
+            var qrBlock = document.querySelector('.v511-qr-customization-block');
+            var paSummary = document.getElementById('v511PostAcceptSummary');
+            var paDetails = paSummary && paSummary.closest('details');
+            var paBody = paDetails && paDetails.querySelector('.v511-expander-body');
+            if (qrBlock && paBody && qrBlock.parentElement !== paBody) {
+              paBody.appendChild(qrBlock);
+            }
+          })();
 
           // Celebration palette inputs → --cel-pal-1..7 CSS variables on the
           // preview stage. The Glow keyframe uses --cel-pal-1 for its drop-

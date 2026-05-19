@@ -1,5 +1,26 @@
 # Pending Work — IRLid
 
+## Tuesday 19 May 2026 bath-watch — Three spec docs drafted while Captain showered
+
+**The headline.** Captain handed Number One the conn for a bath stretch with a clear three-spec ask: SETTINGS-REVAMP-SPEC.md, CALENDAR-SPEC.md, PROTOCOL §X-Records-Broker. All three landed before Captain was out. Plus the morning's UI restructure (T4.1.10): Pattern + Image overlays nest INSIDE Background body; QR customization nests INSIDE Post-Accept body (HTML adjacent for source readability, DOM reparented via JS at init).
+
+**Specs banked (all in live repo root, ready for Captain review):**
+- `SETTINGS-REVAMP-SPEC.md` — full Mr. Data implementation brief for porting OrgCheckinTest.html v5.11 mockup → OrgCheckin.html. 7 tabs spec'd, theme JSON schema documented (`schema_version: 5.11`), Worker validation rules listed, Phase 1/2/3/4 roadmap, sign-off checklist for Mr. Data.
+- `CALENDAR-SPEC.md` — `events` + `event_expected` D1 schema, 9 new Worker endpoints, List + Swim-lane views, per-event drill-down accordion, CSV import/export with column conventions, capacity over-cap behaviour, recurrence banked for v6+.
+- `PROTOCOL-Records-Broker.md` — broker-not-store architectural commitment formalised as a candidate PROTOCOL.md chapter. `org_storage_connectors` + `records_references` schema, 7 new Worker endpoints, trust model (org/attendee/IRLid mutual trust matrix), re-enrolment pattern aligning with immutable-receipts principle.
+
+**Mockup build:** `v5.10.2 + v5.11 mockup T4.1.10`. Nesting structure now matches Captain's call. Awaiting his test pass when out of the bath.
+
+**Status of the queue from the morning report:**
+- ✓ SETTINGS-REVAMP-SPEC.md — drafted.
+- ✓ CALENDAR-SPEC.md — drafted.
+- ✓ PROTOCOL §X-Records-Broker — drafted (as separate file pending Captain ratification + chapter-number assignment).
+- 📋 Cloudflare token rotation — still parked.
+- 📋 `codex/v5.10.1-path-b` branch deletion on origin — housekeeping.
+- 📋 Event & Calendar tab light-mode polish — still queued.
+
+---
+
 ## Monday 18 May 2026 morning-to-midday — Visual theming deeply wired through Tier 3.6
 
 **The headline.** Captain came in 8ish, verified yesterday's pushes landed, called for the visuals deep-dive that was queued. From there we iterated tier-by-tier through the entire morning into midday on the Visual theming tab of OrgCheckinTest.html. The tab went from a static visual prototype to a genuinely interactive design environment where Captain can click controls and FEEL the changes propagate.
