@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.21</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.22</span></div>
   </div>
 </div>
 
@@ -4366,7 +4366,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-seq-list { display: flex; flex-direction: column; gap: 4px; min-height: 70px; padding: 2px; border-radius: 6px; }
         .v511-cel-seq-list.drag-over { background: rgba(105,168,255,0.06); outline: 2px dashed rgba(105,168,255,0.4); outline-offset: -2px; }
         .v511-cel-seq-empty { padding: 22px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
-        .v511-cel-seq-item { display: grid; grid-template-columns: auto auto 1fr auto auto auto; gap: 6px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; font-size: 11.5px; }
+        .v511-cel-seq-item { display: grid; grid-template-columns: auto auto 1fr auto auto auto auto; gap: 6px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; font-size: 11.5px; }
+        /* Tier 4.3.22 — "Play with previous" toggle. When pressed, this step
+           fires at the same time as the previous step instead of after it.
+           Hidden on the first row via :first-child since there's no previous. */
+        .v511-cel-seq-item .v511-cel-seq-withprev { background: transparent; color: var(--muted); border: 1px solid rgba(255,255,255,0.18); cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 6px; border-radius: 5px; font-family: inherit; opacity: 0.5; transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease, border-color 0.12s ease; }
+        .v511-cel-seq-item .v511-cel-seq-withprev:hover { opacity: 1; }
+        .v511-cel-seq-item .v511-cel-seq-withprev[aria-pressed="true"] { background: rgba(105,168,255,0.22); color: var(--accent, #58a6ff); border-color: rgba(105,168,255,0.65); opacity: 1; }
+        .v511-cel-seq-item:first-child .v511-cel-seq-withprev { visibility: hidden; }
+        :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-withprev { border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-withprev[aria-pressed="true"] { background: rgba(34,109,212,0.16); color: #226dd4; border-color: rgba(34,109,212,0.55); }
         .v511-cel-seq-item:hover { background: rgba(255,255,255,0.06); }
         .v511-cel-seq-item.dragging { opacity: 0.4; }
         .v511-cel-seq-item .v511-cel-seq-drag { color: var(--muted); cursor: grab; user-select: none; padding: 0 2px; }
@@ -5714,10 +5723,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               function step() {
                 if (myToken !== v511PlayToken) return resolve(); // superseded
                 if (!sequence || i >= sequence.length) return resolve();
+                var thisIdx = i;
                 var item = sequence[i++];
                 var durMs = Math.max(0, Math.round(parseFloat(item.duration || 0) * 1000));
+                // Tier 4.3.22 — Look ahead: if the NEXT item is marked
+                // withPrev, kick it off concurrently with this one (don't
+                // wait for this step's setTimeout cleanup to fire it).
+                // Ignored on the first item (no previous to play with).
+                var nextItem = sequence[i];
+                var nextWithPrev = !!(nextItem && nextItem.withPrev && thisIdx >= 0);
+                function chainNextNow() {
+                  requestAnimationFrame(function () {
+                    requestAnimationFrame(step);
+                  });
+                }
                 if (item.effect === 'delay') {
-                  setTimeout(step, durMs);
+                  if (nextWithPrev) {
+                    // Delay+withPrev: chain immediately, the delay's own
+                    // job already overlaps with prior step by definition.
+                    chainNextNow();
+                  } else {
+                    setTimeout(step, durMs);
+                  }
                   return;
                 }
                 // Tier 4.3.1 — Coerce legacy 'cel-pattern' data-effect → 'pattern'
@@ -5744,10 +5771,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     // mutations coalesce in one tick and subsequent CSS keyframes
                     // never see a "no animation → animation" transition, so only
                     // the FIRST effect ever actually plays.
-                    requestAnimationFrame(function () {
-                      requestAnimationFrame(step);
-                    });
+                    // Tier 4.3.22 — if nextWithPrev fired already, skip the
+                    // post-cleanup chain so we don't double-step.
+                    if (!nextWithPrev) {
+                      requestAnimationFrame(function () {
+                        requestAnimationFrame(step);
+                      });
+                    }
                   }, durMs + 20);
+                  if (nextWithPrev) chainNextNow();
                 } else {
                   var subMs = Math.max(60, Math.floor(durMs / count));
                   sampleStage.style.setProperty('--cel-cycle-dur', (subMs / 1000) + 's');
@@ -5755,7 +5787,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   function fireOne() {
                     if (myToken !== v511PlayToken) return resolve();
                     if (fired >= count) {
-                      requestAnimationFrame(function () { requestAnimationFrame(step); });
+                      // Tier 4.3.22 — if next was already kicked concurrently,
+                      // don't chain again here.
+                      if (!nextWithPrev) {
+                        requestAnimationFrame(function () { requestAnimationFrame(step); });
+                      }
                       return;
                     }
                     fired++;
@@ -5777,6 +5813,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     });
                   }
                   fireOne();
+                  if (nextWithPrev) chainNextNow();
                 }
               }
               step();
@@ -6521,12 +6558,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Tier 4.3.7 — stable ID per item so settings survive save-rebuild
             if (!item.id) item.id = 'seq_' + Math.random().toString(36).slice(2, 10);
             row.setAttribute('data-seq-id', item.id);
+            // Tier 4.3.22 — "Play with previous" toggle. aria-pressed reflects
+            // whether this step fires concurrently with the step above it.
+            // Hidden via CSS on :first-child since there's no previous step.
+            var wpPressed = item.withPrev ? 'true' : 'false';
             row.innerHTML =
               '<span class="v511-cel-seq-drag" title="Drag to reorder">⠿</span>' +
               '<span class="v511-cel-seq-num">' + (idx + 1) + '</span>' +
               '<span class="v511-cel-seq-name"><span class="icon">' + meta.icon + '</span> ' + meta.label + '</span>' +
               '<input type="number" class="v511-cel-seq-dur" min="0" max="10" step="0.1" value="' + (item.duration || meta.defaultDur) + '" />' +
               '<span class="v511-cel-seq-dur-unit">s</span>' +
+              '<button type="button" class="v511-cel-seq-withprev" aria-pressed="' + wpPressed + '" title="Play with previous step (overlap)">+</button>' +
               '<button type="button" class="v511-cel-seq-remove" title="Remove">×</button>';
             return row;
           }
@@ -6559,7 +6601,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (!isFinite(dur) || dur < 0) dur = 0;
               var id = row.getAttribute('data-seq-id') || ('seq_' + Math.random().toString(36).slice(2, 10));
               row.setAttribute('data-seq-id', id);
-              var newItem = { id: id, effect: effect, duration: dur };
+              // Tier 4.3.22 — capture withPrev from toggle button aria-pressed
+              var wpBtn = row.querySelector('.v511-cel-seq-withprev');
+              var withPrev = !!(wpBtn && wpBtn.getAttribute('aria-pressed') === 'true');
+              var newItem = { id: id, effect: effect, duration: dur, withPrev: withPrev };
               var prev = byId[id];
               if (prev && prev.settings) newItem.settings = prev.settings;
               out.push(newItem);
@@ -6638,6 +6683,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
 
             v511CelSeqList.addEventListener('click', function (e) {
+              // Tier 4.3.22 — "Play with previous" toggle. Flip aria-pressed,
+              // persist via v511ReadSequenceFromDom, save debounced. Don't
+              // bubble into the selection handler below.
+              var wp = e.target.closest('.v511-cel-seq-withprev');
+              if (wp) {
+                var pressed = wp.getAttribute('aria-pressed') === 'true';
+                wp.setAttribute('aria-pressed', pressed ? 'false' : 'true');
+                e.stopPropagation();
+                if (modeStates[currentMode]) modeStates[currentMode].sequence = v511ReadSequenceFromDom();
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                return;
+              }
               var rm = e.target.closest('.v511-cel-seq-remove');
               if (rm) {
                 var row = rm.closest('.v511-cel-seq-item');
@@ -6787,6 +6844,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             v511CelSeqList.addEventListener('click', function (e) {
               if (e.target.closest('.v511-cel-seq-remove')) return; // remove handler runs separately
               if (e.target.closest('.v511-cel-seq-dur')) return;    // duration edit doesn't change selection
+              if (e.target.closest('.v511-cel-seq-withprev')) return; // T4.3.22 — toggle doesn't change selection
               var row = e.target.closest('.v511-cel-seq-item');
               if (!row) return;
               var rows = Array.prototype.slice.call(v511CelSeqList.querySelectorAll('.v511-cel-seq-item'));
