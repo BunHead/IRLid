@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.12</span></div>
   </div>
 </div>
 
@@ -5514,12 +5514,46 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'v511PaWelcome','v511PaRedirect','v511PaStaffRedirect',
             'v511PaDwell','v511PaFtVsR','v511PaTime','v511PaCal','v511PaEmail','v511PaSms'
           ];
+          // Tier 4.1.12 — Celebration palette is PER-MODE (Captain's call).
+          // Each mode gets its own swatch set keyed to the mode tint (greens for
+          // Allow, ambers for Review, reds for Deny). The palette tracks alongside
+          // the 16 form fields in modeStates via celPalette: [...colors] entries.
           var modeStates = {
-            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off' },
-            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off' },
-            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off' }
+            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#c0dd97', '#8fbf6c', '#2d5016'] },
+            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#fac775', '#e8b04a', '#5a3e0c'] },
+            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off', celPalette: ['#f09595', '#dc3545', '#5e1a1a'] }
           };
           var currentMode = 'allow';
+
+          // Helper: read current celebration palette colours into an array
+          function snapshotCelPalette() {
+            var colors = [];
+            document.querySelectorAll('.v511-cel-palette-row .v511-palette-swatch-wrap input[type="color"]').forEach(function (inp) { colors.push(inp.value); });
+            return colors;
+          }
+          // Helper: rebuild the celebration palette row from a saved colour array
+          function loadCelPaletteForMode(colors) {
+            if (!Array.isArray(colors) || colors.length === 0) return;
+            var row = document.querySelector('.v511-cel-palette-row');
+            if (!row) return;
+            row.querySelectorAll('.v511-palette-swatch-wrap').forEach(function (w) { w.remove(); });
+            var emptyPlaceholders = row.querySelectorAll('.v511-palette-swatch.empty');
+            colors.forEach(function (v) {
+              var wrap = document.createElement('div');
+              wrap.className = 'v511-palette-swatch-wrap';
+              var inp = document.createElement('input');
+              inp.type = 'color'; inp.className = 'v511-palette-swatch'; inp.value = v; inp.title = 'Pick colour';
+              var rm = document.createElement('button');
+              rm.type = 'button'; rm.className = 'v511-palette-swatch-remove';
+              rm.setAttribute('aria-label', 'Remove colour'); rm.title = 'Remove'; rm.textContent = '×';
+              wrap.appendChild(inp); wrap.appendChild(rm);
+              if (emptyPlaceholders[0]) row.insertBefore(wrap, emptyPlaceholders[0]);
+              else row.appendChild(wrap);
+            });
+            // Re-apply CSS vars on the stage so Glow / Pulse / Pattern / Text pick up the change
+            if (typeof applyCelPaletteToPreview === 'function') applyCelPaletteToPreview();
+          }
+
           function snapshotMode(mode) {
             if (!modeStates[mode]) modeStates[mode] = {};
             PER_MODE_FIELD_IDS.forEach(function (id) {
@@ -5527,6 +5561,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (!el) return;
               modeStates[mode][id] = (el.type === 'checkbox') ? el.checked : el.value;
             });
+            // Tier 4.1.12 — capture celebration palette into the mode's state
+            modeStates[mode].celPalette = snapshotCelPalette();
           }
           function loadMode(mode) {
             var state = modeStates[mode] || {};
@@ -5538,6 +5574,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Trigger 'input' for sliders so labels update
               if (el.type === 'range' && el.dispatchEvent) el.dispatchEvent(new Event('input'));
             });
+            // Tier 4.1.12 — rebuild celebration palette row for this mode
+            if (Array.isArray(state.celPalette)) loadCelPaletteForMode(state.celPalette);
           }
           // Tier 4.1.1 — Apply mode to both the preview stage's data-mode AND the
           // settings panel's data-mode (so the panel tint + Editing badge update).
