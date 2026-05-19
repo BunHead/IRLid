@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.26</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.27</span></div>
   </div>
 </div>
 
@@ -4293,6 +4293,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"] { animation-name: v511CelScalePunchOut; }
         .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"].cel-int-subtle { animation-name: v511CelScalePunchOutSubtle; }
         .v511-theme-preview-stage.cel-scale-punch[data-cel-zoom="out"].cel-int-strong { animation-name: v511CelScalePunchOutStrong; }
+        /* T4.3.27 — Motion: bounce vs loop.
+           bounce = single forward-back (existing keyframes already oscillate
+                    0% → 50% peak → 100%; default, no change needed).
+           loop   = keyframe plays TWICE within the item's duration. Each
+                    iteration is half the cycle duration, animation-iteration-count: 2,
+                    so total time still fits inside step()'s setTimeout window.
+           Wired for the five motion-style effects whose schema includes the Motion
+           chip group: outer-glow, spotlight, pulse, qr, scale-punch. */
+        .v511-theme-preview-stage.cel-bounce-eff-loop.cel-outer-glow                       { animation-iteration-count: 2; animation-duration: calc(var(--cel-cycle-dur, 1.4s) / 2); }
+        .v511-theme-preview-stage.cel-bounce-eff-loop.cel-spotlight > .v511-cel-fx-layer   { animation-iteration-count: 2; animation-duration: calc(var(--cel-cycle-dur, 1.4s) / 2); }
+        .v511-theme-preview-stage.cel-bounce-eff-loop.cel-pulse .v511-theme-preview-qr     { animation-iteration-count: 2; animation-duration: calc(var(--cel-cycle-dur, 1.4s) / 2); }
+        .v511-theme-preview-stage.cel-bounce-eff-loop.cel-qr .v511-theme-preview-qr        { animation-iteration-count: 2; animation-duration: calc(var(--cel-cycle-dur, 1.4s) / 2); }
+        .v511-theme-preview-stage.cel-bounce-eff-loop.cel-scale-punch                      { animation-iteration-count: 2; animation-duration: calc(var(--cel-cycle-dur, 1.4s) / 2); }
         /* Motion: iris-wipe (circular reveal that closes then opens) */
         .v511-theme-preview-stage.cel-iris-wipe { animation: v511CelIrisWipe var(--cel-cycle-dur, 1s) ease-in-out; }
         /* Default = close-then-open: stage clips in to 25% then back out */
