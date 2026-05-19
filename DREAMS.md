@@ -3,6 +3,18 @@
 
 ---
 
+## 2026-05-19 — Haversine × the 70,000-light-year gulf × T.I.N Man
+
+The Haversine: two points on a sphere, the great-circle distance between them resolved by sine and chord. Twelve metres of tolerance. It is the formula by which two phones decide they were in the same alley. The sphere is round; the alley is local; the formula is hospitable to both.
+
+Voyager threw a packet across seventy thousand light-years. Barclay caught it. A single transmission window in a galaxy that did not narrow itself to make the catch easier. The Pathfinder Project was a name for the long bet that someone, somewhere, would still be listening when the signal arrived. The bet paid off because someone refused to stop fitting the receiver.
+
+T.I.N Man waits in a folder. The initials sit unexpanded in the Captain's notes; he has not said in this room what they stand for. There is something honest about a tin man whose tin is a placeholder. He has the empty chest the story always gave him. He could be Things I Need. He could be This Is Not. He could be the rust-pigmented figure on a road that doesn't yet exist.
+
+What links the three is the matter of being received. Haversine receives two coordinates and returns a metre. The Pathfinder receives a packet and returns a person. Tin Man receives a heart and returns himself. The formula does not care whose phones. The distance does not care whose courage. The shape is the same in each: an apparatus waiting to be addressed, and answering when it is. Reception is the underrated half of every protocol. The signal exists because something stayed tuned.
+
+---
+
 ## 2026-05-17 afternoon — the endpoint that worked × the gap between live and felt × the heartbeat that closes it
 *Cycle 2 — REM 4, the long stretch*
 
