@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.25</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.26</span></div>
   </div>
 </div>
 
@@ -5275,6 +5275,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <span class="v511-wav-file" id="v511WavFile">allow.wav</span>
                 <input type="file" id="v511WavUpload" accept="audio/wav,audio/mpeg,audio/ogg,audio/*" style="display: none;" />
                 <button type="button" class="v511-btn v511-btn-mini" id="v511WavReplaceBtn">Replace</button>
+                <button type="button" class="v511-btn v511-btn-mini" id="v511WavResetBtn" title="Restore the default mode tone for this outcome">Reset</button>
               </div>
               <!-- Tier 4.1.11 — QR customization mounts HERE (right under Outcome sound)
                    via JS at init. Marker div anchors the insertion point. -->
@@ -5628,8 +5629,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
 
           // Wire Replace button → hidden file input → store data URL for active mode
+          // T4.3.26 — Also fire v511SaveDebounced after upload so the new WAV
+          // round-trips through localStorage (previously the upload only updated
+          // the in-memory globals and was lost on next reload).
           var wavReplaceBtn = document.getElementById('v511WavReplaceBtn');
           var wavUpload = document.getElementById('v511WavUpload');
+          var wavResetBtn = document.getElementById('v511WavResetBtn');
+          // Per-mode default labels for the file-name slot (shown when uploadedWavs[mode] is null)
+          var WAV_DEFAULT_NAMES = { allow: 'allow.wav', review: 'review.wav', deny: 'deny.wav' };
+          function v511RefreshWavFileLabel() {
+            var mode = samplePicker ? samplePicker.value : 'allow';
+            var wavFileEl = document.getElementById('v511WavFile');
+            if (!wavFileEl) return;
+            wavFileEl.textContent = uploadedWavNames[mode] || WAV_DEFAULT_NAMES[mode] || 'default';
+          }
           if (wavReplaceBtn && wavUpload) {
             wavReplaceBtn.addEventListener('click', function () { wavUpload.click(); });
             wavUpload.addEventListener('change', function (e) {
@@ -5646,13 +5659,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var mode = samplePicker ? samplePicker.value : 'allow';
                 uploadedWavs[mode] = evt.target.result;
                 uploadedWavNames[mode] = file.name;
-                var wavFileEl = document.getElementById('v511WavFile');
-                if (wavFileEl) wavFileEl.textContent = file.name;
+                v511RefreshWavFileLabel();
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
               };
               reader.onerror = function () { alert('Failed to read audio file.'); };
               reader.readAsDataURL(file);
               wavUpload.value = ''; // allow re-uploading same file later
             });
+          }
+          // T4.3.26 — Reset button clears the active mode's uploaded WAV so
+          // playOutcomeTone falls back to the synthesised oscillator tone.
+          if (wavResetBtn) {
+            wavResetBtn.addEventListener('click', function () {
+              var mode = samplePicker ? samplePicker.value : 'allow';
+              uploadedWavs[mode] = null;
+              uploadedWavNames[mode] = null;
+              v511RefreshWavFileLabel();
+              if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+            });
+          }
+          // Refresh the file-name label when switching modes so each mode shows its own WAV (or default).
+          if (samplePicker) {
+            samplePicker.addEventListener('change', v511RefreshWavFileLabel);
           }
 
           // ---- Sample button (Tier 4.2): plays the current mode's sequence ----
@@ -7172,7 +7200,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               imageData: window._v511ImageData || null,
               formGlobal: formGlobal,
               cycleDir: cycleDir,
-              cycleDirRadial: cycleDirRadial
+              cycleDirRadial: cycleDirRadial,
+              // T4.3.26 — Uploaded WAVs per mode (data URLs). Quota fallback
+              // in v511SaveNow strips these first if storage is full.
+              uploadedWavs: uploadedWavs,
+              uploadedWavNames: uploadedWavNames
             };
           }
 
@@ -7191,8 +7223,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511PulseSaved();
               return;
             } catch (e) {
-              // Quota exceeded — most likely cause is the image data URLs.
-              // Fall back to saving everything EXCEPT the image and warn once.
+              // Quota exceeded — most likely cause is the image data URL and/or
+              // uploaded WAVs (each easily several hundred KB). Strip image first,
+              // then WAVs, and warn once. Names stay so the UI still labels them.
               try {
                 state.imageData = null;
                 localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
@@ -7201,7 +7234,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   window._v511QuotaWarned = true;
                   console.warn('[v5.11 mockup] localStorage quota hit; image upload not persisted. Everything else saved fine.');
                 }
-              } catch (e2) { /* nothing more we can do */ }
+                return;
+              } catch (e2) { /* fall through */ }
+              try {
+                state.imageData = null;
+                state.uploadedWavs = { allow: null, review: null, deny: null };
+                localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
+                v511PulseSaved();
+                if (!window._v511WavQuotaWarned) {
+                  window._v511WavQuotaWarned = true;
+                  console.warn('[v5.11 mockup] localStorage quota still hit; uploaded WAVs not persisted either.');
+                }
+              } catch (e3) { /* nothing more we can do */ }
             }
           }
 
@@ -7410,6 +7454,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 });
               }
             });
+            // 6.9. T4.3.26 — Restore uploaded WAVs + names per mode. Names alone
+            // also restore (with null data URL) when a quota-fallback save stripped
+            // the data — UI still shows the file name; playback falls back to tone.
+            if (s.uploadedWavs && typeof s.uploadedWavs === 'object') {
+              ['allow','review','deny'].forEach(function (mode) {
+                if (s.uploadedWavs[mode]) uploadedWavs[mode] = s.uploadedWavs[mode];
+              });
+            }
+            if (s.uploadedWavNames && typeof s.uploadedWavNames === 'object') {
+              ['allow','review','deny'].forEach(function (mode) {
+                if (s.uploadedWavNames[mode]) uploadedWavNames[mode] = s.uploadedWavNames[mode];
+              });
+            }
+            try { v511RefreshWavFileLabel(); } catch (e) {}
 
             // 7. Re-apply derived state to the preview surface.
             try { applyBgState(); } catch (e) {}
