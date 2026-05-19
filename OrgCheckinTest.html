@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.5</span></div>
   </div>
 </div>
 
@@ -7052,6 +7052,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   }
                   if (groupKey === 'qrMotion') {
                     sampleStage.setAttribute('data-qr-motion', (targetText || 'wobble').toLowerCase().trim().replace(/\s+/g, '-'));
+                  }
+                  // Tier 4.3.5 — Bounce + Transition stage classes (aria-pressed
+                  // was being restored but the actual bg-bounce-* / bg-trans-*
+                  // stage classes were not, so the saved setting didn't take
+                  // effect until the user re-clicked the chip).
+                  if (groupKey === 'bgBounce') {
+                    var bChip = group.querySelector('.v511-chip[aria-pressed="true"]');
+                    if (bChip) {
+                      var bVal = bChip.getAttribute('data-bounce') || 'on';
+                      sampleStage.classList.remove('bg-bounce-on', 'bg-bounce-off');
+                      sampleStage.classList.add('bg-bounce-' + bVal);
+                    }
+                  }
+                  if (groupKey === 'bgCycleTrans') {
+                    var tChip = group.querySelector('.v511-chip[aria-pressed="true"]');
+                    if (tChip) {
+                      var tVal = tChip.getAttribute('data-trans') || 'fade';
+                      sampleStage.classList.remove('bg-trans-fade', 'bg-trans-snap');
+                      sampleStage.classList.add('bg-trans-' + tVal);
+                    }
                   }
                 }
                 if (groupKey === 'bgAnchor') {
