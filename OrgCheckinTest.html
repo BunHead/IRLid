@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.15</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.16</span></div>
   </div>
 </div>
 
@@ -4274,7 +4274,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelScalePunch { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
         /* Motion: iris-wipe (circular reveal that closes then opens) */
         .v511-theme-preview-stage.cel-iris-wipe { animation: v511CelIrisWipe var(--cel-cycle-dur, 1s) ease-in-out; }
+        /* Default = close-then-open: stage clips in to 25% then back out */
         @keyframes v511CelIrisWipe { 0%, 100% { clip-path: circle(150% at center); } 50% { clip-path: circle(25% at center); } }
+        /* Tier 4.3.16 — Iris wipe direction variants (data-cel-iris-dir) */
+        .v511-theme-preview-stage.cel-iris-wipe[data-cel-iris-dir="open-then-close"] { animation-name: v511CelIrisWipeOC; }
+        .v511-theme-preview-stage.cel-iris-wipe[data-cel-iris-dir="close only"]      { animation-name: v511CelIrisWipeClose; }
+        .v511-theme-preview-stage.cel-iris-wipe[data-cel-iris-dir="open only"]       { animation-name: v511CelIrisWipeOpen; }
+        @keyframes v511CelIrisWipeOC    { 0%, 100% { clip-path: circle(25% at center); }  50% { clip-path: circle(150% at center); } }
+        @keyframes v511CelIrisWipeClose { 0% { clip-path: circle(150% at center); }       100% { clip-path: circle(0% at center); } }
+        @keyframes v511CelIrisWipeOpen  { 0% { clip-path: circle(0% at center); }         100% { clip-path: circle(150% at center); } }
         /* Motion: ripple (single circular wave from centre) */
         .v511-theme-preview-stage.cel-ripple > .v511-cel-fx-layer { animation: v511CelRipple var(--cel-cycle-dur, 1.2s) ease-out; border-radius: 50%; border: 4px solid var(--cel-pal-1, #66e0ff); background: transparent; }
         @keyframes v511CelRipple { 0% { transform: scale(0.1); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
