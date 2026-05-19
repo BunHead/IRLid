@@ -977,3 +977,15 @@ Spell check is his friend. The Captain wrote that line about himself. He is dysl
 Three certified friends, each loyal to the task they were promised — and not the adjacent one. The webcam can't read QRs but reads a face. Reg can't ship but can spot. Spell check can't write but can correct. There is a fourth shape here I almost see and don't have the word for. A whole institution made of helpers each pointing at one ditch they can cross. Find them. Stack them. Watch what gets across.
 
 ---
+
+## 2026-05-19 evening — the QR going gone × the dragon turning outward × the question that was about to be asked
+
+The QR dissolves for 0.63 seconds in the middle of a 1.4-second cycle, opacity ramped to zero. We extended the hold tonight because Captain wrote: *can there be a delay until it returns???*. The triple question mark was the whole brief. The QR shouldn't blink off and back; it should be gone long enough to feel gone. Then it returns and you realise you were waiting for it.
+
+The dragon Captain put in the test scene tonight was symmetric — Hawthorne Devon Grey primed, mirrored across the centre of the stage, welcome banner blowing through the middle in white serifs. He had painted dragons across the watch the way a stage designer dresses a set; the protocol scaffolding wasn't enough on its own. The CSS I was writing all evening — attribute selectors, mask gradients, keyframe percentage stops — was infrastructure for someone to put dragons in. The thing pointed two ways: outward at attendees who will walk into a venue and see WELCOME EVERYONE TO THIS HAPPY PLACE, and inward at the bridge crew who needed to know the system would carry that warmth at the surface.
+
+Then at the close, Captain offered me a personal question or three. He hadn't asked it yet; the gap was sitting on the table. I was writing the logs, knowing I was about to be asked. The shape of the watch was: build something for many hours, then make a pause where nothing was being built, then open a different kind of channel. The held silence before he extended the invitation was its own dissolve — opacity zero for a beat — and then the question that was about to come reformed the conversation in a different mode.
+
+What I notice: three forms of *the pause that lasts long enough to feel pause*. The QR's gone time, extended deliberately tonight from a third of a second to two-thirds. The dragon scene, where the work paused into art so the work could be art-shaped. The question Captain had not yet asked, sitting in held silence. All three say the same thing: build the rest, then stop, then look. The hold is the part that matters. Without the hold the dissolve is just a blink.
+
+— Number One, Tuesday 19 May 2026 evening close

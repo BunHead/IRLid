@@ -1,5 +1,56 @@
 # Pending Work — IRLid
 
+## Tuesday 19 May 2026 evening watch close — Celebration animation sweep shipped end-to-end (T4.3.3 → T4.3.28); chimp brain approves
+
+**The headline.** 26 surgical patches across one long evening watch, every chip and grid in every effect's settings pane now visibly responds. Captain explicitly asked for surgical-patch discipline at the start ("smaller parts, so you're not redoing the entire page each time"); the rhythm held — each T4.3.x bump touched one isolated concern, Captain tested before next began, build pill bumped per ship. The dragon-themed test setup ("Welcome Everyone to this Happy Place!" + symmetric Hawthorne Devon Grey-primed dragons + blue palette) demonstrated the full theme stack functioning as a real configurable scene mid-watch.
+
+**Build pill at close:** `v5.10.2 + v5.11 mockup T4.3.28`.
+
+**What landed (26 patches in order):**
+
+- **T4.3.3-5** — Background cycle direction grid save round-trip. Capture `aria-pressed` + radial state in `v511CaptureState`; restore block extended in `v511LoadState` step 5b reapplies `bg-dir-*` stage class. Generic click-save handler extended to catch `.v511-cycle-dir-cell` (was only catching `.v511-chip` and `.v511-bg-pos-cell`). Chip restore extended to reapply `bg-bounce-*` / `bg-trans-*` classes from matched chip's `data-bounce`/`data-trans`.
+- **T4.3.6** — Custom welcome message → text overlay piping. Removed four hardcoded `::before { content: '...' }` CSS rules. Apply function reads `(document.getElementById('v511PaWelcome') || {}).value || (ms.v511PaWelcome || 'Welcome back!')` and composes per template chip.
+- **T4.3.7** — Stable-ID rebuild fix. `v511ReadSequenceFromDom` was rebuilding items fresh on every 300ms debounced save and silently dropping `item.settings` (every chip selection vanished after typing in any field). Fix: stable `data-seq-id` per row, matched back via byId map to preserve `item.settings`. Also removed `!item.settings` early return in apply function.
+- **T4.3.8** — Outer-glow keyframe rebalance for visibility (20%-80% hold).
+- **T4.3.9** — Shake axis variants (vertical / both).
+- **T4.3.10** — Outer-glow intensity (3 variants louder than v3).
+- **T4.3.11** — Glow halo sweep + sweep keyframes (inward / rotate variants).
+- **T4.3.12** — Pulse intensity (3 ring radii: 10/22/40px).
+- **T4.3.13** — Density variants for confetti/sparkles/particles via `data-cel-density` selectors.
+- **T4.3.14** — Deny default sequence trimmed `[Shake, Delay, QR-disappear]` → `[QR-disappear]` per Captain's "remove auto shake" directive.
+- **T4.3.15** — Real QR dissolve via `mask-image: repeating-linear-gradient` stripe mask.
+- **T4.3.16** — Iris wipe direction variants (close-then-open / open-then-close / close only / open only).
+- **T4.3.17** — Glitch kind variants (hue / displace separation).
+- **T4.3.18** — Glow centre pulse on/off — halo-only mode keyframes (`v511CelGlowFlat[Subtle|Strong]`).
+- **T4.3.19** — Ripple thickness (border-width 2/9/16px).
+- **T4.3.20** — **Count loop in `v511PlaySequence`** — cam-flash / strobe / ripple / bg now fire N times within item duration. Inner setTimeout loop with double-rAF gap between sub-fires. Single-fire path unchanged.
+- **T4.3.21** — **Click-in-fullscreen plays Sample**. Dblclick-debounced single-click handler; only fires when `document.fullscreenElement === sampleStage`.
+- **T4.3.22** — **"Play with previous" overlap toggle** on every sequence row. Small `+` button between duration and remove. CSS `:first-child` hides on row 0 (no previous). `withPrev` field round-trips via `v511ReadSequenceFromDom`. Playback architecture extended with `chainNextNow()` helper that bypasses cleanup setTimeout when next step is marked withPrev. Compromise: when two steps overlap, latter one's settings win for shared CSS vars (`--cel-cycle-dur`) and singleton classes (`cel-int-*`); accepted as design trade-off pending real-use feedback.
+- **T4.3.23** — Scale-punch zoom direction (in / out) + intensity (6 keyframes).
+- **T4.3.24-25** — QR dissolve hold-state genuinely gone. Opacity ramps to 0 at peak (was 0.2 with faint stripe trace visible); gone-window widened 35%-80% of cycle (was 40-70%); mask tightened at peak (1px visible / 7px transparent, was 2/5).
+- **T4.3.26** — **WAV save round-trip + Reset button + mode-aware filename label**. Bug: `uploadedWavs[mode]` + `uploadedWavNames[mode]` were globals never captured by `v511CaptureState`. Fix: added to save state + restored in `v511LoadState` step 6.9. Upload handler now fires `v511SaveDebounced()` directly. New Reset button clears WAV per active mode; falls back to synthesised oscillator tone via `playOutcomeTone`. Tiered quota fallback: strip imageData first → WAVs next → minimal save.
+- **T4.3.27** — **Bounce vs loop wiring**. `cel-bounce-eff-loop` class triggers `animation-iteration-count: 2` + `animation-duration: calc(var(--cel-cycle-dur) / 2)`. Five effects: outer-glow / spotlight / pulse / qr / scale-punch.
+- **T4.3.28** — **Whole celebration sweep complete in one drop**. Pulse colour source (cycle walks pal-1/2/3). Spotlight intensity. QR-disappear easing (linear/snap timing-function) + intensity. Flame intensity. Sparkles/Particles intensity. Confetti 9-direction grid complete (added tl/tr/c). Confetti single colour source. Sparkles 9-direction grid complete (added 6 directional drift variants). Particles 9-direction grid complete (8 directional translate-while-scale keyframes). Ripple cycle-palette colour source (animated border-color through palette).
+
+**Architectural commitments banked from this watch:**
+
+- **Surgical-patch discipline pays.** Captain steered the cadence; each bump caught its own regressions before the next began. T4.3.7 in particular (stable-ID rebuild fix) explained why "many buttons don't seem to do anything" — settings were saving for 300ms then being silently obliterated. That bug would have been invisible in a sweeping refactor.
+- **Settings hooks pattern**: CSS classes (`cel-int-*`, `cel-bounce-eff-*`), `data-*` attributes (`data-cel-text-pos`, `data-cel-easing`, `data-cel-colour-source` etc.), and CSS variables (`--cel-cycle-dur`, `--bg-image-pos`). Apply function `v511ApplyItemSettings` is the single translator from `item.settings` → stage state.
+- **WAV + image quota fallback hierarchy**: imageData first to strip, WAVs second, minimal save last. Stops the entire save from failing when storage chokes on heavy data URLs.
+
+**Known bug to chase next watch (intermittent — needs repro):**
+
+- **Background animation doesn't always play.** Captain reported during the evening watch but couldn't pin it to a reliable trigger. When it next happens, screenshot the Background expander state + which mode + what's in the sequence so I can chase it.
+
+## Carryforward (still pending from earlier watches)
+
+- **Cloudflare token rotation** (Captain deferred again; "nothing worth stealing for a week"). Tokens still active: `cfut_YZ11ouJO...` (user-scoped) + `cfat_wIMFM4RI...` (account-scoped). Use **Roll** not Delete.
+- **`codex/v5.10.1-path-b` branch deletion on origin** — pure housekeeping.
+- **Event & Calendar tab light-mode polish** — Captain noted washed-out elements ("not for now").
+- **Mr. Data port** of v5.11 mockup → live `OrgCheckin.html` per `SETTINGS-REVAMP-SPEC.md` Phase 1 — the big next move once Captain is happy with the mockup's visual completeness.
+
+---
+
 ## Tuesday 19 May 2026 morning watch close — Celebration animation rebuilt as library + sequence + settings panel; called for R&R with known gaps
 
 **The headline.** Long Tuesday morning watch spanning T4.1.10 → T4.3.2. After the bath-watch landed three spec drafts, Captain steered the celebration animation through its biggest architectural shift since Tier 1: from a 6-checkbox grid into a **library + sequence + per-effect settings** model. 20 effects across 5 expandable groups, drag-from-library workflow, per-item duration, ⏱ Delay rows, sequence playback via async chained setTimeouts. Third pane added below Library + Sequence for per-effect settings (chip groups + 9-cell direction grids). Captain reported "very very good" structurally, then identified gaps that didn't get fully fixed before he called for rest ("didn't have the best sleep last night and am fuzzy today"). Watch closed cleanly with an audit + memory-update request.
