@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.1</span></div>
   </div>
 </div>
 
@@ -5089,7 +5089,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       <summary>Surface</summary>
                       <div class="v511-cel-lib-items">
                         <button type="button" class="v511-cel-lib-item" data-effect="bg"          draggable="true"><span class="icon">▮</span> Background flash</button>
-                        <button type="button" class="v511-cel-lib-item" data-effect="cel-pattern" draggable="true"><span class="icon">▦</span> Pattern flash</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="pattern" draggable="true"><span class="icon">▦</span> Pattern flash</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="text"        draggable="true"><span class="icon">A</span> Text overlay</button>
                       </div>
                     </details>
@@ -5542,16 +5542,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   setTimeout(step, durMs);
                   return;
                 }
-                var cls = 'cel-' + item.effect;
-                // Force animation duration to match this item's duration so the CSS
-                // keyframe runs exactly as long as the sequence step demands.
+                // Tier 4.3.1 — Coerce legacy 'cel-pattern' data-effect → 'pattern'
+                // so 'cel-' + effect doesn't double-prefix and miss the CSS class.
+                var effectKey = item.effect === 'cel-pattern' ? 'pattern' : item.effect;
+                var cls = 'cel-' + effectKey;
                 sampleStage.style.setProperty('--cel-cycle-dur', (durMs / 1000) + 's');
                 void sampleStage.offsetWidth;
                 sampleStage.classList.add(cls);
                 setTimeout(function () {
                   sampleStage.classList.remove(cls);
-                  step();
-                }, durMs + 20); // small buffer for class teardown
+                  // Tier 4.3.1 — double rAF so the browser PAINTS the removal
+                  // before the next step adds its class. Without this gap the
+                  // mutations coalesce in one tick and subsequent CSS keyframes
+                  // never see a "no animation → animation" transition, so only
+                  // the FIRST effect ever actually plays.
+                  requestAnimationFrame(function () {
+                    requestAnimationFrame(step);
+                  });
+                }, durMs + 20);
               }
               step();
             });
@@ -6254,7 +6262,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'flame':        { label: 'Flame',            icon: '🔥', defaultDur: 1.4 },
             'glitch':       { label: 'Glitch',           icon: '▦', defaultDur: 0.6 },
             'bg':           { label: 'Background flash', icon: '▮', defaultDur: 1.4 },
-            'cel-pattern':  { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
+            'pattern':      { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
             'text':         { label: 'Text overlay',     icon: 'A', defaultDur: 1.4 },
             'delay':        { label: '⏱ Delay',          icon: '⏱', defaultDur: 0.3 }
           };
@@ -6438,7 +6446,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'flame':        [ SETTING_INTENSITY, SETTING_DIR9 ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
-            'cel-pattern':  [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
+            'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
             'text':         [ { key: 'template', label: 'Template', options: ['name','name + action','welcome'], default: 'name' }, { key: 'position', label: 'Position', options: ['top','centre','bottom'], default: 'centre' }, { key: 'size', label: 'Size', options: ['small','medium','large'], default: 'medium' } ],
             'delay':        [] // no settings
           };
@@ -6999,6 +7007,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var ien = document.getElementById('v511BgImageEnable');
               if (ien) ien.checked = true;
             }
+            // 6.8. Tier 4.3.1 — migrate sequence items with old 'cel-pattern' key → 'pattern'
+            ['allow','review','deny'].forEach(function (mode) {
+              if (modeStates[mode] && Array.isArray(modeStates[mode].sequence)) {
+                modeStates[mode].sequence.forEach(function (item) {
+                  if (item.effect === 'cel-pattern') item.effect = 'pattern';
+                });
+              }
+            });
 
             // 7. Re-apply derived state to the preview surface.
             try { applyBgState(); } catch (e) {}
