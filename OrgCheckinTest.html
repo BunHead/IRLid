@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.12</span></div>
   </div>
 </div>
 
@@ -4173,6 +4173,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            the stage. Each effect is independent; multiple can layer simultaneously. */
         .v511-theme-preview-stage.cel-pulse .v511-theme-preview-qr { animation: v511CelPulse var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPulse { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.7)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
+        /* Tier 4.3.12 — Pulse intensity (cel-int-* class). Same shape as Glow/Outer-glow. */
+        .v511-theme-preview-stage.cel-pulse.cel-int-subtle .v511-theme-preview-qr { animation-name: v511CelPulseSubtle; }
+        .v511-theme-preview-stage.cel-pulse.cel-int-strong .v511-theme-preview-qr { animation-name: v511CelPulseStrong; }
+        @keyframes v511CelPulseSubtle { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.6)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 10px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
+        @keyframes v511CelPulseStrong { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.85)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 40px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
         .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
         /* Tier 4.3.11 — Glow halo intensity (cel-int-* class) */
