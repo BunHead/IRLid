@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3</span></div>
   </div>
 </div>
 
@@ -4295,6 +4295,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-cel-lib-item:hover { background: rgba(105,168,255,0.12); }
         :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-dur { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.2); }
         :root[data-theme="light"] .v511-cel-seq-empty { border-color: rgba(0,0,0,0.10); color: var(--muted); }
+        /* Tier 4.3 — Effect settings pane (third frame below Library + Sequence) */
+        .v511-cel-settings { margin-top: 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 8px 12px 12px; }
+        .v511-cel-settings h4 { margin: 4px 6px 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+        .v511-cel-settings-target { color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 12px; }
+        .v511-cel-settings-target .v511-hint-inline { color: var(--muted); font-weight: 400; }
+        .v511-cel-settings-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+        .v511-cel-settings-empty { padding: 16px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
+        .v511-cel-setting-row { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 4px 6px; }
+        .v511-cel-setting-row > label { color: var(--muted); width: 130px; flex-shrink: 0; }
+        .v511-cel-setting-row .v511-chips { flex-wrap: wrap; }
+        .v511-cel-seq-item.v511-cel-seq-item--selected { background: rgba(105,168,255,0.16); border-color: rgba(105,168,255,0.55); }
+        /* Tier 4.3 — Mini 9-cell direction grid for settings (smaller than the cycle-direction one) */
+        .v511-cel-dir9 { display: grid; grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); gap: 3px; }
+        .v511-cel-dir9-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.55); font-family: inherit; padding: 0; }
+        .v511-cel-dir9-cell:hover { background: rgba(105,168,255,0.10); border-color: rgba(105,168,255,0.30); }
+        .v511-cel-dir9-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); color: #fff; }
+        :root[data-theme="light"] .v511-cel-settings { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-cel-settings-empty { border-color: rgba(0,0,0,0.10); }
+        :root[data-theme="light"] .v511-cel-dir9-cell { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.12); color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-cel-dir9-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); color: #185fa5; }
         /* Tier 2 — Pattern celebration: pattern overlay flashes once */
         .v511-theme-preview-stage.cel-pattern::after { opacity: 0.6; background-image: radial-gradient(circle, var(--cel-pal-1, rgba(255,255,255,0.6)) 2px, transparent 2.4px); background-size: 14px 14px; animation: v511CelPatternFlash var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelPatternFlash { 0% { opacity: 0; transform: scale(0.7); } 30% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }
@@ -5086,6 +5106,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <h4>Sequence <span class="v511-cel-seq-count" id="v511CelSeqCount">0 / 10</span></h4>
                     <div class="v511-cel-seq-list" id="v511CelSeqList"></div>
                     <div class="v511-cel-seq-empty" id="v511CelSeqEmpty">Drag effects here to build your celebration</div>
+                  </div>
+                </div>
+
+                <!-- Tier 4.3 — Third pane: effect settings. Surfaces sub-settings
+                     (bounce / loop, 9-cell direction, zoom in/out, CW/CCW, etc.)
+                     for the currently-selected sequence item. -->
+                <div class="v511-cel-settings" id="v511CelSettings">
+                  <h4>Effect settings <span class="v511-cel-settings-target" id="v511CelSettingsTarget"><span class="v511-hint-inline">— click a sequence item to configure</span></span></h4>
+                  <div class="v511-cel-settings-body" id="v511CelSettingsBody">
+                    <div class="v511-cel-settings-empty">No effect selected. Click any row in the sequence above to edit its settings here.</div>
                   </div>
                 </div>
                 <div class="v511-hint" style="margin-top: 10px;">Sample button at the top plays the sequence for the active mode. Outcome sound for the active mode lives in <strong style="color: var(--text);">Accept / Review / Deny behaviour</strong> below.</div>
@@ -6366,6 +6396,181 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           // Initial render for the active mode (Allow on boot)
           v511RenderSequence((modeStates[currentMode] && modeStates[currentMode].sequence) || []);
+
+          // =====================================================================
+          // Tier 4.3 — Effect settings pane (third frame). Surfaces per-effect
+          // sub-settings (direction 9-cell, bounce/loop, intensity, variant chips)
+          // when a sequence item is selected.
+          // =====================================================================
+          var v511CelSettingsBody = document.getElementById('v511CelSettingsBody');
+          var v511CelSettingsTarget = document.getElementById('v511CelSettingsTarget');
+          var v511SelectedSeqIdx = -1;
+
+          // Setting templates re-used across effects
+          var SETTING_INTENSITY = { key: 'intensity', label: 'Intensity', options: ['subtle','medium','strong'], default: 'medium' };
+          var SETTING_BOUNCE = { key: 'bounce', label: 'Motion', options: ['bounce','loop'], default: 'bounce' };
+          var SETTING_DIR_ROTATE = { key: 'rotate', label: 'Rotation', options: ['clockwise','anti-clockwise'], default: 'clockwise' };
+          var SETTING_DIR_ZOOM = { key: 'zoom', label: 'Zoom', options: ['in','out'], default: 'in' };
+          var SETTING_COUNT = function (max) { return { key: 'count', label: 'Count', options: ['1','2','3','4','5','6','7','8'].slice(0, max || 4), default: '1' }; };
+          var SETTING_THICKNESS = { key: 'thickness', label: 'Thickness', options: ['thin','medium','thick'], default: 'medium' };
+          var SETTING_DENSITY = { key: 'density', label: 'Density', options: ['sparse','medium','dense'], default: 'medium' };
+          var SETTING_COLOUR = { key: 'colourSource', label: 'Colour source', options: ['single','cycle palette'], default: 'cycle palette' };
+          var SETTING_DIR9 = { key: 'direction9', label: 'Direction', type: 'dir9', default: 'c' };
+
+          // Per-effect settings schema. Each value is an array of setting templates.
+          // Effects not listed get an empty body (just the duration field on the row).
+          var V511_EFFECT_SETTINGS = {
+            'glow':         [ SETTING_INTENSITY, SETTING_THICKNESS, { key: 'sweep', label: 'Sweep', options: ['outward','inward','rotate'], default: 'outward' }, { key: 'centrePulse', label: 'Centre pulse', options: ['on','off'], default: 'on' } ],
+            'outer-glow':   [ SETTING_INTENSITY, SETTING_THICKNESS, SETTING_BOUNCE ],
+            'spotlight':    [ SETTING_INTENSITY, SETTING_BOUNCE ],
+            'cam-flash':    [ SETTING_COUNT(5), SETTING_INTENSITY ],
+            'strobe':       [ SETTING_COUNT(8), SETTING_INTENSITY ],
+            'pulse':        [ SETTING_INTENSITY, SETTING_COLOUR, SETTING_BOUNCE ],
+            'qr':           [ { key: 'variant', label: 'Motion', options: ['wobble','zoom in','zoom out','rotate cw','rotate ccw','dissolve horz','dissolve vert'], default: 'wobble' }, SETTING_BOUNCE ],
+            'qr-disappear': [ SETTING_INTENSITY, { key: 'easing', label: 'Easing', options: ['ease','linear','snap'], default: 'ease' } ],
+            'shake':        [ SETTING_INTENSITY, { key: 'axis', label: 'Axis', options: ['horizontal','vertical','both'], default: 'horizontal' } ],
+            'scale-punch':  [ SETTING_INTENSITY, SETTING_DIR_ZOOM, SETTING_BOUNCE ],
+            'iris-wipe':    [ { key: 'irisDir', label: 'Direction', options: ['close-then-open','open-then-close','close only','open only'], default: 'close-then-open' } ],
+            'ripple':       [ SETTING_THICKNESS, SETTING_COUNT(3), SETTING_COLOUR ],
+            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR ],
+            'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY ],
+            'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
+            'flame':        [ SETTING_INTENSITY, SETTING_DIR9 ],
+            'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
+            'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
+            'cel-pattern':  [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
+            'text':         [ { key: 'template', label: 'Template', options: ['name','name + action','welcome'], default: 'name' }, { key: 'position', label: 'Position', options: ['top','centre','bottom'], default: 'centre' }, { key: 'size', label: 'Size', options: ['small','medium','large'], default: 'medium' } ],
+            'delay':        [] // no settings
+          };
+
+          function v511RenderSettingsForItem(idx) {
+            if (!v511CelSettingsBody) return;
+            var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+            if (idx < 0 || idx >= seq.length) {
+              v511CelSettingsBody.innerHTML = '<div class="v511-cel-settings-empty">No effect selected. Click any row in the sequence above to edit its settings here.</div>';
+              if (v511CelSettingsTarget) v511CelSettingsTarget.innerHTML = '<span class="v511-hint-inline">— click a sequence item to configure</span>';
+              return;
+            }
+            var item = seq[idx];
+            var meta = V511_EFFECTS_LIBRARY[item.effect] || { label: item.effect, icon: '?' };
+            if (v511CelSettingsTarget) v511CelSettingsTarget.innerHTML = '— ' + meta.icon + ' ' + meta.label + ' <span class="v511-hint-inline">(step ' + (idx + 1) + ')</span>';
+            var schema = V511_EFFECT_SETTINGS[item.effect] || [];
+            if (schema.length === 0) {
+              v511CelSettingsBody.innerHTML = '<div class="v511-cel-settings-empty">' + (item.effect === 'delay' ? 'Delay items only have a duration — edit it in the sequence row above.' : 'No extra settings for this effect.') + '</div>';
+              return;
+            }
+            if (!item.settings) item.settings = {};
+            v511CelSettingsBody.innerHTML = '';
+            schema.forEach(function (setting) {
+              var row = document.createElement('div');
+              row.className = 'v511-cel-setting-row';
+              row.setAttribute('data-setting-key', setting.key);
+              var labelEl = document.createElement('label');
+              labelEl.textContent = setting.label;
+              row.appendChild(labelEl);
+              var currentVal = item.settings[setting.key] !== undefined ? item.settings[setting.key] : setting.default;
+              if (setting.type === 'dir9') {
+                var grid = document.createElement('div');
+                grid.className = 'v511-cel-dir9';
+                grid.setAttribute('role', 'radiogroup');
+                grid.setAttribute('aria-label', setting.label);
+                var DIR9 = [
+                  ['tl','↘'], ['t','↓'], ['tr','↙'],
+                  ['l','→'],  ['c','●'], ['r','←'],
+                  ['bl','↗'], ['b','↑'], ['br','↖']
+                ];
+                DIR9.forEach(function (d) {
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'v511-cel-dir9-cell';
+                  btn.setAttribute('data-dir', d[0]);
+                  btn.setAttribute('aria-pressed', d[0] === currentVal ? 'true' : 'false');
+                  btn.textContent = d[1];
+                  grid.appendChild(btn);
+                });
+                row.appendChild(grid);
+              } else {
+                var chips = document.createElement('div');
+                chips.className = 'v511-chips v511-chips-wrap';
+                chips.setAttribute('data-setting-chips', setting.key);
+                setting.options.forEach(function (opt) {
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'v511-chip';
+                  btn.setAttribute('aria-pressed', opt === currentVal ? 'true' : 'false');
+                  btn.setAttribute('data-opt', opt);
+                  btn.textContent = opt;
+                  chips.appendChild(btn);
+                });
+                row.appendChild(chips);
+              }
+              v511CelSettingsBody.appendChild(row);
+            });
+          }
+
+          // Selection + click handling for sequence rows. Clicking the row body
+          // (not the drag handle, duration field, or × button) selects the item.
+          function v511SelectSequenceItem(idx) {
+            v511SelectedSeqIdx = idx;
+            if (v511CelSeqList) {
+              v511CelSeqList.querySelectorAll('.v511-cel-seq-item').forEach(function (r, i) {
+                r.classList.toggle('v511-cel-seq-item--selected', i === idx);
+              });
+            }
+            v511RenderSettingsForItem(idx);
+          }
+          if (v511CelSeqList) {
+            v511CelSeqList.addEventListener('click', function (e) {
+              if (e.target.closest('.v511-cel-seq-remove')) return; // remove handler runs separately
+              if (e.target.closest('.v511-cel-seq-dur')) return;    // duration edit doesn't change selection
+              var row = e.target.closest('.v511-cel-seq-item');
+              if (!row) return;
+              var rows = Array.prototype.slice.call(v511CelSeqList.querySelectorAll('.v511-cel-seq-item'));
+              v511SelectSequenceItem(rows.indexOf(row));
+            });
+          }
+
+          // Settings panel click — chip or dir9 cell. Updates item.settings + save.
+          if (v511CelSettingsBody) {
+            v511CelSettingsBody.addEventListener('click', function (e) {
+              var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+              if (v511SelectedSeqIdx < 0 || v511SelectedSeqIdx >= seq.length) return;
+              var item = seq[v511SelectedSeqIdx];
+              if (!item.settings) item.settings = {};
+              // dir9 cell
+              var dirCell = e.target.closest('.v511-cel-dir9-cell');
+              if (dirCell) {
+                var grid = dirCell.parentElement;
+                var row = grid.closest('.v511-cel-setting-row');
+                var key = row && row.getAttribute('data-setting-key');
+                if (!key) return;
+                grid.querySelectorAll('.v511-cel-dir9-cell').forEach(function (c) { c.setAttribute('aria-pressed', c === dirCell ? 'true' : 'false'); });
+                item.settings[key] = dirCell.getAttribute('data-dir');
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                return;
+              }
+              // chip
+              var chip = e.target.closest('.v511-chip');
+              if (chip && chip.parentElement && chip.parentElement.hasAttribute('data-setting-chips')) {
+                var chipGroup = chip.parentElement;
+                var rowChip = chipGroup.closest('.v511-cel-setting-row');
+                var chipKey = rowChip && rowChip.getAttribute('data-setting-key');
+                if (!chipKey) return;
+                chipGroup.querySelectorAll('.v511-chip').forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
+                item.settings[chipKey] = chip.getAttribute('data-opt');
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                return;
+              }
+            });
+          }
+
+          // Mode switch deselects (different sequence — old selection idx is invalid)
+          if (samplePicker) {
+            samplePicker.addEventListener('change', function () {
+              v511SelectedSeqIdx = -1;
+              v511RenderSettingsForItem(-1);
+            });
+          }
 
           // Tier 4.1.11 — Mount the QR customization expander inside the Post-Accept
           // behaviour body at the marker div (right under Outcome sound / Replace).
