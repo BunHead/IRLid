@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.1.13</span></div>
   </div>
 </div>
 
@@ -5401,21 +5401,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              // Read which celebration effects are ticked (only the QR sub-tab's grid)
-              var qrPanel = document.querySelector('.v511-subpanel[data-v511-subpanel="qr"]');
+              // Tier 4.1.13 — Read checked effects from the QR-customization block
+              // wherever it now lives in the DOM. Old `[data-v511-subpanel="qr"]`
+              // selector broke at T4.1.9 when sub-tabs were dropped; .v511-celeb-effect
+              // is unique enough on the page that a global query is safe and survives
+              // future restructures.
               var effects = [];
-              if (qrPanel) {
-                qrPanel.querySelectorAll('.v511-celeb-effect input[type=checkbox]:checked').forEach(function (cb) {
-                  // First word in the label after the checkbox is the effect name
-                  var labelText = cb.parentElement.textContent.trim().toLowerCase();
-                  if (labelText.indexOf('pulse') === 0) effects.push('pulse');
-                  else if (labelText.indexOf('background') === 0) effects.push('bg');
-                  else if (labelText.indexOf('qr motion') === 0) effects.push('qr');
-                  else if (labelText.indexOf('glow') === 0) effects.push('glow');
-                  else if (labelText.indexOf('pattern') === 0) effects.push('cel-pattern');
-                  else if (labelText.indexOf('text') === 0) effects.push('text');
-                });
-              }
+              document.querySelectorAll('.v511-celeb-effect input[type=checkbox]:checked').forEach(function (cb) {
+                var labelText = (cb.parentElement && cb.parentElement.textContent || '').trim().toLowerCase();
+                if (labelText.indexOf('pulse') === 0) effects.push('pulse');
+                else if (labelText.indexOf('background') === 0) effects.push('bg');
+                else if (labelText.indexOf('qr motion') === 0) effects.push('qr');
+                else if (labelText.indexOf('glow') === 0) effects.push('glow');
+                else if (labelText.indexOf('pattern') === 0) effects.push('cel-pattern');
+                else if (labelText.indexOf('text') === 0) effects.push('text');
+              });
               // Clear previous firing state + effect classes
               sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny', 'cel-pulse', 'cel-bg', 'cel-qr', 'cel-glow', 'cel-pattern', 'cel-text');
               void sampleStage.offsetWidth; // reflow to restart animations
