@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.20</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.21</span></div>
   </div>
 </div>
 
@@ -6126,8 +6126,30 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           });
 
           // Double-click anywhere on preview stage → fullscreen (Esc to exit)
+          // Tier 4.3.21 — Single click while fullscreen → fire Sample for the
+          // current outcome (handy for demo-mode interaction without leaving
+          // fullscreen). Single-click is debounced past the dblclick threshold
+          // and cancelled by dblclick so exit-fullscreen doesn't fire a sample
+          // first.
           if (sampleStage) {
+            var v511FsClickTimer = null;
+            sampleStage.addEventListener('click', function () {
+              if (document.fullscreenElement !== sampleStage) return;
+              if (v511FsClickTimer) clearTimeout(v511FsClickTimer);
+              v511FsClickTimer = setTimeout(function () {
+                v511FsClickTimer = null;
+                var outcome = samplePicker ? samplePicker.value : 'allow';
+                v511ClearCelClasses();
+                sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
+                void sampleStage.offsetWidth;
+                sampleStage.classList.add('firing-' + outcome);
+                try { playOutcomeTone(outcome); } catch (e) {}
+                var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
+                v511PlaySequence(seq);
+              }, 240);
+            });
             sampleStage.addEventListener('dblclick', function () {
+              if (v511FsClickTimer) { clearTimeout(v511FsClickTimer); v511FsClickTimer = null; }
               if (!document.fullscreenElement) {
                 if (sampleStage.requestFullscreen) sampleStage.requestFullscreen();
                 else if (sampleStage.webkitRequestFullscreen) sampleStage.webkitRequestFullscreen();
