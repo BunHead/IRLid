@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.11</span></div>
   </div>
 </div>
 
@@ -4175,6 +4175,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelPulse { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.7)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 22px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
         .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
         @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
+        /* Tier 4.3.11 — Glow halo intensity (cel-int-* class) */
+        .v511-theme-preview-stage.cel-glow.cel-int-subtle .v511-theme-preview-qr { animation-name: v511CelGlowSubtle; }
+        .v511-theme-preview-stage.cel-glow.cel-int-strong .v511-theme-preview-qr { animation-name: v511CelGlowStrong; }
+        @keyframes v511CelGlowSubtle { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.08) drop-shadow(0 0 14px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
+        @keyframes v511CelGlowStrong { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.45) drop-shadow(0 0 56px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
+        /* Tier 4.3.11 — Glow halo sweep (data-cel-glow-sweep). outward = default;
+           inward = halo starts wide and contracts; rotate = QR spins inside the halo. */
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-sweep="inward"] .v511-theme-preview-qr { animation-name: v511CelGlowInward; }
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-sweep="rotate"] .v511-theme-preview-qr { animation-name: v511CelGlowRotate; }
+        @keyframes v511CelGlowInward { 0% { filter: brightness(1) drop-shadow(0 0 56px var(--cel-pal-1, #58a6ff)); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
+        @keyframes v511CelGlowRotate { 0% { transform: rotate(0); filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { transform: rotate(180deg); filter: brightness(1.25) drop-shadow(0 0 36px var(--cel-pal-1, #58a6ff)); } 100% { transform: rotate(360deg); filter: brightness(1) drop-shadow(0 0 0 transparent); } }
         /* Default cel-qr motion (Wobble) defined below via [data-qr-motion="wobble"] rule */
         /* Tier 4.1.2 — Cel-text moved off ::before (which now permanently carries
            the palette gradient) onto a dedicated DOM element so the celebration
@@ -5579,7 +5590,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-text-pos','data-cel-text-size','data-cel-text-template',
             'data-cel-pattern-style','data-cel-density','data-cel-dir',
             'data-cel-axis','data-cel-count','data-cel-thickness',
-            'data-cel-iris-dir','data-cel-glitch-kind'
+            'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -5635,6 +5646,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.glitchKind) stage.setAttribute('data-cel-glitch-kind', s.glitchKind);
             if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
             if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
+            // Tier 4.3.11 — Glow halo sweep setting (outward / inward / rotate)
+            if (s.sweep) stage.setAttribute('data-cel-glow-sweep', s.sweep);
           }
           // Play the sequence top-to-bottom. Each effect gets its class added for
           // its own duration, then removed. Delay items just wait the duration.
