@@ -1,5 +1,73 @@
 # Pending Work — IRLid
 
+## Tuesday 19 May 2026 morning watch close — Celebration animation rebuilt as library + sequence + settings panel; called for R&R with known gaps
+
+**The headline.** Long Tuesday morning watch spanning T4.1.10 → T4.3.2. After the bath-watch landed three spec drafts, Captain steered the celebration animation through its biggest architectural shift since Tier 1: from a 6-checkbox grid into a **library + sequence + per-effect settings** model. 20 effects across 5 expandable groups, drag-from-library workflow, per-item duration, ⏱ Delay rows, sequence playback via async chained setTimeouts. Third pane added below Library + Sequence for per-effect settings (chip groups + 9-cell direction grids). Captain reported "very very good" structurally, then identified gaps that didn't get fully fixed before he called for rest ("didn't have the best sleep last night and am fuzzy today"). Watch closed cleanly with an audit + memory-update request.
+
+**Build pill at close:** `v5.10.2 + v5.11 mockup T4.3.2`.
+
+**Tier progression banked:**
+
+- **T4.1.10**: Pattern + Image overlays nested INSIDE Background body; QR customization nested INSIDE Post-Accept body via JS reparenting (`mountQrInsidePostAccept()` — HTML adjacent, DOM reparented at init).
+- **T4.1.11**: Background closed by default; Image overlay moved above Pattern overlay; 9-position image grid shrunk to 56px cells (matches cycle-direction grid); Bounce → chip group; QR customization moved below Outcome sound; "Post" sub-expander wraps remaining post-accept fields; top-level expander renamed Post-Accept → Accept/Review/Deny.
+- **T4.1.12**: Celebration palette per-mode with mode-tinted defaults (Allow greens / Review ambers / Deny reds); `snapshotMode`/`loadMode` extended to track `celPalette` array per mode.
+- **T4.1.13**: Sample button hotfix — dropped dead `.v511-subpanel[data-v511-subpanel="qr"]` selector left from T4.1.9 sub-tab retirement; global `.v511-celeb-effect` query.
+- **T4.2**: Celebration rebuilt as library (left) + sequence (right) two-pane builder. 20 effects across 5 groups: Light (5) / Motion (7) / Particles (5) / Surface (3) / Timing (1). ⏱ Delay row for gaps. Sample button plays sequence top-to-bottom via async `v511PlaySequence`. Per-mode sequences. 14 new effect CSS keyframes added. Old global cycle duration slider retired.
+- **T4.3**: Effect settings pane (third frame). Click sequence row → blue selected outline → settings render below with chip groups + 9-cell direction grid. Per-effect schemas (Intensity / Bounce / Rotation / Zoom / Variant / Count / Thickness / Density). Settings persist into `item.settings`.
+- **T4.3.1**: Sequence playback hotfix — double `requestAnimationFrame` between class remove/add so browser PAINTS the removal before the next mutation (CSS keyframes never restarted in same tick). Also renamed `data-effect="cel-pattern"` → `pattern` + migration.
+- **T4.3.2**: Settings → playback wiring (`v511ApplyItemSettings`). Translates `item.settings` into stage data-attrs / classes / CSS variables BEFORE the effect class is applied. Visual fixes: text overlay z-index bumped to 6 (was hidden behind caption), text size + weight + shadow strengthened; Pattern flash moved from `::after` to `cel-fx-layer` (no longer clobbers image); Confetti changed to full-area cascade with direction setting; Sparkles got direction setting; Flame anchor-to-image-position setting.
+
+**Architectural commitments banked from this watch:**
+
+- **Sample plays sequences via timeline model, not parallel layer model.** Effects fire one after another by default. ⏱ Delay rows insert pauses. To overlap effects, future work needs an explicit "Layer with previous" toggle per item.
+- **Settings panel uses three stage hooks for visual change**: CSS classes (`cel-int-strong` etc.), `data-*` attributes (`data-cel-text-pos` etc.), CSS variables (`--bg-image-pos` for flame). Each new setting needs corresponding CSS to be visually distinct.
+- **Library has 20 effects + ⏱ Delay**. Five expandable groups (Light / Motion / Particles / Surface / Timing). Strobe carries `⚠` warning chip for photosensitive concern.
+
+## What's still gappy — for next watch
+
+Captain identified these in his testing before calling for rest. Some had been queued as "known limitations" since T4.3, others surfaced during T4.3.2 testing.
+
+**Functional bugs**:
+- **Custom welcome message** from Post-Accept textarea isn't piped to text overlay. Text overlay templates currently hardcoded strings — they should read `modeStates[currentMode].v511PaWelcome` value.
+- **Background settings sometimes "don't save" again** per Captain. Possibly load-order or mode-switch interaction. Investigate: palette/direction grid/bounce/transition round-trip on refresh.
+- **Glow halo "doesn't rotate"** — Sweep setting (outward/inward/rotate) not wired to CSS variation. Need a `[data-glow-sweep="rotate"]` rule with a conic-gradient or rotating filter.
+- **Outer edge glow visibility** — keyframe goes transparent at 0% and 100%, brief peak at 50%. Extend the visible window (e.g. opacity 0 → 1 ramp in first 20%, hold 60%, ramp out last 20%).
+
+**Settings that save but don't visually do anything yet** (settings panel renders chips but CSS doesn't respond):
+- `intensity` (subtle/medium/strong) — class added but no per-effect CSS scaling
+- `bounce` per-effect — class added but no per-effect CSS variation
+- `count` (for cam-flash/strobe/ripple) — attr set but no CSS repeats
+- `thickness` (for glow/ripple/outer-glow) — attr set but no CSS scaling
+- `density` (for confetti/sparkles/particles) — attr set but no CSS scaling
+- `irisDir` (close-then-open etc.) — attr set but no CSS variation
+- `glitchKind` (hue/displace/both) — attr set but no CSS variation
+- `axis` (shake) — attr set but no CSS variation
+
+**Already wired (working)**: `template`/`position`/`size` (text), `pattern` style (cel-pattern), `variant` (qr motion), `direction9` (confetti/sparkles), `flameAnchor` (image-anchor).
+
+**Optimization opportunities banked** (from this watch's end-of-watch audit):
+- `v511PlaySequence`: `--cel-cycle-dur` `style.setProperty` leaks across modes; clear at end-of-sequence.
+- 20ms buffer between effect-class removal and next-step rAF could be tightened, or use `animationend` event instead.
+- Settings panel: clicking same chip again doesn't deselect; could add "deselect-to-default" UX.
+- Sequence re-render on mode switch does full `innerHTML` clear + DOM rebuild; could diff for performance.
+- Settings click saves are debounced 300ms; immediate save on chip click might be UX-nicer.
+
+**Suggested order of attack for next watch:**
+1. Fix custom welcome message → text overlay piping (quick win, restores Captain's expectation).
+2. Investigate background settings save bug — repro on refresh, check load order.
+3. Sweep remaining settings to CSS in one pass (intensity / count / thickness / density / axis / iris / glitch / glow-sweep). Each is a small CSS block.
+4. Outer edge glow keyframe rebalance for visibility.
+5. Optional: optimization pass per audit.
+
+## Carryforward (still pending from earlier watches)
+
+- **Cloudflare token rotation** (Captain deferred again; "nothing worth stealing for a week"). Tokens still active: `cfut_YZ11ouJO...` (user-scoped) + `cfat_wIMFM4RI...` (account-scoped). Use **Roll** not Delete.
+- **`codex/v5.10.1-path-b` branch deletion on origin** — pure housekeeping.
+- **Event & Calendar tab light-mode polish** — Captain noted washed-out elements ("not for now").
+- **Mr. Data port** of v5.11 mockup → live `OrgCheckin.html` per `SETTINGS-REVAMP-SPEC.md` Phase 1, once Captain locks the visual theming design.
+
+---
+
 ## Tuesday 19 May 2026 bath-watch — Three spec docs drafted while Captain showered
 
 **The headline.** Captain handed Number One the conn for a bath stretch with a clear three-spec ask: SETTINGS-REVAMP-SPEC.md, CALENDAR-SPEC.md, PROTOCOL §X-Records-Broker. All three landed before Captain was out. Plus the morning's UI restructure (T4.1.10): Pattern + Image overlays nest INSIDE Background body; QR customization nests INSIDE Post-Accept body (HTML adjacent for source readability, DOM reparented via JS at init).
