@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.33</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.34</span></div>
   </div>
 </div>
 
@@ -4557,6 +4557,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            celebration BETWEEN the bg image and the content/QR). */
         .v511-theme-preview-stage.cel-z-below > .v511-cel-fx-layer { z-index: 2; }
         .v511-theme-preview-stage.cel-z-below .v511-stream-particle { z-index: 2; }
+        /* T4.3.34 — Anchor crosshairs. Show where Stream particles will fire
+           from while a Stream row is selected in the sequence. Yellow plus-mark
+           with subtle shadow + pulse so it's visible on any palette. */
+        .v511-anchor-crosshairs { position: absolute; inset: 0; pointer-events: none; z-index: 9; display: none; }
+        .v511-anchor-crosshairs.is-visible { display: block; }
+        .v511-anchor-crosshair-marker { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
+        .v511-anchor-crosshair-marker::before,
+        .v511-anchor-crosshair-marker::after {
+          content: ''; position: absolute; background: #ffd84a;
+          box-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 10px rgba(255,216,74,0.7);
+        }
+        .v511-anchor-crosshair-marker::before { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+        .v511-anchor-crosshair-marker::after  { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+        .v511-anchor-crosshair-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #ffd84a; box-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 12px rgba(255,216,74,0.85); }
+        @keyframes v511AnchorPulse {
+          0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.18); }
+        }
         .v511-cel-seq-item:hover { background: rgba(255,255,255,0.06); }
         .v511-cel-seq-item.dragging { opacity: 0.4; }
         .v511-cel-seq-item .v511-cel-seq-drag { color: var(--muted); cursor: grab; user-select: none; padding: 0 2px; }
@@ -4671,11 +4689,51 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Centre direction ('c') uses a radial gradient — burns out from middle.
            Unlike dissolve-horz/vert which dissolve symmetrically, this one
            progresses irreversibly: the QR is gone by the end. */
-        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"] .v511-theme-preview-qr { animation: v511CelQrDirDissolve var(--cel-cycle-dur, 1.4s) ease-out forwards; --dissolve-angle: 0deg; }
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"] .v511-theme-preview-qr {
+          animation: v511CelQrDirDissolve var(--cel-cycle-dur, 1.4s) ease-out forwards;
+          --dissolve-angle: 0deg;
+          --dissolve-jitter: 12deg;
+          /* T4.3.34 — 3-layer mask at ±jitter angle, combined via `add` so the
+             burn line becomes the UNION of three slightly offset progressions.
+             At any pixel the three gradients have different transition points,
+             so the leading edge becomes irregular/wavy instead of laser-clean. */
+          -webkit-mask-composite: source-over;
+          mask-composite: add;
+        }
         @keyframes v511CelQrDirDissolve {
-          0%   { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent -15%, black 5%);    mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent -15%, black 5%);    opacity: 1;    filter: brightness(1); }
-          50%  { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 40%,  black 60%);   mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 40%,  black 60%);   opacity: 0.65; filter: brightness(0.85) contrast(0.7); }
-          100% { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 95%,  black 115%);  mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 95%,  black 115%);  opacity: 0;    filter: brightness(0.5) contrast(0.5); }
+          0%   {
+            -webkit-mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent -25%, black -5%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent -15%, black 5%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent -25%, black -5%);
+            mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent -25%, black -5%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent -15%, black 5%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent -25%, black -5%);
+            opacity: 1; filter: brightness(1);
+          }
+          50%  {
+            -webkit-mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent 30%, black 55%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent 40%, black 60%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent 30%, black 55%);
+            mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent 30%, black 55%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent 40%, black 60%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent 30%, black 55%);
+            opacity: 0.65; filter: brightness(0.85) contrast(0.7);
+          }
+          100% {
+            -webkit-mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent 110%, black 130%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent 95%,  black 115%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent 110%, black 130%);
+            mask-image:
+              linear-gradient(calc(var(--dissolve-angle, 0deg) + var(--dissolve-jitter, 12deg)), transparent 110%, black 130%),
+              linear-gradient(var(--dissolve-angle, 0deg),                                       transparent 95%,  black 115%),
+              linear-gradient(calc(var(--dissolve-angle, 0deg) - var(--dissolve-jitter, 12deg)), transparent 110%, black 130%);
+            opacity: 0; filter: brightness(0.5) contrast(0.5);
+          }
         }
         /* Direction mapping — arrow on dir9 grid shows where the dissolve PROGRESSES toward */
         .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="b"]  .v511-theme-preview-qr { --dissolve-angle: 0deg; }    /* ↑ up — dissolves from bottom rising up */
@@ -5215,6 +5273,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
               <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
+              <!-- T4.3.34 — Anchor crosshairs overlay. Shows where Stream particles
+                   will emit from while a Stream sequence row is selected. Hidden
+                   by default; v511UpdateAnchorCrosshairs() populates + reveals. -->
+              <div class="v511-anchor-crosshairs" id="v511AnchorCrosshairs" aria-hidden="true"></div>
             </div>
             <div class="v511-theme-preview-controls-strip">
               <label for="v511SamplePicker">Active mode:</label>
@@ -5474,6 +5536,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <input type="file" id="v511WavUpload" accept="audio/wav,audio/mpeg,audio/ogg,audio/*" style="display: none;" />
                 <button type="button" class="v511-btn v511-btn-mini" id="v511WavReplaceBtn">Replace</button>
                 <button type="button" class="v511-btn v511-btn-mini" id="v511WavResetBtn" title="Restore the default mode tone for this outcome">Reset</button>
+                <label style="display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; cursor: pointer;" title="Toggle whether sound plays when this mode fires">
+                  <input type="checkbox" id="v511PaPlaySound" checked style="vertical-align: middle;" />
+                  <span style="font-size: 11px; color: var(--muted);">Play</span>
+                </label>
               </div>
               <!-- Tier 4.1.11 — QR customization mounts HERE (right under Outcome sound)
                    via JS at init. Marker div anchors the insertion point. -->
@@ -5816,6 +5882,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var uploadedWavNames = { allow: null, review: null, deny: null };
 
           function playOutcomeTone(mode) {
+            // T4.3.34 — Per-mode Play sound gate. If the active mode's checkbox
+            // is unchecked OR the modeState says off, suppress both the uploaded
+            // WAV and the synth tone fallback. Live checkbox wins when present
+            // (so toggling it mid-test takes effect immediately).
+            try {
+              var liveChk = document.getElementById('v511PaPlaySound');
+              var liveEnabled = (mode === currentMode && liveChk) ? !!liveChk.checked : null;
+              var storedEnabled = !!(modeStates[mode] && modeStates[mode].v511PaPlaySound);
+              // Default is true if neither value is explicitly set
+              var enabled = (liveEnabled !== null) ? liveEnabled :
+                            (modeStates[mode] && 'v511PaPlaySound' in modeStates[mode]) ? storedEnabled : true;
+              if (!enabled) return;
+            } catch (e) { /* fall through and play */ }
             // Play uploaded WAV for this mode if available
             var dataUrl = uploadedWavs[mode];
             if (dataUrl) {
@@ -6147,6 +6226,50 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }, durMs * 1.6 + 200);
           }
 
+          // T4.3.34 — Anchor crosshair overlay. Visualises where Stream particles
+          // will emit from while a Stream sequence row is selected. Updates on
+          // selection change, slider input, chip click, symmetry chip change.
+          function v511UpdateAnchorCrosshairs() {
+            var container = document.getElementById('v511AnchorCrosshairs');
+            if (!container || !sampleStage) return;
+            var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+            if (v511SelectedSeqIdx < 0 || v511SelectedSeqIdx >= seq.length) {
+              container.classList.remove('is-visible');
+              container.innerHTML = '';
+              return;
+            }
+            var item = seq[v511SelectedSeqIdx];
+            // Only Stream effect has an anchor concept for now. Future: extend
+            // to Flame, Breath-style effects, anything that emits from a point.
+            if (item.effect !== 'stream') {
+              container.classList.remove('is-visible');
+              container.innerHTML = '';
+              return;
+            }
+            try {
+              var anchors = v511GetStreamAnchors(sampleStage, item);
+              var s = item.settings || {};
+              var offsetX = parseFloat(s.streamOffsetX); if (!isFinite(offsetX)) offsetX = 0;
+              var offsetY = parseFloat(s.streamOffsetY); if (!isFinite(offsetY)) offsetY = 0;
+              container.innerHTML = '';
+              anchors.forEach(function (a) {
+                var px = a.pos.x + offsetX * a.axisFlip.x;
+                var py = a.pos.y + offsetY * a.axisFlip.y;
+                var marker = document.createElement('div');
+                marker.className = 'v511-anchor-crosshair-marker';
+                marker.style.left = px + '%';
+                marker.style.top = py + '%';
+                var dot = document.createElement('div');
+                dot.className = 'v511-anchor-crosshair-dot';
+                marker.appendChild(dot);
+                container.appendChild(marker);
+              });
+              container.classList.add('is-visible');
+            } catch (e) {
+              container.classList.remove('is-visible');
+            }
+          }
+
           // Play the sequence top-to-bottom. Each effect gets its class added for
           // its own duration, then removed. Delay items just wait the duration.
           var v511PlayToken = 0;
@@ -6363,6 +6486,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var PER_MODE_FIELD_IDS = [
             'v511CelEffPulse','v511CelEffBg','v511CelEffQr','v511CelEffGlow','v511CelEffPattern','v511CelEffText',
             'v511CelDuration',
+            'v511PaPlaySound',
             'v511PaWelcome','v511PaRedirect','v511PaStaffRedirect',
             'v511PaDwell','v511PaFtVsR','v511PaTime','v511PaCal','v511PaEmail','v511PaSms'
           ];
@@ -6371,15 +6495,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // sequence top-to-bottom. Old checkbox fields kept on the object for
           // migration compatibility but no longer rendered.
           var modeStates = {
-            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+            allow:  { v511CelEffPulse: false, v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: true,  v511CelEffPattern: false, v511CelEffText: true,  v511CelDuration: '1.4', v511PaPlaySound: true, v511PaWelcome: 'Welcome back!',                v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '3 seconds', v511PaFtVsR: false, v511PaTime: true,  v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
               celPalette: ['#c0dd97', '#8fbf6c', '#2d5016'],
               sequence: [ { effect: 'glow', duration: 1.4 }, { effect: 'text', duration: 1.4 } ]
             },
-            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+            review: { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: false, v511CelEffGlow: false, v511CelEffPattern: false, v511CelEffText: false, v511CelDuration: '1.8', v511PaPlaySound: true, v511PaWelcome: 'Please wait for staff.',         v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: 'Hold until tap', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
               celPalette: ['#fac775', '#e8b04a', '#5a3e0c'],
               sequence: [ { effect: 'pulse', duration: 1.8 } ]
             },
-            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
+            deny:   { v511CelEffPulse: true,  v511CelEffBg: false, v511CelEffQr: true,  v511CelEffGlow: false, v511CelEffPattern: true,  v511CelEffText: true,  v511CelDuration: '0.8', v511PaPlaySound: true, v511PaWelcome: 'Entry not permitted today.',    v511PaRedirect: '', v511PaStaffRedirect: '', v511PaDwell: '5 seconds', v511PaFtVsR: false, v511PaTime: false, v511PaCal: false, v511PaEmail: 'off', v511PaSms: 'off',
               celPalette: ['#f09595', '#dc3545', '#5e1a1a'],
               sequence: [ { effect: 'qr-disappear', duration: 0.8 } ]
             }
@@ -6892,6 +7016,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               sampleStage.classList.remove('bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
               sampleStage.classList.add('bg-symmetry-' + chip.textContent.toLowerCase().trim());
               applyImagePositioning(); // recompute --sym-size for the new symmetry base
+              try { v511UpdateAnchorCrosshairs(); } catch (e) {} // T4.3.34
             }
             // Tier 4.1.8 — Cycle direction
             if (groupKey === 'bgCycleDir' && sampleStage) {
@@ -7333,6 +7458,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               });
             }
             v511RenderSettingsForItem(idx);
+            // T4.3.34 — Update anchor crosshairs when selection changes
+            try { v511UpdateAnchorCrosshairs(); } catch (e) {}
           }
           if (v511CelSeqList) {
             v511CelSeqList.addEventListener('click', function (e) {
@@ -7364,6 +7491,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var label = slider.parentElement && slider.parentElement.querySelector('.v511-cel-slider-value');
               if (label) label.textContent = val;
               if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+              // T4.3.34 — Live-update anchor crosshairs when offset sliders move
+              try { v511UpdateAnchorCrosshairs(); } catch (e) {}
             });
           }
           // Settings panel click — chip or dir9 cell. Updates item.settings + save.
@@ -7383,6 +7512,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 grid.querySelectorAll('.v511-cel-dir9-cell').forEach(function (c) { c.setAttribute('aria-pressed', c === dirCell ? 'true' : 'false'); });
                 item.settings[key] = dirCell.getAttribute('data-dir');
                 if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                try { v511UpdateAnchorCrosshairs(); } catch (e) {} // T4.3.34
                 return;
               }
               // chip
@@ -7395,6 +7525,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 chipGroup.querySelectorAll('.v511-chip').forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
                 item.settings[chipKey] = chip.getAttribute('data-opt');
                 if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                try { v511UpdateAnchorCrosshairs(); } catch (e) {} // T4.3.34
                 return;
               }
             });
