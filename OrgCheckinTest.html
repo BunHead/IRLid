@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.35</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.36</span></div>
   </div>
 </div>
 
@@ -6293,6 +6293,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               stage.querySelectorAll('.v511-stream-particle').forEach(function (p) { p.remove(); });
             }, durMs * 1.6 + 200);
           }
+
+          // T4.3.36 — Refresh image positioning, QR render, and crosshair after
+          // the stage's aspect ratio changes (entering / leaving fullscreen). In
+          // normal view the stage is clamped by max-height: 48vh, so its actual
+          // aspect ratio diverges from --preview-aspect (which is set from the
+          // screen). In fullscreen, no clamp — the stage occupies screen aspect
+          // exactly. Image height as % of stage changes between modes (since
+          // background-size: NN% auto pins width but lets height ride natural
+          // aspect), so the dragon's mouth lands at a different stage-% in
+          // each mode. We re-paint everything so the crosshair tracks the
+          // image's *current* on-screen position regardless.
+          document.addEventListener('fullscreenchange', function () {
+            // Two rAFs so layout settles (fullscreen size transitions can take
+            // a frame or two to commit on some browsers).
+            requestAnimationFrame(function () {
+              requestAnimationFrame(function () {
+                try { applyImagePositioning(); } catch (e) {}
+                try { if (typeof renderPreviewQr === 'function') renderPreviewQr(); } catch (e) {}
+                try { v511UpdateAnchorCrosshairs(); } catch (e) {}
+              });
+            });
+          });
 
           // T4.3.34 — Anchor crosshair overlay. Visualises where Stream particles
           // will emit from while a Stream sequence row is selected. Updates on
