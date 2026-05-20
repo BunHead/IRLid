@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.32</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.33</span></div>
   </div>
 </div>
 
@@ -4664,6 +4664,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-qr[data-qr-motion="rotate-ccw"] .v511-theme-preview-qr { animation: v511CelQrRotateCcw var(--cel-cycle-dur, 1.4s) ease-in-out; }
         .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve-horz"] .v511-theme-preview-qr { animation: v511CelQrDissolveH var(--cel-cycle-dur, 1.4s) ease-out; }
         .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve-vert"] .v511-theme-preview-qr { animation: v511CelQrDissolveV var(--cel-cycle-dur, 1.4s) ease-out; }
+        /* T4.3.33 — Directional dissolve. Progressive mask-image gradient that
+           burns the QR from one edge toward the opposite edge. Direction comes
+           from data-cel-dir (set by direction9 setting in apply function); the
+           angle is mapped to --dissolve-angle via attribute selectors below.
+           Centre direction ('c') uses a radial gradient — burns out from middle.
+           Unlike dissolve-horz/vert which dissolve symmetrically, this one
+           progresses irreversibly: the QR is gone by the end. */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"] .v511-theme-preview-qr { animation: v511CelQrDirDissolve var(--cel-cycle-dur, 1.4s) ease-out forwards; --dissolve-angle: 0deg; }
+        @keyframes v511CelQrDirDissolve {
+          0%   { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent -15%, black 5%);    mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent -15%, black 5%);    opacity: 1;    filter: brightness(1); }
+          50%  { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 40%,  black 60%);   mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 40%,  black 60%);   opacity: 0.65; filter: brightness(0.85) contrast(0.7); }
+          100% { -webkit-mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 95%,  black 115%);  mask-image: linear-gradient(var(--dissolve-angle, 0deg), transparent 95%,  black 115%);  opacity: 0;    filter: brightness(0.5) contrast(0.5); }
+        }
+        /* Direction mapping — arrow on dir9 grid shows where the dissolve PROGRESSES toward */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="b"]  .v511-theme-preview-qr { --dissolve-angle: 0deg; }    /* ↑ up — dissolves from bottom rising up */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="t"]  .v511-theme-preview-qr { --dissolve-angle: 180deg; }  /* ↓ down — dissolves from top falling down */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="l"]  .v511-theme-preview-qr { --dissolve-angle: 90deg; }   /* → right — dissolves from left moving right */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="r"]  .v511-theme-preview-qr { --dissolve-angle: 270deg; }  /* ← left — dissolves from right moving left */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="bl"] .v511-theme-preview-qr { --dissolve-angle: 45deg; }   /* ↗ up-right diagonal */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="br"] .v511-theme-preview-qr { --dissolve-angle: 315deg; }  /* ↖ up-left diagonal */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="tl"] .v511-theme-preview-qr { --dissolve-angle: 135deg; }  /* ↘ down-right diagonal */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="tr"] .v511-theme-preview-qr { --dissolve-angle: 225deg; }  /* ↙ down-left diagonal */
+        /* Centre dot — radial dissolve burning out from middle */
+        .v511-theme-preview-stage.cel-qr[data-qr-motion="dissolve"][data-cel-dir="c"] .v511-theme-preview-qr { animation-name: v511CelQrRadialDissolve; }
+        @keyframes v511CelQrRadialDissolve {
+          0%   { -webkit-mask-image: radial-gradient(circle at center, transparent 0%,   black 10%);  mask-image: radial-gradient(circle at center, transparent 0%,   black 10%);  opacity: 1;    filter: brightness(1); }
+          50%  { -webkit-mask-image: radial-gradient(circle at center, transparent 45%,  black 65%);  mask-image: radial-gradient(circle at center, transparent 45%,  black 65%);  opacity: 0.6; filter: brightness(0.85) contrast(0.7); }
+          100% { -webkit-mask-image: radial-gradient(circle at center, transparent 100%, black 120%); mask-image: radial-gradient(circle at center, transparent 100%, black 120%); opacity: 0;    filter: brightness(0.5) contrast(0.5); }
+        }
         @keyframes v511CelQrWobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
         @keyframes v511CelQrZoomIn { 0% { transform: scale(0.4); opacity: 0.4; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes v511CelQrZoomOut { 0% { transform: scale(1); opacity: 1; } 60% { transform: scale(1.4); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
@@ -6096,8 +6125,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Each anchor includes axisFlip telling us how to mirror the base direction
             // (so left dragon blows right, right dragon blows left, under horizontal symmetry).
             var anchors = v511GetStreamAnchors(stage, item);
+            // T4.3.33 — Anchor offset nudge. Useful for putting the origin at the
+            // dragon's MOUTH instead of the image's centre. Offset honours axisFlip
+            // so symmetric mirroring keeps the per-side nudge correct (left dragon
+            // mouth is +X from its centre; right dragon mouth is -X from its centre).
+            var offsetX = parseFloat(s.streamOffsetX);
+            var offsetY = parseFloat(s.streamOffsetY);
+            if (!isFinite(offsetX)) offsetX = 0;
+            if (!isFinite(offsetY)) offsetY = 0;
             anchors.forEach(function (a) {
-              v511EmitStreamBurst(stage, a.pos, a.axisFlip, baseAngle, spreadRad, perBurst, durMs);
+              var pos = {
+                x: a.pos.x + offsetX * a.axisFlip.x,
+                y: a.pos.y + offsetY * a.axisFlip.y
+              };
+              v511EmitStreamBurst(stage, pos, a.axisFlip, baseAngle, spreadRad, perBurst, durMs);
             });
             // Cleanup particles after they've finished animating — give extra
             // headroom because per-particle duration randomises up to 1.3× durMs.
@@ -7178,7 +7219,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'cam-flash':    [ SETTING_COUNT(5), SETTING_INTENSITY ],
             'strobe':       [ SETTING_COUNT(8), SETTING_INTENSITY ],
             'pulse':        [ SETTING_INTENSITY, SETTING_COLOUR, SETTING_BOUNCE ],
-            'qr':           [ { key: 'variant', label: 'Motion', options: ['wobble','zoom in','zoom out','rotate cw','rotate ccw','dissolve horz','dissolve vert'], default: 'wobble' }, SETTING_BOUNCE ],
+            'qr':           [ { key: 'variant', label: 'Motion', options: ['wobble','zoom in','zoom out','rotate cw','rotate ccw','dissolve horz','dissolve vert','dissolve'], default: 'wobble' }, SETTING_BOUNCE, { key: 'direction9', label: 'Dissolve direction', type: 'dir9', default: 'b' } ],
             'qr-disappear': [ SETTING_INTENSITY, { key: 'easing', label: 'Easing', options: ['ease','linear','snap'], default: 'ease' } ],
             'shake':        [ SETTING_INTENSITY, { key: 'axis', label: 'Axis', options: ['horizontal','vertical','both'], default: 'horizontal' } ],
             'scale-punch':  [ SETTING_INTENSITY, SETTING_DIR_ZOOM, SETTING_BOUNCE ],
@@ -7188,7 +7229,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' } ],
-            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' } ],
+            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamOffsetX', label: 'Anchor offset X (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamOffsetY', label: 'Anchor offset Y (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' } ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
