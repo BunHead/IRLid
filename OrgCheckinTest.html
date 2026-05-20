@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.30</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.31</span></div>
   </div>
 </div>
 
@@ -4386,64 +4386,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             radial-gradient(ellipse at var(--sym-pos-4, 100% 100%), #ff6b00 0%, #ffb347 35%, transparent 65%);
         }
         /* ==========================================================
-           T4.3.30 — NEW EFFECT: Breath (dragon breath fire jet).
-           Distinct from Flame — Flame rises upward like a campfire;
-           Breath is a directional jet of fire emanating outward.
-           When anchored to a symmetric image, fires from each image
-           position simultaneously (so two dragons facing inward both
-           breathe fire toward the centre).
+           T4.3.31 — Breath effect rebuilt: dragon breath as
+           JS-injected particles, anchored to image position(s),
+           fanning outward in a cone with randomised size/colour/
+           jitter/duration. Each particle is a real DOM element
+           appended to the stage with CSS animation; cleanup at
+           end of step. CSS only handles the particle's appearance
+           and outward animation — the randomisation lives in JS.
            ========================================================== */
-        .v511-theme-preview-stage.cel-breath > .v511-cel-fx-layer {
-          animation: v511CelBreath var(--cel-cycle-dur, 1.2s) ease-out;
-          background-image: radial-gradient(ellipse 50% 22% at center, #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
-          background-repeat: no-repeat;
-          background-size: 100% 100%;
-          mix-blend-mode: screen;
-          transform-origin: center;
+        .v511-breath-particle {
+          position: absolute;
+          top: 0;
+          left: 0;
+          /* x/y are the anchor in percent; size + colour set per-particle */
+          width: 6px; height: 6px;
+          border-radius: 50%;
+          background: #ff6b00;
+          box-shadow: 0 0 8px currentColor;
+          pointer-events: none;
+          z-index: 5;
+          opacity: 0;
+          will-change: transform, opacity;
+          transform: translate(-50%, -50%) scale(0.6);
+          animation: v511BreathParticle var(--p-dur, 1.2s) ease-out forwards;
         }
-        @keyframes v511CelBreath {
-          0%   { opacity: 0; transform: scaleX(0.2); }
-          25%  { opacity: 0.95; transform: scaleX(1); }
-          70%  { opacity: 0.85; transform: scaleX(1.15); }
-          100% { opacity: 0; transform: scaleX(1.3); }
-        }
-        /* Intensity */
-        .v511-theme-preview-stage.cel-breath.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelBreathSubtle; }
-        .v511-theme-preview-stage.cel-breath.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelBreathStrong; }
-        @keyframes v511CelBreathSubtle { 0% { opacity: 0; transform: scaleX(0.2); } 25% { opacity: 0.55; transform: scaleX(0.85); } 70% { opacity: 0.45; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1.15); } }
-        @keyframes v511CelBreathStrong { 0% { opacity: 0; transform: scaleX(0.2); } 25% { opacity: 1; transform: scaleX(1.2); } 70% { opacity: 0.95; transform: scaleX(1.4); } 100% { opacity: 0; transform: scaleX(1.6); } }
-        /* Direction variants — vertical jets use scaleY instead of scaleX */
-        .v511-theme-preview-stage.cel-breath[data-cel-breath-dir="vertical"] > .v511-cel-fx-layer {
-          background-image: radial-gradient(ellipse 22% 50% at center, #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
-          animation-name: v511CelBreathV;
-        }
-        .v511-theme-preview-stage.cel-breath[data-cel-breath-dir="vertical"].cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelBreathVSubtle; }
-        .v511-theme-preview-stage.cel-breath[data-cel-breath-dir="vertical"].cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelBreathVStrong; }
-        @keyframes v511CelBreathV       { 0% { opacity: 0; transform: scaleY(0.2); } 25% { opacity: 0.95; transform: scaleY(1); }   70% { opacity: 0.85; transform: scaleY(1.15); } 100% { opacity: 0; transform: scaleY(1.3); } }
-        @keyframes v511CelBreathVSubtle { 0% { opacity: 0; transform: scaleY(0.2); } 25% { opacity: 0.55; transform: scaleY(0.85); } 70% { opacity: 0.45; transform: scaleY(1); }    100% { opacity: 0; transform: scaleY(1.15); } }
-        @keyframes v511CelBreathVStrong { 0% { opacity: 0; transform: scaleY(0.2); } 25% { opacity: 1; transform: scaleY(1.2); }    70% { opacity: 0.95; transform: scaleY(1.4); }  100% { opacity: 0; transform: scaleY(1.6); } }
-        /* Image-anchor mode — radial gradient emanates from the image position(s).
-           When bg-symmetry is active, the background-image stack holds one gradient
-           per mirror position, so multiple dragons all breathe at once. */
-        .v511-theme-preview-stage.cel-breath.cel-breath-anchor-image > .v511-cel-fx-layer {
-          background-image: radial-gradient(ellipse 40% 18% at var(--bg-image-pos, center), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
-        }
-        .v511-theme-preview-stage.cel-breath.cel-breath-anchor-image.bg-symmetry-horizontal > .v511-cel-fx-layer {
-          background-image:
-            radial-gradient(ellipse 40% 18% at var(--sym-pos-1, 0% 50%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%),
-            radial-gradient(ellipse 40% 18% at var(--sym-pos-2, 100% 50%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
-        }
-        .v511-theme-preview-stage.cel-breath.cel-breath-anchor-image.bg-symmetry-vertical > .v511-cel-fx-layer {
-          background-image:
-            radial-gradient(ellipse 18% 40% at var(--sym-pos-1, 50% 0%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%),
-            radial-gradient(ellipse 18% 40% at var(--sym-pos-3, 50% 100%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
-        }
-        .v511-theme-preview-stage.cel-breath.cel-breath-anchor-image.bg-symmetry-quad > .v511-cel-fx-layer {
-          background-image:
-            radial-gradient(ellipse 30% 14% at var(--sym-pos-1, 0% 0%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%),
-            radial-gradient(ellipse 30% 14% at var(--sym-pos-2, 100% 0%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%),
-            radial-gradient(ellipse 30% 14% at var(--sym-pos-3, 0% 100%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%),
-            radial-gradient(ellipse 30% 14% at var(--sym-pos-4, 100% 100%), #ff3e00 0%, #ff6b00 25%, #ffb347 55%, transparent 75%);
+        @keyframes v511BreathParticle {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+          15%  { opacity: 1; transform: translate(calc(-50% + var(--p-dx-15, 0px)), calc(-50% + var(--p-dy-15, 0px))) scale(1); }
+          70%  { opacity: 0.7; transform: translate(calc(-50% + var(--p-dx-70, 0px)), calc(-50% + var(--p-dy-70, 0px))) scale(0.95); }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--p-dx, 0px)), calc(-50% + var(--p-dy, 0px))) scale(0.3); }
         }
         /* Particles: glitch (digital corruption flicker) */
         .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
@@ -5904,9 +5875,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
             'data-cel-zoom',
             // T4.3.28 — sweep additions
-            'data-cel-colour-source','data-cel-easing',
-            // T4.3.30 — Breath direction
-            'data-cel-breath-dir'
+            'data-cel-colour-source','data-cel-easing'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -5953,12 +5922,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (item.effect === 'flame' && s.direction9 === 'image-anchor') {
               stage.classList.add('cel-flame-anchor-image');
             }
-            // T4.3.30 — Breath anchor (mirrors flame's logic) + direction attr
-            if (item.effect === 'breath' && s.direction9 === 'image-anchor') {
+            // T4.3.31 — Breath now uses `breathAnchor` (the dir9 grid `direction9`
+            // is reused for the actual fire-blow direction). Particle injection
+            // happens via v511FireBreathParticles when cel-breath fires.
+            if (item.effect === 'breath' && s.breathAnchor === 'image-anchor') {
               stage.classList.add('cel-breath-anchor-image');
-            }
-            if (item.effect === 'breath' && s.breathDir) {
-              stage.setAttribute('data-cel-breath-dir', s.breathDir);
             }
             if (s.direction9) stage.setAttribute('data-cel-dir', s.direction9);
             if (s.axis) stage.setAttribute('data-cel-axis', s.axis);
@@ -5980,6 +5948,127 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Tier 4.3.18 — Glow halo centre pulse (on / off)
             if (s.centrePulse) stage.setAttribute('data-cel-centre-pulse', s.centrePulse);
           }
+
+          // T4.3.31 — Breath particles. Creates N randomised <div> particles
+          // at the anchor position(s) and animates them outward in the chosen
+          // direction with size / colour / duration / jitter randomised per
+          // particle. Anchor is the image position (or image-mirror positions
+          // when bg-symmetry is on), or stage centre. Direction comes from the
+          // dir9 grid (l = → right, r = ← left, t = ↓ down, b = ↑ up, etc.).
+          // Particles are real DOM nodes — appended to stage, animated via the
+          // .v511-breath-particle CSS rule, removed after duration.
+          //
+          // dir9 → motion angle (radians, 0 = east/right, +ve = clockwise / down)
+          var V511_BREATH_DIR_ANGLES = {
+            'l':  0,                              // → right
+            'br': -Math.PI * 0.25,                // ↖ up-left (br cell, ↖ glyph)
+            'b':  -Math.PI * 0.5,                 // ↑ up
+            'bl': -Math.PI * 0.75,                // ↗ up-right (bl cell, ↗ glyph)
+            'r':  Math.PI,                        // ← left
+            'tr': Math.PI * 0.75,                 // ↙ down-left (tr cell, ↙ glyph)
+            't':  Math.PI * 0.5,                  // ↓ down
+            'tl': Math.PI * 0.25                  // ↘ down-right (tl cell, ↘ glyph)
+            // 'c' (centre) handled separately — radial all-directions spread
+          };
+          // Parse "X% Y%" CSS var to {x, y} in percent
+          function v511ParsePctPos(raw, fb) {
+            if (!raw) return fb;
+            var m = String(raw).match(/(-?\d+(?:\.\d+)?)\s*%\s+(-?\d+(?:\.\d+)?)\s*%/);
+            if (m) return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+            return fb;
+          }
+          // Read anchor positions: one per visible image instance when image-anchor
+          // is selected (honours bg-symmetry-*), else stage centre.
+          function v511GetBreathAnchors(stage, item) {
+            var s = (item && item.settings) || {};
+            if (s.breathAnchor !== 'image-anchor') return [{ x: 50, y: 50 }];
+            var cs = getComputedStyle(stage);
+            function rd(name, fb) { return v511ParsePctPos(cs.getPropertyValue(name).trim(), fb); }
+            if (stage.classList.contains('bg-symmetry-horizontal')) {
+              return [rd('--sym-pos-1', { x: 0, y: 50 }), rd('--sym-pos-2', { x: 100, y: 50 })];
+            }
+            if (stage.classList.contains('bg-symmetry-vertical')) {
+              return [rd('--sym-pos-1', { x: 50, y: 0 }), rd('--sym-pos-3', { x: 50, y: 100 })];
+            }
+            if (stage.classList.contains('bg-symmetry-quad')) {
+              return [
+                rd('--sym-pos-1', { x: 0, y: 0 }),
+                rd('--sym-pos-2', { x: 100, y: 0 }),
+                rd('--sym-pos-3', { x: 0, y: 100 }),
+                rd('--sym-pos-4', { x: 100, y: 100 })
+              ];
+            }
+            return [rd('--bg-image-pos', { x: 50, y: 50 })];
+          }
+          // Fire a burst of particles from one anchor position
+          function v511EmitBreathBurst(stage, anchor, baseAngleRad, count, durMs) {
+            var stageRect = stage.getBoundingClientRect();
+            var stageW = stageRect.width || 700;
+            var stageH = stageRect.height || 400;
+            // Cone spread total (radians). Wider for centre/radial mode.
+            var spread = (baseAngleRad === null) ? Math.PI * 2 : Math.PI / 3;  // 60° cone, 360° for radial
+            var palette = ['#ff3e00','#ff6b00','#ff8800','#ffaa44','#ffb347','#ffcc66','#ffe08a','#fff3b0'];
+            for (var i = 0; i < count; i++) {
+              var p = document.createElement('div');
+              p.className = 'v511-breath-particle';
+              // Random size 3-12px (skewed toward smaller — most particles small, few large)
+              var sizeRoll = Math.pow(Math.random(), 1.8); // bias toward small
+              var size = 3 + sizeRoll * 9;
+              // Random colour from hot fire palette
+              var colour = palette[Math.floor(Math.random() * palette.length)];
+              // Random angle within cone (or all-around for centre)
+              var angle = (baseAngleRad === null)
+                ? Math.random() * Math.PI * 2
+                : baseAngleRad + (Math.random() - 0.5) * spread;
+              // Random distance — most particles travel medium, some short, some far
+              var distRoll = 0.35 + Math.random() * 0.7;  // 0.35 to 1.05 of stage half-dimension
+              var maxDim = Math.max(stageW, stageH) * 0.5;
+              var dist = maxDim * distRoll;
+              var dx = Math.cos(angle) * dist;
+              var dy = Math.sin(angle) * dist;
+              // Intermediate positions for smoother arc-style motion
+              var dx15 = dx * 0.18, dy15 = dy * 0.18;
+              var dx70 = dx * 0.78, dy70 = dy * 0.78;
+              // Random duration so particles don't all finish on the same beat
+              var pdur = (durMs * 0.7 + Math.random() * durMs * 0.6) / 1000;
+              p.style.cssText =
+                'left:' + anchor.x + '%;' +
+                'top:' + anchor.y + '%;' +
+                'width:' + size + 'px;' +
+                'height:' + size + 'px;' +
+                'background:' + colour + ';' +
+                'color:' + colour + ';' +
+                '--p-dx:' + dx.toFixed(1) + 'px;' +
+                '--p-dy:' + dy.toFixed(1) + 'px;' +
+                '--p-dx-15:' + dx15.toFixed(1) + 'px;' +
+                '--p-dy-15:' + dy15.toFixed(1) + 'px;' +
+                '--p-dx-70:' + dx70.toFixed(1) + 'px;' +
+                '--p-dy-70:' + dy70.toFixed(1) + 'px;' +
+                '--p-dur:' + pdur.toFixed(2) + 's;';
+              stage.appendChild(p);
+            }
+          }
+          function v511FireBreathParticles(stage, item, durMs) {
+            if (!stage || !item) return;
+            var s = item.settings || {};
+            // Particle count by intensity (default = medium)
+            var countByIntensity = { subtle: 14, medium: 26, strong: 44 };
+            var perBurst = countByIntensity[s.intensity] || countByIntensity.medium;
+            // Direction angle from dir9 — 'c' (centre) means radial all-directions
+            var dir = s.direction9 || 'l';
+            var baseAngle = (dir === 'c') ? null : (V511_BREATH_DIR_ANGLES[dir] !== undefined ? V511_BREATH_DIR_ANGLES[dir] : 0);
+            // Find anchor positions (one per visible image instance, or stage centre)
+            var anchors = v511GetBreathAnchors(stage, item);
+            anchors.forEach(function (anchor) {
+              v511EmitBreathBurst(stage, anchor, baseAngle, perBurst, durMs);
+            });
+            // Cleanup particles after they've finished animating — give extra
+            // headroom because per-particle duration randomises up to 1.3× durMs.
+            setTimeout(function () {
+              stage.querySelectorAll('.v511-breath-particle').forEach(function (p) { p.remove(); });
+            }, durMs * 1.6 + 200);
+          }
+
           // Play the sequence top-to-bottom. Each effect gets its class added for
           // its own duration, then removed. Delay items just wait the duration.
           var v511PlayToken = 0;
@@ -6022,6 +6111,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var cls = 'cel-' + effectKey;
                 // Tier 4.3.2 — translate item.settings into stage attrs/classes
                 v511ApplyItemSettings(sampleStage, item);
+                // T4.3.31 — Breath effect injects randomised particle DOM nodes
+                // at the anchor position(s). Particles self-clean via animation
+                // forwards + a setTimeout below; cel-breath class still cycles
+                // normally so the class-based cleanup discipline holds.
+                if (item.effect === 'breath' && typeof v511FireBreathParticles === 'function') {
+                  v511FireBreathParticles(sampleStage, item, durMs);
+                }
                 // Tier 4.3.20 — Count loop: cam-flash / strobe / ripple / bg
                 // honour their `count` setting by firing the effect class N
                 // times within the item's total duration. Each sub-fire gets
@@ -7027,7 +7123,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' } ],
-            'breath':       [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'breathDir', label: 'Direction', options: ['horizontal','vertical','outward','inward'], default: 'horizontal' } ],
+            'breath':       [ SETTING_INTENSITY, { key: 'breathAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' } ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
