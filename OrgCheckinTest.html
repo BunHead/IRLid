@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.34</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.35</span></div>
   </div>
 </div>
 
@@ -4385,6 +4385,33 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             radial-gradient(ellipse at var(--sym-pos-3, 0% 100%), #ff6b00 0%, #ffb347 35%, transparent 65%),
             radial-gradient(ellipse at var(--sym-pos-4, 100% 100%), #ff6b00 0%, #ffb347 35%, transparent 65%);
         }
+        /* T4.3.35 — Flame palette-cycle colour source. Replaces the warm-tone
+           radial gradient with palette-driven --cel-pal-1 → --cel-pal-2 so
+           changing the celebration palette swatches recolours the flame.
+           Covers centre + image-anchor + all three symmetry configurations. */
+        .v511-theme-preview-stage.cel-flame[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background: radial-gradient(ellipse at center bottom, var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
+        }
+        .v511-theme-preview-stage.cel-flame.cel-flame-anchor-image[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background: radial-gradient(ellipse at var(--bg-image-pos, center bottom), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
+        }
+        .v511-theme-preview-stage.cel-flame.cel-flame-anchor-image.bg-symmetry-horizontal[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(ellipse at var(--sym-pos-1, 0% 50%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%),
+            radial-gradient(ellipse at var(--sym-pos-2, 100% 50%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
+        }
+        .v511-theme-preview-stage.cel-flame.cel-flame-anchor-image.bg-symmetry-vertical[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(ellipse at var(--sym-pos-1, 50% 0%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%),
+            radial-gradient(ellipse at var(--sym-pos-3, 50% 100%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
+        }
+        .v511-theme-preview-stage.cel-flame.cel-flame-anchor-image.bg-symmetry-quad[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(ellipse at var(--sym-pos-1, 0% 0%),   var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%),
+            radial-gradient(ellipse at var(--sym-pos-2, 100% 0%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%),
+            radial-gradient(ellipse at var(--sym-pos-3, 0% 100%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%),
+            radial-gradient(ellipse at var(--sym-pos-4, 100% 100%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
+        }
         /* ==========================================================
            T4.3.31 — Breath effect rebuilt: dragon breath as
            JS-injected particles, anchored to image position(s),
@@ -4465,6 +4492,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-particles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelParticlesStrong; }
         @keyframes v511CelParticlesSubtle { 0% { opacity: 0.6; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.4); } }
         @keyframes v511CelParticlesStrong { 0% { opacity: 1;   transform: scale(0.25); } 100% { opacity: 0; transform: scale(3); } }
+        /* T4.3.35 — Confetti gravity: switches the animation timing-function
+           from linear to ease-in so particles accelerate as they drop. Real
+           per-particle gravity isn't possible with background-position scroll,
+           but ease-in gives a falling-acceleration feel. */
+        .v511-theme-preview-stage.cel-confetti[data-cel-gravity="on"] > .v511-cel-fx-layer { animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1); }
         /* --- Confetti completes the 9-direction grid + colour source.
                Existing: 'b'/'bl'/'br' up, 'l' right, 'r' left, default down.
                New: 't'/'tl'/'tr' explicit down-variants, 'c' central hold. --- */
@@ -4563,14 +4595,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-anchor-crosshairs { position: absolute; inset: 0; pointer-events: none; z-index: 9; display: none; }
         .v511-anchor-crosshairs.is-visible { display: block; }
         .v511-anchor-crosshair-marker { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
+        /* T4.3.35 — Crosshair contrast via mix-blend-mode: difference + white
+           ink. Inverts whatever's underneath, so it's visible on any palette
+           including yellow/orange (where the old #ffd84a tint disappeared). */
         .v511-anchor-crosshair-marker::before,
         .v511-anchor-crosshair-marker::after {
-          content: ''; position: absolute; background: #ffd84a;
-          box-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 10px rgba(255,216,74,0.7);
+          content: ''; position: absolute; background: #ffffff;
+          mix-blend-mode: difference;
         }
         .v511-anchor-crosshair-marker::before { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
         .v511-anchor-crosshair-marker::after  { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
-        .v511-anchor-crosshair-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #ffd84a; box-shadow: 0 0 4px rgba(0,0,0,0.85), 0 0 12px rgba(255,216,74,0.85); }
+        .v511-anchor-crosshair-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #ffffff; mix-blend-mode: difference; }
         @keyframes v511AnchorPulse {
           0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
           50% { opacity: 1; transform: translate(-50%, -50%) scale(1.18); }
@@ -6001,7 +6036,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
             'data-cel-zoom',
             // T4.3.28 — sweep additions
-            'data-cel-colour-source','data-cel-easing'
+            'data-cel-colour-source','data-cel-easing',
+            // T4.3.35 — gravity toggle
+            'data-cel-gravity'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -6067,6 +6104,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.colourSource) stage.setAttribute('data-cel-colour-source', String(s.colourSource).replace(/\s+/g, '-'));
             // T4.3.28 — QR-disappear easing (ease / linear / snap)
             if (s.easing) stage.setAttribute('data-cel-easing', s.easing);
+            // T4.3.35 — Gravity toggle (off / on). Stream particles read this
+            // directly from item.settings; confetti reads via data-cel-gravity.
+            if (s.gravity) stage.setAttribute('data-cel-gravity', s.gravity);
             if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
             if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
             // Tier 4.3.11 — Glow halo sweep setting (outward / inward / rotate)
@@ -6140,11 +6180,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // Fire a burst of particles from one anchor position. axisFlip mirrors
           // the base direction per-axis (set by symmetry detection above).
-          function v511EmitStreamBurst(stage, anchor, axisFlip, baseAngleRad, spreadRad, count, durMs) {
+          function v511EmitStreamBurst(stage, anchor, axisFlip, baseAngleRad, spreadRad, count, durMs, palette, gravityPx) {
             var stageRect = stage.getBoundingClientRect();
             var stageW = stageRect.width || 700;
             var stageH = stageRect.height || 400;
-            var palette = ['#ff3e00','#ff6b00','#ff8800','#ffaa44','#ffb347','#ffcc66','#ffe08a','#fff3b0'];
             for (var i = 0; i < count; i++) {
               var p = document.createElement('div');
               p.className = 'v511-stream-particle';
@@ -6166,6 +6205,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Intermediate positions for smoother arc-style motion
               var dx15 = dx * 0.18, dy15 = dy * 0.18;
               var dx70 = dx * 0.78, dy70 = dy * 0.78;
+              // T4.3.35 — Gravity bias: adds downward pull that grows over time
+              // (quadratic-ish — small at first, big by end). NOT mirrored by
+              // axisFlip — gravity is always toward the bottom of the screen.
+              if (gravityPx > 0) {
+                dy15  += gravityPx * 0.04;
+                dy70  += gravityPx * 0.55;
+                dy    += gravityPx * 1.0;
+              }
               // Random duration so particles don't all finish on the same beat
               var pdur = (durMs * 0.7 + Math.random() * durMs * 0.6) / 1000;
               p.style.cssText =
@@ -6212,12 +6259,33 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var offsetY = parseFloat(s.streamOffsetY);
             if (!isFinite(offsetX)) offsetX = 0;
             if (!isFinite(offsetY)) offsetY = 0;
+            // T4.3.35 — Colour source: 'fire' uses the hot fire palette, 'cycle palette'
+            // pulls from --cel-pal-1..7 CSS vars so the user's celebration palette
+            // drives the particles instead.
+            var palette;
+            if (s.colourSource === 'cycle palette' || s.colourSource === 'cycle-palette') {
+              var cs2 = getComputedStyle(stage);
+              var pals = [];
+              for (var n = 1; n <= 7; n++) {
+                var c = cs2.getPropertyValue('--cel-pal-' + n).trim();
+                if (c) pals.push(c);
+              }
+              palette = pals.length ? pals : ['#ff6b00','#ffb347','#ff3e00'];
+            } else {
+              palette = ['#ff3e00','#ff6b00','#ff8800','#ffaa44','#ffb347','#ffcc66','#ffe08a','#fff3b0'];
+            }
+            // T4.3.35 — Gravity pull (pixels of downward bias by end of animation).
+            // Set to ~half the larger stage dimension so it's noticeable but not silly.
+            var stageRectForG = stage.getBoundingClientRect();
+            var gravityPx = (s.gravity === 'on')
+              ? Math.max(stageRectForG.width || 700, stageRectForG.height || 400) * 0.45
+              : 0;
             anchors.forEach(function (a) {
               var pos = {
                 x: a.pos.x + offsetX * a.axisFlip.x,
                 y: a.pos.y + offsetY * a.axisFlip.y
               };
-              v511EmitStreamBurst(stage, pos, a.axisFlip, baseAngle, spreadRad, perBurst, durMs);
+              v511EmitStreamBurst(stage, pos, a.axisFlip, baseAngle, spreadRad, perBurst, durMs, palette, gravityPx);
             });
             // Cleanup particles after they've finished animating — give extra
             // headroom because per-particle duration randomises up to 1.3× durMs.
@@ -7350,11 +7418,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'scale-punch':  [ SETTING_INTENSITY, SETTING_DIR_ZOOM, SETTING_BOUNCE ],
             'iris-wipe':    [ { key: 'irisDir', label: 'Direction', options: ['close-then-open','open-then-close','close only','open only'], default: 'close-then-open' } ],
             'ripple':       [ SETTING_THICKNESS, SETTING_COUNT(3), SETTING_COLOUR ],
-            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR, SETTING_DIR9 ],
+            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR, SETTING_DIR9, { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' } ],
             'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
-            'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' } ],
-            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamOffsetX', label: 'Anchor offset X (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamOffsetY', label: 'Anchor offset Y (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' } ],
+            'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' }, { key: 'colourSource', label: 'Colour source', options: ['warm','cycle palette'], default: 'warm' } ],
+            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamOffsetX', label: 'Anchor offset X (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamOffsetY', label: 'Anchor offset Y (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' }, { key: 'colourSource', label: 'Colour source', options: ['fire','cycle palette'], default: 'fire' }, { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' } ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
