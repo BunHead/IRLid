@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.31</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.32</span></div>
   </div>
 </div>
 
@@ -4394,7 +4394,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            end of step. CSS only handles the particle's appearance
            and outward animation — the randomisation lives in JS.
            ========================================================== */
-        .v511-breath-particle {
+        .v511-stream-particle {
           position: absolute;
           top: 0;
           left: 0;
@@ -4408,9 +4408,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           opacity: 0;
           will-change: transform, opacity;
           transform: translate(-50%, -50%) scale(0.6);
-          animation: v511BreathParticle var(--p-dur, 1.2s) ease-out forwards;
+          animation: v511StreamParticle var(--p-dur, 1.2s) ease-out forwards;
         }
-        @keyframes v511BreathParticle {
+        @keyframes v511StreamParticle {
           0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
           15%  { opacity: 1; transform: translate(calc(-50% + var(--p-dx-15, 0px)), calc(-50% + var(--p-dy-15, 0px))) scale(1); }
           70%  { opacity: 0.7; transform: translate(calc(-50% + var(--p-dx-70, 0px)), calc(-50% + var(--p-dy-70, 0px))) scale(0.95); }
@@ -4530,7 +4530,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-seq-list { display: flex; flex-direction: column; gap: 4px; min-height: 70px; padding: 2px; border-radius: 6px; }
         .v511-cel-seq-list.drag-over { background: rgba(105,168,255,0.06); outline: 2px dashed rgba(105,168,255,0.4); outline-offset: -2px; }
         .v511-cel-seq-empty { padding: 22px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
-        .v511-cel-seq-item { display: grid; grid-template-columns: auto auto 1fr auto auto auto auto; gap: 6px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; font-size: 11.5px; }
+        .v511-cel-seq-item { display: grid; grid-template-columns: auto auto 1fr auto auto auto auto auto; gap: 6px; align-items: center; padding: 6px 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; font-size: 11.5px; }
         /* Tier 4.3.22 — "Play with previous" toggle. When pressed, this step
            fires at the same time as the previous step instead of after it.
            Hidden on the first row via :first-child since there's no previous. */
@@ -4540,6 +4540,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-seq-item:first-child .v511-cel-seq-withprev { visibility: hidden; }
         :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-withprev { border-color: rgba(0,0,0,0.18); }
         :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-withprev[aria-pressed="true"] { background: rgba(34,109,212,0.16); color: #226dd4; border-color: rgba(34,109,212,0.55); }
+        /* T4.3.32 — Z-order toggle. Above QR/image (default) vs below.
+           ▲ = above (default, sits over the QR + image like a normal overlay).
+           ▼ = below (effect renders behind the QR + image, so the QR stays
+           crisp on top while particles/glows live underneath).
+           Same shape as the withPrev toggle, in amber to distinguish. */
+        .v511-cel-seq-item .v511-cel-seq-zorder { background: transparent; color: var(--muted); border: 1px solid rgba(255,255,255,0.18); cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 6px; border-radius: 5px; font-family: inherit; opacity: 0.5; transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease, border-color 0.12s ease; min-width: 24px; }
+        .v511-cel-seq-item .v511-cel-seq-zorder:hover { opacity: 1; }
+        .v511-cel-seq-item .v511-cel-seq-zorder[aria-pressed="true"] { background: rgba(232,176,74,0.22); color: #fac775; border-color: rgba(232,176,74,0.65); opacity: 1; }
+        :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-zorder { border-color: rgba(0,0,0,0.18); }
+        :root[data-theme="light"] .v511-cel-seq-item .v511-cel-seq-zorder[aria-pressed="true"] { background: rgba(186,117,23,0.16); color: #ba7517; border-color: rgba(186,117,23,0.55); }
+        /* T4.3.32 — When `cel-z-below` is on the stage, the celebration fx
+           layer renders behind the QR/image content. Default z is 5; this
+           drops it to 2 (content sits at z-3, image overlay at z-3 too via
+           ::before pattern but image lives on ::after at z-1, so z-2 puts
+           celebration BETWEEN the bg image and the content/QR). */
+        .v511-theme-preview-stage.cel-z-below > .v511-cel-fx-layer { z-index: 2; }
+        .v511-theme-preview-stage.cel-z-below .v511-stream-particle { z-index: 2; }
         .v511-cel-seq-item:hover { background: rgba(255,255,255,0.06); }
         .v511-cel-seq-item.dragging { opacity: 0.4; }
         .v511-cel-seq-item .v511-cel-seq-drag { color: var(--muted); cursor: grab; user-select: none; padding: 0 2px; }
@@ -5375,7 +5392,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                         <button type="button" class="v511-cel-lib-item" data-effect="sparkles"  draggable="true"><span class="icon">✨</span> Sparkles</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="particles" draggable="true"><span class="icon">·</span> Particles</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="flame"     draggable="true"><span class="icon">🔥</span> Flame</button>
-                        <button type="button" class="v511-cel-lib-item" data-effect="breath"    draggable="true"><span class="icon">🐉</span> Breath</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="stream"    draggable="true"><span class="icon">🐉</span> Stream</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="glitch"    draggable="true"><span class="icon">▦</span> Glitch</button>
                       </div>
                     </details>
@@ -5861,12 +5878,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'cel-outer-glow','cel-spotlight','cel-cam-flash','cel-strobe',
             'cel-shake','cel-scale-punch','cel-iris-wipe','cel-ripple','cel-qr-disappear',
             'cel-confetti','cel-sparkles','cel-particles','cel-flame','cel-glitch',
-            'cel-breath'
+            'cel-stream'
           ];
           var V511_SETTING_CLASSES = [
             'cel-int-subtle','cel-int-medium','cel-int-strong',
             'cel-bounce-eff-bounce','cel-bounce-eff-loop',
-            'cel-flame-anchor-image','cel-breath-anchor-image'
+            'cel-flame-anchor-image','cel-stream-anchor-image',
+            'cel-z-below'
           ];
           var V511_SETTING_ATTRS = [
             'data-cel-text-pos','data-cel-text-size','data-cel-text-template',
@@ -5922,11 +5940,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (item.effect === 'flame' && s.direction9 === 'image-anchor') {
               stage.classList.add('cel-flame-anchor-image');
             }
-            // T4.3.31 — Breath now uses `breathAnchor` (the dir9 grid `direction9`
+            // T4.3.31 — Breath now uses `streamAnchor` (the dir9 grid `direction9`
             // is reused for the actual fire-blow direction). Particle injection
-            // happens via v511FireBreathParticles when cel-breath fires.
-            if (item.effect === 'breath' && s.breathAnchor === 'image-anchor') {
-              stage.classList.add('cel-breath-anchor-image');
+            // happens via v511FireStreamParticles when cel-stream fires.
+            if (item.effect === 'stream' && s.streamAnchor === 'image-anchor') {
+              stage.classList.add('cel-stream-anchor-image');
             }
             if (s.direction9) stage.setAttribute('data-cel-dir', s.direction9);
             if (s.axis) stage.setAttribute('data-cel-axis', s.axis);
@@ -5956,10 +5974,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // when bg-symmetry is on), or stage centre. Direction comes from the
           // dir9 grid (l = → right, r = ← left, t = ↓ down, b = ↑ up, etc.).
           // Particles are real DOM nodes — appended to stage, animated via the
-          // .v511-breath-particle CSS rule, removed after duration.
+          // .v511-stream-particle CSS rule, removed after duration.
           //
           // dir9 → motion angle (radians, 0 = east/right, +ve = clockwise / down)
-          var V511_BREATH_DIR_ANGLES = {
+          var V511_STREAM_DIR_ANGLES = {
             'l':  0,                              // → right
             'br': -Math.PI * 0.25,                // ↖ up-left (br cell, ↖ glyph)
             'b':  -Math.PI * 0.5,                 // ↑ up
@@ -5978,54 +5996,65 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             return fb;
           }
           // Read anchor positions: one per visible image instance when image-anchor
-          // is selected (honours bg-symmetry-*), else stage centre.
-          function v511GetBreathAnchors(stage, item) {
+          // is selected (honours bg-symmetry-*), else stage centre. Returns an
+          // array of {pos:{x,y}, axisFlip:{x,y}} — axisFlip says whether the
+          // particle direction should be mirrored across X/Y from the base
+          // direction (used so that the right-side dragon blows LEFT when the
+          // left-side dragon blows RIGHT). axisFlip values are ±1.
+          function v511GetStreamAnchors(stage, item) {
             var s = (item && item.settings) || {};
-            if (s.breathAnchor !== 'image-anchor') return [{ x: 50, y: 50 }];
+            if (s.streamAnchor !== 'image-anchor') return [{ pos: { x: 50, y: 50 }, axisFlip: { x: 1, y: 1 } }];
             var cs = getComputedStyle(stage);
             function rd(name, fb) { return v511ParsePctPos(cs.getPropertyValue(name).trim(), fb); }
+            // Mirror is on by default; off when user sets streamMirror = 'off'.
+            var mirror = s.streamMirror !== 'off';
             if (stage.classList.contains('bg-symmetry-horizontal')) {
-              return [rd('--sym-pos-1', { x: 0, y: 50 }), rd('--sym-pos-2', { x: 100, y: 50 })];
+              return [
+                { pos: rd('--sym-pos-1', { x: 0, y: 50 }), axisFlip: { x: 1, y: 1 } },
+                { pos: rd('--sym-pos-2', { x: 100, y: 50 }), axisFlip: { x: mirror ? -1 : 1, y: 1 } }
+              ];
             }
             if (stage.classList.contains('bg-symmetry-vertical')) {
-              return [rd('--sym-pos-1', { x: 50, y: 0 }), rd('--sym-pos-3', { x: 50, y: 100 })];
+              return [
+                { pos: rd('--sym-pos-1', { x: 50, y: 0 }), axisFlip: { x: 1, y: 1 } },
+                { pos: rd('--sym-pos-3', { x: 50, y: 100 }), axisFlip: { x: 1, y: mirror ? -1 : 1 } }
+              ];
             }
             if (stage.classList.contains('bg-symmetry-quad')) {
               return [
-                rd('--sym-pos-1', { x: 0, y: 0 }),
-                rd('--sym-pos-2', { x: 100, y: 0 }),
-                rd('--sym-pos-3', { x: 0, y: 100 }),
-                rd('--sym-pos-4', { x: 100, y: 100 })
+                { pos: rd('--sym-pos-1', { x: 0, y: 0 }),     axisFlip: { x: 1, y: 1 } },
+                { pos: rd('--sym-pos-2', { x: 100, y: 0 }),   axisFlip: { x: mirror ? -1 : 1, y: 1 } },
+                { pos: rd('--sym-pos-3', { x: 0, y: 100 }),   axisFlip: { x: 1, y: mirror ? -1 : 1 } },
+                { pos: rd('--sym-pos-4', { x: 100, y: 100 }), axisFlip: { x: mirror ? -1 : 1, y: mirror ? -1 : 1 } }
               ];
             }
-            return [rd('--bg-image-pos', { x: 50, y: 50 })];
+            return [{ pos: rd('--bg-image-pos', { x: 50, y: 50 }), axisFlip: { x: 1, y: 1 } }];
           }
-          // Fire a burst of particles from one anchor position
-          function v511EmitBreathBurst(stage, anchor, baseAngleRad, count, durMs) {
+          // Fire a burst of particles from one anchor position. axisFlip mirrors
+          // the base direction per-axis (set by symmetry detection above).
+          function v511EmitStreamBurst(stage, anchor, axisFlip, baseAngleRad, spreadRad, count, durMs) {
             var stageRect = stage.getBoundingClientRect();
             var stageW = stageRect.width || 700;
             var stageH = stageRect.height || 400;
-            // Cone spread total (radians). Wider for centre/radial mode.
-            var spread = (baseAngleRad === null) ? Math.PI * 2 : Math.PI / 3;  // 60° cone, 360° for radial
             var palette = ['#ff3e00','#ff6b00','#ff8800','#ffaa44','#ffb347','#ffcc66','#ffe08a','#fff3b0'];
             for (var i = 0; i < count; i++) {
               var p = document.createElement('div');
-              p.className = 'v511-breath-particle';
+              p.className = 'v511-stream-particle';
               // Random size 3-12px (skewed toward smaller — most particles small, few large)
               var sizeRoll = Math.pow(Math.random(), 1.8); // bias toward small
               var size = 3 + sizeRoll * 9;
               // Random colour from hot fire palette
               var colour = palette[Math.floor(Math.random() * palette.length)];
-              // Random angle within cone (or all-around for centre)
+              // Random angle within cone (or all-around when baseAngleRad === null)
               var angle = (baseAngleRad === null)
                 ? Math.random() * Math.PI * 2
-                : baseAngleRad + (Math.random() - 0.5) * spread;
+                : baseAngleRad + (Math.random() - 0.5) * spreadRad;
               // Random distance — most particles travel medium, some short, some far
               var distRoll = 0.35 + Math.random() * 0.7;  // 0.35 to 1.05 of stage half-dimension
               var maxDim = Math.max(stageW, stageH) * 0.5;
               var dist = maxDim * distRoll;
-              var dx = Math.cos(angle) * dist;
-              var dy = Math.sin(angle) * dist;
+              var dx = Math.cos(angle) * dist * axisFlip.x;
+              var dy = Math.sin(angle) * dist * axisFlip.y;
               // Intermediate positions for smoother arc-style motion
               var dx15 = dx * 0.18, dy15 = dy * 0.18;
               var dx70 = dx * 0.78, dy70 = dy * 0.78;
@@ -6048,24 +6077,32 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               stage.appendChild(p);
             }
           }
-          function v511FireBreathParticles(stage, item, durMs) {
+          function v511FireStreamParticles(stage, item, durMs) {
             if (!stage || !item) return;
             var s = item.settings || {};
-            // Particle count by intensity (default = medium)
-            var countByIntensity = { subtle: 14, medium: 26, strong: 44 };
-            var perBurst = countByIntensity[s.intensity] || countByIntensity.medium;
+            // T4.3.32 — Particle count from slider (default 30), with intensity
+            // as a multiplier so the chip still does something (0.7× / 1× / 1.5×).
+            var countRaw = parseFloat(s.streamCount);
+            var baseCount = (isFinite(countRaw) && countRaw > 0) ? countRaw : 30;
+            var intensityMul = { subtle: 0.7, medium: 1.0, strong: 1.5 }[s.intensity] || 1.0;
+            var perBurst = Math.max(1, Math.round(baseCount * intensityMul));
+            // T4.3.32 — Spread from slider (degrees → radians), default 60°.
+            var spreadDeg = parseFloat(s.streamSpread);
+            var spreadRad = (isFinite(spreadDeg) && spreadDeg > 0 ? spreadDeg : 60) * Math.PI / 180;
             // Direction angle from dir9 — 'c' (centre) means radial all-directions
             var dir = s.direction9 || 'l';
-            var baseAngle = (dir === 'c') ? null : (V511_BREATH_DIR_ANGLES[dir] !== undefined ? V511_BREATH_DIR_ANGLES[dir] : 0);
-            // Find anchor positions (one per visible image instance, or stage centre)
-            var anchors = v511GetBreathAnchors(stage, item);
-            anchors.forEach(function (anchor) {
-              v511EmitBreathBurst(stage, anchor, baseAngle, perBurst, durMs);
+            var baseAngle = (dir === 'c') ? null : (V511_STREAM_DIR_ANGLES[dir] !== undefined ? V511_STREAM_DIR_ANGLES[dir] : 0);
+            // Find anchor positions (one per visible image instance, or stage centre).
+            // Each anchor includes axisFlip telling us how to mirror the base direction
+            // (so left dragon blows right, right dragon blows left, under horizontal symmetry).
+            var anchors = v511GetStreamAnchors(stage, item);
+            anchors.forEach(function (a) {
+              v511EmitStreamBurst(stage, a.pos, a.axisFlip, baseAngle, spreadRad, perBurst, durMs);
             });
             // Cleanup particles after they've finished animating — give extra
             // headroom because per-particle duration randomises up to 1.3× durMs.
             setTimeout(function () {
-              stage.querySelectorAll('.v511-breath-particle').forEach(function (p) { p.remove(); });
+              stage.querySelectorAll('.v511-stream-particle').forEach(function (p) { p.remove(); });
             }, durMs * 1.6 + 200);
           }
 
@@ -6111,12 +6148,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var cls = 'cel-' + effectKey;
                 // Tier 4.3.2 — translate item.settings into stage attrs/classes
                 v511ApplyItemSettings(sampleStage, item);
-                // T4.3.31 — Breath effect injects randomised particle DOM nodes
+                // T4.3.32 — z-order toggle. When item.zBelow is true, drop the
+                // effect's layer beneath the QR/image content (z-2) instead of
+                // above it (z-5). Class is cleared between steps via V511_SETTING_CLASSES.
+                if (item.zBelow) { sampleStage.classList.add('cel-z-below'); }
+                // T4.3.31 — Stream effect injects randomised particle DOM nodes
                 // at the anchor position(s). Particles self-clean via animation
-                // forwards + a setTimeout below; cel-breath class still cycles
+                // forwards + a setTimeout below; cel-stream class still cycles
                 // normally so the class-based cleanup discipline holds.
-                if (item.effect === 'breath' && typeof v511FireBreathParticles === 'function') {
-                  v511FireBreathParticles(sampleStage, item, durMs);
+                if (item.effect === 'stream' && typeof v511FireStreamParticles === 'function') {
+                  v511FireStreamParticles(sampleStage, item, durMs);
                 }
                 // Tier 4.3.20 — Count loop: cam-flash / strobe / ripple / bg
                 // honour their `count` setting by firing the effect class N
@@ -6902,7 +6943,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'sparkles':     { label: 'Sparkles',         icon: '✨', defaultDur: 1.4 },
             'particles':    { label: 'Particles',        icon: '·', defaultDur: 1.4 },
             'flame':        { label: 'Flame',            icon: '🔥', defaultDur: 1.4 },
-            'breath':       { label: 'Breath',           icon: '🐉', defaultDur: 1.2 },
+            'stream':       { label: 'Stream',           icon: '🐉', defaultDur: 1.2 },
             'glitch':       { label: 'Glitch',           icon: '▦', defaultDur: 0.6 },
             'bg':           { label: 'Background flash', icon: '▮', defaultDur: 1.4 },
             'pattern':      { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
@@ -6927,7 +6968,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Tier 4.3.22 — "Play with previous" toggle. aria-pressed reflects
             // whether this step fires concurrently with the step above it.
             // Hidden via CSS on :first-child since there's no previous step.
+            // T4.3.32 — Z-order toggle alongside. ▲ = above QR/image (default),
+            // ▼ = below (effect lives between the bg image and the QR content).
             var wpPressed = item.withPrev ? 'true' : 'false';
+            var zbPressed = item.zBelow ? 'true' : 'false';
+            var zbGlyph = item.zBelow ? '▼' : '▲';
+            var zbTitle = item.zBelow ? 'Layer below QR/image (click to layer above)' : 'Layer above QR/image (click to layer below)';
             row.innerHTML =
               '<span class="v511-cel-seq-drag" title="Drag to reorder">⠿</span>' +
               '<span class="v511-cel-seq-num">' + (idx + 1) + '</span>' +
@@ -6935,6 +6981,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               '<input type="number" class="v511-cel-seq-dur" min="0" max="10" step="0.1" value="' + (item.duration || meta.defaultDur) + '" />' +
               '<span class="v511-cel-seq-dur-unit">s</span>' +
               '<button type="button" class="v511-cel-seq-withprev" aria-pressed="' + wpPressed + '" title="Play with previous step (overlap)">+</button>' +
+              '<button type="button" class="v511-cel-seq-zorder" aria-pressed="' + zbPressed + '" title="' + zbTitle + '">' + zbGlyph + '</button>' +
               '<button type="button" class="v511-cel-seq-remove" title="Remove">×</button>';
             return row;
           }
@@ -6970,7 +7017,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Tier 4.3.22 — capture withPrev from toggle button aria-pressed
               var wpBtn = row.querySelector('.v511-cel-seq-withprev');
               var withPrev = !!(wpBtn && wpBtn.getAttribute('aria-pressed') === 'true');
-              var newItem = { id: id, effect: effect, duration: dur, withPrev: withPrev };
+              // T4.3.32 — capture zBelow from z-order toggle
+              var zoBtn = row.querySelector('.v511-cel-seq-zorder');
+              var zBelow = !!(zoBtn && zoBtn.getAttribute('aria-pressed') === 'true');
+              var newItem = { id: id, effect: effect, duration: dur, withPrev: withPrev, zBelow: zBelow };
               var prev = byId[id];
               if (prev && prev.settings) newItem.settings = prev.settings;
               out.push(newItem);
@@ -7061,6 +7111,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
                 return;
               }
+              // T4.3.32 — Z-order toggle. Glyph + title swap together.
+              var zo = e.target.closest('.v511-cel-seq-zorder');
+              if (zo) {
+                var wasPressed = zo.getAttribute('aria-pressed') === 'true';
+                var nowPressed = !wasPressed;
+                zo.setAttribute('aria-pressed', nowPressed ? 'true' : 'false');
+                zo.textContent = nowPressed ? '▼' : '▲';
+                zo.setAttribute('title', nowPressed
+                  ? 'Layer below QR/image (click to layer above)'
+                  : 'Layer above QR/image (click to layer below)');
+                e.stopPropagation();
+                if (modeStates[currentMode]) modeStates[currentMode].sequence = v511ReadSequenceFromDom();
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                return;
+              }
               var rm = e.target.closest('.v511-cel-seq-remove');
               if (rm) {
                 var row = rm.closest('.v511-cel-seq-item');
@@ -7123,7 +7188,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' } ],
-            'breath':       [ SETTING_INTENSITY, { key: 'breathAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' } ],
+            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' } ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
@@ -7177,6 +7242,27 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   grid.appendChild(btn);
                 });
                 row.appendChild(grid);
+              } else if (setting.type === 'slider') {
+                // T4.3.32 — Slider input for numeric ranges (count, spread, etc.)
+                var sliderWrap = document.createElement('div');
+                sliderWrap.className = 'v511-cel-slider-wrap';
+                sliderWrap.style.cssText = 'display: flex; align-items: center; gap: 8px;';
+                var slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = setting.min;
+                slider.max = setting.max;
+                slider.step = setting.step || 1;
+                slider.value = currentVal;
+                slider.className = 'v511-cel-slider';
+                slider.setAttribute('data-setting-slider', setting.key);
+                slider.style.cssText = 'flex: 1;';
+                var valLabel = document.createElement('span');
+                valLabel.className = 'v511-cel-slider-value';
+                valLabel.textContent = currentVal;
+                valLabel.style.cssText = 'min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11px;';
+                sliderWrap.appendChild(slider);
+                sliderWrap.appendChild(valLabel);
+                row.appendChild(sliderWrap);
               } else {
                 var chips = document.createElement('div');
                 chips.className = 'v511-chips v511-chips-wrap';
@@ -7212,6 +7298,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (e.target.closest('.v511-cel-seq-remove')) return; // remove handler runs separately
               if (e.target.closest('.v511-cel-seq-dur')) return;    // duration edit doesn't change selection
               if (e.target.closest('.v511-cel-seq-withprev')) return; // T4.3.22 — toggle doesn't change selection
+              if (e.target.closest('.v511-cel-seq-zorder')) return; // T4.3.32 — z-order toggle doesn't change selection
               var row = e.target.closest('.v511-cel-seq-item');
               if (!row) return;
               var rows = Array.prototype.slice.call(v511CelSeqList.querySelectorAll('.v511-cel-seq-item'));
@@ -7219,6 +7306,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           }
 
+          // T4.3.32 — Slider input handler — updates item.settings + label + saves.
+          if (v511CelSettingsBody) {
+            v511CelSettingsBody.addEventListener('input', function (e) {
+              var slider = e.target.closest('.v511-cel-slider');
+              if (!slider) return;
+              var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+              if (v511SelectedSeqIdx < 0 || v511SelectedSeqIdx >= seq.length) return;
+              var item = seq[v511SelectedSeqIdx];
+              if (!item.settings) item.settings = {};
+              var key = slider.getAttribute('data-setting-slider');
+              if (!key) return;
+              var val = parseFloat(slider.value);
+              if (!isFinite(val)) return;
+              item.settings[key] = val;
+              var label = slider.parentElement && slider.parentElement.querySelector('.v511-cel-slider-value');
+              if (label) label.textContent = val;
+              if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+            });
+          }
           // Settings panel click — chip or dir9 cell. Updates item.settings + save.
           if (v511CelSettingsBody) {
             v511CelSettingsBody.addEventListener('click', function (e) {
