@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.41</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.42</span></div>
   </div>
 </div>
 
@@ -4339,14 +4339,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelConfettiR { 0% { background-position: 0 0, 20px 0; } 100% { background-position: 35px 0, 70px 0; } }
         .v511-theme-preview-stage.cel-confetti[data-cel-dir="r"]  > .v511-cel-fx-layer { animation: v511CelConfettiL var(--cel-cycle-dur, 2s) linear; }
         @keyframes v511CelConfettiL { 0% { background-position: 35px 0, 70px 0; } 100% { background-position: 0 0, 20px 0; } }
-        /* Particles: sparkles (twinkling small dots) — repeat both axes */
-        .v511-theme-preview-stage.cel-sparkles > .v511-cel-fx-layer { animation: v511CelSparkles var(--cel-cycle-dur, 1.4s) ease-in-out; background-image: radial-gradient(circle, #fff 1.5px, transparent 2px); background-size: 35px 35px; background-repeat: repeat; }
-        @keyframes v511CelSparkles { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1); } }
-        /* Sparkles direction = drift */
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="t"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUp; }
-        @keyframes v511CelSparklesDriftUp { 0% { opacity: 0; background-position: 0 50px; } 50% { opacity: 1; background-position: 0 25px; } 100% { opacity: 0; background-position: 0 0; } }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="b"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDn; }
-        @keyframes v511CelSparklesDriftDn { 0% { opacity: 0; background-position: 0 0; } 50% { opacity: 1; background-position: 0 25px; } 100% { opacity: 0; background-position: 0 50px; } }
+        /* T4.3.42 — Sparkles rebuilt as JS-injected 4-point star particles with
+           bloom + twinkle. Old fx-layer-based dots removed. See the
+           .v511-sparkle-particle block + v511FireSparkleParticles JS below. */
         /* Particles: generic burst (palette dots expanding) */
         .v511-theme-preview-stage.cel-particles > .v511-cel-fx-layer { animation: v511CelParticles var(--cel-cycle-dur, 1.4s) ease-out; background-image: radial-gradient(circle, var(--cel-pal-1, #66e0ff) 2px, transparent 2.5px); background-size: 22px 22px; transform-origin: center; }
         @keyframes v511CelParticles { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
@@ -4354,8 +4349,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            sparse = ~2x background-size (fewer dots); dense = ~0.5x (more dots). */
         .v511-theme-preview-stage.cel-confetti[data-cel-density="sparse"]  > .v511-cel-fx-layer { background-size: 70px 70px, 100px 100px; }
         .v511-theme-preview-stage.cel-confetti[data-cel-density="dense"]   > .v511-cel-fx-layer { background-size: 18px 18px, 26px 26px; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-density="sparse"]  > .v511-cel-fx-layer { background-size: 70px 70px; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-density="dense"]   > .v511-cel-fx-layer { background-size: 18px 18px; }
+        /* T4.3.42 — Sparkle density rules removed (sparkles now use count slider, not density). */
         .v511-theme-preview-stage.cel-particles[data-cel-density="sparse"] > .v511-cel-fx-layer { background-size: 44px 44px; }
         .v511-theme-preview-stage.cel-particles[data-cel-density="dense"]  > .v511-cel-fx-layer { background-size: 11px 11px; }
         /* Particles: flame (warm gradient rising from bottom anchor by default) */
@@ -4443,6 +4437,60 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           70%  { opacity: 0.7; transform: translate(calc(-50% + var(--p-dx-70, 0px)), calc(-50% + var(--p-dy-70, 0px))) scale(0.95); }
           100% { opacity: 0; transform: translate(calc(-50% + var(--p-dx, 0px)), calc(-50% + var(--p-dy, 0px))) scale(0.3); }
         }
+        /* ==========================================================
+           T4.3.42 — Sparkle particle (4-point star with bloom)
+           JS-injected by v511FireSparkleParticles. Each particle is
+           a DOM <div> with a clip-path star shape + drop-shadow bloom
+           + animated twinkle (fade in / peak / fade out, optional
+           drift, optional spin). Per-particle CSS variables drive the
+           randomised properties: --sp-dur (animation duration),
+           --sp-delay (start delay for staggered twinkle), --sp-rot
+           (start rotation in degrees), --sp-spin (additional rotation
+           applied across animation), --sp-drift (vertical drift px).
+           Cleanup at end of step by v511FireSparkleParticles' setTimeout.
+           ========================================================== */
+        .v511-sparkle-particle {
+          position: absolute;
+          top: 0; left: 0;
+          /* size + colour + per-particle vars set inline */
+          background: #ffffff;
+          pointer-events: none;
+          opacity: 0;
+          will-change: transform, opacity;
+          transform: translate(-50%, -50%) scale(0.4) rotate(var(--sp-rot, 0deg));
+          /* 4-point star polygon — narrow rays so the centre reads as a dot
+             with rays extending out top/right/bottom/left. */
+          clip-path: polygon(
+            50% 0%,
+            55% 45%,
+            100% 50%,
+            55% 55%,
+            50% 100%,
+            45% 55%,
+            0% 50%,
+            45% 45%
+          );
+          filter: drop-shadow(0 0 6px rgba(255,255,255,0.85)) drop-shadow(0 0 18px rgba(255,255,255,0.55));
+          animation: v511SparkleTwinkle var(--sp-dur, 1.2s) var(--sp-delay, 0s) ease-out forwards;
+        }
+        @keyframes v511SparkleTwinkle {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(var(--sp-rot, 0deg)); }
+          20%  { opacity: 1; transform: translate(-50%, calc(-50% + var(--sp-drift, 0px) * 0.2)) scale(1.0) rotate(calc(var(--sp-rot, 0deg) + var(--sp-spin, 0deg) * 0.2)); }
+          55%  { opacity: 0.85; transform: translate(-50%, calc(-50% + var(--sp-drift, 0px) * 0.55)) scale(1.15) rotate(calc(var(--sp-rot, 0deg) + var(--sp-spin, 0deg) * 0.55)); }
+          100% { opacity: 0; transform: translate(-50%, calc(-50% + var(--sp-drift, 0px))) scale(0.75) rotate(calc(var(--sp-rot, 0deg) + var(--sp-spin, 0deg))); }
+        }
+        /* Warm tint — slight cream colour for "magical" feel. */
+        .v511-sparkle-particle.sp-warm {
+          background: #fff5d0;
+          filter: drop-shadow(0 0 6px rgba(255,235,180,0.90)) drop-shadow(0 0 18px rgba(255,220,150,0.55));
+        }
+        /* Palette colour — background set inline; bloom remains white-ish so it reads luminous. */
+        .v511-sparkle-particle.sp-palette {
+          filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 18px rgba(255,255,255,0.45));
+        }
+        /* T4.3.42 — When cel-z-below is on the stage, drop sparkle particles
+           beneath the QR+image content (matches stream's z-order toggle). */
+        .v511-theme-preview-stage.cel-z-below .v511-sparkle-particle { z-index: 2; }
         /* Particles: glitch (digital corruption flicker) */
         .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
         @keyframes v511CelGlitch { 0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: translate(0); } 20% { filter: hue-rotate(90deg) saturate(2); transform: translate(-2px, 1px); } 40% { filter: hue-rotate(-90deg) saturate(2); transform: translate(2px, -1px); } 60% { filter: hue-rotate(180deg) saturate(2); transform: translate(-1px, 2px); } 80% { filter: hue-rotate(-45deg) saturate(2); transform: translate(1px, -2px); } }
@@ -4663,11 +4711,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-flame.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelFlameStrong; }
         @keyframes v511CelFlameSubtle { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 0.55; transform: scaleY(0.7) translateY(0); }   100% { opacity: 0; transform: scaleY(0.95) translateY(-25%); } }
         @keyframes v511CelFlameStrong { 0% { opacity: 0; transform: scaleY(0.2) translateY(50%); } 50% { opacity: 1;    transform: scaleY(1.4) translateY(-5%); } 100% { opacity: 0; transform: scaleY(1.9) translateY(-55%); } }
-        /* --- Sparkles intensity (peak opacity + scale at midpoint) --- */
-        .v511-theme-preview-stage.cel-sparkles.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelSparklesSubtle; }
-        .v511-theme-preview-stage.cel-sparkles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelSparklesStrong; }
-        @keyframes v511CelSparklesSubtle { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 0.55; transform: scale(0.85); } }
-        @keyframes v511CelSparklesStrong { 0%, 100% { opacity: 0; transform: scale(0.6); } 50% { opacity: 1;    transform: scale(1.25); } }
+        /* T4.3.42 — Sparkle intensity now handled per-particle by the JS emitter
+           (peak opacity + bloom scale baked into each particle's keyframe). */
         /* --- Particles intensity (peak scale + opacity) --- */
         .v511-theme-preview-stage.cel-particles.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelParticlesSubtle; }
         .v511-theme-preview-stage.cel-particles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelParticlesStrong; }
@@ -4688,20 +4733,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelConfettiDL   { 0% { background-position: 0 0, 20px 0; }      100% { background-position: -35px 35px, -15px 50px; } }
         @keyframes v511CelConfettiHold { 0%, 100% { opacity: 0; } 30%, 70% { opacity: 1; } }
         .v511-theme-preview-stage.cel-confetti[data-cel-colour-source="single"] > .v511-cel-fx-layer { background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px); background-size: 35px 35px; }
-        /* --- Sparkles direction completes the 9-grid (existing: 't' up, 'b' down).
-               'l'/'r' = horizontal drift, 'c' = no drift just pulse, diagonals = approx. --- */
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="l"]  > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftRight; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="r"]  > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftLeft; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="tl"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDR; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="tr"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftDL; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="bl"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUR; }
-        .v511-theme-preview-stage.cel-sparkles[data-cel-dir="br"] > .v511-cel-fx-layer { animation-name: v511CelSparklesDriftUL; }
-        @keyframes v511CelSparklesDriftRight { 0% { opacity: 0; background-position: -50px 0; } 50% { opacity: 1; background-position: -25px 0; } 100% { opacity: 0; background-position: 0 0; } }
-        @keyframes v511CelSparklesDriftLeft  { 0% { opacity: 0; background-position: 50px 0; }  50% { opacity: 1; background-position: 25px 0; }  100% { opacity: 0; background-position: 0 0; } }
-        @keyframes v511CelSparklesDriftDR    { 0% { opacity: 0; background-position: -35px -35px; } 50% { opacity: 1; background-position: -17px -17px; } 100% { opacity: 0; background-position: 0 0; } }
-        @keyframes v511CelSparklesDriftDL    { 0% { opacity: 0; background-position: 35px -35px; }  50% { opacity: 1; background-position: 17px -17px; }  100% { opacity: 0; background-position: 0 0; } }
-        @keyframes v511CelSparklesDriftUR    { 0% { opacity: 0; background-position: -35px 35px; }  50% { opacity: 1; background-position: -17px 17px; }  100% { opacity: 0; background-position: 0 0; } }
-        @keyframes v511CelSparklesDriftUL    { 0% { opacity: 0; background-position: 35px 35px; }   50% { opacity: 1; background-position: 17px 17px; }   100% { opacity: 0; background-position: 0 0; } }
+        /* T4.3.42 — Sparkle direction-drift rules removed. Drift is now handled
+           per-particle by the JS emitter (down/up via translateY in keyframes). */
         /* --- Particles dir9 — translate the expanding burst toward the chosen
                direction. Default is centred radial scale; direction layers a
                translate atop the scale via separate keyframe set. --- */
@@ -6546,6 +6579,123 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }, durMs * 1.6 + 200);
           }
 
+          // T4.3.42 — Sparkle particle emitter. Patterned on
+          // v511FireStreamParticles but tuned for the magical 4-point-star
+          // sparkle look (Captain's reference: clustered white/warm stars with
+          // bloom that twinkle staggered across the cycle). Each particle is
+          // a real DOM node with clip-path star shape + drop-shadow bloom;
+          // cleanup via setTimeout at end of cycle.
+          function v511FireSparkleParticles(stage, item, durMs) {
+            if (!stage || !item) return;
+            var s = item.settings || {};
+            // Count from slider with intensity multiplier (clamped at 60 for
+            // render cost — bloom drop-shadows aren't cheap).
+            var countRaw = parseFloat(s.sparkleCount);
+            var baseCount = (isFinite(countRaw) && countRaw > 0) ? countRaw : 18;
+            var intensityMul = { subtle: 0.6, medium: 1.0, strong: 1.5 }[s.intensity] || 1.0;
+            var perBurst = Math.max(1, Math.min(60, Math.round(baseCount * intensityMul)));
+            // Spread mode controls cluster radius vs full-stage scatter.
+            var spread = s.sparkleSpread || 'cluster';
+            // Colour source.
+            var palette = null;
+            var colourMode = s.colourSource || 'white';
+            if (colourMode === 'cycle palette' || colourMode === 'cycle-palette') {
+              var cs = getComputedStyle(stage);
+              var pals = [];
+              for (var n = 1; n <= 7; n++) {
+                var c = cs.getPropertyValue('--cel-pal-' + n).trim();
+                if (c) pals.push(c);
+              }
+              palette = pals.length ? pals : ['#ffffff'];
+            }
+            // Rotation strategy.
+            var rotation = s.sparkleRotation || 'random';
+            // Twinkle strategy (delay distribution across cycle).
+            var twinkle = s.sparkleTwinkle || 'staggered';
+            // Drift.
+            var drift = s.sparkleDrift || 'none';
+            var stageRect = stage.getBoundingClientRect();
+            var driftPx = 0;
+            if (drift === 'down')      driftPx =  Math.max(stageRect.height || 400, 200) * 0.35;
+            else if (drift === 'up')   driftPx = -Math.max(stageRect.height || 400, 200) * 0.35;
+            for (var i = 0; i < perBurst; i++) {
+              var p = document.createElement('div');
+              p.className = 'v511-sparkle-particle';
+              // Position based on spread mode (percentages relative to stage).
+              var px, py;
+              if (spread === 'cluster') {
+                // Tight cluster near centre — random within ~25% radius using
+                // sqrt-distribution for even area coverage rather than dense centre.
+                var r1 = Math.sqrt(Math.random()) * 22;
+                var th1 = Math.random() * Math.PI * 2;
+                px = 50 + r1 * Math.cos(th1);
+                py = 50 + r1 * Math.sin(th1);
+              } else if (spread === 'spread') {
+                // Looser distribution — ~50% of stage centred.
+                var r2 = Math.sqrt(Math.random()) * 40;
+                var th2 = Math.random() * Math.PI * 2;
+                px = 50 + r2 * Math.cos(th2);
+                py = 50 + r2 * Math.sin(th2);
+              } else {
+                // Fill — anywhere in stage with small inset margin.
+                px = Math.random() * 90 + 5;
+                py = Math.random() * 90 + 5;
+              }
+              // Size — skewed small (bias toward small with a few larger).
+              var sizeRoll = Math.pow(Math.random(), 1.6);
+              var size = 14 + sizeRoll * 34; // 14-48px
+              // Colour.
+              var colour;
+              if (colourMode === 'warm') {
+                p.classList.add('sp-warm');
+                colour = '#fff5d0';
+              } else if (palette) {
+                colour = palette[Math.floor(Math.random() * palette.length)];
+                p.classList.add('sp-palette');
+              } else {
+                colour = '#ffffff';
+              }
+              // Rotation start + spin amount.
+              var rotStart, rotSpin;
+              if (rotation === 'fixed') {
+                rotStart = 0; rotSpin = 0;
+              } else if (rotation === 'spin') {
+                rotStart = Math.random() * 360;
+                rotSpin = (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 180);
+              } else {
+                // random: random start angle, no continuous spin
+                rotStart = Math.random() * 360;
+                rotSpin = 0;
+              }
+              // Twinkle delay — how staggered the firing is across the cycle.
+              var delay;
+              if (twinkle === 'synchronised')      delay = 0;
+              else if (twinkle === 'staggered')    delay = (i / perBurst) * durMs * 0.4 / 1000;
+              else                                  delay = Math.random() * durMs * 0.5 / 1000;
+              // Per-particle duration randomises so they don't all end on the
+              // same beat — adds liveliness.
+              var pdur = (durMs * 0.55 + Math.random() * durMs * 0.45) / 1000;
+              p.style.cssText =
+                'left:' + px.toFixed(1) + '%;' +
+                'top:' + py.toFixed(1) + '%;' +
+                'width:' + size.toFixed(1) + 'px;' +
+                'height:' + size.toFixed(1) + 'px;' +
+                'background:' + colour + ';' +
+                'color:' + colour + ';' +
+                '--sp-dur:' + pdur.toFixed(2) + 's;' +
+                '--sp-delay:' + delay.toFixed(2) + 's;' +
+                '--sp-rot:' + rotStart.toFixed(0) + 'deg;' +
+                '--sp-spin:' + rotSpin.toFixed(0) + 'deg;' +
+                '--sp-drift:' + driftPx.toFixed(0) + 'px;';
+              stage.appendChild(p);
+            }
+            // Cleanup — generous margin since per-particle delay + duration
+            // can total up to ~durMs*0.5 + durMs*1.0 = durMs*1.5 worst case.
+            setTimeout(function () {
+              stage.querySelectorAll('.v511-sparkle-particle').forEach(function (p) { p.remove(); });
+            }, durMs * 1.7 + 400);
+          }
+
           // T4.3.36 — Refresh image positioning, QR render, and crosshair after
           // the stage's aspect ratio changes (entering / leaving fullscreen). In
           // normal view the stage is clamped by max-height: 48vh, so its actual
@@ -6667,6 +6817,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 // normally so the class-based cleanup discipline holds.
                 if (item.effect === 'stream' && typeof v511FireStreamParticles === 'function') {
                   v511FireStreamParticles(sampleStage, item, durMs);
+                }
+                // T4.3.42 — Sparkle particle emitter.
+                if (item.effect === 'sparkles' && typeof v511FireSparkleParticles === 'function') {
+                  v511FireSparkleParticles(sampleStage, item, durMs);
                 }
                 // Tier 4.3.20 — Count loop: cam-flash / strobe / ripple / bg
                 // honour their `count` setting by firing the effect class N
@@ -7699,7 +7853,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'iris-wipe':    [ { key: 'irisDir', label: 'Direction', options: ['close-then-open','open-then-close','close only','open only'], default: 'close-then-open' } ],
             'ripple':       [ SETTING_THICKNESS, SETTING_COUNT(3), SETTING_COLOUR ],
             'confetti':     [ SETTING_DENSITY, SETTING_COLOUR, SETTING_DIR9, { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' } ],
-            'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
+            // T4.3.42 — Sparkles rebuilt as JS-injected 4-point star particles
+            // with bloom + twinkle. 7-setting schema replaces the old 3.
+            'sparkles':     [
+              SETTING_INTENSITY,
+              { key: 'sparkleCount',    label: 'Count',         type: 'slider', min: 5, max: 60, step: 1, default: 18 },
+              { key: 'sparkleSpread',   label: 'Spread',        options: ['cluster','spread','fill'], default: 'cluster' },
+              { key: 'colourSource',    label: 'Colour source', options: ['white','warm','cycle palette'], default: 'white' },
+              { key: 'sparkleRotation', label: 'Rotation',      options: ['fixed','random','spin'], default: 'random' },
+              { key: 'sparkleTwinkle',  label: 'Twinkle',       options: ['synchronised','staggered','random'], default: 'staggered' },
+              { key: 'sparkleDrift',    label: 'Drift',         options: ['none','down','up'], default: 'none' }
+            ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' }, { key: 'colourSource', label: 'Colour source', options: ['warm','cycle palette'], default: 'warm' } ],
             'stream':       [
