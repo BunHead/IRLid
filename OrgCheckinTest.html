@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.46</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.47</span></div>
   </div>
 </div>
 
@@ -5120,13 +5120,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-masthead-logo"><img src="logo.png" alt="IRLid logo" data-irlid-fallback="true" /></div>
           </div>
 
-          <div class="v511-row"><label>Display name</label><input type="text" value="Test Event" /></div>
+          <div class="v511-row"><label for="v511OrgName">Display name</label><input type="text" id="v511OrgName" value="Test Event" /></div>
           <div class="v511-row"><label>Slug</label><div><input type="text" value="imbue-ventures" disabled style="opacity: 0.55; width: 100%;" /><span class="v511-hint" style="display: block; margin-top: 4px;">URL-safe short name. Auto-generated from Display name. Used in receipt URLs and the api_key prefix. Read-only — changing it would break existing receipts that reference this org.</span></div></div>
-          <div class="v511-row"><label>Website</label><input type="url" value="https://example.com" /></div>
+          <div class="v511-row"><label for="v511OrgWebsite">Website</label><input type="url" id="v511OrgWebsite" value="https://example.com" /></div>
           <div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn">Upload logo</button> <span class="v511-hint">PNG / SVG / JPEG, &le; 200 KB</span></div></div>
-          <div class="v511-row"><label>Description</label><input type="text" value="Co-presence verification for events" /></div>
-          <div class="v511-row"><label>Org terms / disclaimer</label><textarea placeholder="Optional informational text shown at check-in."></textarea></div>
-          <div class="v511-row"><label>Contact email</label><input type="text" value="hello@example.com" /></div>
+          <div class="v511-row"><label for="v511OrgDescription">Description</label><input type="text" id="v511OrgDescription" value="Co-presence verification for events" /></div>
+          <div class="v511-row"><label for="v511OrgTerms">Org terms / disclaimer</label><textarea id="v511OrgTerms" placeholder="Optional informational text shown at check-in."></textarea></div>
+          <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" value="hello@example.com" /></div>
 
           <details class="v511-expander">
             <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
@@ -5147,7 +5147,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
           </details>
 
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511OrgSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511OrgSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
 
         <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
@@ -8506,7 +8506,64 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
 
           // ===========================================================
-          // v5.11 Tier 4.1 — localStorage persistence
+          // T4.3.47 — Per-tab click-to-save wiring (Org tab first; same
+          // pattern extends to Auth/Tools/Roles/Calendar in subsequent ships).
+          // Each tab has its own localStorage key. Save button click captures
+          // visible field values into the tab's blob; page-load restore
+          // applies any saved values back into the inputs. Flash-confirm pill
+          // sits next to each Save button. The mockup is the design-fidelity
+          // reference for Mr. Data's port to live OrgCheckin.html, which
+          // swaps localStorage for Worker endpoints per SETTINGS-REVAMP-SPEC.
+          // ===========================================================
+          function v511PulsePill(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('is-pulsing');
+            setTimeout(function () { el.classList.remove('is-pulsing'); }, 900);
+          }
+          // ---- Org tab ----
+          var V511_ORG_LS_KEY = 'v511_mockup_org_v1';
+          var V511_ORG_FIELDS = ['v511OrgName','v511OrgWebsite','v511OrgDescription','v511OrgTerms','v511OrgContactEmail'];
+          function v511OrgCaptureState() {
+            var state = {};
+            V511_ORG_FIELDS.forEach(function (id) {
+              var el = document.getElementById(id);
+              if (el) state[id] = el.value || '';
+            });
+            return state;
+          }
+          function v511OrgApplyState(state) {
+            if (!state) return;
+            V511_ORG_FIELDS.forEach(function (id) {
+              if (state[id] !== undefined) {
+                var el = document.getElementById(id);
+                if (el) el.value = state[id];
+              }
+            });
+          }
+          function v511OrgSaveNow() {
+            try {
+              localStorage.setItem(V511_ORG_LS_KEY, JSON.stringify(v511OrgCaptureState()));
+              v511PulsePill('v511OrgSavedPulse');
+            } catch (e) {
+              // Quota or storage-blocked — flash anyway so the UX feels responsive,
+              // even though the values won't survive a refresh.
+              v511PulsePill('v511OrgSavedPulse');
+            }
+          }
+          function v511OrgLoadFromStorage() {
+            try {
+              var raw = localStorage.getItem(V511_ORG_LS_KEY);
+              if (raw) v511OrgApplyState(JSON.parse(raw));
+            } catch (e) { /* corrupted blob — leave seeded values */ }
+          }
+          // Wire button + initial restore.
+          var v511OrgSaveBtn = document.getElementById('v511OrgSaveBtn');
+          if (v511OrgSaveBtn) v511OrgSaveBtn.addEventListener('click', v511OrgSaveNow);
+          v511OrgLoadFromStorage();
+
+          // ===========================================================
+          // v5.11 Tier 4.1 — localStorage persistence (Visual theming)
           // ===========================================================
           // Survives page refresh by storing the mockup's design state in
           // localStorage. Skips image data URLs and WAV uploads (size — both
