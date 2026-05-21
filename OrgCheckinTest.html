@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.40</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.41</span></div>
   </div>
 </div>
 
@@ -6466,6 +6466,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               stage.appendChild(p);
             }
           }
+          // T4.3.41 — Per-mode anchor offsets. Normal-view stage is clamped by
+          // max-height: 48vh, so the same offset value lands at different
+          // stage-% in normal vs fullscreen. Reads the right pair based on
+          // current fullscreen state. Legacy streamOffsetX/Y still read as
+          // fallback so existing saved sequences (pre-T4.3.41) keep working.
+          function v511GetStreamOffsets(stage, s) {
+            var isFs = (stage && document.fullscreenElement === stage);
+            var legacyX = parseFloat(s.streamOffsetX); if (!isFinite(legacyX)) legacyX = 0;
+            var legacyY = parseFloat(s.streamOffsetY); if (!isFinite(legacyY)) legacyY = 0;
+            if (isFs) {
+              var fx = parseFloat(s.streamOffsetX_fs);
+              var fy = parseFloat(s.streamOffsetY_fs);
+              return { x: isFinite(fx) ? fx : legacyX, y: isFinite(fy) ? fy : legacyY };
+            }
+            var nx = parseFloat(s.streamOffsetX_normal);
+            var ny = parseFloat(s.streamOffsetY_normal);
+            return { x: isFinite(nx) ? nx : legacyX, y: isFinite(ny) ? ny : legacyY };
+          }
           function v511FireStreamParticles(stage, item, durMs) {
             if (!stage || !item) return;
             var s = item.settings || {};
@@ -6485,14 +6503,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // Each anchor includes axisFlip telling us how to mirror the base direction
             // (so left dragon blows right, right dragon blows left, under horizontal symmetry).
             var anchors = v511GetStreamAnchors(stage, item);
-            // T4.3.33 — Anchor offset nudge. Useful for putting the origin at the
+            // T4.3.33/41 — Anchor offset nudge. Useful for putting the origin at the
             // dragon's MOUTH instead of the image's centre. Offset honours axisFlip
             // so symmetric mirroring keeps the per-side nudge correct (left dragon
             // mouth is +X from its centre; right dragon mouth is -X from its centre).
-            var offsetX = parseFloat(s.streamOffsetX);
-            var offsetY = parseFloat(s.streamOffsetY);
-            if (!isFinite(offsetX)) offsetX = 0;
-            if (!isFinite(offsetY)) offsetY = 0;
+            // Per-mode pair (normal vs fullscreen) via v511GetStreamOffsets.
+            var off = v511GetStreamOffsets(stage, s);
+            var offsetX = off.x;
+            var offsetY = off.y;
             // T4.3.35 — Colour source: 'fire' uses the hot fire palette, 'cycle palette'
             // pulls from --cel-pal-1..7 CSS vars so the user's celebration palette
             // drives the particles instead.
@@ -6573,8 +6591,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             try {
               var anchors = v511GetStreamAnchors(sampleStage, item);
               var s = item.settings || {};
-              var offsetX = parseFloat(s.streamOffsetX); if (!isFinite(offsetX)) offsetX = 0;
-              var offsetY = parseFloat(s.streamOffsetY); if (!isFinite(offsetY)) offsetY = 0;
+              // T4.3.41 — Use per-mode offsets via the shared helper so the
+              // crosshair tracks whichever pair is currently active.
+              var off = v511GetStreamOffsets(sampleStage, s);
+              var offsetX = off.x;
+              var offsetY = off.y;
               container.innerHTML = '';
               anchors.forEach(function (a) {
                 var px = a.pos.x + offsetX * a.axisFlip.x;
@@ -7681,7 +7702,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'sparkles':     [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'particles':    [ SETTING_DENSITY, SETTING_INTENSITY, SETTING_DIR9 ],
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' }, { key: 'colourSource', label: 'Colour source', options: ['warm','cycle palette'], default: 'warm' } ],
-            'stream':       [ SETTING_INTENSITY, { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' }, { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' }, { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 }, { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 }, { key: 'streamOffsetX', label: 'Anchor offset X (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamOffsetY', label: 'Anchor offset Y (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 }, { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' }, { key: 'colourSource', label: 'Colour source', options: ['fire','cycle palette'], default: 'fire' }, { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' } ],
+            'stream':       [
+              SETTING_INTENSITY,
+              { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' },
+              { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' },
+              { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 },
+              { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 },
+              // T4.3.41 — Per-mode anchor offsets. Normal-view stage is clamped
+              // by max-height: 48vh so its aspect ratio diverges from fullscreen
+              // (which uses window.screen exactly). Same offset value lands at
+              // different stage-% in each mode. Separate pairs let the user
+              // tune both. Legacy streamOffsetX/Y still read as fallback so
+              // existing saved sequences don't break.
+              { key: 'streamOffsetX_normal', label: 'Offset X — windowed (%)',   type: 'slider', min: -40, max: 40, step: 1, default: 0 },
+              { key: 'streamOffsetY_normal', label: 'Offset Y — windowed (%)',   type: 'slider', min: -40, max: 40, step: 1, default: 0 },
+              { key: 'streamOffsetX_fs',     label: 'Offset X — fullscreen (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 },
+              { key: 'streamOffsetY_fs',     label: 'Offset Y — fullscreen (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 },
+              { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' },
+              { key: 'colourSource', label: 'Colour source', options: ['fire','cycle palette'], default: 'fire' },
+              { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' }
+            ],
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
