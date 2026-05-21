@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.45</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.46</span></div>
   </div>
 </div>
 
@@ -4492,26 +4492,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-confetti-particle {
           position: absolute;
           top: 0; left: 0;
-          /* size + colour + per-particle CSS vars set inline */
+          /* size + colour + per-particle CSS vars set inline; top:%/left:% set
+             the spawn anchor (in stage units), translate(-50%, -50%) centres
+             the element on that anchor. */
           background: #ff6b6b;
           pointer-events: none;
           opacity: 0;
           will-change: transform, opacity;
           z-index: 5;
-          transform: translate(-50%, var(--cf-start-y, -110%)) rotate(var(--cf-rot, 0deg));
+          transform: translate(-50%, -50%) rotate(var(--cf-rot, 0deg));
           animation: v511ConfettiFall var(--cf-dur, 2s) var(--cf-delay, 0s) cubic-bezier(0.35, 0.05, 0.55, 0.95) forwards;
         }
+        /* T4.3.46 — Translate Y is in PIXELS (computed from stage height in
+           JS) not element-relative %; CSS translate % is relative to the
+           element's own size, which made a 10px confetti only move 11px
+           instead of falling across the stage. --cf-dy / --cf-dx are in px. */
         @keyframes v511ConfettiFall {
-          0%   { opacity: 0; transform: translate(-50%, var(--cf-start-y, -110%))               rotate(var(--cf-rot, 0deg)); }
+          0%   { opacity: 0; transform: translate(-50%, -50%) rotate(var(--cf-rot, 0deg)); }
           8%   { opacity: 1; }
           92%  { opacity: 1; }
-          100% { opacity: 0; transform: translate(calc(-50% + var(--cf-dx, 0px)), var(--cf-end-y, 130%)) rotate(calc(var(--cf-rot, 0deg) + var(--cf-spin, 0deg))); }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--cf-dx, 0px)), calc(-50% + var(--cf-dy, 0px))) rotate(calc(var(--cf-rot, 0deg) + var(--cf-spin, 0deg))); }
         }
         /* Shape variants. Default (no class) is a square. */
         .v511-confetti-particle.cf-dot    { border-radius: 50%; }
         .v511-confetti-particle.cf-rect   { /* aspect set inline via width != height */ }
         .v511-confetti-particle.cf-tri    { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
-        .v511-confetti-particle.cf-ribbon { /* aspect set inline (thin elongated); skew gives twist */ transform: translate(-50%, var(--cf-start-y, -110%)) rotate(var(--cf-rot, 0deg)) skewX(-12deg); }
+        /* Ribbon: tall thin rect with slightly rounded ends to suggest a
+           streamer. Doesn't override transform (which would break the fall
+           animation) — uses border-radius instead. */
+        .v511-confetti-particle.cf-ribbon { border-radius: 35% / 8%; }
         /* z-below — drop confetti particles beneath QR+image like stream/sparkle. */
         .v511-theme-preview-stage.cel-z-below .v511-confetti-particle { z-index: 2; }
         /* Particles: glitch (digital corruption flicker) */
@@ -6845,8 +6854,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Staggered start delay so the cascade has a head and tail
               // rather than all spawning at t=0.
               var delay = (Math.random() * durMs * 0.35) / 1000;
-              // End Y depends on actual fall — well past stage bottom.
-              var endY = 110 + Math.random() * 30; // 110% to 140% — past bottom
+              // T4.3.46 — Fall distance in actual PIXELS, computed from stage
+              // height. Element starts above the stage (top:py%, negative) and
+              // animates down by dy_px so it crosses the full stage. Using
+              // px-based translate Y because CSS translate % is element-
+              // relative not stage-relative — the old %-based version only
+              // moved each particle by ~its own height (barely visible).
+              var endY_pct = 110 + Math.random() * 30; // 110% to 140% — past bottom
+              var dy_px = ((endY_pct - py) / 100) * (stageRect.height || 600);
               // Horizontal drift varies slightly per particle.
               var dxPx = driftPx + (Math.random() - 0.5) * stageW * 0.06;
               p.style.cssText =
@@ -6859,8 +6874,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 '--cf-delay:' + delay.toFixed(2) + 's;' +
                 '--cf-rot:' + rotStart.toFixed(0) + 'deg;' +
                 '--cf-spin:' + rotSpin.toFixed(0) + 'deg;' +
-                '--cf-start-y:' + py.toFixed(1) + '%;' +
-                '--cf-end-y:' + endY.toFixed(1) + '%;' +
+                '--cf-dy:' + dy_px.toFixed(0) + 'px;' +
                 '--cf-dx:' + dxPx.toFixed(0) + 'px;';
               stage.appendChild(p);
             }
