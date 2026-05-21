@@ -1,4 +1,6 @@
-# HANDOVER — Staff-invite QR flow (`v5.9.0.14` candidate)
+# HANDOVER — Staff-invite QR flow (`v5.11.0` candidate)
+
+*(Originally drafted 13 May as `v5.9.0.14`; renumbered 21 May after v5.10.x admin-authority chapter landed. Per the brief's own "minor version, not patch" classification, the next available minor is `v5.11.0`. Internal mockup tier numbers (T4.3.x in `OrgCheckinTest.html`) are not versioned ships and do not conflict.)*
 
 **Repo:** IRLid-repo (LIVE — irlid.co.uk)
 **Files:** `irlid-api-org/src/index.js` (Worker), `irlid-api-org/schema.sql` (D1), `OrgCheckin.html` (dashboard UI), `scan.html` (invite handler), `js/orgapi.js` (client helpers if needed).
@@ -148,7 +150,7 @@ The "Invite staff" affordance lives **inside the Settings panel**, not in the da
 7. **Privileges actually correct:** A device that redeemed at `role=staff` tries to delete an attendee → blocked by existing role-gating. Tries to add an attendee → allowed.
 8. **Existing invariants intact:** "Cannot remove last Lead Admin" still fires (`409 would_orphan_org`).
 9. **Revoke works:** Lead Admin revokes a pending invite via Settings; subsequent redeem attempts return `409 invite_already_redeemed` (or a more specific `410 invite_revoked` if you prefer — naming convention is yours).
-10. **Pill bump:** `Build v5.9.0.13.34` → `Build v5.9.0.14` (this is a minor version, not a patch, because it adds a new protocol primitive).
+10. **Pill bump:** `Build v5.10.7` → `Build v5.11.0` (this is a minor version, not a patch, because it adds a new protocol primitive: the `I:` invite envelope).
 
 ## Out of scope (deferred)
 
@@ -175,4 +177,6 @@ The "Invite staff" affordance lives **inside the Settings panel**, not in the da
 1. **Expiry default:** 10 min, 30 min, or 1 hour for the dropdown default? Brief assumes 10 min.
 2. **Notification to other admins** when a new Manager/Staff joins? Out of scope for this PR, will fall out naturally from Brief A2 (audit log).
 
-Ship as single PR labelled `v5.9.0.14`. Substantive change — expect ~300-500 lines across Worker + Dashboard + scan.html + schema. Captain verifies via the test plan above; recommend running through all ten acceptance criteria before merge.
+Ship as single PR labelled `v5.11.0`. Substantive change — expect ~300-500 lines across Worker + Dashboard + scan.html + schema. Captain verifies via the test plan above; recommend running through all ten acceptance criteria before merge.
+
+**Do NOT touch `OrgCheckinTest.html`** — that file is the v5.11 visual-theming settings mockup currently mid-iteration (Number One is wiring its tabs in parallel). It is unrelated to this brief. All your dashboard UI work lives in `OrgCheckin.html` (no "Test" suffix).
