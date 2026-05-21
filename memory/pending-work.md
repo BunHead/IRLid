@@ -1,5 +1,50 @@
 # Pending Work — IRLid
 
+## Thursday 21 May 2026 evening — Mr. Data PR #30 merged (v5.11.0 staff-invite QR), Bunny Fonts shipped, Text typography shipped, Deny shake fixed
+
+**Headline.** Long single-day arc. Mockup work: T4.3.47a (deny shake + badge contrast), T4.3.48 (Text typography expansion, 7 chip rows), T4.3.49 (Bunny Fonts — 9 character fonts via fonts.bunny.net privacy mirror). Mr. Data dispatch: Brief A (`HANDOVER-StaffInviteQR.md`) updated to `v5.11.0`, prompt issued, Mr. Data shipped PR #30 in one session (379 insertions, 7 files: Worker endpoints + D1 migration + Settings UI + scan.html `I:` redeem flow + js/sign.js helpers). PR merged via GitHub web UI after initial draft-status confusion. Worker deployed (`9f2296ba-...`), D1 migration ran (5 queries / 11 rows), frontend live as `Build v5.11.0`.
+
+**Open at watch close:**
+
+- **`irlidPubFp is not defined` on Generate invite click.** Diagnosed as browser/CDN cache serving old `sign.js` without Mr. Data's new function (search in DevTools sign.js for `irlidpubFp` = 0 matches). Captain to clear site data for `irlid.co.uk` → reload → retry. Incognito test bypasses cache entirely.
+- **10 acceptance criteria from HANDOVER-StaffInviteQR.md** not yet hardware-verified. Captain to walk through after the cache fix. Criterion 1 specifically queued (happy path, existing IRLid subscriber scans, no biometric reprompt, sign-in as Staff).
+- **"Local-only test mode. No Cloudflare writes." text** under Organisation settings on the live OrgCheckin.html — looks like prototype copy Mr. Data didn't trim. Flag for cleanup if it persists.
+
+**Mockup wiring queue** (post-PR-verify):
+
+- T4.3.50 — Auth tab wiring (was T4.3.49 before tab-renumber)
+- T4.3.51 — Tools tab wiring
+- T4.3.52 — Roles & staff tab wiring
+- T4.3.53 — Event & calendar tab wiring (heaviest)
+- T4.3.54 — Sparkles anchor option (deferred)
+
+**Brief queue for Mr. Data after PR #30 verify clean:**
+
+- Brief A1 (`HANDOVER-SettingsRoleGatingRefactor.md`, `v5.11.x`) — opens Settings to Manager-tier with per-item role gating
+- Brief A2 (`HANDOVER-AdminActionAuditLog.md`, `v5.11.x`) — single canonical `org_admin_audit` table + retrofit logging
+
+**Pattern banked:** when bash-diffing Mr. Data PRs against main, use **three-dot syntax** (`origin/main...origin/codex-branch`) not two-dot. Two-dot reads unrelated forward motion on main as fake deletions on the branch. (False alarm raised + retracted today; receipt for BOOTSTRAP §4.)
+
+---
+
+## Open bug — Stream anchor crosshair Y-drift between fullscreen and normal mode (logged 21 May late afternoon)
+
+**Status:** known issue, not a blocker per Captain (*"it's close and most people would be able to eyeball it from there"*).
+
+**Symptom:** With image-relative anchor offsets shipped in T4.3.43 + image natural aspect detection in T4.3.45, the X axis is now exact across fullscreen and normal modes, but Y still drifts a small amount.
+
+**Suspected causes:**
+
+- Image natural aspect detection may not be firing on the restore path in all cases (the probe Image() in `v511ApplyImageVariants` is async and could be racing the first render).
+- The `--bg-image-size` CSS variable can be something other than the assumed `15%` if the user has used the Image scale slider; the math reads the var live but the multiplier from `scaleMultiplier()` may shift between modes.
+- Possible vertical centring offset: the rendered image's vertical position in the stage may not be exactly `--bg-image-pos` when symmetry layers are active (which they are for the dragon test scene).
+
+**Acceptance criteria for the eventual fix:** anchor crosshair should hold within ~1% of the same image-relative spot across mode switch on a 1:1 image. For non-square images, hold within image-aspect-correct tolerance.
+
+**Workaround:** the per-mode sliders from T4.3.41 still read as legacy fallback — user can leave `streamOffsetX/Y_img` at 0 and use the old per-mode pairs to fine-tune each mode independently.
+
+---
+
 ## Thursday 21 May 2026 watch pause — T4.3.37 audit cleanup, T4.3.38/39 layout pivot, T4.3.40 three new library effects (Lens flare / Heartbeat / Vignette flash) — paused mid-review
 
 **The headline.** Captain commissioned this Number One this morning. Watch ran from morning through early afternoon. Four ships landed sequentially. Captain was interrupted by his mother mid-T4.3.40 review and called for a pause-and-update rather than push through frazzled. Clean dock for whoever picks up next (Captain in a couple of hours, or fresh Number One if needed).
