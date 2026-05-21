@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.36</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.37</span></div>
   </div>
 </div>
 
@@ -4413,12 +4413,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             radial-gradient(ellipse at var(--sym-pos-4, 100% 100%), var(--cel-pal-1, #ff6b00) 0%, var(--cel-pal-2, var(--cel-pal-1, #ffb347)) 35%, transparent 65%);
         }
         /* ==========================================================
-           T4.3.31 — Breath effect rebuilt: dragon breath as
-           JS-injected particles, anchored to image position(s),
-           fanning outward in a cone with randomised size/colour/
-           jitter/duration. Each particle is a real DOM element
-           appended to the stage with CSS animation; cleanup at
-           end of step. CSS only handles the particle's appearance
+           T4.3.31/32 — Stream effect (originally "Breath"): dragon
+           breath as JS-injected particles, anchored to image
+           position(s), fanning outward in a cone with randomised
+           size/colour/jitter/duration. Each particle is a real DOM
+           element appended to the stage with CSS animation; cleanup
+           at end of step. CSS only handles the particle's appearance
            and outward animation — the randomisation lives in JS.
            ========================================================== */
         .v511-stream-particle {
@@ -6045,6 +6045,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             sampleStage.classList.remove.apply(sampleStage.classList, V511_ALL_CEL_CLASSES);
             sampleStage.classList.remove.apply(sampleStage.classList, V511_SETTING_CLASSES);
             V511_SETTING_ATTRS.forEach(function (a) { sampleStage.removeAttribute(a); });
+            // T4.3.37 — Clear inline --cel-cycle-dur that v511PlaySequence sets
+            // per step. Without this, the last step's value (e.g. 2s on Allow)
+            // leaks across mode switches and overrides the CSS-var fallback
+            // (1.4s) that should win on a fresh sequence in a different mode.
+            sampleStage.style.removeProperty('--cel-cycle-dur');
           }
           // Tier 4.3.2 — Apply per-item settings as stage attributes / classes
           // BEFORE the effect class fires, so CSS rules keyed on data-* / cel-int-*
@@ -6085,9 +6090,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (item.effect === 'flame' && s.direction9 === 'image-anchor') {
               stage.classList.add('cel-flame-anchor-image');
             }
-            // T4.3.31 — Breath now uses `streamAnchor` (the dir9 grid `direction9`
-            // is reused for the actual fire-blow direction). Particle injection
-            // happens via v511FireStreamParticles when cel-stream fires.
+            // T4.3.31/32 — Stream (originally "Breath") uses `streamAnchor`
+            // (the dir9 grid `direction9` is reused for the actual fire-blow
+            // direction). Particle injection happens via
+            // v511FireStreamParticles when cel-stream fires.
             if (item.effect === 'stream' && s.streamAnchor === 'image-anchor') {
               stage.classList.add('cel-stream-anchor-image');
             }
@@ -6115,16 +6121,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.centrePulse) stage.setAttribute('data-cel-centre-pulse', s.centrePulse);
           }
 
-          // T4.3.31 — Breath particles. Creates N randomised <div> particles
-          // at the anchor position(s) and animates them outward in the chosen
-          // direction with size / colour / duration / jitter randomised per
-          // particle. Anchor is the image position (or image-mirror positions
-          // when bg-symmetry is on), or stage centre. Direction comes from the
-          // dir9 grid (l = → right, r = ← left, t = ↓ down, b = ↑ up, etc.).
+          // T4.3.31/32 — Stream particles (originally "Breath"). Creates N
+          // randomised <div> particles at the anchor position(s) and animates
+          // them outward in the chosen direction with size / colour / duration
+          // / jitter randomised per particle. Anchor is the image position (or
+          // image-mirror positions when bg-symmetry is on), or stage centre.
+          // Direction comes from the dir9 grid (l = → right, r = ← left,
+          // t = ↓ down, b = ↑ up, etc. — see the glyph-led convention note on
+          // V511_STREAM_DIR_ANGLES below).
           // Particles are real DOM nodes — appended to stage, animated via the
           // .v511-stream-particle CSS rule, removed after duration.
           //
           // dir9 → motion angle (radians, 0 = east/right, +ve = clockwise / down)
+          //
+          // T4.3.37 — Glyph-led convention. The dir9 grid is GLYPH-LED, not
+          // POSITION-LED: the user reads the arrow drawn in each cell, not the
+          // cell's spatial position. Cell `l` (left of grid) displays a → glyph
+          // and emits particles RIGHT. Cell `t` (top of grid) displays a ↓
+          // glyph and emits particles DOWN. So the cell-name and the angle look
+          // inverted on a first read; they're not. The same convention applies
+          // to the QR dissolve dir9 → --dissolve-angle map. If editing, change
+          // the glyph and the angle together — don't "fix" one to match the
+          // other from a position-led mental model.
           var V511_STREAM_DIR_ANGLES = {
             'l':  0,                              // → right
             'br': -Math.PI * 0.25,                // ↖ up-left (br cell, ↖ glyph)
@@ -6330,7 +6348,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             var item = seq[v511SelectedSeqIdx];
             // Only Stream effect has an anchor concept for now. Future: extend
-            // to Flame, Breath-style effects, anything that emits from a point.
+            // to Flame and any other future emit-from-a-point effects.
             if (item.effect !== 'stream') {
               container.classList.remove('is-visible');
               container.innerHTML = '';
