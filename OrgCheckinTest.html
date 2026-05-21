@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.38</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.39</span></div>
   </div>
 </div>
 
@@ -4631,21 +4631,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-settings h4 { margin: 4px 6px 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
         .v511-cel-settings-target { color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 12px; }
         .v511-cel-settings-target .v511-hint-inline { color: var(--muted); font-weight: 400; }
-        /* T4.3.38 — Auto-wrapping grid layout. On a wide viewport (~1100px+
-           settings column) you get 3 columns; on medium ~800px you get 2;
-           on narrow you get 1. minmax(300px, 1fr) is wide enough for a slider
-           + value label + 130px label to coexist without crowding. */
-        .v511-cel-settings-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px 18px; padding: 4px 0; align-items: start; }
-        .v511-cel-settings-empty { grid-column: 1 / -1; padding: 16px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
+        /* T4.3.39 — Default: vertical column (what we had pre-T4.3.38). The
+           grid layout only activates for effects with enough settings to
+           actually fill the columns (schema.length >= 5). At time of writing
+           that's Stream only; the universal-settings rollout will lift more
+           effects past the threshold as they gain settings. */
+        .v511-cel-settings-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+        .v511-cel-settings-empty { padding: 16px 12px; text-align: center; color: var(--muted); font-size: 11.5px; border: 2px dashed rgba(255,255,255,0.10); border-radius: 6px; }
         .v511-cel-setting-row { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 4px 6px; min-width: 0; }
         .v511-cel-setting-row > label { color: var(--muted); width: 130px; flex-shrink: 0; }
-        /* T4.3.38 — dir9 grid is taller than a chip row; let it span 2 grid
-           tracks so the 3×3 doesn't crush a neighbouring slider. */
-        .v511-cel-setting-row[data-setting-key="direction9"],
-        .v511-cel-setting-row[data-setting-key="irisDir"] { grid-column: span 2; }
-        /* Sliders need room — make sure the wrap and the slider itself
-           can grow into the available cell width. */
+        /* Sliders flex to fill the row — works in both column and grid modes. */
         .v511-cel-setting-row .v511-cel-slider-wrap { flex: 1; min-width: 0; }
+        /* Grid mode — opt-in via .v511-cel-settings-body--grid class added by
+           v511RenderSettingsForItem when schema.length >= 5. Auto-fitting
+           tracks: 3 cols on wide viewports, 2 on medium, 1 on narrow. */
+        .v511-cel-settings-body--grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px 18px; align-items: start; }
+        .v511-cel-settings-body--grid .v511-cel-settings-empty { grid-column: 1 / -1; }
+        /* In grid mode, dir9 + iris-wipe chips have visual weight and benefit
+           from spanning 2 tracks rather than crushing a slider next to them. */
+        .v511-cel-settings-body--grid .v511-cel-setting-row[data-setting-key="direction9"],
+        .v511-cel-settings-body--grid .v511-cel-setting-row[data-setting-key="irisDir"] { grid-column: span 2; }
         .v511-cel-setting-row .v511-chips { flex-wrap: wrap; }
         .v511-cel-seq-item.v511-cel-seq-item--selected { background: rgba(105,168,255,0.16); border-color: rgba(105,168,255,0.55); }
         /* Tier 4.3 — Mini 9-cell direction grid for settings (smaller than the cycle-direction one) */
@@ -7481,10 +7486,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'delay':        [] // no settings
           };
 
+          // T4.3.39 — Threshold for switching the settings panel from
+          // single-column to multi-column grid. Effects with FEWER than this
+          // many settings render as a tidy vertical list (avoids "alone in
+          // the middle" when there are only 1-2 controls). Effects with >=
+          // this many use the auto-wrapping grid for horizontal density.
+          var V511_SETTINGS_GRID_THRESHOLD = 5;
+          function v511SetSettingsLayout(useGrid) {
+            if (!v511CelSettingsBody) return;
+            v511CelSettingsBody.classList.toggle('v511-cel-settings-body--grid', !!useGrid);
+          }
           function v511RenderSettingsForItem(idx) {
             if (!v511CelSettingsBody) return;
             var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
             if (idx < 0 || idx >= seq.length) {
+              v511SetSettingsLayout(false);
               v511CelSettingsBody.innerHTML = '<div class="v511-cel-settings-empty">No effect selected. Click any row in the sequence above to edit its settings here.</div>';
               if (v511CelSettingsTarget) v511CelSettingsTarget.innerHTML = '<span class="v511-hint-inline">— click a sequence item to configure</span>';
               return;
@@ -7494,10 +7510,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (v511CelSettingsTarget) v511CelSettingsTarget.innerHTML = '— ' + meta.icon + ' ' + meta.label + ' <span class="v511-hint-inline">(step ' + (idx + 1) + ')</span>';
             var schema = V511_EFFECT_SETTINGS[item.effect] || [];
             if (schema.length === 0) {
+              v511SetSettingsLayout(false);
               v511CelSettingsBody.innerHTML = '<div class="v511-cel-settings-empty">' + (item.effect === 'delay' ? 'Delay items only have a duration — edit it in the sequence row above.' : 'No extra settings for this effect.') + '</div>';
               return;
             }
             if (!item.settings) item.settings = {};
+            v511SetSettingsLayout(schema.length >= V511_SETTINGS_GRID_THRESHOLD);
             v511CelSettingsBody.innerHTML = '';
             schema.forEach(function (setting) {
               var row = document.createElement('div');
