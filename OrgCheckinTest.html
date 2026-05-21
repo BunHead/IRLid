@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.42</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.43</span></div>
   </div>
 </div>
 
@@ -6499,12 +6499,51 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               stage.appendChild(p);
             }
           }
-          // T4.3.41 — Per-mode anchor offsets. Normal-view stage is clamped by
-          // max-height: 48vh, so the same offset value lands at different
-          // stage-% in normal vs fullscreen. Reads the right pair based on
-          // current fullscreen state. Legacy streamOffsetX/Y still read as
-          // fallback so existing saved sequences (pre-T4.3.41) keep working.
+          // T4.3.43 — Image-relative anchor offsets. The user enters offsets
+          // in % of the IMAGE dimensions (not the stage). Render-time we read
+          // the stage's actual dimensions + the image-size CSS var + the
+          // image-aspect CSS var, then convert to stage-% so the anchor
+          // lands at the same spot on the image in both normal and fullscreen
+          // modes — even though those stages have different aspect ratios
+          // (normal is clamped by max-height: 48vh, fullscreen is window.screen).
+          //
+          // Math:
+          //   image_width_stage_pct  = --bg-image-size  (default 15)
+          //   image_height_stage_pct = image_width_stage_pct
+          //                          × (stage_width / stage_height)
+          //                          × --bg-image-aspect (h/w; default 1.0)
+          //   offset_x_stage_pct = (user_offset_x_img / 100) × image_width_stage_pct
+          //   offset_y_stage_pct = (user_offset_y_img / 100) × image_height_stage_pct
+          //
+          // Legacy fallback chain (in priority order):
+          //   1. T4.3.43 image-relative: streamOffsetX_img / streamOffsetY_img
+          //   2. T4.3.41 per-mode stage-%: streamOffsetX_normal/fs / streamOffsetY_normal/fs
+          //   3. T4.3.33 original stage-%: streamOffsetX / streamOffsetY
+          // Sequences saved with older approaches continue to work, interpreted
+          // as their original (stage-%) units.
           function v511GetStreamOffsets(stage, s) {
+            // 1. T4.3.43 image-relative — the canonical path.
+            var oxImg = parseFloat(s.streamOffsetX_img);
+            var oyImg = parseFloat(s.streamOffsetY_img);
+            if (isFinite(oxImg) || isFinite(oyImg)) {
+              if (!isFinite(oxImg)) oxImg = 0;
+              if (!isFinite(oyImg)) oyImg = 0;
+              if (!stage) return { x: oxImg * 0.15, y: oyImg * 0.15 }; // sane default before stage exists
+              var stageW = stage.clientWidth || 1;
+              var stageH = stage.clientHeight || 1;
+              var stageAspect = stageW / stageH;
+              var cs = getComputedStyle(stage);
+              var imgWPct = parseFloat(cs.getPropertyValue('--bg-image-size'));
+              if (!isFinite(imgWPct) || imgWPct <= 0) imgWPct = 15;
+              var imgAspect = parseFloat(cs.getPropertyValue('--bg-image-aspect'));
+              if (!isFinite(imgAspect) || imgAspect <= 0) imgAspect = 1.0;
+              var imgHPct = imgWPct * stageAspect * imgAspect;
+              return {
+                x: (oxImg / 100) * imgWPct,
+                y: (oyImg / 100) * imgHPct
+              };
+            }
+            // 2. T4.3.41 per-mode stage-% fallback.
             var isFs = (stage && document.fullscreenElement === stage);
             var legacyX = parseFloat(s.streamOffsetX); if (!isFinite(legacyX)) legacyX = 0;
             var legacyY = parseFloat(s.streamOffsetY); if (!isFinite(legacyY)) legacyY = 0;
@@ -7872,16 +7911,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' },
               { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 },
               { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 },
-              // T4.3.41 — Per-mode anchor offsets. Normal-view stage is clamped
-              // by max-height: 48vh so its aspect ratio diverges from fullscreen
-              // (which uses window.screen exactly). Same offset value lands at
-              // different stage-% in each mode. Separate pairs let the user
-              // tune both. Legacy streamOffsetX/Y still read as fallback so
-              // existing saved sequences don't break.
-              { key: 'streamOffsetX_normal', label: 'Offset X — windowed (%)',   type: 'slider', min: -40, max: 40, step: 1, default: 0 },
-              { key: 'streamOffsetY_normal', label: 'Offset Y — windowed (%)',   type: 'slider', min: -40, max: 40, step: 1, default: 0 },
-              { key: 'streamOffsetX_fs',     label: 'Offset X — fullscreen (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 },
-              { key: 'streamOffsetY_fs',     label: 'Offset Y — fullscreen (%)', type: 'slider', min: -40, max: 40, step: 1, default: 0 },
+              // T4.3.43 — Image-relative anchor offsets. Single source of truth
+              // that auto-translates to per-mode stage-% based on current stage
+              // dimensions, so the anchor lands at the same spot on the image
+              // in both normal and fullscreen modes. Supersedes T4.3.41's
+              // 4-slider per-mode workaround. Legacy keys (streamOffsetX/Y,
+              // streamOffsetX_normal etc.) still read as stage-% fallback for
+              // any sequences saved with the older approach.
+              { key: 'streamOffsetX_img', label: 'Offset X (% of image)', type: 'slider', min: -100, max: 100, step: 1, default: 0 },
+              { key: 'streamOffsetY_img', label: 'Offset Y (% of image)', type: 'slider', min: -100, max: 100, step: 1, default: 0 },
               { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' },
               { key: 'colourSource', label: 'Colour source', options: ['fire','cycle palette'], default: 'fire' },
               { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' }
