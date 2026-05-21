@@ -470,6 +470,74 @@
     return { kind:"UNKNOWN", v:null };
   }
 
+  const ORG_WORKER_BASE = (window.IRLID_ORG_API_BASE_URL || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
+
+  function decodeInviteEnvelope(payload) {
+    return irlidDecodeB64urlJson(String(payload || "").replace(/^I:/, ""));
+  }
+
+  async function fetchInviteOrgMeta(orgId) {
+    try {
+      const r = await fetch(ORG_WORKER_BASE + "/org/public-meta?org_id=" + encodeURIComponent(orgId));
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.message || data.error || "Could not load organisation details");
+      return data;
+    } catch (_) {
+      return { name: "This organisation", logo_url: "" };
+    }
+  }
+
+  async function redeemInvitePayload(payload, meta) {
+    try {
+      let pubJwk = null;
+      if (typeof irlidV5Enrolled === "function" && irlidV5Enrolled()) {
+        pubJwk = irlidV5GetPublicJwk();
+      } else {
+        const enrolled = await irlidV5Enroll();
+        pubJwk = enrolled.pubJwk;
+      }
+      const pubFp = await irlidPubFp(pubJwk);
+      const r = await fetch(ORG_WORKER_BASE + "/org/invites/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invite_payload: "I:" + payload,
+          new_device_pub_jwk: pubJwk,
+          new_device_pub_fp: pubFp
+        })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.message || data.error || "Invite could not be redeemed");
+      const role = (data.role || "staff").replace("_", " ");
+      showGate("green",
+        "You're in!",
+        "You're now " + role + " at " + (meta.name || "this organisation") + ". Show this device at the door. To see your check-in history across orgs, sign up at irlid.co.uk - your enrolment will carry over automatically.",
+        [{ label: "Open dashboard", href: "org-login.html" }]
+      );
+    } catch (e) {
+      showGate("red", "Invite failed", e.message || String(e), [{ label: "Scan again", onclick: () => location.reload() }]);
+    }
+  }
+
+  async function handleOrgInvite(payload) {
+    let invite;
+    try { invite = decodeInviteEnvelope(payload); }
+    catch (_) {
+      showGate("red", "Invite unreadable", "This staff invite QR could not be decoded.", [{ label: "Scan again", onclick: () => location.reload() }]);
+      return;
+    }
+    const meta = await fetchInviteOrgMeta(invite.org_id);
+    const role = String(invite.role || "staff").replace("_", " ");
+    showGate("orange",
+      "Joining as " + role,
+      (meta.name || "This organisation") + " is inviting you to join as " + role + ". Accept to enrol this device, or cancel.",
+      [
+        { label: "Accept", onclick: () => redeemInvitePayload(payload, meta) },
+        { label: "Cancel", href: "index.html" }
+      ]
+    );
+  }
+
   // ========== Camera selection ==========
   function getStoredPreferredCameraId(){
     try{ const v = localStorage.getItem(KEY_PREF_CAM); return v && v.trim() ? v.trim() : null; }catch{ return null; }
@@ -1103,9 +1171,8 @@
           return;
         }
         if (c.kind === "ORG_INVITE") {
-          const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-          setStatus("Staff invite detected. Opening dashboard…");
-          location.href = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_invite=" + encodeURIComponent(c.v || "");
+          setStatus("Staff invite detected.");
+          await handleOrgInvite(c.v || "");
           return;
         }
 
@@ -1251,8 +1318,7 @@
         return true;
       }
       if (payloadType === "org_invite") {
-        const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-        location.href = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_invite=" + encodeURIComponent(payload || "");
+        await handleOrgInvite(payload || "");
         return true;
       }
       // Default — treat as a receipt-exchange HELLO, redirect to accept.html

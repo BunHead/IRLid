@@ -126,12 +126,14 @@
         body: payload
       });
     },
-    redeemInvite(sessionToken, token) {
+    redeemInvite(payload) {
       return request("/org/invites/redeem", {
         method: "POST",
-        sessionToken,
-        body: { token }
+        body: payload
       });
+    },
+    publicOrgMeta(orgId) {
+      return request("/org/public-meta?org_id=" + encodeURIComponent(orgId));
     },
     revokeInvite(sessionToken, payload) {
       return request("/org/invites/revoke", {
