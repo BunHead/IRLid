@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.47a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.48</span></div>
   </div>
 </div>
 
@@ -4230,6 +4230,52 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage[data-cel-text-size="small"]  .v511-cel-text-overlay { font-size: 2.4cqi; }
         .v511-theme-preview-stage[data-cel-text-size="medium"] .v511-cel-text-overlay { font-size: 4cqi; }
         .v511-theme-preview-stage[data-cel-text-size="large"]  .v511-cel-text-overlay { font-size: 6cqi; }
+
+        /* ==========================================================
+           T4.3.48 — Text effect typography expansion.
+           Each chip writes a data-cel-text-* attr on the stage; rules
+           below cascade to the .v511-cel-text-overlay child. System
+           fonts only — no external CDN. The base overlay already sets
+           font-weight 800 + a strong text-shadow; chips override
+           those defaults when set.
+           ========================================================== */
+        /* Font family — system stacks */
+        .v511-theme-preview-stage[data-cel-text-font="sans"]    .v511-cel-text-overlay { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif; }
+        .v511-theme-preview-stage[data-cel-text-font="serif"]   .v511-cel-text-overlay { font-family: Georgia, "Times New Roman", "Iowan Old Style", serif; }
+        .v511-theme-preview-stage[data-cel-text-font="mono"]    .v511-cel-text-overlay { font-family: "SF Mono", Consolas, "Liberation Mono", "Courier New", monospace; }
+        .v511-theme-preview-stage[data-cel-text-font="display"] .v511-cel-text-overlay { font-family: "Impact", "Arial Black", "Helvetica Neue", sans-serif; font-stretch: condensed; }
+
+        /* Font weight */
+        .v511-theme-preview-stage[data-cel-text-weight="light"]   .v511-cel-text-overlay { font-weight: 300; }
+        .v511-theme-preview-stage[data-cel-text-weight="regular"] .v511-cel-text-overlay { font-weight: 400; }
+        .v511-theme-preview-stage[data-cel-text-weight="bold"]    .v511-cel-text-overlay { font-weight: 800; }
+        .v511-theme-preview-stage[data-cel-text-weight="black"]   .v511-cel-text-overlay { font-weight: 900; }
+
+        /* Italic */
+        .v511-theme-preview-stage[data-cel-text-italic="on"] .v511-cel-text-overlay { font-style: italic; }
+
+        /* Letter spacing */
+        .v511-theme-preview-stage[data-cel-text-spacing="tight"]  .v511-cel-text-overlay { letter-spacing: -0.02em; }
+        .v511-theme-preview-stage[data-cel-text-spacing="normal"] .v511-cel-text-overlay { letter-spacing: 0; }
+        .v511-theme-preview-stage[data-cel-text-spacing="loose"]  .v511-cel-text-overlay { letter-spacing: 0.08em; }
+        .v511-theme-preview-stage[data-cel-text-spacing="wide"]   .v511-cel-text-overlay { letter-spacing: 0.22em; }
+
+        /* Colour — white default; warm cream; or pulls from celebration palette */
+        .v511-theme-preview-stage[data-cel-text-colour="white"]     .v511-cel-text-overlay { color: #ffffff; }
+        .v511-theme-preview-stage[data-cel-text-colour="warm"]      .v511-cel-text-overlay { color: #fff5d0; }
+        .v511-theme-preview-stage[data-cel-text-colour="palette-1"] .v511-cel-text-overlay { color: var(--cel-pal-1, #ffffff); }
+        .v511-theme-preview-stage[data-cel-text-colour="palette-2"] .v511-cel-text-overlay { color: var(--cel-pal-2, var(--cel-pal-1, #ffffff)); }
+        .v511-theme-preview-stage[data-cel-text-colour="palette-3"] .v511-cel-text-overlay { color: var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, #ffffff))); }
+
+        /* Shadow — off / dark drop / strong dark / luminous white halo */
+        .v511-theme-preview-stage[data-cel-text-shadow="off"]    .v511-cel-text-overlay { text-shadow: none; }
+        .v511-theme-preview-stage[data-cel-text-shadow="soft"]   .v511-cel-text-overlay { text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .v511-theme-preview-stage[data-cel-text-shadow="strong"] .v511-cel-text-overlay { text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); }
+        .v511-theme-preview-stage[data-cel-text-shadow="glow"]   .v511-cel-text-overlay { text-shadow: 0 0 10px rgba(255,255,255,0.9), 0 0 24px rgba(255,255,255,0.6), 0 0 40px rgba(255,255,255,0.35); }
+
+        /* Stroke — comic/cartoon outline via -webkit-text-stroke */
+        .v511-theme-preview-stage[data-cel-text-stroke="thin"] .v511-cel-text-overlay { -webkit-text-stroke: 1px rgba(0,0,0,0.65); paint-order: stroke fill; }
+        .v511-theme-preview-stage[data-cel-text-stroke="bold"] .v511-cel-text-overlay { -webkit-text-stroke: 2.5px rgba(0,0,0,0.85); paint-order: stroke fill; }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 4.1 — Background celebration: a real overlay flashes through the
            celebration palette colours (--cel-pal-1..3) so changing the celebration
@@ -6300,6 +6346,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           ];
           var V511_SETTING_ATTRS = [
             'data-cel-text-pos','data-cel-text-size','data-cel-text-template',
+            // T4.3.48 — Text typography
+            'data-cel-text-font','data-cel-text-weight','data-cel-text-italic',
+            'data-cel-text-spacing','data-cel-text-colour','data-cel-text-shadow','data-cel-text-stroke',
             'data-cel-pattern-style','data-cel-density','data-cel-dir',
             'data-cel-axis','data-cel-count','data-cel-thickness',
             'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
@@ -6341,6 +6390,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (s.position) stage.setAttribute('data-cel-text-pos', s.position);
               if (s.size) stage.setAttribute('data-cel-text-size', s.size);
               if (s.template) stage.setAttribute('data-cel-text-template', s.template);
+              // T4.3.48 — Typography expansion (font family / weight / italic
+              // / letter spacing / colour / shadow / stroke). Each reads from
+              // a corresponding CSS rule keyed on stage-level data-* attrs.
+              if (s.fontFamily)    stage.setAttribute('data-cel-text-font',    s.fontFamily);
+              if (s.fontWeight)    stage.setAttribute('data-cel-text-weight',  s.fontWeight);
+              if (s.fontItalic)    stage.setAttribute('data-cel-text-italic',  s.fontItalic);
+              if (s.letterSpacing) stage.setAttribute('data-cel-text-spacing', s.letterSpacing);
+              if (s.textColour)    stage.setAttribute('data-cel-text-colour',  s.textColour);
+              if (s.textShadow)    stage.setAttribute('data-cel-text-shadow',  s.textShadow);
+              if (s.textStroke)    stage.setAttribute('data-cel-text-stroke',  s.textStroke);
               // Tier 4.3.6 — Pipe the active mode's Custom welcome message into
               // the text overlay. Template chips wrap the message:
               //   welcome      → message verbatim
@@ -8104,7 +8163,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
-            'text':         [ { key: 'template', label: 'Template', options: ['name','name + action','welcome'], default: 'name' }, { key: 'position', label: 'Position', options: ['top','centre','bottom'], default: 'centre' }, { key: 'size', label: 'Size', options: ['small','medium','large'], default: 'medium' } ],
+            // T4.3.48 — Text effect typography expansion. 3 → 10 settings,
+            // triggers grid layout. System fonts only (no external CDN).
+            'text':         [
+              { key: 'template',     label: 'Template',       options: ['name','name + action','welcome'], default: 'name' },
+              { key: 'position',     label: 'Position',       options: ['top','centre','bottom'], default: 'centre' },
+              { key: 'size',         label: 'Size',           options: ['small','medium','large'], default: 'medium' },
+              { key: 'fontFamily',   label: 'Font',           options: ['sans','serif','mono','display'], default: 'sans' },
+              { key: 'fontWeight',   label: 'Weight',         options: ['light','regular','bold','black'], default: 'bold' },
+              { key: 'fontItalic',   label: 'Italic',         options: ['off','on'], default: 'off' },
+              { key: 'letterSpacing',label: 'Letter spacing', options: ['tight','normal','loose','wide'], default: 'normal' },
+              { key: 'textColour',   label: 'Colour',         options: ['white','warm','palette-1','palette-2','palette-3'], default: 'white' },
+              { key: 'textShadow',   label: 'Shadow',         options: ['off','soft','strong','glow'], default: 'strong' },
+              { key: 'textStroke',   label: 'Stroke',         options: ['off','thin','bold'], default: 'off' }
+            ],
             // T4.3.40 — Three new library effects.
             // Lens flare: bright burst + streak with optional palette tint.
             'lens-flare':     [
