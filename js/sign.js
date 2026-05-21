@@ -1418,3 +1418,45 @@ async function irlidSignPayload(payloadObj) {
     webauthn: null
   };
 }
+
+function irlidCanonicalize(obj) {
+  return canonical(obj);
+}
+
+async function irlidPubFp(pubJwk) {
+  if (!pubJwk) return null;
+  const h = await sha256Bytes(canonical(compactJwk(pubJwk)));
+  return b64urlEncode(h).slice(0, 16);
+}
+
+async function irlidSign(obj) {
+  return irlidSignPayload(obj);
+}
+
+async function irlidCreateSignedInvitePayload(payload) {
+  const clean = Object.assign({}, payload || {});
+  delete clean.sig;
+  delete clean.pub;
+  delete clean.webauthn;
+  let signed;
+  if (typeof irlidV5Enrolled === "function" && irlidV5Enrolled()) {
+    const payloadHashB64u = await hashPayloadToB64url(clean);
+    const v5 = await irlidV5SignPayloadHash(b64urlDecode(payloadHashB64u));
+    signed = {
+      sig: b64urlEncode(v5.sigRaw),
+      pub: irlidV5GetPublicJwk(),
+      webauthn: {
+        authData: b64urlEncode(v5.authData),
+        clientData: b64urlEncode(v5.clientData)
+      }
+    };
+  } else {
+    signed = await irlidSign(clean);
+  }
+  const out = Object.assign({}, clean, {
+    sig: signed.sig,
+    pub: signed.pub
+  });
+  if (signed.webauthn) out.webauthn = signed.webauthn;
+  return out;
+}
