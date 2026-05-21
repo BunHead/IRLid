@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.39</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.40</span></div>
   </div>
 </div>
 
@@ -4454,6 +4454,187 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelGlitchHue      { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 20% { filter: hue-rotate(90deg) saturate(2); } 40% { filter: hue-rotate(-120deg) saturate(2); } 60% { filter: hue-rotate(180deg) saturate(2.2); } 80% { filter: hue-rotate(-45deg) saturate(1.8); } }
         @keyframes v511CelGlitchDisplace { 0%, 100% { transform: translate(0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 3px); } 80% { transform: translate(2px, -3px); } }
         /* =================================================================
+           T4.3.40 — Three new library effects
+           Lens flare (Light) / Heartbeat (Motion) / Vignette flash (Surface)
+           Each ships with 5 settings → triggers grid mode in settings panel.
+           ================================================================= */
+
+        /* --- Lens flare: bright burst + streak across the QR area.
+               Uses --lens-pos for the burst centre (overridable per
+               position variant). Streak is a second background layer. --- */
+        .v511-theme-preview-stage.cel-lens-flare > .v511-cel-fx-layer {
+          --lens-pos: 50% 50%;
+          animation: v511CelLensFlare var(--cel-cycle-dur, 0.9s) ease-out;
+          background:
+            radial-gradient(circle at var(--lens-pos), rgba(255,240,200,0.95) 0%, rgba(255,200,140,0.55) 18%, transparent 45%),
+            linear-gradient(90deg, transparent 25%, rgba(255,255,210,0.45) 50%, transparent 75%);
+          mix-blend-mode: screen;
+        }
+        @keyframes v511CelLensFlare { 0% { opacity: 0; transform: scale(0.7); } 35% { opacity: 1; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.5); } }
+        /* Position variants — where the central burst lands. */
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-flare-pos="image-anchor"] > .v511-cel-fx-layer { --lens-pos: var(--bg-image-pos, 50% 50%); }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-flare-pos="top-left"]     > .v511-cel-fx-layer { --lens-pos: 25% 25%; }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-flare-pos="top-right"]    > .v511-cel-fx-layer { --lens-pos: 75% 25%; }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-flare-pos="bottom-left"]  > .v511-cel-fx-layer { --lens-pos: 25% 75%; }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-flare-pos="bottom-right"] > .v511-cel-fx-layer { --lens-pos: 75% 75%; }
+        /* Streak variants — second background layer angle (radial drops the streak). */
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-streak="diagonal"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at var(--lens-pos), rgba(255,240,200,0.95) 0%, rgba(255,200,140,0.55) 18%, transparent 45%),
+            linear-gradient(45deg, transparent 25%, rgba(255,255,210,0.45) 50%, transparent 75%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-streak="radial"] > .v511-cel-fx-layer {
+          background: radial-gradient(circle at var(--lens-pos), rgba(255,240,200,0.95) 0%, rgba(255,200,140,0.55) 22%, transparent 55%);
+        }
+        /* Colour source variants — warm (default) / cool / cycle palette. */
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cool"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at var(--lens-pos), rgba(220,235,255,0.95) 0%, rgba(150,190,255,0.55) 18%, transparent 45%),
+            linear-gradient(90deg, transparent 25%, rgba(225,240,255,0.45) 50%, transparent 75%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cool"][data-cel-streak="diagonal"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at var(--lens-pos), rgba(220,235,255,0.95) 0%, rgba(150,190,255,0.55) 18%, transparent 45%),
+            linear-gradient(45deg, transparent 25%, rgba(225,240,255,0.45) 50%, transparent 75%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cool"][data-cel-streak="radial"] > .v511-cel-fx-layer {
+          background: radial-gradient(circle at var(--lens-pos), rgba(220,235,255,0.95) 0%, rgba(150,190,255,0.55) 22%, transparent 55%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cycle-palette"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at var(--lens-pos), var(--cel-pal-1, #ffe082) 0%, var(--cel-pal-2, var(--cel-pal-1, rgba(255,200,140,0.55))) 22%, transparent 50%),
+            linear-gradient(90deg, transparent 25%, var(--cel-pal-1, rgba(255,255,210,0.45)) 50%, transparent 75%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cycle-palette"][data-cel-streak="diagonal"] > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at var(--lens-pos), var(--cel-pal-1, #ffe082) 0%, var(--cel-pal-2, var(--cel-pal-1, rgba(255,200,140,0.55))) 22%, transparent 50%),
+            linear-gradient(45deg, transparent 25%, var(--cel-pal-1, rgba(255,255,210,0.45)) 50%, transparent 75%);
+        }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-colour-source="cycle-palette"][data-cel-streak="radial"] > .v511-cel-fx-layer {
+          background: radial-gradient(circle at var(--lens-pos), var(--cel-pal-1, #ffe082) 0%, var(--cel-pal-2, var(--cel-pal-1, rgba(255,200,140,0.55))) 26%, transparent 58%);
+        }
+        /* Easing variants — uses data-cel-easing already in V511_SETTING_ATTRS. */
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-easing="linear"] > .v511-cel-fx-layer { animation-timing-function: linear; }
+        .v511-theme-preview-stage.cel-lens-flare[data-cel-easing="snap"]   > .v511-cel-fx-layer { animation-timing-function: steps(8, end); }
+        /* Intensity — swap keyframe for different opacity peak and scale arc. */
+        .v511-theme-preview-stage.cel-lens-flare.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelLensFlareSubtle; }
+        .v511-theme-preview-stage.cel-lens-flare.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelLensFlareStrong; }
+        @keyframes v511CelLensFlareSubtle { 0% { opacity: 0; transform: scale(0.75); } 50% { opacity: 0.55; transform: scale(0.95); } 100% { opacity: 0; transform: scale(1.2); } }
+        @keyframes v511CelLensFlareStrong { 0% { opacity: 0; transform: scale(0.55); } 30% { opacity: 1; transform: scale(1.28); } 100% { opacity: 0; transform: scale(1.8); } }
+
+        /* --- Heartbeat: scale-pulse the QR in chosen rhythm.
+               Intensity scales the peak via --hb-peak; rhythm + falloff
+               choose the keyframe. Colour tint paints the fx-layer. --- */
+        .v511-theme-preview-stage.cel-heartbeat .v511-theme-preview-qr {
+          --hb-peak: 1.18;
+          animation: v511CelHeartbeatLubdub var(--cel-cycle-dur, 1.2s) ease-in-out;
+          transform-origin: center;
+        }
+        .v511-theme-preview-stage.cel-heartbeat.cel-int-subtle .v511-theme-preview-qr { --hb-peak: 1.08; }
+        .v511-theme-preview-stage.cel-heartbeat.cel-int-strong .v511-theme-preview-qr { --hb-peak: 1.32; }
+        /* Default keyframe — 2 beats, lub-dub (uneven gap). */
+        @keyframes v511CelHeartbeatLubdub {
+          0%   { transform: scale(1); }
+          10%  { transform: scale(var(--hb-peak)); }
+          20%  { transform: scale(1); }
+          35%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.75)); }
+          45%  { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        /* Rhythm: single (one big pulse). */
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-rhythm="single"] .v511-theme-preview-qr { animation-name: v511CelHeartbeatSingle; }
+        @keyframes v511CelHeartbeatSingle {
+          0%   { transform: scale(1); }
+          30%  { transform: scale(var(--hb-peak)); }
+          65%  { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        /* Rhythm: triple (three close beats). */
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-rhythm="triple"] .v511-theme-preview-qr { animation-name: v511CelHeartbeatTriple; }
+        @keyframes v511CelHeartbeatTriple {
+          0%   { transform: scale(1); }
+          8%   { transform: scale(var(--hb-peak)); }
+          16%  { transform: scale(1); }
+          26%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.85)); }
+          34%  { transform: scale(1); }
+          44%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.7)); }
+          52%  { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        /* Falloff: each beat smaller than previous (overrides per rhythm). */
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-falloff="on"] .v511-theme-preview-qr { animation-name: v511CelHeartbeatFalloffLubdub; }
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-rhythm="single"][data-cel-falloff="on"] .v511-theme-preview-qr { animation-name: v511CelHeartbeatSingle; /* single doesn't fall off */ }
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-rhythm="triple"][data-cel-falloff="on"] .v511-theme-preview-qr { animation-name: v511CelHeartbeatFalloffTriple; }
+        @keyframes v511CelHeartbeatFalloffLubdub {
+          0%   { transform: scale(1); }
+          10%  { transform: scale(var(--hb-peak)); }
+          20%  { transform: scale(1); }
+          35%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.5)); }
+          45%  { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        @keyframes v511CelHeartbeatFalloffTriple {
+          0%   { transform: scale(1); }
+          8%   { transform: scale(var(--hb-peak)); }
+          16%  { transform: scale(1); }
+          26%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.65)); }
+          34%  { transform: scale(1); }
+          44%  { transform: scale(calc(1 + (var(--hb-peak) - 1) * 0.3)); }
+          52%  { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        /* Easing variants for heartbeat. */
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-easing="ease-out"] .v511-theme-preview-qr { animation-timing-function: ease-out; }
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-easing="elastic"]  .v511-theme-preview-qr { animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+        /* Colour tint overlay on the fx-layer (composes with QR scaling). */
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-colour-tint="warm"] > .v511-cel-fx-layer {
+          background: rgba(255,180,140,0.45);
+          animation: v511CelHeartbeatTint var(--cel-cycle-dur, 1.2s) ease-in-out;
+          mix-blend-mode: multiply;
+        }
+        .v511-theme-preview-stage.cel-heartbeat[data-cel-colour-tint="palette"] > .v511-cel-fx-layer {
+          background: var(--cel-pal-1, rgba(255,180,140,0.45));
+          animation: v511CelHeartbeatTint var(--cel-cycle-dur, 1.2s) ease-in-out;
+          mix-blend-mode: multiply;
+        }
+        @keyframes v511CelHeartbeatTint { 0%, 100% { opacity: 0; } 20% { opacity: 0.55; } 45% { opacity: 0.28; } }
+
+        /* --- Vignette flash: dark (or palette-tinted) edge darkening
+               pulses inward from the corners. Spread controls how far
+               toward centre the dark reaches. --- */
+        .v511-theme-preview-stage.cel-vignette-flash > .v511-cel-fx-layer {
+          --vig-inner: 45%;
+          animation: v511CelVignetteFlash var(--cel-cycle-dur, 1.0s) ease-in-out;
+          background: radial-gradient(ellipse at center, transparent var(--vig-inner), rgba(0,0,0,0.92) 100%);
+          pointer-events: none;
+        }
+        @keyframes v511CelVignetteFlash { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+        /* Spread variants — narrow (subtle edge) → wide (encroaches into centre). */
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-spread="narrow"] > .v511-cel-fx-layer { --vig-inner: 65%; }
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-spread="medium"] > .v511-cel-fx-layer { --vig-inner: 45%; }
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-spread="wide"]   > .v511-cel-fx-layer { --vig-inner: 22%; }
+        /* Colour source variants — black (default) / palette-tinted. */
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-colour-source="palette"] > .v511-cel-fx-layer {
+          background: radial-gradient(ellipse at center, transparent var(--vig-inner), var(--cel-pal-1, rgba(120,60,40,0.92)) 100%);
+        }
+        /* Pulses count — fire the keyframe N times within cycle by dividing duration. */
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-pulses="2"] > .v511-cel-fx-layer {
+          animation-iteration-count: 2;
+          animation-duration: calc(var(--cel-cycle-dur, 1.0s) / 2);
+        }
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-pulses="3"] > .v511-cel-fx-layer {
+          animation-iteration-count: 3;
+          animation-duration: calc(var(--cel-cycle-dur, 1.0s) / 3);
+        }
+        /* Easing variants. */
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-easing="linear"] > .v511-cel-fx-layer { animation-timing-function: linear; }
+        .v511-theme-preview-stage.cel-vignette-flash[data-cel-easing="snap"]   > .v511-cel-fx-layer { animation-timing-function: steps(8, end); }
+        /* Intensity — how dark the edges go at peak. */
+        .v511-theme-preview-stage.cel-vignette-flash.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelVignetteSubtle; }
+        .v511-theme-preview-stage.cel-vignette-flash.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelVignetteStrong; }
+        @keyframes v511CelVignetteSubtle { 0%, 100% { opacity: 0; } 50% { opacity: 0.55; } }
+        @keyframes v511CelVignetteStrong { 0%, 100% { opacity: 0; } 50% { opacity: 1; transform: scale(0.92); } }
+        /* =================================================================
            T4.3.28 — Celebration sweep: wires the remaining schema settings
            whose chips/grids were rendered but never read by the CSS.
            Each block is independent; selectors compose with intensity classes
@@ -5511,6 +5692,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                         <button type="button" class="v511-cel-lib-item" data-effect="spotlight"   draggable="true"><span class="icon">☼</span> Spotlight</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="cam-flash"   draggable="true"><span class="icon">⚡</span> Camera flash</button>
                         <button type="button" class="v511-cel-lib-item warn" data-effect="strobe" draggable="true" title="Photosensitive warning"><span class="icon">⚐</span> Strobe ⚠</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="lens-flare"  draggable="true"><span class="icon">✶</span> Lens flare</button>
                       </div>
                     </details>
 
@@ -5524,6 +5706,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                         <button type="button" class="v511-cel-lib-item" data-effect="scale-punch"  draggable="true"><span class="icon">⤢</span> Scale punch</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="iris-wipe"    draggable="true"><span class="icon">◉</span> Iris wipe</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="ripple"       draggable="true"><span class="icon">◯</span> Ripple</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="heartbeat"    draggable="true"><span class="icon">♥</span> Heartbeat</button>
                       </div>
                     </details>
 
@@ -5542,9 +5725,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <details class="v511-cel-lib-group">
                       <summary>Surface</summary>
                       <div class="v511-cel-lib-items">
-                        <button type="button" class="v511-cel-lib-item" data-effect="bg"          draggable="true"><span class="icon">▮</span> Background flash</button>
-                        <button type="button" class="v511-cel-lib-item" data-effect="pattern" draggable="true"><span class="icon">▦</span> Pattern flash</button>
-                        <button type="button" class="v511-cel-lib-item" data-effect="text"        draggable="true"><span class="icon">A</span> Text overlay</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="bg"             draggable="true"><span class="icon">▮</span> Background flash</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="pattern"        draggable="true"><span class="icon">▦</span> Pattern flash</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="text"           draggable="true"><span class="icon">A</span> Text overlay</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="vignette-flash" draggable="true"><span class="icon">◐</span> Vignette flash</button>
                       </div>
                     </details>
 
@@ -6037,7 +6221,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'cel-outer-glow','cel-spotlight','cel-cam-flash','cel-strobe',
             'cel-shake','cel-scale-punch','cel-iris-wipe','cel-ripple','cel-qr-disappear',
             'cel-confetti','cel-sparkles','cel-particles','cel-flame','cel-glitch',
-            'cel-stream'
+            'cel-stream',
+            // T4.3.40 — three new library effects
+            'cel-lens-flare','cel-heartbeat','cel-vignette-flash'
           ];
           var V511_SETTING_CLASSES = [
             'cel-int-subtle','cel-int-medium','cel-int-strong',
@@ -6054,7 +6240,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // T4.3.28 — sweep additions
             'data-cel-colour-source','data-cel-easing',
             // T4.3.35 — gravity toggle
-            'data-cel-gravity'
+            'data-cel-gravity',
+            // T4.3.40 — three new library effects
+            'data-cel-flare-pos','data-cel-streak',
+            'data-cel-rhythm','data-cel-falloff','data-cel-colour-tint',
+            'data-cel-pulses','data-cel-spread'
           ];
           function v511ClearCelClasses() {
             if (!sampleStage) return;
@@ -6129,6 +6319,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // T4.3.35 — Gravity toggle (off / on). Stream particles read this
             // directly from item.settings; confetti reads via data-cel-gravity.
             if (s.gravity) stage.setAttribute('data-cel-gravity', s.gravity);
+            // T4.3.40 — Lens flare position + streak
+            if (s.flarePos) stage.setAttribute('data-cel-flare-pos', s.flarePos);
+            if (s.streak) stage.setAttribute('data-cel-streak', s.streak);
+            // T4.3.40 — Heartbeat rhythm + falloff + colour tint
+            if (s.rhythm) stage.setAttribute('data-cel-rhythm', s.rhythm);
+            if (s.falloff) stage.setAttribute('data-cel-falloff', s.falloff);
+            if (s.colourTint) stage.setAttribute('data-cel-colour-tint', String(s.colourTint).replace(/\s+/g, '-'));
+            // T4.3.40 — Vignette flash pulses + spread
+            if (s.pulses) stage.setAttribute('data-cel-pulses', s.pulses);
+            if (s.spread) stage.setAttribute('data-cel-spread', s.spread);
             if (s.intensity) stage.classList.add('cel-int-' + s.intensity);
             if (s.bounce) stage.classList.add('cel-bounce-eff-' + s.bounce);
             // Tier 4.3.11 — Glow halo sweep setting (outward / inward / rotate)
@@ -7222,7 +7422,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'spotlight':    { label: 'Spotlight',        icon: '☼', defaultDur: 1.4 },
             'cam-flash':    { label: 'Camera flash',     icon: '⚡', defaultDur: 0.4 },
             'strobe':       { label: 'Strobe ⚠',         icon: '⚐', defaultDur: 0.8 },
+            'lens-flare':   { label: 'Lens flare',       icon: '✶', defaultDur: 0.9 },
             'pulse':        { label: 'Pulse',            icon: '◎', defaultDur: 1.4 },
+            'heartbeat':    { label: 'Heartbeat',        icon: '♥', defaultDur: 1.2 },
             'qr':           { label: 'QR motion',        icon: '↻', defaultDur: 1.4 },
             'qr-disappear': { label: 'QR disappear',     icon: '✕', defaultDur: 1.0 },
             'shake':        { label: 'Shake',            icon: '↔', defaultDur: 0.6 },
@@ -7235,9 +7437,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'flame':        { label: 'Flame',            icon: '🔥', defaultDur: 1.4 },
             'stream':       { label: 'Stream',           icon: '🐉', defaultDur: 1.2 },
             'glitch':       { label: 'Glitch',           icon: '▦', defaultDur: 0.6 },
-            'bg':           { label: 'Background flash', icon: '▮', defaultDur: 1.4 },
-            'pattern':      { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
-            'text':         { label: 'Text overlay',     icon: 'A', defaultDur: 1.4 },
+            'bg':             { label: 'Background flash', icon: '▮', defaultDur: 1.4 },
+            'pattern':        { label: 'Pattern flash',    icon: '▦', defaultDur: 1.4 },
+            'text':           { label: 'Text overlay',     icon: 'A', defaultDur: 1.4 },
+            'vignette-flash': { label: 'Vignette flash',   icon: '◐', defaultDur: 1.0 },
             'delay':        { label: '⏱ Delay',          icon: '⏱', defaultDur: 0.3 }
           };
 
@@ -7483,6 +7686,31 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
             'text':         [ { key: 'template', label: 'Template', options: ['name','name + action','welcome'], default: 'name' }, { key: 'position', label: 'Position', options: ['top','centre','bottom'], default: 'centre' }, { key: 'size', label: 'Size', options: ['small','medium','large'], default: 'medium' } ],
+            // T4.3.40 — Three new library effects.
+            // Lens flare: bright burst + streak with optional palette tint.
+            'lens-flare':     [
+              SETTING_INTENSITY,
+              { key: 'flarePos', label: 'Position', options: ['centre','image-anchor','top-left','top-right','bottom-left','bottom-right'], default: 'centre' },
+              { key: 'streak',   label: 'Streak',   options: ['horizontal','diagonal','radial'], default: 'horizontal' },
+              { key: 'colourSource', label: 'Colour source', options: ['warm','cool','cycle palette'], default: 'warm' },
+              { key: 'easing',   label: 'Easing',   options: ['ease','linear','snap'], default: 'ease' }
+            ],
+            // Heartbeat: scale-pulse the QR in chosen rhythm.
+            'heartbeat':      [
+              SETTING_INTENSITY,
+              { key: 'rhythm',     label: 'Rhythm',      options: ['single','lub-dub','triple'], default: 'lub-dub' },
+              { key: 'falloff',    label: 'Falloff',     options: ['off','on'], default: 'off' },
+              { key: 'colourTint', label: 'Colour tint', options: ['none','warm','palette'], default: 'none' },
+              { key: 'easing',     label: 'Easing',      options: ['ease','ease-out','elastic'], default: 'ease' }
+            ],
+            // Vignette flash: dark/colour edge darkening pulses inward.
+            'vignette-flash': [
+              SETTING_INTENSITY,
+              { key: 'pulses', label: 'Pulses', options: ['1','2','3'], default: '1' },
+              { key: 'spread', label: 'Spread', options: ['narrow','medium','wide'], default: 'medium' },
+              { key: 'colourSource', label: 'Colour source', options: ['black','palette'], default: 'black' },
+              { key: 'easing', label: 'Easing', options: ['ease','linear','snap'], default: 'ease' }
+            ],
             'delay':        [] // no settings
           };
 
