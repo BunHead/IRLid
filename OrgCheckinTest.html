@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.44</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.45</span></div>
   </div>
 </div>
 
@@ -8355,10 +8355,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function v511GenerateMirrorVariants(srcDataUrl, cb) {
             var img = new Image();
             img.onload = function () {
+              // T4.3.45 — Capture natural aspect (h/w) for image-relative
+              // anchor offset math. Used by v511GetStreamOffsets to convert
+              // user image-% offsets to stage-% accurately.
+              var natW = img.naturalWidth || img.width || 1;
+              var natH = img.naturalHeight || img.height || 1;
+              var aspect = (natW > 0 && natH > 0) ? (natH / natW) : 1.0;
               function flip(flipX, flipY) {
                 var canvas = document.createElement('canvas');
-                canvas.width = img.naturalWidth || img.width;
-                canvas.height = img.naturalHeight || img.height;
+                canvas.width = natW;
+                canvas.height = natH;
                 var ctx = canvas.getContext('2d');
                 ctx.save();
                 ctx.translate(flipX ? canvas.width : 0, flipY ? canvas.height : 0);
@@ -8368,9 +8374,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 try { return canvas.toDataURL('image/png'); }
                 catch (e) { return srcDataUrl; } // CORS-tainted fallback to original
               }
-              cb({ orig: srcDataUrl, mx: flip(true, false), my: flip(false, true), mxy: flip(true, true) });
+              cb({ orig: srcDataUrl, mx: flip(true, false), my: flip(false, true), mxy: flip(true, true), aspect: aspect });
             };
-            img.onerror = function () { cb({ orig: srcDataUrl, mx: srcDataUrl, my: srcDataUrl, mxy: srcDataUrl }); };
+            img.onerror = function () { cb({ orig: srcDataUrl, mx: srcDataUrl, my: srcDataUrl, mxy: srcDataUrl, aspect: 1.0 }); };
             img.src = srcDataUrl;
           }
           // Apply an image-variant bundle to the stage's CSS vars + stash for save.
@@ -8381,6 +8387,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             sampleStage.style.setProperty('--bg-image-url-my', 'url("' + variants.my + '")');
             sampleStage.style.setProperty('--bg-image-url-mxy', 'url("' + variants.mxy + '")');
             window._v511ImageData = variants;
+            // T4.3.45 — Set --bg-image-aspect from the variants bundle if it's
+            // there (upload path), or probe the orig data URL via a fresh
+            // Image() (localStorage-restore path where variants don't carry
+            // the aspect field).
+            if (variants.aspect && isFinite(variants.aspect) && variants.aspect > 0) {
+              sampleStage.style.setProperty('--bg-image-aspect', variants.aspect.toFixed(4));
+            } else if (variants.orig) {
+              var probe = new Image();
+              probe.onload = function () {
+                var w = probe.naturalWidth || probe.width || 1;
+                var h = probe.naturalHeight || probe.height || 1;
+                if (w > 0 && h > 0) sampleStage.style.setProperty('--bg-image-aspect', (h / w).toFixed(4));
+              };
+              probe.src = variants.orig;
+            }
           }
           if (bgImageUpload) {
             bgImageUpload.addEventListener('change', function (e) {
