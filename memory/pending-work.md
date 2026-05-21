@@ -1,5 +1,49 @@
 # Pending Work — IRLid
 
+## Thursday 21 May 2026 watch pause — T4.3.37 audit cleanup, T4.3.38/39 layout pivot, T4.3.40 three new library effects (Lens flare / Heartbeat / Vignette flash) — paused mid-review
+
+**The headline.** Captain commissioned this Number One this morning. Watch ran from morning through early afternoon. Four ships landed sequentially. Captain was interrupted by his mother mid-T4.3.40 review and called for a pause-and-update rather than push through frazzled. Clean dock for whoever picks up next (Captain in a couple of hours, or fresh Number One if needed).
+
+**Build pill at pause:** `v5.10.2 + v5.11 mockup T4.3.40` (working tree, NOT YET PUSHED).
+
+**Four ships (T4.3.37 + T4.3.38 + T4.3.39 pushed; T4.3.40 staged on working tree):**
+
+- **T4.3.37 (PUSHED `4aef79d`)** — Audit-finding cleanup pass. Closed the `--cel-cycle-dur` inline-style leak banked from 19 May audit (extended `v511ClearCelClasses` with `sampleStage.style.removeProperty('--cel-cycle-dur')` so the last step's value doesn't leak across mode switches). Renamed four "Breath" comment references to "Stream (originally 'Breath')" — T4.3.32 rename had left them behind. Added explanatory comment on `V511_STREAM_DIR_ANGLES` documenting the glyph-led dir9 convention (cell `l` displays → glyph and emits particles RIGHT — the apparent inversion in the angle table isn't a bug).
+- **T4.3.38 (PUSHED)** — Effect Settings panel auto-wrapping grid layout. `grid-template-columns: repeat(auto-fit, minmax(300px, 1fr))` + `align-items: start`. dir9 + iris-wipe span 2 tracks; empty-state spans 1/-1. Foundation for what I expected to be a universal settings rollout next.
+- **T4.3.39 (PUSHED)** — Captain's feedback: with only 2 settings (Background flash: Count + Direction), Direction floated alone in the middle of the row, looked worse than the old column. Reverted default to column; grid mode now opt-in via `.v511-cel-settings-body--grid` class added by `v511RenderSettingsForItem` when `schema.length >= V511_SETTINGS_GRID_THRESHOLD` (5). At time of revert only Stream qualified.
+- **T4.3.40 (STAGED — code edits on working tree, NOT PUSHED)** — Three new library effects with full settings parity, each at 5 settings (= grid threshold) by design:
+  - **Lens flare** (Light, icon `✶`, defaultDur 0.9s): Intensity / Position / Streak / Colour source / Easing. Bright burst + horizontal/diagonal/radial streak; warm/cool/cycle-palette colour; centre/image-anchor/4 corner positions via `--lens-pos`.
+  - **Heartbeat** (Motion, icon `♥`, defaultDur 1.2s): Intensity / Rhythm / Falloff / Colour tint / Easing. Scale-pulse the QR with single/lub-dub/triple rhythm; falloff makes each beat smaller; warm/palette colour-tint overlay; intensity scales peak via `--hb-peak` CSS variable.
+  - **Vignette flash** (Surface, icon `◐`, defaultDur 1.0s): Intensity / Pulses / Spread / Colour source / Easing. Dark or palette-tinted edge darkening pulsing inward; narrow/medium/wide spread via `--vig-inner`; 1/2/3 pulses via animation-iteration-count + duration division.
+
+**Architectural pattern banked from this watch:**
+
+- **Dynamic-grid-by-count.** I originally proposed per-effect "use grid" flags. Captain's revert directive made me wire it threshold-based instead. Any effect that gains a 5th setting in future T4.3.x work auto-promotes to grid layout without needing a separate switch. Single named constant (`V511_SETTINGS_GRID_THRESHOLD = 5`). Re-usable anywhere "this UI is too crowded once it grows past N" applies.
+
+**First actions when watch resumes:**
+
+1. **Push T4.3.40.** Code edits on working tree are unsaved. PowerShell:
+   ```
+   cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git add OrgCheckinTest.html ; git commit -m "v5.11 mockup T4.3.40 — three new library effects: Lens flare (Light), Heartbeat (Motion), Vignette flash (Surface), each with 5-setting schemas triggering grid layout" ; git push
+   ```
+2. **Push memory close** (this update + STATE-OF-PLAY + session log). Captain's preference is separated code + memory commits:
+   ```
+   cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git add memory/ ; git commit -m "memory: Thursday 21 May watch pause — T4.3.37 audit cleanup + T4.3.38/39 layout pivot + T4.3.40 three new effects (Lens flare / Heartbeat / Vignette flash); session log + pending-work refresh" ; git push
+   ```
+3. **Verify T4.3.40 in browser.** Confirm the three new library buttons render in Light/Motion/Surface groups; click each into the sequence; confirm settings panel triggers grid mode (5 settings each); confirm Sample plays the effect; confirm each setting variant produces a visible change.
+4. **Then T4.3.41+ per-effect deep-dive** — Captain pivoted mid-watch from bulk universal-settings rollout to "go into individual effects". Starts with **Sparkles** + **Confetti** (Captain flagged both need work; *"others are likely too"*). Universal settings (anchor offset, mirror, colour source, gravity, easing, hold-at-peak) fold into each effect's deep-dive where they make sense rather than landing as one bulk pass.
+
+**Carryforward (still relevant from prior watches):**
+
+- **Background animation intermittent bug** — still needs repro (carried from Tuesday + Wednesday).
+- **Mr. Data port** of v5.11 mockup → live `OrgCheckin.html` per `SETTINGS-REVAMP-SPEC.md` Phase 1 — gated on Captain being satisfied with mockup visual.
+- **Calendar implementation** per `CALENDAR-SPEC.md`.
+- **PROTOCOL.md §X — Records Broker** ratification.
+- **Cloudflare token rotation** — `cfat_wIMFM4RI…` + `cfut_YZ11ouJO…` still exposed (since 17 May). Captain has been deferring ("nothing worth stealing for a week"). Worth offering again.
+- **`codex/v5.10.1-path-b` branch deletion on origin** — pure housekeeping.
+
+---
+
 ## Wednesday 20 May 2026 watch close — Stream particle system born + sliders + crosshair + gravity + colour-source; Records & ID condensed (T4.3.29 → T4.3.36)
 
 **The headline.** Captain came in Wednesday morning before work with a small ask (Records & ID using expanders) and a feature request ("add some effect to the cele anim... how would you have the dragons breath fire?"). Eight patches across the day delivered: tab condensation, a new particle effect built from scratch (twice, after the first version was wrong), settings-panel slider type, anchor offset with axisFlip mirroring, directional dissolve, anchor crosshair visualiser, gravity, colour-source, and a fullscreen-aware refresh. Watch closed at Number One's retirement with all eight patches verified on origin/main and a screenshot-demonstrated dragon scene that breathes fire properly.
