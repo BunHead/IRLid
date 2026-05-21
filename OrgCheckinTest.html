@@ -3281,7 +3281,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.43</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.44</span></div>
   </div>
 </div>
 
@@ -4326,30 +4326,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Motion: qr-disappear (QR fades + shrinks to nothing then back) */
         .v511-theme-preview-stage.cel-qr-disappear .v511-theme-preview-qr { animation: v511CelQrDisappear var(--cel-cycle-dur, 1s) ease-in-out; }
         @keyframes v511CelQrDisappear { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0; transform: scale(0.2); } }
-        /* Particles: confetti — full-area cascade (repeat both axes) so multiple
-           rows are visible at once and scroll downward smoothly. Tier 4.3.2. */
-        .v511-theme-preview-stage.cel-confetti > .v511-cel-fx-layer { animation: v511CelConfetti var(--cel-cycle-dur, 2s) linear; background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px), radial-gradient(circle, var(--cel-pal-2, var(--cel-pal-1, #fac775)) 3px, transparent 3.5px); background-size: 35px 35px, 50px 50px; background-repeat: repeat; opacity: 1; }
-        @keyframes v511CelConfetti { 0% { background-position: 0 0, 20px 0; } 100% { background-position: 0 35px, 20px 50px; } }
-        /* Direction settings — same animation, reversed direction (up) or sideways */
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="b"]  > .v511-cel-fx-layer,
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="bl"] > .v511-cel-fx-layer,
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="br"] > .v511-cel-fx-layer { animation: v511CelConfettiUp var(--cel-cycle-dur, 2s) linear; }
-        @keyframes v511CelConfettiUp { 0% { background-position: 0 35px, 20px 50px; } 100% { background-position: 0 0, 20px 0; } }
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="l"]  > .v511-cel-fx-layer { animation: v511CelConfettiR var(--cel-cycle-dur, 2s) linear; }
-        @keyframes v511CelConfettiR { 0% { background-position: 0 0, 20px 0; } 100% { background-position: 35px 0, 70px 0; } }
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="r"]  > .v511-cel-fx-layer { animation: v511CelConfettiL var(--cel-cycle-dur, 2s) linear; }
-        @keyframes v511CelConfettiL { 0% { background-position: 35px 0, 70px 0; } 100% { background-position: 0 0, 20px 0; } }
+        /* T4.3.44 — Confetti rebuilt as JS-injected multi-shape, multi-colour
+           particles with random rotation and per-particle fall dynamics. Old
+           fx-layer-based dot patterns and 8 directional drift keyframes removed.
+           See .v511-confetti-particle block + v511FireConfettiParticles JS below. */
         /* T4.3.42 — Sparkles rebuilt as JS-injected 4-point star particles with
            bloom + twinkle. Old fx-layer-based dots removed. See the
            .v511-sparkle-particle block + v511FireSparkleParticles JS below. */
         /* Particles: generic burst (palette dots expanding) */
         .v511-theme-preview-stage.cel-particles > .v511-cel-fx-layer { animation: v511CelParticles var(--cel-cycle-dur, 1.4s) ease-out; background-image: radial-gradient(circle, var(--cel-pal-1, #66e0ff) 2px, transparent 2.5px); background-size: 22px 22px; transform-origin: center; }
         @keyframes v511CelParticles { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(2.2); } }
-        /* Tier 4.3.13 — Density chips for Confetti / Sparkles / Particles.
-           sparse = ~2x background-size (fewer dots); dense = ~0.5x (more dots). */
-        .v511-theme-preview-stage.cel-confetti[data-cel-density="sparse"]  > .v511-cel-fx-layer { background-size: 70px 70px, 100px 100px; }
-        .v511-theme-preview-stage.cel-confetti[data-cel-density="dense"]   > .v511-cel-fx-layer { background-size: 18px 18px, 26px 26px; }
-        /* T4.3.42 — Sparkle density rules removed (sparkles now use count slider, not density). */
+        /* Tier 4.3.13 — Density chips kept for Particles (Confetti + Sparkles
+           moved to count sliders in their respective rebuilds). */
         .v511-theme-preview-stage.cel-particles[data-cel-density="sparse"] > .v511-cel-fx-layer { background-size: 44px 44px; }
         .v511-theme-preview-stage.cel-particles[data-cel-density="dense"]  > .v511-cel-fx-layer { background-size: 11px 11px; }
         /* Particles: flame (warm gradient rising from bottom anchor by default) */
@@ -4491,6 +4479,41 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* T4.3.42 — When cel-z-below is on the stage, drop sparkle particles
            beneath the QR+image content (matches stream's z-order toggle). */
         .v511-theme-preview-stage.cel-z-below .v511-sparkle-particle { z-index: 2; }
+
+        /* ==========================================================
+           T4.3.44 — Confetti particle (multi-shape, multi-colour)
+           JS-injected by v511FireConfettiParticles. Each particle is
+           a DOM <div> with one of 5 shape classes (cf-dot / cf-square
+           / cf-rect / cf-tri / cf-ribbon), filled with a colour from
+           either a 10-stop rainbow set or the user's celebration
+           palette, with per-particle randomised rotation + size +
+           fall dynamics. Cleanup at end of step.
+           ========================================================== */
+        .v511-confetti-particle {
+          position: absolute;
+          top: 0; left: 0;
+          /* size + colour + per-particle CSS vars set inline */
+          background: #ff6b6b;
+          pointer-events: none;
+          opacity: 0;
+          will-change: transform, opacity;
+          z-index: 5;
+          transform: translate(-50%, var(--cf-start-y, -110%)) rotate(var(--cf-rot, 0deg));
+          animation: v511ConfettiFall var(--cf-dur, 2s) var(--cf-delay, 0s) cubic-bezier(0.35, 0.05, 0.55, 0.95) forwards;
+        }
+        @keyframes v511ConfettiFall {
+          0%   { opacity: 0; transform: translate(-50%, var(--cf-start-y, -110%))               rotate(var(--cf-rot, 0deg)); }
+          8%   { opacity: 1; }
+          92%  { opacity: 1; }
+          100% { opacity: 0; transform: translate(calc(-50% + var(--cf-dx, 0px)), var(--cf-end-y, 130%)) rotate(calc(var(--cf-rot, 0deg) + var(--cf-spin, 0deg))); }
+        }
+        /* Shape variants. Default (no class) is a square. */
+        .v511-confetti-particle.cf-dot    { border-radius: 50%; }
+        .v511-confetti-particle.cf-rect   { /* aspect set inline via width != height */ }
+        .v511-confetti-particle.cf-tri    { clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+        .v511-confetti-particle.cf-ribbon { /* aspect set inline (thin elongated); skew gives twist */ transform: translate(-50%, var(--cf-start-y, -110%)) rotate(var(--cf-rot, 0deg)) skewX(-12deg); }
+        /* z-below — drop confetti particles beneath QR+image like stream/sparkle. */
+        .v511-theme-preview-stage.cel-z-below .v511-confetti-particle { z-index: 2; }
         /* Particles: glitch (digital corruption flicker) */
         .v511-theme-preview-stage.cel-glitch { animation: v511CelGlitch var(--cel-cycle-dur, 0.6s) steps(8, jump-none); }
         @keyframes v511CelGlitch { 0%, 100% { filter: hue-rotate(0deg) saturate(1); transform: translate(0); } 20% { filter: hue-rotate(90deg) saturate(2); transform: translate(-2px, 1px); } 40% { filter: hue-rotate(-90deg) saturate(2); transform: translate(2px, -1px); } 60% { filter: hue-rotate(180deg) saturate(2); transform: translate(-1px, 2px); } 80% { filter: hue-rotate(-45deg) saturate(2); transform: translate(1px, -2px); } }
@@ -4718,21 +4741,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-particles.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelParticlesStrong; }
         @keyframes v511CelParticlesSubtle { 0% { opacity: 0.6; transform: scale(0.4); } 100% { opacity: 0; transform: scale(1.4); } }
         @keyframes v511CelParticlesStrong { 0% { opacity: 1;   transform: scale(0.25); } 100% { opacity: 0; transform: scale(3); } }
-        /* T4.3.35 — Confetti gravity: switches the animation timing-function
-           from linear to ease-in so particles accelerate as they drop. Real
-           per-particle gravity isn't possible with background-position scroll,
-           but ease-in gives a falling-acceleration feel. */
-        .v511-theme-preview-stage.cel-confetti[data-cel-gravity="on"] > .v511-cel-fx-layer { animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1); }
-        /* --- Confetti completes the 9-direction grid + colour source.
-               Existing: 'b'/'bl'/'br' up, 'l' right, 'r' left, default down.
-               New: 't'/'tl'/'tr' explicit down-variants, 'c' central hold. --- */
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="tl"] > .v511-cel-fx-layer { animation: v511CelConfettiDR var(--cel-cycle-dur, 2s) linear; }
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="tr"] > .v511-cel-fx-layer { animation: v511CelConfettiDL var(--cel-cycle-dur, 2s) linear; }
-        .v511-theme-preview-stage.cel-confetti[data-cel-dir="c"]  > .v511-cel-fx-layer { animation: v511CelConfettiHold var(--cel-cycle-dur, 2s) ease-in-out; }
-        @keyframes v511CelConfettiDR   { 0% { background-position: 0 0, 20px 0; }      100% { background-position: 35px 35px, 55px 50px; } }
-        @keyframes v511CelConfettiDL   { 0% { background-position: 0 0, 20px 0; }      100% { background-position: -35px 35px, -15px 50px; } }
-        @keyframes v511CelConfettiHold { 0%, 100% { opacity: 0; } 30%, 70% { opacity: 1; } }
-        .v511-theme-preview-stage.cel-confetti[data-cel-colour-source="single"] > .v511-cel-fx-layer { background-image: radial-gradient(circle, var(--cel-pal-1, #ff6b6b) 3px, transparent 3.5px); background-size: 35px 35px; }
+        /* T4.3.44 — Confetti gravity + 9-direction grid + colour-source rules
+           removed. Gravity / drift / rotation / colour now handled per-particle
+           by v511FireConfettiParticles. */
         /* T4.3.42 — Sparkle direction-drift rules removed. Drift is now handled
            per-particle by the JS emitter (down/up via translateY in keyframes). */
         /* --- Particles dir9 — translate the expanding burst toward the chosen
@@ -6735,6 +6746,130 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }, durMs * 1.7 + 400);
           }
 
+          // T4.3.44 — Confetti particle emitter. Patterned on the Sparkle /
+          // Stream emitters but tuned for the falling multi-shape multi-colour
+          // confetti look in Captain's reference: dots / squares / rectangles
+          // / triangles / ribbons in rainbow or palette colours, random rotation
+          // and spin, varied sizes, dense coverage, falling from above stage.
+          var V511_CONFETTI_RAINBOW = [
+            '#e53935', '#fb8c00', '#fdd835', '#43a047', '#00897b',
+            '#1e88e5', '#5e35b1', '#d81b60', '#8e24aa', '#3949ab'
+          ];
+          var V511_CONFETTI_SHAPES = ['cf-dot', 'cf-square', 'cf-rect', 'cf-tri', 'cf-ribbon'];
+          function v511FireConfettiParticles(stage, item, durMs) {
+            if (!stage || !item) return;
+            var s = item.settings || {};
+            // Count slider × intensity multiplier (clamped at 200 — denser
+            // tax DOM/render cost noticeably).
+            var countRaw = parseFloat(s.confettiCount);
+            var baseCount = (isFinite(countRaw) && countRaw > 0) ? countRaw : 60;
+            var intensityMul = { subtle: 0.5, medium: 1.0, strong: 1.6 }[s.intensity] || 1.0;
+            var perBurst = Math.max(1, Math.min(200, Math.round(baseCount * intensityMul)));
+            // Shape mode — 'mixed' randomises across all 5; named shapes lock.
+            var shapeMode = s.confettiShapes || 'mixed';
+            // Colour palette.
+            var palette;
+            var colourMode = s.colourSource || 'rainbow';
+            if (colourMode === 'cycle palette' || colourMode === 'cycle-palette') {
+              var cs = getComputedStyle(stage);
+              var pals = [];
+              for (var n = 1; n <= 7; n++) {
+                var c = cs.getPropertyValue('--cel-pal-' + n).trim();
+                if (c) pals.push(c);
+              }
+              palette = pals.length ? pals : V511_CONFETTI_RAINBOW;
+            } else {
+              palette = V511_CONFETTI_RAINBOW;
+            }
+            // Spread mode — controls X distribution at spawn.
+            var spread = s.confettiSpread || 'fill';
+            // Rotation mode.
+            var rotation = s.confettiRotation || 'spin';
+            // Drift direction.
+            var drift = s.confettiDrift || 'down';
+            var stageRect = stage.getBoundingClientRect();
+            var stageW = stageRect.width || 700;
+            // Horizontal drift in px across the fall — sideways pull.
+            var driftPx = 0;
+            if (drift === 'down-left')  driftPx = -stageW * 0.25;
+            else if (drift === 'down-right') driftPx =  stageW * 0.25;
+            for (var i = 0; i < perBurst; i++) {
+              var p = document.createElement('div');
+              p.className = 'v511-confetti-particle';
+              // Spawn position. Y starts above the stage; X depends on spread.
+              var px;
+              if (spread === 'cluster') {
+                // Narrow burst near horizontal centre — ±15% of stage width.
+                px = 50 + (Math.random() - 0.5) * 30;
+              } else if (spread === 'spread') {
+                // Looser ±35%.
+                px = 50 + (Math.random() - 0.5) * 70;
+              } else {
+                // Fill — full width with small margins.
+                px = Math.random() * 90 + 5;
+              }
+              var py = -10 - Math.random() * 30; // -10% to -40% above stage
+              // Pick shape.
+              var shape;
+              if (shapeMode === 'mixed') {
+                shape = V511_CONFETTI_SHAPES[Math.floor(Math.random() * V511_CONFETTI_SHAPES.length)];
+              } else if (shapeMode === 'dots')      shape = 'cf-dot';
+                else if (shapeMode === 'squares')   shape = 'cf-square';
+                else if (shapeMode === 'rects')     shape = 'cf-rect';
+                else if (shapeMode === 'triangles') shape = 'cf-tri';
+                else if (shapeMode === 'ribbons')   shape = 'cf-ribbon';
+                else                                 shape = 'cf-square';
+              p.classList.add(shape);
+              // Size — skewed small with a few larger.
+              var sizeRoll = Math.pow(Math.random(), 1.6);
+              var baseSize = 6 + sizeRoll * 14; // 6-20px base
+              // Rectangle and ribbon have non-square aspect.
+              var w = baseSize, h = baseSize;
+              if (shape === 'cf-rect') {
+                if (Math.random() < 0.5) { w = baseSize * (1.4 + Math.random() * 0.8); h = baseSize * (0.5 + Math.random() * 0.3); }
+                else                      { w = baseSize * (0.5 + Math.random() * 0.3); h = baseSize * (1.4 + Math.random() * 0.8); }
+              } else if (shape === 'cf-ribbon') {
+                w = baseSize * (0.25 + Math.random() * 0.15);
+                h = baseSize * (2.0 + Math.random() * 1.5);
+              }
+              // Colour from palette.
+              var colour = palette[Math.floor(Math.random() * palette.length)];
+              // Rotation: random start angle; spin amount depends on mode.
+              var rotStart = Math.random() * 360;
+              var rotSpin;
+              if (rotation === 'random')          rotSpin = (Math.random() - 0.5) * 90;  // jitter only
+              else if (rotation === 'heavy spin') rotSpin = (Math.random() < 0.5 ? -1 : 1) * (540 + Math.random() * 540); // 540-1080deg
+              else                                 rotSpin = (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 360); // 180-540deg
+              // Per-particle duration variation so they don't all land in sync.
+              var pdur = (durMs * 0.7 + Math.random() * durMs * 0.6) / 1000;
+              // Staggered start delay so the cascade has a head and tail
+              // rather than all spawning at t=0.
+              var delay = (Math.random() * durMs * 0.35) / 1000;
+              // End Y depends on actual fall — well past stage bottom.
+              var endY = 110 + Math.random() * 30; // 110% to 140% — past bottom
+              // Horizontal drift varies slightly per particle.
+              var dxPx = driftPx + (Math.random() - 0.5) * stageW * 0.06;
+              p.style.cssText =
+                'left:' + px.toFixed(1) + '%;' +
+                'top:' + py.toFixed(1) + '%;' +
+                'width:' + w.toFixed(1) + 'px;' +
+                'height:' + h.toFixed(1) + 'px;' +
+                'background:' + colour + ';' +
+                '--cf-dur:' + pdur.toFixed(2) + 's;' +
+                '--cf-delay:' + delay.toFixed(2) + 's;' +
+                '--cf-rot:' + rotStart.toFixed(0) + 'deg;' +
+                '--cf-spin:' + rotSpin.toFixed(0) + 'deg;' +
+                '--cf-start-y:' + py.toFixed(1) + '%;' +
+                '--cf-end-y:' + endY.toFixed(1) + '%;' +
+                '--cf-dx:' + dxPx.toFixed(0) + 'px;';
+              stage.appendChild(p);
+            }
+            // Cleanup — generous margin.
+            setTimeout(function () {
+              stage.querySelectorAll('.v511-confetti-particle').forEach(function (p) { p.remove(); });
+            }, durMs * 1.8 + 600);
+          }
+
           // T4.3.36 — Refresh image positioning, QR render, and crosshair after
           // the stage's aspect ratio changes (entering / leaving fullscreen). In
           // normal view the stage is clamped by max-height: 48vh, so its actual
@@ -6860,6 +6995,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 // T4.3.42 — Sparkle particle emitter.
                 if (item.effect === 'sparkles' && typeof v511FireSparkleParticles === 'function') {
                   v511FireSparkleParticles(sampleStage, item, durMs);
+                }
+                // T4.3.44 — Confetti particle emitter.
+                if (item.effect === 'confetti' && typeof v511FireConfettiParticles === 'function') {
+                  v511FireConfettiParticles(sampleStage, item, durMs);
                 }
                 // Tier 4.3.20 — Count loop: cam-flash / strobe / ripple / bg
                 // honour their `count` setting by firing the effect class N
@@ -7891,7 +8030,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'scale-punch':  [ SETTING_INTENSITY, SETTING_DIR_ZOOM, SETTING_BOUNCE ],
             'iris-wipe':    [ { key: 'irisDir', label: 'Direction', options: ['close-then-open','open-then-close','close only','open only'], default: 'close-then-open' } ],
             'ripple':       [ SETTING_THICKNESS, SETTING_COUNT(3), SETTING_COLOUR ],
-            'confetti':     [ SETTING_DENSITY, SETTING_COLOUR, SETTING_DIR9, { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' } ],
+            // T4.3.44 — Confetti rebuilt as JS-injected multi-shape multi-colour
+            // particles. 7-setting schema replaces the old 4.
+            'confetti':     [
+              SETTING_INTENSITY,
+              { key: 'confettiCount',    label: 'Count',         type: 'slider', min: 10, max: 200, step: 1, default: 60 },
+              { key: 'confettiShapes',   label: 'Shapes',        options: ['mixed','dots','squares','rects','triangles','ribbons'], default: 'mixed' },
+              { key: 'colourSource',     label: 'Colour source', options: ['rainbow','cycle palette'], default: 'rainbow' },
+              { key: 'confettiSpread',   label: 'Spread',        options: ['cluster','spread','fill'], default: 'fill' },
+              { key: 'confettiRotation', label: 'Rotation',      options: ['random','spin','heavy spin'], default: 'spin' },
+              { key: 'confettiDrift',    label: 'Drift',         options: ['down','down-left','down-right'], default: 'down' }
+            ],
             // T4.3.42 — Sparkles rebuilt as JS-injected 4-point star particles
             // with bloom + twinkle. 7-setting schema replaces the old 3.
             'sparkles':     [
