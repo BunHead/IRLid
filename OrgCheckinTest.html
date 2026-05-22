@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.49</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.51</span></div>
   </div>
 </div>
 
@@ -5936,15 +5936,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="auth">
           <div class="v511-head"><h3>Sign-in &amp; auth</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
-          <div class="v511-row"><label>QR sign-in</label><div><input type="checkbox" checked style="vertical-align: middle;" /> <span class="v511-hint">Enable WebAuthn QR-scan login (recommended)</span></div></div>
-          <div class="v511-row"><label>Same-device sign-in</label><div><input type="checkbox" checked style="vertical-align: middle;" /> <span class="v511-hint">Show "Sign in on this device" button (v5.10.6)</span></div></div>
-          <div class="v511-row"><label>Session expiry</label><select><option selected>24 hours (sliding)</option><option>12 hours</option><option>7 days</option></select></div>
+          <div class="v511-row"><label for="v511AuthQrSignin">QR sign-in</label><div><input type="checkbox" id="v511AuthQrSignin" checked style="vertical-align: middle;" /> <span class="v511-hint">Enable WebAuthn QR-scan login (recommended)</span></div></div>
+          <div class="v511-row"><label for="v511AuthSameDevice">Same-device sign-in</label><div><input type="checkbox" id="v511AuthSameDevice" checked style="vertical-align: middle;" /> <span class="v511-hint">Show "Sign in on this device" button (v5.10.6)</span></div></div>
+          <div class="v511-row"><label for="v511AuthSessionExpiry">Session expiry</label><select id="v511AuthSessionExpiry"><option value="24h-sliding" selected>24 hours (sliding)</option><option value="12h">12 hours</option><option value="7d">7 days</option></select></div>
           <div class="v511-row"><label>Session-poll interval</label><div><span class="v511-hint">30 seconds (v5.10.7) &mdash; fixed</span></div></div>
 
           <details class="v511-expander">
             <summary>Service-account login <span class="v511-hint-inline">(legacy mode for non-interactive integrations)</span></summary>
             <div class="v511-expander-body">
-              <div class="v511-row"><label>API key</label><input type="text" placeholder="org_..." /></div>
+              <div class="v511-row"><label for="v511AuthApiKey">API key</label><input type="text" id="v511AuthApiKey" placeholder="org_..." /></div>
               <div class="v511-hint" style="padding: 4px 0;">Use only for non-interactive integrations. Bearer + QR sign-in is preferred for humans.</div>
             </div>
           </details>
@@ -5956,7 +5956,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-hint" style="margin-top: 8px;">Either button revokes server-side; other devices bounce within 30s (v5.10.5 + v5.10.7).</div>
           </div>
 
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511AuthSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511AuthSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
 
         <!-- ===== TAB 6: TOOLS &amp; DIAGNOSTICS ===== -->
@@ -5969,8 +5969,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <details class="v511-expander">
             <summary>Debug <span class="v511-hint-inline">(test-fire controls, console verbosity)</span></summary>
             <div class="v511-expander-body">
-              <div class="v511-row"><label>Debug pill</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Show "Debug" indicator in top-right</span></div></div>
-              <div class="v511-row"><label>Verbose logging</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
+              <div class="v511-row"><label for="v511ToolsDebugPill">Debug pill</label><div><input type="checkbox" id="v511ToolsDebugPill" style="vertical-align: middle;" /> <span class="v511-hint">Show "Debug" indicator in top-right</span></div></div>
+              <div class="v511-row"><label for="v511ToolsVerboseLogging">Verbose logging</label><div><input type="checkbox" id="v511ToolsVerboseLogging" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
             </div>
           </details>
 
@@ -5983,7 +5983,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
           </details>
 
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511ToolsSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511ToolsSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
 
         <!-- ===== TAB 7: RECORDS &amp; ID ===== -->
@@ -8664,6 +8664,102 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var v511OrgSaveBtn = document.getElementById('v511OrgSaveBtn');
           if (v511OrgSaveBtn) v511OrgSaveBtn.addEventListener('click', v511OrgSaveNow);
           v511OrgLoadFromStorage();
+
+          // ---- T4.3.50 — Sign-in & auth tab (click-to-save localStorage) ----
+          // Mirrors the Org tab pattern (T4.3.47). Captures checkbox.checked,
+          // select.value, and text input.value across the Auth panel's fields.
+          // Mockup-only persistence; real implementation will round-trip via
+          // POST /org/settings to organisations.settings_json.
+          var V511_AUTH_LS_KEY = 'v511_mockup_auth_v1';
+          // Each field: { id, type } where type is 'checkbox' | 'value'.
+          var V511_AUTH_FIELDS = [
+            { id: 'v511AuthQrSignin',       type: 'checkbox' },
+            { id: 'v511AuthSameDevice',     type: 'checkbox' },
+            { id: 'v511AuthSessionExpiry',  type: 'value' },
+            { id: 'v511AuthApiKey',         type: 'value' }
+          ];
+          function v511AuthCaptureState() {
+            var state = {};
+            V511_AUTH_FIELDS.forEach(function (f) {
+              var el = document.getElementById(f.id);
+              if (!el) return;
+              state[f.id] = (f.type === 'checkbox') ? !!el.checked : (el.value || '');
+            });
+            return state;
+          }
+          function v511AuthApplyState(state) {
+            if (!state) return;
+            V511_AUTH_FIELDS.forEach(function (f) {
+              if (state[f.id] === undefined) return;
+              var el = document.getElementById(f.id);
+              if (!el) return;
+              if (f.type === 'checkbox') el.checked = !!state[f.id];
+              else el.value = state[f.id];
+            });
+          }
+          function v511AuthSaveNow() {
+            try {
+              localStorage.setItem(V511_AUTH_LS_KEY, JSON.stringify(v511AuthCaptureState()));
+              v511PulsePill('v511AuthSavedPulse');
+            } catch (e) {
+              v511PulsePill('v511AuthSavedPulse');
+            }
+          }
+          function v511AuthLoadFromStorage() {
+            try {
+              var raw = localStorage.getItem(V511_AUTH_LS_KEY);
+              if (raw) v511AuthApplyState(JSON.parse(raw));
+            } catch (e) { /* corrupted blob — leave seeded values */ }
+          }
+          var v511AuthSaveBtn = document.getElementById('v511AuthSaveBtn');
+          if (v511AuthSaveBtn) v511AuthSaveBtn.addEventListener('click', v511AuthSaveNow);
+          v511AuthLoadFromStorage();
+
+          // ---- T4.3.51 — Tools & diagnostics tab (click-to-save localStorage) ----
+          // Same pattern as Auth (T4.3.50). Two persisted toggles in the Debug
+          // expander; everything else in this panel is read-only display
+          // (audit log opener, developer info, fingerprint readouts).
+          var V511_TOOLS_LS_KEY = 'v511_mockup_tools_v1';
+          var V511_TOOLS_FIELDS = [
+            { id: 'v511ToolsDebugPill',       type: 'checkbox' },
+            { id: 'v511ToolsVerboseLogging',  type: 'checkbox' }
+          ];
+          function v511ToolsCaptureState() {
+            var state = {};
+            V511_TOOLS_FIELDS.forEach(function (f) {
+              var el = document.getElementById(f.id);
+              if (!el) return;
+              state[f.id] = (f.type === 'checkbox') ? !!el.checked : (el.value || '');
+            });
+            return state;
+          }
+          function v511ToolsApplyState(state) {
+            if (!state) return;
+            V511_TOOLS_FIELDS.forEach(function (f) {
+              if (state[f.id] === undefined) return;
+              var el = document.getElementById(f.id);
+              if (!el) return;
+              if (f.type === 'checkbox') el.checked = !!state[f.id];
+              else el.value = state[f.id];
+            });
+          }
+          function v511ToolsSaveNow() {
+            try {
+              localStorage.setItem(V511_TOOLS_LS_KEY, JSON.stringify(v511ToolsCaptureState()));
+              v511PulsePill('v511ToolsSavedPulse');
+            } catch (e) {
+              v511PulsePill('v511ToolsSavedPulse');
+            }
+          }
+          function v511ToolsLoadFromStorage() {
+            try {
+              var raw = localStorage.getItem(V511_TOOLS_LS_KEY);
+              if (raw) v511ToolsApplyState(JSON.parse(raw));
+            } catch (e) { /* corrupted blob — leave seeded values */ }
+          }
+          var v511ToolsSaveBtn = document.getElementById('v511ToolsSaveBtn');
+          if (v511ToolsSaveBtn) v511ToolsSaveBtn.addEventListener('click', v511ToolsSaveNow);
+          v511ToolsLoadFromStorage();
 
           // ===========================================================
           // v5.11 Tier 4.1 — localStorage persistence (Visual theming)
