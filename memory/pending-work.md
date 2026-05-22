@@ -1,5 +1,67 @@
 # Pending Work — IRLid
 
+## Friday 22 May 2026 morning — Site scan (9 bugs), cleanup+port plan, autonomy framework, T4.3.50/T4.3.51 mockup wiring (Captain at work)
+
+**Headline.** Captain opened the watch by sharing two screenshots of the live dashboard and noticing yesterday's check-ins still showing as "Today" data. Asked Number One to scan the site for other errors. Scan surfaced nine items grouped by severity (A–I). Captain then asked for a comprehensive cleanup-and-port plan — published as `memory/PLAN-CleanupAndPort-2026-05-22.md` (8 sections, 5 phases, ~5–7 day horizon). Captain then asked about long-term autonomy ("what can you do without me?") and Number One laid out the operating model. Captain's parting move was a 30-minute autonomy stretch: set up the framework, lock the starting marker, execute the safest tasks before he left for work.
+
+**Starting commit at autonomy run:** `374271e` (matches origin/main, verified clean).
+
+**Layered safety contract** (`memory/AUTONOMY-MARKER-2026-05-22.md`):
+
+- **TIER 1 (strictest, no autonomous changes):** live IRLid.co.uk, Cloudflare Worker, D1, secrets, push.
+- **TIER 2 (cautious, no autonomous edits):** `OrgCheckin.html`, `js/**` protocol code, all live-published HTML.
+- **TIER 3 (free):** `OrgCheckinTest.html` mockup, `memory/**`, briefs at repo root, spec docs.
+
+**What landed in the autonomy stretch:**
+
+- **`HANDOVER-CosmeticCleanup-v5.11.1.md` (B1) drafted** — Mr. Data brief, closes live bugs F (prototype copy), G (sidebar v4 → v5), H ("Basic test identity" + defaults), I (light-mode badge contrast), C (`statInSub` math from `rows.length` → `stats.total`). 5 tasks, ~60 lines diff target, single PR. Ready to fire when Captain returns.
+- **`HANDOVER-AttendanceWindow-v5.11.2.md` (B2) drafted** — Mr. Data brief, closes live bugs A (24h window labelled "Today"), B (duplicate IN + linked-expected rows), D (phantom CHECKED OUT). 3 tasks, ~50 lines diff target. Client computes local-midnight `since` and passes explicitly; Worker Expected dedupe aligned with `since` boundary. Single PR. Fire after B1 lands clean.
+- **T4.3.50 — Sign-in & auth tab wired** (mockup). Mirrors T4.3.47 Org-tab pattern; type-aware capture (checkbox vs value). 4 fields persisted.
+- **T4.3.51 — Tools & diagnostics tab wired** (mockup). Same pattern. 2 fields persisted (rest is read-only display).
+- **Build pill** bumped T4.3.49 → T4.3.51 in `OrgCheckinTest.html`.
+
+**Queued for Captain's review on return:**
+
+1. Memory commit (4 files): `AUTONOMY-MARKER`, `PLAN-CleanupAndPort`, session log, this pending-work refresh.
+2. Briefs commit (2 files): `HANDOVER-CosmeticCleanup-v5.11.1.md`, `HANDOVER-AttendanceWindow-v5.11.2.md`.
+3. Mockup commit (1 file): `OrgCheckinTest.html` with T4.3.50 + T4.3.51 wiring.
+4. Fire B1 at Mr. Data; once clean, fire B2.
+
+**Verification Captain should do on return:**
+
+- Open `OrgCheckinTest.html` Tab 5 (Sign-in & auth) → toggle fields → Save All → hard refresh → confirm fields restore.
+- Same drill on Tab 6 (Tools & diagnostics) Debug expander.
+- If anything's wrong, revert recipe in `AUTONOMY-MARKER §4` (local reset to `374271e` is the cleanest path since nothing has been pushed).
+
+**Bug list from Friday morning scan (carry forward):**
+
+- **A.** 24h window labelled "Today" on `/org/attendance` (Worker line 2643). → **B2 closes this.**
+- **B.** Duplicate Spencer/Kerry IN + linked-expected rows. → **B2 closes this (same root as A).**
+- **C.** "5 attendees seen" counts expected stubs. → **B1 closes this.**
+- **D.** Phantom CHECKED OUT (yesterday's checkout still in window). → **B2 closes this.**
+- **E.** BIO-METRIC VERIFIED always 0 in doorman flow. → **Architectural call needed (parked).**
+- **F.** "Local-only test mode. No Cloudflare writes." prototype copy on Settings (`:3669`). → **B1 closes this.**
+- **G.** Sidebar "IRLid Protocol v4" (`:3289`). → **B1 closes this.**
+- **H.** "Basic test identity" heading + `test`/`demo-night` defaults (`:3673-3677`). → **B1 closes this.**
+- **I.** Washed-out badges in light mode (`.role-mini`, `.expected-pill`, `.status-in/out`, `.checkout-signed-badge`). → **B1 closes this.**
+- **J.** Hardware-backed signing key UX friction. Architectural; three resolution paths documented.
+- **K.** 10 acceptance criteria from HANDOVER-StaffInviteQR.md pending hardware walk.
+- **L.** Mockup crosshair Y-drift — close enough per Captain.
+- **M.** Mockup background animation intermittent — needs repro.
+- **N.** Cloudflare token rotation outstanding since 17 May.
+- **O.** `codex/v5.10.1-path-b` branch deletion on origin.
+
+**Carry forward to next session:**
+
+- T4.3.52 Roles & staff tab wiring (mid-weight) — pattern proven by T4.3.50/51.
+- T4.3.53 Event & calendar tab wiring (heaviest) — needs architectural calls.
+- SETTINGS-REVAMP-SPEC.md refresh (spec written 19 May at T4.1.10; mockup now at T4.3.51).
+- `HANDOVER-SettingsRevamp-Port-Phase1.md` (B3) drafting after spec refresh.
+- Bug E architectural decision.
+- Test matrix from `PLAN-CleanupAndPort-2026-05-22.md §4` — 10 categories pre-deploy.
+
+---
+
 ## Thursday 21 May 2026 evening — Mr. Data PR #30 merged (v5.11.0 staff-invite QR), Bunny Fonts shipped, Text typography shipped, Deny shake fixed
 
 **Headline.** Long single-day arc. Mockup work: T4.3.47a (deny shake + badge contrast), T4.3.48 (Text typography expansion, 7 chip rows), T4.3.49 (Bunny Fonts — 9 character fonts via fonts.bunny.net privacy mirror). Mr. Data dispatch: Brief A (`HANDOVER-StaffInviteQR.md`) updated to `v5.11.0`, prompt issued, Mr. Data shipped PR #30 in one session (379 insertions, 7 files: Worker endpoints + D1 migration + Settings UI + scan.html `I:` redeem flow + js/sign.js helpers). PR merged via GitHub web UI after initial draft-status confusion. Worker deployed (`9f2296ba-...`), D1 migration ran (5 queries / 11 rows), frontend live as `Build v5.11.0`.
