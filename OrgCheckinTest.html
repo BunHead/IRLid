@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.3</span></div>
   </div>
 </div>
 
@@ -3909,6 +3909,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-event-modal input[type="number"]:focus,
         :root[data-theme="light"] .v511-event-modal input[type="text"]:focus,
         :root[data-theme="light"] .v511-event-modal select:focus { border-color: #1f6feb; background: #ffffff; }
+        /* T4.3.58.3 — Explicit option styling for the modal + expander selects so OPEN dropdown
+           options inherit dark/light scheme instead of using OS-native rendering only. */
+        .v511-event-modal select option,
+        .v511-expander-body select option { background: #1a1f29; color: #e6edf3; }
+        :root[data-theme="light"] .v511-event-modal select option,
+        :root[data-theme="light"] .v511-expander-body select option { background: #ffffff; color: #0a0a0a; }
         /* T4.3.58.2 — Global Saved toast (replaces inline pulses that flashed off-screen behind the Debug indicator). */
         .v511-global-saved-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); background: rgba(31, 111, 235, 0.95); color: #ffffff; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.18s, transform 0.18s; pointer-events: none; box-shadow: 0 10px 28px rgba(0,0,0,0.4); letter-spacing: 0.2px; }
         .v511-global-saved-toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -6675,22 +6681,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
               showGlobalSavedToast('✓ Saved');
             }
-            // T4.3.58.2 — Auto-rename rooms matching default {OldVocab} N pattern when vocabulary changes.
-            // Only applies to rooms whose label exactly matches "OldVocab 1", "OldVocab 2", etc.
-            // Rooms with custom names (e.g. "Treatment Room A") are left alone.
-            function renameDefaultRoomsForNewVocab(oldVocab, newVocab) {
-              if (!oldVocab || !newVocab || oldVocab === newVocab) return;
+            // T4.3.58.3 — Auto-rename rooms matching ANY preset vocab + number when vocabulary changes.
+            // Catches the "vocab chain" case (Room -> Hall -> Theatre) where rooms were seeded under
+            // an earlier preset and the previous-vocab-only match missed them.
+            var PRESET_VOCABS = ['Room', 'Studio', 'Classroom', 'Pitch', 'Court', 'Hall', 'Theatre'];
+            function renameDefaultRoomsForNewVocab(newVocab) {
+              if (!newVocab) return;
               var rooms = loadRoomsState();
-              var escaped = oldVocab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              var pattern = new RegExp('^' + escaped + ' (\\d+)$');
+              var alt = PRESET_VOCABS.map(function (v) { return v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|');
+              var pattern = new RegExp('^(' + alt + ') (\\d+)$');
               var changed = false;
               rooms.forEach(function (r) {
                 var m = pattern.exec(r.label || '');
-                if (m) { r.label = newVocab + ' ' + m[1]; changed = true; }
+                if (m && m[1] !== newVocab) { r.label = newVocab + ' ' + m[2]; changed = true; }
               });
               if (changed) saveRoomsState(rooms);
             }
-            document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var prevSingular = roomVocabSingular(); var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); var newSingular = parts[0] || 'Room'; var newPlural = parts[1] || 'Rooms'; saveCalSettings({ room_vocabulary_singular: newSingular, room_vocabulary_plural: newPlural }); renameDefaultRoomsForNewVocab(prevSingular, newSingular); renderAll(); flashRoomVocabPulse(); }); });
+            document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); var newSingular = parts[0] || 'Room'; var newPlural = parts[1] || 'Rooms'; saveCalSettings({ room_vocabulary_singular: newSingular, room_vocabulary_plural: newPlural }); renameDefaultRoomsForNewVocab(newSingular); renderAll(); flashRoomVocabPulse(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
             function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (p) { p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); } showGlobalSavedToast('✓ Saved'); }
