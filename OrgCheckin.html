@@ -3300,7 +3300,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.2</span></div>
   </div>
 </div>
 
@@ -6366,6 +6366,29 @@ let __remoteCheckinPollHandle = null;
 function markDashboardCheckin() { __lastDashboardCheckinAt = Date.now(); }
 window.markDashboardCheckin = markDashboardCheckin;
 
+function localMidnightToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return Math.floor(d.getTime() / 1000);
+}
+
+async function listTodayAttendance(orgKey) {
+  const base = window.IRLidOrgApi?.workerBaseUrl
+    ? window.IRLidOrgApi.workerBaseUrl()
+    : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+  const since = localMidnightToday();
+  const response = await fetch(`${base}/org/attendance?since=${since}&include_expected=1`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Org-Key': orgKey
+    }
+  });
+  let data = null;
+  try { data = await response.json(); } catch {}
+  if (!response.ok) throw new Error(data?.error || `Request failed with status ${response.status}`);
+  return data;
+}
+
 function rowDisplayName(row) {
   if (!row) return '';
   const n = (row.name || row.attendee_label || '').toString().trim();
@@ -6409,7 +6432,7 @@ async function refreshAttendance() {
     return;
   }
   try {
-    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key, { includeExpected: true });
+    const payload = await listTodayAttendance(currentOrg.api_key);
     const checkins = payload.checkins || [];
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
     // everything without firing. Subsequent polls compare each row's current
