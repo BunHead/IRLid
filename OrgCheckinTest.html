@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.60</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.61</span></div>
   </div>
 </div>
 
@@ -3766,6 +3766,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-swim-event.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left: 3px solid #BA7517; }
         .v511-swim-event small { display: block; font-size: 10.5px; opacity: 0.85; margin-top: 2px; }
         .v511-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; width: 100%; }
+        .v511-week-csv-pair { display: inline-flex; gap: 4px; align-items: center; }
         .v511-week-label { color: var(--text); font-size: 13px; font-weight: 700; min-width: 220px; text-align: center; }
         .v511-day-chip-row { display: flex; gap: 5px; flex-wrap: wrap; }
         .v511-day-chip { padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.13); background: rgba(255,255,255,0.04); color: var(--muted); font-size: 12px; cursor: pointer; font-family: inherit; }
@@ -5497,8 +5498,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-week-label" id="v511WeekLabel">This week</div>
               <button type="button" class="v511-btn v511-btn-mini" id="v511ThisWeekBtn">This week</button>
               <button type="button" class="v511-btn v511-btn-mini" id="v511NextWeekBtn">Next week &rarr;</button>
-              <button type="button" class="v511-btn v511-btn-mini" id="v511ExportWeekBtn">Export week</button>
-              <button type="button" class="v511-btn v511-btn-mini" id="v511ImportWeekBtn" title="Replace this week's events from a CSV file (template)">Import week</button>
+              <div class="v511-week-csv-pair" role="group" aria-label="Week CSV import/export">
+                <button type="button" class="v511-btn v511-btn-mini" id="v511ExportWeekBtn">Export week</button>
+                <button type="button" class="v511-btn v511-btn-mini" id="v511ImportWeekBtn" title="Replace this week's events from a CSV file (template)">Import week</button>
+              </div>
               <button type="button" class="v511-btn v511-btn-mini" id="v511WeekStartToggle" title="Toggle week start day">Week starts: Mon</button>
             </div>
             <div class="v511-day-chip-row" id="v511WeekDayChips" aria-label="Select day"></div>
