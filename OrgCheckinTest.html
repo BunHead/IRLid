@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.57.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58</span></div>
   </div>
 </div>
 
@@ -3802,6 +3802,49 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-day-event-pill.is-past::after { content: " (past)"; font-size: 9px; opacity: 0.7; }
         .v511-cal-row.is-past { opacity: 0.6; }
         .v511-cal-row.is-past .v511-btn { opacity: 0.85; }
+        /* T4.3.58 — Vertical 24-hour day table (List view rebuild) */
+        .v511-day-table { display: flex; flex-direction: column; }
+        .v511-day-table-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; color: var(--text); }
+        .v511-day-table-head strong { font-size: 14px; }
+        .v511-day-table-head span { font-size: 12px; color: var(--muted); margin-left: 6px; }
+        .v511-day-table-cols { display: grid; gap: 0; }
+        .v511-day-room-col-head { padding: 8px 10px; font-weight: 700; font-size: 12px; color: var(--text); border-bottom: 1px solid rgba(255,255,255,0.1); text-align: center; background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 5; }
+        .v511-day-room-col-head.room-studio1 { color: #c8e0ff; }
+        .v511-day-room-col-head.room-studio2 { color: #c0dd97; }
+        .v511-day-room-col-head.room-studio3 { color: #fac775; }
+        .v511-day-table-scroll { max-height: 70vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
+        .v511-day-table-inner { display: grid; position: relative; }
+        .v511-day-time-col { position: relative; }
+        .v511-day-time-row { height: 40px; border-top: 1px solid rgba(255,255,255,0.06); padding: 2px 8px; font-size: 10.5px; color: var(--muted); display: flex; align-items: flex-start; justify-content: flex-end; }
+        .v511-day-time-row:first-child { border-top: none; }
+        .v511-day-room-col-v { position: relative; border-left: 1px solid rgba(255,255,255,0.06); }
+        .v511-day-room-col-v .v511-day-hour-line { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.05); pointer-events: none; }
+        .v511-day-working-band-v { position: absolute; left: 0; right: 0; background: rgba(255,255,255,0.09); pointer-events: none; z-index: 0; }
+        .v511-day-break-band-v { position: absolute; left: 0; right: 0; background: rgba(217, 154, 31, 0.22); border-top: 1px dashed rgba(217, 154, 31, 0.55); border-bottom: 1px dashed rgba(217, 154, 31, 0.55); pointer-events: none; z-index: 1; }
+        .v511-day-vert-event { position: absolute; left: 4px; right: 4px; padding: 6px 8px; border-radius: 6px; border: 0; border-left: 3px solid; cursor: pointer; text-align: left; font-family: inherit; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; z-index: 3; box-shadow: 0 6px 14px rgba(0,0,0,0.18); transition: filter 0.15s, transform 0.15s; }
+        .v511-day-vert-event:hover { transform: translateX(1px); filter: brightness(1.08); }
+        .v511-day-vert-event b { font-size: 11.5px; font-weight: 700; line-height: 1.2; }
+        .v511-day-vert-event small { font-size: 10px; opacity: 0.85; }
+        .v511-day-vert-event.room-studio1 { background: rgba(105, 168, 255, 0.28); color: #c8e0ff; border-left-color: #58a6ff; }
+        .v511-day-vert-event.room-studio2 { background: rgba(99,153,34,0.28); color: #c0dd97; border-left-color: #639922; }
+        .v511-day-vert-event.room-studio3 { background: rgba(186,117,23,0.3); color: #fac775; border-left-color: #BA7517; }
+        .v511-day-vert-event.is-past { opacity: 0.55; filter: grayscale(0.4); cursor: default; }
+        .v511-day-vert-event.is-past::after { content: " (past)"; font-size: 9px; opacity: 0.7; }
+        .v511-day-now-line-v { position: absolute; left: 0; right: 0; height: 2px; background: var(--accent, #58a6ff); z-index: 6; pointer-events: none; box-shadow: 0 0 8px rgba(88, 166, 255, 0.6); }
+        .v511-day-now-line-v .v511-day-now-label-v { position: absolute; left: 4px; top: -16px; font-size: 9.5px; background: var(--accent, #58a6ff); color: #000; padding: 1px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap; }
+        :root[data-theme="light"] .v511-day-table-scroll { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.02); }
+        :root[data-theme="light"] .v511-day-time-row { border-top-color: rgba(0,0,0,0.06); color: rgba(0,0,0,0.5); }
+        :root[data-theme="light"] .v511-day-room-col-v { border-left-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-day-room-col-head { background: rgba(0,0,0,0.04); border-bottom-color: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-day-room-col-head.room-studio1 { color: #0a3d80; }
+        :root[data-theme="light"] .v511-day-room-col-head.room-studio2 { color: #2c5b08; }
+        :root[data-theme="light"] .v511-day-room-col-head.room-studio3 { color: #6b3e00; }
+        :root[data-theme="light"] .v511-day-working-band-v { background: rgba(26,127,55,0.13); }
+        :root[data-theme="light"] .v511-day-break-band-v { background: rgba(184, 108, 0, 0.18); border-top-color: rgba(184, 108, 0, 0.55); border-bottom-color: rgba(184, 108, 0, 0.55); }
+        :root[data-theme="light"] .v511-day-hour-line { background: rgba(0,0,0,0.05); }
+        :root[data-theme="light"] .v511-day-vert-event.room-studio1 { background: #d6e8ff; color: #0a3d80; border-left-color: #1f6feb; }
+        :root[data-theme="light"] .v511-day-vert-event.room-studio2 { background: #d8ecbb; color: #2c5b08; border-left-color: #1a7f37; }
+        :root[data-theme="light"] .v511-day-vert-event.room-studio3 { background: #fae4b8; color: #6b3e00; border-left-color: #9a6b00; }
         /* T4.3.57 — dark-mode styling for native time inputs + select in Event defaults.
            Native time inputs default to white background in dark mode without overrides. */
         .v511-expander-body input[type="time"],
@@ -5291,7 +5334,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <div class="v511-tabs" role="tablist" aria-label="Settings sections">
           <button type="button" class="active" data-v511-tab="org"><span class="v511-tab-icon" aria-hidden="true">&#x1F3E2;</span>1. Organisation</button>
           <button type="button" data-v511-tab="cal"><span class="v511-tab-icon" aria-hidden="true">&#x1F4C5;</span>2. Event &amp; Calendar</button>
-          <button type="button" data-v511-tab="roles"><span class="v511-tab-icon" aria-hidden="true">&#x1F465;</span>3. Roles &amp; Staff</button>
+          <button type="button" data-v511-tab="roles"><span class="v511-tab-icon" aria-hidden="true">&#x1F465;</span>3. Staff &amp; Rooms</button>
           <button type="button" data-v511-tab="theme"><span class="v511-tab-icon" aria-hidden="true">&#x1F3A8;</span>4. Visual Theming</button>
           <button type="button" data-v511-tab="auth"><span class="v511-tab-icon" aria-hidden="true">&#x1F510;</span>5. Sign-in &amp; Auth</button>
           <button type="button" data-v511-tab="tools"><span class="v511-tab-icon" aria-hidden="true">&#x1F527;</span>6. Tools &amp; Diagnostics</button>
@@ -5723,7 +5766,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 3: ROLES &amp; STAFF ===== -->
         <section class="v511-panel" data-v511-panel="roles">
-          <div class="v511-head"><h3>Roles &amp; Staff</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Staff &amp; Rooms</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
           <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
           <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
@@ -6387,29 +6430,90 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function renderDayChips() {
               var wrap = document.getElementById('v511WeekDayChips');
               if (!wrap) return;
-              var activeDay = (currentView === 'list') ? state.listFilterDay : state.selectedDay;
               wrap.innerHTML = orderedDays().map(function (dow) {
-                return '<button type="button" class="v511-day-chip' + (dow === activeDay ? ' is-current' : '') + '" data-week-day="' + dow + '" title="' + (currentView === 'list' ? (dow === state.listFilterDay ? 'Click to show whole week' : 'Click to filter list to ' + DAY_NAMES[dow - 1]) : 'Click to view ' + DAY_NAMES[dow - 1]) + '">' + DAY_SHORT[dow - 1] + '</button>';
+                return '<button type="button" class="v511-day-chip' + (dow === state.selectedDay ? ' is-current' : '') + '" data-week-day="' + dow + '" title="Click to view ' + DAY_NAMES[dow - 1] + '">' + DAY_SHORT[dow - 1] + '</button>';
               }).join('');
             }
             function csvFor(events) { var roomHeader = roomVocabSingular().trim().toLowerCase().replace(/\s+/g, '_') || 'room'; return ['event_name,' + roomHeader + ',start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
             function downloadCsv(filename, csv) { var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
+            // T4.3.58 — List view rebuilt as vertical 24-hour day grid (rooms as columns).
+            // Same data + interactions as Swim-lane, just rotated 90 degrees: time on Y axis, rooms on X axis.
             function renderList() {
               var wrap = document.getElementById('v511CalWrap');
               if (!wrap) return;
-              var allRows = filteredEvents();
-              var dayFilter = state.listFilterDay || null;
-              var rows = dayFilter ? allRows.filter(function (ev) { return ev.day_of_week === dayFilter; }) : allRows;
-              var headerNote = dayFilter ? '<div class="v511-week-list-row" style="background:rgba(105,168,255,0.08); border-bottom:1px solid rgba(105,168,255,0.25); grid-template-columns:1fr;"><div style="padding:6px 10px;"><span class="v511-hint">Filtered to ' + DAY_NAMES[dayFilter - 1] + '. <button type="button" class="v511-btn v511-btn-mini" id="v511ListClearFilter" style="margin-left:8px;">Show whole week</button></span></div></div>' : '';
-              wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>' + htmlEscape(roomVocabSingular()) + '</div><div></div></div>' + headerNote + (rows.length ? rows.map(function (ev) {
-                var room = ROOM_META[ev.room_id] || ROOM_META.studio1;
-                var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60));
-                var past = isEventPast(ev, ev.day_of_week);
-                var btn = past
-                  ? '<button type="button" class="v511-btn v511-btn-mini" data-view-event="' + htmlEscape(ev.id) + '">View</button>'
-                  : '<button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button>';
-                return '<div class="v511-week-list-row v511-cal-row filled' + (past ? ' is-past' : '') + '" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div>' + btn + '</div></div>';
-              }).join('') : '<div class="v511-week-empty">No events' + (dayFilter ? ' on ' + DAY_NAMES[dayFilter - 1] : ' for this ' + htmlEscape(roomVocabSingular().toLowerCase()) + ' filter') + '.</div>');
+              var dow = state.selectedDay || dayOfWeekForDate(new Date());
+              var date = dateForDow(dow);
+              var dayName = DAY_NAMES[dow - 1];
+              var now = new Date();
+              var isToday = isoDate(date) === isoDate(now);
+              var nowMin = now.getHours() * 60 + now.getMinutes();
+              var activeRooms = roomsForFilter();
+              var dayEvents = filteredEvents().filter(function (ev) { return ev.day_of_week === dow && activeRooms.indexOf(ev.room_id) >= 0; });
+              var whStart = workingHoursStartMin();
+              var whEnd = workingHoursEndMin();
+              var breaks = breaksList();
+              var HOUR_PX = 40; // height per hour row
+              var totalPx = 24 * HOUR_PX;
+
+              var header = '<div class="v511-day-table-head"><div><strong>' + htmlEscape(dayName) + '</strong> <span>' + htmlEscape(isoDate(date)) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div>';
+
+              // Header row (sticky column headers)
+              var headerCells = '<div></div>' + activeRooms.map(function (roomId) { var r = ROOM_META[roomId]; return '<div class="v511-day-room-col-head ' + r.className + '">' + htmlEscape(r.label) + '</div>'; }).join('');
+              var headerGridStyle = 'grid-template-columns: 60px repeat(' + activeRooms.length + ', 1fr);';
+
+              // Time column rows
+              var timeRows = '';
+              for (var h = 0; h < 24; h++) { timeRows += '<div class="v511-day-time-row">' + pad2(h) + ':00</div>'; }
+              var timeCol = '<div class="v511-day-time-col">' + timeRows + '</div>';
+
+              // Working band + break bands (positioned within the inner grid, span all room columns)
+              var bandSpanStyle = 'grid-column: 2 / span ' + activeRooms.length + '; position: relative;';
+              var workingBand = '<div class="v511-day-working-band-v" style="top:' + minutesToPercent(whStart).toFixed(2) + '%; bottom:' + (100 - minutesToPercent(whEnd)).toFixed(2) + '%;"></div>';
+              var breakBands = breaks.map(function (br) { if (br.end <= br.start) return ''; return '<div class="v511-day-break-band-v" style="top:' + minutesToPercent(br.start).toFixed(2) + '%; bottom:' + (100 - minutesToPercent(br.end)).toFixed(2) + '%;" title="Break ' + timeFromMinutes(br.start) + '-' + timeFromMinutes(br.end) + '"></div>'; }).join('');
+
+              // Room columns with events
+              var roomCols = activeRooms.map(function (roomId) {
+                var room = ROOM_META[roomId];
+                var roomEvents = dayEvents.filter(function (ev) { return ev.room_id === roomId; });
+                var hourLines = '';
+                for (var hh = 1; hh < 24; hh++) { hourLines += '<div class="v511-day-hour-line" style="top:' + ((hh / 24) * 100).toFixed(2) + '%;"></div>'; }
+                var pills = roomEvents.map(function (ev) {
+                  var startMin = minutesFromTime(ev.start_time_local);
+                  var durMin = Number(ev.duration_min || 60);
+                  var topPct = minutesToPercent(startMin);
+                  var heightPct = (durMin / 1440) * 100;
+                  var past = isEventPast(ev, dow);
+                  var endMin = startMin + durMin;
+                  var attr = past ? 'data-view-event' : 'data-edit-event';
+                  return '<button type="button" class="v511-day-vert-event ' + room.className + (past ? ' is-past' : '') + '" ' + attr + '="' + htmlEscape(ev.id) + '" style="top:' + topPct.toFixed(2) + '%; height:' + Math.max(2.5, heightPct).toFixed(2) + '%;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + timeFromMinutes(endMin) + '</small></button>';
+                }).join('');
+                return '<div class="v511-day-room-col-v ' + room.className + '" data-room-id="' + htmlEscape(roomId) + '">' + hourLines + pills + '</div>';
+              }).join('');
+
+              // Now line — only visible if today
+              var nowLine = isToday ? '<div class="v511-day-now-line-v" style="top:' + minutesToPercent(nowMin).toFixed(2) + '%; grid-column: 2 / span ' + activeRooms.length + ';"><span class="v511-day-now-label-v">Now ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + '</span></div>' : '';
+
+              var innerStyle = 'grid-template-columns: 60px repeat(' + activeRooms.length + ', 1fr); height: ' + totalPx + 'px;';
+
+              wrap.innerHTML = header +
+                '<div class="v511-day-table-cols" style="' + headerGridStyle + '">' + headerCells + '</div>' +
+                '<div class="v511-day-table-scroll" id="v511DayTableScroll">' +
+                  '<div class="v511-day-table-inner" style="' + innerStyle + '">' +
+                    timeCol + roomCols +
+                    '<div class="v511-day-bands-overlay" style="' + bandSpanStyle + ' position: absolute; top: 0; bottom: 0; left: 60px; right: 0; pointer-events: none;">' + workingBand + breakBands + '</div>' +
+                    nowLine +
+                  '</div>' +
+                '</div>';
+
+              // Auto-scroll to centre Now line if viewing today
+              if (isToday) {
+                var scrollEl = document.getElementById('v511DayTableScroll');
+                if (scrollEl) {
+                  var nowTopPx = (nowMin / 1440) * totalPx;
+                  var targetScroll = Math.max(0, nowTopPx - (scrollEl.clientHeight / 2));
+                  scrollEl.scrollTop = targetScroll;
+                }
+              }
             }
             function eventEndMin(ev) { return minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60); }
             function isEventPast(ev, dow) {
@@ -6556,14 +6660,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) {
               var btn = e.target.closest('[data-week-day]');
               if (!btn) return;
-              var dow = parseInt(btn.getAttribute('data-week-day'), 10);
-              if (currentView === 'list') {
-                // Bug W: in List view, day chips filter the list. Click active chip again to unfilter.
-                state.listFilterDay = (state.listFilterDay === dow) ? null : dow;
-              } else {
-                // Swim-lane view: day chips switch the displayed day.
-                state.selectedDay = dow;
-              }
+              // T4.3.58 — both views are single-day now, so chips set selectedDay uniformly.
+              state.selectedDay = parseInt(btn.getAttribute('data-week-day'), 10);
               renderAll();
             });
             function openEventByIdSmart(eventId, forceReadonly) {
