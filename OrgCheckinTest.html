@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.55</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.56</span></div>
   </div>
 </div>
 
@@ -3731,6 +3731,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-rooms-list { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: rgba(0,0,0,0.18); overflow: hidden; }
         .v511-room-row { display: grid; grid-template-columns: 1fr 110px 100px; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: var(--text); }
         .v511-room-row:last-child { border-bottom: none; }
+        .v511-room-row-draft { background: rgba(105, 168, 255, 0.06); border-left: 2px solid var(--accent, #58a6ff); padding: 6px 8px; border-radius: 4px; grid-template-columns: 1fr 150px; }
+        .v511-room-row-editing { background: rgba(105, 168, 255, 0.04); }
+        .v511-room-draft-fields { display: grid; grid-template-columns: 1.4fr 1.4fr 0.6fr; gap: 6px; flex: 1; }
+        .v511-room-draft-fields input { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; padding: 4px 8px; color: var(--text); font-family: inherit; font-size: 12px; min-width: 0; }
         .v511-room-cap { color: var(--muted); font-size: 12px; }
         .v511-room-actions { display: flex; gap: 4px; justify-content: flex-end; }
         .v511-cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
@@ -4012,6 +4016,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-staff select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); height: 28px; }
         :root[data-theme="light"] .v511-rooms-list { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-room-row { border-bottom-color: rgba(0,0,0,0.05); color: var(--text); }
+        :root[data-theme="light"] .v511-room-row-draft { background: rgba(31, 111, 235, 0.06); border-left-color: #1f6feb; }
+        :root[data-theme="light"] .v511-room-draft-fields input { background: #f3f5f8; border-color: rgba(0,0,0,0.14); color: #0a0a0a; }
         :root[data-theme="light"] .v511-room-cap { color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-wav-slot { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-wav-slot .v511-wav-file { color: rgba(0,0,0,0.55); }
@@ -5259,11 +5265,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <div class="v511-mockup">
         <div class="v511-tabs" role="tablist" aria-label="Settings sections">
           <button type="button" class="active" data-v511-tab="org"><span class="v511-tab-icon" aria-hidden="true">&#x1F3E2;</span>1. Organisation</button>
-          <button type="button" data-v511-tab="cal"><span class="v511-tab-icon" aria-hidden="true">&#x1F4C5;</span>2. Event &amp; calendar</button>
-          <button type="button" data-v511-tab="roles"><span class="v511-tab-icon" aria-hidden="true">&#x1F465;</span>3. Roles &amp; staff</button>
-          <button type="button" data-v511-tab="theme"><span class="v511-tab-icon" aria-hidden="true">&#x1F3A8;</span>4. Visual theming</button>
-          <button type="button" data-v511-tab="auth"><span class="v511-tab-icon" aria-hidden="true">&#x1F510;</span>5. Sign-in &amp; auth</button>
-          <button type="button" data-v511-tab="tools"><span class="v511-tab-icon" aria-hidden="true">&#x1F527;</span>6. Tools &amp; diagnostics</button>
+          <button type="button" data-v511-tab="cal"><span class="v511-tab-icon" aria-hidden="true">&#x1F4C5;</span>2. Event &amp; Calendar</button>
+          <button type="button" data-v511-tab="roles"><span class="v511-tab-icon" aria-hidden="true">&#x1F465;</span>3. Roles &amp; Staff</button>
+          <button type="button" data-v511-tab="theme"><span class="v511-tab-icon" aria-hidden="true">&#x1F3A8;</span>4. Visual Theming</button>
+          <button type="button" data-v511-tab="auth"><span class="v511-tab-icon" aria-hidden="true">&#x1F510;</span>5. Sign-in &amp; Auth</button>
+          <button type="button" data-v511-tab="tools"><span class="v511-tab-icon" aria-hidden="true">&#x1F527;</span>6. Tools &amp; Diagnostics</button>
           <button type="button" data-v511-tab="records"><span class="v511-tab-icon" aria-hidden="true">&#x1F4CB;</span>7. Records &amp; ID</button>
         </div>
 
@@ -5313,7 +5319,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
         <section class="v511-panel" data-v511-panel="cal">
-          <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
+          <div class="v511-head"><h3>Event &amp; Calendar</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
 
           <div class="v511-sub">Weekly events <span class="v511-hint-inline" id="v511WeeklyEventsSub">(7-day cycle, across rooms)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div>
 
@@ -5675,7 +5681,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Late check-in grace after</label><input type="text" value="30 minutes" /></div>
               <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
               <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
-              <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
+              <div class="v511-row"><label>Require proof</label><select><option>Off</option><option>Optional</option><option>Required</option></select></div>
               <div class="v511-hint" style="margin-top: 8px; padding: 6px 0;">Post-accept behaviour (welcome message, redirects, dwell time, email/SMS) lives in <strong style="color: var(--text);">Visual theming → Post-accept behaviour</strong> — it's a visual/flow setting, not an event-data setting.</div>
             </div>
           </details>
@@ -5685,7 +5691,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 3: ROLES &amp; STAFF ===== -->
         <section class="v511-panel" data-v511-panel="roles">
-          <div class="v511-head"><h3>Roles &amp; staff</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Roles &amp; Staff</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
           <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
           <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
@@ -5714,8 +5720,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Classroom|Classrooms">Classroom</button>
                 <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Pitch|Pitches">Pitch</button>
                 <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Court|Courts">Court</button>
-                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Treatment room|Treatment rooms">Treatment room</button>
-                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Dungeon|Dungeons">Dungeon</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Hall|Halls">Hall</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Theatre|Theatres">Theatre</button>
               </div>
               <div class="v511-row" style="margin-top: 10px;">
                 <label>Singular</label><input type="text" id="v511RoomVocabSingular" placeholder="e.g. Studio" />
@@ -5730,12 +5736,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <details class="v511-expander">
             <summary>Rooms / spaces <span class="v511-hint-inline">(each event runs in one room; rooms have their own venue QR and capacity)</span></summary>
             <div class="v511-expander-body">
-              <div class="v511-rooms-list">
+              <div class="v511-rooms-list" id="v511RoomsList">
                 <div class="v511-room-row"><div>Studio 1 <span class="v511-hint-inline">— main hall</span></div><div class="v511-room-cap">cap 30</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
                 <div class="v511-room-row"><div>Studio 2</div><div class="v511-room-cap">cap 20</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
                 <div class="v511-room-row"><div>Studio 3 <span class="v511-hint-inline">— kids room</span></div><div class="v511-room-cap">cap 15</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove">×</button></div></div>
               </div>
-              <div style="margin-top: 10px;"><button type="button" class="v511-btn">+ Add room</button> <span class="v511-hint" style="margin-left: 8px;">Each room gets its own venue QR at the entrance; doorman flow scopes to the room you scanned into.</span></div>
+              <div style="margin-top: 10px;"><button type="button" class="v511-btn" id="v511AddRoomBtn">+ Add room</button> <span class="v511-hint" style="margin-left: 8px;">Each room gets its own venue QR at the entrance; doorman flow scopes to the room you scanned into.</span></div>
             </div>
           </details>
 
@@ -5744,7 +5750,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 4: VISUAL THEMING ===== -->
         <section class="v511-panel" data-v511-panel="theme" data-mode="allow">
-          <div class="v511-head"><h3>Visual theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span> <span class="v511-saved-pulse" id="v511SavedPulse" aria-live="polite">&#10003; Saved</span></div>
+          <div class="v511-head"><h3>Visual Theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span> <span class="v511-saved-pulse" id="v511SavedPulse" aria-live="polite">&#10003; Saved</span></div>
 
           <!-- Theme preview at top — full-width, fullscreen-aspect.
                Tier 4.1.1: mode tint moved off the preview; the preview now shows
@@ -6067,7 +6073,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 5: SIGN-IN &amp; AUTH ===== -->
         <section class="v511-panel" data-v511-panel="auth">
-          <div class="v511-head"><h3>Sign-in &amp; auth</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Sign-in &amp; Auth</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
           <div class="v511-row"><label for="v511AuthQrSignin">QR sign-in</label><div><input type="checkbox" id="v511AuthQrSignin" checked style="vertical-align: middle;" /> <span class="v511-hint">Enable WebAuthn QR-scan login (recommended)</span></div></div>
           <div class="v511-row"><label for="v511AuthSameDevice">Same-device sign-in</label><div><input type="checkbox" id="v511AuthSameDevice" checked style="vertical-align: middle;" /> <span class="v511-hint">Show "Sign in on this device" button (v5.10.6)</span></div></div>
@@ -6094,7 +6100,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 6: TOOLS &amp; DIAGNOSTICS ===== -->
         <section class="v511-panel" data-v511-panel="tools">
-          <div class="v511-head"><h3>Tools &amp; diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Tools &amp; Diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
           <div class="v511-sub">Audit log <span class="v511-hint-inline">(the daily launcher — see what changed and when)</span></div>
           <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
@@ -6265,17 +6271,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function scrollCalToNow() {
             if (typeof v511WeeklyJumpToNow === 'function') v511WeeklyJumpToNow();
           }
-          // T4.3.55 - Weekly calendar renderer lives in localStorage only.
+          // T4.3.56 - Weekly calendar renderer lives in localStorage only.
           (function initV511WeeklyCalendar() {
             var STORAGE_KEY = 'v511_mockup_weekly_events_v1';
             var V511_CAL_SETTINGS_KEY = 'v511_mockup_calendar_settings_v1';
+            var V511_ROOMS_KEY = 'v511_mockup_rooms_v1';
             var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
             var DAY_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-            var ROOM_META = {
-              studio1: { label: 'Studio 1', className: 'room-studio1', color: '#1f6feb' },
-              studio2: { label: 'Studio 2', className: 'room-studio2', color: '#1a7f37' },
-              studio3: { label: 'Studio 3', className: 'room-studio3', color: '#9a6b00' }
-            };
+            var ROOM_CLASSES = ['room-studio1', 'room-studio2', 'room-studio3'];
+            var ROOM_COLORS = ['#1f6feb', '#1a7f37', '#9a6b00'];
+            var ROOM_META = roomMetaFromRooms(loadRoomsState());
             var state = loadWeeklyState();
             state.selectedDay = dayOfWeekForDate(new Date());
             state.roomFilter = 'all';
@@ -6286,6 +6291,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
             function minutesFromTime(t) { var p = String(t || '00:00').split(':'); return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0); }
             function timeFromMinutes(m) { m = Math.max(0, Math.min(1439, m)); return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
+            function seedRooms() { return [{ id: 'studio1', label: 'Studio 1', subname: 'main hall', capacity: 30 }, { id: 'studio2', label: 'Studio 2', subname: '', capacity: 20 }, { id: 'studio3', label: 'Studio 3', subname: 'kids room', capacity: 15 }]; }
+            function loadRoomsState() { try { var raw = JSON.parse(localStorage.getItem(V511_ROOMS_KEY) || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} var fallback = seedRooms(); try { localStorage.setItem(V511_ROOMS_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function saveRoomsState(rooms) { try { localStorage.setItem(V511_ROOMS_KEY, JSON.stringify(rooms)); } catch (_) {} }
+            function roomMetaFromRooms(rooms) { var meta = {}; rooms.forEach(function (room, ix) { var id = room.id || ('room' + ix); meta[id] = { label: room.label || 'Untitled room', subname: room.subname || '', capacity: parseInt(room.capacity || '0', 10) || 0, className: ROOM_CLASSES[ix % ROOM_CLASSES.length], color: ROOM_COLORS[ix % ROOM_COLORS.length] }; }); return meta; }
+            function refreshRoomMeta() { ROOM_META = roomMetaFromRooms(loadRoomsState()); }
             function loadCalSettings() {
               try {
                 var raw = localStorage.getItem(V511_CAL_SETTINGS_KEY);
@@ -6322,17 +6332,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function saveWeeklyState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ weekStartIso: state.weekStartIso, events: state.events })); } catch (_) {} }
             function setView(view) { currentView = view; document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (b) { var active = b.getAttribute('data-cal-view') === view; b.classList.toggle('active', active); b.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.getElementById('v511CalWrap').hidden = view !== 'list'; document.getElementById('v511CalSwimlane').hidden = view !== 'swimlane'; }
             function weekLabel() { var start = new Date(state.weekStartIso + 'T00:00:00'); var end = addDays(start, 6); return displayDate(start) + ' – ' + displayDate(end) + ' ' + end.getFullYear(); }
-            function filteredEvents() { var room = state.roomFilter || document.getElementById('v511CalRoomFilter')?.value || 'all'; var order = orderedDays(); return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (order.indexOf(a.day_of_week) - order.indexOf(b.day_of_week)) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
+            function filteredEvents() { var room = state.roomFilter || document.getElementById('v511CalRoomFilter')?.value || 'all'; var order = orderedDays(); return state.events.filter(function (ev) { return ROOM_META[ev.room_id] && (room === 'all' || ev.room_id === room); }).sort(function (a, b) { return (order.indexOf(a.day_of_week) - order.indexOf(b.day_of_week)) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
             function roomsForFilter() { var filter = state.roomFilter || 'all'; if (filter === 'all') return Object.keys(ROOM_META); return ROOM_META[filter] ? [filter] : []; }
             function dateForDow(dow) { var order = orderedDays(); return addDays(new Date(state.weekStartIso + 'T00:00:00'), order.indexOf(dow)); }
-            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderDayLanes(); renderRoomSelect(); renderRoomVocabularyControls(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 ' + roomVocabPlural().toLowerCase() + ' - working hours band (09:00-17:59) shown brighter'; }
+            function renderAll() { refreshRoomMeta(); var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderRoomSelect(); renderRoomsList(); renderDayChips(); renderList(); renderDayLanes(); renderRoomVocabularyControls(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across ' + Object.keys(ROOM_META).length + ' ' + roomVocabPlural().toLowerCase() + ' - working hours band (09:00-17:59) shown brighter'; }
             function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; wrap.innerHTML = orderedDays().map(function (dow) { return '<button type="button" class="v511-day-chip' + (dow === state.selectedDay ? ' is-current' : '') + '" data-week-day="' + dow + '">' + DAY_SHORT[dow - 1] + '</button>'; }).join(''); }
             function csvFor(events) { var roomHeader = roomVocabSingular().trim().toLowerCase().replace(/\s+/g, '_') || 'room'; return ['event_name,' + roomHeader + ',start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
             function downloadCsv(filename, csv) { var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
             function renderList() { var wrap = document.getElementById('v511CalWrap'); if (!wrap) return; var rows = filteredEvents(); wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>' + htmlEscape(roomVocabSingular()) + '</div><div></div></div>' + (rows.length ? rows.map(function (ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60)); return '<div class="v511-week-list-row v511-cal-row filled" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div><button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button></div></div>'; }).join('') : '<div class="v511-week-empty">No events for this ' + htmlEscape(roomVocabSingular().toLowerCase()) + ' filter.</div>'); }
             function renderDayLanes() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var dow = state.selectedDay || dayOfWeekForDate(new Date()); var date = dateForDow(dow); var dayName = DAY_NAMES[dow - 1]; var now = new Date(); var isToday = isoDate(date) === isoDate(now); var nowPercent = isToday ? (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) : null; var activeRooms = roomsForFilter(); var dayEvents = filteredEvents().filter(function (ev) { return ev.day_of_week === dow && activeRooms.indexOf(ev.room_id) >= 0; }); var header = '<div class="v511-day-lane-head"><div><strong>' + htmlEscape(dayName) + '</strong> <span>' + htmlEscape(isoDate(date)) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div>'; var ticks = '<div class="v511-day-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div>'; var lanes = activeRooms.map(function (roomId) { var room = ROOM_META[roomId]; if (!room) return ''; var roomEvents = dayEvents.filter(function (ev) { return ev.room_id === roomId; }); var pills = roomEvents.length ? roomEvents.map(renderEventPill).join('') : ''; var emptyLabel = roomEvents.length ? '' : '<div class="v511-lane-empty">No events</div>'; return '<div class="v511-day-lane ' + room.className + '" data-room-id="' + htmlEscape(roomId) + '"><div class="v511-day-lane-label">' + htmlEscape(room.label) + '</div><div class="v511-day-lane-timeline">' + pills + emptyLabel + '</div></div>'; }).join(''); var nowLine = (nowPercent !== null) ? '<div class="v511-day-now-line" style="left:' + nowPercent + '%"><span class="v511-day-now-label">Now</span></div>' : ''; var footer = '<div class="v511-day-lane-actions"><span class="v511-hint">' + dayEvents.length + ' event' + (dayEvents.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + htmlEscape(dayName) + '</button></div>'; wrap.innerHTML = header + ticks + '<div class="v511-day-lanes-grid">' + nowLine + lanes + '</div>' + footer; }
             function renderEventPill(ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var width = Math.max(5, ((Number(ev.duration_min || 60)) / 1440) * 100); var left = Math.max(0, Math.min(100 - width, (start / 1440) * 100)); var end = start + Number(ev.duration_min || 60); return '<button type="button" class="v511-day-event-pill ' + room.className + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small></button>'; }
-            function renderRoomSelect() { var select = document.getElementById('v511EventRoom'); if (!select) return; select.innerHTML = Object.keys(ROOM_META).map(function (id) { return '<option value="' + id + '">' + ROOM_META[id].label + '</option>'; }).join(''); var roomLabel = document.getElementById('v511CalRoomFilterLabel'); if (roomLabel) roomLabel.textContent = roomVocabSingular() + ':'; var allOpt = document.getElementById('v511CalRoomFilterAll'); if (allOpt) allOpt.textContent = 'All ' + roomVocabPlural().toLowerCase(); var modalRoomLabel = document.getElementById('v511EventRoomLabel'); if (modalRoomLabel) modalRoomLabel.textContent = roomVocabSingular(); }
+            function renderRoomSelect() { var roomIds = Object.keys(ROOM_META); var options = roomIds.map(function (id) { return '<option value="' + htmlEscape(id) + '">' + htmlEscape(ROOM_META[id].label) + '</option>'; }).join(''); var select = document.getElementById('v511EventRoom'); if (select) select.innerHTML = options; var filter = document.getElementById('v511CalRoomFilter'); if (filter) { var current = state.roomFilter || filter.value || 'all'; filter.innerHTML = '<option value="all" id="v511CalRoomFilterAll">All ' + htmlEscape(roomVocabPlural().toLowerCase()) + '</option>' + options; filter.value = (current === 'all' || ROOM_META[current]) ? current : 'all'; state.roomFilter = filter.value; } var roomLabel = document.getElementById('v511CalRoomFilterLabel'); if (roomLabel) roomLabel.textContent = roomVocabSingular() + ':'; var modalRoomLabel = document.getElementById('v511EventRoomLabel'); if (modalRoomLabel) modalRoomLabel.textContent = roomVocabSingular(); }
+            function renderRoomsList() { var list = document.getElementById('v511RoomsList'); if (!list) return; var rooms = loadRoomsState(); list.innerHTML = rooms.map(function (room) { var sub = room.subname ? ' <span class="v511-hint-inline">- ' + htmlEscape(room.subname) + '</span>' : ''; return '<div class="v511-room-row" data-room-id="' + htmlEscape(room.id) + '"><div>' + htmlEscape(room.label) + sub + '</div><div class="v511-room-cap">cap ' + (parseInt(room.capacity || '0', 10) || 0) + '</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini" data-room-edit="' + htmlEscape(room.id) + '">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove" data-room-remove="' + htmlEscape(room.id) + '">&times;</button></div></div>'; }).join('') + '<div id="v511RoomDraftRows"></div>'; }
+            function renderRoomEditRow(roomId) { var list = document.getElementById('v511RoomsList'); if (!list) return; var rooms = loadRoomsState(); var room = rooms.find(function (r) { return r.id === roomId; }); var row = list.querySelector('[data-room-id="' + CSS.escape(roomId) + '"]'); if (!room || !row) return; row.className = 'v511-room-row v511-room-row-draft v511-room-row-editing'; row.innerHTML = '<div class="v511-room-draft-fields"><input type="text" data-room-edit-name value="' + htmlEscape(room.label) + '"><input type="text" data-room-edit-subname value="' + htmlEscape(room.subname || '') + '" placeholder="Sub-name (optional)"><input type="number" min="1" max="999" data-room-edit-capacity value="' + (parseInt(room.capacity || '0', 10) || '') + '"></div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini" data-room-save="' + htmlEscape(room.id) + '">Save</button><button type="button" class="v511-btn v511-btn-mini" data-room-cancel>Cancel</button></div>'; row.querySelector('[data-room-edit-name]')?.focus(); }
+            function openRoomDraft() { var draftContainer = document.getElementById('v511RoomDraftRows'); if (!draftContainer) return; var draftId = 'draft-' + Date.now(); var row = document.createElement('div'); row.className = 'v511-room-row v511-room-row-draft'; row.setAttribute('data-draft-id', draftId); row.innerHTML = '<div class="v511-room-draft-fields"><input type="text" placeholder="Name (e.g. Studio 4)" data-draft-name><input type="text" placeholder="Sub-name (optional, e.g. yoga)" data-draft-subname><input type="number" placeholder="Capacity" min="1" max="999" data-draft-capacity></div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini" data-draft-save="' + draftId + '">Save</button><button type="button" class="v511-btn v511-btn-mini" data-draft-cancel="' + draftId + '">Cancel</button></div>'; draftContainer.appendChild(row); row.querySelector('[data-draft-name]')?.focus(); }
             function renderRoomVocabularyControls() { var settings = loadCalSettings(); var singular = document.getElementById('v511RoomVocabSingular'); var plural = document.getElementById('v511RoomVocabPlural'); if (singular && document.activeElement !== singular) singular.value = settings.room_vocabulary_singular || 'Room'; if (plural && document.activeElement !== plural) plural.value = settings.room_vocabulary_plural || 'Rooms'; }
             function updateWeekStartBtn() { var btn = document.getElementById('v511WeekStartToggle'); if (btn) btn.textContent = 'Week starts: ' + (weekStartsMonday() ? 'Mon' : 'Sun'); }
             function renderModalDayChips(activeDow) { var wrap = document.getElementById('v511EventDayChips'); if (!wrap) return; wrap.innerHTML = DAY_SHORT.map(function (day, idx) { var dow = idx + 1; return '<button type="button" class="v511-day-chip" data-modal-day="' + dow + '" aria-pressed="' + (dow === activeDow ? 'true' : 'false') + '">' + day + '</button>'; }).join(''); }
@@ -6350,6 +6363,50 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.getElementById('v511CalRoomFilter')?.addEventListener('change', function (e) { state.roomFilter = e.target.value || 'all'; renderAll(); });
             document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); saveCalSettings({ room_vocabulary_singular: parts[0] || 'Room', room_vocabulary_plural: parts[1] || 'Rooms' }); renderAll(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); }); });
+            document.getElementById('v511AddRoomBtn')?.addEventListener('click', openRoomDraft);
+            document.addEventListener('click', function (e) {
+              var saveDraft = e.target.closest('[data-draft-save]');
+              var cancelDraft = e.target.closest('[data-draft-cancel]');
+              var editRoom = e.target.closest('[data-room-edit]');
+              var saveRoom = e.target.closest('[data-room-save]');
+              var cancelRoom = e.target.closest('[data-room-cancel]');
+              var removeRoom = e.target.closest('[data-room-remove]');
+              if (saveDraft) {
+                var draftId = saveDraft.getAttribute('data-draft-save');
+                var row = document.querySelector('[data-draft-id="' + draftId + '"]');
+                if (!row) return;
+                var name = row.querySelector('[data-draft-name]').value.trim();
+                var subname = row.querySelector('[data-draft-subname]').value.trim();
+                var capacity = parseInt(row.querySelector('[data-draft-capacity]').value, 10) || 0;
+                if (!name) { row.querySelector('[data-draft-name]')?.focus(); return; }
+                var rooms = loadRoomsState();
+                rooms.push({ id: 'room' + Date.now().toString(36), label: name, subname: subname, capacity: capacity });
+                saveRoomsState(rooms);
+                renderAll();
+              } else if (cancelDraft) {
+                var cancelId = cancelDraft.getAttribute('data-draft-cancel');
+                document.querySelector('[data-draft-id="' + cancelId + '"]')?.remove();
+              } else if (editRoom) {
+                renderRoomEditRow(editRoom.getAttribute('data-room-edit'));
+              } else if (saveRoom) {
+                var roomId = saveRoom.getAttribute('data-room-save');
+                var editRow = saveRoom.closest('.v511-room-row');
+                var roomsToSave = loadRoomsState();
+                var ix = roomsToSave.findIndex(function (room) { return room.id === roomId; });
+                if (ix < 0 || !editRow) return;
+                var editName = editRow.querySelector('[data-room-edit-name]').value.trim();
+                if (!editName) { editRow.querySelector('[data-room-edit-name]')?.focus(); return; }
+                roomsToSave[ix] = { id: roomId, label: editName, subname: editRow.querySelector('[data-room-edit-subname]').value.trim(), capacity: parseInt(editRow.querySelector('[data-room-edit-capacity]').value, 10) || 0 };
+                saveRoomsState(roomsToSave);
+                renderAll();
+              } else if (cancelRoom) {
+                renderAll();
+              } else if (removeRoom) {
+                var removeId = removeRoom.getAttribute('data-room-remove');
+                saveRoomsState(loadRoomsState().filter(function (room) { return room.id !== removeId; }));
+                renderAll();
+              }
+            });
             document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { openEventModal('', dayOfWeekForDate(new Date())); });
             document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-week-day]'); if (!btn) return; state.selectedDay = parseInt(btn.getAttribute('data-week-day'), 10); renderAll(); });
             document.getElementById('v511CalSwimlane')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); var add = e.target.closest('[data-add-event-day]'); var exp = e.target.closest('[data-export-day]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); else if (add) openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10)); else if (exp) { var dow = parseInt(exp.getAttribute('data-export-day'), 10); var date = isoDate(dateForDow(dow)); downloadCsv(DAY_NAMES[dow - 1] + '-' + date + '.csv', csvFor(filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }))); } });
