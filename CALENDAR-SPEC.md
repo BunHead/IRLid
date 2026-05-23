@@ -7,7 +7,9 @@
 **Prerequisite specs:** `SETTINGS-REVAMP-SPEC.md` (Staff & Rooms tab; multi-room model).
 **Replaces:** the 19 May 2026 draft of this same file, which assumed a date-based events table with RRULE-lite recurrence. Captain's morning bath-watch ratified a flat weekly cycle as the canonical model — see §1 below.
 
-The live `OrgCheckin.html` has no calendar at all; events are absent and Expected is a flat org-level list. This spec defines the calendar that will be ported across, plus the four-table data model that supports it.
+The current live `OrgCheckin.html` has no calendar at all; events are absent and Expected is a flat org-level list. This spec defines the calendar that will be ported across, plus the four-table data model that supports it.
+
+**Port target — `Org.html` (new file), not `OrgCheckin.html`.** Captain ratified this on 23 May 2026 afternoon (the existing filename has been a typo magnet "for a long time"). `Org.html` currently exists as a 1.9KB redirect shim that bounces visitors to `OrgCheckin.html`; the port replaces the shim with the real portal. **`OrgCheckin.html` stays exactly as-is** as the reference + rollback safety net for as long as we want it. Both files coexist at the same Cloudflare Pages root. Worker (`irlid-api-org`) and D1 (`irlid-db-org`) names stay unchanged — those were never the painful spelling.
 
 ---
 
@@ -356,7 +358,7 @@ Mr. Data, please verify before marking the port PR ready-for-review:
 
 1. **Schema** — four new D1 tables exist (`rooms`, `org_expected`, `weekly_events`, `event_expected`) with indexes per §1. Worker migration script in `irlid-api-org/migrations/`.
 2. **Endpoints** — all §2 endpoints respond per spec. CORS allowlist still `https://irlid.co.uk` only.
-3. **Calendar surface** — live `OrgCheckin.html` Event & Calendar tab matches mockup T4.3.60 surface-by-surface (List view, Swim-lane, day chips, Sticky tabs, working-hours band, breaks, Now line, CAP column, capacity tier colours).
+3. **Calendar surface** — new `Org.html` Event & Calendar tab matches mockup T4.3.60 surface-by-surface (List view, Swim-lane, day chips, Sticky tabs, working-hours band, breaks, Now line, CAP column, capacity tier colours). `OrgCheckin.html` is NOT modified by this port.
 4. **Modal** — Edit and View modal both work; Day is read-only label; Expected section has search + suggestion checkboxes + chips + inline +Add new attendee + live count.
 5. **Past-day semantics** — `isSelectedDayPast()` lives in the live JS; all three `+ Add event` button sites gate identically; past events open in View-only modal.
 6. **CSV round-trip** — Export week → Import week reproduces the same week of events identically, INCLUDING expected rosters per event AND auto-created org_expected for unknown names.
@@ -378,19 +380,39 @@ Mr. Data, please verify before marking the port PR ready-for-review:
 
 ---
 
-## §10 — Migration path from current live
+## §10 — Migration path
 
-Current live `OrgCheckin.html`:
-- No calendar at all.
-- Expected is a flat org-level list rendered in the Dashboard panel.
-- Attendance is per-day, no event grouping.
+### §10.1 Starting state (23 May 2026 close)
 
-Port plan (sequenced for the live-port HANDOVER):
+- `irlid.co.uk/OrgCheckin.html` — current live portal at `v5.10.7`. No calendar; flat Expected list in Dashboard; per-day attendance with no event grouping. **Stays exactly as-is throughout the port.**
+- `irlid.co.uk/Org.html` — 1.9KB redirect shim that bounces visitors to `OrgCheckin.html`. **Replaced by the new portal at port-time.**
+- `irlid.co.uk/OrgCheckinTest.html` — mockup at `v5.11 mockup T4.3.61`. **Stays exactly as-is as the design sandbox.**
+- Worker `irlid-api-org` at `v5.10.7+v5.11.2` (B2 deployed 23 May afternoon).
+- D1 `irlid-db-org` — no calendar tables yet.
 
-1. **Schema first** — apply migration creating `rooms`, `org_expected`, `weekly_events`, `event_expected`. Backfill: every existing entry in the current flat `expected` list becomes an `org_expected` row with a stable `id`. No weekly_events backfilled (orgs configure their schedule on first calendar visit).
-2. **Worker endpoints** — ship §2 endpoints. Behind a feature flag (`PORTAL_CALENDAR_ENABLED`) if Captain wants a kill-switch.
-3. **UI surface** — port the Event & Calendar tab from mockup. Strip mockup-only debug tooling (the test-env Saved-pulse diagnostic stays; the test-env-only role chip simulator does not).
-4. **Cutover** — Captain flips the feature flag; verify on real hardware (his usual smoke: Spencer + Kerry + Poppy + Test Event); then bump build pill `v5.10.7 → v5.11.0`.
+### §10.2 Target state (port-complete)
+
+- `irlid.co.uk/Org.html` — new portal at `v5.11.0`. Calendar surface + four-table data model live. **The new canonical URL.**
+- `irlid.co.uk/OrgCheckin.html` — unchanged from §10.1. Reference + rollback URL.
+- `irlid.co.uk/OrgCheckinTest.html` — unchanged from §10.1.
+- Worker `irlid-api-org` at `v5.11.0` with the §2 endpoints added.
+- D1 `irlid-db-org` with four new tables (`rooms`, `org_expected`, `weekly_events`, `event_expected`).
+
+### §10.3 Sequence
+
+The port HANDOVER (`HANDOVER-CalendarLivePort-v5.11.0.md`) ships as a four-PR stack:
+
+1. **PR-A — D1 schema.** Migration script `apply_v5_11_0_calendar.ps1` (or `.sh`) under `irlid-api-org/migrations/`. Applies four new tables with their indexes. Idempotent (safe to re-run). Backfill: every existing live `org_expected` row gets the new schema's extra columns defaulted; no destructive change.
+2. **PR-B — Worker endpoints.** All §2 endpoints added to `irlid-api-org/src/index.js`. `requireDevOrStaffSession` minimum, `requireSignedAction` on manager+ writes. CORS allowlist still `https://irlid.co.uk` only.
+3. **PR-C — `Org.html` UI.** New file at repo root. Built from `OrgCheckinTest.html` with mockup-only tooling stripped (prototype-role simulator, in-memory localStorage state replaced with Worker calls, mockup seed data removed). Replaces the 1.9KB redirect shim. **`OrgCheckin.html` NOT modified.**
+4. **PR-D — Cutover.** Build pill bumps `v5.10.7 → v5.11.0` (on Org.html only; OrgCheckin.html keeps its v5.10.7 pill). Service Worker cache version bump. README pointer to the new URL. Optional retirement of `websiteScrapeBtn` placeholder.
+
+### §10.4 Rollback
+
+If anything goes wrong post-cutover:
+- `irlid.co.uk/OrgCheckin.html` is the immediate fallback URL. No code change needed.
+- Worker rollback via Cloudflare dashboard → previous deployment ID. Endpoints from PR-B are additive; rolling back the Worker just removes them, doesn't break `OrgCheckin.html`.
+- D1 rollback is unnecessary: the new tables are additive; the old code doesn't reference them.
 
 The mockup was deliberately built so this port is mechanical, not redesign. Every architectural call has been made already.
 
