@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59.2</span></div>
   </div>
 </div>
 
@@ -3806,7 +3806,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Captain's preferred shape: TIME | EVENT | ROOM pill | RANGE | Edit/View. */
         /* T4.3.58.4 — Six columns: TIME | EVENT | ROOM | DURATION | CAP | ACTION. Compact 26px rows. */
         .v511-day-list-headrow { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 6px 12px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 4; }
-        .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
+        /* T4.3.59.2 — constrain calendar to ~20 rows visible so the whole Event & Calendar tab
+           fits in viewport without page scroll. Tabs stay visible across tab switches. Inner
+           scrollbar handles the off-screen hours. */
+        .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; max-height: 52vh; overflow-y: auto; }
         .v511-day-list-inner { position: relative; }
         .v511-list-row { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 3px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 26px; box-sizing: border-box; }
         .v511-list-cap { font-variant-numeric: tabular-nums; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -6668,13 +6671,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>DURATION</div><div>CAP</div><div></div></div>' +
                 '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner">' + rows.join('') + nowLine + '</div></div>';
 
-              // T4.3.58.2 — auto-scroll uses the page scroll (not inner container) since the
-              // inner-scroll was removed to kill the dual-scrollbar. scrollIntoView on the Now line
-              // centres it within the viewport relative to the whole page.
+              // T4.3.59.2 — auto-scroll back to inner container's scrollTop so the page doesn't
+              // jump when you switch to the Event & Calendar tab. Tabs stay visible.
               if (isToday) {
                 requestAnimationFrame(function () {
+                  var scrollEl = document.getElementById('v511DayListScroll');
                   var line = wrap.querySelector('.v511-list-now-line');
-                  if (line && line.scrollIntoView) { try { line.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) { line.scrollIntoView(); } }
+                  if (scrollEl && line) {
+                    var lineTop = line.offsetTop;
+                    var target = Math.max(0, lineTop - (scrollEl.clientHeight / 2));
+                    scrollEl.scrollTop = target;
+                  }
                 });
               }
             }
