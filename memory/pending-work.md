@@ -1,5 +1,61 @@
 # Pending Work — IRLid
 
+## Saturday 23 May 2026 — v5.11 mockup feature-complete (T4.3.53 → T4.3.60) + ACCESSIBILITY-SPEC + port path identified
+
+**Headline.** Long single-day arc, ~12 patch versions, mockup went from "weekly calendar exists but rough" to feature-complete for the v5.11 → live port. Mr. Data delegation cycle (T4.3.53–.56) then Number One direct-edit chapter (T4.3.57–.60) when Codex hit rate limit at 09:35 BST. In parallel, `ACCESSIBILITY-SPEC.md` published with Captain's six architectural decisions ratified (including v6.0 Phase G identity-bound prefs via signed envelope). Calendar mockup IS the v5.11 spec at this point.
+
+**What's on live (`irlid.co.uk`) right now (build pill T4.3.60 in mockup, v5.11.1 live dashboard):**
+
+- v5.11.1 cosmetic cleanup merged (B1 — bugs F/G/H/I/C closed in live).
+- Mockup at `OrgCheckinTest.html` shows the full v5.11 architectural target.
+- `ACCESSIBILITY-SPEC.md`, `BOOTSTRAP §6` updated, `.nojekyll` in place.
+
+**Three things before the live calendar port** (in order):
+
+1. **B2 (`HANDOVER-AttendanceWindow-v5.11.2.md`)** — drafted Friday morning, **never fired**. Closes three live production bugs (A: yesterday's check-ins as "Today"; B: duplicate IN + linked-expected rows; D: phantom CHECKED OUT). Mr. Data run ~30-45min + `wrangler deploy` after merge (desktop required for Cloudflare auth). **Must land before port** so the calendar port starts from a clean Worker baseline.
+2. **`CALENDAR-SPEC.md` finalisation** — 19 May draft is now stale. Needs update reflecting today's architecture: Expected list (Option C — `org_expected` stable IDs, `event.expected_ids` references), working hours + 0–3 breaks settings, past-event Edit-lock, capacity bar with colour grade, CSV round-trip with day_of_week + expected_names, room vocabulary auto-rename, view-aware Jump to Now, sticky tabs, list-view as default. ~60–90min of Number One time, TIER 3 markdown, fully autonomous.
+3. **`HANDOVER-CalendarLivePort-*.md`** — substantial Mr. Data brief, port mockup behaviour into `OrgCheckin.html` + new Worker endpoints + D1 schema (`weekly_events` + `event_expected` + `rooms` + maybe `org_expected`). Multi-PR (Worker first, then frontend, then verification). Depends on (2) being final.
+
+**NEW carry-forward — orphan-button sweep across mockup** (Captain flagged just before R&R):
+
+- Sweep `OrgCheckinTest.html` for placeholder buttons with no action. Known instance: **`+ Invite staff`** button in Staff & Rooms tab (live's `OrgCheckin.html` already has the working Invite-staff QR flow as of v5.11.0 / 21 May; the mockup button is decorative).
+- For each orphan button: decide between **wire-during-port** (live already has the feature; mockup button maps to existing implementation when ported) / **demo-modal** / **`(live — backed)` hint** / **hide**.
+- Cross-check live `OrgCheckin.html` for feature parity — every button in the mockup must either map to an existing live feature OR be on the port queue. No orphan UI on either side.
+- Verify each mockup button would receive correct expected inputs when wired during port (e.g. data attributes, IDs, JS function signatures).
+
+**Carry-forward / housekeeping** (parallel, low-friction):
+
+- **Token rotation** — Cloudflare API tokens `cfat_wIMFM4RI…` + `cfut_YZ11ouJO…` exposed in old screenshots since 17 May. `dash.cloudflare.com → My Profile → API Tokens → Revoke` each. ~60s of clicks.
+- **`codex/v5.10.1-path-b` branch deletion** on origin — outstanding since 17 May.
+- **Bug E** (bio-metric=0 in doorman flow) — architectural call needed, parked since Friday.
+- **`PROTOCOL-Records-Broker.md`** — drafted but should promote to `PROTOCOL.md §X`.
+- **Records & ID tab wiring** — explicit deferral; not blocking calendar port. Three buckets sized (easy: capture checkboxes + retention settings; medium: SFTP/S3/webhook; hard: OAuth connectors for Google Drive / OneDrive / Dropbox / Box). Recommended first connector is webhook (one-day work, zero OAuth machinery).
+
+**v5.11 mockup → port mapping** (for the live-port brief drafter):
+
+Today's mockup features that need live wiring:
+- `weekly_events` D1 schema: `{id, name, room_id, day_of_week, start_time_local, duration_min, expected_ids[]}`
+- `rooms` D1 schema: `{id, org_id, label, subname, capacity}`
+- `event_expected` join (or JSON array on event row): event_id ↔ org_expected.id
+- Calendar settings (currently `v511_mockup_calendar_settings_v1` localStorage) → `org_settings.json` D1 columns: `week_starts_on`, `working_hours_start`, `working_hours_end`, `breaks_count`, `break_N_start`, `break_N_end`, `room_vocabulary_singular`, `room_vocabulary_plural`
+- 7 Worker endpoints (GET/POST/PUT/DELETE for events; CRUD for rooms; CSV import/export)
+- Bearer auth on all (staff role minimum for read, manager for write)
+- Frontend: list view + swim-lane view + day chips + sticky tabs + modal + Expected search/select + capacity bar + colour grades + auto-scroll-to-Now (view-aware) + Import/Export CSV
+- Light + dark mode parity throughout
+
+**Bug list from Friday morning scan — status update:**
+
+- **A, B, D** — Worker bugs. B2 closes when fired. **Still open in live.**
+- **C** — closed in B1 (merged, on live).
+- **E** — parked.
+- **F, G, H, I** — closed in B1 (merged, on live).
+- **J–O** — see Friday entry below.
+- **R** (vocab persistence) — closed via T4.3.57.1 Saved pulse + T4.3.58.2 global toast.
+- **S, T, U, V, W + Feature Y** — closed in T4.3.57.
+- **Orphan-button sweep** — NEW.
+
+---
+
 ## Friday 22 May 2026 morning — Site scan (9 bugs), cleanup+port plan, autonomy framework, T4.3.50/T4.3.51 mockup wiring (Captain at work)
 
 **Headline.** Captain opened the watch by sharing two screenshots of the live dashboard and noticing yesterday's check-ins still showing as "Today" data. Asked Number One to scan the site for other errors. Scan surfaced nine items grouped by severity (A–I). Captain then asked for a comprehensive cleanup-and-port plan — published as `memory/PLAN-CleanupAndPort-2026-05-22.md` (8 sections, 5 phases, ~5–7 day horizon). Captain then asked about long-term autonomy ("what can you do without me?") and Number One laid out the operating model. Captain's parting move was a 30-minute autonomy stretch: set up the framework, lock the starting marker, execute the safest tasks before he left for work.

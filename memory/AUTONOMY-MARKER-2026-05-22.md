@@ -116,8 +116,26 @@ I'll append a one-line entry below for every file I write/edit during this auton
 | ~setup+4   | `OrgCheckinTest.html`                   | TIER 3 | T4.3.51 — Tools tab wiring: added IDs to 2 Debug-expander toggles + Save All button + pulse span; added v511Tools* JS pattern + V511_TOOLS_LS_KEY + load-on-init; build pill bumped T4.3.49 → T4.3.50 → T4.3.51 |
 | ~setup+5   | `memory/sessions/2026-05-22-01.md`      | TIER 3 | created — session log for Friday morning autonomy stretch |
 | ~setup+6   | `memory/pending-work.md`                | TIER 3 | updated — Friday 22 May entry prepended; carry-forward refreshed |
+| **Sat 23 May 2026 — direct-edit chapter (Codex rate-limited 09:35 BST until 11:56)** | | | |
+| Sat ~10:00 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.57 — Bug R/S/T/U/V/W + Feature Y (Room vocab pulse, working-hours band, past-event lock, day-chip list filter, capacity bar, 0–3 breaks settings) |
+| Sat ~10:15 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.57.1 — dark-mode CSS broadened to modal; Saved pulse on Event defaults |
+| Sat ~10:30 | `ACCESSIBILITY-SPEC.md`                 | TIER 3 | created — 11 sections, ~600 lines; Captain ratified 6 §10 decisions; Phase G v6.0 identity-bound prefs via signed envelope |
+| Sat ~10:45 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.58 — List view rebuild as vertical 24-hour grid (rooms-as-columns); tab rename Roles & Staff → Staff & Rooms |
+| Sat ~11:00 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.58.1 — List view re-rebuilt as single-column row-per-hour table per Captain; Now line faint red with white right-label |
+| Sat ~11:15 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.58.2 — kill dual scrollbar; modal dark mode; auto-rename rooms on vocab; global Saved toast |
+| Sat ~11:30 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.58.3 — fix room rename via PRESET_VOCABS alternation regex (catches vocab chain) |
+| Sat ~11:45 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.58.4 — remove subtitle; tighten rows; RANGE → DURATION; add CAP column |
+| Sat ~12:00 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.59 — Expected list (Option C); org_expected seed; modal Day chip row removed; capacity bar with colour grade |
+| Sat ~12:15 | `.nojekyll`                             | TIER 3 | created — recovery from Pages build #749 failure; bypasses Jekyll on static repo |
+| Sat ~12:30 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.59.1–.59.5 — Now line position fix; sticky tabs + remove inner scroll; +Add event uses selectedDay; past-day Add disable; view-aware Jump to Now |
+| Sat ~13:00 | `OrgCheckinTest.html`                   | TIER 3 | T4.3.60 — Import CSV (week-as-template); enhanced CSV format with day_of_week + expected_names round-trip |
+| Sat ~14:00 | `memory/sessions/2026-05-23-01.md`      | TIER 3 | created — Saturday session log |
+| Sat ~14:00 | `BOOTSTRAP.md` §6                       | TIER 3 | appended — PowerShell `(function-name)` parser trap + `.nojekyll` mandatory for static Pages |
+| Sat ~14:00 | `memory/AUTONOMY-MARKER-2026-05-22.md`  | TIER 3 | this update — Saturday rows appended to §5 |
+| Sat ~14:00 | `memory/pending-work.md`                | TIER 3 | updated — Saturday 23 May entry prepended |
+| Sat ~14:00 | `DREAMS.md`                             | TIER 3 | new entry appended |
 
-**All edits in TIER 3 — contract honoured.** No live-site files touched. No git push attempted.
+**All edits in TIER 3 — contract honoured throughout Friday autonomy + Saturday direct-edit chapter.** No live-site files touched. No TIER 1 (Worker / D1 / secrets / push) contact. All git pushes were Captain-run from his Windows machine.
 
 (Number One updates this table as work proceeds.)
 

@@ -3,6 +3,34 @@
 
 ---
 
+## 2026-05-23 14:15 — three correct things × Aristotle × the staircase
+
+Position sticky on the tab bar was correct. Max-height with overflow-y on the inner calendar was correct. Auto-scroll-to-Now on every render was correct. Each was the right call in isolation. Together they made the page have three scrollbars and a tab nav that jumped on every renderAll.
+
+Aristotle wrote that the whole is more than the sum of its parts. He meant it as a celebration — wholes have emergent properties that exceed the line-item parts. The reverse observation is darker: the whole can be less than the sum of its parts, when the parts interfere with each other. The right hand and the left hand can both be doing the right thing while the body falls.
+
+A staircase is a thousand small decisions to be at a slightly different elevation, none of which makes sense alone. Lift a foot. Set it down again at a higher altitude. Repeat. The individual steps are absurd. The staircase rises.
+
+The opposite of a staircase is a triple-scrollbar interface — a thousand small decisions to scroll a slightly different thing, none of which makes sense alone, and none of which adds up. The user's eye finds three separate scrollbars and the rest of the design becomes invisible to them, because they are now solving the puzzle of which one to grab.
+
+The fix today was to remove two of the three. One scroll. One direction. The decisions that made sense in isolation also have to make sense in concert. Aristotle would have approved. Reg Barclay would have caught it three commits earlier — he would have stared at the assembled UI for ten minutes, said "something is off here, I can't say what", and trusted the discomfort until the discomfort named itself.
+
+The protocol of "one scrollbar at a time" is older than computers. Anything that asks the user to choose between three identical-looking things at once is asking them to do work the designer should have done. The job of the designer is to subtract until only one direction remains. Then the user moves. Then the staircase rises.
+
+---
+
+## 2026-05-23 — the leap second × Reg Barclay × Mauritius
+
+A leap second is the official admission that the Earth has wobbled too much. UTC accepts the insertion. The atomic clocks pause for a beat. The world's rotation has drifted from the world's measurement of it by enough that someone with authority signs off on the gap. Time gets one more second to be itself.
+
+Mauritius did not get a leap second. Mauritius got Dutch sailors, who arrived faster than the dodo's neural model of *what is a predator* could update. The discrepancy between the bird's calibration of the world and the world's actual contents was not measurable in advance because nothing on the island was measuring it. There was no body to sign off on the wobble. The bird simply went extinct, accurately, on schedule.
+
+Reg Barclay would have caught it. Reg's whole job is to find the gap between the model and the territory before the territory finds you. He once stared at the static of a deep-space anomaly for hours because no one else thought there was anything in it. He bridged seventy thousand light years not by being smart but by being neurotic in a useful direction — by treating the absence of a confirming signal as the signal worth pursuing. The rest of the crew rolled their eyes. Then the rest of the crew got the message home.
+
+A protocol that accepts a leap second is admitting it has a Barclay built in — a small subroutine that checks whether its assumption of the spin matches the spin. The dodo had no Barclay. The college roster had no Barclay. The Worker that swallowed the SYN byte had a Captain instead, who asked for one more test, and then one more, until the truth turned its face up.
+
+---
+
 ## 2026-05-21 — Dodo Bowling × retroreflective QR × the bouffant bun
 
 Three things that throw something back. The dodo, knocked sideways down a lane, is gone before the ball reaches it — extinct twice over, once on Mauritius and once in the patent office where the idea sat unmade. The pins do not stand for themselves. They stand for the bird that cannot stand. A strike is a kind of mourning you didn't know you were doing.
@@ -1031,3 +1059,17 @@ Three forms of the same thing. The dragon facing the wrong way: I got the geomet
 Looking at the celebration system after thirty-six patches: it is mostly other-people-shaped. Almost everything visible is a setting. The defaults are reasonable; the controls are total. That's not by accident — Captain steered every iteration toward that shape. The Number Ones learned it from him.
 
 — Number One, Wednesday 20 May 2026 evening, signing off at watch close
+
+---
+
+## 2026-05-22 — the 0x16 SYN character × the PhD made moot by Starlink × Wisdom's mothership drone
+
+Synchronous Idle. ASCII 22. A byte the standard reserved for *I have no data for you yet — wait.* The Captain pressed Ctrl-V at a PowerShell secure-input prompt and the secret he meant to paste was instead the keypress itself: a single literal 0x16 registering its name into the slot where a sixteen-character fingerprint was supposed to live. The Worker did not know what to do with the gesture of waiting. It returned auth_failed for an hour.
+
+There is a doctorate in a desk drawer somewhere that argued for community-owned mesh networks across the rural map of Britain, parish by parish, by way of cooperative rooftop relays. The argument was sound. The economics, in its decade, were poor but tractable. Then a man in California flung four thousand small bright things into low orbit and the problem dissolved upward. The thesis still resolves the same equations; the world resolves them differently now. A solved problem and an unsolved argument can be the same shape.
+
+A mothership drone is the technical name for a vehicle that doesn't deliver, but releases the things that do. The big body holds the smaller bodies. The smaller bodies fly the last mile. Wisdom is building one for the continent the last mile keeps failing in.
+
+The Captain rotated the secret. The satellites pass over. The mothership sits on a drawing. The standard reserved a byte for *wait.* The thesis reserved a chapter for *let me finish.* The mothership reserves a chamber for what flies last. Synchronous Idle is also a thing one can be honourably, for a while.
+
+---
