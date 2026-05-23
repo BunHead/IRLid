@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.54</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.55</span></div>
   </div>
 </div>
 
@@ -3780,6 +3780,29 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-week-event-pill small { display: block; margin-top: 2px; opacity: 0.88; }
         .v511-week-room-badge { display: inline-block; margin-top: 4px; padding: 1px 5px; border-radius: 5px; background: rgba(0,0,0,0.22); font-size: 10px; font-weight: 700; }
         .v511-week-strip-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; }
+        .v511-day-lane-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; color: var(--text); }
+        .v511-day-lane-head strong { font-size: 13px; }
+        .v511-day-lane-head span { font-size: 11.5px; color: var(--muted); }
+        .v511-day-ticks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 6px 12px 8px; color: var(--muted); font-size: 10px; }
+        .v511-day-lanes-grid { position: relative; padding: 0 12px; }
+        .v511-day-lane { display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: stretch; padding: 6px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+        .v511-day-lane:last-child { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .v511-day-lane-label { font-weight: 700; color: var(--text); font-size: 13px; display: flex; align-items: center; padding-left: 8px; border-left: 3px solid currentColor; }
+        .v511-day-lane.room-studio1 .v511-day-lane-label { color: #c8e0ff; }
+        .v511-day-lane.room-studio2 .v511-day-lane-label { color: #c0dd97; }
+        .v511-day-lane.room-studio3 .v511-day-lane-label { color: #fac775; }
+        .v511-day-lane-timeline { position: relative; min-height: 56px; background: rgba(255,255,255,0.02); border-radius: 6px; overflow: hidden; }
+        .v511-day-lane-timeline::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0 37.5%, rgba(255,255,255,0.045) 37.5% 75%, transparent 75% 100%); pointer-events: none; }
+        .v511-lane-empty { color: var(--muted); font-size: 11px; padding: 18px 0 0 12px; }
+        .v511-day-now-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent, #58a6ff); z-index: 5; pointer-events: none; }
+        .v511-day-now-line .v511-day-now-label { position: absolute; top: -16px; left: 4px; font-size: 9px; background: var(--accent, #58a6ff); color: #000; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
+        .v511-day-lane-actions { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; }
+        .v511-day-event-pill { position: absolute; top: 6px; bottom: 6px; padding: 6px 10px; border-radius: 6px; border: 0; border-left: 3px solid; cursor: pointer; text-align: left; font-family: inherit; display: flex; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; z-index: 2; box-shadow: 0 8px 18px rgba(0,0,0,0.14); }
+        .v511-day-event-pill b { font-size: 12px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .v511-day-event-pill small { font-size: 10px; opacity: 0.85; }
+        .v511-day-event-pill.room-studio1 { background: rgba(105, 168, 255, 0.22); color: #c8e0ff; border-left-color: #58a6ff; }
+        .v511-day-event-pill.room-studio2 { background: rgba(99,153,34,0.22); color: #c0dd97; border-left-color: #639922; }
+        .v511-day-event-pill.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left-color: #BA7517; }
         .v511-week-list-row { display: grid; grid-template-columns: 110px 80px 1fr 95px 72px; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: var(--text); }
         .v511-week-list-row:last-child { border-bottom: none; }
         .v511-week-list-head { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; background: rgba(11,18,32,0.94); position: sticky; top: 0; z-index: 2; }
@@ -3960,12 +3983,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-week-list-row { border-color: rgba(0,0,0,0.06); }
         :root[data-theme="light"] .v511-week-timeline { background: linear-gradient(90deg, transparent 0 37.5%, rgba(26,127,55,0.08) 37.5% 75%, transparent 75% 100%); }
         :root[data-theme="light"] .v511-week-list-head { background: #f3f5f8; color: rgba(0,0,0,0.62); }
-        :root[data-theme="light"] .v511-week-event-pill,
-        :root[data-theme="light"] .v511-swim-event.room-studio1 { background: #dbeafe; color: #1f6feb; border-left-color: #1f6feb; }
+        :root[data-theme="light"] .v511-week-event-pill.room-studio1,
+        :root[data-theme="light"] .v511-day-event-pill.room-studio1,
+        :root[data-theme="light"] .v511-swim-event.room-studio1 { background: #d6e8ff; color: #0a3d80; border-left-color: #1f6feb; }
         :root[data-theme="light"] .v511-week-event-pill.room-studio2,
-        :root[data-theme="light"] .v511-swim-event.room-studio2 { background: #c8e7d4; color: #1a7f37; border-left-color: #1a7f37; }
+        :root[data-theme="light"] .v511-day-event-pill.room-studio2,
+        :root[data-theme="light"] .v511-swim-event.room-studio2 { background: #d8ecbb; color: #2c5b08; border-left-color: #1a7f37; }
         :root[data-theme="light"] .v511-week-event-pill.room-studio3,
-        :root[data-theme="light"] .v511-swim-event.room-studio3 { background: #fff1bf; color: #9a6b00; border-left-color: #9a6b00; }
+        :root[data-theme="light"] .v511-day-event-pill.room-studio3,
+        :root[data-theme="light"] .v511-swim-event.room-studio3 { background: #fae4b8; color: #6b3e00; border-left-color: #9a6b00; }
+        :root[data-theme="light"] .v511-day-lane.room-studio1 .v511-day-lane-label { color: #0a3d80; }
+        :root[data-theme="light"] .v511-day-lane.room-studio2 .v511-day-lane-label { color: #2c5b08; }
+        :root[data-theme="light"] .v511-day-lane.room-studio3 .v511-day-lane-label { color: #6b3e00; }
+        :root[data-theme="light"] .v511-day-lane-timeline { background: rgba(0,0,0,0.025); }
+        :root[data-theme="light"] .v511-day-lane-timeline::before { background: linear-gradient(90deg, transparent 0 37.5%, rgba(26,127,55,0.08) 37.5% 75%, transparent 75% 100%); }
+        :root[data-theme="light"] .v511-day-lane { border-top-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-day-lane:last-child { border-bottom-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-room-tag.room-studio1 { background: #d6e8ff; color: #0a3d80; }
+        :root[data-theme="light"] .v511-room-tag.room-studio2 { background: #d8ecbb; color: #2c5b08; }
+        :root[data-theme="light"] .v511-room-tag.room-studio3 { background: #fae4b8; color: #6b3e00; }
         :root[data-theme="light"] .v511-week-room-badge { background: rgba(255,255,255,0.7); color: inherit; }
         :root[data-theme="light"] .v511-event-modal { background: #fff; border-color: rgba(0,0,0,0.14); }
         :root[data-theme="light"] .v511-cal-drilldown { background: rgba(105, 168, 255, 0.07); border-color: rgba(105, 168, 255, 0.25); }
@@ -5290,7 +5326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <button type="button" class="v511-btn v511-btn-mini" id="v511ExportWeekBtn">Export week</button>
               <button type="button" class="v511-btn v511-btn-mini" id="v511WeekStartToggle" title="Toggle week start day">Week starts: Mon</button>
             </div>
-            <div class="v511-day-chip-row" id="v511WeekDayChips" aria-label="Jump to day"></div>
+            <div class="v511-day-chip-row" id="v511WeekDayChips" aria-label="Select day"></div>
             <div class="v511-cal-view-toggle" role="tablist" aria-label="Calendar view mode">
               <button type="button" class="active" data-cal-view="list" role="tab" aria-selected="true">List view</button>
               <button type="button" data-cal-view="swimlane" role="tab" aria-selected="false">Swim-lane view</button>
@@ -6193,14 +6229,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               p.classList.toggle('active', isActive);
               p.hidden = !isActive;
             });
-            // v5.11 mockup — when Calendar tab activates, scroll to the current
-            // hour (or 09:00 if outside working hours). Now-line position also
-            // updates on tab activation. Captain's UX: the eye should land on
-            // where "now" is, not where the table starts.
+            // v5.11 mockup - when Calendar tab activates, refresh the now-line
+            // math without changing the current calendar view mode.
             if (target === 'cal') {
               window.requestAnimationFrame(function () {
                 positionNowLine();
-                scrollCalToNow();
               });
             }
           }
@@ -6232,7 +6265,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function scrollCalToNow() {
             if (typeof v511WeeklyJumpToNow === 'function') v511WeeklyJumpToNow();
           }
-          // T4.3.54 - Weekly calendar renderer lives in localStorage only.
+          // T4.3.55 - Weekly calendar renderer lives in localStorage only.
           (function initV511WeeklyCalendar() {
             var STORAGE_KEY = 'v511_mockup_weekly_events_v1';
             var V511_CAL_SETTINGS_KEY = 'v511_mockup_calendar_settings_v1';
@@ -6244,6 +6277,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               studio3: { label: 'Studio 3', className: 'room-studio3', color: '#9a6b00' }
             };
             var state = loadWeeklyState();
+            state.selectedDay = dayOfWeekForDate(new Date());
+            state.roomFilter = 'all';
             var currentView = 'list';
             function pad2(n) { return String(n).padStart(2, '0'); }
             function htmlEscape(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'", '&#39;'); }
@@ -6284,18 +6319,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               ];
             }
             function loadWeeklyState() { var fallback = { weekStartIso: isoDate(weekStartFor(new Date())), events: seedEvents() }; try { var raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (Array.isArray(raw)) return { weekStartIso: fallback.weekStartIso, events: raw }; if (raw && Array.isArray(raw.events)) return { weekStartIso: raw.weekStartIso || fallback.weekStartIso, events: raw.events }; } catch (_) {} try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
-            function saveWeeklyState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} }
+            function saveWeeklyState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ weekStartIso: state.weekStartIso, events: state.events })); } catch (_) {} }
             function setView(view) { currentView = view; document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (b) { var active = b.getAttribute('data-cal-view') === view; b.classList.toggle('active', active); b.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.getElementById('v511CalWrap').hidden = view !== 'list'; document.getElementById('v511CalSwimlane').hidden = view !== 'swimlane'; }
             function weekLabel() { var start = new Date(state.weekStartIso + 'T00:00:00'); var end = addDays(start, 6); return displayDate(start) + ' – ' + displayDate(end) + ' ' + end.getFullYear(); }
-            function filteredEvents() { var room = document.getElementById('v511CalRoomFilter')?.value || 'all'; var order = orderedDays(); return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (order.indexOf(a.day_of_week) - order.indexOf(b.day_of_week)) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
+            function filteredEvents() { var room = state.roomFilter || document.getElementById('v511CalRoomFilter')?.value || 'all'; var order = orderedDays(); return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (order.indexOf(a.day_of_week) - order.indexOf(b.day_of_week)) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
+            function roomsForFilter() { var filter = state.roomFilter || 'all'; if (filter === 'all') return Object.keys(ROOM_META); return ROOM_META[filter] ? [filter] : []; }
             function dateForDow(dow) { var order = orderedDays(); return addDays(new Date(state.weekStartIso + 'T00:00:00'), order.indexOf(dow)); }
-            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderWeekStrips(); renderRoomSelect(); renderRoomVocabularyControls(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 ' + roomVocabPlural().toLowerCase() + ' - working hours band (09:00-17:59) shown brighter'; }
-            function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; var todayDow = dayOfWeekForDate(new Date()); var todayStart = isoDate(weekStartFor(new Date())); wrap.innerHTML = orderedDays().map(function (dow) { var current = state.weekStartIso === todayStart && dow === todayDow; return '<button type="button" class="v511-day-chip' + (current ? ' is-current' : '') + '" data-week-day="' + dow + '">' + DAY_SHORT[dow - 1] + '</button>'; }).join(''); }
+            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderDayLanes(); renderRoomSelect(); renderRoomVocabularyControls(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 ' + roomVocabPlural().toLowerCase() + ' - working hours band (09:00-17:59) shown brighter'; }
+            function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; wrap.innerHTML = orderedDays().map(function (dow) { return '<button type="button" class="v511-day-chip' + (dow === state.selectedDay ? ' is-current' : '') + '" data-week-day="' + dow + '">' + DAY_SHORT[dow - 1] + '</button>'; }).join(''); }
             function csvFor(events) { var roomHeader = roomVocabSingular().trim().toLowerCase().replace(/\s+/g, '_') || 'room'; return ['event_name,' + roomHeader + ',start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
             function downloadCsv(filename, csv) { var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
             function renderList() { var wrap = document.getElementById('v511CalWrap'); if (!wrap) return; var rows = filteredEvents(); wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>' + htmlEscape(roomVocabSingular()) + '</div><div></div></div>' + (rows.length ? rows.map(function (ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60)); return '<div class="v511-week-list-row v511-cal-row filled" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div><button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button></div></div>'; }).join('') : '<div class="v511-week-empty">No events for this ' + htmlEscape(roomVocabSingular().toLowerCase()) + ' filter.</div>'); }
-            function renderWeekStrips() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var now = new Date(); var currentWeek = isoDate(weekStartFor(now)) === state.weekStartIso; wrap.innerHTML = orderedDays().map(function (dow) { var day = DAY_NAMES[dow - 1]; var date = dateForDow(dow); var events = filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }); var nowLine = currentWeek && dow === dayOfWeekForDate(now) ? '<div class="v511-cal-now-line" id="v511CalNowLine" style="left:' + (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) + '%"><span class="v511-cal-now-label">Now</span></div>' : ''; return '<section class="v511-week-strip" id="v511WeekDay' + dow + '" data-week-day="' + dow + '"><div class="v511-week-strip-head"><div><strong>' + day + '</strong> <span>' + isoDate(date) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div><div class="v511-week-timeline">' + nowLine + (events.length ? events.map(function (ev, lane) { return renderEventPill(ev, lane); }).join('') : '<div class="v511-week-empty">No events</div>') + '</div><div class="v511-week-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div><div class="v511-week-strip-actions"><span class="v511-hint">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + day + '</button></div></section>'; }).join(''); }
-            function renderEventPill(ev, lane) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var end = start + Number(ev.duration_min || 60); var left = Math.max(0, Math.min(96, (start / 1440) * 100)); var width = Math.max(7, Math.min(28, ((Number(ev.duration_min || 60)) / 1440) * 100)); var top = 14 + ((lane % 2) * 36); return '<button type="button" class="v511-week-event-pill ' + room.className + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%; top:' + top + 'px;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small><span class="v511-week-room-badge">' + room.label + '</span></button>'; }
+            function renderDayLanes() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var dow = state.selectedDay || dayOfWeekForDate(new Date()); var date = dateForDow(dow); var dayName = DAY_NAMES[dow - 1]; var now = new Date(); var isToday = isoDate(date) === isoDate(now); var nowPercent = isToday ? (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) : null; var activeRooms = roomsForFilter(); var dayEvents = filteredEvents().filter(function (ev) { return ev.day_of_week === dow && activeRooms.indexOf(ev.room_id) >= 0; }); var header = '<div class="v511-day-lane-head"><div><strong>' + htmlEscape(dayName) + '</strong> <span>' + htmlEscape(isoDate(date)) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div>'; var ticks = '<div class="v511-day-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div>'; var lanes = activeRooms.map(function (roomId) { var room = ROOM_META[roomId]; if (!room) return ''; var roomEvents = dayEvents.filter(function (ev) { return ev.room_id === roomId; }); var pills = roomEvents.length ? roomEvents.map(renderEventPill).join('') : ''; var emptyLabel = roomEvents.length ? '' : '<div class="v511-lane-empty">No events</div>'; return '<div class="v511-day-lane ' + room.className + '" data-room-id="' + htmlEscape(roomId) + '"><div class="v511-day-lane-label">' + htmlEscape(room.label) + '</div><div class="v511-day-lane-timeline">' + pills + emptyLabel + '</div></div>'; }).join(''); var nowLine = (nowPercent !== null) ? '<div class="v511-day-now-line" style="left:' + nowPercent + '%"><span class="v511-day-now-label">Now</span></div>' : ''; var footer = '<div class="v511-day-lane-actions"><span class="v511-hint">' + dayEvents.length + ' event' + (dayEvents.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + htmlEscape(dayName) + '</button></div>'; wrap.innerHTML = header + ticks + '<div class="v511-day-lanes-grid">' + nowLine + lanes + '</div>' + footer; }
+            function renderEventPill(ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var width = Math.max(5, ((Number(ev.duration_min || 60)) / 1440) * 100); var left = Math.max(0, Math.min(100 - width, (start / 1440) * 100)); var end = start + Number(ev.duration_min || 60); return '<button type="button" class="v511-day-event-pill ' + room.className + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small></button>'; }
             function renderRoomSelect() { var select = document.getElementById('v511EventRoom'); if (!select) return; select.innerHTML = Object.keys(ROOM_META).map(function (id) { return '<option value="' + id + '">' + ROOM_META[id].label + '</option>'; }).join(''); var roomLabel = document.getElementById('v511CalRoomFilterLabel'); if (roomLabel) roomLabel.textContent = roomVocabSingular() + ':'; var allOpt = document.getElementById('v511CalRoomFilterAll'); if (allOpt) allOpt.textContent = 'All ' + roomVocabPlural().toLowerCase(); var modalRoomLabel = document.getElementById('v511EventRoomLabel'); if (modalRoomLabel) modalRoomLabel.textContent = roomVocabSingular(); }
             function renderRoomVocabularyControls() { var settings = loadCalSettings(); var singular = document.getElementById('v511RoomVocabSingular'); var plural = document.getElementById('v511RoomVocabPlural'); if (singular && document.activeElement !== singular) singular.value = settings.room_vocabulary_singular || 'Room'; if (plural && document.activeElement !== plural) plural.value = settings.room_vocabulary_plural || 'Rooms'; }
             function updateWeekStartBtn() { var btn = document.getElementById('v511WeekStartToggle'); if (btn) btn.textContent = 'Week starts: ' + (weekStartsMonday() ? 'Mon' : 'Sun'); }
@@ -6304,19 +6340,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function closeEventModal() { var modal = document.getElementById('v511EventModal'); if (modal) modal.hidden = true; }
             function saveEventFromModal() { var roomId = document.getElementById('v511EventRoom').value || 'studio1'; var id = document.getElementById('v511EventId').value || ('evt-' + Date.now()); var activeDay = document.querySelector('#v511EventDayChips [aria-pressed="true"]'); var next = { id: id, name: document.getElementById('v511EventName').value.trim() || 'Untitled event', room_id: roomId, day_of_week: parseInt(activeDay?.getAttribute('data-modal-day') || '1', 10), start_time_local: document.getElementById('v511EventStart').value || '09:00', duration_min: parseInt(document.getElementById('v511EventDuration').value || '60', 10), color_hex: ROOM_META[roomId]?.color || '#1f6feb' }; var ix = state.events.findIndex(function (ev) { return ev.id === id; }); if (ix >= 0) state.events[ix] = next; else state.events.push(next); saveWeeklyState(); closeEventModal(); renderAll(); }
             function deleteEventFromModal() { var id = document.getElementById('v511EventId').value; state.events = state.events.filter(function (ev) { return ev.id !== id; }); saveWeeklyState(); closeEventModal(); renderAll(); }
-            function scrollToDay(dow) { var target = document.getElementById('v511WeekDay' + dow); if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-            function jumpToNow() { var today = dayOfWeekForDate(new Date()); var thisWeek = isoDate(weekStartFor(new Date())); if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); renderAll(); } setView('swimlane'); window.requestAnimationFrame(function () { scrollToDay(today); }); }
+            function jumpToNow() { var today = dayOfWeekForDate(new Date()); var thisWeek = isoDate(weekStartFor(new Date())); if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); } state.selectedDay = today; setView('swimlane'); renderAll(); }
             document.getElementById('v511PrevWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), -7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511NextWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), 7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511ThisWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(weekStartFor(new Date())); saveWeeklyState(); renderAll(); });
             document.getElementById('v511WeekStartToggle')?.addEventListener('click', function () { var anchor = new Date(state.weekStartIso + 'T00:00:00'); saveCalSettings({ week_starts_on: weekStartsMonday() ? 7 : 1 }); state.weekStartIso = isoDate(weekStartFor(anchor)); saveWeeklyState(); updateWeekStartBtn(); renderAll(); });
             document.getElementById('v511ExportWeekBtn')?.addEventListener('click', function () { var start = state.weekStartIso; var end = isoDate(addDays(new Date(start + 'T00:00:00'), 6)); downloadCsv('Week-' + start + '_to_' + end + '.csv', csvFor(filteredEvents())); });
             document.getElementById('v511JumpNowBtn')?.addEventListener('click', jumpToNow);
-            document.getElementById('v511CalRoomFilter')?.addEventListener('change', renderAll);
+            document.getElementById('v511CalRoomFilter')?.addEventListener('change', function (e) { state.roomFilter = e.target.value || 'all'; renderAll(); });
             document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); saveCalSettings({ room_vocabulary_singular: parts[0] || 'Room', room_vocabulary_plural: parts[1] || 'Rooms' }); renderAll(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); }); });
             document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { openEventModal('', dayOfWeekForDate(new Date())); });
-            document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-week-day]'); if (btn) { setView('swimlane'); window.requestAnimationFrame(function () { scrollToDay(parseInt(btn.getAttribute('data-week-day'), 10)); }); } });
+            document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-week-day]'); if (!btn) return; state.selectedDay = parseInt(btn.getAttribute('data-week-day'), 10); renderAll(); });
             document.getElementById('v511CalSwimlane')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); var add = e.target.closest('[data-add-event-day]'); var exp = e.target.closest('[data-export-day]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); else if (add) openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10)); else if (exp) { var dow = parseInt(exp.getAttribute('data-export-day'), 10); var date = isoDate(dateForDow(dow)); downloadCsv(DAY_NAMES[dow - 1] + '-' + date + '.csv', csvFor(filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }))); } });
             document.getElementById('v511CalWrap')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); });
             document.getElementById('v511EventDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-modal-day]'); if (!btn) return; document.querySelectorAll('#v511EventDayChips [data-modal-day]').forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); });
