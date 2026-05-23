@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.2</span></div>
   </div>
 </div>
 
@@ -3805,7 +3805,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* T4.3.58.1 — Detailed list (row-per-hour single column).
            Captain's preferred shape: TIME | EVENT | ROOM pill | RANGE | Edit/View. */
         .v511-day-list-headrow { display: grid; grid-template-columns: 70px 1fr 110px 110px 70px; gap: 8px; padding: 8px 12px; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 4; }
-        .v511-day-list-scroll { max-height: 70vh; overflow-y: auto; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
+        .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
         .v511-day-list-inner { position: relative; }
         .v511-list-row { display: grid; grid-template-columns: 70px 1fr 110px 110px 70px; gap: 8px; padding: 6px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 34px; box-sizing: border-box; }
         .v511-list-row:last-child { border-bottom: none; }
@@ -3874,24 +3874,45 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-day-vert-event.room-studio1 { background: #d6e8ff; color: #0a3d80; border-left-color: #1f6feb; }
         :root[data-theme="light"] .v511-day-vert-event.room-studio2 { background: #d8ecbb; color: #2c5b08; border-left-color: #1a7f37; }
         :root[data-theme="light"] .v511-day-vert-event.room-studio3 { background: #fae4b8; color: #6b3e00; border-left-color: #9a6b00; }
-        /* T4.3.57 — dark-mode styling for native time inputs + select in Event defaults.
-           Native time inputs default to white background in dark mode without overrides. */
+        /* T4.3.57 / T4.3.58.2 — dark-mode styling for native form inputs.
+           Broadened from .v511-expander-body to include modals + any v511-row containers
+           so the Add/Edit event modal also gets the right colours. */
         .v511-expander-body input[type="time"],
         .v511-expander-body input[type="number"],
         .v511-expander-body input[type="text"],
-        .v511-expander-body select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.13); border-radius: 6px; color: var(--text); padding: 6px 10px; font-family: inherit; font-size: 13px; color-scheme: dark; }
+        .v511-expander-body select,
+        .v511-event-modal input[type="time"],
+        .v511-event-modal input[type="number"],
+        .v511-event-modal input[type="text"],
+        .v511-event-modal select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.13); border-radius: 6px; color: var(--text); padding: 6px 10px; font-family: inherit; font-size: 13px; color-scheme: dark; }
         .v511-expander-body input[type="time"]:focus,
         .v511-expander-body input[type="number"]:focus,
         .v511-expander-body input[type="text"]:focus,
-        .v511-expander-body select:focus { outline: none; border-color: rgba(105,168,255,0.55); background: rgba(255,255,255,0.06); }
+        .v511-expander-body select:focus,
+        .v511-event-modal input[type="time"]:focus,
+        .v511-event-modal input[type="number"]:focus,
+        .v511-event-modal input[type="text"]:focus,
+        .v511-event-modal select:focus { outline: none; border-color: rgba(105,168,255,0.55); background: rgba(255,255,255,0.06); }
         :root[data-theme="light"] .v511-expander-body input[type="time"],
         :root[data-theme="light"] .v511-expander-body input[type="number"],
         :root[data-theme="light"] .v511-expander-body input[type="text"],
-        :root[data-theme="light"] .v511-expander-body select { background: #f3f5f8; border-color: rgba(0,0,0,0.14); color: #0a0a0a; color-scheme: light; }
+        :root[data-theme="light"] .v511-expander-body select,
+        :root[data-theme="light"] .v511-event-modal input[type="time"],
+        :root[data-theme="light"] .v511-event-modal input[type="number"],
+        :root[data-theme="light"] .v511-event-modal input[type="text"],
+        :root[data-theme="light"] .v511-event-modal select { background: #f3f5f8; border-color: rgba(0,0,0,0.14); color: #0a0a0a; color-scheme: light; }
         :root[data-theme="light"] .v511-expander-body input[type="time"]:focus,
         :root[data-theme="light"] .v511-expander-body input[type="number"]:focus,
         :root[data-theme="light"] .v511-expander-body input[type="text"]:focus,
-        :root[data-theme="light"] .v511-expander-body select:focus { border-color: #1f6feb; background: #ffffff; }
+        :root[data-theme="light"] .v511-expander-body select:focus,
+        :root[data-theme="light"] .v511-event-modal input[type="time"]:focus,
+        :root[data-theme="light"] .v511-event-modal input[type="number"]:focus,
+        :root[data-theme="light"] .v511-event-modal input[type="text"]:focus,
+        :root[data-theme="light"] .v511-event-modal select:focus { border-color: #1f6feb; background: #ffffff; }
+        /* T4.3.58.2 — Global Saved toast (replaces inline pulses that flashed off-screen behind the Debug indicator). */
+        .v511-global-saved-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px); background: rgba(31, 111, 235, 0.95); color: #ffffff; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: opacity 0.18s, transform 0.18s; pointer-events: none; box-shadow: 0 10px 28px rgba(0,0,0,0.4); letter-spacing: 0.2px; }
+        .v511-global-saved-toast.is-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+        :root[data-theme="light"] .v511-global-saved-toast { background: rgba(31, 111, 235, 0.96); color: #ffffff; box-shadow: 0 10px 28px rgba(0,0,0,0.18); }
         .v511-lane-empty { color: var(--muted); font-size: 11px; padding: 18px 0 0 12px; }
         .v511-day-now-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent, #58a6ff); z-index: 5; pointer-events: none; }
         .v511-day-now-line .v511-day-now-label { position: absolute; top: -16px; left: 4px; font-size: 9px; background: var(--accent, #58a6ff); color: #000; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
@@ -6545,12 +6566,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>RANGE</div><div></div></div>' +
                 '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner" style="min-height:' + (24 * ROW_PX) + 'px;">' + rows.join('') + nowLine + '</div></div>';
 
+              // T4.3.58.2 — auto-scroll uses the page scroll (not inner container) since the
+              // inner-scroll was removed to kill the dual-scrollbar. scrollIntoView on the Now line
+              // centres it within the viewport relative to the whole page.
               if (isToday) {
-                var scrollEl = document.getElementById('v511DayListScroll');
-                if (scrollEl) {
-                  var targetScroll = Math.max(0, nowTopPx - (scrollEl.clientHeight / 2));
-                  scrollEl.scrollTop = targetScroll;
-                }
+                requestAnimationFrame(function () {
+                  var line = wrap.querySelector('.v511-list-now-line');
+                  if (line && line.scrollIntoView) { try { line.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) { line.scrollIntoView(); } }
+                });
               }
             }
             function eventEndMin(ev) { return minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60); }
@@ -6629,17 +6652,48 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.getElementById('v511ExportWeekBtn')?.addEventListener('click', function () { var start = state.weekStartIso; var end = isoDate(addDays(new Date(start + 'T00:00:00'), 6)); downloadCsv('Week-' + start + '_to_' + end + '.csv', csvFor(filteredEvents())); });
             document.getElementById('v511JumpNowBtn')?.addEventListener('click', jumpToNow);
             document.getElementById('v511CalRoomFilter')?.addEventListener('change', function (e) { state.roomFilter = e.target.value || 'all'; renderAll(); });
+            // T4.3.58.2 — Global Saved toast (fixed, always visible)
+            function showGlobalSavedToast(message) {
+              var toast = document.getElementById('v511GlobalSavedToast');
+              if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'v511GlobalSavedToast';
+                toast.className = 'v511-global-saved-toast';
+                document.body.appendChild(toast);
+              }
+              toast.textContent = message || '✓ Saved';
+              toast.classList.add('is-visible');
+              clearTimeout(showGlobalSavedToast._t);
+              showGlobalSavedToast._t = setTimeout(function () { toast.classList.remove('is-visible'); }, 1500);
+            }
             function flashRoomVocabPulse() {
               var pulse = document.getElementById('v511RoomVocabSavedPulse');
-              if (!pulse) return;
-              pulse.classList.add('is-pulsing');
-              clearTimeout(flashRoomVocabPulse._t);
-              flashRoomVocabPulse._t = setTimeout(function () { pulse.classList.remove('is-pulsing'); }, 1500);
+              if (pulse) {
+                pulse.classList.add('is-pulsing');
+                clearTimeout(flashRoomVocabPulse._t);
+                flashRoomVocabPulse._t = setTimeout(function () { pulse.classList.remove('is-pulsing'); }, 1500);
+              }
+              showGlobalSavedToast('✓ Saved');
             }
-            document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); saveCalSettings({ room_vocabulary_singular: parts[0] || 'Room', room_vocabulary_plural: parts[1] || 'Rooms' }); renderAll(); flashRoomVocabPulse(); }); });
+            // T4.3.58.2 — Auto-rename rooms matching default {OldVocab} N pattern when vocabulary changes.
+            // Only applies to rooms whose label exactly matches "OldVocab 1", "OldVocab 2", etc.
+            // Rooms with custom names (e.g. "Treatment Room A") are left alone.
+            function renameDefaultRoomsForNewVocab(oldVocab, newVocab) {
+              if (!oldVocab || !newVocab || oldVocab === newVocab) return;
+              var rooms = loadRoomsState();
+              var escaped = oldVocab.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              var pattern = new RegExp('^' + escaped + ' (\\d+)$');
+              var changed = false;
+              rooms.forEach(function (r) {
+                var m = pattern.exec(r.label || '');
+                if (m) { r.label = newVocab + ' ' + m[1]; changed = true; }
+              });
+              if (changed) saveRoomsState(rooms);
+            }
+            document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var prevSingular = roomVocabSingular(); var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); var newSingular = parts[0] || 'Room'; var newPlural = parts[1] || 'Rooms'; saveCalSettings({ room_vocabulary_singular: newSingular, room_vocabulary_plural: newPlural }); renameDefaultRoomsForNewVocab(prevSingular, newSingular); renderAll(); flashRoomVocabPulse(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
-            function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (!p) return; p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); }
+            function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (p) { p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); } showGlobalSavedToast('✓ Saved'); }
             function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; el.addEventListener('input', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); el.addEventListener('change', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); }
             bindCalSetting('v511WorkingHoursStart', 'working_hours_start');
             bindCalSetting('v511WorkingHoursEnd', 'working_hours_end');
