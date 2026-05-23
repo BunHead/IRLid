@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59.1</span></div>
   </div>
 </div>
 
@@ -6658,16 +6658,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 }
               }
 
-              // Now line — position by current minute relative to total minutes shown.
-              // For multi-event hours the row count exceeds 24, so position by hour-fraction
-              // relative to ALL rows. Simpler: use min/1440 ratio against total height.
-              var totalPx = rowCount * ROW_PX;
-              var nowTopPx = (nowMin / 1440) * (24 * ROW_PX); // base on 24h scale even if rows > 24
-              var nowLine = isToday ? '<div class="v511-list-now-line" style="top:' + nowTopPx.toFixed(1) + 'px;"><span class="v511-list-now-label">Now ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + '</span></div>' : '';
+              // T4.3.59.1 — Now line positioned by PERCENT so it auto-adapts to actual rendered
+              // row heights regardless of ROW_PX constant. Inner container hugs content (no
+              // inline min-height) which removes the empty scroll space below 23:00.
+              var nowPct = (nowMin / 1440) * 100;
+              var nowLine = isToday ? '<div class="v511-list-now-line" style="top:' + nowPct.toFixed(2) + '%;"><span class="v511-list-now-label">Now ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + '</span></div>' : '';
 
               wrap.innerHTML = header +
                 '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>DURATION</div><div>CAP</div><div></div></div>' +
-                '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner" style="min-height:' + (24 * ROW_PX) + 'px;">' + rows.join('') + nowLine + '</div></div>';
+                '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner">' + rows.join('') + nowLine + '</div></div>';
 
               // T4.3.58.2 — auto-scroll uses the page scroll (not inner container) since the
               // inner-scroll was removed to kill the dual-scrollbar. scrollIntoView on the Now line
