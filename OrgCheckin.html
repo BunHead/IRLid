@@ -1312,6 +1312,20 @@ body:not(.developer-bearer-active) .prototype-role-dock { display: none; }
   border-color: var(--orange);
   color: var(--orange);
 }
+/* v5.11.1 - Deeper light-mode badge colours.
+   Brand colour vars are tuned for dark surfaces; keep these readable on white. */
+:root[data-theme="light"] .role-mini.staff       { border-color: #1f6feb; color: #1f6feb; }
+:root[data-theme="light"] .role-mini.manager     { border-color: #9a6b00; color: #9a6b00; }
+:root[data-theme="light"] .role-mini.lead_admin,
+:root[data-theme="light"] .role-mini.developer   { border-color: #1a7f37; color: #1a7f37; }
+
+:root[data-theme="light"] .expected-pill.ok      { background: #c8e7d4; border-color: #1a7f37; color: #1a7f37; }
+:root[data-theme="light"] .expected-pill.warn    { background: #fff1bf; border-color: #9a6b00; color: #9a6b00; }
+
+:root[data-theme="light"] .status-in             { color: #1a7f37; }
+:root[data-theme="light"] .status-out            { color: #b62324; }
+:root[data-theme="light"] .checkout-signed-badge { color: #1a7f37; }
+:root[data-theme="light"] .checkout-legacy-badge { color: #9a6b00; }
 /* Camera viewport border in light mode (dark-on-light reads better). */
 :root[data-theme="light"] .dashboard-scan-camera-view {
   background: #f3f5f8;
@@ -3286,7 +3300,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.1</span></div>
   </div>
 </div>
 
@@ -3666,14 +3680,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="settings-card">
             <div class="settings-card-header">
               <h3>Organisation settings</h3>
-              <p>Compact desktop settings screen with the old app nav restored. Local-only test mode. No Cloudflare writes.</p>
+              <p>Organisation identity, branding, and core policy.</p>
             </div>
             <div class="settings-card-body">
               <div class="settings-group">
-                <h4>Basic test identity</h4>
+                <h4>Basic identity</h4>
                 <div class="settings-grid-3">
-                  <label class="settings-field"><span>Org code</span><input id="orgCode" type="text" value="test"></label>
-                  <label class="settings-field"><span>Event code</span><input id="eventCode" type="text" value="demo-night"></label>
+                  <label class="settings-field"><span>Org code</span><input id="orgCode" type="text" placeholder="org-code"></label>
+                  <label class="settings-field"><span>Event code</span><input id="eventCode" type="text" placeholder="event-code"></label>
                   <label class="settings-field"><span>Minimum Trust Score</span><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70"></label>
                 </div>
                 <div class="invite-staff-row" data-min-role="lead_admin">
@@ -6545,7 +6559,7 @@ function renderStats(rows, stats) {
   animateStatValue('statOut', checkedOut);
   animateStatValue('statScore', avgScore, '%');
   animateStatValue('statBio', bioCount);
-  document.getElementById('statInSub').textContent = rows.length ? `${rows.length} attendees seen` : 'No attendance yet';
+  document.getElementById('statInSub').textContent = stats && stats.total ? `${stats.total} attendees seen` : 'No attendance yet';
   const minScore = settings.minScore || 50;
   const scoreProgress = document.getElementById('scoreProgress');
   const scoreThresholdMarker = document.getElementById('scoreThresholdMarker');
