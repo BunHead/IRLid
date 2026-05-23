@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.53</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.54</span></div>
   </div>
 </div>
 
@@ -5279,7 +5279,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="cal">
           <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
 
-          <div class="v511-sub">Weekly events <span class="v511-hint-inline">(7-day cycle, across rooms)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div>
+          <div class="v511-sub">Weekly events <span class="v511-hint-inline" id="v511WeeklyEventsSub">(7-day cycle, across rooms)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div>
 
           <div class="v511-cal-toolbar">
             <div class="v511-week-nav" aria-label="Week navigation">
@@ -5288,6 +5288,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <button type="button" class="v511-btn v511-btn-mini" id="v511ThisWeekBtn">This week</button>
               <button type="button" class="v511-btn v511-btn-mini" id="v511NextWeekBtn">Next week &rarr;</button>
               <button type="button" class="v511-btn v511-btn-mini" id="v511ExportWeekBtn">Export week</button>
+              <button type="button" class="v511-btn v511-btn-mini" id="v511WeekStartToggle" title="Toggle week start day">Week starts: Mon</button>
             </div>
             <div class="v511-day-chip-row" id="v511WeekDayChips" aria-label="Jump to day"></div>
             <div class="v511-cal-view-toggle" role="tablist" aria-label="Calendar view mode">
@@ -5297,9 +5298,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div style="display: flex; gap: 10px; align-items: center;">
               <button type="button" class="v511-jump-now-btn" id="v511JumpNowBtn" title="Centre the calendar on the current time">↳ Jump to now</button>
               <div class="v511-cal-room-filter">
-                <label for="v511CalRoomFilter">Room:</label>
+                <label for="v511CalRoomFilter" id="v511CalRoomFilterLabel">Room:</label>
                 <select id="v511CalRoomFilter">
-                  <option value="all">All rooms</option>
+                  <option value="all" id="v511CalRoomFilterAll">All rooms</option>
                   <option value="studio1">Studio 1</option>
                   <option value="studio2">Studio 2</option>
                   <option value="studio3">Studio 3</option>
@@ -5615,7 +5616,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-drill-head"><strong id="v511EventModalTitle">Edit event</strong><button type="button" class="v511-btn v511-btn-mini" id="v511EventCancelTopBtn">&times; Close</button></div>
               <input type="hidden" id="v511EventId" />
               <div class="v511-row"><label for="v511EventName">Event name</label><input type="text" id="v511EventName" /></div>
-              <div class="v511-row"><label for="v511EventRoom">Room</label><select id="v511EventRoom"></select></div>
+              <div class="v511-row"><label for="v511EventRoom" id="v511EventRoomLabel">Room</label><select id="v511EventRoom"></select></div>
               <div class="v511-row"><label>Day</label><div class="v511-event-day-chips" id="v511EventDayChips"></div></div>
               <div class="v511-row"><label for="v511EventStart">Start time</label><input type="time" id="v511EventStart" /></div>
               <div class="v511-row"><label for="v511EventDuration">Duration</label><input type="number" id="v511EventDuration" min="15" step="15" /></div>
@@ -5630,10 +5631,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
 
           <details class="v511-expander">
-            <summary>Default event settings <span class="v511-hint-inline">(applied to any new event unless the event overrides them)</span></summary>
+            <summary>Event defaults <span class="v511-hint-inline">(applied to any new event unless overridden)</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
               <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
+              <div class="v511-row"><label>Late check-in grace before</label><input type="text" value="15 minutes" /></div>
+              <div class="v511-row"><label>Late check-in grace after</label><input type="text" value="30 minutes" /></div>
               <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
               <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
               <div class="v511-row"><label>Require proof</label><select><option>Required</option><option>Optional</option><option>Off</option></select></div>
@@ -5663,6 +5666,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Manager</label><input type="text" value="Studio Manager" /></div>
               <div class="v511-row"><label>Lead admin</label><input type="text" value="Owner" /></div>
               <div class="v511-hint" style="padding: 4px 0;">Developer role is platform-level and is not shown here — it never changes and non-Developer roles can't edit it.</div>
+            </div>
+          </details>
+
+          <details class="v511-expander">
+            <summary>Room vocabulary <span class="v511-hint-inline">(what YOUR org calls rooms)</span></summary>
+            <div class="v511-expander-body">
+              <div class="role-vocab-presets" role="group" aria-label="Room vocabulary presets">
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Room|Rooms">Room</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Studio|Studios">Studio</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Classroom|Classrooms">Classroom</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Pitch|Pitches">Pitch</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Court|Courts">Court</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Treatment room|Treatment rooms">Treatment room</button>
+                <button type="button" class="v511-btn v511-btn-mini" data-room-vocab-preset="Dungeon|Dungeons">Dungeon</button>
+              </div>
+              <div class="v511-row" style="margin-top: 10px;">
+                <label>Singular</label><input type="text" id="v511RoomVocabSingular" placeholder="e.g. Studio" />
+              </div>
+              <div class="v511-row">
+                <label>Plural</label><input type="text" id="v511RoomVocabPlural" placeholder="e.g. Studios" />
+              </div>
+              <div class="v511-hint" style="padding: 4px 0;">Replaces the literal text "Room" / "Rooms" throughout the calendar UI.</div>
             </div>
           </details>
 
@@ -6207,10 +6232,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function scrollCalToNow() {
             if (typeof v511WeeklyJumpToNow === 'function') v511WeeklyJumpToNow();
           }
-          // T4.3.53 - Weekly calendar renderer lives in localStorage only.
+          // T4.3.54 - Weekly calendar renderer lives in localStorage only.
           (function initV511WeeklyCalendar() {
-            var WEEK_STARTS_MONDAY = true;
             var STORAGE_KEY = 'v511_mockup_weekly_events_v1';
+            var V511_CAL_SETTINGS_KEY = 'v511_mockup_calendar_settings_v1';
             var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
             var DAY_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
             var ROOM_META = {
@@ -6226,7 +6251,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
             function minutesFromTime(t) { var p = String(t || '00:00').split(':'); return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0); }
             function timeFromMinutes(m) { m = Math.max(0, Math.min(1439, m)); return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
-            function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (WEEK_STARTS_MONDAY ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
+            function loadCalSettings() {
+              try {
+                var raw = localStorage.getItem(V511_CAL_SETTINGS_KEY);
+                if (!raw) return { week_starts_on: 1, room_vocabulary_singular: 'Room', room_vocabulary_plural: 'Rooms' };
+                var parsed = JSON.parse(raw);
+                return Object.assign({ week_starts_on: 1, room_vocabulary_singular: 'Room', room_vocabulary_plural: 'Rooms' }, parsed);
+              } catch (e) {
+                return { week_starts_on: 1, room_vocabulary_singular: 'Room', room_vocabulary_plural: 'Rooms' };
+              }
+            }
+            function saveCalSettings(patch) { var current = loadCalSettings(); var next = Object.assign({}, current, patch); localStorage.setItem(V511_CAL_SETTINGS_KEY, JSON.stringify(next)); return next; }
+            function weekStartsMonday() { return loadCalSettings().week_starts_on === 1; }
+            function roomVocabSingular() { return loadCalSettings().room_vocabulary_singular || 'Room'; }
+            function roomVocabPlural() { return loadCalSettings().room_vocabulary_plural || 'Rooms'; }
+            function orderedDays() { return weekStartsMonday() ? [1,2,3,4,5,6,7] : [7,1,2,3,4,5,6]; }
+            function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (weekStartsMonday() ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
             function dayOfWeekForDate(d) { var js = d.getDay(); return js === 0 ? 7 : js; }
             function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString(undefined, { month: 'short' }); }
             function seedEvents() {
@@ -6247,16 +6287,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function saveWeeklyState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} }
             function setView(view) { currentView = view; document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (b) { var active = b.getAttribute('data-cal-view') === view; b.classList.toggle('active', active); b.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.getElementById('v511CalWrap').hidden = view !== 'list'; document.getElementById('v511CalSwimlane').hidden = view !== 'swimlane'; }
             function weekLabel() { var start = new Date(state.weekStartIso + 'T00:00:00'); var end = addDays(start, 6); return displayDate(start) + ' – ' + displayDate(end) + ' ' + end.getFullYear(); }
-            function filteredEvents() { var room = document.getElementById('v511CalRoomFilter')?.value || 'all'; return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (a.day_of_week - b.day_of_week) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
-            function dateForDow(dow) { return addDays(new Date(state.weekStartIso + 'T00:00:00'), dow - 1); }
-            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderWeekStrips(); renderRoomSelect(); var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 rooms - working hours band (09:00-17:59) shown brighter'; }
-            function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; var todayDow = dayOfWeekForDate(new Date()); var todayStart = isoDate(weekStartFor(new Date())); wrap.innerHTML = DAY_SHORT.map(function (name, i) { var dow = i + 1; var current = state.weekStartIso === todayStart && dow === todayDow; return '<button type="button" class="v511-day-chip' + (current ? ' is-current' : '') + '" data-week-day="' + dow + '">' + name + '</button>'; }).join(''); }
-            function csvFor(events) { return ['event_name,room,start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
+            function filteredEvents() { var room = document.getElementById('v511CalRoomFilter')?.value || 'all'; var order = orderedDays(); return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (order.indexOf(a.day_of_week) - order.indexOf(b.day_of_week)) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
+            function dateForDow(dow) { var order = orderedDays(); return addDays(new Date(state.weekStartIso + 'T00:00:00'), order.indexOf(dow)); }
+            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderWeekStrips(); renderRoomSelect(); renderRoomVocabularyControls(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 ' + roomVocabPlural().toLowerCase() + ' - working hours band (09:00-17:59) shown brighter'; }
+            function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; var todayDow = dayOfWeekForDate(new Date()); var todayStart = isoDate(weekStartFor(new Date())); wrap.innerHTML = orderedDays().map(function (dow) { var current = state.weekStartIso === todayStart && dow === todayDow; return '<button type="button" class="v511-day-chip' + (current ? ' is-current' : '') + '" data-week-day="' + dow + '">' + DAY_SHORT[dow - 1] + '</button>'; }).join(''); }
+            function csvFor(events) { var roomHeader = roomVocabSingular().trim().toLowerCase().replace(/\s+/g, '_') || 'room'; return ['event_name,' + roomHeader + ',start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
             function downloadCsv(filename, csv) { var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
-            function renderList() { var wrap = document.getElementById('v511CalWrap'); if (!wrap) return; var rows = filteredEvents(); wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>Room</div><div></div></div>' + (rows.length ? rows.map(function (ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60)); return '<div class="v511-week-list-row v511-cal-row filled" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div><button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button></div></div>'; }).join('') : '<div class="v511-week-empty">No events for this room filter.</div>'); }
-            function renderWeekStrips() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var now = new Date(); var currentWeek = isoDate(weekStartFor(now)) === state.weekStartIso; wrap.innerHTML = DAY_NAMES.map(function (day, idx) { var dow = idx + 1; var date = dateForDow(dow); var events = filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }); var nowLine = currentWeek && dow === dayOfWeekForDate(now) ? '<div class="v511-cal-now-line" id="v511CalNowLine" style="left:' + (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) + '%"><span class="v511-cal-now-label">Now</span></div>' : ''; return '<section class="v511-week-strip" id="v511WeekDay' + dow + '" data-week-day="' + dow + '"><div class="v511-week-strip-head"><div><strong>' + day + '</strong> <span>' + isoDate(date) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div><div class="v511-week-timeline">' + nowLine + (events.length ? events.map(function (ev, lane) { return renderEventPill(ev, lane); }).join('') : '<div class="v511-week-empty">No events</div>') + '</div><div class="v511-week-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div><div class="v511-week-strip-actions"><span class="v511-hint">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + day + '</button></div></section>'; }).join(''); }
+            function renderList() { var wrap = document.getElementById('v511CalWrap'); if (!wrap) return; var rows = filteredEvents(); wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>' + htmlEscape(roomVocabSingular()) + '</div><div></div></div>' + (rows.length ? rows.map(function (ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60)); return '<div class="v511-week-list-row v511-cal-row filled" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div><button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button></div></div>'; }).join('') : '<div class="v511-week-empty">No events for this ' + htmlEscape(roomVocabSingular().toLowerCase()) + ' filter.</div>'); }
+            function renderWeekStrips() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var now = new Date(); var currentWeek = isoDate(weekStartFor(now)) === state.weekStartIso; wrap.innerHTML = orderedDays().map(function (dow) { var day = DAY_NAMES[dow - 1]; var date = dateForDow(dow); var events = filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }); var nowLine = currentWeek && dow === dayOfWeekForDate(now) ? '<div class="v511-cal-now-line" id="v511CalNowLine" style="left:' + (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) + '%"><span class="v511-cal-now-label">Now</span></div>' : ''; return '<section class="v511-week-strip" id="v511WeekDay' + dow + '" data-week-day="' + dow + '"><div class="v511-week-strip-head"><div><strong>' + day + '</strong> <span>' + isoDate(date) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div><div class="v511-week-timeline">' + nowLine + (events.length ? events.map(function (ev, lane) { return renderEventPill(ev, lane); }).join('') : '<div class="v511-week-empty">No events</div>') + '</div><div class="v511-week-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div><div class="v511-week-strip-actions"><span class="v511-hint">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + day + '</button></div></section>'; }).join(''); }
             function renderEventPill(ev, lane) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var end = start + Number(ev.duration_min || 60); var left = Math.max(0, Math.min(96, (start / 1440) * 100)); var width = Math.max(7, Math.min(28, ((Number(ev.duration_min || 60)) / 1440) * 100)); var top = 14 + ((lane % 2) * 36); return '<button type="button" class="v511-week-event-pill ' + room.className + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%; top:' + top + 'px;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small><span class="v511-week-room-badge">' + room.label + '</span></button>'; }
-            function renderRoomSelect() { var select = document.getElementById('v511EventRoom'); if (!select) return; select.innerHTML = Object.keys(ROOM_META).map(function (id) { return '<option value="' + id + '">' + ROOM_META[id].label + '</option>'; }).join(''); }
+            function renderRoomSelect() { var select = document.getElementById('v511EventRoom'); if (!select) return; select.innerHTML = Object.keys(ROOM_META).map(function (id) { return '<option value="' + id + '">' + ROOM_META[id].label + '</option>'; }).join(''); var roomLabel = document.getElementById('v511CalRoomFilterLabel'); if (roomLabel) roomLabel.textContent = roomVocabSingular() + ':'; var allOpt = document.getElementById('v511CalRoomFilterAll'); if (allOpt) allOpt.textContent = 'All ' + roomVocabPlural().toLowerCase(); var modalRoomLabel = document.getElementById('v511EventRoomLabel'); if (modalRoomLabel) modalRoomLabel.textContent = roomVocabSingular(); }
+            function renderRoomVocabularyControls() { var settings = loadCalSettings(); var singular = document.getElementById('v511RoomVocabSingular'); var plural = document.getElementById('v511RoomVocabPlural'); if (singular && document.activeElement !== singular) singular.value = settings.room_vocabulary_singular || 'Room'; if (plural && document.activeElement !== plural) plural.value = settings.room_vocabulary_plural || 'Rooms'; }
+            function updateWeekStartBtn() { var btn = document.getElementById('v511WeekStartToggle'); if (btn) btn.textContent = 'Week starts: ' + (weekStartsMonday() ? 'Mon' : 'Sun'); }
             function renderModalDayChips(activeDow) { var wrap = document.getElementById('v511EventDayChips'); if (!wrap) return; wrap.innerHTML = DAY_SHORT.map(function (day, idx) { var dow = idx + 1; return '<button type="button" class="v511-day-chip" data-modal-day="' + dow + '" aria-pressed="' + (dow === activeDow ? 'true' : 'false') + '">' + day + '</button>'; }).join(''); }
             function openEventModal(id, presetDow) { var ev = state.events.find(function (x) { return x.id === id; }) || { id: '', name: '', room_id: 'studio1', day_of_week: presetDow || dayOfWeekForDate(new Date()), start_time_local: '09:00', duration_min: 60 }; document.getElementById('v511EventModalTitle').textContent = ev.id ? 'Edit event' : 'Add event'; document.getElementById('v511EventId').value = ev.id; document.getElementById('v511EventName').value = ev.name; document.getElementById('v511EventRoom').value = ev.room_id; document.getElementById('v511EventStart').value = ev.start_time_local; document.getElementById('v511EventDuration').value = ev.duration_min; renderModalDayChips(ev.day_of_week); document.getElementById('v511EventDeleteBtn').hidden = !ev.id; document.getElementById('v511EventModal').hidden = false; document.getElementById('v511EventName').focus(); }
             function closeEventModal() { var modal = document.getElementById('v511EventModal'); if (modal) modal.hidden = true; }
@@ -6267,9 +6309,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.getElementById('v511PrevWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), -7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511NextWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), 7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511ThisWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(weekStartFor(new Date())); saveWeeklyState(); renderAll(); });
+            document.getElementById('v511WeekStartToggle')?.addEventListener('click', function () { var anchor = new Date(state.weekStartIso + 'T00:00:00'); saveCalSettings({ week_starts_on: weekStartsMonday() ? 7 : 1 }); state.weekStartIso = isoDate(weekStartFor(anchor)); saveWeeklyState(); updateWeekStartBtn(); renderAll(); });
             document.getElementById('v511ExportWeekBtn')?.addEventListener('click', function () { var start = state.weekStartIso; var end = isoDate(addDays(new Date(start + 'T00:00:00'), 6)); downloadCsv('Week-' + start + '_to_' + end + '.csv', csvFor(filteredEvents())); });
             document.getElementById('v511JumpNowBtn')?.addEventListener('click', jumpToNow);
             document.getElementById('v511CalRoomFilter')?.addEventListener('change', renderAll);
+            document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); saveCalSettings({ room_vocabulary_singular: parts[0] || 'Room', room_vocabulary_plural: parts[1] || 'Rooms' }); renderAll(); }); });
+            ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); }); });
             document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { openEventModal('', dayOfWeekForDate(new Date())); });
             document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-week-day]'); if (btn) { setView('swimlane'); window.requestAnimationFrame(function () { scrollToDay(parseInt(btn.getAttribute('data-week-day'), 10)); }); } });
             document.getElementById('v511CalSwimlane')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); var add = e.target.closest('[data-add-event-day]'); var exp = e.target.closest('[data-export-day]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); else if (add) openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10)); else if (exp) { var dow = parseInt(exp.getAttribute('data-export-day'), 10); var date = isoDate(dateForDow(dow)); downloadCsv(DAY_NAMES[dow - 1] + '-' + date + '.csv', csvFor(filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }))); } });
