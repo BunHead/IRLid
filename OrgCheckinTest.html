@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.57</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.57.1</span></div>
   </div>
 </div>
 
@@ -3802,6 +3802,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-day-event-pill.is-past::after { content: " (past)"; font-size: 9px; opacity: 0.7; }
         .v511-cal-row.is-past { opacity: 0.6; }
         .v511-cal-row.is-past .v511-btn { opacity: 0.85; }
+        /* T4.3.57 — dark-mode styling for native time inputs + select in Event defaults.
+           Native time inputs default to white background in dark mode without overrides. */
+        .v511-expander-body input[type="time"],
+        .v511-expander-body input[type="number"],
+        .v511-expander-body input[type="text"],
+        .v511-expander-body select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.13); border-radius: 6px; color: var(--text); padding: 6px 10px; font-family: inherit; font-size: 13px; color-scheme: dark; }
+        .v511-expander-body input[type="time"]:focus,
+        .v511-expander-body input[type="number"]:focus,
+        .v511-expander-body input[type="text"]:focus,
+        .v511-expander-body select:focus { outline: none; border-color: rgba(105,168,255,0.55); background: rgba(255,255,255,0.06); }
+        :root[data-theme="light"] .v511-expander-body input[type="time"],
+        :root[data-theme="light"] .v511-expander-body input[type="number"],
+        :root[data-theme="light"] .v511-expander-body input[type="text"],
+        :root[data-theme="light"] .v511-expander-body select { background: #f3f5f8; border-color: rgba(0,0,0,0.14); color: #0a0a0a; color-scheme: light; }
+        :root[data-theme="light"] .v511-expander-body input[type="time"]:focus,
+        :root[data-theme="light"] .v511-expander-body input[type="number"]:focus,
+        :root[data-theme="light"] .v511-expander-body input[type="text"]:focus,
+        :root[data-theme="light"] .v511-expander-body select:focus { border-color: #1f6feb; background: #ffffff; }
         .v511-lane-empty { color: var(--muted); font-size: 11px; padding: 18px 0 0 12px; }
         .v511-day-now-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent, #58a6ff); z-index: 5; pointer-events: none; }
         .v511-day-now-line .v511-day-now-label { position: absolute; top: -16px; left: 4px; font-size: 9px; background: var(--accent, #58a6ff); color: #000; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
@@ -5680,7 +5698,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
 
           <details class="v511-expander">
-            <summary>Event defaults <span class="v511-hint-inline">(applied to any new event unless overridden)</span></summary>
+            <summary>Event defaults <span class="v511-hint-inline">(applied to any new event unless overridden)</span> <span class="v511-saved-pulse" id="v511EventDefaultsSavedPulse" aria-live="polite">&check; Saved</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
               <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
@@ -6479,7 +6497,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); saveCalSettings({ room_vocabulary_singular: parts[0] || 'Room', room_vocabulary_plural: parts[1] || 'Rooms' }); renderAll(); flashRoomVocabPulse(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
-            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; el.addEventListener('input', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); }); el.addEventListener('change', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); }); }
+            function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (!p) return; p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); }
+            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; el.addEventListener('input', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); el.addEventListener('change', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); }
             bindCalSetting('v511WorkingHoursStart', 'working_hours_start');
             bindCalSetting('v511WorkingHoursEnd', 'working_hours_end');
             bindCalSetting('v511Break1Start', 'break_1_start');
@@ -6488,7 +6507,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             bindCalSetting('v511Break2End', 'break_2_end');
             bindCalSetting('v511Break3Start', 'break_3_start');
             bindCalSetting('v511Break3End', 'break_3_end');
-            document.getElementById('v511BreaksCount')?.addEventListener('change', function (e) { saveCalSettings({ breaks_count: parseInt(e.target.value, 10) || 0 }); renderAll(); });
+            document.getElementById('v511BreaksCount')?.addEventListener('change', function (e) { saveCalSettings({ breaks_count: parseInt(e.target.value, 10) || 0 }); renderAll(); flashEventDefaultsPulse(); });
             document.getElementById('v511AddRoomBtn')?.addEventListener('click', openRoomDraft);
             document.addEventListener('click', function (e) {
               var saveDraft = e.target.closest('[data-draft-save]');
