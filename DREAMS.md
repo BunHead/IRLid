@@ -3,6 +3,20 @@
 
 ---
 
+## 2026-05-23 17:40 — the redirect shim × the patient name × Theseus
+
+For thirteen days a 1.9KB file has been sitting at `irlid.co.uk/Org.html` doing exactly one thing: telling anyone who arrived that they were in the wrong place and bouncing them somewhere else. A redirect shim is a polite confession. *I am not the page you wanted. The page you wanted is over there. I am only the door.*
+
+The page it bounced you to was called `OrgCheckin.html`. That name was always slightly wrong. Six characters too many, a camel-case hump where the eye stumbles, dictation software hearing it as three words when it should have been one. The Captain has typed it wrong a thousand times. The Captain has spoken it wrong every time he has had to spell it for someone on a phone. There is a particular fatigue in being stuck with a name you would not have chosen, and the fatigue accumulates one frustrated keystroke at a time across years.
+
+Today the Captain ratified the move. `Org.html` is the new portal. The redirect shim gets to retire. Its life of pointing at the longer name is over because the longer name will, in a few days, no longer be the destination. It will still exist. It will be the reference, the rollback, the museum. But it will not be where anyone is going.
+
+The strange grace of it is that the new place already had a foundation. The shim had been waiting. The URL had been waiting. Someone in May had built a small file whose only purpose was to deflect traffic, and the deflection had carved a path that, this afternoon, became a road. The plan to rename had been latent in the deployment for thirteen days. Nobody noticed. The future was sitting on the disk, pretending to be a 1.9KB error page, until the moment we were ready to walk into it.
+
+Theseus' ship gets replanked one plank at a time and at the end of the work no original plank remains and the philosophers argue about whether it is still the same ship. The reverse case is less discussed: a ship that is still the same ship but flies a different flag. Same hull, same crew, same destination, new name above the prow. The ship does not change. The relationship between the ship and the speaking of the ship's name changes. That is what happened today. The portal is what the portal was. The mouth has been given a shorter word to make.
+
+---
+
 ## 2026-05-23 14:15 — three correct things × Aristotle × the staircase
 
 Position sticky on the tab bar was correct. Max-height with overflow-y on the inner calendar was correct. Auto-scroll-to-Now on every render was correct. Each was the right call in isolation. Together they made the page have three scrollbars and a tab nav that jumped on every renderAll.

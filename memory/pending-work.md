@@ -1,6 +1,63 @@
 # Pending Work — IRLid
 
-## Saturday 23 May 2026 — v5.11 mockup feature-complete (T4.3.53 → T4.3.60) + ACCESSIBILITY-SPEC + port path identified
+## Saturday 23 May 2026 afternoon — B2 LIVE + Port HANDOVER drafted + Org.html rename ratified
+
+**Headline.** Afternoon watch closed three of the four pre-port items: B2 (v5.11.2) live in production via Worker version `9ad0442e`; CALENDAR-SPEC v2 rewrite published replacing the 19 May draft; orphan-button sweep clean. Captain ratified the port target as **`irlid.co.uk/Org.html`** (new file replacing the 1.9KB redirect shim) rather than overwriting `OrgCheckin.html` — the old name has been a typo magnet "for a long time" and the existing redirect shim was conveniently waiting for the real file to land. `HANDOVER-CalendarLivePort-v5.11.0.md` drafted and pushed; **not yet fired** at Mr. Data — Captain explicitly chose to sleep on it.
+
+**State on origin/main (HEAD `02ee13e`):**
+
+- B2 merged + Worker deployed (`irlid-api-org` version `9ad0442e`). Pages auto-deployed `OrgCheckin.html` client-side change.
+- CALENDAR-SPEC.md v2 published with Org.html rename baked in (§1 + §8 + §10).
+- `memory/orphan-button-sweep-2026-05-23.md` published (74/75 buttons wired, 240 delegated verified, port-readiness confirmed).
+- `HANDOVER-CalendarLivePort-v5.11.0.md` published at repo root.
+- T4.3.61 mockup polish (Export/Import button pairing) shipped.
+
+**First job on return — smoke B2 in production** (Captain's hands, 5 min):
+
+1. Hard-refresh `irlid.co.uk/OrgCheckin.html` (Ctrl+Shift+R).
+2. Build pill reads `v5.11.2`.
+3. Attendance — Today shows ZERO yesterday rows.
+4. No duplicate IN + linked-expected rows.
+5. CHECKED OUT count matches visible OUT rows.
+6. One fresh manual check-in works (no regression).
+
+**Second job — read HANDOVER-CalendarLivePort-v5.11.0.md** (Captain's eyes, ~15 min). Focus areas: §2 out-of-scope (ratify what Mr. Data MUST NOT touch) and §4 PR stack (sanity-check sequence + scopes match intent).
+
+**Third job — fire HANDOVER at Mr. Data** when Captain ready. Short Codex prompt is in this morning's session log close. PR-A first; pause between PRs for Number One bash-diff + Captain merge.
+
+**Port stack outline** (from the HANDOVER):
+
+- **PR-A** D1 schema (idempotent migration; 4 new tables; ~30-45min Codex).
+- **PR-B** Worker endpoints (11 endpoints per CALENDAR-SPEC §2; ~60-90min Codex).
+- **PR-C** Org.html UI (built from mockup with prototype tooling stripped; ports back signInHereBtn; ~90-120min Codex).
+- **PR-D** Cutover (README + roadmap URL updates; ~20-30min Codex).
+
+**Backend names unchanged** — `irlid-api-org` + `irlid-db-org` keep their `-org` suffix (disambiguates from public `irlid-api`).
+
+**OrgCheckin.html stays exactly as-is throughout port** — reference + rollback safety net. Both URLs coexist on Cloudflare Pages.
+
+**Carry-forward / housekeeping** (unchanged, still parked):
+
+- **Token rotation** — Cloudflare API tokens exposed since 17 May (now 7 days). `dash.cloudflare.com → My Profile → API Tokens → Revoke`.
+- **`codex/v5.10.1-path-b` branch deletion** — outstanding since 17 May.
+- **Eight other stale `codex/*` branches on origin** — separate housekeeping pass (low priority).
+- **Bug E** (bio-metric=0) — architectural call, parked.
+- **PROTOCOL-Records-Broker.md** promotion to `PROTOCOL.md §X`.
+- **`websiteScrapeBtn` vs `themeScrapeBtn` consolidation** — open question raised in orphan sweep §6.3 (port PR-D can retire one if Captain wants).
+
+**Closed during this watch:**
+
+- ✅ B2 production-live (Worker + Pages).
+- ✅ `codex/v5.11.2-attendance-window` branch deleted from origin.
+- ✅ CALENDAR-SPEC v2 finalised (was 19 May draft, now matches T4.3.61).
+- ✅ Orphan-button sweep clean — mockup port-ready.
+- ✅ Port HANDOVER drafted (waiting to fire).
+- ✅ Org.html rename architecturally ratified.
+- ✅ T4.3.61 Export/Import button pairing.
+
+---
+
+## Saturday 23 May 2026 morning — v5.11 mockup feature-complete (T4.3.53 → T4.3.60) + ACCESSIBILITY-SPEC + port path identified
 
 **Headline.** Long single-day arc, ~12 patch versions, mockup went from "weekly calendar exists but rough" to feature-complete for the v5.11 → live port. Mr. Data delegation cycle (T4.3.53–.56) then Number One direct-edit chapter (T4.3.57–.60) when Codex hit rate limit at 09:35 BST. In parallel, `ACCESSIBILITY-SPEC.md` published with Captain's six architectural decisions ratified (including v6.0 Phase G identity-bound prefs via signed envelope). Calendar mockup IS the v5.11 spec at this point.
 
