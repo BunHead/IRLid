@@ -12,16 +12,9 @@
 - `HANDOVER-CalendarLivePort-v5.11.0.md` published at repo root.
 - T4.3.61 mockup polish (Export/Import button pairing) shipped.
 
-**First job on return — smoke B2 in production** (Captain's hands, 5 min):
+**First job on return — ~~smoke B2~~ DONE end-of-Saturday.** All five points green; 8Pro + 4a out-then-in cycle confirmed scan_count increments, last_seen updates, no yesterday rows, no duplicates, CHECKED OUT count honest. Bugs A/B/D closed in production. First job on return is therefore the HANDOVER read.
 
-1. Hard-refresh `irlid.co.uk/OrgCheckin.html` (Ctrl+Shift+R).
-2. Build pill reads `v5.11.2`.
-3. Attendance — Today shows ZERO yesterday rows.
-4. No duplicate IN + linked-expected rows.
-5. CHECKED OUT count matches visible OUT rows.
-6. One fresh manual check-in works (no regression).
-
-**Second job — read HANDOVER-CalendarLivePort-v5.11.0.md** (Captain's eyes, ~15 min). Focus areas: §2 out-of-scope (ratify what Mr. Data MUST NOT touch) and §4 PR stack (sanity-check sequence + scopes match intent).
+**~~Second~~ First job — read HANDOVER-CalendarLivePort-v5.11.0.md** (Captain's eyes, ~15 min). Focus areas: §2 out-of-scope (ratify what Mr. Data MUST NOT touch) and §4 PR stack (sanity-check sequence + scopes match intent).
 
 **Third job — fire HANDOVER at Mr. Data** when Captain ready. Short Codex prompt is in this morning's session log close. PR-A first; pause between PRs for Number One bash-diff + Captain merge.
 
@@ -47,7 +40,7 @@
 
 **Closed during this watch:**
 
-- ✅ B2 production-live (Worker + Pages).
+- ✅ B2 production-live + smoke verified GREEN on real hardware (Worker `9ad0442e`, 8Pro + 4a out-then-in cycle, bugs A/B/D closed).
 - ✅ `codex/v5.11.2-attendance-window` branch deleted from origin.
 - ✅ CALENDAR-SPEC v2 finalised (was 19 May draft, now matches T4.3.61).
 - ✅ Orphan-button sweep clean — mockup port-ready.
