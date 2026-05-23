@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.4</span></div>
   </div>
 </div>
 
@@ -3804,10 +3804,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cal-row.is-past .v511-btn { opacity: 0.85; }
         /* T4.3.58.1 — Detailed list (row-per-hour single column).
            Captain's preferred shape: TIME | EVENT | ROOM pill | RANGE | Edit/View. */
-        .v511-day-list-headrow { display: grid; grid-template-columns: 70px 1fr 110px 110px 70px; gap: 8px; padding: 8px 12px; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 4; }
+        /* T4.3.58.4 — Six columns: TIME | EVENT | ROOM | DURATION | CAP | ACTION. Compact 26px rows. */
+        .v511-day-list-headrow { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 6px 12px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 4; }
         .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
         .v511-day-list-inner { position: relative; }
-        .v511-list-row { display: grid; grid-template-columns: 70px 1fr 110px 110px 70px; gap: 8px; padding: 6px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 34px; box-sizing: border-box; }
+        .v511-list-row { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 3px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 26px; box-sizing: border-box; }
+        .v511-list-cap { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11.5px; text-align: center; }
         .v511-list-row:last-child { border-bottom: none; }
         .v511-list-row > div { color: var(--text); }
         .v511-list-time { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -5445,8 +5447,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="cal">
           <div class="v511-head"><h3>Event &amp; Calendar</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
 
-          <div class="v511-sub">Weekly events <span class="v511-hint-inline" id="v511WeeklyEventsSub">(7-day cycle, across rooms)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div>
-
           <div class="v511-cal-toolbar">
             <div class="v511-week-nav" aria-label="Week navigation">
               <button type="button" class="v511-btn v511-btn-mini" id="v511PrevWeekBtn">&larr; Prev week</button>
@@ -6457,6 +6457,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function workingHoursEndMin() { return minutesFromTime(loadCalSettings().working_hours_end || '17:59'); }
             function breaksList() { var s = loadCalSettings(); var count = parseInt(s.breaks_count, 10) || 0; var out = []; for (var i = 1; i <= count; i++) { var st = s['break_' + i + '_start']; var en = s['break_' + i + '_end']; if (st && en) out.push({ start: minutesFromTime(st), end: minutesFromTime(en) }); } return out; }
             function minutesToPercent(m) { return Math.max(0, Math.min(100, (m / 1440) * 100)); }
+            function friendlyDuration(min) {
+              min = Number(min) || 0;
+              if (min < 60) return min + ' min';
+              var h = Math.floor(min / 60);
+              var m = min - h * 60;
+              return m === 0 ? h + 'h' : h + 'h ' + m + 'm';
+            }
             function orderedDays() { return weekStartsMonday() ? [1,2,3,4,5,6,7] : [7,1,2,3,4,5,6]; }
             function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (weekStartsMonday() ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
             function dayOfWeekForDate(d) { var js = d.getDay(); return js === 0 ? 7 : js; }
@@ -6544,18 +6551,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 else bandClass = 'is-offhours';
 
                 if (hourEvents.length === 0) {
-                  rows.push('<div class="v511-list-row ' + bandClass + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + pad2(h) + ':00</div><div class="v511-list-event v511-muted">' + (bandClass === 'is-break' ? 'Break' : '—') + '</div><div></div><div></div><div></div></div>');
+                  rows.push('<div class="v511-list-row ' + bandClass + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + pad2(h) + ':00</div><div class="v511-list-event v511-muted">' + (bandClass === 'is-break' ? 'Break' : '—') + '</div><div></div><div></div><div></div><div></div></div>');
                   rowCount++;
                 } else {
                   hourEvents.forEach(function (ev, idx) {
                     var room = ROOM_META[ev.room_id] || ROOM_META.studio1;
                     var startMin = minutesFromTime(ev.start_time_local);
-                    var endMin = startMin + Number(ev.duration_min || 60);
+                    var durMin = Number(ev.duration_min || 60);
                     var past = isEventPast(ev, dow);
                     var attr = past ? 'data-view-event' : 'data-edit-event';
                     var btnLabel = past ? 'View' : 'Edit';
                     var timeColText = (idx === 0) ? pad2(h) + ':00' : '';
-                    rows.push('<div class="v511-list-row ' + bandClass + (past ? ' is-past' : '') + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + timeColText + '</div><div class="v511-list-event">' + htmlEscape(ev.name) + '</div><div><span class="v511-room-tag ' + room.className + '">' + htmlEscape(room.label) + '</span></div><div class="v511-list-range">' + htmlEscape(ev.start_time_local) + '&ndash;' + timeFromMinutes(endMin) + '</div><div class="v511-list-action"><button type="button" class="v511-btn v511-btn-mini" ' + attr + '="' + htmlEscape(ev.id) + '">' + btnLabel + '</button></div></div>');
+                    var cap = parseInt(room.capacity || '0', 10) || 0;
+                    rows.push('<div class="v511-list-row ' + bandClass + (past ? ' is-past' : '') + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + timeColText + '</div><div class="v511-list-event">' + htmlEscape(ev.name) + '</div><div><span class="v511-room-tag ' + room.className + '">' + htmlEscape(room.label) + '</span></div><div class="v511-list-range">' + friendlyDuration(durMin) + '</div><div class="v511-list-cap">' + (cap || '—') + '</div><div class="v511-list-action"><button type="button" class="v511-btn v511-btn-mini" ' + attr + '="' + htmlEscape(ev.id) + '">' + btnLabel + '</button></div></div>');
                     rowCount++;
                   });
                 }
@@ -6569,7 +6577,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var nowLine = isToday ? '<div class="v511-list-now-line" style="top:' + nowTopPx.toFixed(1) + 'px;"><span class="v511-list-now-label">Now ' + pad2(now.getHours()) + ':' + pad2(now.getMinutes()) + '</span></div>' : '';
 
               wrap.innerHTML = header +
-                '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>RANGE</div><div></div></div>' +
+                '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>DURATION</div><div>CAP</div><div></div></div>' +
                 '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner" style="min-height:' + (24 * ROW_PX) + 'px;">' + rows.join('') + nowLine + '</div></div>';
 
               // T4.3.58.2 — auto-scroll uses the page scroll (not inner container) since the
