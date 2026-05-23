@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59.4</span></div>
   </div>
 </div>
 
@@ -3669,7 +3669,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-mockup { padding: 16px 18px; }
         .v511-banner { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(255, 199, 117, 0.12); border: 1px solid rgba(255, 199, 117, 0.35); border-radius: 12px; margin-bottom: 14px; font-size: 12px; color: var(--text); }
         .v511-banner strong { color: #ffc775; }
-        .v511-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; }
+        .v511-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; background: rgba(20, 24, 33, 0.94); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; position: sticky; top: 8px; z-index: 50; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        :root[data-theme="light"] .v511-tabs { background: rgba(245, 247, 252, 0.95); }
         .v511-tabs button { flex: 1 1 auto; padding: 9px 11px; font-size: 12.5px; background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; transition: all 0.15s; font-family: inherit; }
         .v511-tabs button:hover { background: rgba(255,255,255,0.04); color: var(--text); }
         .v511-tabs button.active { background: rgba(105, 168, 255, 0.16); color: var(--text); border-color: rgba(105, 168, 255, 0.4); font-weight: 600; }
@@ -3806,10 +3807,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Captain's preferred shape: TIME | EVENT | ROOM pill | RANGE | Edit/View. */
         /* T4.3.58.4 — Six columns: TIME | EVENT | ROOM | DURATION | CAP | ACTION. Compact 26px rows. */
         .v511-day-list-headrow { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 6px 12px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18); position: sticky; top: 0; z-index: 4; }
-        /* T4.3.59.2 — constrain calendar to ~20 rows visible so the whole Event & Calendar tab
-           fits in viewport without page scroll. Tabs stay visible across tab switches. Inner
-           scrollbar handles the off-screen hours. */
-        .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; max-height: 52vh; overflow-y: auto; }
+        /* T4.3.59.4 — inner scroll removed (was creating dual/triple scrollbars). Tabs are now
+           sticky at top of viewport so they stay visible while the page scrolls naturally. */
+        .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
         .v511-day-list-inner { position: relative; }
         .v511-list-row { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 3px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 26px; box-sizing: border-box; }
         .v511-list-cap { font-variant-numeric: tabular-nums; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -6671,19 +6671,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 '<div class="v511-day-list-headrow"><div>TIME</div><div>EVENT</div><div>' + htmlEscape(roomVocabSingular().toUpperCase()) + '</div><div>DURATION</div><div>CAP</div><div></div></div>' +
                 '<div class="v511-day-list-scroll" id="v511DayListScroll"><div class="v511-day-list-inner">' + rows.join('') + nowLine + '</div></div>';
 
-              // T4.3.59.2 — auto-scroll back to inner container's scrollTop so the page doesn't
-              // jump when you switch to the Event & Calendar tab. Tabs stay visible.
-              if (isToday) {
-                requestAnimationFrame(function () {
-                  var scrollEl = document.getElementById('v511DayListScroll');
-                  var line = wrap.querySelector('.v511-list-now-line');
-                  if (scrollEl && line) {
-                    var lineTop = line.offsetTop;
-                    var target = Math.max(0, lineTop - (scrollEl.clientHeight / 2));
-                    scrollEl.scrollTop = target;
-                  }
-                });
-              }
+              // T4.3.59.4 — auto-scroll removed from renderList. Only the explicit "Jump to now"
+              // button scrolls (via jumpToNow + scrollToCalendar). Switching tabs no longer moves the page.
             }
             function eventEndMin(ev) { return minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60); }
             function isEventPast(ev, dow) {
@@ -6804,7 +6793,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             function deleteEventFromModal() { var id = document.getElementById('v511EventId').value; state.events = state.events.filter(function (ev) { return ev.id !== id; }); saveWeeklyState(); closeEventModal(); renderAll(); }
             function scrollToCalendar() { var el = document.getElementById('v511CalSwimlane') || document.getElementById('v511CalWrap'); if (el && el.scrollIntoView) { try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) { el.scrollIntoView(); } } }
-            function jumpToNow() { var today = dayOfWeekForDate(new Date()); var thisWeek = isoDate(weekStartFor(new Date())); if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); } state.selectedDay = today; setView('swimlane'); renderAll(); scrollToCalendar(); }
+            // T4.3.59.4 — Jump to now keeps the current view (not forced to swim-lane any more).
+            // Scrolls to the Now line specifically so the user lands on the current time.
+            function jumpToNow() {
+              var today = dayOfWeekForDate(new Date());
+              var thisWeek = isoDate(weekStartFor(new Date()));
+              if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); }
+              state.selectedDay = today;
+              renderAll();
+              requestAnimationFrame(function () {
+                var line = document.querySelector('.v511-list-now-line, .v511-day-now-line-v, .v511-day-now-line');
+                if (line && line.scrollIntoView) {
+                  try { line.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) { line.scrollIntoView(); }
+                } else {
+                  scrollToCalendar();
+                }
+              });
+            }
             document.getElementById('v511PrevWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), -7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511NextWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), 7)); saveWeeklyState(); renderAll(); });
             document.getElementById('v511ThisWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(weekStartFor(new Date())); saveWeeklyState(); renderAll(); });
