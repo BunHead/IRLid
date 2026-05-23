@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.51</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.53</span></div>
   </div>
 </div>
 
@@ -3680,14 +3680,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-head h3 { font-size: 15px; margin: 0; flex: 1; }
         .v511-badge { font-size: 10.5px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .v511-badge-backed { background: rgba(99, 153, 34, 0.2); color: #c0dd97; }
-        .v511-badge-design { background: rgba(186, 117, 23, 0.2); color: #fac775; }
+        .v511-badge-in-design { background: rgba(186, 117, 23, 0.2); color: #fac775; }
         .v511-badge-dev { background: rgba(255,255,255,0.08); color: var(--muted); }
         /* T4.3.47a — Light-mode badge contrast. The dark-mode colours (#c0dd97 / #fac775)
            are desaturated for legibility on dark backgrounds but wash out on light
            surfaces. Light-mode overrides use deeper saturated colours to keep text
            readable. */
         :root[data-theme="light"] .v511-badge-backed { background: rgba(99, 153, 34, 0.18); color: #2f5d10; }
-        :root[data-theme="light"] .v511-badge-design { background: rgba(186, 117, 23, 0.18); color: #6d4506; }
+        :root[data-theme="light"] .v511-badge-in-design { background: rgba(186, 117, 23, 0.18); color: #6d4506; }
         :root[data-theme="light"] .v511-badge-dev    { background: rgba(0, 0, 0, 0.06); color: #555; }
         .v511-sub { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: var(--text); }
         .v511-sub:first-child { margin-top: 0; }
@@ -3760,6 +3760,34 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-swim-event.room-studio2 { background: rgba(99,153,34,0.22); color: #c0dd97; border-left: 3px solid #639922; }
         .v511-swim-event.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left: 3px solid #BA7517; }
         .v511-swim-event small { display: block; font-size: 10.5px; opacity: 0.85; margin-top: 2px; }
+        .v511-week-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; width: 100%; }
+        .v511-week-label { color: var(--text); font-size: 13px; font-weight: 700; min-width: 220px; text-align: center; }
+        .v511-day-chip-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .v511-day-chip { padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.13); background: rgba(255,255,255,0.04); color: var(--muted); font-size: 12px; cursor: pointer; font-family: inherit; }
+        .v511-day-chip.is-current { background: rgba(105,168,255,0.2); border-color: rgba(105,168,255,0.55); color: #c8e0ff; font-weight: 700; }
+        .v511-week-strip { margin: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.12); overflow: hidden; }
+        .v511-week-strip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text); }
+        .v511-week-strip-head strong { font-size: 13px; }
+        .v511-week-strip-head span { font-size: 11.5px; color: var(--muted); }
+        .v511-week-timeline { position: relative; height: 96px; background: linear-gradient(90deg, transparent 0 37.5%, rgba(255,255,255,0.045) 37.5% 75%, transparent 75% 100%); border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .v511-week-timeline .v511-cal-now-line { position: absolute; top: 0; bottom: 0; right: auto; height: auto; border-top: 0; border-left: 1.5px solid rgba(255,107,107,0.7); box-shadow: 0 0 5px rgba(255,107,107,0.3); z-index: 4; }
+        .v511-week-ticks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; padding: 6px 12px 8px; color: var(--muted); font-size: 10px; }
+        .v511-week-empty { padding: 22px 12px; color: var(--muted); font-size: 12px; font-style: italic; }
+        .v511-week-event-pill { position: absolute; top: 16px; min-width: 90px; max-width: 210px; padding: 7px 9px; border-radius: 8px; border-left: 4px solid #58a6ff; background: rgba(105,168,255,0.22); color: #c8e0ff; font-size: 11.5px; line-height: 1.25; box-shadow: 0 8px 18px rgba(0,0,0,0.14); cursor: pointer; text-align: left; font-family: inherit; }
+        .v511-week-event-pill.room-studio2 { background: rgba(99,153,34,0.22); color: #c0dd97; border-left-color: #639922; }
+        .v511-week-event-pill.room-studio3 { background: rgba(186,117,23,0.25); color: #fac775; border-left-color: #BA7517; }
+        .v511-week-event-pill b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .v511-week-event-pill small { display: block; margin-top: 2px; opacity: 0.88; }
+        .v511-week-room-badge { display: inline-block; margin-top: 4px; padding: 1px 5px; border-radius: 5px; background: rgba(0,0,0,0.22); font-size: 10px; font-weight: 700; }
+        .v511-week-strip-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; }
+        .v511-week-list-row { display: grid; grid-template-columns: 110px 80px 1fr 95px 72px; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: var(--text); }
+        .v511-week-list-row:last-child { border-bottom: none; }
+        .v511-week-list-head { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; background: rgba(11,18,32,0.94); position: sticky; top: 0; z-index: 2; }
+        .v511-event-modal-backdrop { position: fixed; inset: 0; z-index: 100020; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,0.56); }
+        .v511-event-modal-backdrop[hidden] { display: none; }
+        .v511-event-modal { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,0.46); padding: 16px; }
+        .v511-event-day-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+        .v511-event-day-chips .v511-day-chip[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); color: var(--text); font-weight: 700; }
         .v511-expander { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0; margin-top: 12px; }
         .v511-expander > summary { padding: 12px 16px 12px 38px; cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--text); user-select: none; list-style: none; position: relative; transition: background 0.15s; }
         .v511-expander > summary::-webkit-details-marker { display: none; }
@@ -3920,6 +3948,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-cal-row[data-band="light"] { background: rgba(0,0,0,0.035); }
         :root[data-theme="light"] .v511-cal-row.empty > div:not(:last-child) { color: rgba(0,0,0,0.4); }
         :root[data-theme="light"] .v511-cal-band-tag { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.55); }
+        :root[data-theme="light"] .v511-sub .v511-hint-inline,
+        :root[data-theme="light"] .v511-week-strip-head span,
+        :root[data-theme="light"] .v511-week-ticks,
+        :root[data-theme="light"] .v511-week-empty { color: rgba(0,0,0,0.62); }
+        :root[data-theme="light"] .v511-day-chip { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.64); }
+        :root[data-theme="light"] .v511-day-chip.is-current { background: rgba(31,111,235,0.14); border-color: #1f6feb; color: #1f6feb; }
+        :root[data-theme="light"] .v511-week-strip { background: rgba(0,0,0,0.025); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-week-strip-head,
+        :root[data-theme="light"] .v511-week-timeline,
+        :root[data-theme="light"] .v511-week-list-row { border-color: rgba(0,0,0,0.06); }
+        :root[data-theme="light"] .v511-week-timeline { background: linear-gradient(90deg, transparent 0 37.5%, rgba(26,127,55,0.08) 37.5% 75%, transparent 75% 100%); }
+        :root[data-theme="light"] .v511-week-list-head { background: #f3f5f8; color: rgba(0,0,0,0.62); }
+        :root[data-theme="light"] .v511-week-event-pill,
+        :root[data-theme="light"] .v511-swim-event.room-studio1 { background: #dbeafe; color: #1f6feb; border-left-color: #1f6feb; }
+        :root[data-theme="light"] .v511-week-event-pill.room-studio2,
+        :root[data-theme="light"] .v511-swim-event.room-studio2 { background: #c8e7d4; color: #1a7f37; border-left-color: #1a7f37; }
+        :root[data-theme="light"] .v511-week-event-pill.room-studio3,
+        :root[data-theme="light"] .v511-swim-event.room-studio3 { background: #fff1bf; color: #9a6b00; border-left-color: #9a6b00; }
+        :root[data-theme="light"] .v511-week-room-badge { background: rgba(255,255,255,0.7); color: inherit; }
+        :root[data-theme="light"] .v511-event-modal { background: #fff; border-color: rgba(0,0,0,0.14); }
         :root[data-theme="light"] .v511-cal-drilldown { background: rgba(105, 168, 255, 0.07); border-color: rgba(105, 168, 255, 0.25); }
         :root[data-theme="light"] .v511-drill-head { color: var(--text); border-bottom-color: rgba(0,0,0,0.08); }
         :root[data-theme="light"] .v511-drill-expected { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
@@ -5206,7 +5254,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" value="hello@example.com" /></div>
 
           <details class="v511-expander">
-            <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
+            <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row" style="opacity: 0.6;"><label>Hero / banner image</label><div><button type="button" class="v511-btn" disabled>Upload banner</button> <span class="v511-hint">Distinct from logo — top-of-page artwork on attendee check-in pages.</span></div></div>
               <div class="v511-row" style="opacity: 0.6;"><label>Tagline</label><input type="text" placeholder="Movement for everybody" disabled /></div>
@@ -5229,11 +5277,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
         <section class="v511-panel" data-v511-panel="cal">
-          <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-design">design-in</span></div>
+          <div class="v511-head"><h3>Event &amp; calendar</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
 
-          <div class="v511-sub">Today's events <span class="v511-hint-inline">(up to 24 slots per day, across rooms)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div>
+          <div class="v511-sub">Weekly events <span class="v511-hint-inline">(7-day cycle, across rooms)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div>
 
           <div class="v511-cal-toolbar">
+            <div class="v511-week-nav" aria-label="Week navigation">
+              <button type="button" class="v511-btn v511-btn-mini" id="v511PrevWeekBtn">&larr; Prev week</button>
+              <div class="v511-week-label" id="v511WeekLabel">This week</div>
+              <button type="button" class="v511-btn v511-btn-mini" id="v511ThisWeekBtn">This week</button>
+              <button type="button" class="v511-btn v511-btn-mini" id="v511NextWeekBtn">Next week &rarr;</button>
+              <button type="button" class="v511-btn v511-btn-mini" id="v511ExportWeekBtn">Export week</button>
+            </div>
+            <div class="v511-day-chip-row" id="v511WeekDayChips" aria-label="Jump to day"></div>
             <div class="v511-cal-view-toggle" role="tablist" aria-label="Calendar view mode">
               <button type="button" class="active" data-cal-view="list" role="tab" aria-selected="true">List view</button>
               <button type="button" data-cal-view="swimlane" role="tab" aria-selected="false">Swim-lane view</button>
@@ -5252,7 +5308,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
           </div>
 
-          <div class="v511-cal-wrap" id="v511CalWrap" role="grid" aria-label="Today's events, 24 hour slots">
+          <div class="v511-cal-wrap" id="v511CalWrap" role="grid" aria-label="Weekly events list">
             <div class="v511-cal-header" role="row">
               <div class="h" role="columnheader">Start</div><div class="h" role="columnheader">End</div><div class="h" role="columnheader">Event name</div><div class="h" role="columnheader">Cap.</div><div class="h" role="columnheader" aria-label="Actions"></div>
             </div>
@@ -5280,7 +5336,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5300,7 +5356,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5322,7 +5378,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5341,7 +5397,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5361,7 +5417,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5379,7 +5435,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5401,7 +5457,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5422,7 +5478,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5441,7 +5497,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5461,7 +5517,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5480,7 +5536,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5502,7 +5558,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
               <div class="v511-drill-buttons"><button type="button" class="v511-btn v511-btn-mini">+ Add person</button><button type="button" class="v511-btn v511-btn-mini">+ Invite QR</button><button type="button" class="v511-btn v511-btn-mini">&uarr; Import CSV</button><button type="button" class="v511-btn v511-btn-mini">&darr; Export CSV</button></div>
               <div class="v511-sub" style="margin-top: 14px;">Booking / waitlist</div>
-              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+              <div class="v511-row"><label>Public bookings</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Accept self-bookings via public link</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
               <div class="v511-save"><button type="button" class="v511-btn" data-drill-close>Cancel</button><button type="button" class="v511-btn v511-btn-primary">Save changes</button></div>
             </div>
 
@@ -5510,7 +5566,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-cal-row empty" data-band="dim" data-hour="23" role="row"><div>23:00</div><div>&mdash;</div><div>empty</div><div>&mdash;</div><div></div></div>
           </div>
           <div class="v511-cal-swimlane-view" id="v511CalSwimlane" hidden>
-            <div class="v511-swimlane-info"><strong style="color: #fac775;">Swim-lane view</strong> &mdash; rooms as columns, time as rows. Each block is an event in that room at that hour. Showing a 6-hour window below (08:00&ndash;13:00) as a preview; full 24-hour swim-lane + drag-to-create + multi-hour spanning + conflict highlighting are v5.12+ work. <span class="v511-badge v511-badge-design" style="margin-left: 4px;">design-in</span></div>
+            <div class="v511-swimlane-info"><strong style="color: #fac775;">Swim-lane view</strong> &mdash; rooms as columns, time as rows. Each block is an event in that room at that hour. Showing a 6-hour window below (08:00&ndash;13:00) as a preview; full 24-hour swim-lane + drag-to-create + multi-hour spanning + conflict highlighting are v5.12+ work. <span class="v511-badge v511-badge-in-design" style="margin-left: 4px;">IN-DESIGN</span></div>
             <div class="v511-swimlane-grid">
               <div class="v511-swim-header col-time">Time</div>
               <div class="v511-swim-header col-studio1">Studio 1</div>
@@ -5550,9 +5606,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </div>
 
           <div style="margin-top: 10px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="v511-btn">+ Add event</button>
-            <button type="button" class="v511-btn">&darr; Export day (all rooms, all events)</button>
-            <span class="v511-hint" style="margin-left: auto;">12 of 24 slots in use &middot; working hours band (09:00&ndash;17:59) shown brighter</span>
+            <button type="button" class="v511-btn" id="v511AddEventBtn">+ Add event</button>
+            <span class="v511-hint" id="v511CalendarSummary" style="margin-left: auto;">Weekly cycle &middot; working hours band (09:00&ndash;17:59) shown brighter</span>
+          </div>
+
+          <div class="v511-event-modal-backdrop" id="v511EventModal" hidden>
+            <div class="v511-event-modal" role="dialog" aria-modal="true" aria-labelledby="v511EventModalTitle">
+              <div class="v511-drill-head"><strong id="v511EventModalTitle">Edit event</strong><button type="button" class="v511-btn v511-btn-mini" id="v511EventCancelTopBtn">&times; Close</button></div>
+              <input type="hidden" id="v511EventId" />
+              <div class="v511-row"><label for="v511EventName">Event name</label><input type="text" id="v511EventName" /></div>
+              <div class="v511-row"><label for="v511EventRoom">Room</label><select id="v511EventRoom"></select></div>
+              <div class="v511-row"><label>Day</label><div class="v511-event-day-chips" id="v511EventDayChips"></div></div>
+              <div class="v511-row"><label for="v511EventStart">Start time</label><input type="time" id="v511EventStart" /></div>
+              <div class="v511-row"><label for="v511EventDuration">Duration</label><input type="number" id="v511EventDuration" min="15" step="15" /></div>
+              <div class="v511-save">
+                <button type="button" class="v511-btn" id="v511EventDeleteBtn">Delete</button>
+                <button type="button" class="v511-btn" id="v511EventCancelBtn">Cancel</button>
+                <button type="button" class="v511-btn v511-btn-primary" id="v511EventSaveBtn">Save</button>
+              </div>
+            </div>
           </div>
 
           <div class="v511-row" style="margin-top: 12px;"><label>Past events</label><span class="v511-hint">Deferred — receipts are the source of truth; org's own storage if exportable history is needed.</span></div>
@@ -5917,12 +5989,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-row"><label for="v511PaWelcome">Custom welcome message</label><textarea id="v511PaWelcome" placeholder="Welcome to the studio."></textarea></div>
                   <div class="v511-row"><label for="v511PaRedirect">Post-accept redirect</label><input type="url" id="v511PaRedirect" placeholder="https://example.com/welcome" /></div>
                   <div class="v511-row"><label for="v511PaStaffRedirect">Staff post-accept redirect</label><input type="url" id="v511PaStaffRedirect" placeholder="e.g. https://example.com/staff-page" /></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaDwell">Dwell time before redirect</label><div><select id="v511PaDwell" disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaFtVsR">First-time vs returning</label><div><input type="checkbox" id="v511PaFtVsR" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaTime">Time-aware greeting</label><div><input type="checkbox" id="v511PaTime" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaCal">Add to calendar</label><div><input type="checkbox" id="v511PaCal" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaEmail">Email confirmation</label><div><select id="v511PaEmail" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
-                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaSms">SMS confirmation</label><div><select id="v511PaSms" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaDwell">Dwell time before redirect</label><div><select id="v511PaDwell" disabled><option>3 seconds</option><option>1 second</option><option>5 seconds</option><option>7 seconds</option><option>Hold until tap</option></select> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaFtVsR">First-time vs returning</label><div><input type="checkbox" id="v511PaFtVsR" disabled style="vertical-align: middle;" /> <span class="v511-hint">First-time attendees see longer welcome + terms; returners get quick "welcome back" + redirect.</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaTime">Time-aware greeting</label><div><input type="checkbox" id="v511PaTime" disabled style="vertical-align: middle;" /> <span class="v511-hint">"Good morning, Kerry" / "Good evening, Kerry" based on local time.</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaCal">Add to calendar</label><div><input type="checkbox" id="v511PaCal" disabled style="vertical-align: middle;" /> <span class="v511-hint">iCal download — attendee adds the event to their phone calendar with their check-in noted.</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaEmail">Email confirmation</label><div><select id="v511PaEmail" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
+                  <div class="v511-row" style="opacity: 0.6;"><label for="v511PaSms">SMS confirmation</label><div><select id="v511PaSms" disabled><option value="off">Off</option><option value="optin">Opt-in (attendee chooses)</option><option value="always">Always send</option></select> <span class="v511-hint">SMS costs per send — provider integration v6+.</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></div></div>
                   <div class="v511-hint" style="margin-top: 8px; padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 8px;">Receipts themselves are downloadable at <strong style="color: var(--text);">irlid.co.uk/check.html</strong> — they don't live on this page.</div>
                 </div>
               </details>
@@ -5988,7 +6060,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 7: RECORDS &amp; ID ===== -->
         <section class="v511-panel" data-v511-panel="records">
-          <div class="v511-head"><h3>Records &amp; ID</h3><span class="v511-badge v511-badge-design">design-in</span></div>
+          <div class="v511-head"><h3>Records &amp; ID</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
 
           <!-- T4.3.29 — Records & ID condensed with expander pattern.
                Visible at top: architectural commitment banner + status row.
@@ -5997,10 +6069,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <strong>IRLid doesn't store these records.</strong> When enrolment data or proof-of-ID is captured at check-in, IRLid forwards it directly to your configured storage destination &mdash; Google&nbsp;Drive, OneDrive, your own SFTP, etc. We retain a hash and reference only, for verification. Your org owns the data; IRLid brokers the capture.
           </div>
 
-          <div class="v511-row"><label>Status</label><div><span class="v511-badge v511-badge-design" style="margin-right: 6px;">not configured</span><span class="v511-hint">Records capture is OFF until a destination is connected.</span></div></div>
+          <div class="v511-row"><label>Status</label><div><span class="v511-badge v511-badge-in-design" style="margin-right: 6px;">not configured</span><span class="v511-hint">Records capture is OFF until a destination is connected.</span></div></div>
 
           <details class="v511-expander">
-            <summary>Storage destination <span class="v511-hint-inline">(connector + folder + Connect button)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
+            <summary>Storage destination <span class="v511-hint-inline">(connector + folder + Connect button)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row"><label>Connector</label><select>
                 <option>None &mdash; don't capture records</option>
@@ -6018,7 +6090,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </details>
 
           <details class="v511-expander">
-            <summary>What to capture at check-in <span class="v511-hint-inline">(photo ID, DOB, address, emergency contact, medical, waiver, custom fields)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
+            <summary>What to capture at check-in <span class="v511-hint-inline">(photo ID, DOB, address, emergency contact, medical, waiver, custom fields)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row"><label>Photo ID</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Driving licence / passport / national ID. Image upload from device camera.</span></div></div>
               <div class="v511-row"><label>Date of birth</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">For age-gated events.</span></div></div>
@@ -6031,7 +6103,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </details>
 
           <details class="v511-expander">
-            <summary>Privacy &amp; retention <span class="v511-hint-inline">(retention policy, encryption, Right to be Forgotten)</span> <span class="v511-badge v511-badge-design" style="margin-left: 6px;">design-in</span></summary>
+            <summary>Privacy &amp; retention <span class="v511-hint-inline">(retention policy, encryption, Right to be Forgotten)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
             <div class="v511-expander-body">
               <div class="v511-row"><label>IRLid retains</label><select>
                 <option>Hash + reference only (recommended)</option>
@@ -6127,85 +6199,93 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           });
 
           // v5.11 mockup — calendar view toggle (List vs Swim-lane).
-          var viewToggles = document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]');
-          var calListView = document.getElementById('v511CalWrap');
-          var calSwimView = document.getElementById('v511CalSwimlane');
-          viewToggles.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              var target = btn.getAttribute('data-cal-view');
-              viewToggles.forEach(function (b) {
-                var isActive = b === btn;
-                b.classList.toggle('active', isActive);
-                b.setAttribute('aria-selected', isActive ? 'true' : 'false');
-              });
-              if (calListView) calListView.hidden = (target !== 'list');
-              if (calSwimView) calSwimView.hidden = (target !== 'swimlane');
-            });
-          });
-
-          // v5.11 mockup — room filter in List view. Hides rows + their
-          // drill-downs that don't match the selected room. Empty hour rows
-          // stay visible regardless so the 24-hour shape remains legible.
-          var roomFilter = document.getElementById('v511CalRoomFilter');
-          if (roomFilter) {
-            roomFilter.addEventListener('change', function () {
-              var sel = roomFilter.value;
-              document.querySelectorAll('.v511-cal-row').forEach(function (row) {
-                if (row.classList.contains('empty')) { row.style.display = ''; return; }
-                var rowRoom = row.getAttribute('data-room');
-                var match = (sel === 'all' || rowRoom === sel);
-                row.style.display = match ? '' : 'none';
-                var next = row.nextElementSibling;
-                if (next && next.classList.contains('v511-cal-drilldown')) {
-                  next.style.display = match ? '' : 'none';
-                  if (!match) next.hidden = true;
-                }
-              });
-            });
-          }
-
-          // v5.11 mockup — calendar now-line + Jump-to-now.
-          // Now-line is positioned by hour (and minute fraction) relative to the
-          // calendar rows. Each row is roughly the same height; we measure from
-          // the actual row positions to handle band-tinting / event-row size
-          // variation correctly.
+          var v511WeeklyRenderAll = null;
+          var v511WeeklyJumpToNow = null;
           function positionNowLine() {
-            var wrap = document.getElementById('v511CalWrap');
-            var line = document.getElementById('v511CalNowLine');
-            if (!wrap || !line) return;
-            var now = new Date();
-            var hour = now.getHours();
-            var minuteFrac = now.getMinutes() / 60;
-            var thisRow = wrap.querySelector('.v511-cal-row[data-hour="' + hour + '"]');
-            var nextRow = wrap.querySelector('.v511-cal-row[data-hour="' + ((hour + 1) % 24) + '"]');
-            if (!thisRow) return;
-            var rowTop = thisRow.offsetTop;
-            var rowHeight = nextRow ? (nextRow.offsetTop - thisRow.offsetTop) : thisRow.offsetHeight;
-            line.style.top = (rowTop + (rowHeight * minuteFrac)) + 'px';
-            // Grey-out past events: any filled row whose hour is strictly before
-            // the current hour is treated as "ended" and its Edit button locked.
-            // Current-hour row stays interactive (the event might still be running).
-            wrap.querySelectorAll('.v511-cal-row.filled').forEach(function (row) {
-              var rowHour = parseInt(row.getAttribute('data-hour'), 10);
-              if (isFinite(rowHour) && rowHour < hour) row.classList.add('event-past');
-              else row.classList.remove('event-past');
-            });
+            if (typeof v511WeeklyRenderAll === 'function') v511WeeklyRenderAll();
           }
           function scrollCalToNow() {
-            var wrap = document.getElementById('v511CalWrap');
-            if (!wrap) return;
-            var line = document.getElementById('v511CalNowLine');
-            var header = wrap.querySelector('.v511-cal-header');
-            var headerH = header ? header.offsetHeight : 0;
-            if (line) {
-              var target = line.offsetTop - headerH - (wrap.clientHeight / 2) + 20;
-              wrap.scrollTop = Math.max(0, target);
-            }
+            if (typeof v511WeeklyJumpToNow === 'function') v511WeeklyJumpToNow();
           }
-          positionNowLine();
-          setInterval(positionNowLine, 60 * 1000); // refresh every minute
-          var jumpNowBtn = document.getElementById('v511JumpNowBtn');
-          if (jumpNowBtn) jumpNowBtn.addEventListener('click', function () { positionNowLine(); scrollCalToNow(); });
+          // T4.3.53 - Weekly calendar renderer lives in localStorage only.
+          (function initV511WeeklyCalendar() {
+            var WEEK_STARTS_MONDAY = true;
+            var STORAGE_KEY = 'v511_mockup_weekly_events_v1';
+            var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+            var DAY_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            var ROOM_META = {
+              studio1: { label: 'Studio 1', className: 'room-studio1', color: '#1f6feb' },
+              studio2: { label: 'Studio 2', className: 'room-studio2', color: '#1a7f37' },
+              studio3: { label: 'Studio 3', className: 'room-studio3', color: '#9a6b00' }
+            };
+            var state = loadWeeklyState();
+            var currentView = 'list';
+            function pad2(n) { return String(n).padStart(2, '0'); }
+            function htmlEscape(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'", '&#39;'); }
+            function isoDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+            function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+            function minutesFromTime(t) { var p = String(t || '00:00').split(':'); return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0); }
+            function timeFromMinutes(m) { m = Math.max(0, Math.min(1439, m)); return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
+            function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (WEEK_STARTS_MONDAY ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
+            function dayOfWeekForDate(d) { var js = d.getDay(); return js === 0 ? 7 : js; }
+            function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString(undefined, { month: 'short' }); }
+            function seedEvents() {
+              return [
+                { id: 'evt-mon-0900', name: 'Beginners pilates', room_id: 'studio1', day_of_week: 1, start_time_local: '09:00', duration_min: 60, color_hex: '#1f6feb' },
+                { id: 'evt-mon-1815', name: 'Evening pilates', room_id: 'studio1', day_of_week: 1, start_time_local: '18:15', duration_min: 60, color_hex: '#1f6feb' },
+                { id: 'evt-tue-0715', name: 'Early-bird HIIT', room_id: 'studio2', day_of_week: 2, start_time_local: '07:15', duration_min: 60, color_hex: '#1a7f37' },
+                { id: 'evt-tue-1230', name: 'Lunch stretch', room_id: 'studio3', day_of_week: 2, start_time_local: '12:30', duration_min: 45, color_hex: '#9a6b00' },
+                { id: 'evt-wed-1015', name: 'Intermediate pilates', room_id: 'studio2', day_of_week: 3, start_time_local: '10:15', duration_min: 60, color_hex: '#1a7f37' },
+                { id: 'evt-thu-1130', name: 'Yoga flow', room_id: 'studio1', day_of_week: 4, start_time_local: '11:30', duration_min: 60, color_hex: '#1f6feb' },
+                { id: 'evt-thu-1700', name: 'Boxing fundamentals', room_id: 'studio2', day_of_week: 4, start_time_local: '17:00', duration_min: 75, color_hex: '#1a7f37' },
+                { id: 'evt-fri-1400', name: 'Spin class', room_id: 'studio2', day_of_week: 5, start_time_local: '14:00', duration_min: 90, color_hex: '#1a7f37' },
+                { id: 'evt-sat-1000', name: 'Kids dance', room_id: 'studio3', day_of_week: 6, start_time_local: '10:00', duration_min: 60, color_hex: '#9a6b00' },
+                { id: 'evt-sun-1900', name: 'Late-night meditation', room_id: 'studio3', day_of_week: 7, start_time_local: '19:00', duration_min: 60, color_hex: '#9a6b00' }
+              ];
+            }
+            function loadWeeklyState() { var fallback = { weekStartIso: isoDate(weekStartFor(new Date())), events: seedEvents() }; try { var raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (Array.isArray(raw)) return { weekStartIso: fallback.weekStartIso, events: raw }; if (raw && Array.isArray(raw.events)) return { weekStartIso: raw.weekStartIso || fallback.weekStartIso, events: raw.events }; } catch (_) {} try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function saveWeeklyState() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (_) {} }
+            function setView(view) { currentView = view; document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (b) { var active = b.getAttribute('data-cal-view') === view; b.classList.toggle('active', active); b.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.getElementById('v511CalWrap').hidden = view !== 'list'; document.getElementById('v511CalSwimlane').hidden = view !== 'swimlane'; }
+            function weekLabel() { var start = new Date(state.weekStartIso + 'T00:00:00'); var end = addDays(start, 6); return displayDate(start) + ' – ' + displayDate(end) + ' ' + end.getFullYear(); }
+            function filteredEvents() { var room = document.getElementById('v511CalRoomFilter')?.value || 'all'; return state.events.filter(function (ev) { return room === 'all' || ev.room_id === room; }).sort(function (a, b) { return (a.day_of_week - b.day_of_week) || (minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local)); }); }
+            function dateForDow(dow) { return addDays(new Date(state.weekStartIso + 'T00:00:00'), dow - 1); }
+            function renderAll() { var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderDayChips(); renderList(); renderWeekStrips(); renderRoomSelect(); var summary = document.getElementById('v511CalendarSummary'); if (summary) summary.textContent = state.events.length + ' weekly events across 3 rooms - working hours band (09:00-17:59) shown brighter'; }
+            function renderDayChips() { var wrap = document.getElementById('v511WeekDayChips'); if (!wrap) return; var todayDow = dayOfWeekForDate(new Date()); var todayStart = isoDate(weekStartFor(new Date())); wrap.innerHTML = DAY_SHORT.map(function (name, i) { var dow = i + 1; var current = state.weekStartIso === todayStart && dow === todayDow; return '<button type="button" class="v511-day-chip' + (current ? ' is-current' : '') + '" data-week-day="' + dow + '">' + name + '</button>'; }).join(''); }
+            function csvFor(events) { return ['event_name,room,start_time,duration_min,expected_count'].concat(events.map(function (ev) { var room = ROOM_META[ev.room_id]?.label || ev.room_id; return [ev.name, room, ev.start_time_local, ev.duration_min, 0].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','); })).join('\n'); }
+            function downloadCsv(filename, csv) { var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' }); var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 500); }
+            function renderList() { var wrap = document.getElementById('v511CalWrap'); if (!wrap) return; var rows = filteredEvents(); wrap.innerHTML = '<div class="v511-week-list-row v511-week-list-head"><div>Day</div><div>Start</div><div>Event</div><div>Room</div><div></div></div>' + (rows.length ? rows.map(function (ev) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var end = timeFromMinutes(minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60)); return '<div class="v511-week-list-row v511-cal-row filled" data-event-id="' + htmlEscape(ev.id) + '" data-room="' + htmlEscape(ev.room_id) + '"><div>' + DAY_SHORT[ev.day_of_week - 1] + '</div><div>' + htmlEscape(ev.start_time_local) + '</div><div>' + htmlEscape(ev.name) + ' <span class="v511-room-tag ' + room.className + '">' + room.label + '</span></div><div>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(end) + '</div><div><button type="button" class="v511-btn v511-btn-mini" data-edit-event="' + htmlEscape(ev.id) + '">Edit</button></div></div>'; }).join('') : '<div class="v511-week-empty">No events for this room filter.</div>'); }
+            function renderWeekStrips() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var now = new Date(); var currentWeek = isoDate(weekStartFor(now)) === state.weekStartIso; wrap.innerHTML = DAY_NAMES.map(function (day, idx) { var dow = idx + 1; var date = dateForDow(dow); var events = filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }); var nowLine = currentWeek && dow === dayOfWeekForDate(now) ? '<div class="v511-cal-now-line" id="v511CalNowLine" style="left:' + (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) + '%"><span class="v511-cal-now-label">Now</span></div>' : ''; return '<section class="v511-week-strip" id="v511WeekDay' + dow + '" data-week-day="' + dow + '"><div class="v511-week-strip-head"><div><strong>' + day + '</strong> <span>' + isoDate(date) + '</span></div><button type="button" class="v511-btn v511-btn-mini" data-add-event-day="' + dow + '">+ Add event</button></div><div class="v511-week-timeline">' + nowLine + (events.length ? events.map(function (ev, lane) { return renderEventPill(ev, lane); }).join('') : '<div class="v511-week-empty">No events</div>') + '</div><div class="v511-week-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div><div class="v511-week-strip-actions"><span class="v511-hint">' + events.length + ' event' + (events.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + day + '</button></div></section>'; }).join(''); }
+            function renderEventPill(ev, lane) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var end = start + Number(ev.duration_min || 60); var left = Math.max(0, Math.min(96, (start / 1440) * 100)); var width = Math.max(7, Math.min(28, ((Number(ev.duration_min || 60)) / 1440) * 100)); var top = 14 + ((lane % 2) * 36); return '<button type="button" class="v511-week-event-pill ' + room.className + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%; top:' + top + 'px;"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small><span class="v511-week-room-badge">' + room.label + '</span></button>'; }
+            function renderRoomSelect() { var select = document.getElementById('v511EventRoom'); if (!select) return; select.innerHTML = Object.keys(ROOM_META).map(function (id) { return '<option value="' + id + '">' + ROOM_META[id].label + '</option>'; }).join(''); }
+            function renderModalDayChips(activeDow) { var wrap = document.getElementById('v511EventDayChips'); if (!wrap) return; wrap.innerHTML = DAY_SHORT.map(function (day, idx) { var dow = idx + 1; return '<button type="button" class="v511-day-chip" data-modal-day="' + dow + '" aria-pressed="' + (dow === activeDow ? 'true' : 'false') + '">' + day + '</button>'; }).join(''); }
+            function openEventModal(id, presetDow) { var ev = state.events.find(function (x) { return x.id === id; }) || { id: '', name: '', room_id: 'studio1', day_of_week: presetDow || dayOfWeekForDate(new Date()), start_time_local: '09:00', duration_min: 60 }; document.getElementById('v511EventModalTitle').textContent = ev.id ? 'Edit event' : 'Add event'; document.getElementById('v511EventId').value = ev.id; document.getElementById('v511EventName').value = ev.name; document.getElementById('v511EventRoom').value = ev.room_id; document.getElementById('v511EventStart').value = ev.start_time_local; document.getElementById('v511EventDuration').value = ev.duration_min; renderModalDayChips(ev.day_of_week); document.getElementById('v511EventDeleteBtn').hidden = !ev.id; document.getElementById('v511EventModal').hidden = false; document.getElementById('v511EventName').focus(); }
+            function closeEventModal() { var modal = document.getElementById('v511EventModal'); if (modal) modal.hidden = true; }
+            function saveEventFromModal() { var roomId = document.getElementById('v511EventRoom').value || 'studio1'; var id = document.getElementById('v511EventId').value || ('evt-' + Date.now()); var activeDay = document.querySelector('#v511EventDayChips [aria-pressed="true"]'); var next = { id: id, name: document.getElementById('v511EventName').value.trim() || 'Untitled event', room_id: roomId, day_of_week: parseInt(activeDay?.getAttribute('data-modal-day') || '1', 10), start_time_local: document.getElementById('v511EventStart').value || '09:00', duration_min: parseInt(document.getElementById('v511EventDuration').value || '60', 10), color_hex: ROOM_META[roomId]?.color || '#1f6feb' }; var ix = state.events.findIndex(function (ev) { return ev.id === id; }); if (ix >= 0) state.events[ix] = next; else state.events.push(next); saveWeeklyState(); closeEventModal(); renderAll(); }
+            function deleteEventFromModal() { var id = document.getElementById('v511EventId').value; state.events = state.events.filter(function (ev) { return ev.id !== id; }); saveWeeklyState(); closeEventModal(); renderAll(); }
+            function scrollToDay(dow) { var target = document.getElementById('v511WeekDay' + dow); if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+            function jumpToNow() { var today = dayOfWeekForDate(new Date()); var thisWeek = isoDate(weekStartFor(new Date())); if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); renderAll(); } setView('swimlane'); window.requestAnimationFrame(function () { scrollToDay(today); }); }
+            document.getElementById('v511PrevWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), -7)); saveWeeklyState(); renderAll(); });
+            document.getElementById('v511NextWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(addDays(new Date(state.weekStartIso + 'T00:00:00'), 7)); saveWeeklyState(); renderAll(); });
+            document.getElementById('v511ThisWeekBtn')?.addEventListener('click', function () { state.weekStartIso = isoDate(weekStartFor(new Date())); saveWeeklyState(); renderAll(); });
+            document.getElementById('v511ExportWeekBtn')?.addEventListener('click', function () { var start = state.weekStartIso; var end = isoDate(addDays(new Date(start + 'T00:00:00'), 6)); downloadCsv('Week-' + start + '_to_' + end + '.csv', csvFor(filteredEvents())); });
+            document.getElementById('v511JumpNowBtn')?.addEventListener('click', jumpToNow);
+            document.getElementById('v511CalRoomFilter')?.addEventListener('change', renderAll);
+            document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { openEventModal('', dayOfWeekForDate(new Date())); });
+            document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-week-day]'); if (btn) { setView('swimlane'); window.requestAnimationFrame(function () { scrollToDay(parseInt(btn.getAttribute('data-week-day'), 10)); }); } });
+            document.getElementById('v511CalSwimlane')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); var add = e.target.closest('[data-add-event-day]'); var exp = e.target.closest('[data-export-day]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); else if (add) openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10)); else if (exp) { var dow = parseInt(exp.getAttribute('data-export-day'), 10); var date = isoDate(dateForDow(dow)); downloadCsv(DAY_NAMES[dow - 1] + '-' + date + '.csv', csvFor(filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }))); } });
+            document.getElementById('v511CalWrap')?.addEventListener('click', function (e) { var edit = e.target.closest('[data-edit-event]'); if (edit) openEventModal(edit.getAttribute('data-edit-event')); });
+            document.getElementById('v511EventDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-modal-day]'); if (!btn) return; document.querySelectorAll('#v511EventDayChips [data-modal-day]').forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); });
+            document.getElementById('v511EventSaveBtn')?.addEventListener('click', saveEventFromModal);
+            document.getElementById('v511EventDeleteBtn')?.addEventListener('click', deleteEventFromModal);
+            document.getElementById('v511EventCancelBtn')?.addEventListener('click', closeEventModal);
+            document.getElementById('v511EventCancelTopBtn')?.addEventListener('click', closeEventModal);
+            document.getElementById('v511EventModal')?.addEventListener('click', function (e) { if (e.target.id === 'v511EventModal') closeEventModal(); });
+            document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (btn) { btn.addEventListener('click', function () { setView(btn.getAttribute('data-cal-view')); }); });
+            v511WeeklyRenderAll = renderAll;
+            v511WeeklyJumpToNow = jumpToNow;
+            renderAll();
+            setView(currentView);
+          })();
 
           // ===========================================================
           // v5.11 Tier 1 — Visual theming live wiring
@@ -8715,7 +8795,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           if (v511AuthSaveBtn) v511AuthSaveBtn.addEventListener('click', v511AuthSaveNow);
           v511AuthLoadFromStorage();
 
-          // ---- T4.3.51 — Tools & diagnostics tab (click-to-save localStorage) ----
+          // ---- Tools & diagnostics tab (click-to-save localStorage) ----
           // Same pattern as Auth (T4.3.50). Two persisted toggles in the Debug
           // expander; everything else in this panel is read-only display
           // (audit log opener, developer info, fingerprint readouts).
