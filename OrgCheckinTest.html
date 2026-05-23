@@ -3287,7 +3287,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.58.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v4<br><span style="background: #f59f00; color: #000; padding: 1px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.05em;">TEST FORK</span> / Iteration sandbox<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.10.2 + v5.11 mockup T4.3.59</span></div>
   </div>
 </div>
 
@@ -3809,7 +3809,48 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-day-list-scroll { border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.015); position: relative; }
         .v511-day-list-inner { position: relative; }
         .v511-list-row { display: grid; grid-template-columns: 62px 1fr 100px 90px 50px 64px; gap: 8px; padding: 3px 12px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; min-height: 26px; box-sizing: border-box; }
-        .v511-list-cap { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11.5px; text-align: center; }
+        .v511-list-cap { font-variant-numeric: tabular-nums; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .v511-cap-text { font-weight: 600; line-height: 1.1; }
+        .v511-cap-bar { width: 38px; height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+        .v511-cap-bar-fill { height: 100%; transition: width 0.2s; background: var(--accent, #58a6ff); }
+        .v511-cap-low { color: var(--muted); }
+        .v511-cap-mid { color: #58a6ff; }
+        .v511-cap-mid.v511-cap-bar-fill { background: #58a6ff; }
+        .v511-cap-text.v511-cap-high { color: #f8d569; }
+        .v511-cap-bar-fill.v511-cap-high { background: #f59f00; }
+        .v511-cap-text.v511-cap-over { color: #f88; }
+        .v511-cap-bar-fill.v511-cap-over { background: #cf222e; }
+        :root[data-theme="light"] .v511-cap-bar { background: rgba(0,0,0,0.08); }
+        :root[data-theme="light"] .v511-cap-low { color: rgba(0,0,0,0.5); }
+        :root[data-theme="light"] .v511-cap-text.v511-cap-high { color: #a06700; }
+        :root[data-theme="light"] .v511-cap-text.v511-cap-over { color: #b62324; }
+        /* T4.3.59 — Expected list modal section. */
+        .v511-row-stack { flex-direction: column; align-items: stretch; gap: 6px; }
+        .v511-row-stack > label { font-weight: 600; }
+        .v511-event-day-readonly { font-weight: 600; color: var(--text); }
+        .v511-expected-block { display: flex; flex-direction: column; gap: 8px; }
+        .v511-expected-suggestions { display: flex; flex-direction: column; gap: 3px; max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px; background: rgba(0,0,0,0.18); }
+        .v511-expected-suggestion { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; text-align: left; font-family: inherit; font-size: 12px; color: var(--text); }
+        .v511-expected-suggestion:hover { background: rgba(105, 168, 255, 0.1); border-color: rgba(105, 168, 255, 0.3); }
+        .v511-expected-suggestion.is-selected { background: rgba(31, 111, 235, 0.18); color: #c8e0ff; border-color: rgba(31, 111, 235, 0.45); }
+        .v511-expected-role { font-size: 10px; opacity: 0.6; margin-left: auto; padding-left: 8px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .v511-expected-add-new { display: flex; align-items: center; padding: 5px 8px; background: rgba(99, 153, 34, 0.12); border: 1px dashed rgba(99, 153, 34, 0.5); border-radius: 4px; cursor: pointer; text-align: left; font-family: inherit; font-size: 12px; color: #c0dd97; }
+        .v511-expected-add-new:hover { background: rgba(99, 153, 34, 0.2); }
+        .v511-expected-empty { font-style: italic; color: var(--muted); font-size: 12px; padding: 4px 0; }
+        .v511-expected-selected { display: flex; flex-wrap: wrap; gap: 5px; }
+        .v511-expected-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(105, 168, 255, 0.18); color: #c8e0ff; border: 1px solid rgba(105, 168, 255, 0.4); font-size: 11.5px; font-weight: 600; }
+        .v511-expected-chip[data-role="staff"] { background: rgba(99, 153, 34, 0.2); color: #c0dd97; border-color: rgba(99, 153, 34, 0.4); }
+        .v511-expected-chip[data-role="manager"] { background: rgba(186, 117, 23, 0.22); color: #fac775; border-color: rgba(186, 117, 23, 0.45); }
+        .v511-expected-chip-remove { background: transparent; border: 0; color: inherit; cursor: pointer; padding: 0; font-size: 14px; line-height: 1; opacity: 0.7; margin-left: 2px; }
+        .v511-expected-chip-remove:hover { opacity: 1; }
+        :root[data-theme="light"] .v511-expected-suggestions { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-expected-suggestion { color: #0a0a0a; }
+        :root[data-theme="light"] .v511-expected-suggestion:hover { background: rgba(31, 111, 235, 0.1); border-color: rgba(31, 111, 235, 0.3); }
+        :root[data-theme="light"] .v511-expected-suggestion.is-selected { background: rgba(31, 111, 235, 0.15); color: #0a3d80; border-color: rgba(31, 111, 235, 0.5); }
+        :root[data-theme="light"] .v511-expected-chip { background: #d6e8ff; color: #0a3d80; border-color: rgba(31, 111, 235, 0.4); }
+        :root[data-theme="light"] .v511-expected-chip[data-role="staff"] { background: #d8ecbb; color: #2c5b08; border-color: rgba(99, 153, 34, 0.4); }
+        :root[data-theme="light"] .v511-expected-chip[data-role="manager"] { background: #fae4b8; color: #6b3e00; border-color: rgba(186, 117, 23, 0.45); }
+        :root[data-theme="light"] .v511-expected-add-new { background: #e8f3da; border-color: rgba(99, 153, 34, 0.5); color: #2c5b08; }
         .v511-list-row:last-child { border-bottom: none; }
         .v511-list-row > div { color: var(--text); }
         .v511-list-time { color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -5781,11 +5822,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-event-modal" role="dialog" aria-modal="true" aria-labelledby="v511EventModalTitle">
               <div class="v511-drill-head"><strong id="v511EventModalTitle">Edit event</strong><button type="button" class="v511-btn v511-btn-mini" id="v511EventCancelTopBtn">&times; Close</button></div>
               <input type="hidden" id="v511EventId" />
+              <input type="hidden" id="v511EventDay" />
               <div class="v511-row"><label for="v511EventName">Event name</label><input type="text" id="v511EventName" /></div>
+              <div class="v511-row"><label>Day</label><span class="v511-event-day-readonly" id="v511EventDayReadonly">—</span></div>
               <div class="v511-row"><label for="v511EventRoom" id="v511EventRoomLabel">Room</label><select id="v511EventRoom"></select></div>
-              <div class="v511-row"><label>Day</label><div class="v511-event-day-chips" id="v511EventDayChips"></div></div>
               <div class="v511-row"><label for="v511EventStart">Start time</label><input type="time" id="v511EventStart" /></div>
-              <div class="v511-row"><label for="v511EventDuration">Duration</label><input type="number" id="v511EventDuration" min="15" step="15" /></div>
+              <div class="v511-row"><label for="v511EventDuration">Duration (min)</label><input type="number" id="v511EventDuration" min="15" step="15" /></div>
+              <!-- T4.3.59 — Expected list (Option C): multi-select from org_expected with inline add-new. -->
+              <div class="v511-row v511-row-stack"><label>Expected <span class="v511-hint-inline" id="v511EventExpectedCount">(0 selected)</span></label>
+                <div class="v511-expected-block">
+                  <input type="text" id="v511EventExpectedSearch" placeholder="Search names or type a new one..." autocomplete="off" />
+                  <div class="v511-expected-suggestions" id="v511EventExpectedSuggestions" role="listbox" aria-label="Expected suggestions"></div>
+                  <div class="v511-expected-selected" id="v511EventExpectedSelected" role="list" aria-label="Currently selected expected"></div>
+                </div>
+              </div>
               <div class="v511-save">
                 <button type="button" class="v511-btn" id="v511EventDeleteBtn">Delete</button>
                 <button type="button" class="v511-btn" id="v511EventCancelBtn">Cancel</button>
@@ -6407,6 +6457,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var STORAGE_KEY = 'v511_mockup_weekly_events_v1';
             var V511_CAL_SETTINGS_KEY = 'v511_mockup_calendar_settings_v1';
             var V511_ROOMS_KEY = 'v511_mockup_rooms_v1';
+            var V511_ORG_EXPECTED_KEY = 'v511_mockup_org_expected_v1';
             var DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
             var DAY_SHORT = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
             var ROOM_CLASSES = ['room-studio1', 'room-studio2', 'room-studio3'];
@@ -6426,6 +6477,33 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function seedRooms() { return [{ id: 'studio1', label: 'Studio 1', subname: 'main hall', capacity: 30 }, { id: 'studio2', label: 'Studio 2', subname: '', capacity: 20 }, { id: 'studio3', label: 'Studio 3', subname: 'kids room', capacity: 15 }]; }
             function loadRoomsState() { try { var raw = JSON.parse(localStorage.getItem(V511_ROOMS_KEY) || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} var fallback = seedRooms(); try { localStorage.setItem(V511_ROOMS_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
             function saveRoomsState(rooms) { try { localStorage.setItem(V511_ROOMS_KEY, JSON.stringify(rooms)); } catch (_) {} }
+            // T4.3.59 — Org-wide Expected list (per Captain's Option C choice). Single source of truth
+            // for expected attendees + staff. Events reference IDs from this list.
+            function seedOrgExpected() {
+              return [
+                { id: 'p_kerry',    name: 'Kerry Austin',   role: 'staff' },
+                { id: 'p_spencer',  name: 'Spencer Austin', role: 'manager' },
+                { id: 'p_poppy',    name: 'Poppy Austin',   role: 'staff' },
+                { id: 'p_john',     name: 'John Smith',     role: 'attendee' },
+                { id: 'p_jane',     name: 'Jane Doe',       role: 'attendee' },
+                { id: 'p_sarah',    name: 'Sarah Connor',   role: 'attendee' },
+                { id: 'p_tom',      name: 'Tom Brown',      role: 'attendee' }
+              ];
+            }
+            function loadOrgExpectedState() { try { var raw = JSON.parse(localStorage.getItem(V511_ORG_EXPECTED_KEY) || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} var fallback = seedOrgExpected(); try { localStorage.setItem(V511_ORG_EXPECTED_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function saveOrgExpectedState(list) { try { localStorage.setItem(V511_ORG_EXPECTED_KEY, JSON.stringify(list)); } catch (_) {} }
+            function findOrgExpectedById(id) { return loadOrgExpectedState().find(function (p) { return p.id === id; }); }
+            function addOrgExpectedEntry(name, role) {
+              var list = loadOrgExpectedState();
+              var clean = String(name || '').trim();
+              if (!clean) return null;
+              var existing = list.find(function (p) { return p.name.toLowerCase() === clean.toLowerCase(); });
+              if (existing) return existing;
+              var newEntry = { id: 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: clean, role: role || 'attendee' };
+              list.push(newEntry);
+              saveOrgExpectedState(list);
+              return newEntry;
+            }
             function roomMetaFromRooms(rooms) { var meta = {}; rooms.forEach(function (room, ix) { var id = room.id || ('room' + ix); meta[id] = { label: room.label || 'Untitled room', subname: room.subname || '', capacity: parseInt(room.capacity || '0', 10) || 0, className: ROOM_CLASSES[ix % ROOM_CLASSES.length], color: ROOM_COLORS[ix % ROOM_COLORS.length] }; }); return meta; }
             function refreshRoomMeta() { ROOM_META = roomMetaFromRooms(loadRoomsState()); }
             var CAL_DEFAULTS = {
@@ -6470,16 +6548,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString(undefined, { month: 'short' }); }
             function seedEvents() {
               return [
-                { id: 'evt-mon-0900', name: 'Beginners pilates', room_id: 'studio1', day_of_week: 1, start_time_local: '09:00', duration_min: 60, color_hex: '#1f6feb' },
-                { id: 'evt-mon-1815', name: 'Evening pilates', room_id: 'studio1', day_of_week: 1, start_time_local: '18:15', duration_min: 60, color_hex: '#1f6feb' },
-                { id: 'evt-tue-0715', name: 'Early-bird HIIT', room_id: 'studio2', day_of_week: 2, start_time_local: '07:15', duration_min: 60, color_hex: '#1a7f37' },
-                { id: 'evt-tue-1230', name: 'Lunch stretch', room_id: 'studio3', day_of_week: 2, start_time_local: '12:30', duration_min: 45, color_hex: '#9a6b00' },
-                { id: 'evt-wed-1015', name: 'Intermediate pilates', room_id: 'studio2', day_of_week: 3, start_time_local: '10:15', duration_min: 60, color_hex: '#1a7f37' },
-                { id: 'evt-thu-1130', name: 'Yoga flow', room_id: 'studio1', day_of_week: 4, start_time_local: '11:30', duration_min: 60, color_hex: '#1f6feb' },
-                { id: 'evt-thu-1700', name: 'Boxing fundamentals', room_id: 'studio2', day_of_week: 4, start_time_local: '17:00', duration_min: 75, color_hex: '#1a7f37' },
-                { id: 'evt-fri-1400', name: 'Spin class', room_id: 'studio2', day_of_week: 5, start_time_local: '14:00', duration_min: 90, color_hex: '#1a7f37' },
-                { id: 'evt-sat-1000', name: 'Kids dance', room_id: 'studio3', day_of_week: 6, start_time_local: '10:00', duration_min: 60, color_hex: '#9a6b00' },
-                { id: 'evt-sun-1900', name: 'Late-night meditation', room_id: 'studio3', day_of_week: 7, start_time_local: '19:00', duration_min: 60, color_hex: '#9a6b00' }
+                { id: 'evt-mon-0900', name: 'Beginners pilates',   room_id: 'studio1', day_of_week: 1, start_time_local: '09:00', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_kerry', 'p_john', 'p_jane'] },
+                { id: 'evt-mon-1815', name: 'Evening pilates',     room_id: 'studio1', day_of_week: 1, start_time_local: '18:15', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_spencer', 'p_sarah', 'p_tom'] },
+                { id: 'evt-tue-0715', name: 'Early-bird HIIT',     room_id: 'studio2', day_of_week: 2, start_time_local: '07:15', duration_min: 60, color_hex: '#1a7f37', expected_ids: ['p_poppy', 'p_john'] },
+                { id: 'evt-tue-1230', name: 'Lunch stretch',       room_id: 'studio3', day_of_week: 2, start_time_local: '12:30', duration_min: 45, color_hex: '#9a6b00', expected_ids: ['p_kerry', 'p_jane', 'p_sarah'] },
+                { id: 'evt-wed-1015', name: 'Intermediate pilates',room_id: 'studio2', day_of_week: 3, start_time_local: '10:15', duration_min: 60, color_hex: '#1a7f37', expected_ids: ['p_kerry', 'p_john', 'p_jane', 'p_sarah', 'p_tom'] },
+                { id: 'evt-thu-1130', name: 'Yoga flow',           room_id: 'studio1', day_of_week: 4, start_time_local: '11:30', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_poppy', 'p_tom'] },
+                { id: 'evt-thu-1700', name: 'Boxing fundamentals', room_id: 'studio2', day_of_week: 4, start_time_local: '17:00', duration_min: 75, color_hex: '#1a7f37', expected_ids: ['p_spencer', 'p_john', 'p_sarah'] },
+                { id: 'evt-fri-1400', name: 'Spin class',          room_id: 'studio2', day_of_week: 5, start_time_local: '14:00', duration_min: 90, color_hex: '#1a7f37', expected_ids: ['p_kerry', 'p_spencer', 'p_jane', 'p_tom'] },
+                { id: 'evt-sat-1000', name: 'Kids dance',          room_id: 'studio3', day_of_week: 6, start_time_local: '10:00', duration_min: 60, color_hex: '#9a6b00', expected_ids: ['p_poppy', 'p_sarah'] },
+                { id: 'evt-sun-1900', name: 'Late-night meditation',room_id: 'studio3', day_of_week: 7, start_time_local: '19:00', duration_min: 60, color_hex: '#9a6b00', expected_ids: ['p_kerry'] }
               ];
             }
             function loadWeeklyState() { var fallback = { weekStartIso: isoDate(weekStartFor(new Date())), events: seedEvents() }; try { var raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); if (Array.isArray(raw)) return { weekStartIso: fallback.weekStartIso, events: raw }; if (raw && Array.isArray(raw.events)) return { weekStartIso: raw.weekStartIso || fallback.weekStartIso, events: raw.events }; } catch (_) {} try { localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback)); } catch (_) {} return fallback; }
@@ -6563,7 +6641,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     var btnLabel = past ? 'View' : 'Edit';
                     var timeColText = (idx === 0) ? pad2(h) + ':00' : '';
                     var cap = parseInt(room.capacity || '0', 10) || 0;
-                    rows.push('<div class="v511-list-row ' + bandClass + (past ? ' is-past' : '') + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + timeColText + '</div><div class="v511-list-event">' + htmlEscape(ev.name) + '</div><div><span class="v511-room-tag ' + room.className + '">' + htmlEscape(room.label) + '</span></div><div class="v511-list-range">' + friendlyDuration(durMin) + '</div><div class="v511-list-cap">' + (cap || '—') + '</div><div class="v511-list-action"><button type="button" class="v511-btn v511-btn-mini" ' + attr + '="' + htmlEscape(ev.id) + '">' + btnLabel + '</button></div></div>');
+                    var expectedCount = Array.isArray(ev.expected_ids) ? ev.expected_ids.length : 0;
+                    var pct = cap > 0 ? Math.min(100, (expectedCount / cap) * 100) : 0;
+                    var fillTier = 'low';
+                    if (cap > 0) {
+                      if (expectedCount >= cap) fillTier = 'over';
+                      else if (pct >= 80) fillTier = 'high';
+                      else if (pct >= 50) fillTier = 'mid';
+                    }
+                    var capDisplay = cap > 0
+                      ? '<div class="v511-list-cap"><div class="v511-cap-text v511-cap-' + fillTier + '">' + expectedCount + '/' + cap + '</div><div class="v511-cap-bar"><div class="v511-cap-bar-fill v511-cap-' + fillTier + '" style="width:' + pct.toFixed(0) + '%;"></div></div></div>'
+                      : '<div class="v511-list-cap"><div class="v511-cap-text">' + expectedCount + ' / —</div></div>';
+                    rows.push('<div class="v511-list-row ' + bandClass + (past ? ' is-past' : '') + '" data-hour="' + h + '" data-row-index="' + rowCount + '"><div class="v511-list-time">' + timeColText + '</div><div class="v511-list-event">' + htmlEscape(ev.name) + '</div><div><span class="v511-room-tag ' + room.className + '">' + htmlEscape(room.label) + '</span></div><div class="v511-list-range">' + friendlyDuration(durMin) + '</div>' + capDisplay + '<div class="v511-list-action"><button type="button" class="v511-btn v511-btn-mini" ' + attr + '="' + htmlEscape(ev.id) + '">' + btnLabel + '</button></div></div>');
                     rowCount++;
                   });
                 }
@@ -6634,20 +6723,52 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               [1,2,3].forEach(function (n) { var row = document.getElementById('v511Break' + n + 'Row'); if (row) row.hidden = (n > count); });
             }
             function updateWeekStartBtn() { var btn = document.getElementById('v511WeekStartToggle'); if (btn) btn.textContent = 'Week starts: ' + (weekStartsMonday() ? 'Mon' : 'Sun'); }
-            function renderModalDayChips(activeDow) { var wrap = document.getElementById('v511EventDayChips'); if (!wrap) return; wrap.innerHTML = DAY_SHORT.map(function (day, idx) { var dow = idx + 1; return '<button type="button" class="v511-day-chip" data-modal-day="' + dow + '" aria-pressed="' + (dow === activeDow ? 'true' : 'false') + '">' + day + '</button>'; }).join(''); }
+            // T4.3.59 — modal day is now a read-only label (no chip row). Day is set on open by caller.
+            // Editing day inline is deferred to a future "Move event" feature.
+            // Expected list editing state is held in modalExpectedIds (committed to event on Save).
+            var modalExpectedIds = [];
+            function renderModalExpectedSuggestions(query) {
+              var sug = document.getElementById('v511EventExpectedSuggestions');
+              if (!sug) return;
+              var q = String(query || '').trim().toLowerCase();
+              var all = loadOrgExpectedState();
+              var filtered = q ? all.filter(function (p) { return p.name.toLowerCase().indexOf(q) >= 0; }) : all;
+              var html = filtered.slice(0, 8).map(function (p) {
+                var checked = modalExpectedIds.indexOf(p.id) >= 0;
+                return '<button type="button" class="v511-expected-suggestion' + (checked ? ' is-selected' : '') + '" data-expected-toggle="' + htmlEscape(p.id) + '">' + (checked ? '☑ ' : '☐ ') + htmlEscape(p.name) + ' <span class="v511-expected-role">' + htmlEscape(p.role) + '</span></button>';
+              }).join('');
+              var exact = all.find(function (p) { return p.name.toLowerCase() === q; });
+              if (q && !exact) {
+                html += '<button type="button" class="v511-expected-add-new" data-expected-add-new="' + htmlEscape(q) + '">+ Add new attendee &ldquo;' + htmlEscape(query) + '&rdquo;</button>';
+              }
+              if (!html) html = '<div class="v511-expected-empty">No matches.</div>';
+              sug.innerHTML = html;
+            }
+            function renderModalExpectedSelected() {
+              var sel = document.getElementById('v511EventExpectedSelected');
+              var count = document.getElementById('v511EventExpectedCount');
+              if (!sel) return;
+              var people = modalExpectedIds.map(findOrgExpectedById).filter(Boolean);
+              if (count) count.textContent = '(' + people.length + ' selected)';
+              if (!people.length) { sel.innerHTML = '<span class="v511-expected-empty">None selected yet.</span>'; return; }
+              sel.innerHTML = people.map(function (p) { return '<span class="v511-expected-chip" data-role="' + htmlEscape(p.role) + '">' + htmlEscape(p.name) + ' <button type="button" class="v511-expected-chip-remove" data-expected-remove="' + htmlEscape(p.id) + '" aria-label="Remove ' + htmlEscape(p.name) + '">&times;</button></span>'; }).join('');
+            }
             function openEventModal(id, presetDow, readonly) {
-              var ev = state.events.find(function (x) { return x.id === id; }) || { id: '', name: '', room_id: 'studio1', day_of_week: presetDow || dayOfWeekForDate(new Date()), start_time_local: '09:00', duration_min: 60 };
+              var ev = state.events.find(function (x) { return x.id === id; }) || { id: '', name: '', room_id: Object.keys(ROOM_META)[0] || 'studio1', day_of_week: presetDow || state.selectedDay || dayOfWeekForDate(new Date()), start_time_local: '09:00', duration_min: 60, expected_ids: [] };
               var isReadonly = !!readonly;
               document.getElementById('v511EventModalTitle').textContent = isReadonly ? 'View event (past — locked)' : (ev.id ? 'Edit event' : 'Add event');
               document.getElementById('v511EventId').value = ev.id;
+              document.getElementById('v511EventDay').value = String(ev.day_of_week);
+              document.getElementById('v511EventDayReadonly').textContent = DAY_NAMES[ev.day_of_week - 1] || '—';
               document.getElementById('v511EventName').value = ev.name;
               document.getElementById('v511EventRoom').value = ev.room_id;
               document.getElementById('v511EventStart').value = ev.start_time_local;
               document.getElementById('v511EventDuration').value = ev.duration_min;
-              renderModalDayChips(ev.day_of_week);
-              // Lock or unlock inputs + buttons
-              ['v511EventName','v511EventRoom','v511EventStart','v511EventDuration'].forEach(function (eid) { var el = document.getElementById(eid); if (el) el.disabled = isReadonly; });
-              document.querySelectorAll('#v511EventDayChips [data-modal-day]').forEach(function (b) { b.disabled = isReadonly; });
+              modalExpectedIds = Array.isArray(ev.expected_ids) ? ev.expected_ids.slice() : [];
+              document.getElementById('v511EventExpectedSearch').value = '';
+              renderModalExpectedSuggestions('');
+              renderModalExpectedSelected();
+              ['v511EventName','v511EventRoom','v511EventStart','v511EventDuration','v511EventExpectedSearch'].forEach(function (eid) { var el = document.getElementById(eid); if (el) el.disabled = isReadonly; });
               document.getElementById('v511EventSaveBtn').hidden = isReadonly;
               document.getElementById('v511EventDeleteBtn').hidden = isReadonly || !ev.id;
               document.getElementById('v511EventCancelBtn').textContent = isReadonly ? 'Close' : 'Cancel';
@@ -6655,7 +6776,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (!isReadonly) document.getElementById('v511EventName').focus();
             }
             function closeEventModal() { var modal = document.getElementById('v511EventModal'); if (modal) modal.hidden = true; }
-            function saveEventFromModal() { var roomId = document.getElementById('v511EventRoom').value || 'studio1'; var id = document.getElementById('v511EventId').value || ('evt-' + Date.now()); var activeDay = document.querySelector('#v511EventDayChips [aria-pressed="true"]'); var next = { id: id, name: document.getElementById('v511EventName').value.trim() || 'Untitled event', room_id: roomId, day_of_week: parseInt(activeDay?.getAttribute('data-modal-day') || '1', 10), start_time_local: document.getElementById('v511EventStart').value || '09:00', duration_min: parseInt(document.getElementById('v511EventDuration').value || '60', 10), color_hex: ROOM_META[roomId]?.color || '#1f6feb' }; var ix = state.events.findIndex(function (ev) { return ev.id === id; }); if (ix >= 0) state.events[ix] = next; else state.events.push(next); saveWeeklyState(); closeEventModal(); renderAll(); }
+            function saveEventFromModal() {
+              var roomId = document.getElementById('v511EventRoom').value || 'studio1';
+              var id = document.getElementById('v511EventId').value || ('evt-' + Date.now());
+              var dayOfWeek = parseInt(document.getElementById('v511EventDay').value, 10) || (state.selectedDay || 1);
+              var next = {
+                id: id,
+                name: document.getElementById('v511EventName').value.trim() || 'Untitled event',
+                room_id: roomId,
+                day_of_week: dayOfWeek,
+                start_time_local: document.getElementById('v511EventStart').value || '09:00',
+                duration_min: parseInt(document.getElementById('v511EventDuration').value || '60', 10),
+                color_hex: ROOM_META[roomId]?.color || '#1f6feb',
+                expected_ids: modalExpectedIds.slice()
+              };
+              var ix = state.events.findIndex(function (ev) { return ev.id === id; });
+              if (ix >= 0) state.events[ix] = next; else state.events.push(next);
+              saveWeeklyState();
+              closeEventModal();
+              renderAll();
+            }
             function deleteEventFromModal() { var id = document.getElementById('v511EventId').value; state.events = state.events.filter(function (ev) { return ev.id !== id; }); saveWeeklyState(); closeEventModal(); renderAll(); }
             function scrollToCalendar() { var el = document.getElementById('v511CalSwimlane') || document.getElementById('v511CalWrap'); if (el && el.scrollIntoView) { try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) { el.scrollIntoView(); } } }
             function jumpToNow() { var today = dayOfWeekForDate(new Date()); var thisWeek = isoDate(weekStartFor(new Date())); if (state.weekStartIso !== thisWeek) { state.weekStartIso = thisWeek; saveWeeklyState(); } state.selectedDay = today; setView('swimlane'); renderAll(); scrollToCalendar(); }
@@ -6794,7 +6934,55 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (view) openEventByIdSmart(view.getAttribute('data-view-event'), true);
               else if (edit) openEventByIdSmart(edit.getAttribute('data-edit-event'));
             });
-            document.getElementById('v511EventDayChips')?.addEventListener('click', function (e) { var btn = e.target.closest('[data-modal-day]'); if (!btn) return; document.querySelectorAll('#v511EventDayChips [data-modal-day]').forEach(function (b) { b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); }); });
+            // T4.3.59 — Expected list event delegation: toggle suggestion, remove chip, add new.
+            document.getElementById('v511EventExpectedSuggestions')?.addEventListener('click', function (e) {
+              var toggle = e.target.closest('[data-expected-toggle]');
+              var addNew = e.target.closest('[data-expected-add-new]');
+              if (toggle) {
+                var pid = toggle.getAttribute('data-expected-toggle');
+                var ix = modalExpectedIds.indexOf(pid);
+                if (ix >= 0) modalExpectedIds.splice(ix, 1); else modalExpectedIds.push(pid);
+                renderModalExpectedSuggestions(document.getElementById('v511EventExpectedSearch').value);
+                renderModalExpectedSelected();
+              } else if (addNew) {
+                var nm = addNew.getAttribute('data-expected-add-new');
+                var entry = addOrgExpectedEntry(nm, 'attendee');
+                if (entry && modalExpectedIds.indexOf(entry.id) < 0) modalExpectedIds.push(entry.id);
+                document.getElementById('v511EventExpectedSearch').value = '';
+                renderModalExpectedSuggestions('');
+                renderModalExpectedSelected();
+                showGlobalSavedToast('✓ Added "' + entry.name + '" to org Expected list');
+              }
+            });
+            document.getElementById('v511EventExpectedSelected')?.addEventListener('click', function (e) {
+              var btn = e.target.closest('[data-expected-remove]');
+              if (!btn) return;
+              var pid = btn.getAttribute('data-expected-remove');
+              var ix = modalExpectedIds.indexOf(pid);
+              if (ix >= 0) modalExpectedIds.splice(ix, 1);
+              renderModalExpectedSuggestions(document.getElementById('v511EventExpectedSearch').value);
+              renderModalExpectedSelected();
+            });
+            document.getElementById('v511EventExpectedSearch')?.addEventListener('input', function (e) { renderModalExpectedSuggestions(e.target.value); });
+            document.getElementById('v511EventExpectedSearch')?.addEventListener('keydown', function (e) {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                var q = e.target.value.trim();
+                if (!q) return;
+                var all = loadOrgExpectedState();
+                var exact = all.find(function (p) { return p.name.toLowerCase() === q.toLowerCase(); });
+                if (exact) {
+                  if (modalExpectedIds.indexOf(exact.id) < 0) modalExpectedIds.push(exact.id);
+                } else {
+                  var entry = addOrgExpectedEntry(q, 'attendee');
+                  if (entry && modalExpectedIds.indexOf(entry.id) < 0) modalExpectedIds.push(entry.id);
+                  showGlobalSavedToast('✓ Added "' + entry.name + '" to org Expected list');
+                }
+                e.target.value = '';
+                renderModalExpectedSuggestions('');
+                renderModalExpectedSelected();
+              }
+            });
             document.getElementById('v511EventSaveBtn')?.addEventListener('click', saveEventFromModal);
             document.getElementById('v511EventDeleteBtn')?.addEventListener('click', deleteEventFromModal);
             document.getElementById('v511EventCancelBtn')?.addEventListener('click', closeEventModal);
