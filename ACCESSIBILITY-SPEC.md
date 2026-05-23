@@ -100,6 +100,11 @@ The JSON shape stored under `irlid_a11y_v1`:
 ```json
 {
   "version": 1,
+  "meta": {
+    "adoptOsSettings": true     // master switch — when true, OS prefers-* media queries supply defaults.
+                                // Flips to false automatically the moment the user touches any explicit toggle below.
+                                // User can manually flip back to true to re-adopt OS defaults.
+  },
   "audio": {
     "scanBeep": false,          // proximity beep on scan.html (faster as QR centres)
     "beepVolume": 0.5,          // 0.0 to 1.0
@@ -368,15 +373,25 @@ This is the v5.11–v6 work plan. Each phase is a separate Mr. Data brief.
 - `org_accessibility_defaults` D1 table
 - Worker endpoints: `GET /org/accessibility-defaults`, `PUT /org/accessibility-defaults` (lead_admin+)
 - Module reads org defaults on first paint, caches with TTL
+- Org-level semantics: defaults apply per session; user override is session-only, resets to org default when session ends (per §10.2)
 - Target: v5.12.4 brief
 
-### Phase G — Self-certification (admin work, no code)
+### Phase G — User-held identity-bound preferences via signed envelope (v6.0)
+- Extend v5 envelope schema in `js/sign.js` with optional `a11y_blob` field (~10 lines)
+- Receiving venue / kiosk extracts `a11y_blob` from incoming envelope, applies to session via `js/accessibility.js` (~40 lines)
+- User-facing toggle in accessibility panel: "Send my preferences with each scan" (default ON, ~5 lines)
+- No D1 schema changes; preferences live in user's `irlid_a11y_v1` localStorage and travel via signed envelope only
+- Honours "broker, not store" principle — IRLid does not store accessibility PII bound to identity server-side
+- Worked example: Bob (blind, has TTS + haptic + large text on his own phone) visits a friend's IRLid-using gym. Bob scans the venue's QR. His phone signs the check-in envelope including his a11y blob. The gym kiosk reads the blob, applies preferences for Bob's session, resets to org default when he leaves.
+- Target: v6.0 release
+
+### Phase H — Self-certification (admin work, no code)
 - VPAT document
 - Accessibility statement page (`accessibility.html` at repo root)
 - axe + Lighthouse audit on every page, document green pass
 - Target: v5.12.5 (admin)
 
-### Phase H — Third-party audit (when funding allows)
+### Phase I — Third-party audit (when funding allows)
 - Engage AbilityNet or equivalent
 - Implement audit findings
 - Earn the formal cert
@@ -384,16 +399,19 @@ This is the v5.11–v6 work plan. Each phase is a separate Mr. Data brief.
 
 ---
 
-## §10 — Open architectural questions for Captain
+## §10 — Architectural decisions (Captain ratified 23 May 2026 morning)
 
-Items requiring Captain's decision before Phase A brief can be drafted:
+1. **Settings UI placement** — **All three.** Accessibility icon top-right of every page (primary), 8th tab in dashboard Settings panel (secondary), and `Alt+A` global keyboard shortcut (tertiary). Multiple discovery paths, all roads lead to the same modal.
 
-1. **Settings UI placement** — accessibility icon top-right of every page, OR sidebar option, OR keyboard shortcut (e.g. Alt+A) opens panel? Or all three?
-2. **Org-level override semantics** — does an org's accessibility default *force* settings on devices (no user override) or merely *suggest* (user can override)? Default suggestion: suggest, never force.
-3. **Per-attendee preferences in v6+** — should an attendee's accessibility preferences travel with their identity (stored in their device-key bound profile) so any IRLid venue they visit picks them up automatically? Or always per-device? Suggestion: per-device for v5.11–v6.0; per-identity is a v6.x consideration.
-4. **`prefers-reduced-motion` priority** — when both the OS preference AND an explicit IRLid setting exist, which wins? Suggestion: IRLid setting wins (explicit user choice in our context overrides OS default).
-5. **Scan beep audio source** — generate via Web Audio API (zero asset payload, less natural) or pre-recorded WAV files (better fidelity, +~50KB)? Suggestion: Web Audio for v1, pre-recorded only if user testing surfaces a problem.
-6. **TTS voice selection** — auto-detect best voice from `speechSynthesis.getVoices()`, or expose a picker in settings? Suggestion: picker, with auto-detect as default.
+2. **Org-level override semantics** — **Option B: admin sets default, user can override per session, resets next user.** Admin's preference is the sensible starting state; individual user override applies for the current session only; the device returns to org default when the session ends. Care home admins set Large Text ON for residents; a sighted visitor can flip it off momentarily without permanently disabling it for the next resident.
+
+3. **Per-attendee preferences travelling with identity** — **Yes, scheduled for Phase G (v6.0).** Implementation via signed envelope, NOT server-side storage. The user's preferences live encrypted in their device's localStorage; when they scan a venue QR, an optional `a11y_blob` is attached to the v5 envelope. Receiving venue applies preferences for that session only, no storage. Honours the "broker, not store" principle. Estimated ~55 lines of code across `js/sign.js`, the dashboard receiver, and the user-facing toggle ("Send my preferences with each scan", default ON).
+
+4. **OS `prefers-*` vs IRLid setting priority** — **IRLid setting wins** when the user has touched it. The new `meta.adoptOsSettings` master toggle (default ON for new users) supplies sensible OS-aware defaults; flips to OFF the moment the user touches any individual setting (signal of explicit user control). User can manually re-enable to re-adopt OS defaults. Best of both — sensible out-of-box behaviour, respect for explicit choice.
+
+5. **Scan beep audio source** — **Web Audio API (synthesized) for v1.** Zero asset payload, swap to pre-recorded WAVs in v2 if user testing surfaces a fidelity complaint.
+
+6. **TTS voice selection** — **Auto-pick by default, picker in Settings as override.** Best of both: works immediately for users who don't care, configurable for users who do.
 
 ---
 
