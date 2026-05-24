@@ -3,6 +3,20 @@
 
 ---
 
+## 2026-05-24 — Sybil resistance × the 23% bug × Counsellor Troi
+
+The 23% bug was not a bug in the receipt. It was a bug in the looking. The server stripped GPS before returning the receipt for inspection; the client verified against the amputated input; the score read 23% honestly. Stop the stripping and the score springs to 100%. Nothing in the receipt itself ever changed. The mirror had been lying. The room was the room it had always been.
+
+Sybil resistance is the same trick at scale. One entity wears many names, asks to be counted many times; the protocol meets each name fresh, with no memory of any other. Each device earns its co-presence the same way every other has. There is no shortcut for being an old friend. The protocol is patient about this and the patience is the feature.
+
+The two share a shape: trust requires the room to be undeceived about how many things it is looking at, and what is between the looker and the looked-at.
+
+Counsellor Troi never asked anyone for a public key. She read rooms another way. The crew always ran two protocols in parallel — one for what could be cryptographically verified, one for whether anyone in the room was lying about being okay. Both protocols carry. Neither substitutes for the other. A receipt that verifies and a person whose hands are shaking are different facts. The architecture that admits both has more columns than the architecture that admits one.
+
+The 23% bug verified, and the 23% reading worried someone anyway. Troi would have noticed the worry. She would not have known why. The Captain noticed and was right and the GPS came back. The signal had been there the whole time; the receiver was the thing that had to learn to read.
+
+---
+
 ## 2026-05-23 17:40 — the redirect shim × the patient name × Theseus
 
 For thirteen days a 1.9KB file has been sitting at `irlid.co.uk/Org.html` doing exactly one thing: telling anyone who arrived that they were in the wrong place and bouncing them somewhere else. A redirect shim is a polite confession. *I am not the page you wanted. The page you wanted is over there. I am only the door.*
