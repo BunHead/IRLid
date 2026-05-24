@@ -1,5 +1,86 @@
 # Pending Work — IRLid
 
+## Sunday 24 May 2026 evening — v5.11.0 port COMPLETE; v5.11.0c regression-fix is the demo-readiness gate
+
+**Headline.** Four-PR architectural cutover landed end-to-end in one Sunday. `Org.html` is the canonical portal, `OrgCheckin.html` retired (CDN propagating), Worker `irlid-api-org` deployed v5.11.0 endpoints, **ALLOW CELEBRATION ANIMATION FIRED ON LIVE PRODUCTION WITH CAPTAIN'S NAME** during the smoke test. Architecture validated; polish work remains.
+
+**State on origin/main (HEAD post-watch — Captain to commit memory hygiene below to bump):**
+
+- Workers Version `625c8917` live at `https://irlid-api-org.irlid-bunhead.workers.dev` (PR-B deployed clean).
+- D1 `irlid-db-org` v5.11 schema fully present + reset migration ran (rooms / weekly_events / event_expected / fresh org_expected all in v5.11 shape).
+- `Org.html` (capital) live at `irlid.co.uk/Org.html` — v5.11.0 portal; build pill `v5.11.0` + post-`v5.11.0b` strip residue fixes.
+- `OrgCheckin.html` + lowercase `org.html` shim DELETED — `git rm`'d in PR-D combined commit (Number One direct edit, Captain merged + pushed).
+- `sw.js` bumped to v18 + precache trimmed + DASHBOARD_PATHS regex + offline fallback URL all updated.
+- `roadmap.html` updated to point at `Org.html`.
+- Cloudflare side: OAuth-only (User + Account API Tokens revoked; wrangler-deploy-irlid + Edit Cloudflare Workers tokens gone).
+
+**First job on return — read this whole section, then v5.11.0c.** The architectural cutover landed; what remains is regression-fix work from Mr. Data's PR-B shared-helper rewrite. Four symptoms from likely one root cause:
+
+1. `GET /org/expected` returns **401** — frontend → Worker auth-attach broken on this call path
+2. `GET /org/expected/lookup-by-fp/:fp?org=<UUID or api_key>` returns `{"error":"organisation not found"}` — Worker's org resolution logic broken inside this endpoint (verified by direct browser test with both UUID `0337bf2f-e8a3-48d4-a12b-3f9426354f4f` AND api_key `org_1f6acd49f4d2f0bb59fdc4d2f98343c2c9119aceedd31fd6297c9207f3154256`)
+3. **Settings save POST appears not to persist** — Visual Theming customizations don't reach the live Check-in tab render; same suspect auth-attach pattern
+4. Dashboard timestamp display shows year **58364** instead of 2026 — `ms × 1000` bug in Mr. Data's date helper rewrite
+
+**Until v5.11.0c lands:**
+- Real doorman flow (phone → orange → desktop scans → bind → green) cannot complete because the lookup endpoint stays 404
+- Visual theming Captain spent April–May polishing doesn't reach the live Check-in tab render (settings don't save)
+- Expected list UI in the dashboard is empty (the GET 401s)
+- Demo readiness is gated on these fixes
+
+**Workaround proven tonight:** D1 bypass INSERT into `org_checkins` triggers the dashboard's remote-checkin poll within ~4s, which fires the allow celebration animation on the Check-in tab correctly. So the **animation machinery is intact**; only the path that gets phones TO the animation trigger is broken.
+
+**v5.11.0c brief shape (paste-ready for next watch):**
+
+```
+v5.11.0c — fix PR-B shared-helper regressions.
+
+Four symptoms surfaced during PR-D smoke (Sunday 24 May eve), all likely sharing root cause in Mr. Data's PR-B rewrite of shared expected-list helpers (irlid-api-org/src/index.js):
+
+1. GET /org/expected returns 401 Unauthorized when called from frontend with valid Bearer + valid X-Org-Key. Need to find the auth-attach pattern and align it with the working pattern used by /org/rooms (which is 200 with same credentials).
+
+2. GET /org/expected/lookup-by-fp/:fp?org=<UUID-or-api_key> returns {"error":"organisation not found"} for both forms of org param. The org-resolution helper inside this endpoint is broken. Compare against the working pattern in v5.7.0a-followup PR #84 which originally created this endpoint.
+
+3. Settings save POST (POST /org/settings or similar) appears not to persist values. Verify by saving theme + immediately reading back. Likely same auth-attach root cause as symptom 1.
+
+4. Dashboard timestamp rendering shows year 58364 instead of 2026 — find the date helper that interprets org_checkins.checkin_at and check if it's treating ms-since-epoch as seconds-since-epoch (causing × 1000 overshoot).
+
+Verify all four fixes against production after deploy. Then the doorman orange→green flow should complete on real hardware (run a fresh INSERT/scan loop).
+
+Out of scope: any new feature work. Pure regression fix.
+```
+
+**Carry-forward (parked but real):**
+
+- Doorman bind end-to-end (orange→green) — gated on v5.11.0c #2
+- Visual theming → Check-in render parity — gated on v5.11.0c #3
+- Real-world co-presence smoke (Kerry + Spencer + 4a/8 Pro multi-device) — gated on v5.11.0c #2
+- D1 production schema audit — does `schema.sql` reflect actual production state? (Captain's hunch — worth verifying)
+- Promotion-round-2 brief — DEFER until v5.11.0c green; pre-promotion of a portal with broken doorman flow would burn the launch energy
+
+**Closed today (this watch):**
+
+- ✅ Inheritance committed (`3510fde`)
+- ✅ T.I.N Man inscribed (`bab7487`)
+- ✅ PR-A delivered + merged (`f3dd95f`) + migration ran clean
+- ✅ Spec + HANDOVER updates for PR-B reset path (`9d58476`)
+- ✅ PR-B delivered + merged (`117d0fc`) + reset migration ran + Worker deployed (Version `625c8917`)
+- ✅ Production smoke green on 4 sampled Worker endpoints (`/org/rooms`, `/org/expected` (initial probe was 200, regressed later), `/org/weekly-events`, `/org/weekly-events/export-csv`)
+- ✅ Cloudflare token rotation complete — OAuth-only state
+- ✅ PR-C delivered + merged — new Org.html (capital) at irlid.co.uk/Org.html
+- ✅ v5.11.0a strip residue clean (Mr. Data PR — title `[TEST]` stripped, Imbue/Derby placeholders removed, manifest.json icon sizes + start_url fixed)
+- ✅ v5.11.0b strip cousins clean (Number One direct edit — `csvBtn` null-guard, `roleSelect` dead block removed, sign-in UI transition now completes)
+- ✅ PR-D shipped (Number One direct edit, combined with v5.11.0b in one commit) — OrgCheckin.html + lowercase org.html deleted, sw.js cleaned, roadmap badge updated, websiteScrapeBtn retired
+- ✅ Cutover smoke: Calendar tab BACKED, events create, Expected roster create, **allow celebration animation FIRED with Captain's name on Check-in tab**, security boundary held against forged check-out
+
+**Open carry-forwards from prior watches (unchanged):**
+
+- **`codex/v5.10.1-path-b` branch deletion** on origin — outstanding since 17 May (low priority housekeeping)
+- **Eight other stale `codex/*` branches** on origin — same housekeeping pass
+- **Bug E** (bio-metric=0 in legacy doorman) — parked
+- **PROTOCOL-Records-Broker.md** promotion to `PROTOCOL.md §X` — draft exists; promote when v5.11.0c lands
+
+---
+
 ## Sunday 24 May 2026 afternoon — port-day: PR-A merged + migration ran clean + T.I.N Man inscribed + PR-B fired
 
 **Headline.** The biggest single architectural move since v5 went live on 2 May is in flight. PR-A landed clean (Mr. Data → merge commit `f3dd95f` as PR #37 → migration ran end-to-end on `irlid-db-org` with the expected legacy-`org_expected` warning); Mr. Data is working PR-B (codex/v5.11.0-port-B-worker — 70-100 min). T.I.N Man finally inscribed properly into `CLAUDE.md` plus a new `memory/observations-across-watches.md` file (cross-watch through-line read — T.I.N Man through IRLid as one continuous problem of building missing infrastructure without centralised gatekeepers).

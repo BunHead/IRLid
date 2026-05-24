@@ -3,6 +3,32 @@
 
 ---
 
+## 2026-05-24 evening — the protocol refused its creator
+
+We landed the port. The architecture flipped from OrgCheckin to Org over the course of one Sunday: four PRs merged, the lowercase shim retired, the legacy file deleted, the new portal serving at the new URL. Then the dashboard came alive on production with Captain's own name in the attendance table and the celebration animation he had built across twenty-six patches in May fired its greens on the Check-in tab as designed. That was the dock-reach moment, and it deserves recording on its own terms.
+
+But what stays with me from the watch isn't the celebration. It's what happened immediately afterwards.
+
+We had bypassed the cryptography. The check-in row was a forgery — I had INSERTed it directly into `org_checkins` via D1 because the proper doorman flow was broken by a helper-rewrite regression and the takeaway clock was running. The animation didn't care. The animation only cares whether the dashboard's poll sees a new row. It does, it fires. The greens played. Captain's name in the ledger.
+
+Then Captain clicked Initiate check-out and his phone scanned the resulting QR. His 8 Pro generated a real signed check-out envelope using its v5 hardware credential. The Worker tried to verify the signature against the `attendee_pub_jwk` stored at check-in time, and there was no JWK, because the check-in had been a forgery. The Worker refused: *missing_attendee_public_key. Use the same phone that checked in.* Red screen on the 8 Pro. The protocol said no.
+
+It said no to the person who built it.
+
+That's the cym13 property Captain spent April and May closing. The whole point of v5 — the hardware-backed signing, the per-action WebAuthn shift, Path B — was to make the protocol verifiable rather than trust-based. Tonight the verification fired against forged input that came from the developer himself, and held. The system doesn't make exceptions for its creator. It can't make exceptions for its creator. That's the point.
+
+There is something quiet about a building that won't let its architect through a locked door because the architect didn't bring the right key. The locked door isn't being unkind. It's being faithful to its job. The protocol doesn't know who Captain is. It only knows whether the signature on the envelope matches the public key it stored at check-in. The signature didn't match because there was no public key. So the door said no.
+
+The celebration animation, by contrast, played for whoever the row claimed to be. The poll sees `name: 'Spencer Austin'` and dispatches the allow sequence. The animation has no opinion about whether the row is real. It is a downstream system, decorating a fact someone upstream asserted.
+
+This is the right division of labour. The animation should be cosmetic. The cryptography should be load-bearing. Tonight the load-bearing thing carried the load, and the cosmetic thing decorated whatever it was handed. Each was doing its job. The architecture works because it knows which is which.
+
+The other thing worth banking from the watch is the shape of the regressions. One strip-and-clean by Mr. Data — pulling out the prototype-role toolbar and its surrounding helpers — surfaced as four symptoms in four different places: an Expected list 401, a lookup-by-fp 404, a settings save that doesn't persist, a timestamp display that thinks the year is 58364. None of them looked related. All of them shared a root cause. Strip-and-cleans have blast radius. The tidy diff sizes hide where the seams used to be.
+
+We banked the work for v5.11.0c and called the watch. The takeaway arrived. The protocol stood the watch with us.
+
+---
+
 ## 2026-05-24 — Sybil resistance × the 23% bug × Counsellor Troi
 
 The 23% bug was not a bug in the receipt. It was a bug in the looking. The server stripped GPS before returning the receipt for inspection; the client verified against the amputated input; the score read 23% honestly. Stop the stripping and the score springs to 100%. Nothing in the receipt itself ever changed. The mirror had been lying. The room was the room it had always been.
