@@ -1966,15 +1966,25 @@ async function orgFromRequest(request, env) {
   return env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(key, key, key).first();
 }
 
+function firstNameFromDisplayName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  return parts.length ? parts[0] : "";
+}
+
+function surnameFromDisplayName(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1 ? parts.slice(1).join(" ") : "";
+}
+
 const EXPECTED_SELECT =
-  "id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role";
+  "id,org_id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,device_pub_fp,email_hint,phone_hint,notes,created_at,archived_at";
 
 async function expectedKeySet(env, orgCode, expectedId) {
   const keys = new Set();
   const primary = await env.DB.prepare(
-    "SELECT device_key_fp FROM org_expected WHERE id=? AND org_code=?"
+    "SELECT device_pub_fp FROM org_expected WHERE id=? AND org_id=?"
   ).bind(expectedId, orgCode).first();
-  if (primary?.device_key_fp) keys.add(primary.device_key_fp);
+  if (primary?.device_pub_fp) keys.add(primary.device_pub_fp);
   if (await tableExists(env, "rebind_history")) {
     const rows = await env.DB.prepare(
       "SELECT new_device_fp FROM rebind_history WHERE org_code=? AND expected_id=? ORDER BY created_at ASC, id ASC"
@@ -1988,10 +1998,16 @@ async function expectedKeySet(env, orgCode, expectedId) {
 
 async function expectedRowWithKeys(env, orgCode, expectedId) {
   const row = await env.DB.prepare(
-    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE id=? AND org_code=?`
+    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE id=? AND org_id=?`
   ).bind(expectedId, orgCode).first();
   if (!row) return null;
   row.device_key_fps = await expectedKeySet(env, orgCode, expectedId);
+  row.first_name = firstNameFromDisplayName(row.display_name);
+  row.surname = surnameFromDisplayName(row.display_name);
+  row.status = row.archived_at ? "archived" : (row.device_pub_fp ? "linked" : "assist");
+  row.linked_at = null;
+  row.device_key_fp = row.device_pub_fp || null;
+  row.prototype_role = row.role_key || "attendee";
   return row;
 }
 
@@ -1999,18 +2015,30 @@ async function findExpectedByDeviceFp(env, orgCode, deviceFp) {
   const fp = String(deviceFp || "").trim();
   if (!fp) return null;
   const direct = await env.DB.prepare(
-    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_code=? AND device_key_fp=? AND status='linked' ORDER BY linked_at DESC, id DESC LIMIT 1`
+    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND device_pub_fp=? AND archived_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1`
   ).bind(orgCode, fp).first();
   if (direct) {
     direct.device_key_fps = await expectedKeySet(env, orgCode, direct.id);
+    direct.first_name = firstNameFromDisplayName(direct.display_name);
+    direct.surname = surnameFromDisplayName(direct.display_name);
+    direct.status = "linked";
+    direct.linked_at = null;
+    direct.device_key_fp = direct.device_pub_fp || null;
+    direct.prototype_role = direct.role_key || "attendee";
     return direct;
   }
   if (await tableExists(env, "rebind_history")) {
     const viaHistory = await env.DB.prepare(
-      "SELECT e.id,e.org_code,e.first_name,e.surname,e.status,e.created_at,e.linked_at,e.device_key_fp,COALESCE(e.prototype_role,'attendee') AS prototype_role FROM rebind_history r JOIN org_expected e ON e.id=r.expected_id AND e.org_code=r.org_code WHERE r.org_code=? AND r.new_device_fp=? AND e.status='linked' ORDER BY r.created_at DESC, r.id DESC LIMIT 1"
+      "SELECT e.id,e.org_id,e.display_name,e.initials,COALESCE(e.role_key,'attendee') AS role_key,e.device_pub_fp,e.email_hint,e.phone_hint,e.notes,e.created_at,e.archived_at FROM rebind_history r JOIN org_expected e ON e.id=r.expected_id AND e.org_id=r.org_code WHERE r.org_code=? AND r.new_device_fp=? AND e.archived_at IS NULL ORDER BY r.created_at DESC, r.id DESC LIMIT 1"
     ).bind(orgCode, fp).first();
     if (viaHistory) {
       viaHistory.device_key_fps = await expectedKeySet(env, orgCode, viaHistory.id);
+      viaHistory.first_name = firstNameFromDisplayName(viaHistory.display_name);
+      viaHistory.surname = surnameFromDisplayName(viaHistory.display_name);
+      viaHistory.status = "linked";
+      viaHistory.linked_at = null;
+      viaHistory.device_key_fp = viaHistory.device_pub_fp || null;
+      viaHistory.prototype_role = viaHistory.role_key || "attendee";
       return viaHistory;
     }
   }
@@ -2025,7 +2053,7 @@ async function orgRecognize(request, env) {
   if (!deviceFp) return err("device_pub required");
   const row = await findExpectedByDeviceFp(env, org.id, deviceFp);
   if (!row) return json({ recognized: false });
-  return json({ recognized: true, name: `${row.first_name || ""} ${row.surname || ""}`.trim(), expected_id: row.id });
+  return json({ recognized: true, name: row.display_name || `${row.first_name || ""} ${row.surname || ""}`.trim(), expected_id: row.id });
 }
 
 async function orgExpectedLookupByFp(request, env, fpParam) {
@@ -2039,7 +2067,7 @@ async function orgExpectedLookupByFp(request, env, fpParam) {
     return noStore(json({
       status: "linked",
       expected_id: expected.id,
-      expected_name: `${expected.first_name || ""} ${expected.surname || ""}`.trim()
+      expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim()
     }));
   }
 
@@ -2224,7 +2252,7 @@ async function roleForStaffPubFp(env, org, staffPubFp) {
   }
 
   const expected = await env.DB.prepare(
-    "SELECT COALESCE(prototype_role,'staff') AS prototype_role FROM org_expected WHERE org_code=? AND device_key_fp=? ORDER BY linked_at DESC, id DESC LIMIT 1"
+    "SELECT COALESCE(role_key,'staff') AS prototype_role FROM org_expected WHERE org_id=? AND device_pub_fp=? AND archived_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 1"
   ).bind(org.id, fp).first();
   return expectedMemberRole(expected?.prototype_role || "staff");
 }
@@ -2508,13 +2536,13 @@ async function orgCheckin(request, env) {
   }
   if (!expected && displayName) {
     expected = await env.DB.prepare(
-      `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_code=? AND status IN ('assist','linked') AND LOWER(first_name || ' ' || surname)=LOWER(?) ORDER BY id ASC LIMIT 1`
+      `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) ORDER BY id ASC LIMIT 1`
     ).bind(org.id, displayName).first();
     if (expected) {
       expected.device_key_fps = await expectedKeySet(env, org.id, expected.id);
       expectedId = expected.id;
       const knownKeys = new Set(expected.device_key_fps || []);
-      if (expected.device_key_fp && attendeeDeviceFp && !knownKeys.has(attendeeDeviceFp)) {
+      if (expected.device_pub_fp && attendeeDeviceFp && !knownKeys.has(attendeeDeviceFp)) {
         status = "conflict";
       }
     }
@@ -2525,15 +2553,15 @@ async function orgCheckin(request, env) {
   if (status === "conflict" && expected) {
     const conflict = await env.DB.prepare(
       "INSERT INTO attendee_conflicts (org_code,expected_id,checkin_id,bound_device_fp,claiming_device_fp,claimed_name,created_at) VALUES (?,?,?,?,?,?,?) RETURNING id"
-    ).bind(org.id, expected.id, id, expected.device_key_fp, attendeeDeviceFp, displayName, t).first();
+    ).bind(org.id, expected.id, id, expected.device_pub_fp, attendeeDeviceFp, displayName, t).first();
     conflictId = conflict?.id || null;
     await env.DB.prepare("UPDATE org_checkins SET conflict_id=? WHERE id=? AND org_id=?").bind(conflictId, id, org.id).run();
     link = { linked: false, conflict: true, expected_id: expected.id, conflict_id: conflictId };
   } else if (expected) {
       await env.DB.prepare(
-        "UPDATE org_expected SET status='linked', linked_at=COALESCE(linked_at,?), device_key_fp=COALESCE(device_key_fp,?) WHERE id=? AND org_code=?"
-      ).bind(t, attendeeDeviceFp, expected.id, org.id).run();
-      link = { linked: true, expected_id: expected.id, expected_name: `${expected.first_name} ${expected.surname}`.trim() };
+        "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
+      ).bind(attendeeDeviceFp, expected.id, org.id).run();
+      link = { linked: true, expected_id: expected.id, expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim() };
   }
   return json({ checkin_id: id, checkin_at: t, org_name: org.name, settings, ...link });
 }
@@ -2656,7 +2684,7 @@ async function orgAttendance(request, env) {
     return json({ checkins, stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
   }
   const expected = await env.DB.prepare(
-    "SELECT e.id AS expected_id,(TRIM(COALESCE(e.first_name,'') || ' ' || COALESCE(e.surname,''))) AS name,COALESCE(e.prototype_role,'attendee') AS role,COALESCE(e.prototype_role,'attendee') AS prototype_role FROM org_expected e WHERE e.org_code=? AND e.status='linked' AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.surname) ASC, LOWER(e.first_name) ASC, e.id ASC"
+    "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e WHERE e.org_id=? AND e.archived_at IS NULL AND e.device_pub_fp IS NOT NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC"
   ).bind(org.id, org.id, since).all();
   const expectedRows = (expected.results || []).map(row => ({
     id: `expected:${row.expected_id}`,
@@ -2684,6 +2712,229 @@ async function tableExists(env, tableName) {
     "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
   ).bind(tableName).first();
   return !!row;
+}
+
+function staffSessionTokenFrom(request, body) {
+  const url = new URL(request.url);
+  return String(
+    request.headers.get("X-Staff-Session")
+    || url.searchParams.get("staff_session")
+    || url.searchParams.get("staffSession")
+    || (body && (body.staff_session || body.staffSession))
+    || ""
+  ).trim();
+}
+
+async function requireCalendarStaff(request, env, org, body) {
+  const staffError = await requireDevOrStaffSession(request, env, org, staffSessionTokenFrom(request, body));
+  return staffError ? { error: staffError } : { ok: true };
+}
+
+async function requireCalendarSignedAction(request, env, org, body, payloadSchema) {
+  const action = await requireSignedAction(body, env, {
+    expectedType: "irlid_calendar_write_v5",
+    orgId: org.id,
+    minRole: "manager",
+    payloadSchema: payloadSchema || (() => true),
+    request
+  });
+  return action.error ? { error: action.error } : action;
+}
+
+function cleanText(value, maxLen) {
+  const text = String(value || "").trim().replace(/\s+/g, " ");
+  return text.slice(0, maxLen);
+}
+
+function cleanOptionalText(value, maxLen) {
+  const text = String(value || "").trim();
+  return text ? text.slice(0, maxLen) : null;
+}
+
+function initialsForName(name) {
+  return String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 4)
+    .map(part => part[0]?.toUpperCase() || "")
+    .join("")
+    .slice(0, 8);
+}
+
+function slugPart(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48);
+}
+
+function newExpectedId(displayName) {
+  const slug = slugPart(displayName) || "person";
+  return `p_${slug}_${randomToken().slice(0, 8)}`;
+}
+
+function newEventId() {
+  return `evt_${randomToken().slice(0, 22)}`;
+}
+
+function parseDayOfWeek(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (/^[1-7]$/.test(raw)) return Number(raw);
+  const map = {
+    monday: 1, mon: 1,
+    tuesday: 2, tue: 2, tues: 2,
+    wednesday: 3, wed: 3,
+    thursday: 4, thu: 4, thur: 4, thurs: 4,
+    friday: 5, fri: 5,
+    saturday: 6, sat: 6,
+    sunday: 7, sun: 7
+  };
+  return map[raw] || null;
+}
+
+function isLocalTime(value) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "").trim());
+}
+
+function cleanRoleKey(value) {
+  return expectedMemberRole(value || "attendee");
+}
+
+function boolishToInt(value, fallback = 0) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const text = String(value).trim().toLowerCase();
+  if (["1", "true", "yes", "y", "on"].includes(text)) return 1;
+  if (["0", "false", "no", "n", "off"].includes(text)) return 0;
+  return fallback;
+}
+
+function csvEscape(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  const src = String(text || "").replace(/^\uFEFF/, "");
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      row.push(field);
+      field = "";
+    } else if (ch === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (ch !== "\r") {
+      field += ch;
+    }
+  }
+  if (field || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows.filter(r => r.some(c => String(c || "").trim() !== ""));
+}
+
+function csvHeaderMap(headerRow) {
+  const map = {};
+  headerRow.forEach((h, ix) => {
+    const key = String(h || "").trim().toLowerCase();
+    if (key) map[key] = ix;
+  });
+  return map;
+}
+
+function csvCell(row, header, name) {
+  const ix = header[name];
+  return ix === undefined ? "" : String(row[ix] || "").trim();
+}
+
+async function ensureExpectedIdsForOrg(env, orgId, ids) {
+  const unique = Array.from(new Set((ids || []).map(id => String(id || "").trim()).filter(Boolean)));
+  if (!unique.length) return { ok: true, ids: [] };
+  const placeholders = unique.map(() => "?").join(",");
+  const rows = await env.DB.prepare(
+    `SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND id IN (${placeholders})`
+  ).bind(orgId, ...unique).all();
+  const found = new Set((rows.results || []).map(r => r.id));
+  const missing = unique.filter(id => !found.has(id));
+  if (missing.length) return { ok: false, missing };
+  return { ok: true, ids: unique };
+}
+
+function eventResponse(row, expectedIds) {
+  return {
+    id: row.id,
+    org_id: row.org_id,
+    room_id: row.room_id || null,
+    name: row.name,
+    day_of_week: Number(row.day_of_week),
+    start_time_local: row.start_time_local,
+    duration_min: Number(row.duration_min),
+    capacity: row.capacity === null || row.capacity === undefined ? null : Number(row.capacity),
+    color_hex: row.color_hex || null,
+    notes: row.notes || "",
+    require_proof: Number(row.require_proof || 0),
+    late_grace_min: Number(row.late_grace_min || 0),
+    created_at: Number(row.created_at),
+    archived_at: row.archived_at || null,
+    expected_ids: expectedIds || []
+  };
+}
+
+async function rowsForWeeklyEvents(env, orgId, filters = {}) {
+  const clauses = ["e.org_id=?", "e.archived_at IS NULL"];
+  const binds = [orgId];
+  if (filters.room_id) {
+    clauses.push("e.room_id=?");
+    binds.push(filters.room_id);
+  }
+  if (filters.day_of_week) {
+    clauses.push("e.day_of_week=?");
+    binds.push(filters.day_of_week);
+  }
+  const rows = await env.DB.prepare(
+    `SELECT e.*, GROUP_CONCAT(ee.expected_id, '|') AS expected_ids ` +
+    `FROM weekly_events e LEFT JOIN event_expected ee ON ee.event_id=e.id ` +
+    `WHERE ${clauses.join(" AND ")} GROUP BY e.id ` +
+    `ORDER BY e.day_of_week ASC, e.start_time_local ASC, LOWER(e.name) ASC`
+  ).bind(...binds).all();
+  return (rows.results || []).map(row => eventResponse(
+    row,
+    row.expected_ids ? String(row.expected_ids).split("|").filter(Boolean) : []
+  ));
+}
+
+async function orgRoomsList(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const staff = await requireCalendarStaff(request, env, org);
+  if (staff.error) return staff.error;
+  const rows = await env.DB.prepare(
+    "SELECT id,label,subname,capacity,display_ix,venue_qr_payload_hash FROM rooms WHERE org_id=? AND archived_at IS NULL ORDER BY display_ix ASC, LOWER(label) ASC"
+  ).bind(org.id).all();
+  return json({ rooms: rows.results || [] });
 }
 
 async function orgDebugClearAttendance(request, env) {
@@ -2731,14 +2982,14 @@ async function orgDebugClearAttendance(request, env) {
 
   let expectedCleared = 0;
   if (includeExpected) {
-    const expectedIds = await env.DB.prepare("SELECT id FROM org_expected WHERE org_code=?").bind(org.id).all();
+    const expectedIds = await env.DB.prepare("SELECT id FROM org_expected WHERE org_id=?").bind(org.id).all();
     const ids = (expectedIds.results || []).map(r => r.id);
     if (ids.length && await tableExists(env, "rebind_history")) {
       for (const id of ids) {
         await env.DB.prepare("DELETE FROM rebind_history WHERE org_code=? AND expected_id=?").bind(org.id, id).run();
       }
     }
-    const expected = await env.DB.prepare("DELETE FROM org_expected WHERE org_code=?").bind(org.id).run();
+    const expected = await env.DB.prepare("DELETE FROM org_expected WHERE org_id=?").bind(org.id).run();
     expectedCleared = expected.meta?.changes || 0;
   }
 
@@ -2756,8 +3007,10 @@ async function orgDebugClearAttendance(request, env) {
 
 async function orgExpectedList(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
+  const staff = await requireCalendarStaff(request, env, org);
+  if (staff.error) return staff.error;
   const rows = await env.DB.prepare(
-    "SELECT id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role FROM org_expected WHERE org_code=? ORDER BY LOWER(surname) ASC, LOWER(first_name) ASC, id ASC"
+    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL ORDER BY LOWER(display_name) ASC, id ASC`
   ).bind(org.id).all();
   return json({ expected: rows.results });
 }
@@ -2765,22 +3018,308 @@ async function orgExpectedList(request, env) {
 async function orgExpectedCreate(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const firstName = (body.first_name || "").trim();
-  const surname = (body.surname || "").trim();
-  const prototypeRole = expectedMemberRole(body.prototype_role || body.role);
-  if (!firstName || !surname) return err("first_name and surname required");
-  if (!isExpectedRoleAllowedFromDashboard(prototypeRole)) {
+  const staff = await requireCalendarStaff(request, env, org, body);
+  if (staff.error) return staff.error;
+  const displayName = cleanText(body.display_name || [body.first_name, body.surname].filter(Boolean).join(" "), 80);
+  const roleKey = cleanRoleKey(body.role_key || body.prototype_role || body.role);
+  if (!displayName) return err("display_name required");
+  if (!isExpectedRoleAllowedFromDashboard(roleKey)) {
     return err("developer role cannot be granted from the dashboard - bootstrap or invite token only", 403);
   }
   const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_code=? AND LOWER(first_name)=LOWER(?) AND LOWER(surname)=LOWER(?) LIMIT 1"
-  ).bind(org.id, firstName, surname).first();
+    "SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
+  ).bind(org.id, displayName).first();
   if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
   const createdAt = now();
+  const id = cleanOptionalText(body.id, 80) || newExpectedId(displayName);
+  const initials = cleanOptionalText(body.initials, 16) || initialsForName(displayName);
   const row = await env.DB.prepare(
-    "INSERT INTO org_expected (org_code,first_name,surname,status,created_at,prototype_role) VALUES (?,?,?,?,?,?) RETURNING id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role"
-  ).bind(org.id, firstName, surname, "assist", createdAt, prototypeRole).first();
-  return json({ expected: row });
+    `INSERT INTO org_expected (id,org_id,display_name,initials,role_key,device_pub_fp,email_hint,phone_hint,notes,created_at,archived_at) ` +
+    `VALUES (?,?,?,?,?,?,?,?,?,?,NULL) RETURNING ${EXPECTED_SELECT}`
+  ).bind(
+    id,
+    org.id,
+    displayName,
+    initials,
+    roleKey,
+    cleanOptionalText(body.device_pub_fp, 128),
+    cleanOptionalText(body.email_hint, 160),
+    cleanOptionalText(body.phone_hint, 80),
+    cleanOptionalText(body.notes, 1000),
+    createdAt
+  ).first();
+  return json({ expected_id: row.id, expected: row }, 201);
+}
+
+async function orgWeeklyEventsList(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const staff = await requireCalendarStaff(request, env, org);
+  if (staff.error) return staff.error;
+  const url = new URL(request.url);
+  const day = url.searchParams.get("day") ? parseDayOfWeek(url.searchParams.get("day")) : null;
+  if (url.searchParams.get("day") && !day) return err("day must be 1-7 or a weekday name");
+  const events = await rowsForWeeklyEvents(env, org.id, {
+    room_id: cleanOptionalText(url.searchParams.get("room_id"), 120),
+    day_of_week: day
+  });
+  return json({ events });
+}
+
+function cleanEventBody(body, existing = {}) {
+  const name = body.name !== undefined ? cleanText(body.name, 80) : existing.name;
+  const day = body.day_of_week !== undefined ? parseDayOfWeek(body.day_of_week) : existing.day_of_week;
+  const start = body.start_time_local !== undefined || body.start_time !== undefined
+    ? cleanText(body.start_time_local || body.start_time, 5)
+    : existing.start_time_local;
+  const duration = body.duration_min !== undefined ? Number(body.duration_min) : existing.duration_min;
+  const capacity = body.capacity === "" || body.capacity === null ? null
+    : body.capacity !== undefined ? Number(body.capacity) : existing.capacity;
+  const requireProof = body.require_proof !== undefined ? boolishToInt(body.require_proof) : (existing.require_proof ?? 0);
+  const lateGrace = body.late_grace_min !== undefined ? Number(body.late_grace_min) : (existing.late_grace_min ?? 0);
+  return {
+    id: body.id ? cleanText(body.id, 90) : existing.id,
+    room_id: body.room_id === "" ? null : (body.room_id !== undefined ? cleanOptionalText(body.room_id, 120) : (existing.room_id || null)),
+    name,
+    day_of_week: day,
+    start_time_local: start,
+    duration_min: duration,
+    capacity: Number.isFinite(capacity) ? capacity : null,
+    color_hex: body.color_hex !== undefined ? cleanOptionalText(body.color_hex, 16) : (existing.color_hex || null),
+    notes: body.notes !== undefined ? cleanOptionalText(body.notes, 2000) : (existing.notes || null),
+    require_proof: requireProof ? 1 : 0,
+    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0
+  };
+}
+
+function validateEventInput(ev) {
+  if (!ev.name) return "name required";
+  if (!ev.day_of_week || ev.day_of_week < 1 || ev.day_of_week > 7) return "day_of_week must be 1-7";
+  if (!isLocalTime(ev.start_time_local)) return "start_time_local must be HH:MM";
+  if (!Number.isFinite(Number(ev.duration_min)) || Number(ev.duration_min) < 1) return "duration_min must be >= 1";
+  if (ev.capacity !== null && (!Number.isFinite(Number(ev.capacity)) || Number(ev.capacity) < 0)) return "capacity must be >= 0 or null";
+  if (ev.color_hex && !/^#[0-9a-f]{6}$/i.test(ev.color_hex)) return "color_hex must be #RRGGBB";
+  return null;
+}
+
+async function orgWeeklyEventCreate(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const action = await requireCalendarSignedAction(request, env, org, body);
+  if (action.error) return action.error;
+
+  const ev = cleanEventBody(body);
+  ev.id = ev.id || newEventId();
+  const inputError = validateEventInput(ev);
+  if (inputError) return err(inputError);
+  const expectedCheck = await ensureExpectedIdsForOrg(env, org.id, body.expected_ids || []);
+  if (!expectedCheck.ok) return json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400);
+
+  const t = now();
+  const statements = [
+    env.DB.prepare(
+      "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
+    ).bind(ev.id, org.id, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
+  ];
+  for (const expectedId of expectedCheck.ids) {
+    statements.push(env.DB.prepare(
+      "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
+    ).bind(ev.id, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
+  }
+  await env.DB.batch(statements);
+  const events = await rowsForWeeklyEvents(env, org.id, {});
+  return json({ event_id: ev.id, event: events.find(e => e.id === ev.id) || null }, 201);
+}
+
+async function orgWeeklyEventUpdate(request, env, id) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const action = await requireCalendarSignedAction(request, env, org, body, p => !p.event_id || String(p.event_id) === String(id));
+  if (action.error) return action.error;
+
+  const existing = await env.DB.prepare(
+    "SELECT * FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL"
+  ).bind(id, org.id).first();
+  if (!existing) return err("Weekly event not found", 404);
+  const ev = cleanEventBody(body, existing);
+  ev.id = id;
+  const inputError = validateEventInput(ev);
+  if (inputError) return err(inputError);
+  const expectedCheck = body.expected_ids !== undefined ? await ensureExpectedIdsForOrg(env, org.id, body.expected_ids) : null;
+  if (expectedCheck && !expectedCheck.ok) return json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400);
+
+  const statements = [
+    env.DB.prepare(
+      "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
+    ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, org.id)
+  ];
+  if (expectedCheck) {
+    const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
+    const current = new Set((currentRows.results || []).map(r => r.expected_id));
+    const next = new Set(expectedCheck.ids);
+    const t = now();
+    for (const expectedId of next) {
+      if (!current.has(expectedId)) {
+        statements.push(env.DB.prepare(
+          "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
+        ).bind(id, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
+      }
+    }
+    for (const expectedId of current) {
+      if (!next.has(expectedId)) {
+        statements.push(env.DB.prepare("DELETE FROM event_expected WHERE event_id=? AND expected_id=?").bind(id, expectedId));
+      }
+    }
+  }
+  await env.DB.batch(statements);
+  const events = await rowsForWeeklyEvents(env, org.id, {});
+  return json({ event: events.find(e => e.id === id) || null });
+}
+
+async function orgWeeklyEventDelete(request, env, id) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const action = await requireCalendarSignedAction(request, env, org, body, p => !p.event_id || String(p.event_id) === String(id));
+  if (action.error) return action.error;
+  const t = now();
+  const result = await env.DB.prepare(
+    "UPDATE weekly_events SET archived_at=COALESCE(archived_at,?) WHERE id=? AND org_id=?"
+  ).bind(t, id, org.id).run();
+  if (!(result.meta?.changes || 0)) return err("Weekly event not found", 404);
+  return json({ deleted: true, archived: true, id, archived_at: t });
+}
+
+async function orgWeeklyEventsExportCsv(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const staff = await requireCalendarStaff(request, env, org);
+  if (staff.error) return staff.error;
+
+  const expectedRows = await env.DB.prepare(
+    "SELECT id,display_name FROM org_expected WHERE org_id=? AND archived_at IS NULL"
+  ).bind(org.id).all();
+  const expectedNames = new Map((expectedRows.results || []).map(r => [r.id, r.display_name]));
+  const roomRows = await env.DB.prepare(
+    "SELECT id,label FROM rooms WHERE org_id=? AND archived_at IS NULL"
+  ).bind(org.id).all();
+  const roomNames = new Map((roomRows.results || []).map(r => [r.id, r.label]));
+  const events = await rowsForWeeklyEvents(env, org.id, {});
+  const header = ["event_name","room","day_of_week","start_time","duration_min","capacity","expected_names","require_proof","late_grace_min"];
+  const lines = [header.join(",")];
+  for (const ev of events) {
+    lines.push([
+      ev.name,
+      ev.room_id ? (roomNames.get(ev.room_id) || ev.room_id) : "",
+      ev.day_of_week,
+      ev.start_time_local,
+      ev.duration_min,
+      ev.capacity ?? "",
+      (ev.expected_ids || []).map(id => expectedNames.get(id)).filter(Boolean).join("; "),
+      ev.require_proof ? "1" : "0",
+      ev.late_grace_min || 0
+    ].map(csvEscape).join(","));
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  return new Response(lines.join("\r\n") + "\r\n", {
+    status: 200,
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="week-export-${date}.csv"`
+    }
+  });
+}
+
+async function orgWeeklyEventsImportCsv(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  let form;
+  try { form = await request.formData(); } catch { return err("multipart file required"); }
+  const bodyForAction = {};
+  const signedRaw = form.get("signed_action");
+  if (signedRaw) {
+    try { bodyForAction.signed_action = typeof signedRaw === "string" ? JSON.parse(signedRaw) : JSON.parse(await signedRaw.text()); }
+    catch { return err("signed_action must be JSON"); }
+  }
+  const action = await requireCalendarSignedAction(request, env, org, bodyForAction);
+  if (action.error) return action.error;
+
+  const file = form.get("file");
+  if (!file || typeof file.text !== "function") return err("file field required");
+  const csvText = await file.text();
+  const parsed = parseCsv(csvText);
+  if (parsed.length < 2) return err("CSV must include a header row and at least one event row");
+  const header = csvHeaderMap(parsed[0]);
+  const roomHeaders = ["room","studio","hall","theatre","classroom","pitch","court","treatment_room"];
+  const roomHeader = roomHeaders.find(h => header[h] !== undefined);
+  const required = ["event_name","day_of_week","start_time","duration_min"];
+  for (const key of required) if (header[key] === undefined) return err(`${key} required`);
+  if (!roomHeader) return err("room/studio/hall/theatre/classroom/pitch/court/treatment_room column required");
+
+  const roomRows = await env.DB.prepare("SELECT id,label FROM rooms WHERE org_id=? AND archived_at IS NULL").bind(org.id).all();
+  const roomsByLabel = new Map((roomRows.results || []).map(r => [String(r.label || "").trim().toLowerCase(), r.id]));
+  const expectedRows = await env.DB.prepare("SELECT id,display_name FROM org_expected WHERE org_id=? AND archived_at IS NULL").bind(org.id).all();
+  const expectedByName = new Map((expectedRows.results || []).map(r => [String(r.display_name || "").trim().toLowerCase(), r.id]));
+
+  const reportRows = [];
+  const statements = [];
+  const replace = new URL(request.url).searchParams.get("replace") === "1";
+  const t = now();
+  let eventsCreated = 0;
+  let eventsReplaced = 0;
+  let expectedCreated = 0;
+  if (replace) {
+    const existing = await env.DB.prepare("SELECT COUNT(*) AS count FROM weekly_events WHERE org_id=? AND archived_at IS NULL").bind(org.id).first();
+    eventsReplaced = Number(existing?.count || 0);
+    statements.push(env.DB.prepare("UPDATE weekly_events SET archived_at=COALESCE(archived_at,?) WHERE org_id=? AND archived_at IS NULL").bind(t, org.id));
+  }
+
+  for (let ix = 1; ix < parsed.length; ix++) {
+    const row = parsed[ix];
+    const rowNo = ix + 1;
+    const name = cleanText(csvCell(row, header, "event_name"), 80);
+    const day = parseDayOfWeek(csvCell(row, header, "day_of_week"));
+    const start = cleanText(csvCell(row, header, "start_time"), 5);
+    const duration = Number(csvCell(row, header, "duration_min"));
+    if (!name) { reportRows.push({ row: rowNo, status: "error", error: "event_name required" }); continue; }
+    if (!day) { reportRows.push({ row: rowNo, status: "error", error: "day_of_week required" }); continue; }
+    if (!isLocalTime(start)) { reportRows.push({ row: rowNo, status: "error", error: "start_time must be HH:MM" }); continue; }
+    if (!Number.isFinite(duration) || duration < 1) { reportRows.push({ row: rowNo, status: "error", error: "duration_min must be >= 1" }); continue; }
+
+    const roomLabel = csvCell(row, header, roomHeader);
+    const roomId = roomLabel ? (roomsByLabel.get(roomLabel.toLowerCase()) || null) : null;
+    const capacityRaw = csvCell(row, header, "capacity");
+    const capacity = capacityRaw === "" ? null : Number(capacityRaw);
+    const eventId = newEventId();
+    statements.push(env.DB.prepare(
+      "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
+    ).bind(eventId, org.id, roomId, name, day, start, Math.floor(duration), Number.isFinite(capacity) ? capacity : null, null, null, boolishToInt(csvCell(row, header, "require_proof")), Math.max(0, Number(csvCell(row, header, "late_grace_min")) || 0), t));
+
+    const names = csvCell(row, header, "expected_names").split(";").map(n => cleanText(n, 80)).filter(Boolean);
+    for (const displayName of names) {
+      const key = displayName.toLowerCase();
+      let expectedId = expectedByName.get(key);
+      if (!expectedId) {
+        expectedId = newExpectedId(displayName);
+        expectedByName.set(key, expectedId);
+        expectedCreated++;
+        statements.push(env.DB.prepare(
+          "INSERT INTO org_expected (id,org_id,display_name,initials,role_key,created_at,archived_at) VALUES (?,?,?,?,?,?,NULL)"
+        ).bind(expectedId, org.id, displayName, initialsForName(displayName), "attendee", t));
+      }
+      statements.push(env.DB.prepare(
+        "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
+      ).bind(eventId, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
+    }
+    eventsCreated++;
+    reportRows.push({ row: rowNo, status: "ok", event_id: eventId });
+  }
+
+  if (statements.length) await env.DB.batch(statements);
+  return json({
+    batch_id: "imp_" + randomToken().slice(0, 18),
+    events_created: eventsCreated,
+    events_replaced: eventsReplaced,
+    org_expected_created: expectedCreated,
+    rows: reportRows
+  });
 }
 
 function validDevicePubJwk(pubJwk) {
@@ -2801,7 +3340,7 @@ function doorRolePermitted(actorRole, targetRole) {
 
 async function expectedBoundToDevice(env, orgCode, deviceFp) {
   const direct = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_code=? AND device_key_fp=? LIMIT 1"
+    "SELECT id FROM org_expected WHERE org_id=? AND device_pub_fp=? AND archived_at IS NULL LIMIT 1"
   ).bind(orgCode, deviceFp).first();
   if (direct) return direct.id;
   if (await tableExists(env, "rebind_history")) {
@@ -2828,7 +3367,7 @@ async function bindAdditionalExpectedKey(request, env, id) {
     expectedType: "irlid_bind_v5",
     orgId: org.id,
     minRole: "staff",
-    payloadSchema: (p) => Number(p.expected_id) === Number(id)
+    payloadSchema: (p) => String(p.expected_id) === String(id)
       && typeof p.new_device_key_fp === "string" && p.new_device_key_fp.length >= 8,
     request
   });
@@ -2853,30 +3392,30 @@ async function bindAdditionalExpectedKey(request, env, id) {
     return json({ ok: true, already_bound: true, expected });
   }
   const boundExpectedId = await expectedBoundToDevice(env, org.id, pubFp);
-  if (boundExpectedId && Number(boundExpectedId) !== Number(id)) {
+  if (boundExpectedId && String(boundExpectedId) !== String(id)) {
     return json({ error: "device_key_already_bound", expected_id: boundExpectedId }, 409);
   }
 
   const t = now();
-  if (!expected.device_key_fp) {
+  if (!expected.device_pub_fp) {
     await env.DB.prepare(
-      "UPDATE org_expected SET device_key_fp=?, status='linked', linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=?"
-    ).bind(pubFp, t, id, org.id).run();
+      "UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=?"
+    ).bind(pubFp, id, org.id).run();
   } else {
     await env.DB.prepare(
       "INSERT INTO rebind_history (org_code,expected_id,old_device_fp,new_device_fp,admin_signature,reason,created_at) VALUES (?,?,?,?,?,?,?)"
     ).bind(
       org.id,
       id,
-      expected.device_key_fp,
+      expected.device_pub_fp,
       pubFp,
       `bind-additional:${org.id}:${t}:actor:${action.actor_pub_fp}:authorized_by:${action.authorized_by_user?.id || ""}`,
       "doorman_choose_from_list",
       t
     ).run();
     await env.DB.prepare(
-      "UPDATE org_expected SET status='linked', linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=?"
-    ).bind(t, id, org.id).run();
+      "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
+    ).bind(pubFp, id, org.id).run();
   }
 
   return json({ ok: true, expected: await expectedRowWithKeys(env, org.id, id) });
@@ -2921,15 +3460,17 @@ async function orgExpectedCreateAndBind(request, env) {
   }
   const boundExpectedId = await expectedBoundToDevice(env, org.id, deviceFp);
   if (boundExpectedId) return json({ error: "device_key_already_bound", expected_id: boundExpectedId }, 409);
+  const displayName = cleanText(`${firstName} ${surname}`.trim(), 80);
   const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_code=? AND LOWER(first_name)=LOWER(?) AND LOWER(surname)=LOWER(?) LIMIT 1"
-  ).bind(org.id, firstName, surname).first();
+    "SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
+  ).bind(org.id, displayName).first();
   if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
 
   const t = now();
+  const expectedId = newExpectedId(displayName);
   const expected = await env.DB.prepare(
-    `INSERT INTO org_expected (org_code,first_name,surname,status,created_at,linked_at,device_key_fp,prototype_role) VALUES (?,?,?,?,?,?,?,?) RETURNING ${EXPECTED_SELECT}`
-  ).bind(org.id, firstName, surname, "linked", t, t, deviceFp, prototypeRole).first();
+    `INSERT INTO org_expected (id,org_id,display_name,initials,role_key,device_pub_fp,created_at,archived_at) VALUES (?,?,?,?,?,?,?,NULL) RETURNING ${EXPECTED_SELECT}`
+  ).bind(expectedId, org.id, displayName, initialsForName(displayName), prototypeRole, deviceFp, t).first();
   expected.device_key_fps = [deviceFp];
 
   let member = null;
@@ -2953,12 +3494,17 @@ async function orgExpectedCreateAndBind(request, env) {
 
 async function orgExpectedDelete(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const action = await requireCalendarSignedAction(request, env, org, body, p => !p.expected_id || String(p.expected_id) === String(id));
+  if (action.error) return action.error;
+  const t = now();
   const result = await env.DB.prepare(
-    "DELETE FROM org_expected WHERE id=? AND org_code=?"
-  ).bind(id, org.id).run();
+    "UPDATE org_expected SET archived_at=COALESCE(archived_at,?) WHERE id=? AND org_id=?"
+  ).bind(t, id, org.id).run();
   const deleted = (result.meta?.changes || 0) > 0;
   if (!deleted) return err("Expected attendee not found", 404);
-  return json({ deleted: true, id });
+  return json({ deleted: true, archived: true, id, archived_at: t });
 }
 
 // v5.7.0g — Cascading delete for an attendee record. Removes the
@@ -2977,7 +3523,7 @@ async function orgExpectedDeleteFull(request, env, id) {
 
   // Confirm the row exists for this org before any cascade work.
   const expected = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE id=? AND org_code=?"
+    "SELECT id FROM org_expected WHERE id=? AND org_id=?"
   ).bind(id, org.id).first();
   if (!expected) return err("Expected attendee not found", 404);
 
@@ -3008,7 +3554,7 @@ async function orgExpectedDeleteFull(request, env, id) {
     "DELETE FROM attendee_conflicts WHERE org_code=? AND expected_id=?"
   ).bind(org.id, id).run();
   const expectedResult = await env.DB.prepare(
-    "DELETE FROM org_expected WHERE id=? AND org_code=?"
+    "DELETE FROM org_expected WHERE id=? AND org_id=?"
   ).bind(id, org.id).run();
 
   return json({
@@ -3024,25 +3570,42 @@ async function orgExpectedDeleteFull(request, env, id) {
 async function orgExpectedUpdate(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const firstName = (body.first_name || "").trim();
-  const surname = (body.surname || "").trim();
-  const roleProvided = body.prototype_role !== undefined || body.role !== undefined;
-  const prototypeRole = roleProvided ? expectedMemberRole(body.prototype_role || body.role) : null;
-  if (!firstName || !surname) return err("first_name and surname required");
-  if (roleProvided && !isExpectedRoleAllowedFromDashboard(prototypeRole)) {
+  const action = await requireCalendarSignedAction(request, env, org, body, p => !p.expected_id || String(p.expected_id) === String(id));
+  if (action.error) return action.error;
+  const existingRow = await env.DB.prepare(
+    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE id=? AND org_id=? AND archived_at IS NULL`
+  ).bind(id, org.id).first();
+  if (!existingRow) return err("Expected attendee not found", 404);
+
+  const displayNameProvided = body.display_name !== undefined || body.first_name !== undefined || body.surname !== undefined;
+  const displayName = displayNameProvided
+    ? cleanText(body.display_name || [body.first_name, body.surname].filter(Boolean).join(" "), 80)
+    : existingRow.display_name;
+  if (!displayName) return err("display_name required");
+
+  const roleProvided = body.role_key !== undefined || body.prototype_role !== undefined || body.role !== undefined;
+  const roleKey = roleProvided ? cleanRoleKey(body.role_key || body.prototype_role || body.role) : existingRow.role_key;
+  if (roleProvided && !isExpectedRoleAllowedFromDashboard(roleKey)) {
     return err("developer role cannot be granted from the dashboard - bootstrap or invite token only", 403);
   }
   const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_code=? AND id<>? AND LOWER(first_name)=LOWER(?) AND LOWER(surname)=LOWER(?) LIMIT 1"
-  ).bind(org.id, id, firstName, surname).first();
+    "SELECT id FROM org_expected WHERE org_id=? AND id<>? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
+  ).bind(org.id, id, displayName).first();
   if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
-  const row = roleProvided
-    ? await env.DB.prepare(
-      "UPDATE org_expected SET first_name=?, surname=?, prototype_role=? WHERE id=? AND org_code=? RETURNING id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role"
-    ).bind(firstName, surname, prototypeRole, id, org.id).first()
-    : await env.DB.prepare(
-      "UPDATE org_expected SET first_name=?, surname=? WHERE id=? AND org_code=? RETURNING id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role"
-    ).bind(firstName, surname, id, org.id).first();
+  const row = await env.DB.prepare(
+    `UPDATE org_expected SET display_name=?, initials=?, role_key=?, device_pub_fp=?, email_hint=?, phone_hint=?, notes=? ` +
+    `WHERE id=? AND org_id=? RETURNING ${EXPECTED_SELECT}`
+  ).bind(
+    displayName,
+    body.initials !== undefined ? cleanOptionalText(body.initials, 16) : existingRow.initials,
+    roleKey,
+    body.device_pub_fp !== undefined ? cleanOptionalText(body.device_pub_fp, 128) : existingRow.device_pub_fp,
+    body.email_hint !== undefined ? cleanOptionalText(body.email_hint, 160) : existingRow.email_hint,
+    body.phone_hint !== undefined ? cleanOptionalText(body.phone_hint, 80) : existingRow.phone_hint,
+    body.notes !== undefined ? cleanOptionalText(body.notes, 1000) : existingRow.notes,
+    id,
+    org.id
+  ).first();
   if (!row) return err("Expected attendee not found", 404);
   return json({ expected: row });
 }
@@ -3055,7 +3618,7 @@ async function orgExpectedRebind(request, env, id) {
   if (!newDeviceFp) return err("new_device_fp required");
 
   const expected = await env.DB.prepare(
-    "SELECT id,device_key_fp FROM org_expected WHERE id=? AND org_code=?"
+    "SELECT id,device_pub_fp FROM org_expected WHERE id=? AND org_id=?"
   ).bind(id, org.id).first();
   if (!expected) return err("Expected attendee not found", 404);
 
@@ -3072,11 +3635,11 @@ async function orgExpectedRebind(request, env, id) {
 
   const rebind = await env.DB.prepare(
     "INSERT INTO rebind_history (org_code,expected_id,old_device_fp,new_device_fp,admin_signature,reason,created_at) VALUES (?,?,?,?,?,?,?) RETURNING id"
-  ).bind(org.id, id, expected.device_key_fp || null, newDeviceFp, `${org.id}:${t}`, reason || null, t).first();
+  ).bind(org.id, id, expected.device_pub_fp || null, newDeviceFp, `${org.id}:${t}`, reason || null, t).first();
 
   await env.DB.prepare(
-    "UPDATE org_expected SET device_key_fp=?, status='linked', linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=?"
-  ).bind(newDeviceFp, t, id, org.id).run();
+    "UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=?"
+  ).bind(newDeviceFp, id, org.id).run();
 
   return json({ ok: true, rebind_id: rebind?.id || null });
 }
@@ -3088,22 +3651,21 @@ async function orgExpectedClaim(request, env, id) {
   if (!devicePubFp) return err("device_pub_fp required");
 
   const expected = await env.DB.prepare(
-    "SELECT id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role FROM org_expected WHERE id=? AND org_code=?"
+    `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE id=? AND org_id=?`
   ).bind(id, org.id).first();
   if (!expected) return err("Expected attendee not found", 404);
 
-  if (expected.device_key_fp && expected.device_key_fp !== devicePubFp) {
-    return json({ error: "already_claimed", existing_fp_short: expected.device_key_fp.slice(0, 8) }, 409);
+  if (expected.device_pub_fp && expected.device_pub_fp !== devicePubFp) {
+    return json({ error: "already_claimed", existing_fp_short: expected.device_pub_fp.slice(0, 8) }, 409);
   }
 
-  if (expected.device_key_fp === devicePubFp) {
+  if (expected.device_pub_fp === devicePubFp) {
     return json({ ok: true, expected });
   }
 
-  const t = now();
   const row = await env.DB.prepare(
-    "UPDATE org_expected SET device_key_fp=?, status='linked', linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=? RETURNING id,org_code,first_name,surname,status,created_at,linked_at,device_key_fp,COALESCE(prototype_role,'attendee') AS prototype_role"
-  ).bind(devicePubFp, t, id, org.id).first();
+    `UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=? RETURNING ${EXPECTED_SELECT}`
+  ).bind(devicePubFp, id, org.id).first();
   return json({ ok: true, expected: row });
 }
 
@@ -3119,8 +3681,8 @@ async function orgResolveConflict(request, env, id) {
   const t = now();
   if (resolution === "confirmed_new_device") {
     await env.DB.batch([
-      env.DB.prepare("UPDATE org_expected SET status='linked', device_key_fp=?, linked_at=COALESCE(linked_at,?) WHERE id=? AND org_code=?")
-        .bind(conflict.claiming_device_fp, t, conflict.expected_id, org.id),
+      env.DB.prepare("UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=?")
+        .bind(conflict.claiming_device_fp, conflict.expected_id, org.id),
       env.DB.prepare("UPDATE org_checkins SET status='checked_in' WHERE id=? AND org_id=?")
         .bind(conflict.checkin_id, org.id),
       env.DB.prepare("UPDATE attendee_conflicts SET resolution=?, resolved_at=? WHERE id=? AND org_code=?")
@@ -3210,26 +3772,34 @@ export default {
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
       else if (method === "POST" && path === "/org/debug/clear-attendance") response = await orgDebugClearAttendance(request, env);
+      else if (method === "GET"  && path === "/org/rooms")           response = await orgRoomsList(request, env);
       else if (method === "GET"  && path === "/org/expected")        response = await orgExpectedList(request, env);
       else if (method === "POST" && path === "/org/expected")        response = await orgExpectedCreate(request, env);
       else if (method === "POST" && path === "/org/expected/create-and-bind") response = await orgExpectedCreateAndBind(request, env);
+      else if (method === "GET"  && path === "/org/weekly-events")   response = await orgWeeklyEventsList(request, env);
+      else if (method === "POST" && path === "/org/weekly-events")   response = await orgWeeklyEventCreate(request, env);
+      else if (method === "GET"  && path === "/org/weekly-events/export-csv") response = await orgWeeklyEventsExportCsv(request, env);
+      else if (method === "POST" && path === "/org/weekly-events/import-csv") response = await orgWeeklyEventsImportCsv(request, env);
 
       else {
-        const mExpected = path.match(/^\/org\/expected\/(\d+)$/);
-        const mExpectedFull = path.match(/^\/org\/expected\/(\d+)\/full$/);
-        const mExpectedRebind = path.match(/^\/org\/expected\/(\d+)\/rebind$/);
-        const mExpectedBindAdditional = path.match(/^\/org\/expected\/(\d+)\/bind-additional-key$/);
-        const mExpectedClaim = path.match(/^\/org\/expected\/(\d+)\/claim$/);
+        const mExpected = path.match(/^\/org\/expected\/([^/]+)$/);
+        const mExpectedFull = path.match(/^\/org\/expected\/([^/]+)\/full$/);
+        const mExpectedRebind = path.match(/^\/org\/expected\/([^/]+)\/rebind$/);
+        const mExpectedBindAdditional = path.match(/^\/org\/expected\/([^/]+)\/bind-additional-key$/);
+        const mExpectedClaim = path.match(/^\/org\/expected\/([^/]+)\/claim$/);
         const mExpectedLookupByFp = path.match(/^\/org\/expected\/lookup-by-fp\/([^/]+)$/);
+        const mWeeklyEvent = path.match(/^\/org\/weekly-events\/([^/]+)$/);
         const mConflict = path.match(/^\/org\/conflicts\/(\d+)\/resolve$/);
         const mCheckoutToken = path.match(/^\/org\/checkout-token\/([^/]+)$/);
-        if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, Number(mExpected[1]));
-        else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, Number(mExpectedFull[1]));
-        else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, Number(mExpected[1]));
-        else if (method === "POST" && mExpectedRebind) response = await orgExpectedRebind(request, env, Number(mExpectedRebind[1]));
-        else if (method === "POST" && mExpectedBindAdditional) response = await bindAdditionalExpectedKey(request, env, Number(mExpectedBindAdditional[1]));
-        else if (method === "POST" && mExpectedClaim) response = await orgExpectedClaim(request, env, Number(mExpectedClaim[1]));
+        if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
+        else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, decodeURIComponent(mExpectedFull[1]));
+        else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, decodeURIComponent(mExpected[1]));
+        else if (method === "POST" && mExpectedRebind) response = await orgExpectedRebind(request, env, decodeURIComponent(mExpectedRebind[1]));
+        else if (method === "POST" && mExpectedBindAdditional) response = await bindAdditionalExpectedKey(request, env, decodeURIComponent(mExpectedBindAdditional[1]));
+        else if (method === "POST" && mExpectedClaim) response = await orgExpectedClaim(request, env, decodeURIComponent(mExpectedClaim[1]));
         else if (method === "GET" && mExpectedLookupByFp) response = await orgExpectedLookupByFp(request, env, decodeURIComponent(mExpectedLookupByFp[1]));
+        else if (method === "PATCH" && mWeeklyEvent) response = await orgWeeklyEventUpdate(request, env, decodeURIComponent(mWeeklyEvent[1]));
+        else if (method === "DELETE" && mWeeklyEvent) response = await orgWeeklyEventDelete(request, env, decodeURIComponent(mWeeklyEvent[1]));
         else if (method === "POST" && mConflict) response = await orgResolveConflict(request, env, Number(mConflict[1]));
         else if (method === "GET" && mCheckoutToken) response = await orgResolveCheckoutToken(request, env, decodeURIComponent(mCheckoutToken[1]));
         else {
