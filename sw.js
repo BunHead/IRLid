@@ -12,12 +12,11 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v17'; // v5.10.7 bump - Session-poll heartbeat so global sign-out is user-visible within 30s
+const CACHE_VERSION = 'irlid-shell-v18'; // v5.11.0 PR-D — OrgCheckin.html + lowercase org.html retired; precache trimmed
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
   './Org.html',
-  './OrgCheckin.html',
   './org-entry.html',
   './js/orgapi.js',
   './js/offline-queue.js',
@@ -77,7 +76,7 @@ self.addEventListener('fetch', (event) => {
   // scan.html, receipt.html, etc.). The SW must only intercept dashboard-
   // surface URLs; everything else passes through to the network normally.
   // This prevents the SW from catching consumer page navigations.
-  const DASHBOARD_PATHS = /^\/(OrgCheckin\.html|org-entry\.html|org\.html|js\/(orgapi|offline-queue|offline-snapshot|qr-fullscreen|sign|vendor\/jsqr\.min)\.js|manifest\.json|sw\.js)/;
+  const DASHBOARD_PATHS = /^\/(Org\.html|org-entry\.html|js\/(orgapi|offline-queue|offline-snapshot|qr-fullscreen|sign|vendor\/jsqr\.min)\.js|manifest\.json|sw\.js)/;
   if (url.origin === self.location.origin && !DASHBOARD_PATHS.test(url.pathname)) {
     return; // pass through; no caching, no shell fallback
   }
@@ -111,7 +110,7 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => {
             // Network failed (offline). Serve cached shell.
-            return caches.match(req).then((cached) => cached || caches.match('./OrgCheckin.html'));
+            return caches.match(req).then((cached) => cached || caches.match('./Org.html'));
           })
       );
       return;
