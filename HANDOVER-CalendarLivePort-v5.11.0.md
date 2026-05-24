@@ -140,13 +140,20 @@ A.5 — Self-verify before marking PR ready:
 - [ ] No mutations of existing tables.
 - [ ] No `DROP` statements anywhere.
 
-### PR-B — Worker endpoints (~60-90 min)
+### PR-B — Worker endpoints + legacy `org_expected` reset (~70-100 min)
 
 **Branch:** `codex/v5.11.0-port-B-worker`
-**Files touched:** `irlid-api-org/src/index.js`. NO other files.
+**Files touched:**
+- `irlid-api-org/migrations/apply_v5_11_0_org_expected_reset.ps1` (NEW) — destructive reset migration.
+- `irlid-api-org/src/index.js` (MODIFY) — eleven calendar endpoints.
+
 **Frontend:** NONE.
 
+**Context update from PR-A:** PR-A's migration ran clean on `irlid-db-org` 24 May 2026 and correctly hit the defensive branch on `org_expected` (legacy shape detected, left untouched with a yellow warning). Captain ratified data-loss-accepted on the legacy table (no production users; new Org from scratch). PR-B is the resolver.
+
 #### Tasks
+
+B.0 — Create `irlid-api-org/migrations/apply_v5_11_0_org_expected_reset.ps1` following the pattern of `apply_v5_11_0_calendar.ps1`. Does `DROP TABLE IF EXISTS org_expected;` then `CREATE TABLE org_expected (...v5.11 shape per CALENDAR-SPEC §1...)` plus its three indexes (`idx_org_expected_org`, `idx_org_expected_fp`, `uq_org_expected_name`). The script is the one-time destructive step that resolves the legacy/v5.11 schema collision left by PR-A's defensive branch; safe to re-run after that point because subsequent runs find the v5.11 shape and just re-DROP-and-recreate cleanly. Print a one-line yellow notice on entry: *"Resetting org_expected — destructive op. Legacy rows discarded per Captain 24 May ratification."*
 
 B.1 — Add all endpoints per `CALENDAR-SPEC §2`. Read-only endpoints use `requireDevOrStaffSession`; manager+ writes use `requireSignedAction` (the v5.10 Path B helper Captain landed on 17 May).
 
@@ -256,8 +263,9 @@ Per `CALENDAR-SPEC §8`. Verify on real hardware after all four PRs merge + Work
 ## §6 — Notes for Captain
 
 - **`OrgCheckin.html` stays exactly as-is** through all four PRs. If anything breaks in the new `Org.html`, the old URL is the immediate fallback. Number One will catch any baseline drift via bash-diff before merge.
-- **Worker deploy** uses your usual `cd irlid-api-org ; npx wrangler deploy` after PR-B merges. If wrangler API timeouts hit (now four receipts in BOOTSTRAP §6), fall back to Cloudflare dashboard Quick Edit.
-- **D1 migration** runs via `npx wrangler d1 execute irlid-db-org --remote --file=migrations/apply_v5_11_0_calendar.sql` after PR-A merges. Idempotent — re-run safely if interrupted.
+- **PR-B deploy sequence (mandatory order):** merge PR-B on GitHub → `git pull` locally → `.\irlid-api-org\migrations\apply_v5_11_0_org_expected_reset.ps1` (resets legacy `org_expected` to v5.11 shape) → `cd irlid-api-org ; npx wrangler deploy` (deploys Worker with v5.11 endpoints). Brief broken-state window between reset and deploy (seconds) — any inflight legacy doorman traffic 500s briefly then resumes against new shape. Acceptable given data-loss-accepted ratification.
+- **PR-A migration** ran clean 24 May 2026 via `.\apply_v5_11_0_calendar.ps1`; defensive branch correctly fired the legacy `org_expected` warning. Migration is idempotent; re-running is safe but no longer needed.
+- **Worker deploy** uses `cd irlid-api-org ; npx wrangler deploy`. If wrangler API timeouts hit (four receipts in BOOTSTRAP §6 now), fall back to Cloudflare dashboard Quick Edit.
 - **PR order is mandatory:** A (schema) → B (Worker — depends on schema) → C (UI — depends on Worker endpoints) → D (cutover). Don't merge out of order.
 - **Pages auto-deploy** picks up `Org.html` the moment PR-C merges. The new URL is live (but unannounced) until you do the cutover smoke.
 - **No promotion of the new URL yet** — wait until full v5.11.0 smoke is green. Once green, the cleaner URL goes into all promotional materials.
