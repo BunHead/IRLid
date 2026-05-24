@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>[TEST] IRLid - Organisation Check-in Prototype</title>
+<title>IRLid &mdash; Organisation Portal</title>
 <!-- v5.7.0s — favicon link kills the GET /favicon.ico 404 from console.
      Browser fetches favicon.ico from the same directory as this page
      (bunhead.github.io/IRLid-TestEnvironment/favicon.ico) instead of
@@ -570,8 +570,6 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
   /* v5.7.1j - Mobile dashboard reshape: hide inline Attendance Today in
      favour of the View Attendance Board button -> audit mode. */
   body[data-active-panel="dashboard"]:not(.audit-mode) #dashboardAttendanceCard,
-  body[data-active-panel="dashboard"] .prototype-role-dock,
-  body[data-active-panel="dashboard"] .prototype-role-detail,
   body[data-active-panel="dashboard"] .topbar-action-audit {
     display: none !important;
   }
@@ -714,7 +712,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .att-table th:nth-child(6), .att-table td:nth-child(6) { width: 8%; text-align: center; }
 .att-table th:nth-child(7), .att-table td:nth-child(7) { width: 20%; }
 .att-table td:nth-child(7) { overflow: visible; }
-body[data-prototype-role="attendee"] .att-table .att-role-col { display: none; }
 .att-action-cell { min-height: 32px; display: flex; align-items: center; gap: 8px; }
 /* v5.7.0l — Right-align every delete button in the action cell.
    v5.7.0q — Equal min-width to align left edges across rows.
@@ -1106,12 +1103,8 @@ body:not(.developer-bearer-active) .prototype-note { display: none; }
 /* v5.9.0.13.34 - Production lockdown: the "Viewing as" role-escalation
    affordance is developer-only debug surface. Non-developers shouldn't
    see the toolbar, the per-role detail explainer, the (default-hidden)
-   role cards strip, or the dock wrapper that .prototype-role-dock JS
    may wrap them into at runtime. Same .developer-bearer-active gate as
    the prototype-note banner above. */
-body:not(.developer-bearer-active) .prototype-role-detail,
-body:not(.developer-bearer-active) .prototype-role-strip,
-body:not(.developer-bearer-active) .prototype-role-dock { display: none; }
 .prototype-checkin .content { overflow-y: auto; scrollbar-gutter: stable; }
 .prototype-checkin #panel-checkin .two-col { grid-template-columns: minmax(0, 1fr); width: 100%; min-height: calc(100dvh - 182px); }
 .prototype-checkin #panel-checkin .mode-selector,
@@ -1388,7 +1381,6 @@ body:not(.developer-bearer-active) .prototype-role-dock { display: none; }
 /* Dashboard panels: expected-admin-panel, match-panel ("When identity is
 :root[data-theme="light"] .expected-admin-panel,
 :root[data-theme="light"] .match-panel,
-:root[data-theme="light"] .prototype-role-detail {
   background: #f3f5f8;
   border-color: var(--line);
   color: var(--text);
@@ -1408,7 +1400,6 @@ body:not(.developer-bearer-active) .prototype-role-dock { display: none; }
   color: var(--text);
   border-color: var(--line);
 }
-:root[data-theme="light"] .prototype-role-detail { color: var(--text); }
 
 /* Expected-list rows and edit fields. */
 :root[data-theme="light"] .expected-list {
@@ -3179,16 +3170,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 .dashboard-expected-dock .expected-list { display: none; }
 .dashboard-expected-dock .checkin-lower-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.75fr); }
 .dashboard-expected-dock .expected-admin-panel h5::after { content: attr(data-role-hint); color: var(--muted); font-size: 11px; font-weight: 400; }
-.prototype-role-strip { display: none; }
-.prototype-role-card { border: 1px solid var(--line); border-radius: 8px; background: #151b23; padding: 10px; }
-.prototype-role-card.active { border-color: rgba(63,185,80,0.7); background: rgba(35,134,54,0.14); }
-.prototype-role-card strong { display: block; color: #f0f6ff; font-size: 12px; margin-bottom: 4px; }
-.prototype-role-card span { color: var(--muted); font-size: 11px; line-height: 1.35; }
-.prototype-role-card.active span { color: #c9f7d7; }
-.prototype-role-detail { margin-bottom: 14px; border: 1px solid var(--line); border-radius: 8px; background: #0b1220; padding: 12px; color: #c9ddff; font-size: 12px; line-height: 1.45; }
 .prototype-permission-disabled { opacity: 0.45; filter: grayscale(0.2); }
-.prototype-role-dock { margin-top: 12px; }
-.prototype-role-dock .prototype-role-detail { margin-bottom: 0; }
 @media (max-width: 1180px) {
   .prototype-checkin #panel-checkin #venueQRWrap { grid-template-columns: 1fr; }
   .prototype-checkin #panel-checkin .qr-box { grid-column: 1; width: clamp(180px, min(70dvh, calc(100dvh - 280px), calc(100vw - 150px), 100%), 680px); height: clamp(180px, min(70dvh, calc(100dvh - 280px), calc(100vw - 150px), 100%), 680px); min-width: 0; min-height: 0; }
@@ -5439,12 +5421,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-expander-body">
               <div class="v511-row" style="opacity: 0.6;"><label>Hero / banner image</label><div><button type="button" class="v511-btn" disabled>Upload banner</button> <span class="v511-hint">Distinct from logo — top-of-page artwork on attendee check-in pages.</span></div></div>
               <div class="v511-row" style="opacity: 0.6;"><label>Tagline</label><input type="text" placeholder="Movement for everybody" disabled /></div>
-              <div class="v511-row" style="opacity: 0.6;"><label>Footer text</label><input type="text" placeholder="© Imbue Ventures 2026 · Studio open Mon–Sat" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label>Footer text</label><input type="text" placeholder="&copy; Your Organisation 2026" disabled /></div>
               <div class="v511-row" style="opacity: 0.6;"><label>Privacy policy URL</label><input type="url" placeholder="https://example.com/privacy" disabled /></div>
 
               <div class="v511-sub" style="margin-top: 14px;">Contact info on check-in <span class="v511-hint-inline">(YOUR info shown TO attendees; nothing collected from them)</span></div>
               <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Phone number</label><input type="tel" placeholder="0115 123 4567" disabled /></div>
-              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Address</label><input type="text" placeholder="12 High Street, Derby DE1 1AA" disabled /></div>
+              <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Address</label><input type="text" placeholder="1 Main Street, Town, POSTCODE" disabled /></div>
               <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Public email</label><input type="email" placeholder="hello@example.com" disabled /></div>
               <div class="v511-row" style="opacity: 0.6;"><label style="cursor: not-allowed;"><input type="checkbox" disabled style="margin-right: 6px; vertical-align: middle;" />Emergency notice</label><textarea placeholder="In an emergency, follow staff instructions. Studio is at..." disabled></textarea></div>
               <div class="v511-hint" style="padding: 4px 0;">Each item is opt-in. Default off — no contact info shows on check-in pages unless the org turns it on.</div>
@@ -6350,7 +6332,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         </section>
 
         <!-- v5.11 mockup notice — moved to bottom of mockup panel per Captain (won't be in final ship; was throwing off preview-frame sizing at the top) -->
-        <div class="v511-banner" style="margin-top: 18px; margin-bottom: 0;"><strong>v5.11 mockup</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
+        <div class="v511-banner" style="margin-top: 18px; margin-bottom: 0;"><strong>v5.11 calendar</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
       </div>
 
       <script>
@@ -9659,400 +9641,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           if (v511ToolsSaveBtn) v511ToolsSaveBtn.addEventListener('click', v511ToolsSaveNow);
           v511ToolsLoadFromStorage();
 
-          // ===========================================================
-          // v5.11 Tier 4.1 — localStorage persistence (Visual theming)
-          // ===========================================================
-          // Survives page refresh by storing the mockup's design state in
-          // localStorage. Skips image data URLs and WAV uploads (size — both
-          // are megabyte-class data URLs); everything else round-trips.
-          //
-          // To reset to seeded defaults: open DevTools console and run
-          //   localStorage.removeItem('v511_mockup_state_v1')
-          // then refresh the page.
-          var V511_LS_KEY = 'v511_mockup_state_v1';
-          var v511SaveTimer = null;
-
-          function v511CaptureState() {
-            // Snapshot the active mode's CURRENT form values into modeStates so
-            // the saved blob is consistent with what's on screen at save time.
-            try { snapshotMode(currentMode); } catch (e) {}
-            var bgPalette = [];
-            document.querySelectorAll('.v511-bg-palette-row input[type="color"]').forEach(function (i) { bgPalette.push(i.value); });
-            var celPalette = [];
-            document.querySelectorAll('.v511-cel-palette-row input[type="color"]').forEach(function (i) { celPalette.push(i.value); });
-            var chips = {};
-            document.querySelectorAll('[data-chip-group]').forEach(function (group) {
-              var key = group.getAttribute('data-chip-group');
-              var pressed = group.querySelector('[aria-pressed="true"]');
-              if (pressed && key) chips[key] = pressed.textContent.trim();
-            });
-            var posCellIdx = -1;
-            var grid = document.querySelector('.v511-bg-pos-grid');
-            if (grid) {
-              var pressedCell = grid.querySelector('.v511-bg-pos-cell[aria-pressed="true"]');
-              if (pressedCell) posCellIdx = Array.prototype.indexOf.call(grid.children, pressedCell);
-            }
-            // Tier 4.3.3 — Cycle direction 9-cell grid uses .v511-cycle-dir-cell
-            // (NOT [data-chip-group]) so the chips capture above misses it. Capture
-            // here as its own field: data-dir of pressed cell + radial state for
-            // centre cell (out / in).
-            var cycleDir = null, cycleDirRadial = null;
-            var cdCell = document.querySelector('.v511-cycle-dir-cell[aria-pressed="true"]');
-            if (cdCell) {
-              cycleDir = cdCell.getAttribute('data-dir');
-              cycleDirRadial = cdCell.getAttribute('data-radial') || null;
-            }
-            // Tier 4.1.3 — generic capture of every form field with an ID across
-            // all v5.11 panels. Catches Org tab fields, calendar drill-down,
-            // role-vocab inputs etc. that aren't part of the per-mode set.
-            // Skips: file inputs (can't restore programmatically), already-tracked
-            // IDs (per-mode + named fields below).
-            var TRACKED_IDS = {
-              v511LightDarkMode:1, v511BgMode:1, v511BgPattern:1, v511BgDuration:1,
-              v511BgImageScale:1, v511CelDuration:1, v511QrFg:1, v511BgImageUpload:1
-            };
-            // Tracked per-mode IDs also live in PER_MODE_FIELD_IDS — skip those too
-            PER_MODE_FIELD_IDS.forEach(function (id) { TRACKED_IDS[id] = 1; });
-            var formGlobal = {};
-            document.querySelectorAll('[data-v511-panel] input[id], [data-v511-panel] select[id], [data-v511-panel] textarea[id]').forEach(function (el) {
-              if (TRACKED_IDS[el.id]) return;
-              if (el.type === 'file' || el.type === 'color') return;
-              formGlobal[el.id] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
-            });
-            return {
-              v: 2,
-              currentMode: currentMode,
-              modeStates: modeStates,
-              lightDark: (document.getElementById('v511LightDarkMode') || {}).value || '',
-              bgMode: (document.getElementById('v511BgMode') || {}).value || '',
-              bgPattern: (document.getElementById('v511BgPattern') || {}).value || '',
-              bgDuration: (document.getElementById('v511BgDuration') || {}).value || '',
-              bgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '',
-              celDuration: (document.getElementById('v511CelDuration') || {}).value || '',
-              qrFg: (document.getElementById('v511QrFg') || {}).value || '',
-              bgPalette: bgPalette,
-              celPalette: celPalette,
-              chips: chips,
-              posCellIdx: posCellIdx,
-              imageData: window._v511ImageData || null,
-              formGlobal: formGlobal,
-              cycleDir: cycleDir,
-              cycleDirRadial: cycleDirRadial,
-              // T4.3.26 — Uploaded WAVs per mode (data URLs). Quota fallback
-              // in v511SaveNow strips these first if storage is full.
-              uploadedWavs: uploadedWavs,
-              uploadedWavNames: uploadedWavNames
-            };
-          }
-
-          var v511PulseTimer = null;
-          function v511PulseSaved() {
-            var pill = document.getElementById('v511SavedPulse');
-            if (!pill) return;
-            pill.classList.add('is-pulsing');
-            if (v511PulseTimer) clearTimeout(v511PulseTimer);
-            v511PulseTimer = setTimeout(function () { pill.classList.remove('is-pulsing'); }, 900);
-          }
-          function v511SaveNow() {
-            var state = v511CaptureState();
-            try {
-              localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
-              v511PulseSaved();
-              return;
-            } catch (e) {
-              // Quota exceeded — most likely cause is the image data URL and/or
-              // uploaded WAVs (each easily several hundred KB). Strip image first,
-              // then WAVs, and warn once. Names stay so the UI still labels them.
-              try {
-                state.imageData = null;
-                localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
-                v511PulseSaved();
-                if (!window._v511QuotaWarned) {
-                  window._v511QuotaWarned = true;
-                  console.warn('[v5.11 mockup] localStorage quota hit; image upload not persisted. Everything else saved fine.');
-                }
-                return;
-              } catch (e2) { /* fall through */ }
-              try {
-                state.imageData = null;
-                state.uploadedWavs = { allow: null, review: null, deny: null };
-                localStorage.setItem(V511_LS_KEY, JSON.stringify(state));
-                v511PulseSaved();
-                if (!window._v511WavQuotaWarned) {
-                  window._v511WavQuotaWarned = true;
-                  console.warn('[v5.11 mockup] localStorage quota still hit; uploaded WAVs not persisted either.');
-                }
-              } catch (e3) { /* nothing more we can do */ }
-            }
-          }
-
-          function v511SaveDebounced() {
-            if (v511SaveTimer) clearTimeout(v511SaveTimer);
-            v511SaveTimer = setTimeout(v511SaveNow, 300);
-          }
-
-          function v511LoadState() {
-            var raw;
-            try { raw = localStorage.getItem(V511_LS_KEY); } catch (e) { return false; }
-            if (!raw) return false;
-            var s;
-            try { s = JSON.parse(raw); } catch (e) { return false; }
-            if (!s || (s.v !== 1 && s.v !== 2)) return false;
-
-            // 1. Restore per-mode state map (overwrites seeded defaults).
-            if (s.modeStates) {
-              Object.keys(s.modeStates).forEach(function (mode) {
-                if (modeStates[mode]) {
-                  Object.keys(s.modeStates[mode]).forEach(function (id) {
-                    modeStates[mode][id] = s.modeStates[mode][id];
-                  });
-                }
-              });
-            }
-
-            // 2. Restore global form values (selects, ranges, color inputs).
-            function setVal(id, val) {
-              if (val == null || val === '') return;
-              var el = document.getElementById(id);
-              if (!el) return;
-              el.value = val;
-              if (el.type === 'range' && el.dispatchEvent) el.dispatchEvent(new Event('input'));
-            }
-            setVal('v511LightDarkMode', s.lightDark);
-            if (s.lightDark === 'light') document.documentElement.setAttribute('data-theme', 'light');
-            else if (s.lightDark === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-            else if (s.lightDark === 'auto') document.documentElement.removeAttribute('data-theme');
-            setVal('v511BgMode', s.bgMode);
-            setVal('v511BgPattern', s.bgPattern);
-            setVal('v511BgDuration', s.bgDuration);
-            setVal('v511BgImageScale', s.bgImageScale);
-            setVal('v511CelDuration', s.celDuration);
-            setVal('v511QrFg', s.qrFg);
-
-            // 3. Restore palettes — REBUILD the row DOM to match the saved
-            //    swatch count (Tier 4.1.2 fix for "saves QR but not Background").
-            //    Previously the load only set values into pre-existing inputs;
-            //    any swatches added via "+ Add colour" got lost on refresh
-            //    because the default HTML has 4 BG / 5 CEL slots.
-            function rebuildPaletteRow(rowSelector, colors, varPrefix) {
-              if (!Array.isArray(colors) || colors.length === 0) return;
-              var row = document.querySelector(rowSelector);
-              if (!row) return;
-              // Strip existing real swatches (keep empty placeholders for visual + budget)
-              row.querySelectorAll('.v511-palette-swatch-wrap').forEach(function (w) { w.remove(); });
-              var emptyPlaceholders = row.querySelectorAll('.v511-palette-swatch.empty');
-              // Insert one wrap per saved colour, before any empty placeholder
-              colors.forEach(function (v, i) {
-                var wrap = document.createElement('div');
-                wrap.className = 'v511-palette-swatch-wrap';
-                var inp = document.createElement('input');
-                inp.type = 'color';
-                inp.className = 'v511-palette-swatch';
-                inp.value = v;
-                inp.title = 'Pick colour';
-                var rm = document.createElement('button');
-                rm.type = 'button';
-                rm.className = 'v511-palette-swatch-remove';
-                rm.setAttribute('aria-label', 'Remove colour');
-                rm.title = 'Remove';
-                rm.textContent = '×';
-                wrap.appendChild(inp);
-                wrap.appendChild(rm);
-                if (emptyPlaceholders[0]) row.insertBefore(wrap, emptyPlaceholders[0]);
-                else row.appendChild(wrap);
-                if (sampleStage) sampleStage.style.setProperty(varPrefix + (i + 1), v);
-              });
-            }
-            rebuildPaletteRow('.v511-bg-palette-row', s.bgPalette, '--bg-pal-');
-            rebuildPaletteRow('.v511-cel-palette-row', s.celPalette, '--cel-pal-');
-            // Tier 4.1.5 — after rebuilding, force-clear orphaned vars from the
-            // script-init pass (which ran with the default 4 reds in the HTML)
-            // so a saved single-cyan-swatch state doesn't leak red/yellow.
-            try { applyBgPaletteToPreview(); applyCelPaletteToPreview(); } catch (e) {}
-
-            // 4. Restore chip aria-pressed states + their visual side-effects.
-            if (s.chips) {
-              Object.keys(s.chips).forEach(function (groupKey) {
-                var group = document.querySelector('[data-chip-group="' + groupKey + '"]');
-                if (!group) return;
-                var targetText = s.chips[groupKey];
-                group.querySelectorAll('.v511-chip').forEach(function (c) {
-                  c.setAttribute('aria-pressed', c.textContent.trim() === targetText ? 'true' : 'false');
-                });
-                if (sampleStage) {
-                  if (groupKey === 'bgSymmetry') {
-                    sampleStage.classList.remove('bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
-                    sampleStage.classList.add('bg-symmetry-' + (targetText || 'off').toLowerCase().trim());
-                  }
-                  if (groupKey === 'qrMotion') {
-                    sampleStage.setAttribute('data-qr-motion', (targetText || 'wobble').toLowerCase().trim().replace(/\s+/g, '-'));
-                  }
-                  // Tier 4.3.5 — Bounce + Transition stage classes (aria-pressed
-                  // was being restored but the actual bg-bounce-* / bg-trans-*
-                  // stage classes were not, so the saved setting didn't take
-                  // effect until the user re-clicked the chip).
-                  if (groupKey === 'bgBounce') {
-                    var bChip = group.querySelector('.v511-chip[aria-pressed="true"]');
-                    if (bChip) {
-                      var bVal = bChip.getAttribute('data-bounce') || 'on';
-                      sampleStage.classList.remove('bg-bounce-on', 'bg-bounce-off');
-                      sampleStage.classList.add('bg-bounce-' + bVal);
-                    }
-                  }
-                  if (groupKey === 'bgCycleTrans') {
-                    var tChip = group.querySelector('.v511-chip[aria-pressed="true"]');
-                    if (tChip) {
-                      var tVal = tChip.getAttribute('data-trans') || 'fade';
-                      sampleStage.classList.remove('bg-trans-fade', 'bg-trans-snap');
-                      sampleStage.classList.add('bg-trans-' + tVal);
-                    }
-                  }
-                }
-                if (groupKey === 'bgAnchor') {
-                  var anchorGrid = document.querySelector('.v511-bg-pos-grid');
-                  if (anchorGrid) {
-                    var raw = (targetText || 'Centre').toLowerCase().trim();
-                    var anchorMap = { o: 'outer', outer: 'outer', c: 'centre', centre: 'centre', center: 'centre', i: 'inner', inner: 'inner' };
-                    anchorGrid.setAttribute('data-anchor', anchorMap[raw] || 'centre');
-                  }
-                }
-              });
-            }
-
-            // 5. Restore position grid cell.
-            if (typeof s.posCellIdx === 'number' && s.posCellIdx >= 0) {
-              var pgrid = document.querySelector('.v511-bg-pos-grid');
-              if (pgrid && pgrid.children[s.posCellIdx]) {
-                Array.prototype.forEach.call(pgrid.children, function (c) { c.setAttribute('aria-pressed', 'false'); });
-                pgrid.children[s.posCellIdx].setAttribute('aria-pressed', 'true');
-              }
-            }
-            // 5b. Tier 4.3.3 — Restore the 9-cell cycle direction grid (was being
-            // silently dropped because it's not a [data-chip-group] container).
-            if (s.cycleDir) {
-              var cdGrid = document.querySelector('.v511-cycle-dir-grid');
-              if (cdGrid) {
-                cdGrid.querySelectorAll('.v511-cycle-dir-cell').forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
-                var match = cdGrid.querySelector('.v511-cycle-dir-cell[data-dir="' + s.cycleDir + '"]');
-                if (match) {
-                  match.setAttribute('aria-pressed', 'true');
-                  // Restore centre cell's radial state (out / in) + glyph + label
-                  if ((s.cycleDir === 'co' || s.cycleDir === 'ci') && s.cycleDirRadial) {
-                    match.setAttribute('data-radial', s.cycleDirRadial);
-                    match.textContent = s.cycleDirRadial === 'in' ? '⊕' : '⊙';
-                    match.setAttribute('aria-label', s.cycleDirRadial === 'in' ? 'Centre in (click again for centre out)' : 'Centre out (click again for centre in)');
-                  }
-                  // Apply the corresponding bg-dir-* class to the stage so the
-                  // palette gradient actually flows from the restored direction.
-                  if (sampleStage) {
-                    sampleStage.classList.remove('bg-dir-tl','bg-dir-t','bg-dir-tr','bg-dir-l','bg-dir-r','bg-dir-bl','bg-dir-b','bg-dir-br','bg-dir-co','bg-dir-ci');
-                    sampleStage.classList.add('bg-dir-' + s.cycleDir);
-                  }
-                }
-              }
-            }
-
-            // 6. Restore active mode + sample picker, then load that mode into the form.
-            if (s.currentMode && modeStates[s.currentMode]) {
-              currentMode = s.currentMode;
-              if (samplePicker) samplePicker.value = s.currentMode;
-            }
-            try { loadMode(currentMode); } catch (e) {}
-
-            // 6.5. Tier 4.1.3 — restore generic form fields across all panels
-            if (s.formGlobal && typeof s.formGlobal === 'object') {
-              Object.keys(s.formGlobal).forEach(function (id) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                var v = s.formGlobal[id];
-                if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!v;
-                else el.value = v;
-              });
-            }
-            // 6.6. Tier 4.1.3 — restore image data URL + mirrored variants
-            if (s.imageData && s.imageData.orig) {
-              try { v511ApplyImageVariants(s.imageData); } catch (e) {}
-            }
-            // 6.7. Tier 4.1.9 — migrate legacy bgMode 'pattern'/'image' to the
-            // new per-overlay enable checkboxes (the Overlay dropdown is gone).
-            if (s.bgMode === 'pattern') {
-              var pen = document.getElementById('v511BgPatternEnable');
-              if (pen) pen.checked = true;
-            }
-            if (s.bgMode === 'image' || (s.imageData && s.imageData.orig)) {
-              var ien = document.getElementById('v511BgImageEnable');
-              if (ien) ien.checked = true;
-            }
-            // 6.8. Tier 4.3.1 — migrate sequence items with old 'cel-pattern' key → 'pattern'
-            ['allow','review','deny'].forEach(function (mode) {
-              if (modeStates[mode] && Array.isArray(modeStates[mode].sequence)) {
-                modeStates[mode].sequence.forEach(function (item) {
-                  if (item.effect === 'cel-pattern') item.effect = 'pattern';
-                });
-              }
-            });
-            // 6.9. T4.3.26 — Restore uploaded WAVs + names per mode. Names alone
-            // also restore (with null data URL) when a quota-fallback save stripped
-            // the data — UI still shows the file name; playback falls back to tone.
-            if (s.uploadedWavs && typeof s.uploadedWavs === 'object') {
-              ['allow','review','deny'].forEach(function (mode) {
-                if (s.uploadedWavs[mode]) uploadedWavs[mode] = s.uploadedWavs[mode];
-              });
-            }
-            if (s.uploadedWavNames && typeof s.uploadedWavNames === 'object') {
-              ['allow','review','deny'].forEach(function (mode) {
-                if (s.uploadedWavNames[mode]) uploadedWavNames[mode] = s.uploadedWavNames[mode];
-              });
-            }
-            try { v511RefreshWavFileLabel(); } catch (e) {}
-
-            // 7. Re-apply derived state to the preview surface.
-            try { applyBgState(); } catch (e) {}
-            try { applyImagePositioning(); } catch (e) {}
-            try { renderPreviewQr(); } catch (e) {}
-            if (sampleStage && currentMode) sampleStage.setAttribute('data-mode', currentMode);
-            try { applyModeCue(currentMode); } catch (e) {}
-            // Tier 4.1.5 — re-paint slider fills now that values have changed
-            try { v511BindRangeFills(); } catch (e) {}
-            return true;
-          }
-
-          // Wire every relevant change/input to the debounced save via event
-          // delegation. Catches form inputs, palette colours, chip clicks, and
-          // celebration card reordering without enumerating each handler.
-          document.addEventListener('input', function (e) {
-            if (e.target && (e.target.closest('[data-v511-panel]') || e.target.closest('.v511-theme-preview'))) {
-              v511SaveDebounced();
-            }
-          });
-          document.addEventListener('change', function (e) {
-            if (e.target && (e.target.closest('[data-v511-panel]') || e.target.closest('.v511-theme-preview'))) {
-              v511SaveDebounced();
-            }
-          });
-          document.addEventListener('click', function (e) {
-            var t = e.target;
-            if (!t || !t.closest) return;
-            if (t.closest('.v511-chip') || t.closest('.v511-bg-pos-cell') || t.closest('.v511-cycle-dir-cell')) {
-              v511SaveDebounced();
-            }
-          });
-          document.addEventListener('dragend', function (e) {
-            if (e.target && e.target.classList && e.target.classList.contains('v511-celeb-effect')) {
-              v511SaveDebounced();
-            }
-          });
-
-          // Load on init — deferred one frame so the prior handlers have set
-          // their initial state (otherwise our load gets overwritten by their
-          // first applyBgState/loadMode calls running on script execution).
-          window.requestAnimationFrame(function () {
-            var loaded = v511LoadState();
-            try {
-              if (loaded) console.log('[v5.11 mockup] Restored saved state from localStorage. Run localStorage.removeItem("' + V511_LS_KEY + '") to reset.');
-              else console.log('[v5.11 mockup] No saved state — starting from defaults.');
-            } catch (e) {}
-          });
+          // v5.11.0a ? server-canonical Org.html keeps no mockup-state restore.
+          // V511_CAL_SETTINGS_KEY remains above for user calendar preferences only.
+          function v511SaveNow() {}
+          function v511SaveDebounced() {}
         })();
       </script>
       <!-- ================ /v5.11 MOCKUP — legacy settings-shell below is preserved (hidden) ================ -->
@@ -11625,7 +11217,6 @@ async function handleQrLoginSuccess(data) {
   // this on first sign-in: defaulted to Lead Admin even though he's developer.
   // The prototype switcher remains as-is for testing other-role views.
   if (data.is_developer) {
-    const roleSelect = document.getElementById('prototypeRoleSelect');
     if (roleSelect) {
       roleSelect.value = 'developer';
       if (typeof setPrototypeRole === 'function') setPrototypeRole('developer');
@@ -12130,24 +11721,7 @@ function roleKeyFromLabel(value) {
   console.warn('[csv import] Unknown Role value, defaulting to attendee:', value);
   return 'attendee';
 }
-function applyRoleLabelsToViewingAs() {
-  const sel = document.getElementById('prototypeRoleSelect');
-  if (!sel) return;
-  Array.from(sel.options).forEach(opt => {
-    if (opt.value) opt.textContent = window.roleLabel(opt.value);
-  });
-  const hint = document.getElementById('prototypeRoleToolbarHint');
-  if (hint) hint.textContent = `Prototype only: real access should come from a verified ${roleLabelFor('staff')} HELLO role.`;
-  const expectedTitle = document.getElementById('expectedAdminPanelTitle');
-  if (expectedTitle) expectedTitle.dataset.roleHint = ` (${roleLabelFor('staff')} add, ${roleLabelFor('manager')}+ delete)`;
-  document.querySelectorAll('[data-role-card]').forEach(card => {
-    const key = card.dataset.roleCard;
-    const strong = card.querySelector('strong');
-    const desc = card.querySelector('span');
-    if (strong) strong.textContent = roleLabelFor(key);
-    if (desc) desc.textContent = prototypeRoleDetailFor(key);
-  });
-}
+function applyRoleLabelsToViewingAs() { }
 window.applyRoleLabelsToViewingAs = applyRoleLabelsToViewingAs;
 
 async function saveSettings() {
@@ -12960,11 +12534,10 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   }
 }
 function currentPrototypeRole() {
-  return document.body.dataset.prototypeRole || document.getElementById('prototypeRoleSelect')?.value || 'lead_admin';
+  return currentOrg?.role || (qrLoginSession?.is_developer ? 'developer' : 'staff');
 }
 function prototypeRoleRank() {
-  const role = currentPrototypeRole();
-  return Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, role) ? PROTOTYPE_ROLE_RANK[role] : PROTOTYPE_ROLE_RANK.lead_admin;
+  return realSessionRoleRank();
 }
 function roleRankFor(role) {
   return PROTOTYPE_ROLE_RANK[String(role || '').trim().toLowerCase()] || 0;
@@ -12974,10 +12547,6 @@ function realSessionRoleRank() {
   return roleRankFor(currentOrg?.role);
 }
 function effectiveRoleRank() {
-  // The visible dashboard is governed by the role currently being viewed. On
-  // real Bearer sessions, loadDashboardForOrg() seeds that dropdown from the
-  // signed-in org role; the toolbar can then intentionally simulate lower roles.
-  if (document.getElementById('prototypeRoleSelect')) return prototypeRoleRank();
   const rank = realSessionRoleRank();
   return Number.isFinite(rank) ? rank : PROTOTYPE_ROLE_RANK.staff;
 }
@@ -15004,14 +14573,6 @@ function applyCheckinPrototypeLayout() {
       dashboard.appendChild(scanCard);
     }
   }
-  const roleDetail = document.getElementById('prototypeRoleDetail');
-  if (roleToolbar && roleDetail && !roleToolbar.closest('.prototype-role-dock')) {
-    const roleDock = document.createElement('div');
-    roleDock.className = 'prototype-role-dock';
-    roleDock.appendChild(roleToolbar);
-    roleDock.appendChild(roleDetail);
-    dashboard.appendChild(roleDock);
-  }
 }
 const PROTOTYPE_ROLE_DETAILS = {
   attendee: 'Attendee view has no staff dashboard powers.',
@@ -15062,19 +14623,8 @@ function updateExpectedRoleOptions(role) {
   select.value = options.includes(current) ? current : options[0];
 }
 function setPrototypeRole(role) {
-  const value = PROTOTYPE_ROLE_DETAILS[role] ? role : 'lead_admin';
-  const rank = Object.prototype.hasOwnProperty.call(PROTOTYPE_ROLE_RANK, value) ? PROTOTYPE_ROLE_RANK[value] : PROTOTYPE_ROLE_RANK.lead_admin;
+  var value = PROTOTYPE_ROLE_DETAILS[role] ? role : sessionDefaultDashboardRole();
   document.body.dataset.prototypeRole = value;
-  const select = document.getElementById('prototypeRoleSelect');
-  if (select && select.value !== value) select.value = value;
-  document.querySelectorAll('[data-role-card]').forEach(card => {
-    card.classList.toggle('active', card.dataset.roleCard === value);
-  });
-  const detail = document.getElementById('prototypeRoleDetail');
-  if (detail) detail.textContent = prototypeRoleDetailFor(value);
-  const canAddExpected = rank >= PROTOTYPE_ROLE_RANK.staff;
-  document.getElementById('expectedAddBtn')?.toggleAttribute('disabled', !canAddExpected);
-  document.querySelector('.expected-admin-panel')?.classList.toggle('prototype-permission-disabled', !canAddExpected);
   updateExpectedRoleOptions(value);
   applyRoleGatedVisibility();
   renderExpectedAttendees();
@@ -15403,10 +14953,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('signedInSignOutBtn')?.addEventListener('click', signOutOrg);
   // Batch C — wire create-org form submit. Same no-op-if-missing pattern.
   document.getElementById('createOrgSubmitBtn')?.addEventListener('click', submitCreateOrg);
-  const prototypeRoleSelect = document.getElementById('prototypeRoleSelect');
-  prototypeRoleSelect?.addEventListener('change', () => setPrototypeRole(prototypeRoleSelect.value));
-  if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
-  setPrototypeRole(prototypeRoleSelect?.value || 'lead_admin');
+  if (typeof syncPrototypeRoleFromSession === 'function') syncPrototypeRoleFromSession();
   const csvFileInput = document.getElementById('csvFileInput');
   if (csvFileInput) csvFileInput.addEventListener('change', (event) => {
     const file = event.target.files && event.target.files[0];
@@ -15587,13 +15134,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     // of the equivalent toggle in handleQrLoginSuccess so the dashboard
     // chrome reflects the restored session correctly on hard refresh.
     document.body.classList.toggle('developer-bearer-active', !!savedSession.is_developer);
-    if (savedSession.is_developer) {
-      const roleSelect = document.getElementById('prototypeRoleSelect');
-      if (roleSelect) {
-        roleSelect.value = 'developer';
-        if (typeof setPrototypeRole === 'function') setPrototypeRole('developer');
-      }
-    }
     try {
       const freshOrg = await freshOrgFromSession(savedOrg);
       if (!freshOrg) throw new Error('Saved org is no longer available in /user/orgs');

@@ -1,8 +1,8 @@
 {
-  "name": "IRLid Organisation Check-in",
+  "name": "IRLid Organisation Portal",
   "short_name": "IRLid Org",
-  "description": "IRLid organisation check-in dashboard. Staff sign in with QR scan; attendees check in via venue QR.",
-  "start_url": "OrgCheckin.html?dev=0",
+  "description": "IRLid organisation portal. Staff sign in with QR scan; attendees check in via venue QR.",
+  "start_url": "Org.html?dev=0",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
@@ -11,7 +11,7 @@
   "icons": [
     {
       "src": "favicon.ico",
-      "sizes": "any",
+      "sizes": "48x48",
       "type": "image/x-icon"
     }
   ]
