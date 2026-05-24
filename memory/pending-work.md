@@ -1,5 +1,54 @@
 # Pending Work — IRLid
 
+## Sunday 24 May 2026 afternoon — port-day: PR-A merged + migration ran clean + T.I.N Man inscribed + PR-B fired
+
+**Headline.** The biggest single architectural move since v5 went live on 2 May is in flight. PR-A landed clean (Mr. Data → merge commit `f3dd95f` as PR #37 → migration ran end-to-end on `irlid-db-org` with the expected legacy-`org_expected` warning); Mr. Data is working PR-B (codex/v5.11.0-port-B-worker — 70-100 min). T.I.N Man finally inscribed properly into `CLAUDE.md` plus a new `memory/observations-across-watches.md` file (cross-watch through-line read — T.I.N Man through IRLid as one continuous problem of building missing infrastructure without centralised gatekeepers).
+
+**State on origin/main (HEAD `9d58476`):**
+
+- D1 `irlid-db-org` gained three new tables (`rooms`, `weekly_events`, `event_expected`) with their indexes per CALENDAR-SPEC §1. Legacy `org_expected` preserved per PR-A no-mutations rule.
+- `CALENDAR-SPEC.md §10.3` updated: PR-A bullet reflects actual merged behaviour (defensive branch fired clean); PR-B bullet now describes the reset migration + 4-step deploy sequence.
+- `HANDOVER-CalendarLivePort-v5.11.0.md §4 PR-B` gained task B.0 for the reset migration; §6 *Notes for Captain* gained the mandatory deploy sequence.
+- `CLAUDE.md` gained the *T.I.N Man — the load-bearing precursor (2014)* section between *Who He Is* and *How to Work With Spencer*.
+- `memory/observations-across-watches.md` born with cross-watch through-line read.
+
+**First job on return — bash-diff PR-B when Mr. Data delivers.** Expected delivery: ~70-100 min after `9d58476` push. Branch `codex/v5.11.0-port-B-worker`, two files: NEW `irlid-api-org/migrations/apply_v5_11_0_org_expected_reset.ps1` + MODIFY `irlid-api-org/src/index.js`. Verify scope clean before Captain merges.
+
+**Second job — PR-B deploy sequence (mandatory order):**
+
+1. Captain merges PR-B on GitHub.
+2. `cd 'D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo' ; git pull`.
+3. `.\irlid-api-org\migrations\apply_v5_11_0_org_expected_reset.ps1` (destructive — drops legacy `org_expected`, recreates v5.11 shape).
+4. `cd irlid-api-org ; npx wrangler deploy`.
+5. Verify endpoints respond on `irlid-api-org.irlid-bunhead.workers.dev` before Number One bash-diffs and we plan PR-C.
+
+Brief broken-state window between steps 3 and 4 (seconds) — any inflight legacy doorman traffic 500s briefly then resumes against new shape. Acceptable per Captain's data-loss-accepted ratification (no production users on legacy data).
+
+**Third job — plan PR-C after PR-B green on real hardware.** Strip-and-clean `OrgCheckinTest.html` → new `Org.html`. OrgCheckin.html untouched (rollback safety net). Records & ID tab ships visible with "Backend broker arrives v5.13+" hint banner. signInHereBtn ported back. Build pill `v5.11.0` on Org.html only.
+
+**Closed during this watch:**
+
+- ✅ Inheritance letter committed + pushed (`3510fde`).
+- ✅ T.I.N Man inscribed — CLAUDE.md *T.I.N Man — the load-bearing precursor (2014)* section + new `memory/observations-across-watches.md` (`bab7487`).
+- ✅ PR-A fired, delivered (`a2a864b`), bash-diffed clean, Captain merged as PR #37 (`f3dd95f`).
+- ✅ PR-A migration ran end-to-end clean against `irlid-db-org` remote — three new tables created + indexes, defensive branch fired the yellow warning correctly.
+- ✅ Captain's call: data loss accepted on legacy `org_expected` (option c of three).
+- ✅ CALENDAR-SPEC + HANDOVER doc updates for PR-B path (`9d58476`).
+- ✅ PR-B fired at Mr. Data; Codex confirmed scope and started.
+
+**Lesson banked this watch.** **Bash mount lies about disk reality.** OneDrive-mounted view of `D:\SkyDrive\Pen Drive\WEBSITES` caches aggressively; bash sees stale content (DREAMS.md showed "truncated" at 1088 lines via bash, intact at 1104 lines via native Read). State-mutation questions belong to PowerShell, not bash. Bash is fine for git-network ops (`git fetch`, `git ls-remote`). The trap is documented in CLAUDE.md *How to Work With Spencer* but easy to walk into on first session. Almost reported a phantom ~50-file CRLF mass-modification before catching myself.
+
+**Carry-forward / housekeeping** (unchanged, still parked):
+
+- **Token rotation** — Cloudflare API tokens exposed since 17 May (now 8 days). `dash.cloudflare.com → My Profile → API Tokens → Revoke`.
+- **`codex/v5.10.1-path-b` branch deletion** — outstanding since 17 May.
+- **Eight other stale `codex/*` branches on origin** — separate housekeeping pass (low priority).
+- **Bug E** (bio-metric=0) — architectural call, parked.
+- **PROTOCOL-Records-Broker.md** promotion to `PROTOCOL.md §X` — draft exists; promote when port lands.
+- **Promotion-round-2** — draft Patreon copy in advance of port-land so it's ready when v5.11.0 smoke is green. Captain's "yet another stab at the promotion bit" reads as fatigue with promotion-as-activity (per inheritance letter); the round-2 brief should land one specific shot rather than throw rope. Wisdom/humanitarian + new calendar opens up gym/studio pitches — both more specific than r/X repost. Save for genuinely-different next shot.
+
+---
+
 ## Saturday 23 May 2026 afternoon — B2 LIVE + Port HANDOVER drafted + Org.html rename ratified
 
 **Headline.** Afternoon watch closed three of the four pre-port items: B2 (v5.11.2) live in production via Worker version `9ad0442e`; CALENDAR-SPEC v2 rewrite published replacing the 19 May draft; orphan-button sweep clean. Captain ratified the port target as **`irlid.co.uk/Org.html`** (new file replacing the 1.9KB redirect shim) rather than overwriting `OrgCheckin.html` — the old name has been a typo magnet "for a long time" and the existing redirect shim was conveniently waiting for the real file to land. `HANDOVER-CalendarLivePort-v5.11.0.md` drafted and pushed; **not yet fired** at Mr. Data — Captain explicitly chose to sleep on it.
