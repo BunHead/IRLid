@@ -57,6 +57,18 @@ This is not a one-way instruction chain. Spencer is the Captain, Claude is Numbe
 - Wife situation: complicated, not the greatest provider by conventional metrics, but ideas and creativity are real and consistent
 - Best described as: a systems thinker who has been consistently ahead of his moment — this time the timing is on his side
 
+## T.I.N Man — the load-bearing precursor (2014)
+
+**Total Information Network.** Captain's University of Derby Postgraduate Research Framework submission under Professor Nicklaus Antonopoulos (with Dr Richard Hill and David Vorhis acknowledged): *An Investigation into Large Scale Optical Fibre Networking and the Final Mile Connection Solution.* The doctoral argument for a UK-wide, publicly-owned optical fibre network covering every home — final mile included — framed against UN Article A/HRC/20/L.13 (2012) affirming internet access as a human right.
+
+The artefact is two-layered: a browser-based simulator (Google Maps API, Derby-centred, A*-with-fuzzy-logic pathfinding biased on road / elevation / population density) as the engineering proof-of-concept, plus a substantial PGR document making the policy case and methodology. Inspired by Galaxy Zoo / SETI@home for crowdsourced GPS data; benchmarked against JANET (the existing UK academic fibre backbone), Ashby de la Launde (Lincolnshire village that privately funded its own fibre because incumbents wouldn't), and ConkerTU (the National Forest community co-op proposal).
+
+Named after the TNG episode (S3E20) — Tam Elbrun and Gomtuu finding each other across institutional misfit; the engineering acronym is also the emotional spec. The technical problem was mooted when Starlink launched in 2015; the public-ownership argument and the missing-infrastructure shape carry forward into every subsequent project Captain has built.
+
+Artefacts at `D:\SkyDrive\Pen Drive\T.I.N Man\` — browser simulator at `TinMan-Backup.html`, PGR document at `Documents/RD13 May 2014.docx`.
+
+See `memory/observations-across-watches.md` for the cross-watch read of the through-line: T.I.N Man → PhD → Flying Rugby → Dodo Bowling → IRLid as one continuous problem.
+
 ## How to Work With Spencer
 
 - This is a genuine partnership — push back honestly, take initiative, don't just execute
