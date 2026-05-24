@@ -403,16 +403,24 @@ Mr. Data, please verify before marking the port PR ready-for-review:
 The port HANDOVER (`HANDOVER-CalendarLivePort-v5.11.0.md`) ships as a four-PR stack:
 
 1. **PR-A — D1 schema.** Migration script `apply_v5_11_0_calendar.ps1` under `irlid-api-org/migrations/`. Creates three new tables (`rooms`, `weekly_events`, `event_expected`) with their indexes. **Defensive on legacy `org_expected`:** detects legacy column shape via `PRAGMA table_info`, leaves the table untouched and prints a yellow warning marking PR-B as the resolver. Idempotent. **Merged + run clean against `irlid-db-org` 24 May 2026** (PR #37, merge commit `f3dd95f`; migration verified end-to-end on remote D1 with the expected legacy-org_expected warning fired).
-2. **PR-B — Worker endpoints + legacy `org_expected` reset.** Two files: (a) NEW migration `apply_v5_11_0_org_expected_reset.ps1` that drops the legacy `org_expected` and recreates with v5.11 shape + indexes — per Captain's 24 May ratification, **data loss on legacy `org_expected` rows is accepted** (no production users on them; new Org from scratch); (b) all §2 endpoints added to `irlid-api-org/src/index.js`. `requireDevOrStaffSession` minimum, `requireSignedAction` on manager+ writes. CORS allowlist still `https://irlid.co.uk` only. Deploy sequence: merge → `git pull` → run reset migration → `npx wrangler deploy`.
-3. **PR-C — `Org.html` UI.** New file at repo root. Built from `OrgCheckinTest.html` with mockup-only tooling stripped (prototype-role simulator, in-memory localStorage state replaced with Worker calls, mockup seed data removed). Replaces the 1.9KB redirect shim. **`OrgCheckin.html` NOT modified.**
-4. **PR-D — Cutover.** Build pill bumps `v5.10.7 → v5.11.0` (on Org.html only; OrgCheckin.html keeps its v5.10.7 pill). Service Worker cache version bump. README pointer to the new URL. Optional retirement of `websiteScrapeBtn` placeholder.
+2. **PR-B — Worker endpoints + legacy `org_expected` reset.** Two files: (a) NEW migration `apply_v5_11_0_org_expected_reset.ps1` that drops the legacy `org_expected` and recreates with v5.11 shape + indexes — per Captain's 24 May ratification, **data loss on legacy `org_expected` rows is accepted** (no production users on them; new Org from scratch); (b) all §2 endpoints added to `irlid-api-org/src/index.js`. `requireDevOrStaffSession` minimum, `requireSignedAction` on manager+ writes. CORS allowlist still `https://irlid.co.uk` only. Deploy sequence: merge → `git pull` → run reset migration → `npx wrangler deploy`. **Merged + deployed clean 24 May 2026** (PR #38, merge commit `117d0fc`; Worker Version `625c8917`; production smoke verified `/org/rooms` returns correct auth-gate response; OrgCheckin.html still works against new Worker confirming shared-helper rewrite backward-compatible).
+3. **PR-C — `Org.html` UI (capital, new file).** Built from `OrgCheckinTest.html` strip-and-clean: prototype-role toolbar removed, mockup seed data removed, localStorage state for server-canonical data (`V511_ORG_EXPECTED_KEY`, `V511_EVENTS_KEY`, `V511_ROOMS_KEY`) replaced with Worker calls. signInHereBtn ported back from OrgCheckin.html. Records & ID tab ships visible with "Backend broker arrives v5.13+" hint banner. Build pill `v5.11.0` on `Org.html` only. Service Worker bumped + `Org.html` added to precache. **`OrgCheckin.html` NOT modified by PR-C** (rollback safety net during port verify).
+4. **PR-D — Cutover + OrgCheckin retirement.** Per Captain 24 May ratification: once `Org.html` is verified working, `OrgCheckin.html` is DELETED entirely (not converted to shim — clean retirement; old bookmarks accept 404 as trade-off). Existing lowercase `org.html` shim repurposed to redirect to `Org.html` capital (graceful lowercase typer support). README + roadmap URL references → `/Org.html`. Service Worker bumped + `OrgCheckin.html` removed from precache. Optional `websiteScrapeBtn` retirement.
 
 ### §10.4 Rollback
 
-If anything goes wrong post-cutover:
-- `irlid.co.uk/OrgCheckin.html` is the immediate fallback URL. No code change needed.
-- Worker rollback via Cloudflare dashboard → previous deployment ID. Endpoints from PR-B are additive; rolling back the Worker just removes them, doesn't break `OrgCheckin.html`.
-- D1 rollback is unnecessary: the new tables are additive; the old code doesn't reference them.
+Rollback story varies by which PR you'd be unwinding.
+
+**During the PR-C verify window** (after PR-C merges, before PR-D fires):
+- `irlid.co.uk/OrgCheckin.html` is still the immediate fallback URL — change one URL on a phone bookmark and you're back to working state. No code change needed.
+- `git revert` of PR-C restores the 1.9KB redirect shim at `org.html`. Pages auto-redeploys.
+
+**After PR-D ships (OrgCheckin.html deleted):**
+- `git revert` of PR-D restores `OrgCheckin.html` (the file lives in git history forever, recovery is one revert). Pages auto-redeploys.
+- Optionally `git revert` of PR-C if the issue is in the new portal itself.
+- Worker rollback (if needed): Cloudflare dashboard → `irlid-api-org` → previous deployment ID. The PR-B endpoints are additive; rolling back the Worker just removes the new ones; existing endpoints unchanged.
+
+**D1 rollback is genuinely irrecoverable** — the legacy `org_expected` data was deleted in the PR-B reset migration per Captain's data-loss-accepted ratification. No recovery path beyond accepting the clean v5.11 schema and rebuilding any data from scratch. This was the explicit trade-off chosen on 24 May.
 
 The mockup was deliberately built so this port is mechanical, not redesign. Every architectural call has been made already.
 

@@ -220,26 +220,46 @@ C.6 — Records & ID tab ships as mockup-only — visual only. All buttons in th
 
 C.7 — Self-verify per `CALENDAR-SPEC §8` acceptance criteria (10 items). All ten must pass on the local file (open `Org.html` in a browser, walk the criteria).
 
-### PR-D — Cutover + housekeeping (~20-30 min)
+### PR-D — Cutover + retirement of OrgCheckin (~30-45 min)
 
 **Branch:** `codex/v5.11.0-port-D-cutover`
-**Files touched:**
-- `README.md` if it links to the portal — point to new URL.
-- `roadmap.html` if it references the portal URL.
-- Any milestone reference in `CLAUDE.md` if Number One wants to bank one (optional — Number One usually handles this in the watch-close memory commit).
-- Optionally: `Org.html` — retire the disabled `websiteScrapeBtn` placeholder if Captain agreed to consolidation in his review of the orphan sweep.
 
-**DO NOT TOUCH:** `OrgCheckin.html`, `OrgCheckinTest.html`, Worker, D1.
+**Pre-condition:** PR-C merged AND `irlid.co.uk/Org.html` smoke-verified GREEN on real hardware. PR-D is the irreversible-ish retirement step — do not fire until Captain has confirmed the new portal works.
+
+**Files touched:**
+- **DELETE** `OrgCheckin.html` — `git rm OrgCheckin.html`. Per Captain's 24 May 2026 ratification: once `Org.html` is verified working, the legacy file retires entirely. Old bookmarks to `OrgCheckin.html` will 404 — acceptable trade-off (anyone bookmarked will navigate to find the new URL; the file lives in git history forever for recovery if needed).
+- **MODIFY** `org.html` (lowercase shim) — update the existing 1.9KB redirect shim to redirect to `Org.html` (capital) instead of `OrgCheckin.html`. Tiny change (single `<meta http-equiv="refresh">` URL swap + bookmark hint text). Preserves graceful lowercase-typer support without keeping the legacy file.
+- **MODIFY** `README.md` if it links to the portal — point to `/Org.html` (capital).
+- **MODIFY** `roadmap.html` if it references the portal URL.
+- **MODIFY** `sw.js` — bump `CACHE_VERSION` to next integer; REMOVE `OrgCheckin.html` from the precache list (it's being deleted); ensure `Org.html` remains in the precache list (added in PR-C).
+- **OPTIONALLY MODIFY** `Org.html` — retire the disabled `websiteScrapeBtn` placeholder if Captain agreed to consolidation in his review of the orphan sweep.
+- Any milestone reference in `CLAUDE.md` if Number One wants to bank one (optional — Number One usually handles this in the watch-close memory commit).
+
+**DO NOT TOUCH:** `OrgCheckinTest.html` (design sandbox lives forever for future mockup work), Worker, D1, any other file.
 
 #### Tasks
 
-D.1 — Update `README.md` portal URL reference (search for `OrgCheckin.html`; if any line points users at it AS THE PORTAL, update to `Org.html`; if it references it as the legacy/reference page, keep that reference).
+D.1 — `git rm OrgCheckin.html`. Per Captain 24 May ratification: legacy file deleted entirely, not converted to redirect shim. Old bookmarks accept 404 as trade-off.
 
-D.2 — Search `roadmap.html` for portal URL references and update similarly.
+D.2 — Edit the existing lowercase `org.html` shim: change its `<meta http-equiv="refresh" content="0; url=OrgCheckin.html">` to `<meta http-equiv="refresh" content="0; url=Org.html">`. Update any visible text (e.g., "redirected to OrgCheckin.html" → "redirected to Org.html"; bookmark hint text similarly). Preserves graceful lowercase-typer/bookmark support.
 
-D.3 — Optionally retire `websiteScrapeBtn` per Captain's call.
+D.3 — Update `README.md` portal URL reference. Search for `OrgCheckin.html`; any line pointing users at it AS THE PORTAL → update to `Org.html` (capital). Remove any mention of OrgCheckin.html as the legacy file since it no longer exists.
 
-D.4 — Final smoke checklist (Captain runs, not Mr. Data): hard-refresh `irlid.co.uk/Org.html`; walk the 10 acceptance criteria from `CALENDAR-SPEC §8` on real hardware.
+D.4 — Search `roadmap.html` for portal URL references and update to `Org.html` similarly.
+
+D.5 — Update `sw.js`: bump `CACHE_VERSION` to next integer. Remove `OrgCheckin.html` from precache list. Confirm `Org.html` is present in precache (it should be from PR-C). The new portal precaches; the deleted legacy URL doesn't.
+
+D.6 — Optionally retire `websiteScrapeBtn` per Captain's call.
+
+D.7 — Final smoke checklist (Captain runs, not Mr. Data): hard-refresh `irlid.co.uk/Org.html` (still works); hard-refresh `irlid.co.uk/OrgCheckin.html` (now 404 — confirm retirement); hard-refresh `irlid.co.uk/org.html` lowercase (now redirects to capital `Org.html`, confirm graceful redirect works); walk the 10 acceptance criteria from `CALENDAR-SPEC §8` on real hardware against `Org.html`.
+
+D.8 — Self-verify before opening PR:
+- [ ] `OrgCheckin.html` is git-removed (not just emptied — fully deleted)
+- [ ] `OrgCheckinTest.html` is NOT modified
+- [ ] `org.html` lowercase shim's `<meta refresh>` points at `Org.html` capital
+- [ ] `sw.js` CACHE_VERSION bumped + OrgCheckin.html removed from precache
+- [ ] README + roadmap URL references point at `Org.html` capital
+- [ ] No other files touched outside the list above
 
 ---
 
@@ -255,8 +275,8 @@ Per `CALENDAR-SPEC §8`. Verify on real hardware after all four PRs merge + Work
 6. CSV Export → Import round-trips losslessly including expected rosters.
 7. Room vocab change renames PRESET_VOCAB+number rooms in lockstep.
 8. Sticky tabs work on scroll.
-9. No regression on v5.10.7 doorman / dashboard / sign-in.
-10. Build pill reads `v5.11.0` on `Org.html`; still reads `v5.10.7` on `OrgCheckin.html` (which is untouched).
+9. No regression on v5.10.7 doorman / dashboard / sign-in flows now served via `Org.html`.
+10. Build pill reads `v5.11.0` on `Org.html`. After PR-D: `OrgCheckin.html` returns 404 (retired); `org.html` lowercase redirects to `Org.html` capital (graceful lowercase support).
 
 ---
 
