@@ -300,7 +300,9 @@
               if (returnRaw) diag("Return URL rejected by allowlist: " + returnRaw);
               setStatus("pass", "Signed in. Returning to dashboard...");
               setBtn("Returning...", true);
-              const dashboardUrl = new URL("OrgCheckin.html", location.href).href;
+              // v5.11.0 — retargeted from OrgCheckin.html (retired 25 May 2026)
+              // to Org.html (canonical v5.11 dashboard).
+              const dashboardUrl = new URL("Org.html", location.href).href;
               diag("No return URL set; defaulting to " + dashboardUrl);
               setTimeout(function () { location.href = dashboardUrl; }, 600);
             }

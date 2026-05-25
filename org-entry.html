@@ -627,7 +627,9 @@
     if (!nonce) throw new Error("No nonce returned from /org/login/init");
     try { localStorage.setItem('irlid_pending_login_nonce', nonce); } catch (_) {}
     try { localStorage.setItem('irlid_pending_login_worker', API_BASE); } catch (_) {}
-    const dashboardReturn = "https://irlid.co.uk/OrgCheckin.html";
+    // v5.11.0 — retargeted from OrgCheckin.html (retired 25 May 2026)
+    // to Org.html (canonical v5.11 dashboard).
+    const dashboardReturn = "https://irlid.co.uk/Org.html";
     const orgLoginUrl = "https://irlid.co.uk/org-login.html"
       + "?nonce=" + encodeURIComponent(nonce)
       + "&worker=" + encodeURIComponent(API_BASE)

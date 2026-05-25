@@ -63,15 +63,17 @@
     // membership-tier check (Captain's "raised eyebrow" placeholder design).
     // The "members" pill marks it visually as a gated feature so users without
     // a membership level know it's not the default account surface. Until the
-    // membership system lands, the OrgCheckin.html page itself gates entry via
+    // membership system lands, the Org.html page itself gates entry via
     // Bearer token — non-org users will see "no orgs" rather than getting in.
+    // v5.11.0 — link target updated from OrgCheckin.html (retired 25 May 2026)
+    // to Org.html (canonical v5.11 dashboard).
     slot.innerHTML =
       '<details class="nav-dropdown" id="accountDropdown">' +
         '<summary class="nav-btn">' + displayName + ' ▼</summary>' +
         '<div class="dropdown-menu" role="menu" aria-label="Account menu">' +
           '<a href="receipt.html">Receipts</a>' +
           '<a href="account.html">Account</a>' +
-          '<a href="OrgCheckin.html" data-members-only="true">Organization <span style="font-size:10px;background:var(--accent,#58a6ff);color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;">members</span></a>' +
+          '<a href="Org.html" data-members-only="true">Organization <span style="font-size:10px;background:var(--accent,#58a6ff);color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;">members</span></a>' +
           '<a href="settings.html">Settings</a>' +
           '<a href="#" id="acctLogoutLink">Logout</a>' +
         '</div>' +
