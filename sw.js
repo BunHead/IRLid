@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v18'; // v5.11.0 PR-D — OrgCheckin.html + lowercase org.html retired; precache trimmed
+const CACHE_VERSION = 'irlid-shell-v19'; // v5.11.0f — Org.html expectedDisplayName fix (display_name fallback; v5.11.0e already used by Mr. Data PR #43 lowercase shim)
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
