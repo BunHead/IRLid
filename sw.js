@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v22'; // v5.11.0l — Strip vestigial role-assignment controls; expected creates are attendee-only
+const CACHE_VERSION = 'irlid-shell-v23'; // v5.11.0m — Visual Theming save wire-up + per-tab status badges
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
