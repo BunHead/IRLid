@@ -10212,14 +10212,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <p>Paste your organisation's public website and we'll suggest primary colour, accent, logo, and brand text from the site's metadata. Placeholder — implementation in progress.</p>
             </div>
             <div class="qr-tools-body">
-              <label class="settings-field">
-                <span>Source website URL</span>
-                <input type="url" id="websiteScrapeUrl" placeholder="https://www.yourdomain.com" disabled />
-              </label>
-              <div class="settings-actions">
-                <button class="btn btn-secondary" type="button" id="websiteScrapeBtn" disabled>Import suggested theme (coming soon)</button>
-              </div>
-              <div class="small-note">When this lands, it pulls colour palette, logo, and welcome text from the public site. You'll review every suggestion before any of it is saved — nothing applies without your confirmation.</div>
+              <div class="small-note">Theme-from-website import: deferred to v5.13+. When it lands, it'll pull colour palette, logo, and welcome text from your public site and show every suggestion for review before any of it saves.</div>
             </div>
           </div>
 
@@ -10982,7 +10975,12 @@ function setSignedInUI(isSignedIn) {
   document.getElementById('navDashboard').classList.toggle('hidden', !isSignedIn);
   document.getElementById('navCheckin').classList.toggle('hidden', !isSignedIn);
   document.getElementById('refreshBtn').disabled = !isSignedIn;
-  document.getElementById('csvBtn').disabled = !isSignedIn;
+  // v5.11.0b — null-guard csvBtn. The unified id="csvBtn" element was retired in
+  // favour of separate csvDownloadBtn/csvUploadBtn during the orphan-button sweep
+  // but this setter survived the strip. Guard rather than remove in case a future
+  // patch re-introduces a unified CSV button.
+  const csvBtn = document.getElementById('csvBtn');
+  if (csvBtn) csvBtn.disabled = !isSignedIn;
   const csvRoleFilter = document.getElementById('csvRoleFilter');
   if (csvRoleFilter) csvRoleFilter.disabled = !isSignedIn;
   document.getElementById('signOutBtn').disabled = !isSignedIn;
@@ -11211,17 +11209,12 @@ async function handleQrLoginSuccess(data) {
   // legacy Staff HELLO redundant for developers).
   document.body.classList.toggle('developer-bearer-active', !!data.is_developer);
 
-  // Batch C tidy 2 — prototype role switcher defaults to the user's actual
-  // active role. Developer users see the Developer view by default (was
-  // hardcoded to lead_admin); lead_admins see Lead Admin; etc. Captain spotted
-  // this on first sign-in: defaulted to Lead Admin even though he's developer.
-  // The prototype switcher remains as-is for testing other-role views.
-  if (data.is_developer) {
-    if (roleSelect) {
-      roleSelect.value = 'developer';
-      if (typeof setPrototypeRole === 'function') setPrototypeRole('developer');
-    }
-  }
+  // v5.11.0b — prototype-role default-select block removed. The prototype role
+  // switcher itself was stripped in PR-C (real role now comes from the Worker
+  // session); this block's reference to `roleSelect` threw ReferenceError on
+  // every sign-in success, halting handleQrLoginSuccess before the UI
+  // transition completed (QR panel never hid, dashboard never showed). The
+  // server-side sign-in worked correctly; only the frontend UI swap was stuck.
 
   const status = document.getElementById('qrLoginStatus');
   const orgs = Array.isArray(data.orgs) ? data.orgs : [];
