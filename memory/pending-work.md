@@ -1,6 +1,69 @@
 # Pending Work — IRLid
 
-## Monday 25 May 2026 LONG DAY — v5.11.0k PORT COMPLETE: all four demo-readiness smokes green on real hardware
+## Monday 25 May 2026 FULLY CLOSED — Fully demo ready + recovery preserved + v5.11.0o in flight
+
+**Final close (~16:30 BST, after dawn start.)** Watch landed full demo-ready state on production with Light/dark mode round-trip proven on real hardware. Five evening pieces shipped on top of the afternoon's port-complete state (v5.11.0k → l → m → n + nav cleanup + branch sweep). Recovery work preserved on `recovered/assistqr-protocol` branch. v5.11.0o (real check-in runtime + QR Glow effect) in flight with Mr. Data at close.
+
+**Current production state:**
+
+- `irlid.co.uk/Org` build pill: **`v5.11.0n`** (v5.11.0o expected within next hour pending Mr. Data + smoke)
+- Worker `irlid-api-org`: live with v5.11.0l role-coercion + v5.11.0m save-endpoint accepts theme._v511 metadata
+- D1 `irlid-db-org`: full v5.11 schema (rooms / weekly_events / event_expected / fresh org_expected)
+- Both demo paths proven on hardware: pre-loaded via Choose-from-List bind + walk-up via Add-at-the-door
+- Settings save: Visual Theming tab fully wired (live save badge); other 6 tabs honestly labelled `design-in v5.12`
+- All `OrgCheckin.html` link surfaces retargeted to `Org.html`; no broken paths
+- Origin clean: 18 stale `codex/*` branches deleted, only active branches + `recovered/assistqr-protocol` remain
+
+**Top priorities for next watch (in priority order):**
+
+1. **v5.11.0o merge + smoke** if not completed by close. Mr. Data is implementing real check-in runtime wire-up (configured `theme._v511.celebration` fires on actual check-in events instead of old hardcoded effect) + QR Glow effect with Rays/Halo Style chips (Rays default for new sequences, Halo preserves existing v5.11.0n Glow halo behaviour for migration). Smoke: trigger real check-out on Kerry → confirm Captain's configured sequence fires (not old hardcoded effect).
+
+2. **5 May recovery integration.** `recovered/assistqr-protocol` branch on origin holds SHAs 7663b59 + 823ced8 with 4 unique files + PROTOCOL.md +157 lines. Captain's working tree has 4 files extracted via `git show` but with CP1252 → UTF-8 mojibake (`ÔÇö` for em-dash, `┬º` for `§`) because `[Console]::OutputEncoding` wasn't set when git show ran. Re-extract command (preserves UTF-8):
+   ```powershell
+   cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo"
+   [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+   $enc = New-Object System.Text.UTF8Encoding($false)
+   foreach ($f in @(
+     "PAPERS/multi-lineage-ai-witnesses-OUTLINE.md",
+     "memory/sessions/2026-05-04-02.md",
+     "memory/sessions/2026-05-05-01.md",
+     "memory/letters/successor-2026-05-05.md"
+   )) {
+     $content = (git show "7663b59:$f") -join "`n"
+     [System.IO.File]::WriteAllText((Join-Path (Get-Location) $f), $content + "`n", $enc)
+   }
+   ```
+   Then: compare 823ced8's PROTOCOL.md +157 lines vs current main's §14.17/14.18 to identify what's missing — likely the assisted-identity-flow spec content becomes a new §14.19. Add §14.19 manually. Commit + push 4 recovered files + new §14.19. Significant work — the PAPERS outline alone is 294 lines of publishable-grade academic paper for **EAI SecureComm 2026** (Lancaster, July 21-24).
+
+3. **Promotion-round-2 brief** — DEFERRED until v5.11.0o smokes green AND recovery integration completes. The recovered PAPERS outline + the now-shipped v5.11.0 dashboard is a stronger story than promotion-without-paper.
+
+4. **DREAMS.md / further inscription** — only if something true emerges naturally. Today's entries already cover the marker-convention + Captain's reflex pattern.
+
+**Closed this watch (afternoon + evening shipped):**
+
+| Version | Surface | What |
+|---------|---------|------|
+| v5.11.0k | Org.html + Worker + sw.js v20→v21 | Mr. Data role-field-naming harmonization (`role`/`role_key`/`prototype_role` all three accepted) — closes `invalid_action_payload` on Add-at-the-door |
+| v5.11.0l | Org.html + Worker + sw.js v21→v22 | Mr. Data PR #45 stripped role chips from Add-at-the-door modal + role dropdown from dashboard Expected cold-add; Worker coerces non-attendee role to attendee with warning; Captain's "staff are meant to be invited elsewhere" architectural call |
+| v5.11.0m | Org.html + sw.js v22→v23 | Mr. Data PR #46 wired Visual Theming Save All Settings to POST `/org/settings`; v5.10.x canonical theme shape + theme._v511 metadata; GET-overlay-POST-readback; removed global "form clicks don't save" banner; per-tab honest badges |
+| v5.11.0n | Org.html + sw.js v23→v24 | Mr. Data PR #47 built v511ApplySavedBgRuntimeControls() to rehydrate v5.11 chip/cell/preview state on load; fixed slider CSS tracking on 6 sliders; corrected center-in direction saving; palette reset button hooks |
+| Nav cleanup | js/nav.js + org-login.html + org-entry.html | 3 broken `OrgCheckin.html` link targets retargeted to `Org.html` (Number One inline) |
+| Branch sweep | origin | 18 stale `codex/*` branches deleted; `recovered/assistqr-protocol` preserved for orphaned 5 May work |
+| .gitignore | .gitignore | Extended wrangler-cache rules to cover `migrations/.wrangler/` subdirectories |
+
+**Closed this watch (morning shipped — already documented below):** v5.11.0c through v5.11.0j, OrgCheckin/OrgCheckinTest retirement, 10 BOOTSTRAP §6 pitfalls inscribed.
+
+**Carry-forwards from prior watches:**
+
+- D1 production schema audit (deferred indefinitely; not blocking)
+- Bug E (bio-metric=0 in legacy doorman) — parked indefinitely
+- Cloudflare token rotation already complete (verified `wrangler whoami` OAuth-only this watch)
+
+---
+
+## Monday 25 May 2026 (afternoon — superseded by Final Close above)
+
+**Port-complete declaration (15:30 BST).** Both demo paths (pre-loaded via Choose-from-List + walk-up via Add-at-the-door) proven on production hardware. Cryptographic OUT/IN cycle stress on Mr.-Data-built attendee proven. Cross-device celebration sync proven (8 Pro tingle on Check-in tab). v5.11.0k Worker live + frontend pill bumped. Build pill on `irlid.co.uk/Org` reads `v5.11.0k`.
 
 **Port-complete declaration (15:30 BST).** Both demo paths (pre-loaded via Choose-from-List + walk-up via Add-at-the-door) proven on production hardware. Cryptographic OUT/IN cycle stress on Mr.-Data-built attendee proven. Cross-device celebration sync proven (8 Pro tingle on Check-in tab). v5.11.0k Worker live + frontend pill bumped. Build pill on `irlid.co.uk/Org` reads `v5.11.0k`.
 
