@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v19'; // v5.11.0f — Org.html expectedDisplayName fix (display_name fallback; v5.11.0e already used by Mr. Data PR #43 lowercase shim)
+const CACHE_VERSION = 'irlid-shell-v20'; // v5.11.0j — bindEscalationExpected Number(id) → id fix for string-typed expected IDs
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

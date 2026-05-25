@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0h</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0j</span></div>
   </div>
 </div>
 
@@ -13526,7 +13526,12 @@ async function bindEscalationExpected(id) {
     setEscalationStatus('Approve on your device to bind...');
     const body = escalationBodyBase();
     const signed = await signActionPayload('irlid_bind_v5', currentOrg.id, {
-      expected_id: Number(id),
+      // v5.11.0j — was Number(id) which works for legacy numeric expected IDs
+      // but returns NaN for the v5.11 UUID-style string IDs (e.g. p_kerry-
+      // austin_SosAYRlx). Worker's payloadSchema does String(p.expected_id) ===
+      // String(id), so client must send the raw string. Captain spotted 25 May
+      // when 8 Pro tap-Bind on Kerry returned invalid_action_payload.
+      expected_id: id,
       new_device_key_fp: body.pub_fp || body.device_pub_fp
     });
     body.signed_action = signed;
@@ -13563,7 +13568,12 @@ async function bindAdditionalEscalationExpected(id) {
     setEscalationStatus('Approve on your device to add this key...');
     const body = escalationBodyBase();
     const signed = await signActionPayload('irlid_bind_v5', currentOrg.id, {
-      expected_id: Number(id),
+      // v5.11.0j — was Number(id) which works for legacy numeric expected IDs
+      // but returns NaN for the v5.11 UUID-style string IDs (e.g. p_kerry-
+      // austin_SosAYRlx). Worker's payloadSchema does String(p.expected_id) ===
+      // String(id), so client must send the raw string. Captain spotted 25 May
+      // when 8 Pro tap-Bind on Kerry returned invalid_action_payload.
+      expected_id: id,
       new_device_key_fp: body.pub_fp || body.device_pub_fp
     });
     body.signed_action = signed;
