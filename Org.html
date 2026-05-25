@@ -13605,7 +13605,7 @@ async function addEscalationAtDoor() {
   const firstName = (document.getElementById('escalationFirstName')?.value || '').trim();
   const surname = (document.getElementById('escalationSurname')?.value || '').trim();
   if (!firstName || !surname) return setEscalationStatus('Enter first name and surname.', 'error');
-  const role = doormanEscalationRole || 'attendee';
+  const role = roleKeyFromLabel(doormanEscalationRole || 'attendee');
   const base = escalationBodyBase();
   // v5.10.0 Phase 0 — per-action WebAuthn replaces Staff HELLO proof.
   // Biometric/PIN IS the confirmation; no fallback dance.
@@ -13615,9 +13615,11 @@ async function addEscalationAtDoor() {
       first_name: firstName,
       surname,
       role: role,
+      role_key: role,
+      prototype_role: role,
       new_device_key_fp: base.pub_fp || base.device_pub_fp
     });
-    const body = { ...base, first_name: firstName, surname, prototype_role: role, signed_action: signed };
+    const body = { ...base, first_name: firstName, surname, role, role_key: role, prototype_role: role, signed_action: signed };
     const result = await window.IRLidOrgApi.createAndBindExpected(
       currentOrg.api_key,
       body,

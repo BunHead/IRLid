@@ -3458,6 +3458,10 @@ async function orgExpectedCreateAndBind(request, env) {
   const computedFp = await deviceKeyFp(pubJwk);
   if (suppliedFp && suppliedFp !== computedFp) return err("device_pub_fp does not match device_pub_jwk", 422);
   const deviceFp = suppliedFp || computedFp;
+  const signedPrototypeRole = (payload) => {
+    const value = payload.prototype_role ?? payload.role_key ?? payload.role;
+    return value === undefined || value === null ? null : expectedMemberRole(value);
+  };
 
   // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof.
   // The signed envelope encodes the specific attendee being created and the
@@ -3470,7 +3474,7 @@ async function orgExpectedCreateAndBind(request, env) {
     minRole: "staff",
     payloadSchema: (p) => p.first_name === firstName
       && p.surname === surname
-      && p.role === prototypeRole
+      && signedPrototypeRole(p) === prototypeRole
       && p.new_device_key_fp === deviceFp,
     request
   });
