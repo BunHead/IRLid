@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0m</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0n</span></div>
   </div>
 </div>
 
@@ -5960,7 +5960,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     </div>
                     <div style="margin-top: 10px; display: flex; gap: 6px;">
                       <button type="button" class="v511-btn v511-btn-mini v511-palette-add">+ Add colour</button>
-                      <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
+                      <button type="button" class="v511-btn v511-btn-mini v511-palette-reset">Reset to defaults</button>
                     </div>
 
                     <!-- Tier 4.1.9 — 9-cell cycle direction grid. Each cell maps
@@ -6086,7 +6086,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
                 <div style="margin-top: 10px; display: flex; gap: 6px;">
                   <button type="button" class="v511-btn v511-btn-mini v511-palette-add">+ Add colour</button>
-                  <button type="button" class="v511-btn v511-btn-mini">Reset to defaults</button>
+                  <button type="button" class="v511-btn v511-btn-mini v511-palette-reset">Reset to defaults</button>
                 </div>
 
                 <div class="v511-sub" style="margin-top: 20px;">Celebration animation <span class="v511-hint-inline">(sequence-based — fires top-to-bottom on successful check-in)</span></div>
@@ -8147,6 +8147,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var el = document.querySelector(selector + '[aria-pressed="true"]');
             return el ? (el.getAttribute(attr) || fallback) : fallback;
           }
+          function v511ReadBgDirection() {
+            var cell = document.querySelector('.v511-cycle-dir-cell[aria-pressed="true"]');
+            if (!cell) return 'l';
+            var dir = cell.getAttribute('data-dir') || 'l';
+            if (dir === 'co' && cell.getAttribute('data-radial') === 'in') return 'ci';
+            return dir;
+          }
           function v511CelebrationFromSequence(sequence) {
             var effects = {};
             (sequence || []).forEach(function (item) { if (item && item.effect) effects[item.effect] = true; });
@@ -8201,7 +8208,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511UploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {})),
               v511BgImageData: imageData.orig ? imageData : (currentTheme && currentTheme.v511BgImageData) || null,
               v511BgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '0',
-              v511BgCycleDirection: v511PressedDataset('.v511-cycle-dir-cell', 'data-dir', 'l'),
+              v511BgCycleDirection: v511ReadBgDirection(),
               v511BgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
               v511BgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
             });
@@ -8219,6 +8226,68 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               wrap.innerHTML = '<input type="color" class="v511-palette-swatch" value="' + hex + '" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">&times;</button>';
               row.insertBefore(wrap, firstEmpty);
             });
+          }
+          function v511SetChipGroupValue(groupKey, matcher) {
+            var group = document.querySelector('.v511-chips[data-chip-group="' + groupKey + '"]');
+            if (!group) return;
+            group.querySelectorAll('.v511-chip').forEach(function (chip) {
+              chip.setAttribute('aria-pressed', matcher(chip) ? 'true' : 'false');
+            });
+          }
+          function v511SetBgDirection(dir) {
+            if (!sampleStage) return;
+            var safeDir = ['tl','t','tr','l','r','bl','b','br','co','ci'].indexOf(dir) !== -1 ? dir : 'l';
+            document.querySelectorAll('.v511-cycle-dir-cell').forEach(function (cell) {
+              var pressed = cell.getAttribute('data-dir') === safeDir || (safeDir === 'ci' && cell.getAttribute('data-dir') === 'co');
+              cell.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+              if (pressed && (safeDir === 'co' || safeDir === 'ci')) {
+                var radial = safeDir === 'ci' ? 'in' : 'out';
+                cell.setAttribute('data-radial', radial);
+                cell.textContent = radial === 'out' ? '⊙' : '⊕';
+                cell.setAttribute('aria-label', radial === 'out' ? 'Centre out (click again for centre in)' : 'Centre in (click again for centre out)');
+              }
+            });
+            sampleStage.classList.remove('bg-dir-tl', 'bg-dir-t', 'bg-dir-tr', 'bg-dir-l', 'bg-dir-r', 'bg-dir-bl', 'bg-dir-b', 'bg-dir-br', 'bg-dir-co', 'bg-dir-ci');
+            sampleStage.classList.add('bg-dir-' + safeDir);
+          }
+          function v511SetBgImagePosition(position) {
+            var safe = position || 'centre';
+            var posMode = safe === 'tile' ? 'tile' : (safe === 'cover' ? 'cover' : 'position');
+            v511SetChipGroupValue('bgPosMode', function (chip) {
+              return chip.textContent.trim().toLowerCase() === posMode;
+            });
+            var directional = posMode === 'position' ? safe : 'centre';
+            document.querySelectorAll('#v511BgPosGrid .v511-bg-pos-cell').forEach(function (cell) {
+              cell.setAttribute('aria-pressed', cell.getAttribute('data-pos') === directional ? 'true' : 'false');
+            });
+          }
+          function v511ApplySavedBgRuntimeControls(theme) {
+            if (!theme) return;
+            v511SetBgDirection(theme.v511BgCycleDirection || 'l');
+            v511SetChipGroupValue('bgBounce', function (chip) {
+              return (chip.getAttribute('data-bounce') || 'on') === (theme.v511BgBounce || 'on');
+            });
+            v511SetChipGroupValue('bgCycleTrans', function (chip) {
+              return (chip.getAttribute('data-trans') || 'fade') === (theme.v511BgTransition || 'fade');
+            });
+            v511SetChipGroupValue('bgAnchor', function (chip) {
+              return chip.textContent.trim().toLowerCase() === (theme.bgImageAnchor || 'centre');
+            });
+            v511SetChipGroupValue('bgSymmetry', function (chip) {
+              return chip.textContent.trim().toLowerCase() === (theme.bgImageSymmetryMode || 'off');
+            });
+            v511SetBgImagePosition(theme.bgImagePosition || 'centre');
+            var scale = document.getElementById('v511BgImageScale');
+            if (scale && theme.v511BgImageScale !== undefined) {
+              scale.value = theme.v511BgImageScale;
+              scale.dispatchEvent(new Event('input'));
+            }
+            if (sampleStage) {
+              sampleStage.classList.remove('bg-bounce-on', 'bg-bounce-off', 'bg-trans-fade', 'bg-trans-snap', 'bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
+              sampleStage.classList.add('bg-bounce-' + (theme.v511BgBounce || 'on'));
+              sampleStage.classList.add('bg-trans-' + (theme.v511BgTransition || 'fade'));
+              sampleStage.classList.add('bg-symmetry-' + (theme.bgImageSymmetryMode || 'off'));
+            }
           }
           function v511ApplyThemeToVisualMockup(theme) {
             if (!theme) return;
@@ -8244,6 +8313,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var patEnable = document.getElementById('v511BgPatternEnable');
             if (imgEnable) imgEnable.checked = theme.bgMode === 'image';
             if (patEnable) patEnable.checked = theme.bgMode === 'pattern';
+            v511ApplySavedBgRuntimeControls(theme);
             if (samplePicker && modeStates[currentMode]) {
               samplePicker.value = currentMode;
               loadMode(currentMode);
@@ -8255,6 +8325,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             applyBgPaletteToPreview();
             applyCelPaletteToPreview();
             applyImagePositioning();
+            v511BindRangeFills();
             v511RefreshWavFileLabel();
           }
           window.v511ApplyThemeToVisualMockup = v511ApplyThemeToVisualMockup;
@@ -8563,6 +8634,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             applyCelPaletteToPreview();
             if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
           });
+          document.addEventListener('click', function (e) {
+            var resetBtn = e.target.closest('.v511-palette-reset');
+            if (!resetBtn) return;
+            var row = resetBtn.closest('.v511-palette-row') || (resetBtn.parentElement && resetBtn.parentElement.previousElementSibling);
+            if (!row || !row.classList.contains('v511-palette-row')) return;
+            var defaults = row.classList.contains('v511-bg-palette-row')
+              ? ['#dc143c', '#8b0000', '#ff6b6b', '#ffb347']
+              : ['#58a6ff', '#c0dd97', '#fac775', '#f09595', '#af9aec'];
+            var selector = row.classList.contains('v511-bg-palette-row') ? '.v511-bg-palette-row' : '.v511-cel-palette-row';
+            v511ApplyPaletteToRow(selector, defaults);
+            applyBgPaletteToPreview();
+            applyCelPaletteToPreview();
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          });
 
           // Double-click anywhere on preview stage → fullscreen (Esc to exit)
           // Tier 4.3.21 — Single click while fullscreen → fire Sample for the
@@ -8808,7 +8893,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // Bind every v5.11 range slider to live-paint its fill.
           function v511BindRangeFills() {
-            document.querySelectorAll('.v511-anim-row input[type=range]').forEach(function (input) {
+            document.querySelectorAll('.v511-anim-row input[type=range], .v511-cel-slider').forEach(function (input) {
               v511UpdateRangeFill(input);
               if (!input._v511FillBound) {
                 input.addEventListener('input', function () { v511UpdateRangeFill(input); });
@@ -9352,6 +9437,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 sliderWrap.appendChild(slider);
                 sliderWrap.appendChild(valLabel);
                 row.appendChild(sliderWrap);
+                if (typeof v511UpdateRangeFill === 'function') v511UpdateRangeFill(slider);
               } else {
                 var chips = document.createElement('div');
                 chips.className = 'v511-chips v511-chips-wrap';
@@ -9413,6 +9499,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               item.settings[key] = val;
               var label = slider.parentElement && slider.parentElement.querySelector('.v511-cel-slider-value');
               if (label) label.textContent = val;
+              if (typeof v511UpdateRangeFill === 'function') v511UpdateRangeFill(slider);
               if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
               // T4.3.34 — Live-update anchor crosshairs when offset sliders move
               try { v511UpdateAnchorCrosshairs(); } catch (e) {}
