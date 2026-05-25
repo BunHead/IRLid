@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0l</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0m</span></div>
   </div>
 </div>
 
@@ -3630,6 +3630,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-head h3 { font-size: 15px; margin: 0; flex: 1; }
         .v511-badge { font-size: 10.5px; padding: 2px 8px; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .v511-badge-backed { background: rgba(99, 153, 34, 0.2); color: #c0dd97; }
+        .v511-badge-live { background: rgba(99, 153, 34, 0.2); color: #c0dd97; }
+        .v511-badge-pending { background: rgba(204, 153, 51, 0.2); color: #e0c277; }
         .v511-badge-in-design { background: rgba(186, 117, 23, 0.2); color: #fac775; }
         .v511-badge-dev { background: rgba(255,255,255,0.08); color: var(--muted); }
         /* T4.3.47a — Light-mode badge contrast. The dark-mode colours (#c0dd97 / #fac775)
@@ -3637,6 +3639,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            surfaces. Light-mode overrides use deeper saturated colours to keep text
            readable. */
         :root[data-theme="light"] .v511-badge-backed { background: rgba(99, 153, 34, 0.18); color: #2f5d10; }
+        :root[data-theme="light"] .v511-badge-live { background: rgba(99, 153, 34, 0.18); color: #2f5d10; }
+        :root[data-theme="light"] .v511-badge-pending { background: rgba(204, 153, 51, 0.18); color: #6b4f10; }
         :root[data-theme="light"] .v511-badge-in-design { background: rgba(186, 117, 23, 0.18); color: #6d4506; }
         :root[data-theme="light"] .v511-badge-dev    { background: rgba(0, 0, 0, 0.06); color: #555; }
         .v511-sub { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: var(--text); }
@@ -4277,7 +4281,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           pointer-events: none;
         }
         .v511-saved-pulse.is-pulsing { opacity: 1; transform: translateY(0); }
+        .v511-saved-pulse.is-error { opacity: 1; transform: translateY(0); background: rgba(226, 75, 74, 0.16); color: #f09595; border-color: rgba(226, 75, 74, 0.42); }
         :root[data-theme="light"] .v511-saved-pulse { background: rgba(99, 153, 34, 0.18); color: #2f5d10; border-color: rgba(99, 153, 34, 0.55); }
+        :root[data-theme="light"] .v511-saved-pulse.is-error { background: rgba(207, 34, 46, 0.12); color: #a40e26; border-color: rgba(207, 34, 46, 0.35); }
         /* v5.11 theme preview at top of Visual theming tab */
         .v511-theme-preview-stage.firing-allow { animation: v511PreviewAllow 1.4s ease-out; }
         .v511-theme-preview-stage.firing-review { animation: v511PreviewReview 1.4s ease-out; }
@@ -5395,7 +5401,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 1: ORGANISATION ===== -->
         <section class="v511-panel active" data-v511-panel="org">
-          <div class="v511-head"><h3>Organisation</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Organisation</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <!-- Branded masthead — captain's directive: tab opens with the org's identity at the top, not a form row -->
           <div class="v511-masthead">
@@ -5439,7 +5445,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 2: EVENT &amp; CALENDAR ===== -->
         <section class="v511-panel" data-v511-panel="cal">
-          <div class="v511-head"><h3>Event &amp; Calendar</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Event &amp; Calendar</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <div class="v511-cal-toolbar">
             <div class="v511-week-nav" aria-label="Week navigation">
@@ -5828,7 +5834,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 3: ROLES &amp; STAFF ===== -->
         <section class="v511-panel" data-v511-panel="roles">
-          <div class="v511-head"><h3>Staff &amp; Rooms</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Staff &amp; Rooms</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
           <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
@@ -5887,7 +5893,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 4: VISUAL THEMING ===== -->
         <section class="v511-panel" data-v511-panel="theme" data-mode="allow">
-          <div class="v511-head"><h3>Visual Theming</h3><span class="v511-badge v511-badge-backed">backed</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span> <span class="v511-saved-pulse" id="v511SavedPulse" aria-live="polite">&#10003; Saved</span></div>
+          <div class="v511-head"><h3>Visual Theming</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-live">live save</span> <span class="v511-mode-badge" id="v511ModeBadge">EDITING: ALLOW</span> <span class="v511-saved-pulse" id="v511SavedPulse" aria-live="polite">&#10003; Saved</span></div>
 
           <!-- Theme preview at top — full-width, fullscreen-aspect.
                Tier 4.1.1: mode tint moved off the preview; the preview now shows
@@ -6210,7 +6216,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 5: SIGN-IN &amp; AUTH ===== -->
         <section class="v511-panel" data-v511-panel="auth">
-          <div class="v511-head"><h3>Sign-in &amp; Auth</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Sign-in &amp; Auth</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <div class="v511-row"><label for="v511AuthQrSignin">QR sign-in</label><div><input type="checkbox" id="v511AuthQrSignin" checked style="vertical-align: middle;" /> <span class="v511-hint">Enable WebAuthn QR-scan login (recommended)</span></div></div>
           <div class="v511-row"><label for="v511AuthSameDevice">Same-device sign-in</label><div><input type="checkbox" id="v511AuthSameDevice" checked style="vertical-align: middle;" /> <span class="v511-hint">Show "Sign in on this device" button (v5.10.6)</span></div></div>
@@ -6237,7 +6243,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 6: TOOLS &amp; DIAGNOSTICS ===== -->
         <section class="v511-panel" data-v511-panel="tools">
-          <div class="v511-head"><h3>Tools &amp; Diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
+          <div class="v511-head"><h3>Tools &amp; Diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <div class="v511-sub">Audit log <span class="v511-hint-inline">(the daily launcher — see what changed and when)</span></div>
           <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
@@ -6263,7 +6269,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 7: RECORDS &amp; ID ===== -->
         <section class="v511-panel" data-v511-panel="records">
-          <div class="v511-head"><h3>Records &amp; ID</h3><span class="v511-badge v511-badge-in-design">IN-DESIGN</span></div>
+          <div class="v511-head"><h3>Records &amp; ID</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
           <div class="alert alert-info" style="font-size:12px; margin:8px 0 12px;">Records &amp; ID is design-in only this release. Backend storage broker arrives in v5.13+ &mdash; see PROTOCOL.md.</div>
 
 <!-- T4.3.29 — Records & ID condensed with expander pattern.
@@ -6330,8 +6336,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
 
-        <!-- v5.11 mockup notice — moved to bottom of mockup panel per Captain (won't be in final ship; was throwing off preview-frame sizing at the top) -->
-        <div class="v511-banner" style="margin-top: 18px; margin-bottom: 0;"><strong>v5.11 calendar</strong> — visual prototype only. Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath (hidden) so the test fork stays functional for cycle smoke-tests.</div>
       </div>
 
       <script>
@@ -8120,19 +8124,185 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           }
 
-          // ---- Save All Settings: flash confirm + re-apply current state to preview ----
+          function v511SetVisualSaveStatus(message, kind) {
+            var pulse = document.getElementById('v511SavedPulse');
+            if (!pulse) return;
+            pulse.textContent = message || '\u2713 Saved';
+            pulse.classList.toggle('is-error', kind === 'error');
+            if (kind === 'error') return;
+            pulse.classList.add('is-pulsing');
+            setTimeout(function () { pulse.classList.remove('is-pulsing'); }, 1200);
+          }
+          function v511HexListFromRow(selector) {
+            return Array.prototype.slice.call(document.querySelectorAll(selector + ' .v511-palette-swatch-wrap input[type="color"]'))
+              .map(function (input) { return (input.value || '').toUpperCase(); })
+              .filter(function (hex) { return /^#[0-9A-F]{6}$/.test(hex); })
+              .slice(0, 7);
+          }
+          function v511PressedText(groupKey, fallback) {
+            var chip = document.querySelector('.v511-chips[data-chip-group="' + groupKey + '"] .v511-chip[aria-pressed="true"]');
+            return chip ? chip.textContent.trim().toLowerCase().replace(/\s+.*$/, '') : fallback;
+          }
+          function v511PressedDataset(selector, attr, fallback) {
+            var el = document.querySelector(selector + '[aria-pressed="true"]');
+            return el ? (el.getAttribute(attr) || fallback) : fallback;
+          }
+          function v511CelebrationFromSequence(sequence) {
+            var effects = {};
+            (sequence || []).forEach(function (item) { if (item && item.effect) effects[item.effect] = true; });
+            return {
+              pulse: { enabled: !!(effects.pulse || effects.heartbeat), colourSource: 'cycle', intensity: 'strong' },
+              bg: { enabled: !!(effects.bg || effects['vignette-flash'] || effects['cam-flash']), sweep: 'once' },
+              qr: { enabled: !!(effects.qr || effects['qr-disappear'] || effects.shake || effects['scale-punch']), motion: effects['qr-disappear'] ? 'dissolve-horz' : 'wobble' },
+              glow: { enabled: !!(effects.glow || effects['outer-glow'] || effects.spotlight || effects['lens-flare']), thickness: 'medium', sweep: 'outward', centrePulse: 'on', saturation: 'vivid' },
+              pattern: { enabled: !!effects.pattern, pattern: 'dots' },
+              text: { enabled: !!effects.text }
+            };
+          }
+          function v511BuildThemePayload(currentTheme) {
+            var base = (typeof normalizeThemeForSave === 'function') ? normalizeThemeForSave(currentTheme || activeTheme || {}) : (currentTheme || {});
+            snapshotMode(currentMode);
+            var activeState = modeStates[currentMode] || modeStates.allow || {};
+            var bgPalette = v511HexListFromRow('.v511-bg-palette-row');
+            var celPalette = v511HexListFromRow('.v511-cel-palette-row');
+            var imageData = window._v511ImageData || {};
+            var bgImageUrl = imageData.orig || base.bgImageUrl || null;
+            var imageEnabled = !!(document.getElementById('v511BgImageEnable') || {}).checked;
+            var patternEnabled = !!(document.getElementById('v511BgPatternEnable') || {}).checked;
+            var bgMode = imageEnabled && bgImageUrl ? 'image' : (patternEnabled ? 'pattern' : 'page');
+            var posMode = v511PressedText('bgPosMode', 'position');
+            var bgImagePosition = posMode === 'tile' ? 'tile' : (posMode === 'cover' ? 'cover' : v511PressedDataset('#v511BgPosGrid .v511-bg-pos-cell', 'data-pos', 'centre'));
+            var darkModeVal = (document.getElementById('v511LightDarkMode') || {}).value || 'auto';
+            var sequence = Array.isArray(activeState.sequence) ? activeState.sequence : [];
+            var bgDur = parseFloat((document.getElementById('v511BgDuration') || {}).value);
+            var celDur = parseFloat(activeState.v511CelDuration || (document.getElementById('v511CelDuration') || {}).value);
+            return Object.assign({}, base, {
+              primary: bgPalette[0] || base.primary || '#3FB950',
+              accent: celPalette[0] || base.accent || '#58A6FF',
+              qrFg: ((document.getElementById('v511QrFg') || {}).value || base.qrFg || '#000000').toUpperCase(),
+              palette: celPalette.length ? celPalette : base.palette,
+              bgPalette: bgPalette.length ? bgPalette : base.bgPalette,
+              darkMode: darkModeVal === 'auto' ? 'auto' : darkModeVal === 'dark',
+              bgMode: bgMode,
+              bgIntensity: base.bgIntensity || 'muted',
+              bgPattern: (document.getElementById('v511BgPattern') || {}).value || base.bgPattern || 'dots',
+              bgImageUrl: bgImageUrl,
+              bgImagePosition: bgImagePosition,
+              bgImageAnchor: v511PressedText('bgAnchor', base.bgImageAnchor || 'outer'),
+              bgImageSymmetryMode: v511PressedText('bgSymmetry', base.bgImageSymmetryMode || 'off'),
+              bgImageAlphaCycle: base.bgImageAlphaCycle === true,
+              cycleMode: sequence.length ? 'glow' : 'off',
+              bgAnimDuration: Number.isFinite(bgDur) ? bgDur : (base.bgAnimDuration || 30),
+              cycleAnimDuration: Number.isFinite(celDur) ? celDur : (base.cycleAnimDuration || 1.4),
+              celebration: v511CelebrationFromSequence(sequence),
+              v511ActiveMode: currentMode,
+              v511ModeStates: JSON.parse(JSON.stringify(modeStates)),
+              v511UploadedWavs: JSON.parse(JSON.stringify(uploadedWavs || {})),
+              v511UploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {})),
+              v511BgImageData: imageData.orig ? imageData : (currentTheme && currentTheme.v511BgImageData) || null,
+              v511BgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '0',
+              v511BgCycleDirection: v511PressedDataset('.v511-cycle-dir-cell', 'data-dir', 'l'),
+              v511BgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
+              v511BgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
+            });
+          }
+          function v511ApplyPaletteToRow(selector, colors) {
+            if (!Array.isArray(colors) || !colors.length) return;
+            var row = document.querySelector(selector);
+            if (!row) return;
+            row.querySelectorAll('.v511-palette-swatch-wrap').forEach(function (wrap) { wrap.remove(); });
+            var firstEmpty = row.querySelector('.v511-palette-swatch.empty');
+            colors.slice(0, 7).forEach(function (hex) {
+              if (!/^#[0-9A-Fa-f]{6}$/.test(hex || '')) return;
+              var wrap = document.createElement('div');
+              wrap.className = 'v511-palette-swatch-wrap';
+              wrap.innerHTML = '<input type="color" class="v511-palette-swatch" value="' + hex + '" title="Pick colour" /><button type="button" class="v511-palette-swatch-remove" aria-label="Remove colour" title="Remove">&times;</button>';
+              row.insertBefore(wrap, firstEmpty);
+            });
+          }
+          function v511ApplyThemeToVisualMockup(theme) {
+            if (!theme) return;
+            v511ApplyPaletteToRow('.v511-bg-palette-row', Array.isArray(theme.bgPalette) ? theme.bgPalette : []);
+            if (theme.v511ModeStates && typeof theme.v511ModeStates === 'object') {
+              modeStates = Object.assign(modeStates, theme.v511ModeStates);
+              if (theme.v511ActiveMode && modeStates[theme.v511ActiveMode]) currentMode = theme.v511ActiveMode;
+            } else if (Array.isArray(theme.palette) && modeStates.allow) {
+              modeStates.allow.celPalette = theme.palette.slice(0, 7);
+            }
+            if (theme.v511UploadedWavs && typeof theme.v511UploadedWavs === 'object') uploadedWavs = Object.assign(uploadedWavs, theme.v511UploadedWavs);
+            if (theme.v511UploadedWavNames && typeof theme.v511UploadedWavNames === 'object') uploadedWavNames = Object.assign(uploadedWavNames, theme.v511UploadedWavNames);
+            if (theme.v511BgImageData) window._v511ImageData = theme.v511BgImageData;
+            var lightDark = document.getElementById('v511LightDarkMode');
+            if (lightDark) lightDark.value = theme.darkMode === 'auto' ? 'auto' : (theme.darkMode ? 'dark' : 'light');
+            var qr = document.getElementById('v511QrFg');
+            if (qr && theme.qrFg) { qr.value = theme.qrFg; qr.dispatchEvent(new Event('input')); }
+            var bgPattern = document.getElementById('v511BgPattern');
+            if (bgPattern && theme.bgPattern) bgPattern.value = theme.bgPattern;
+            var bgDurEl = document.getElementById('v511BgDuration');
+            if (bgDurEl && theme.bgAnimDuration) { bgDurEl.value = theme.bgAnimDuration; bgDurEl.dispatchEvent(new Event('input')); }
+            var imgEnable = document.getElementById('v511BgImageEnable');
+            var patEnable = document.getElementById('v511BgPatternEnable');
+            if (imgEnable) imgEnable.checked = theme.bgMode === 'image';
+            if (patEnable) patEnable.checked = theme.bgMode === 'pattern';
+            if (samplePicker && modeStates[currentMode]) {
+              samplePicker.value = currentMode;
+              loadMode(currentMode);
+              applyModeCue(currentMode);
+              applyActiveMode(currentMode);
+            }
+            if (typeof v511ApplyImageVariants === 'function' && window._v511ImageData) v511ApplyImageVariants(window._v511ImageData);
+            applyBgState();
+            applyBgPaletteToPreview();
+            applyCelPaletteToPreview();
+            applyImagePositioning();
+            v511RefreshWavFileLabel();
+          }
+          window.v511ApplyThemeToVisualMockup = v511ApplyThemeToVisualMockup;
+          async function v511SaveVisualTheme() {
+            applyBgState();
+            if (bgDurSlider && sampleStage) sampleStage.style.setProperty('--bg-cycle-dur', bgDurSlider.value + 's');
+            if (celDurSlider && sampleStage) sampleStage.style.setProperty('--cel-cycle-dur', celDurSlider.value + 's');
+            if (!currentOrg || !currentOrg.api_key) { v511SetVisualSaveStatus('Sign in to save', 'error'); return; }
+            if (!window.IRLidOrgApi || typeof window.IRLidOrgApi.getOrgSettings !== 'function' || typeof window.IRLidOrgApi.updateOrgSettings !== 'function') {
+              v511SetVisualSaveStatus('Settings API missing', 'error');
+              return;
+            }
+            visualSaveBtn.disabled = true;
+            var originalText = visualSaveBtn.textContent;
+            visualSaveBtn.textContent = 'Saving...';
+            v511SetVisualSaveStatus('Saving...', '');
+            try {
+              var currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+              var currentSettings = (currentResp && currentResp.settings) || {};
+              var themePayload = v511BuildThemePayload(currentSettings.theme || {});
+              var payload = Object.assign({}, currentSettings, { theme: themePayload });
+              var resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
+              if (resp && resp.queued) { v511SetVisualSaveStatus('Queued offline', ''); return; }
+              var readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+              var readbackSettings = (readback && readback.settings) || {};
+              var lost = (typeof themeRoundTripMismatches === 'function') ? themeRoundTripMismatches(themePayload, readbackSettings.theme) : [];
+              if (lost.length) throw new Error('Did not round-trip: ' + lost.join(', '));
+              activeTheme = normalizeThemeForSave(readbackSettings.theme);
+              writeThemeToUI();
+              applyThemeVars(activeTheme);
+              v511ApplyThemeToVisualMockup(readbackSettings.theme || themePayload);
+              if (typeof saveCurrentOrgSnapshot === 'function') await saveCurrentOrgSnapshot('v511-visual-theme-save');
+              v511SetVisualSaveStatus('\u2713 Saved', '');
+              if (typeof showToast === 'function') showToast('\u2713 Visual theme saved');
+            } catch (err) {
+              console.error('[v5.11 visual theme save] failed', err);
+              v511SetVisualSaveStatus('Save failed: ' + (err && err.message ? err.message : 'unknown'), 'error');
+              if (typeof showToast === 'function') showToast('Visual theme save failed', true);
+            } finally {
+              visualSaveBtn.disabled = false;
+              visualSaveBtn.textContent = originalText;
+            }
+          }
+
+          // ---- Save All Settings: persist Visual Theming through /org/settings ----
           var visualSaveBtn = document.getElementById('v511VisualSaveBtn');
           if (visualSaveBtn) {
-            visualSaveBtn.addEventListener('click', function () {
-              applyBgState();
-              if (bgDurSlider && sampleStage) sampleStage.style.setProperty('--bg-cycle-dur', bgDurSlider.value + 's');
-              if (celDurSlider && sampleStage) sampleStage.style.setProperty('--cel-cycle-dur', celDurSlider.value + 's');
-              snapshotMode(currentMode); // capture current mode's state into modeStates
-              var orig = visualSaveBtn.textContent;
-              visualSaveBtn.textContent = '✓ Saved — preview updated';
-              visualSaveBtn.classList.add('is-saved');
-              setTimeout(function () { visualSaveBtn.textContent = orig; visualSaveBtn.classList.remove('is-saved'); }, 1800);
-            });
+            visualSaveBtn.addEventListener('click', v511SaveVisualTheme);
           }
 
           // ===========================================================
@@ -15897,6 +16067,7 @@ async function loadThemeFromServer() {
     activeTheme = normalizeThemeForSave(t);
     writeThemeToUI();
     applyThemeVars(activeTheme);
+    if (typeof window.v511ApplyThemeToVisualMockup === 'function') window.v511ApplyThemeToVisualMockup(t);
     await saveCurrentOrgSnapshot('theme-refresh');
   } catch (err) {
     const snap = await loadCurrentOrgSnapshot();
@@ -15904,6 +16075,7 @@ async function loadThemeFromServer() {
       activeTheme = normalizeThemeForSave(snap.theme);
       writeThemeToUI();
       applyThemeVars(activeTheme);
+      if (typeof window.v511ApplyThemeToVisualMockup === 'function') window.v511ApplyThemeToVisualMockup(snap.theme);
       updateSnapshotFreshnessLabel(snap.synced_at);
       return;
     }
