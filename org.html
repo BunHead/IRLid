@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0f</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0</span></div>
   </div>
 </div>
 
@@ -11847,16 +11847,11 @@ function renderExpectedAttendees() {
   root.innerHTML = rows.map(r => {
     const pill = r.linked ? '<span class="expected-pill ok">linked</span>' : '<span class="expected-pill warn">assist</span>';
     const meta = `${r.paid ? 'paid' : 'unpaid'} · ${r.subscription ? 'subscriber' : 'no sub'}`;
-    return `<div class="expected-item"><div><div>${escapeHtml(expectedNameForViewer(r, viewingAs))}</div><div class="expected-meta">${meta}</div></div>${pill}</div>`;
+    return `<div class="expected-item"><div><div>${escapeHtml(nameForViewer(r.name, viewingAs) || 'Unnamed attendee')}</div><div class="expected-meta">${meta}</div></div>${pill}</div>`;
   }).join('');
 }
 function expectedDisplayName(row) {
-  // v5.11.0f — Worker returns `display_name` from org_expected (per EXPECTED_SELECT
-  // in irlid-api-org), not `name`. Adding display_name to the fallback chain fixes
-  // the "every Expected row renders as Unnamed" bug that surfaced 25 May 2026 once
-  // /org/attendance had no checkins yet — every Expected row resolved to the
-  // 'Unnamed attendee' fallback because Worker JSON has no `name` field on org_expected.
-  return `${row.first_name || ''} ${row.surname || ''}`.trim() || row.display_name || row.name || 'Unnamed attendee';
+  return `${row.first_name || ''} ${row.surname || ''}`.trim() || row.name || 'Unnamed attendee';
 }
 function initialsForName(fullName) {
   const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
