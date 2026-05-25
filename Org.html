@@ -12144,8 +12144,14 @@ function aggregateAttendees(checkins) {
   });
   return Array.from(byAttendee.values()).sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
 }
+function dateFromStoredTimestamp(ts) {
+  const n = Number(ts);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return new Date(n > 100000000000 ? n : n * 1000);
+}
 function formatTimestamp(ts) {
-  return ts ? new Date(ts * 1000).toLocaleString(displayLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
+  const d = dateFromStoredTimestamp(ts);
+  return d ? d.toLocaleString(displayLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
 }
 function displayLocale() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -14052,8 +14058,8 @@ function exportCSV() {
   if (!exportRows.length) return showToast('No rows match that CSV filter', true);
   const rows = exportRows.map(r => [
     r.name ? nameForViewer(r.name, viewingAs) : (r.id || ''),
-    r.first_seen ? new Date(r.first_seen * 1000).toISOString() : '',
-    r.last_seen ? new Date(r.last_seen * 1000).toISOString() : '',
+    dateFromStoredTimestamp(r.first_seen)?.toISOString() || '',
+    dateFromStoredTimestamp(r.last_seen)?.toISOString() || '',
     r.scan_count || 0,
     window.roleLabel(attendanceRoleKey(r))
   ].map(csvEscape).join(','));
