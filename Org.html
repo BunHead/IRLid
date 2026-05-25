@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0k</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0l</span></div>
   </div>
 </div>
 
@@ -3570,7 +3570,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     </div>
                     <div class="expected-admin-actions">
                       <button class="btn btn-primary" type="button" id="expectedAddBtn">Add</button>
-                      <select id="expectedRoleSelect" class="expected-role-select" aria-label="Add as"></select>
                     </div>
                     <div class="expected-validation" id="expectedValidation"></div>
                   </div>
@@ -10303,7 +10302,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       <section class="escalation-section">
         <h4>Add at the door</h4>
         <p>Create a new entry with this device already bound.</p>
-        <div class="escalation-tabs" id="escalationRoleTabs"></div>
         <div class="escalation-add-fields">
           <label>First name<input id="escalationFirstName" type="text" autocomplete="given-name"></label>
           <label>Surname<input id="escalationSurname" type="text" autocomplete="family-name"></label>
@@ -10498,7 +10496,6 @@ let staffAuthExpiryTimer = null;
 let staffAuthExpiredMessage = '';
 let manualCheckinLoading = false;
 let doormanEscalationState = null;
-let doormanEscalationRole = 'attendee';
 
 function loadJson(key, fallback) { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch (e) { return fallback; } }
 function saveJson(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
@@ -11962,10 +11959,9 @@ function setExpectedValidation(message) {
 async function addExpectedAttendee() {
   const firstInput = document.getElementById('expectedFirstName');
   const surnameInput = document.getElementById('expectedSurname');
-  const roleInput = document.getElementById('expectedRoleSelect');
   const firstName = firstInput?.value.trim() || '';
   const surname = surnameInput?.value.trim() || '';
-  const requestedRole = roleInput?.value || 'attendee';
+  const requestedRole = 'attendee';
   if (!firstName || !surname) {
     setExpectedValidation('Please enter both first name and surname');
     return;
@@ -11974,7 +11970,7 @@ async function addExpectedAttendee() {
   const proof = await requireFreshStaffProof(`add ${roleLabelFor(requestedRole)}`);
   if (!proof) return;
   try {
-    const body = { first_name: firstName, surname, prototype_role: requestedRole };
+    const body = { first_name: firstName, surname };
     const payload = await window.IRLidOrgApi.createExpected(
       currentOrg.api_key,
       body,
@@ -13265,22 +13261,6 @@ async function processDashboardScan() {
     setDashboardScanStatus(err.message || 'Could not process scan.', 'error');
   }
 }
-function escalationRolesForActor() {
-  const rank = effectiveRoleRank();
-  const roles = ['attendee'];
-  if (rank >= PROTOTYPE_ROLE_RANK.manager) roles.push('staff');
-  if (rank >= PROTOTYPE_ROLE_RANK.lead_admin) roles.push('manager', 'lead_admin');
-  return roles;
-}
-function renderEscalationRoleTabs() {
-  const root = document.getElementById('escalationRoleTabs');
-  const addBtn = document.getElementById('escalationAddBtn');
-  if (!root) return;
-  const roles = escalationRolesForActor();
-  if (!roles.includes(doormanEscalationRole)) doormanEscalationRole = roles[0];
-  root.innerHTML = roles.map(role => `<button class="escalation-tab ${role === doormanEscalationRole ? 'active' : ''}" type="button" data-escalation-role="${escapeHtml(role)}">${escapeHtml(roleLabelFor(role))}</button>`).join('');
-  if (addBtn) addBtn.textContent = 'Add ' + roleLabelFor(doormanEscalationRole);
-}
 function escalationFpShort(fp) {
   return String(fp || '').trim().slice(0, 8) || 'unknown';
 }
@@ -13337,14 +13317,12 @@ function renderEscalationExpectedList() {
 }
 function openEscalationModal(env) {
   doormanEscalationState = { env, scannedAt: Date.now() };
-  doormanEscalationRole = escalationRolesForActor()[0] || 'attendee';
   document.getElementById('escalationFpShort').textContent = shortFingerprint(env.pub_fp);
   document.getElementById('escalationScannedAt').textContent = 'Scanned at ' + new Date(doormanEscalationState.scannedAt).toLocaleTimeString(displayLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   document.getElementById('escalationFirstName').value = '';
   document.getElementById('escalationSurname').value = '';
   document.getElementById('escalationSearchInput').value = '';
   setEscalationStatus('');
-  renderEscalationRoleTabs();
   renderEscalationExpectedList();
   document.getElementById('doormanEscalationDialog')?.classList.remove('hidden');
   setTimeout(() => document.getElementById('escalationSearchInput')?.focus(), 0);
@@ -13605,7 +13583,7 @@ async function addEscalationAtDoor() {
   const firstName = (document.getElementById('escalationFirstName')?.value || '').trim();
   const surname = (document.getElementById('escalationSurname')?.value || '').trim();
   if (!firstName || !surname) return setEscalationStatus('Enter first name and surname.', 'error');
-  const role = roleKeyFromLabel(doormanEscalationRole || 'attendee');
+  const role = 'attendee';
   const base = escalationBodyBase();
   // v5.10.0 Phase 0 — per-action WebAuthn replaces Staff HELLO proof.
   // Biometric/PIN IS the confirmation; no fallback dance.
@@ -13614,12 +13592,9 @@ async function addEscalationAtDoor() {
     const signed = await signActionPayload('irlid_create_bind_v5', currentOrg.id, {
       first_name: firstName,
       surname,
-      role: role,
-      role_key: role,
-      prototype_role: role,
       new_device_key_fp: base.pub_fp || base.device_pub_fp
     });
-    const body = { ...base, first_name: firstName, surname, role, role_key: role, prototype_role: role, signed_action: signed };
+    const body = { ...base, first_name: firstName, surname, signed_action: signed };
     const result = await window.IRLidOrgApi.createAndBindExpected(
       currentOrg.api_key,
       body,
@@ -14610,42 +14585,16 @@ function prototypeRoleDetailFor(role) {
     developer: `${label} can do everything ${lead} can, plus prototype-only diagnostics while the real ${lead} role stays clean.`
   }[role] || PROTOTYPE_ROLE_DETAILS.attendee;
 }
-// Batch C polish 5 — Developer role is bootstrap-only.
-// Captain's call (4 May 2026, late evening): "Developer being able to add
-// Developer kinda defeats a few points." Right read. The Developer role exists
-// to bootstrap the network and to mint Lead Admins; allowing it to be granted
-// through the dashboard collapses that into a recursive-trust hole (a Developer
-// can appoint a Developer can appoint a Developer...). New Developers should
-// only come via BOOTSTRAP_DEVELOPER_FP env var (today) or revocable invite
-// tokens signed by an existing Developer (v5.6+). Removed 'developer' from the
-// Developer's Add-dropdown options. Lead Admin promotion via dashboard remains
-// allowed for Developer (one Lead Admin per org enforced server-side).
-const EXPECTED_ROLE_OPTIONS = {
-  staff: ['attendee'],
-  manager: ['attendee', 'staff'],
-  lead_admin: ['attendee', 'staff', 'manager', 'lead_admin'],
-  developer: ['attendee', 'staff', 'manager', 'lead_admin']
-};
 function roleLabelFor(role) {
   const key = String(role || 'attendee').trim().toLowerCase();
   return (typeof window.roleLabel === 'function' ? window.roleLabel(key) : null) || ROLE_VOCAB_PRESETS.default[key] || ROLE_VOCAB_PRESETS.default.attendee;
 }
-function updateExpectedRoleOptions(role) {
-  const select = document.getElementById('expectedRoleSelect');
-  if (!select) return;
-  const current = select.value;
-  const options = EXPECTED_ROLE_OPTIONS[role] || EXPECTED_ROLE_OPTIONS.lead_admin;
-  select.innerHTML = options.map(value => `<option value="${value}">${roleLabelFor(value)}</option>`).join('');
-  select.value = options.includes(current) ? current : options[0];
-}
 function setPrototypeRole(role) {
   var value = PROTOTYPE_ROLE_DETAILS[role] ? role : sessionDefaultDashboardRole();
   document.body.dataset.prototypeRole = value;
-  updateExpectedRoleOptions(value);
   applyRoleGatedVisibility();
   renderExpectedAttendees();
   renderTable(attendanceData);
-  if (!document.getElementById('doormanEscalationDialog')?.classList.contains('hidden')) renderEscalationRoleTabs();
 }
 function sessionDefaultDashboardRole() {
   if (qrLoginSession?.is_developer) return 'developer';
@@ -15053,12 +15002,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       bindEscalationExpected(row.dataset.bindExpectedId);
       return;
     }
-  });
-  document.getElementById('escalationRoleTabs')?.addEventListener('click', (event) => {
-    const tab = event.target.closest('[data-escalation-role]');
-    if (!tab) return;
-    doormanEscalationRole = tab.dataset.escalationRole || 'attendee';
-    renderEscalationRoleTabs();
   });
   document.getElementById('escalationAddBtn')?.addEventListener('click', addEscalationAtDoor);
   document.getElementById('escalationCloseBtn')?.addEventListener('click', closeEscalationModal);

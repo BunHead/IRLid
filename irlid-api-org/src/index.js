@@ -2827,6 +2827,14 @@ function cleanRoleKey(value) {
   return expectedMemberRole(value || "attendee");
 }
 
+function attendeeOnlyExpectedRole(body, surface) {
+  const value = body.role_key ?? body.prototype_role ?? body.role;
+  if (value !== undefined && value !== null && String(value).trim().toLowerCase() !== "attendee") {
+    console.warn(`[${surface}] non-attendee role coerced to attendee; use Invite Staff for role assignment`);
+  }
+  return "attendee";
+}
+
 function boolishToInt(value, fallback = 0) {
   if (value === undefined || value === null || value === "") return fallback;
   const text = String(value).trim().toLowerCase();
@@ -3044,11 +3052,8 @@ async function orgExpectedCreate(request, env) {
   const staff = await requireCalendarStaff(request, env, org, body);
   if (staff.error) return staff.error;
   const displayName = cleanText(body.display_name || [body.first_name, body.surname].filter(Boolean).join(" "), 80);
-  const roleKey = cleanRoleKey(body.role_key || body.prototype_role || body.role);
+  const roleKey = attendeeOnlyExpectedRole(body, "orgExpectedCreate");
   if (!displayName) return err("display_name required");
-  if (!isExpectedRoleAllowedFromDashboard(roleKey)) {
-    return err("developer role cannot be granted from the dashboard - bootstrap or invite token only", 403);
-  }
   const existing = await env.DB.prepare(
     "SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
   ).bind(org.id, displayName).first();
@@ -3450,7 +3455,7 @@ async function orgExpectedCreateAndBind(request, env) {
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const firstName = (body.first_name || "").trim();
   const surname = (body.surname || "").trim();
-  const prototypeRole = expectedMemberRole(body.prototype_role || body.role);
+  const prototypeRole = attendeeOnlyExpectedRole(body, "orgExpectedCreateAndBind");
   const pubJwk = body.device_pub_jwk || body.pub_jwk || body.pub;
   const suppliedFp = String(body.device_pub_fp || body.pub_fp || "").trim();
   if (!firstName || !surname) return err("first_name and surname required");
@@ -3458,10 +3463,6 @@ async function orgExpectedCreateAndBind(request, env) {
   const computedFp = await deviceKeyFp(pubJwk);
   if (suppliedFp && suppliedFp !== computedFp) return err("device_pub_fp does not match device_pub_jwk", 422);
   const deviceFp = suppliedFp || computedFp;
-  const signedPrototypeRole = (payload) => {
-    const value = payload.prototype_role ?? payload.role_key ?? payload.role;
-    return value === undefined || value === null ? null : expectedMemberRole(value);
-  };
 
   // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof.
   // The signed envelope encodes the specific attendee being created and the
@@ -3474,7 +3475,7 @@ async function orgExpectedCreateAndBind(request, env) {
     minRole: "staff",
     payloadSchema: (p) => p.first_name === firstName
       && p.surname === surname
-      && signedPrototypeRole(p) === prototypeRole
+      && attendeeOnlyExpectedRole(p, "orgExpectedCreateAndBind.signedAction") === prototypeRole
       && p.new_device_key_fp === deviceFp,
     request
   });
@@ -3500,23 +3501,7 @@ async function orgExpectedCreateAndBind(request, env) {
   ).bind(expectedId, org.id, displayName, initialsForName(displayName), prototypeRole, deviceFp, t).first();
   expected.device_key_fps = [deviceFp];
 
-  let member = null;
-  if (prototypeRole !== "attendee") {
-    let user = await env.DB.prepare("SELECT id FROM portal_users WHERE pub_fp=?").bind(deviceFp).first();
-    if (!user) {
-      const userId = uuid();
-      await env.DB.prepare(
-        "INSERT INTO portal_users (id,pub_jwk,pub_fp,display_name,created_at,updated_at) VALUES (?,?,?,?,?,?)"
-      ).bind(userId, JSON.stringify(pubJwk), deviceFp, `${firstName} ${surname}`.trim(), t, t).run();
-      user = { id: userId };
-    }
-    await env.DB.prepare(
-      "INSERT OR REPLACE INTO org_memberships (user_id,org_id,role,granted_by,granted_at) VALUES (?,?,?,?,?)"
-    ).bind(user.id, org.id, prototypeRole, action.authorized_by_user?.id || action.user?.id || null, t).run();
-    member = { user_id: user.id, org_id: org.id, role: prototypeRole, granted_at: t };
-  }
-
-  return json({ ok: true, expected, ...(member ? { member } : {}) });
+  return json({ ok: true, expected });
 }
 
 async function orgExpectedDelete(request, env, id) {
