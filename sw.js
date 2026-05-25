@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v21'; // v5.11.0k — Add-at-the-door role-field naming harmonization (role / role_key / prototype_role); closes invalid_action_payload
+const CACHE_VERSION = 'irlid-shell-v22'; // v5.11.0l — Strip vestigial role-assignment controls; expected creates are attendee-only
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
