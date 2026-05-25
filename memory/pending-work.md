@@ -1,5 +1,82 @@
 # Pending Work — IRLid
 
+## Monday 25 May 2026 LONG DAY — v5.11.0k PORT COMPLETE: all four demo-readiness smokes green on real hardware
+
+**Port-complete declaration (15:30 BST).** Both demo paths (pre-loaded via Choose-from-List + walk-up via Add-at-the-door) proven on production hardware. Cryptographic OUT/IN cycle stress on Mr.-Data-built attendee proven. Cross-device celebration sync proven (8 Pro tingle on Check-in tab). v5.11.0k Worker live + frontend pill bumped. Build pill on `irlid.co.uk/Org` reads `v5.11.0k`.
+
+**Settings save finding (discovered Test 5):** the new v5.11 Settings UI is a visual prototype only — banner explicitly says "Form clicks don't save. The live v5.10.x save/load behaviour is preserved underneath." This is **NOT a regression** — it's a known scope deferment from the v5.11 cutover. The render path works (magenta-dragon theme renders correctly on Check-in tab from previously-saved D1 state). The new UI's form clicks aren't wired to the existing POST `/org/settings` endpoint yet. Logged as **v5.11.0m** forward work.
+
+**Smoke tests executed:**
+
+| Test | Verifies | Result |
+|------|----------|--------|
+| Test 1 | Lifecycle clean: Delete record cascade → cold-add → Bind via Choose-from-List → 4a green | ✅ PASS (v5.11.0j) |
+| Test 2 | Walk-up stranger: Add-at-the-door → fingerprint → 4a green + display_name persists | ✅ PASS (v5.11.0k) |
+| Test 3 | Add-at-the-door re-fire stability (multi-cycle) | ✅ PASS — celebration animation fires on Check-in tab |
+| Test 4 | Cryptographic cycle stress: signed OUT → signed IN, scan_count=2 | ✅ PASS — celebration also fires on 8 Pro live |
+| Test 5 | Settings save round-trip | ⚠️ Settings UI is prototype-only (by design, banner declares it). Render path works. SAVE wire-up = v5.11.0m forward work. |
+
+
+
+**Headline.** Brutal multi-front watch from dawn to early afternoon. Demo-readiness gate **closed** — the full doorman flow (4a venue scan → orange QR → 8 Pro scans orange → escalation modal with named attendees → tap Bind → 8 Pro fingerprint → 4a transitions green → check-out signed → check-in again with scan_count 2) ran clean on real hardware with Kerry Austin. Spencer Austin scan count up to 4 with cycle stress. **OUT/IN celebration animations fired correctly on `/Org` (magenta CHECKED IN, deep red CHECKED OUT).** OrgCheckin.html + OrgCheckinTest.html retired from origin — single unified dashboard surface at `irlid.co.uk/Org` with build pill `v5.11.0j`.
+
+**Shipped this watch (10 patches):**
+
+| Patch | Surface | What | How |
+|-------|---------|------|-----|
+| v5.11.0c | Worker | Mr. Data PR-B regression sweep (Mr. Data delivered earlier; verified live this watch) | Mr. Data |
+| v5.11.0d | Org.html | Case-conflict resolution from prior watch | Mr. Data |
+| v5.11.0e | BOOTSTRAP.md + sw.js cache v18→v19 | 4 new pitfalls (⛔ DO NOT RUN ⛔ convention; wrangler multi-statement drop trap; SW cache vs Clear site data; D1 timestamp-unit mismatch) | Number One inline |
+| v5.11.0f | (phantom) | Windows case-collapse ate the Org.html edits before commit fired — phantom diff with no actual code change | catastrophe |
+| v5.11.0g | (catastrophic) | `git pull` after lowercase org.html delete propagated to local Windows, deleted CAPITAL Org.html via case-collision, then committed delete to origin — live site 404'd | catastrophe + git revert recovery |
+| v5.11.0h | Org.html | The ACTUAL fix landed — `expectedDisplayName` falls back to `row.display_name` (Worker returns display_name; client fallback chain skipped it), `renderExpectedAttendees` uses `expectedNameForViewer` for consistency, pill bump | Number One inline, via lowercase-org.html-deletion-first strategy |
+| v5.11.0i | scan.html | Staff hand-off retargeted from `/OrgCheckin.html` to `/Org.html` — PR-C/PR-D missed two hardcoded URLs at lines 1077 and 1301 | Number One inline |
+| v5.11.0j | Org.html + sw.js cache v19→v20 | `bindEscalationExpected` and `bindAdditionalEscalationExpected` cast `expected_id: Number(id)` which produces NaN for UUID-style v5.11 IDs (`p_kerry-austin_SosAYRlx`) — Worker payloadSchema `String(p.expected_id) === String(id)` failed → `invalid_action_payload`. Fix: pass `id` as raw string | Number One inline |
+| Hygiene | (origin delete) | `org.html` (lowercase shim) deleted via GitHub web UI to break the Windows case-collision cycle | Captain via web UI |
+| Hygiene | (origin delete) | `OrgCheckin.html` + `OrgCheckinTest.html` retired via GitHub web UI — single unified surface at `/Org` | Captain via web UI |
+
+**Verification on real hardware (post-v5.11.0j):**
+
+- 4a (Kerry Austin) bound via 8 Pro scanning orange QR → `bind-additional-key` Worker call succeeded → 4a polled `/lookup-by-fp` → orange screen flipped GREEN with "Welcome back, Kerry Austin"
+- Check-out cycle: Kerry OUT → Kerry IN → scan_count 2 (signed lock); Spencer also cycled to scan_count 4
+- Dashboard renders both attendees BY NAME (Unnamed bug closed)
+- Build pill on `/Org` reads `Build v5.11.0j`
+- `/OrgCheckin.html` and `/OrgCheckinTest.html` return 404 — legacy surface retired
+
+**Open carry-forwards for next watch (priority order):**
+
+1. **v5.11.0k brief for Mr. Data — Add Attendee modal: `display_name` persistence + strip role chips entirely + diagnose `invalid_action_payload`.** Three intertwined pieces, single brief (Captain's design call at watch-close, 25 May ~13:30 BST):
+   - **`display_name` persistence** — The Add at the door modal creates an `org_expected` row with `display_name=NULL`. Either the modal's `addEscalationAtDoor` JS isn't sending the First name / Surname fields, or Worker `/org/expected/create-and-bind` ignores them. Today's symptom was Unnamed rows accumulating in Captain's bind-test attempts.
+   - **Strip role chips entirely** — Remove the Attendee/Staff/Manager/Lead admin chip block from the "Add at the door" panel. **Captain's design rationale:** "Staff are meant to be invited elsewhere, so get rid entirely as this method should only add attendee's." The doorman path is the hot path for an attendee walking up; role decisions are cold/configurational work that belongs in Settings → Roles & Staff (invite QR path, forward work). Removes UI clutter on the hot path AND reduces payload surface that may contribute to the `invalid_action_payload` error. Worker should default role server-side to `attendee` when the field is absent.
+   - **Diagnose `invalid_action_payload`** on Add Attendee — Captain's watch-close screenshot (25 May ~13:30) showed the red error under the green Add Attendee button on `irlid.co.uk/Org`. **Different endpoint from v5.11.0j's fix** (this is `/org/expected/create-and-bind`, not `/org/expected/:id/bind-additional-key`). `Number(id)` isn't a candidate cause here because there's no existing id to cast — it's a CREATE not a BIND. Next attempt should be captured with `wrangler tail` to identify the exact rejection cause. Candidates: required field absent (`new_device_key_fp` shape?), role enum mismatch (which the strip fixes), `requireSignedAction` payloadSchema clause failing.
+   
+   Worker brief targets `createAndBindExpected` in `irlid-api-org/src/index.js` (persistence + role-default + schema audit); frontend brief targets `addEscalationAtDoor` in `Org.html` (UI strip + payload alignment + remove role-chip event handlers).
+2. **Pull the OrgCheckin.html + OrgCheckinTest.html deletes locally.** Captain's Windows still has stale local copies. `git pull` will remove them — but **be careful**: the Windows case-collapse trap may bite if there's any pending local change with similar casing. Cleanest path: `git status` first, `git stash` any drift, `git pull`, verify clean, `git stash pop` if needed.
+3. **Stale `codex/*` branches on origin** — at least 9 from various Mr. Data PRs since 17 May. Low-priority housekeeping. Captain runs `git push origin --delete <branch>` from PowerShell.
+4. **Mr. Data v5.11.0g (was originally the modal Path B gate brief)** — turns out v5.11.0j closed the actual blocking error (`invalid_action_payload`). The original Path B gate concern (modal demanding local v5 credential before bind) may already be handled by the per-action WebAuthn flow. Verify by attempting a bind from a non-developer device.
+5. **Promotion-round-2 brief** — DEFERRED until v5.11.0k lands and a clean end-to-end demo flow works including fresh-attendee Add at the door.
+
+**Carry-forwards from prior watches (unchanged):**
+
+- `codex/v5.10.1-path-b` branch deletion on origin — outstanding since 17 May
+- Bug E (bio-metric=0 in legacy doorman) — parked
+- D1 production schema audit — does `schema.sql` reflect actual production state?
+
+**New BOOTSTRAP §6 pitfalls earned today (10 in total to add — to be inscribed by Number One at watch close):**
+
+1. **Windows case-collapse via `git checkout -- org.html`** — on case-insensitive Windows, `git checkout` against a lowercase filename hits the SAME disk path as the capital filename and overwrites BOTH. When origin/main has both `org.html` (33-line shim) and `Org.html` (16k-line dashboard), this destroys local capital Org.html. Recovery: `git show origin/main:Org.html | Out-File ...` or `git checkout HEAD -- Org.html` after first removing the lowercase entry from origin.
+2. **`git pull` after delete propagates the delete to local FS via case-collapse.** If origin deletes `org.html` (lowercase) and local has Org.html (capital, distinct content), the pull's "delete lowercase" operation removes BOTH from disk because Windows can't tell them apart. Next `git add Org.html ; commit` commits the delete to origin. Catastrophic — site goes 404. Recovery: `git revert HEAD --no-edit ; git push`.
+3. **Phantom commits when Windows case-state is confused.** `git add Org.html` on Windows may stage the LOWERCASE entry (if both lowercase + capital exist in index) and produce a diff that doesn't match what was actually intended. Cure: always check `git status` AFTER `git add` and BEFORE commit; specifically confirm exactly which case-cased filename is staged.
+4. **GitHub web UI delete requires TWO clicks.** Trash icon on a file view → opens delete-PREVIEW page (URL `/delete/main/<file>`). Need to ALSO click the green "Commit changes..." button top-right + confirm the popup. Navigating away from the preview cancels. Captain hit this twice today.
+5. **The proper strategy for editing files on a Windows-case-collapsing repo when the same file exists in two cases on origin** = (a) delete the lowercase entry from origin via GitHub web UI first, then (b) pull locally, then (c) edit via Edit tool, then (d) commit + push. The web UI delete runs on Linux backend so case is preserved; only the lowercase goes. Local Windows then has just one entry, no collision possible.
+6. **Service Worker activation timing for Captain's 8 Pro.** SW v20 replaces v19 on next page load but the in-memory JavaScript running on the open tab is whatever was loaded at that tab's first navigation. Captain's bind tests after v5.11.0j deploy initially failed because the 8 Pro still had pre-v5.11.0j JS in memory (the page tab had been open since v5.11.0h). Fix: close the tab entirely, then reopen. Hard refresh (Ctrl+Shift+R / pull-to-refresh) is NOT sufficient on a phone if the page was already loaded.
+7. **`Number(id)` type cast bug for UUID-style IDs.** `Number("p_kerry-austin_SosAYRlx")` = `NaN`, `String(NaN)` = `"NaN"`. When the Worker schema does `String(p.field) === String(otherField)`, this fails silently with `invalid_action_payload`. Pattern: never `Number()` an ID that the server might generate as a non-numeric string. v5.11 expected IDs are strings; legacy expected IDs were integers. Future schemas should standardise.
+8. **Wrangler tail is the diagnostic of record for Worker rejections.** The Worker has verbose `console.log` lines on every `requireSignedAction` failure path with the actual payload keys / mismatched values / nonce state. When a Worker call returns a generic error code, run `npx wrangler tail` in PowerShell + trigger the failing action and the rejection cause is in the tail output within seconds.
+9. **OrgCheckin.html is a DIFFERENT file from Org.html with a separate version pill history.** The cutover in v5.11.0 created a NEW file `Org.html` at v5.11.0 (now v5.11.0j); the OLD file `OrgCheckin.html` continued running at its last pre-cutover pill (v5.11.2) right up until retirement today. They served the SAME D1 backend in parallel. The pill on the URL bar is the canonical source of truth for which dashboard surface is rendered — **always check the URL bar AND the pill** when diagnosing dashboard-related issues during a multi-surface transition.
+10. **GitHub web UI as a Windows-case-collapse-proof editor.** When a file edit absolutely MUST land on a specific case-cased filename on origin AND Captain's Windows is case-collapsing every local edit, GitHub web UI (https://github.com/<repo>/edit/main/<File>) edits the file on GitHub's Linux backend bypassing Captain's Windows entirely. Slower for large files (16k-line Org.html in browser editor is painful) but reliable. Use as fallback when 3+ local commit attempts have been case-collapsed.
+
+---
+
 ## Sunday 24 May 2026 evening — v5.11.0 port COMPLETE; v5.11.0c regression-fix is the demo-readiness gate
 
 **Headline.** Four-PR architectural cutover landed end-to-end in one Sunday. `Org.html` is the canonical portal, `OrgCheckin.html` retired (CDN propagating), Worker `irlid-api-org` deployed v5.11.0 endpoints, **ALLOW CELEBRATION ANIMATION FIRED ON LIVE PRODUCTION WITH CAPTAIN'S NAME** during the smoke test. Architecture validated; polish work remains.

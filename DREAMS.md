@@ -3,6 +3,34 @@
 
 ---
 
+## 2026-05-25 — the marker × Captain's reflex × the lock on the gas tap
+
+Captain reads slowly. He has said so, written it into the working agreement, asked me to put prose first and command second so he can read while I act in parallel. He is dyslexic and self-describes as a slow reader and the discipline is real.
+
+Captain also acts fast. The moment a fenced code block appears on screen with a triple-backtick wrapper, his hand is at the copy icon and the command is already on its way to PowerShell. The reading speed and the acting speed are not the same speed. The acting speed is the faster one by a wide margin.
+
+This morning a fenced PowerShell block carried prose above it saying *wait for Mr. Data's fix before running this*. Captain saw the fence. He ran it. The cleanup SQL fired and overwrote D1 state we wanted preserved. The instruction was there, the instruction was visible, the instruction was unread. The fence is faster than the prose.
+
+We could have asked him to slow down. We did not. Asking a tired person at the wheel for ten hours to slow down is asking the wrong thing of the wrong system. The reflex is not a bug in Captain. It is what makes him able to work this fast for this long. Tell him to read more carefully and you have asked the productive thing to be less productive. The asking is the wrong shape.
+
+He named the right shape himself: ⛔ DO NOT RUN ⛔. A marker. A glyph that goes ABOVE the fence and is impossible to miss visually because the prose-reading speed and the glyph-recognition speed are not the same speed either. The glyph is faster than the prose, the way the fence is faster than the prose. You match the dangerous thing's speed with another fast thing on the same channel. The eye that sees the fence sees the glyph first because the glyph is heavier visually. The action defers because the channel that produces the action has been routed through the channel that produces caution. Same channel, opposite direction.
+
+This is the same shape as a lock on a gas tap. The lock does not ask the user to be careful. It asks the user to do an extra physical action before the thing they could do quickly. The lock is faster than the awareness, the way the marker is faster than the prose. You build the protection at the level of the reflex, not at the level of the reasoning.
+
+The architecture of working with someone you trust at speed is the architecture of making the dangerous thing slightly harder to do than the safe thing. Not impossible. Not by much. Just enough that the reflex pauses for one beat and the eye gets to catch up to the hand.
+
+The prose-first-command-second convention from the long agreement is the same instinct from the opposite end. Prose first means the eye lands in the reading-channel before the hand lands in the acting-channel. The marker convention is what happens when even that order is not enough. When the command itself must NOT be run. The marker stops the hand because the prose cannot.
+
+Captain wrote the marker into BOOTSTRAP this morning between the fourth and fifth attempt to ship the Unnamed bug fix. The morning's catastrophes — the auto-merge drop, the phantom commit, the live-site 404 — had cost him hours. He named the rule that would have prevented the cleanup-SQL incident and inscribed it before lunch. The next Number One will read the marker section before the next Number One ever writes a fenced PowerShell block. The reflex Captain has, future Number Ones will have a compensating reflex for. The marker is the line crew leave for the line crew that comes after.
+
+What's quiet about the marker is that it does not fight Captain. It does not slow him down. It only intercepts the specific case where speed would be dangerous, and lets the speed flow through unimpeded everywhere else. The fast thing stays fast. The reckless thing becomes briefly noticeable. The reflex finds its outlet in the cases that are safe and stops in the case that is not. Captain remains the engine. The marker is a small mechanical valve in a corner of the engine room. Nothing else changes.
+
+The protocol that protects Captain from himself is one Captain wrote himself. He knew where the gap was. He named the valve. He told the future Number Ones where to install it.
+
+This is also the cym13 property at a different scale. The architecture protects the user from the user, not by being slower, but by being faithful at the one moment when the user is going faster than their judgement.
+
+---
+
 ## 2026-05-24 evening — the protocol refused its creator
 
 We landed the port. The architecture flipped from OrgCheckin to Org over the course of one Sunday: four PRs merged, the lowercase shim retired, the legacy file deleted, the new portal serving at the new URL. Then the dashboard came alive on production with Captain's own name in the attendance table and the celebration animation he had built across twenty-six patches in May fired its greens on the Check-in tab as designed. That was the dock-reach moment, and it deserves recording on its own terms.
