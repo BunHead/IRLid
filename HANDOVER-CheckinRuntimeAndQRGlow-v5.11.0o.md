@@ -34,18 +34,31 @@ After diagnosing Path B:
 2. **Fall back to canonical `theme.*` fields** if `_v511.celebration` is absent (backward compat with v5.10.x saves — those won't have a `_v511` block).
 3. The mode resolution: an Allow check-in (normal IN/OUT) fires `celebration.allow`. A Review (escalated, awaiting bind) doesn't typically fire celebration. A Deny fires `celebration.deny`. Captain primarily cares about Allow for now.
 
-### 2.2 Replace "Glow halo" library entry with "QR Glow"
+### 2.2 Replace "Glow halo" library entry with "QR Glow" (two styles in one effect)
 
-The current "Glow halo" effect in the v5.11 library renders a soft circular halo (or whatever your v5.11.0m version of it does). Replace its CSS keyframes + implementation with a **QR Glow** effect:
+The current "Glow halo" effect in the v5.11 library renders a soft circular halo. Replace its CSS keyframes + implementation with a unified **QR Glow** effect that exposes TWO STYLES via a Style chip group — one preserving the current static halo (so users who liked the old behaviour can still get it), one new emanating-rays style as the primary aesthetic:
 
-- **Visual:** light rays emanating outward from the QR centre point. Multiple rays at varied angles forming a starburst-like pattern. Rays appear to ORIGINATE from behind/inside the QR and extend outward.
-- **Animation:** slow rotation around the QR centre. The ray array rotates over the effect's duration (one full rotation per duration, or partial sweep — designer's choice for visual feel).
-- **Colour:** palette-driven. Use `var(--celebration-palette-1)` (or whatever existing CSS custom property the celebration palette uses). If multiple rays, can cycle through palette colours.
-- **Intensity setting:** chip group { subtle / medium / strong } maps to ray count (e.g., 4 / 8 / 16 rays) + opacity (0.3 / 0.5 / 0.8).
-- **No text overlay needed** — Captain explicitly excluded text from this effect's scope.
-- **Implementation approach** (suggestion, not mandate): CSS conic-gradient with hard colour stops creates a ray pattern; rotate via `transform: rotate(Xdeg)` keyframes. Position with `position: absolute; inset: 0; transform-origin: center` on an overlay div sized to encompass the QR + reasonable bleed area.
+**Style setting (chip group):**
 
-**Library entry naming:** keep the visible label as "Glow halo" if it makes the migration easier (existing user sequences continue to reference the same effect ID), OR rename to "QR Glow" if you prefer the more accurate name. Captain explicitly said either is fine. Whichever you pick, document the choice in the PR.
+- **Halo** (preserves current behaviour): static soft circular glow centred on the QR, palette-driven colour, fades in/out over the effect's duration. NO rotation. This is the existing Glow halo behaviour kept as a selectable style so it isn't lost.
+- **Rays** (new — Captain's preferred default): light rays emanating outward from the QR centre point. Multiple rays at varied angles forming a starburst-like pattern. Rays appear to ORIGINATE from behind/inside the QR and extend outward. Slow rotation around the QR centre over the effect's duration. Palette-driven colour; if multiple rays, can cycle through palette colours.
+
+**Default Style on a fresh effect drag:** `Rays` (Captain's preferred). Existing sequences in users' saved state should be migrated to Style=`Halo` so their current look is preserved.
+
+**Other settings shared by both styles:**
+
+- **Intensity** (chip group { subtle / medium / strong }):
+  - For Halo: maps to glow softness + opacity (0.3 / 0.5 / 0.8) + spread radius
+  - For Rays: maps to ray count (e.g., 4 / 8 / 16 rays) + opacity (0.3 / 0.5 / 0.8)
+- **Colour:** palette-driven. Use `var(--celebration-palette-1)` (or whatever existing CSS custom property the celebration palette uses).
+- **No text overlay** — Captain explicitly excluded text from this effect's scope.
+
+**Implementation approach** (suggestion, not mandate):
+- Halo: radial-gradient overlay div, position: absolute centred on the QR, `opacity` keyframes for fade in/out
+- Rays: CSS conic-gradient with hard colour stops creates a ray pattern, rotate via `transform: rotate(Xdeg)` keyframes; position with `position: absolute; inset: 0; transform-origin: center` on an overlay div sized to encompass the QR + reasonable bleed area
+- Both styles render INSIDE the same effect entry, controlled by the Style chip group at render time
+
+**Library entry naming:** keep the visible label as "Glow halo" if it makes the migration easier (existing user sequences continue to reference the same effect ID), OR rename to "QR Glow" if you prefer the more accurate name. Captain explicitly said either is fine. Whichever you pick, document the choice in the PR. The Style chip group is the key thing; the entry name is cosmetic.
 
 ---
 
@@ -72,10 +85,13 @@ After all code changes:
 After Captain merges + pulls + hard-refreshes + closes/reopens phone tabs:
 
 1. **Real check-in event fires the configured sequence.** Captain triggers an actual check-out via the dashboard → his `theme._v511.celebration.allow` sequence (whatever he's configured) fires on the Check-in tab. The OLD hardcoded diagonal-stripe code path no longer fires.
-2. **QR Glow effect renders correctly:** dragging "Glow halo" (or "QR Glow" if renamed) from the library into the sequence and firing Sample produces visible rays emanating from the QR centre, rotating slowly, palette-coloured.
-3. **Intensity setting works:** changing intensity chip from subtle → medium → strong visibly changes the ray count + opacity.
-4. **Backward compat:** orgs with no `theme._v511` block (e.g., the magenta-dragon theme from old v5.10.x saves) continue to render correctly with the legacy effect or a sensible default — DO NOT show nothing on check-in just because `_v511` is absent.
-5. **Build pill reads `v5.11.0o`.**
+2. **QR Glow effect renders correctly (both styles):** dragging the Glow effect from the library into the sequence:
+   - Default Style = Rays → firing Sample produces visible rays emanating from the QR centre, rotating slowly, palette-coloured.
+   - Switching Style chip to Halo → firing Sample produces a static soft circular halo around the QR (the original Glow halo behaviour). No rotation. Palette-coloured.
+3. **Intensity setting works for both styles:** changing intensity chip from subtle → medium → strong visibly changes ray count + opacity (Rays) or glow softness + spread radius (Halo).
+4. **Existing user sequences migrate to Style=Halo:** any sequence that currently references the v5.11.0n-era Glow halo effect should render with the static halo behaviour (preserving existing visual intent for users who haven't seen the new Rays option yet).
+5. **Backward compat:** orgs with no `theme._v511` block (e.g., the magenta-dragon theme from old v5.10.x saves) continue to render correctly with the legacy effect or a sensible default — DO NOT show nothing on check-in just because `_v511` is absent.
+6. **Build pill reads `v5.11.0o`.**
 
 ---
 
