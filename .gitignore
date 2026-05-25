@@ -10,3 +10,5 @@ desktop.ini
 # Wrangler local cache (account-bound, not a secret but no value in repo)
 irlid-api-org/.wrangler/
 irlid-api/.wrangler/
+irlid-api-org/migrations/.wrangler/
+irlid-api/migrations/.wrangler/
