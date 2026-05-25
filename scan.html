@@ -1074,7 +1074,15 @@
             // bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html.
             // Same pattern as OrgCheckin.html's ORIGIN_BASE.
             const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-            const staffScanUrl = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
+            // v5.11.0i — retargeted from OrgCheckin.html (legacy dashboard, still on
+        // origin but no longer the canonical surface) to Org.html (the v5.11
+        // dashboard). The OrgCheckin → Org cutover happened in PR-C/PR-D but
+        // scan.html's staff hand-off was missed in the sweep — meaning staff
+        // who scanned an orange QR from the 4a got routed to the OLD dashboard
+        // with the OLD code (including the pre-v5.11.0h Unnamed render bug).
+        // Captain spotted it 25 May during the v5.11.0h smoke test ("Orange
+        // page, open in staff dashboard, confirmed, takes to OrgCheckin").
+        const staffScanUrl = dashboardOrigin + "/Org.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
             setStatus("Staff-scan QR detected.");
             showGate("orange",
               "This QR is for staff scanning",
@@ -1298,7 +1306,15 @@
         // v5.7.1b — same staff-self-serve hand-off as the camera-scan path.
         // v5.9.0.6 — see camera-scan path: dynamic origin so live -> live, test env -> test env.
         const dashboardOrigin = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
-        const staffScanUrl = dashboardOrigin + "/OrgCheckin.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
+        // v5.11.0i — retargeted from OrgCheckin.html (legacy dashboard, still on
+        // origin but no longer the canonical surface) to Org.html (the v5.11
+        // dashboard). The OrgCheckin → Org cutover happened in PR-C/PR-D but
+        // scan.html's staff hand-off was missed in the sweep — meaning staff
+        // who scanned an orange QR from the 4a got routed to the OLD dashboard
+        // with the OLD code (including the pre-v5.11.0h Unnamed render bug).
+        // Captain spotted it 25 May during the v5.11.0h smoke test ("Orange
+        // page, open in staff dashboard, confirmed, takes to OrgCheckin").
+        const staffScanUrl = dashboardOrigin + "/Org.html?dev=0#staff_scan=" + encodeURIComponent(window.location.href);
         showGate("orange",
           "This QR is for staff scanning",
           "Hand this phone to a member of staff at the venue's check-in. Or, if you ARE staff, open this scan in your authenticated dashboard.",
