@@ -1759,7 +1759,7 @@ async function orgUpdateSettings(request, env) {
     // v5.9.0.10 — orgTerms added: optional org-customisable terms/disclaimer text
     // shown to attendees on org-entry.html (allow/orange/review states). Display-only,
     // no accept gate. Captain's directive 11 May morning.
-    "logoUrl","welcomeMessage","orgTerms","redirectUrl","websiteUrl",
+    "logoUrl","welcomeMessage","orgTerms","redirectUrl","staffRedirectUrl","websiteUrl",
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     // --- Theme (Batch 6.5 → 6.5f) ---
@@ -2057,8 +2057,8 @@ async function orgRecognize(request, env) {
 }
 
 async function orgExpectedLookupByFp(request, env, fpParam) {
-  const org = await orgAuth(request, env);
-  if (org.error) return noStore(err("organisation not found", 404));
+  const org = await orgFromRequest(request, env);
+  if (!org) return noStore(err("organisation not found", 404));
   const fp = String(fpParam || "").trim();
   if (!fp) return noStore(err("pub_fp required", 400));
 
@@ -2185,10 +2185,21 @@ async function requireDevOrStaffSession(request, env, org, staffSessionToken) {
   return staffError;
 }
 
-async function bootstrapDeveloperFromBearer(request, env) {
+function bearerTokenFromRequest(request) {
   const auth = request.headers.get("Authorization") || "";
-  if (!/^Bearer\s+([A-Za-z0-9_-]{16,})$/.test(auth.trim())) return null;
-  const token = auth.trim().replace(/^Bearer\s+/i, "");
+  const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());
+  return m ? m[1] : "";
+}
+
+function requestHasOrgServiceAccount(request, org) {
+  const token = bearerTokenFromRequest(request);
+  const xOrgKey = request.headers.get("X-Org-Key") || "";
+  return !!(org && org.api_key && (xOrgKey === org.api_key || token === org.api_key));
+}
+
+async function bootstrapDeveloperFromBearer(request, env) {
+  const token = bearerTokenFromRequest(request);
+  if (!token) return null;
 
   // v5.9.0.13.21 — org_-prefixed Bearer = the org's master api_key. The
   // frontend's developerBearerSessionIsActive() helper (OrgCheckin.html
@@ -2726,8 +2737,20 @@ function staffSessionTokenFrom(request, body) {
 }
 
 async function requireCalendarStaff(request, env, org, body) {
+  if (request.method === "GET" && requestHasOrgServiceAccount(request, org)) {
+    return { ok: true };
+  }
+
   const staffError = await requireDevOrStaffSession(request, env, org, staffSessionTokenFrom(request, body));
-  return staffError ? { error: staffError } : { ok: true };
+  if (!staffError) return { ok: true };
+
+  const ctx = await requireSession(request, env);
+  if (!ctx.error) {
+    const role = await orgRoleForUser(env, ctx.user, org.id);
+    if (expectedRoleRank(role) >= expectedRoleRank("staff")) return { ok: true };
+  }
+
+  return { error: staffError };
 }
 
 async function requireCalendarSignedAction(request, env, org, body, payloadSchema) {
@@ -3700,7 +3723,8 @@ async function orgResolveConflict(request, env, id) {
 }
 
 async function orgAuth(request, env) {
-  const key = request.headers.get("X-Org-Key") || new URL(request.url).searchParams.get("key");
+  const token = bearerTokenFromRequest(request);
+  const key = request.headers.get("X-Org-Key") || new URL(request.url).searchParams.get("key") || (token.startsWith("org_") ? token : "");
   if (!key) return authErr("X-Org-Key header required", 401);
   const org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=?").bind(key).first();
   if (!org) return authErr("Invalid API key", 401);
