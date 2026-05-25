@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v24'; // v5.11.0n — Visual Theming save-gap runtime hooks + slider fills
+const CACHE_VERSION = 'irlid-shell-v25'; // v5.11.0o — Real check-in runtime sequence + QR Glow effect
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

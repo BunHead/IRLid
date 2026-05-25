@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0n</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0o</span></div>
   </div>
 </div>
 
@@ -4414,27 +4414,59 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-stage.cel-pulse.cel-int-strong .v511-theme-preview-qr { animation-name: v511CelPulseStrong; }
         @keyframes v511CelPulseSubtle { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.6)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 10px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
         @keyframes v511CelPulseStrong { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0 var(--cel-pal-1, rgba(255,255,255,0.85)); } 50% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 40px rgba(0,0,0,0); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35); } }
-        .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlow var(--cel-cycle-dur, 1.4s) ease-out; }
-        @keyframes v511CelGlow { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        /* Tier 4.3.11 — Glow halo intensity (cel-int-* class) */
-        .v511-theme-preview-stage.cel-glow.cel-int-subtle .v511-theme-preview-qr { animation-name: v511CelGlowSubtle; }
-        .v511-theme-preview-stage.cel-glow.cel-int-strong .v511-theme-preview-qr { animation-name: v511CelGlowStrong; }
-        @keyframes v511CelGlowSubtle { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.08) drop-shadow(0 0 14px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        @keyframes v511CelGlowStrong { 0% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.45) drop-shadow(0 0 56px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        /* Tier 4.3.11 — Glow halo sweep (data-cel-glow-sweep). outward = default;
-           inward = halo starts wide and contracts; rotate = QR spins inside the halo. */
-        .v511-theme-preview-stage.cel-glow[data-cel-glow-sweep="inward"] .v511-theme-preview-qr { animation-name: v511CelGlowInward; }
-        .v511-theme-preview-stage.cel-glow[data-cel-glow-sweep="rotate"] .v511-theme-preview-qr { animation-name: v511CelGlowRotate; }
-        @keyframes v511CelGlowInward { 0% { filter: brightness(1) drop-shadow(0 0 56px var(--cel-pal-1, #58a6ff)); } 50% { filter: brightness(1.2) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        @keyframes v511CelGlowRotate { 0% { transform: rotate(0); filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { transform: rotate(180deg); filter: brightness(1.25) drop-shadow(0 0 36px var(--cel-pal-1, #58a6ff)); } 100% { transform: rotate(360deg); filter: brightness(1) drop-shadow(0 0 0 transparent); } }
-        /* Tier 4.3.18 — Centre pulse off: halo only, no brightness flash on the QR.
-           Picks the right halo size for each intensity but locks brightness at 1. */
-        .v511-theme-preview-stage.cel-glow[data-cel-centre-pulse="off"] .v511-theme-preview-qr { animation-name: v511CelGlowFlat; }
-        .v511-theme-preview-stage.cel-glow[data-cel-centre-pulse="off"].cel-int-subtle .v511-theme-preview-qr { animation-name: v511CelGlowFlatSubtle; }
-        .v511-theme-preview-stage.cel-glow[data-cel-centre-pulse="off"].cel-int-strong .v511-theme-preview-qr { animation-name: v511CelGlowFlatStrong; }
-        @keyframes v511CelGlowFlat       { 0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1) drop-shadow(0 0 28px var(--cel-pal-1, #58a6ff)); } }
-        @keyframes v511CelGlowFlatSubtle { 0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1) drop-shadow(0 0 14px var(--cel-pal-1, #58a6ff)); } }
-        @keyframes v511CelGlowFlatStrong { 0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1) drop-shadow(0 0 56px var(--cel-pal-1, #58a6ff)); } }
+        .v511-theme-preview-stage.cel-glow .v511-theme-preview-qr,
+        .v511-runtime-stage.cel-glow .v511-theme-preview-qr { animation: v511CelGlowHalo var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-glow > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow > .v511-cel-fx-layer {
+          animation: v511CelGlowHaloWash var(--cel-cycle-dur, 1.4s) ease-out;
+          background: radial-gradient(circle at center, var(--cel-pal-1, #58a6ff) 0 12%, color-mix(in srgb, var(--cel-pal-1, #58a6ff) 45%, transparent) 28%, transparent 62%);
+          mix-blend-mode: screen;
+        }
+        @keyframes v511CelGlowHalo { 0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.16) drop-shadow(0 0 30px var(--cel-pal-1, #58a6ff)); } }
+        @keyframes v511CelGlowHaloWash { 0%, 100% { opacity: 0; transform: scale(0.72); } 45%, 65% { opacity: 0.46; transform: scale(1.05); } }
+        .v511-theme-preview-stage.cel-glow.cel-int-subtle > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow.cel-int-subtle > .v511-cel-fx-layer { animation-name: v511CelGlowHaloWashSubtle; }
+        .v511-theme-preview-stage.cel-glow.cel-int-strong > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow.cel-int-strong > .v511-cel-fx-layer { animation-name: v511CelGlowHaloWashStrong; }
+        @keyframes v511CelGlowHaloWashSubtle { 0%, 100% { opacity: 0; transform: scale(0.82); } 45%, 65% { opacity: 0.28; transform: scale(0.96); } }
+        @keyframes v511CelGlowHaloWashStrong { 0%, 100% { opacity: 0; transform: scale(0.65); } 45%, 65% { opacity: 0.72; transform: scale(1.22); } }
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-style="rays"] .v511-theme-preview-qr,
+        .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"] .v511-theme-preview-qr { animation: none; }
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-style="rays"] > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"] > .v511-cel-fx-layer {
+          animation: v511CelQrGlowRays var(--cel-cycle-dur, 1.4s) linear;
+          background:
+            radial-gradient(circle at center, rgba(255,255,255,0.78) 0 4%, transparent 15%),
+            repeating-conic-gradient(from -8deg,
+              color-mix(in srgb, var(--cel-pal-1, #58a6ff) 82%, transparent) 0deg 3deg,
+              transparent 3deg 18deg,
+              color-mix(in srgb, var(--cel-pal-2, var(--cel-pal-1, #58a6ff)) 72%, transparent) 18deg 20deg,
+              transparent 20deg 45deg);
+          clip-path: circle(48% at center);
+          filter: blur(0.6px) drop-shadow(0 0 18px var(--cel-pal-1, #58a6ff));
+          mix-blend-mode: screen;
+          transform-origin: center;
+        }
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-style="rays"].cel-int-subtle > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"].cel-int-subtle > .v511-cel-fx-layer {
+          background: repeating-conic-gradient(from -8deg, color-mix(in srgb, var(--cel-pal-1, #58a6ff) 68%, transparent) 0deg 3deg, transparent 3deg 45deg);
+        }
+        .v511-theme-preview-stage.cel-glow[data-cel-glow-style="rays"].cel-int-strong > .v511-cel-fx-layer,
+        .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"].cel-int-strong > .v511-cel-fx-layer {
+          background:
+            radial-gradient(circle at center, rgba(255,255,255,0.86) 0 5%, transparent 14%),
+            repeating-conic-gradient(from -8deg,
+              color-mix(in srgb, var(--cel-pal-1, #58a6ff) 88%, transparent) 0deg 3deg,
+              transparent 3deg 11deg,
+              color-mix(in srgb, var(--cel-pal-2, var(--cel-pal-1, #58a6ff)) 78%, transparent) 11deg 13deg,
+              transparent 13deg 22.5deg);
+        }
+        @keyframes v511CelQrGlowRays {
+          0% { opacity: 0; transform: scale(0.62) rotate(0deg); }
+          22% { opacity: 0.78; }
+          72% { opacity: 0.72; }
+          100% { opacity: 0; transform: scale(1.2) rotate(84deg); }
+        }
         /* Default cel-qr motion (Wobble) defined below via [data-qr-motion="wobble"] rule */
         /* Tier 4.1.2 — Cel-text moved off ::before (which now permanently carries
            the palette gradient) onto a dedicated DOM element so the celebration
@@ -4444,7 +4476,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 4cqi; text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); z-index: 6; opacity: 0; pointer-events: none; }
         /* Tier 4.3.6 — Text content now set via JS textContent (reads custom
            welcome message from Post-Accept). ::before rules retired. */
-        .v511-theme-preview-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        .v511-theme-preview-stage.cel-text .v511-cel-text-overlay,
+        .v511-runtime-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         /* Text overlay setting variants */
         .v511-theme-preview-stage[data-cel-text-pos="top"]    .v511-cel-text-overlay { top: 3cqi; bottom: auto; }
         .v511-theme-preview-stage[data-cel-text-pos="centre"] .v511-cel-text-overlay { top: 50%; bottom: auto; transform: translateY(-50%); }
@@ -4525,7 +4558,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background-size: 200% 200%;
           mix-blend-mode: screen;
         }
-        .v511-theme-preview-stage.cel-bg > .v511-cel-bg-overlay { animation: v511CelBgPaletteFlash var(--cel-cycle-dur, 1.4s) ease-in-out; }
+        .v511-theme-preview-stage.cel-bg > .v511-cel-bg-overlay,
+        .v511-runtime-stage.cel-bg > .v511-cel-bg-overlay { animation: v511CelBgPaletteFlash var(--cel-cycle-dur, 1.4s) ease-in-out; }
         @keyframes v511CelBgPaletteFlash {
           0% { opacity: 0; background-position: 0% 0%; }
           30% { opacity: 0.55; }
@@ -4543,6 +4577,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           position: absolute; inset: 0; pointer-events: none;
           z-index: 5; opacity: 0;
         }
+        .v511-runtime-stage { position: relative; overflow: hidden; container-type: inline-size; }
+        .v511-runtime-stage > .v511-cel-fx-layer,
+        .v511-runtime-stage > .v511-cel-bg-overlay {
+          position: absolute; inset: 0; pointer-events: none;
+          z-index: 5; opacity: 0;
+        }
+        .v511-runtime-stage > .v511-cel-bg-overlay { z-index: 3; }
+        .v511-runtime-stage > .v511-cel-text-overlay {
+          position: absolute; bottom: 3cqi; left: 0; right: 0; z-index: 6;
+          text-align: center; color: #fff; font-weight: 800; font-size: 4cqi;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5);
+          opacity: 0; pointer-events: none;
+        }
+        .v511-runtime-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay) { position: relative; z-index: 4; }
         /* Tier 4.2 — 14 new celebration effect keyframes. Sequential model: each
            is added briefly to sampleStage by playSequence(), runs once, removed. */
         /* Light: outer-glow (border-only inset glow). Tier 4.3.10 — default
@@ -6099,7 +6147,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <details class="v511-cel-lib-group">
                       <summary>Light</summary>
                       <div class="v511-cel-lib-items">
-                        <button type="button" class="v511-cel-lib-item" data-effect="glow"        draggable="true"><span class="icon">◉</span> Glow halo</button>
+                        <button type="button" class="v511-cel-lib-item" data-effect="glow"        draggable="true"><span class="icon">◉</span> QR Glow</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="outer-glow"  draggable="true"><span class="icon">◻</span> Outer edge glow</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="spotlight"   draggable="true"><span class="icon">☼</span> Spotlight</button>
                         <button type="button" class="v511-cel-lib-item" data-effect="cam-flash"   draggable="true"><span class="icon">⚡</span> Camera flash</button>
@@ -7252,7 +7300,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-text-spacing','data-cel-text-colour','data-cel-text-shadow','data-cel-text-stroke',
             'data-cel-pattern-style','data-cel-density','data-cel-dir',
             'data-cel-axis','data-cel-count','data-cel-thickness',
-            'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse',
+            'data-cel-iris-dir','data-cel-glitch-kind','data-cel-glow-sweep','data-cel-centre-pulse','data-cel-glow-style',
             'data-cel-zoom',
             // T4.3.28 — sweep additions
             'data-cel-colour-source','data-cel-easing',
@@ -7263,16 +7311,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'data-cel-rhythm','data-cel-falloff','data-cel-colour-tint',
             'data-cel-pulses','data-cel-spread'
           ];
-          function v511ClearCelClasses() {
-            if (!sampleStage) return;
-            sampleStage.classList.remove.apply(sampleStage.classList, V511_ALL_CEL_CLASSES);
-            sampleStage.classList.remove.apply(sampleStage.classList, V511_SETTING_CLASSES);
-            V511_SETTING_ATTRS.forEach(function (a) { sampleStage.removeAttribute(a); });
+          function v511ClearCelClasses(stage) {
+            var targetStage = stage || sampleStage;
+            if (!targetStage) return;
+            targetStage.classList.remove.apply(targetStage.classList, V511_ALL_CEL_CLASSES);
+            targetStage.classList.remove.apply(targetStage.classList, V511_SETTING_CLASSES);
+            V511_SETTING_ATTRS.forEach(function (a) { targetStage.removeAttribute(a); });
             // T4.3.37 — Clear inline --cel-cycle-dur that v511PlaySequence sets
             // per step. Without this, the last step's value (e.g. 2s on Allow)
             // leaks across mode switches and overrides the CSS-var fallback
             // (1.4s) that should win on a fresh sequence in a different mode.
-            sampleStage.style.removeProperty('--cel-cycle-dur');
+            targetStage.style.removeProperty('--cel-cycle-dur');
           }
           // Tier 4.3.2 — Apply per-item settings as stage attributes / classes
           // BEFORE the effect class fires, so CSS rules keyed on data-* / cel-int-*
@@ -7314,6 +7363,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Kerry!';
               else if (tmpl === 'name + action') finalText = 'Kerry — checked in';
               else                                finalText = baseMsg;
+              var runtimeName = (stage._v511AttendeeName || '').trim();
+              if (runtimeName) finalText = tmpl === 'welcome' ? baseMsg : (tmpl === 'name' ? baseMsg.replace(/[.!?]\s*$/, '') + ', ' + runtimeName + '!' : runtimeName + ' — checked in');
               var overlay = stage.querySelector('.v511-cel-text-overlay');
               if (overlay) overlay.textContent = finalText;
             }
@@ -7362,6 +7413,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (s.sweep) stage.setAttribute('data-cel-glow-sweep', s.sweep);
             // Tier 4.3.18 — Glow halo centre pulse (on / off)
             if (s.centrePulse) stage.setAttribute('data-cel-centre-pulse', s.centrePulse);
+            // v5.11.0o — QR Glow style. Missing style means legacy saved glow steps
+            // keep the pre-0o halo; newly added steps explicitly save "rays".
+            if (item.effect === 'glow' && s.style) stage.setAttribute('data-cel-glow-style', s.style);
           }
 
           // T4.3.31/32 — Stream particles (originally "Breath"). Creates N
@@ -7930,9 +7984,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Play the sequence top-to-bottom. Each effect gets its class added for
           // its own duration, then removed. Delay items just wait the duration.
           var v511PlayToken = 0;
-          function v511PlaySequence(sequence) {
-            if (!sampleStage) return Promise.resolve();
-            v511ClearCelClasses();
+          function v511PlaySequence(sequence, targetStage) {
+            var playStage = targetStage || sampleStage;
+            if (!playStage) return Promise.resolve();
+            v511ClearCelClasses(playStage);
             var myToken = ++v511PlayToken; // cancel any older in-flight play
             var i = 0;
             return new Promise(function (resolve) {
@@ -7968,25 +8023,25 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var effectKey = item.effect === 'cel-pattern' ? 'pattern' : item.effect;
                 var cls = 'cel-' + effectKey;
                 // Tier 4.3.2 — translate item.settings into stage attrs/classes
-                v511ApplyItemSettings(sampleStage, item);
+                v511ApplyItemSettings(playStage, item);
                 // T4.3.32 — z-order toggle. When item.zBelow is true, drop the
                 // effect's layer beneath the QR/image content (z-2) instead of
                 // above it (z-5). Class is cleared between steps via V511_SETTING_CLASSES.
-                if (item.zBelow) { sampleStage.classList.add('cel-z-below'); }
+                if (item.zBelow) { playStage.classList.add('cel-z-below'); }
                 // T4.3.31 — Stream effect injects randomised particle DOM nodes
                 // at the anchor position(s). Particles self-clean via animation
                 // forwards + a setTimeout below; cel-stream class still cycles
                 // normally so the class-based cleanup discipline holds.
                 if (item.effect === 'stream' && typeof v511FireStreamParticles === 'function') {
-                  v511FireStreamParticles(sampleStage, item, durMs);
+                  v511FireStreamParticles(playStage, item, durMs);
                 }
                 // T4.3.42 — Sparkle particle emitter.
                 if (item.effect === 'sparkles' && typeof v511FireSparkleParticles === 'function') {
-                  v511FireSparkleParticles(sampleStage, item, durMs);
+                  v511FireSparkleParticles(playStage, item, durMs);
                 }
                 // T4.3.44 — Confetti particle emitter.
                 if (item.effect === 'confetti' && typeof v511FireConfettiParticles === 'function') {
-                  v511FireConfettiParticles(sampleStage, item, durMs);
+                  v511FireConfettiParticles(playStage, item, durMs);
                 }
                 // Tier 4.3.20 — Count loop: cam-flash / strobe / ripple / bg
                 // honour their `count` setting by firing the effect class N
@@ -7996,11 +8051,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var countRaw = (item.settings && item.settings.count) ? parseInt(item.settings.count, 10) : 1;
                 var count = (isFinite(countRaw) && countRaw > 1) ? countRaw : 1;
                 if (count <= 1) {
-                  sampleStage.style.setProperty('--cel-cycle-dur', (durMs / 1000) + 's');
-                  void sampleStage.offsetWidth;
-                  sampleStage.classList.add(cls);
+                  playStage.style.setProperty('--cel-cycle-dur', (durMs / 1000) + 's');
+                  void playStage.offsetWidth;
+                  playStage.classList.add(cls);
                   setTimeout(function () {
-                    sampleStage.classList.remove(cls);
+                    playStage.classList.remove(cls);
                     // Tier 4.3.1 — double rAF so the browser PAINTS the removal
                     // before the next step adds its class. Without this gap the
                     // mutations coalesce in one tick and subsequent CSS keyframes
@@ -8017,7 +8072,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   if (nextWithPrev) chainNextNow();
                 } else {
                   var subMs = Math.max(60, Math.floor(durMs / count));
-                  sampleStage.style.setProperty('--cel-cycle-dur', (subMs / 1000) + 's');
+                  playStage.style.setProperty('--cel-cycle-dur', (subMs / 1000) + 's');
                   var fired = 0;
                   function fireOne() {
                     if (myToken !== v511PlayToken) return resolve();
@@ -8030,16 +8085,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       return;
                     }
                     fired++;
-                    sampleStage.classList.remove(cls);
+                    playStage.classList.remove(cls);
                     // Force a paint of the "no animation" state so the next add
                     // restarts the keyframes — same double-rAF discipline as
                     // the step boundary above.
                     requestAnimationFrame(function () {
                       requestAnimationFrame(function () {
                         if (myToken !== v511PlayToken) return resolve();
-                        sampleStage.classList.add(cls);
+                        playStage.classList.add(cls);
                         setTimeout(function () {
-                          sampleStage.classList.remove(cls);
+                          playStage.classList.remove(cls);
                           requestAnimationFrame(function () {
                             requestAnimationFrame(fireOne);
                           });
@@ -8054,10 +8109,36 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               step();
             });
           }
+          function v511EnsureRuntimeStage(stage, opts) {
+            if (!stage) return null;
+            stage.classList.add('v511-runtime-stage');
+            ['v511-cel-bg-overlay', 'v511-cel-fx-layer', 'v511-cel-text-overlay'].forEach(function (cls) {
+              if (!stage.querySelector(':scope > .' + cls)) {
+                var el = document.createElement('div');
+                el.className = cls;
+                el.setAttribute('aria-hidden', 'true');
+                stage.insertBefore(el, stage.firstChild);
+              }
+            });
+            var qr = stage.querySelector('.qr-box, .qr-box-large, .qr-box-small');
+            if (qr) qr.classList.add('v511-theme-preview-qr');
+            var theme = (opts && opts.theme) || (typeof activeTheme !== 'undefined' ? activeTheme : null) || {};
+            var palette = Array.isArray(theme.palette) && theme.palette.length ? theme.palette : ['#58a6ff'];
+            for (var i = 1; i <= 7; i++) stage.style.setProperty('--cel-pal-' + i, palette[i - 1] || palette[0]);
+            if (opts && opts.attendeeName) stage._v511AttendeeName = String(opts.attendeeName);
+            return stage;
+          }
+          window.v511PlayCelebrationSequence = function (sequence, opts) {
+            opts = opts || {};
+            var target = opts.stage || document.getElementById('venueQRWrap') || document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder');
+            var stage = v511EnsureRuntimeStage(target, opts);
+            if (!stage || !Array.isArray(sequence) || !sequence.length) return Promise.resolve(false);
+            return v511PlaySequence(sequence, stage).then(function () { return true; });
+          };
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              v511ClearCelClasses();
+              v511ClearCelClasses(sampleStage);
               sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
               void sampleStage.offsetWidth;
               sampleStage.classList.add('firing-' + outcome);
@@ -8166,10 +8247,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               text: { enabled: !!effects.text }
             };
           }
+          function v511MetaFromModeStates() {
+            return {
+              activeMode: currentMode,
+              modeStates: JSON.parse(JSON.stringify(modeStates)),
+              celebration: {
+                allow: JSON.parse(JSON.stringify((modeStates.allow && modeStates.allow.sequence) || [])),
+                review: JSON.parse(JSON.stringify((modeStates.review && modeStates.review.sequence) || [])),
+                deny: JSON.parse(JSON.stringify((modeStates.deny && modeStates.deny.sequence) || []))
+              },
+              uploadedWavs: JSON.parse(JSON.stringify(uploadedWavs || {})),
+              uploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {}))
+            };
+          }
           function v511BuildThemePayload(currentTheme) {
             var base = (typeof normalizeThemeForSave === 'function') ? normalizeThemeForSave(currentTheme || activeTheme || {}) : (currentTheme || {});
             snapshotMode(currentMode);
             var activeState = modeStates[currentMode] || modeStates.allow || {};
+            var meta = v511MetaFromModeStates();
             var bgPalette = v511HexListFromRow('.v511-bg-palette-row');
             var celPalette = v511HexListFromRow('.v511-cel-palette-row');
             var imageData = window._v511ImageData || {};
@@ -8202,10 +8297,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgAnimDuration: Number.isFinite(bgDur) ? bgDur : (base.bgAnimDuration || 30),
               cycleAnimDuration: Number.isFinite(celDur) ? celDur : (base.cycleAnimDuration || 1.4),
               celebration: v511CelebrationFromSequence(sequence),
+              _v511: Object.assign({}, base._v511 || {}, meta),
               v511ActiveMode: currentMode,
-              v511ModeStates: JSON.parse(JSON.stringify(modeStates)),
-              v511UploadedWavs: JSON.parse(JSON.stringify(uploadedWavs || {})),
-              v511UploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {})),
+              v511ModeStates: meta.modeStates,
+              v511UploadedWavs: meta.uploadedWavs,
+              v511UploadedWavNames: meta.uploadedWavNames,
               v511BgImageData: imageData.orig ? imageData : (currentTheme && currentTheme.v511BgImageData) || null,
               v511BgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '0',
               v511BgCycleDirection: v511ReadBgDirection(),
@@ -8291,15 +8387,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           function v511ApplyThemeToVisualMockup(theme) {
             if (!theme) return;
+            var meta = theme._v511 || {};
+            var savedModeStates = meta.modeStates || theme.v511ModeStates;
             v511ApplyPaletteToRow('.v511-bg-palette-row', Array.isArray(theme.bgPalette) ? theme.bgPalette : []);
-            if (theme.v511ModeStates && typeof theme.v511ModeStates === 'object') {
-              modeStates = Object.assign(modeStates, theme.v511ModeStates);
-              if (theme.v511ActiveMode && modeStates[theme.v511ActiveMode]) currentMode = theme.v511ActiveMode;
+            v511ApplyPaletteToRow('.v511-cel-palette-row', Array.isArray(theme.palette) ? theme.palette : []);
+            if (savedModeStates && typeof savedModeStates === 'object') {
+              modeStates = Object.assign(modeStates, savedModeStates);
+              var savedActiveMode = meta.activeMode || theme.v511ActiveMode;
+              if (savedActiveMode && modeStates[savedActiveMode]) currentMode = savedActiveMode;
             } else if (Array.isArray(theme.palette) && modeStates.allow) {
               modeStates.allow.celPalette = theme.palette.slice(0, 7);
             }
-            if (theme.v511UploadedWavs && typeof theme.v511UploadedWavs === 'object') uploadedWavs = Object.assign(uploadedWavs, theme.v511UploadedWavs);
-            if (theme.v511UploadedWavNames && typeof theme.v511UploadedWavNames === 'object') uploadedWavNames = Object.assign(uploadedWavNames, theme.v511UploadedWavNames);
+            var savedWavs = meta.uploadedWavs || theme.v511UploadedWavs;
+            var savedWavNames = meta.uploadedWavNames || theme.v511UploadedWavNames;
+            if (savedWavs && typeof savedWavs === 'object') uploadedWavs = Object.assign(uploadedWavs, savedWavs);
+            if (savedWavNames && typeof savedWavNames === 'object') uploadedWavNames = Object.assign(uploadedWavNames, savedWavNames);
             if (theme.v511BgImageData) window._v511ImageData = theme.v511BgImageData;
             var lightDark = document.getElementById('v511LightDarkMode');
             if (lightDark) lightDark.value = theme.darkMode === 'auto' ? 'auto' : (theme.darkMode ? 'dark' : 'light');
@@ -9009,7 +9111,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Effects directory: keyed by effect id. label drives the sequence-item
           // display; defaultDur is what a new drag-in gets; icon is the chip icon.
           var V511_EFFECTS_LIBRARY = {
-            'glow':         { label: 'Glow halo',        icon: '◉', defaultDur: 1.4 },
+            'glow':         { label: 'QR Glow',          icon: '◉', defaultDur: 1.4 },
             'outer-glow':   { label: 'Outer edge glow',  icon: '◻', defaultDur: 1.4 },
             'spotlight':    { label: 'Spotlight',        icon: '☼', defaultDur: 1.4 },
             'cam-flash':    { label: 'Camera flash',     icon: '⚡', defaultDur: 0.4 },
@@ -9123,7 +9225,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               return;
             }
             // Tier 4.3.7 — assign stable ID so settings survive save-rebuild
-            current.push({ id: 'seq_' + Math.random().toString(36).slice(2, 10), effect: effectId, duration: meta.defaultDur });
+            var nextItem = { id: 'seq_' + Math.random().toString(36).slice(2, 10), effect: effectId, duration: meta.defaultDur };
+            if (effectId === 'glow') nextItem.settings = { style: 'rays', intensity: 'medium' };
+            current.push(nextItem);
             v511RenderSequence(current);
             if (modeStates[currentMode]) modeStates[currentMode].sequence = current;
             if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
@@ -9257,7 +9361,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Per-effect settings schema. Each value is an array of setting templates.
           // Effects not listed get an empty body (just the duration field on the row).
           var V511_EFFECT_SETTINGS = {
-            'glow':         [ SETTING_INTENSITY, SETTING_THICKNESS, { key: 'sweep', label: 'Sweep', options: ['outward','inward','rotate'], default: 'outward' }, { key: 'centrePulse', label: 'Centre pulse', options: ['on','off'], default: 'on' } ],
+            'glow':         [ { key: 'style', label: 'Style', options: ['rays','halo'], default: 'halo' }, SETTING_INTENSITY ],
             'outer-glow':   [ SETTING_INTENSITY, SETTING_THICKNESS, SETTING_BOUNCE ],
             'spotlight':    [ SETTING_INTENSITY, SETTING_BOUNCE ],
             'cam-flash':    [ SETTING_COUNT(5), SETTING_INTENSITY ],
@@ -15545,6 +15649,7 @@ function normalizeThemeForSave(theme) {
   if (BG_IMAGE_SYMMETRY_MODES.indexOf(bgImageSymmetryMode) === -1) {
     bgImageSymmetryMode = t.bgImageSymmetric === true ? 'horizontal' : THEME_DEFAULTS.bgImageSymmetryMode;
   }
+  const v511Meta = t._v511 && typeof t._v511 === 'object' ? t._v511 : null;
   return {
     primary: t.primary || THEME_DEFAULTS.primary,
     accent:  t.accent  || THEME_DEFAULTS.accent,
@@ -15565,7 +15670,17 @@ function normalizeThemeForSave(theme) {
     cycleAnimDuration: typeof t.cycleAnimDuration === 'number' ? t.cycleAnimDuration : THEME_DEFAULTS.cycleAnimDuration,
     // v5.9.0.13.3 — layered celebration model. normaliseCelebration handles
     // both fresh-default seeding and legacy cycleMode migration.
-    celebration: normaliseCelebration(t)
+    celebration: normaliseCelebration(t),
+    _v511: v511Meta,
+    v511ActiveMode: t.v511ActiveMode,
+    v511ModeStates: t.v511ModeStates,
+    v511UploadedWavs: t.v511UploadedWavs,
+    v511UploadedWavNames: t.v511UploadedWavNames,
+    v511BgImageData: t.v511BgImageData,
+    v511BgImageScale: t.v511BgImageScale,
+    v511BgCycleDirection: t.v511BgCycleDirection,
+    v511BgBounce: t.v511BgBounce,
+    v511BgTransition: t.v511BgTransition
   };
 }
 
@@ -16064,7 +16179,34 @@ function fireCelebrationTextOverlay(name, action) {
 }
 window.fireCelebrationTextOverlay = fireCelebrationTextOverlay;
 
+function v511ConfiguredCelebrationSequence(theme, mode) {
+  const m = mode || 'allow';
+  const meta = theme && theme._v511 && typeof theme._v511 === 'object' ? theme._v511 : null;
+  if (meta && meta.celebration && Array.isArray(meta.celebration[m])) return meta.celebration[m];
+  if (meta && meta.modeStates && meta.modeStates[m] && Array.isArray(meta.modeStates[m].sequence)) return meta.modeStates[m].sequence;
+  if (theme && theme.v511ModeStates && theme.v511ModeStates[m] && Array.isArray(theme.v511ModeStates[m].sequence)) return theme.v511ModeStates[m].sequence;
+  return null;
+}
+
+function triggerConfiguredCheckinSequence(mode, attendeeName, action) {
+  const seq = v511ConfiguredCelebrationSequence(activeTheme, mode || 'allow');
+  if (!seq || !seq.length || typeof window.v511PlayCelebrationSequence !== 'function') return false;
+  try {
+    window.v511PlayCelebrationSequence(seq, {
+      stage: document.getElementById('venueQRWrap') || document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder'),
+      theme: activeTheme,
+      attendeeName: attendeeName,
+      action: action || 'in'
+    });
+    return true;
+  } catch (err) {
+    console.warn('[v511 celebration] configured sequence failed; falling back to canonical celebration', err);
+    return false;
+  }
+}
+
 function triggerAcceptCycleAnimation(attendeeName) {
+  if (triggerConfiguredCheckinSequence('allow', attendeeName, 'in')) return;
   // Public hook — call this from check-in success paths to fire the celebration.
   // v5.9.0.13.3 — Layered effect architecture. activeTheme.celebration is a
   // nested object with per-effect enabled flags + variant selectors. Every
