@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.2</span></div>
   </div>
 </div>
 
@@ -5337,6 +5337,47 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background-repeat: no-repeat;
         }
         .v511-theme-preview-stage.bg-mode-image.bg-symmetry-quad::after {
+          background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none)), var(--bg-image-url-my, var(--bg-image-url, none)), var(--bg-image-url-mxy, var(--bg-image-url, none));
+          background-position: var(--sym-pos-1, 0% 0%), var(--sym-pos-2, 100% 0%), var(--sym-pos-3, 0% 100%), var(--sym-pos-4, 100% 100%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
+          background-repeat: no-repeat;
+        }
+        /* v5.11.2 — Render theme bg-image on the .irlid-qr-fullscreen overlay
+           using a ::before pseudo-element. Mirrors the proven v5.11 pattern
+           used by .v511-theme-preview-stage.bg-mode-image::after above, but
+           uses ::before so existing overlay children (logo, title, holder)
+           naturally stack above the bg-image without needing z-index tweaks.
+           CSS variables --bg-image-url / --bg-image-pos / --bg-image-size /
+           --bg-image-repeat / --sym-pos-1..4 are already set on the overlay
+           element by applyV511BackgroundToHostStages at Org.html L15948-15955
+           when fullscreenQR() runs. The previous v5.11.0y attempt to hook
+           fullscreenchange was rolled back in v5.11.1 (caused browser auto-
+           exit). This CSS-only approach has no JS timing race because the
+           pseudo renders whenever the overlay has the .bg-mode-image class —
+           regardless of whether the browser is actually in fullscreen mode. */
+        .irlid-qr-fullscreen.bg-mode-image::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background-image: var(--bg-image-url, none);
+          background-size: var(--bg-image-size, contain);
+          background-position: var(--bg-image-pos, center);
+          background-repeat: var(--bg-image-repeat, no-repeat);
+        }
+        .irlid-qr-fullscreen.bg-mode-image.bg-symmetry-horizontal::before {
+          background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none));
+          background-position: var(--sym-pos-1, 0% 50%), var(--sym-pos-2, 100% 50%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
+          background-repeat: no-repeat;
+        }
+        .irlid-qr-fullscreen.bg-mode-image.bg-symmetry-vertical::before {
+          background-image: var(--bg-image-url, none), var(--bg-image-url-my, var(--bg-image-url, none));
+          background-position: var(--sym-pos-1, 50% 0%), var(--sym-pos-3, 50% 100%);
+          background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
+          background-repeat: no-repeat;
+        }
+        .irlid-qr-fullscreen.bg-mode-image.bg-symmetry-quad::before {
           background-image: var(--bg-image-url, none), var(--bg-image-url-mx, var(--bg-image-url, none)), var(--bg-image-url-my, var(--bg-image-url, none)), var(--bg-image-url-mxy, var(--bg-image-url, none));
           background-position: var(--sym-pos-1, 0% 0%), var(--sym-pos-2, 100% 0%), var(--sym-pos-3, 0% 100%), var(--sym-pos-4, 100% 100%);
           background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
