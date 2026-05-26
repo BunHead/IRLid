@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v42'; // v5.11.6 — extends v5.11.5's clone approach to the INLINE Check-in tab. #venueQRWrap restructured to mirror v511-theme-preview-stage exactly (same class, same overlay layers, same banner, ondblclick=fullscreenQR). .qr-info moved outside the stage as a sibling. CSS overrides scope to .v511-checkin-tab-stage marker class: suppress legacy direct-bg-image (v511 ::after handles it), allow taller stage (min-height 60vh), hide default text overlay until celebration fires. The Check-in tab inline view now looks ARCHITECTURALLY IDENTICAL to the Settings Visual Theming preview. Double-click on the inline stage routes to the v5.11.5 fullscreen clone path (one Fullscreen, not two).
+const CACHE_VERSION = 'irlid-shell-v43'; // v5.11.7 — fixes v5.11.6 layout collision. .prototype-checkin #panel-checkin overrides at Org.html L3160-3167 (display:grid on #venueQRWrap + position:absolute right:-48px on .qr-info) won over the v511-theme-preview-stage flex layout I'd assumed would apply, making .qr-info float over the dragon area. v5.11.7 adds .v511-checkin-tab-stage-scoped overrides that restore the flex-column behavior, reset .qr-box to a v511-sized centered element, and reset .qr-info to static positioning so it flows BELOW the stage cleanly.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
