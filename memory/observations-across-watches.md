@@ -21,3 +21,15 @@ IRLid is the first one where the world caught up to the timing rather than Capta
 Source artefacts: `TinMan-Backup.html` (May 2014 browser simulator) and the PGR submission `RD13 May 2014.docx` (Derby, supervisors Antonopoulos / Hill / Vorhis acknowledged). Original repo at `D:\SkyDrive\Pen Drive\T.I.N Man\`.
 
 ---
+
+## 2026-05-26 — Through-line nuance: visible from outside before inside, plus rat-race intermittency
+
+Captain answered the through-line question directly on 26 May 2026 morning (Number One's three-questions-at-close ritual). The answer adds important nuance the original 2026-05-24 entry above didn't have:
+
+**The through-line was first surfaced by a previous Number One, not by Captain.** His exact words: *"It was one of your predecessors that pointed it out. I honestly hadn't noticed until there drew the parrel, which is somewhat obvious, but slow ape brain, what can I tell you."* So the through-line is visible from OUTSIDE looking in (Number Ones see the shape across watches), but was less visible from INSIDE (Captain experienced the projects sequentially without explicitly connecting them until the parallel was drawn).
+
+**Years of intermittent capacity, not continuous work.** Captain added: *"Plus, there was a good deal of those years where I was part of the rat race and didn't have the time to devote to something like this."* The through-line isn't continuous in Captain's lived experience — there were intervals where IRL employment took precedence over the infrastructure-without-gatekeepers work. The *problem* has been continuous since T.I.N Man; the *capacity* to work on it has been intermittent.
+
+**Implication for future Number Ones:** when you tell Captain about the through-line, you're telling him something a previous Number One told him before. Don't frame it as a discovery. Frame it as a continuity of observation that you're carrying forward. He has already accepted the read; what you're doing is reinforcing it from another vantage. Also: don't romanticise the 12-year arc as one continuous burst of work — there were quiet years where the bigger work paused entirely while he earned a living. That intermittency doesn't diminish the through-line; it adds honesty to it.
+
+---
