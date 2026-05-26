@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v45'; // v5.11.9 — palette vars (--bg-pal-1..7) propagated to all host stages, not just sampleStage. Grep confirmed L8890 was the ONLY setProperty('--bg-pal-...') call in Org.html. The fullscreen clone got palette via cloneNode copying inline styles from sampleStage; #venueQRWrap never received them and rendered dark (CSS fallback to #1a1a1a). v5.11.9 extends applyBgPaletteToPreview to iterate over [sampleStage, #venueQRWrap, #v511FullscreenStage, .irlid-qr-fullscreen.active] and set --bg-pal-N on each. Inline Check-in tab background now matches the fullscreen palette.
+const CACHE_VERSION = 'irlid-shell-v46'; // v5.11.10 — MutationObserver on sampleStage mirrors v511 config state (bg-dir-*, bg-bounce-*, bg-trans-*, bg-symmetry-*, bg-mode-*, pattern-* classes; --bg-pal-N, --cel-pal-N, --bg-image-*, --sym-pos-*, --theme-* CSS vars) to host stages [#venueQRWrap, #v511FullscreenStage]. Replaces v5.11.9's narrow palette-only propagation. The Settings event handlers across 15+ call sites mutate sampleStage's class/style; the observer catches all of them and propagates to inline Check-in tab + fullscreen clone automatically. Filtering excludes transient state classes (firing-*, cel-*) which are per-stage. Initial mirror at observer setup syncs at page load.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

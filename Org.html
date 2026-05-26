@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.10</span></div>
   </div>
 </div>
 
@@ -8883,30 +8883,85 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // collapse to a solid colour instead of cycling orphaned values that
           // were left set on the stage from a previous wider palette.
           function applyBgPaletteToPreview() {
+            // v5.11.10 — palette propagation now handled by the broader
+            // v511MirrorSettingsStateToHostStages MutationObserver below.
+            // We still set palette on sampleStage here (the source of truth
+            // that the observer watches), and the observer mirrors it to
+            // all host stages automatically.
+            if (!sampleStage) return;
             var inputs = document.querySelectorAll('.v511-bg-palette-row .v511-palette-swatch-wrap input[type="color"]');
             var first = inputs[0] ? inputs[0].value : '#1a1a1a';
-            // v5.11.9 — propagate palette vars to ALL host stages, not just
-            // the Settings preview. Before this, --bg-pal-N was set only on
-            // sampleStage. The fullscreen clone got it via cloneNode copying
-            // inline styles, but #venueQRWrap (Check-in tab inline, post-
-            // v5.11.6 a v511-theme-preview-stage) never received them — the
-            // CSS fell back to #1a1a1a default and the inline panel rendered
-            // dark navy while the fullscreen showed the correct palette
-            // gradient. Captain's smoke at v5.11.8 surfaced the mismatch.
-            // Verified via grep: this is the ONLY setProperty('--bg-pal-...)
-            // call in Org.html (no other code path was setting them either).
-            var stages = [
-              sampleStage,
-              document.getElementById('venueQRWrap'),
-              document.getElementById('v511FullscreenStage'),
-              document.querySelector('.irlid-qr-fullscreen.active')
-            ];
-            stages.forEach(function (stage) {
-              if (!stage) return;
-              for (var i = 1; i <= 7; i++) {
-                stage.style.setProperty('--bg-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
-              }
+            for (var i = 1; i <= 7; i++) {
+              sampleStage.style.setProperty('--bg-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
+            }
+          }
+
+          // v5.11.10 — Mirror ALL v511 config state from sampleStage to the
+          // other host stages (#venueQRWrap inline Check-in tab, #v511FullscreenStage
+          // when active). Settings event handlers across 15+ call sites add/remove
+          // bg-dir-*, bg-bounce-*, bg-trans-*, bg-symmetry-*, bg-mode-*, pattern-*
+          // classes and set --bg-pal-N, --cel-pal-N, --bg-image-*, --sym-pos-*,
+          // --theme-* CSS variables on sampleStage only. The fullscreen clone
+          // captures sampleStage's state via cloneNode at fullscreen-open time,
+          // but #venueQRWrap never received them. v5.11.9 fixed --bg-pal-* but
+          // missed the rest. Rather than patch each call site to also write to
+          // #venueQRWrap, observe sampleStage and mirror its config to host
+          // stages whenever it changes. Initial mirror at observer setup
+          // ensures page-load sync.
+          //
+          // Filtering: only mirror CONFIG classes/vars (bg-*, pattern-*, the
+          // CSS var prefixes below). Skip transient state (firing-*, cel-*,
+          // v511-runtime-stage) which is per-stage and shouldn't propagate.
+          function v511MirrorSettingsStateToHostStages() {
+            if (!sampleStage) return;
+            var configClassPrefixes = ['bg-mode-', 'bg-dir-', 'bg-bounce-', 'bg-trans-', 'bg-symmetry-', 'pattern-'];
+            var cssVarPrefixes = ['--bg-pal-', '--cel-pal-', '--bg-image-', '--sym-pos-', '--theme-'];
+            var sourceClasses = Array.from(sampleStage.classList).filter(function (c) {
+              return configClassPrefixes.some(function (p) { return c.indexOf(p) === 0; });
             });
+            var cssVarsToMirror = {};
+            for (var i = 0; i < sampleStage.style.length; i++) {
+              var prop = sampleStage.style[i];
+              if (cssVarPrefixes.some(function (p) { return prop.indexOf(p) === 0; })) {
+                cssVarsToMirror[prop] = sampleStage.style.getPropertyValue(prop);
+              }
+            }
+            var targets = [
+              document.getElementById('venueQRWrap'),
+              document.getElementById('v511FullscreenStage')
+            ];
+            targets.forEach(function (target) {
+              if (!target || target === sampleStage) return;
+              // Remove existing config classes so we sync (not just add)
+              Array.from(target.classList).forEach(function (c) {
+                if (configClassPrefixes.some(function (p) { return c.indexOf(p) === 0; })) {
+                  target.classList.remove(c);
+                }
+              });
+              // Add the source's config classes
+              sourceClasses.forEach(function (c) { target.classList.add(c); });
+              // Copy CSS variables
+              Object.keys(cssVarsToMirror).forEach(function (prop) {
+                target.style.setProperty(prop, cssVarsToMirror[prop]);
+              });
+            });
+          }
+
+          if (window.MutationObserver && sampleStage) {
+            var sampleStageObserver = new MutationObserver(function (mutations) {
+              var needsMirror = false;
+              for (var m = 0; m < mutations.length; m++) {
+                if (mutations[m].attributeName === 'class' || mutations[m].attributeName === 'style') {
+                  needsMirror = true;
+                  break;
+                }
+              }
+              if (needsMirror) v511MirrorSettingsStateToHostStages();
+            });
+            sampleStageObserver.observe(sampleStage, { attributes: true, attributeFilter: ['class', 'style'] });
+            // Initial sync at page-load — runs once the script has parsed past
+            // sampleStage's CSS-variable-setting code above.
+            v511MirrorSettingsStateToHostStages();
           }
           document.addEventListener('input', function (e) {
             if (e.target.matches('.v511-bg-palette-row input[type="color"]')) applyBgPaletteToPreview();
