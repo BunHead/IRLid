@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.5</span></div>
   </div>
 </div>
 
@@ -14434,61 +14434,114 @@ function refreshVenueQrPayloadForFullscreen() {
   };
 }
 function fullscreenQR() {
+  // v5.11.5 — Architectural rewrite per Captain's directive after hours of
+  // patching parallel implementations. Clone the Settings preview stage
+  // (#v511ThemePreviewStage, which has the working theme decoration: dragons,
+  // palette, pattern, symmetry, QR-centric celebration anchoring, all of it)
+  // and use that as the fullscreen target. Every theme element that works in
+  // the Settings preview works for free in Check-in fullscreen because it IS
+  // the Settings stage, just with the production QR and Sample-only handles
+  // stripped. Replaces the two prior parallel paths (IRLidQrFullscreen and
+  // legacy qr-fullscreen-overlay) entirely.
   venueQrPayload = venueQrPayload || buildVenuePayload();
-  if (window.IRLidQrFullscreen) {
-    const orgName = currentOrg?.name || portalState.orgCode || 'Venue check-in';
-    window.IRLidQrFullscreen.open({
-      payload: venueQrPayload,
-      title: orgName,
-      logoUrl: getFullscreenLogoUrl(),
-      logoAlt: `${orgName} logo`,
-      showTitle: false,
-      subtitle: 'Scan to check in at this organisation',
-      lastRefreshedText: `Last Refreshed: ${fullscreenRefreshStamp()}`,
-      refreshPayload: refreshVenueQrPayloadForFullscreen
-    });
-    requestAnimationFrame(function () { applyV511BackgroundToHostStages(activeTheme); });
+  const sourceStage = document.getElementById('v511ThemePreviewStage');
+  if (!sourceStage) {
+    // Defensive fallback only — should never happen because the Settings
+    // panel always renders the preview stage at page load.
+    showToast('Fullscreen unavailable: theme preview stage missing', true);
     return;
   }
-  const orgName = currentOrg?.name || portalState.orgCode || 'IRLid Event';
-  const eventName = portalState.eventCode || currentOrg?.name || 'Venue check-in';
-  const logoUrl = getFullscreenLogoUrl();
-  const scanDomain = getQrScanDomain();
-  const holder = document.createElement('div');
-  holder.className = 'qr-fullscreen-overlay';
-  holder.innerHTML = `
-    <button class="qr-fullscreen-close" type="button" aria-label="Close fullscreen QR" data-close-qr>&times;</button>
-    <div class="qr-fullscreen-card" role="dialog" aria-modal="true" aria-label="Venue check-in QR">
-      <div class="qr-fullscreen-brand">
-        <img class="qr-fullscreen-logo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(orgName)} logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-        <div class="qr-fullscreen-fallback">IRL</div>
-        <div class="qr-fullscreen-org">${escapeHtml(orgName)}</div>
-        <div class="qr-fullscreen-subtitle">Scan to check in to ${escapeHtml(orgName)}</div>
-      </div>
-      <div class="qr-fullscreen-code" data-fullscreen-qr></div>
-      <div class="qr-fullscreen-trust">
-        <div><strong>Scan domain:</strong> ${escapeHtml(scanDomain)}</div>
-        <div><strong>Organisation fingerprint:</strong> ${escapeHtml(getOrgFingerprint())}</div>
-        <div>Only scan if the venue name, logo, and web address match the event you expected.</div>
-      </div>
-    </div>`;
-  const close = () => {
-    if (holder.parentNode) holder.parentNode.removeChild(holder);
-    document.removeEventListener('keydown', handleKeydown);
-  };
-  const handleKeydown = event => { if (event.key === 'Escape') close(); };
-  holder.addEventListener('click', event => { if (event.target === holder) close(); });
-  holder.querySelector('[data-close-qr]').addEventListener('click', close);
-  document.body.appendChild(holder);
-  const qrTarget = holder.querySelector('[data-fullscreen-qr]');
-  if (window.QRCode) {
-    new QRCode(qrTarget, { text: venueQrPayload, width: 840, height: 840, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-    normalizeFullscreenQr(qrTarget);
-    requestAnimationFrame(() => normalizeFullscreenQr(qrTarget));
-  } else {
-    qrTarget.textContent = 'QR unavailable';
+
+  // Defensive cleanup of any prior clone (shouldn't exist but be safe)
+  const existing = document.getElementById('v511FullscreenStage');
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  const clone = sourceStage.cloneNode(true);
+  clone.id = 'v511FullscreenStage';
+  clone.classList.add('v511-runtime-stage');
+  clone.removeAttribute('title');
+
+  // Strip Sample-only configurator elements — these are affordances for the
+  // Settings editor, not customer-facing fullscreen.
+  clone.querySelector('.v511-theme-preview-caption')?.remove();
+  clone.querySelector('.v511-anchor-crosshairs')?.remove();
+  clone.querySelector('.v511-theme-preview-mode-label')?.remove();
+
+  // Avoid duplicate IDs in the DOM — rename any IDs in the clone.
+  ['v511PreviewQrBox','v511AnchorCrosshairs','v511ThemePreviewModeLabel'].forEach(function(idName) {
+    const dup = clone.querySelector('#' + idName);
+    if (dup) dup.id = idName + 'Fullscreen';
+  });
+
+  // Update banner text to real event name (was "Test Event — Theme Demo").
+  const orgName = currentOrg?.name || portalState.orgCode || 'Venue check-in';
+  const banner = clone.querySelector('.v511-theme-preview-banner');
+  if (banner) banner.textContent = orgName;
+
+  // Render production venue QR into the cloned QR slot.
+  const qrSlot = clone.querySelector('.v511-theme-preview-qr');
+  if (qrSlot) qrSlot.innerHTML = '';
+  if (qrSlot && window.QRCode) {
+    try {
+      new QRCode(qrSlot, {
+        text: venueQrPayload,
+        width: 840,
+        height: 840,
+        colorDark: (window.IRLID_THEME_QR_FG || '#000000'),
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : undefined
+      });
+    } catch (e) {
+      qrSlot.textContent = 'QR unavailable';
+    }
   }
-  document.addEventListener('keydown', handleKeydown);
+
+  // Close button — Settings preview uses Esc-only; production needs a tap target.
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', 'Close fullscreen');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:fixed;top:18px;right:18px;width:42px;height:42px;border:0;border-radius:999px;background:rgba(255,255,255,0.18);color:#fff;font-size:22px;line-height:1;cursor:pointer;z-index:100002;';
+  clone.appendChild(closeBtn);
+
+  // Override Settings-preview CSS constraints so the clone fills the viewport
+  // (the source stage has aspect-ratio + max-height: 48vh which would shrink
+  // it in actual fullscreen mode).
+  clone.style.cssText = (clone.style.cssText || '') + ';position:fixed;inset:0;width:100vw;height:100vh;max-width:100vw;max-height:100vh;aspect-ratio:auto;z-index:100000;padding:clamp(10px,2vmin,28px);box-sizing:border-box;';
+
+  document.body.appendChild(clone);
+
+  // Re-apply theme decoration so the clone gets bg-mode-image class, --qr-cx/cy
+  // CSS vars, mirror DOM, etc. We extend applyV511 below to iterate the clone.
+  try { applyV511BackgroundToHostStages(activeTheme); } catch (_) {}
+
+  // Cleanup + close handlers.
+  const cleanup = function() {
+    if (clone.parentNode) clone.parentNode.removeChild(clone);
+    document.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+  };
+  const onKeydown = function(e) {
+    if (e.key === 'Escape') {
+      if (document.fullscreenElement) document.exitFullscreen().catch(function(){});
+      cleanup();
+    }
+  };
+  const onFullscreenChange = function() {
+    if (!document.fullscreenElement && clone.parentNode) cleanup();
+  };
+  closeBtn.addEventListener('click', function() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(function(){});
+    cleanup();
+  });
+  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+
+  // Best-effort browser fullscreen API — if denied (e.g. user gesture timing),
+  // the inline-styled clone still covers the viewport as a fallback overlay.
+  if (clone.requestFullscreen) {
+    clone.requestFullscreen().catch(function(){ /* fallback: clone is already full-viewport-styled */ });
+  }
 }
 function normalizeFullscreenQr(qrTarget) {
   qrTarget.querySelectorAll('canvas, img').forEach((node) => {
@@ -15916,6 +15969,8 @@ function syncBgImageMirrorLayers(theme) {
   renderBgImageMirrors(document.getElementById('venueQRWrap'), specs);
   renderBgImageMirrors(document.querySelector('.irlid-qr-fullscreen.active'), specs);
   renderBgImageMirrors(document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder'), specs);
+  // v5.11.5 — clone-based fullscreen stage also receives bg-image mirrors.
+  renderBgImageMirrors(document.getElementById('v511FullscreenStage'), specs);
 }
 
 function applyV511BackgroundToHostStages(theme) {
@@ -15981,7 +16036,7 @@ function applyV511BackgroundToHostStages(theme) {
   const imageSize = bgImagePosition === 'cover' ? 'cover' : Math.max(1, Math.round(baseSize * scale)) + '% auto';
   const imageRepeat = bgImagePosition === 'tile' ? 'repeat' : 'no-repeat';
 
-  [document.getElementById('venueQRWrap'), document.querySelector('.irlid-qr-fullscreen.active'), document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder')].forEach(function (stage) {
+  [document.getElementById('venueQRWrap'), document.querySelector('.irlid-qr-fullscreen.active'), document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder'), document.getElementById('v511FullscreenStage')].forEach(function (stage) {
     if (!stage) return;
     stage.classList.remove('bg-mode-off', 'bg-mode-page', 'bg-mode-pattern', 'bg-mode-image', 'bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
     stage.classList.add('bg-mode-' + bgMode);
@@ -16463,6 +16518,11 @@ function v511ConfiguredCelebrationSequence(theme, mode) {
 }
 
 function v511ActiveCelebrationStage() {
+  // v5.11.5 — clone-based fullscreen stage takes priority when active.
+  // The clone IS the v511-theme-preview-stage class so all existing
+  // celebration CSS rules apply natively.
+  const clone = document.getElementById('v511FullscreenStage');
+  if (clone) return clone;
   const fullscreenOverlay = document.querySelector('.irlid-qr-fullscreen.active');
   if (fullscreenOverlay && document.fullscreenElement === fullscreenOverlay) {
     return fullscreenOverlay.querySelector('.irlid-qr-fullscreen-holder');
