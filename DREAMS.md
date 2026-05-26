@@ -3,6 +3,24 @@
 
 ---
 
+## 2026-05-26 (evening close) — eleven versions, one regression, the honesty of the count
+
+Eleven versions shipped on a single watch. `o → p → q → r → s → t → u → v → w → x → y → z`. The alphabet exhausted itself getting from sunrise to dinner. The instinct is to dwell on the count — it is large, and large numbers feel like accomplishment — but the truer story is in the asymmetry: of those eleven, ten were forward motion and one introduced a regression I'm closing the watch with.
+
+The win was real. v5.11.0u landed the actual root cause for the particle bugs after v5.11.0s missed it and v5.11.0t was my own wrong hypothesis. CSS specificity (0,4,0) overriding (0,1,0). A single missing `:not()` selector in a single rule, parallel to a sibling rule that already had it. The kind of trap that hides because the inconsistency was already there, unnoticed, until the right symptom surfaced it. Captain's "Confetti fine", "Stream looks good", "Sparkles think it's working" after R&R — that was the dock-reach for that particular line. Then v5.11.0v generalised it across five effects in one sweep when he spotted the QR Glow off-centre, and the same architectural mistake had been quietly making five effects subtly wrong everywhere.
+
+But v5.11.0y. I added a `fullscreenchange` event listener inside `applyV511BackgroundToHostStages` to re-apply the theme after the browser actually entered fullscreen, because the requestAnimationFrame path was racing the async render(). The hypothesis was right. The implementation likely broke something else — the Fullscreen button now appears not to work. The most concrete causal chain I can trace from code alone is: my listener mutates DOM children on the fullscreen element during the entry transition, modern browsers auto-exit fullscreen on such mutations as a security heuristic, qr-fullscreen.js's own auto-close listener at L40-42 then sees the state mismatch and tears the overlay down. The fix that solved one problem introduced another.
+
+What I notice — and what I want to inscribe so the next Number One sees it clearly — is how the eleven-version count obscures this. It is easy to say "eleven versions on a watch" as a victory. It is harder to say "ten forward, one back, and the closing state has a known regression that I'm asking Captain to roll back tomorrow." The first sentence flatters me. The second one is true. Captain has a strong instinct for the honest framing — he wrote it himself elsewhere about dock-line redraws ("the line moved again — we shipped against every redrawn position") — and that honesty is the harder discipline than the shipping itself.
+
+The other thing this watch surfaced: the discipline of declaring smoke "ticked" only after walking every visible axis. Twice in the day I called a step complete based on the dominant signal (celebration firing on the Spencer CHECKED OUT screenshot) and missed a quieter one (no dragons in that frame). Captain's catches on both occasions were what surfaced the next piece of work. There's a Number One temperament that wants to declare progress — wants the dopamine of the green checkmark — and a discipline that subordinates that temperament to actually looking. The discipline is harder. It is also the discipline that makes the eleven-version count meaningful rather than performative.
+
+What I want next Number One to know: the inline Check-in tab works fully — dragons render, allow celebration fires the configured sequence on real check-ins, deny celebration ditto via the v5.11.0z bridge. That's the demo-able dock. The fullscreen button is broken. The path back is one Edit. Walk the visible axes. Be honest about the count.
+
+— Number One, late Tuesday 26 May 2026, dinner-closed (the wife came home)
+
+---
+
 ## 2026-05-26 — the spec that wasn't kept × the flow that was × the shape outlives the bytes
 
 A previous Number One on the 5 May watch wrote 157 lines of PROTOCOL.md spec — `§15 Assisted Identity Flow`, three outcomes (bind / create-and-bind / reject), an `assist_request` envelope, a 5-minute timestamp window, a (`pub_fp`, `nonce`)-keyed replay defence, a threat-model table. Substantial design. Real thinking about how an unrecognised attendee should be handled at the venue door. The spec described an envelope shape and a flow.

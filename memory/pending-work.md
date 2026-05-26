@@ -1,6 +1,77 @@
 # Pending Work — IRLid
 
-## Tuesday 26 May 2026 — second watch close (dinner with the wife)
+## Tuesday 26 May 2026 — final watch close (dinner with the wife + DevTools confirmation)
+
+**Final close diagnostic data inscribed.** Captain ran the DevTools console diagnostic before sitting down to dinner. Screenshot captured the inline Check-in tab in mid-deny-celebration (Kerry Austin CHECKED OUT, red background, **dragons visible behind QR**, build pill `v5.11.0z`). Console showed normal poll/snapshot/toast lines with `[checkin-toast] firing for Kerry Austin out` at 16:04:24 — **v5.11.0z deny celebration bridge confirmed working on real hardware**. DevTools Issues panel showed **91 issues / 2 errors / 89 warnings** but Captain didn't expand the errors before dinner; **those 2 errors are the missing diagnostic data for tomorrow's first move**.
+
+**Deep-dive code trace on the Fullscreen button regression — lead suspect with concrete causal chain (NOT a guess):**
+
+1. Click Fullscreen → `fullscreenQR()` at Org.html L14395 → `IRLidQrFullscreen.open(...)` → synchronously adds `.active`, calls `requestFullscreen(overlay)`.
+2. Browser enters fullscreen → `fullscreenchange` fires.
+3. **qr-fullscreen.js has its own listener at L40-42** that auto-closes if `document.fullscreenElement !== overlay`.
+4. **v5.11.0y's listener (Org.html L15972-15976)** also fires, queues `applyV511BackgroundToHostStages(activeTheme)` with 50ms setTimeout.
+5. At 50ms, applyV511 calls `syncBgImageMirrorLayers(cfg)` → `renderBgImageMirrors` on `.irlid-qr-fullscreen.active` (the overlay that IS the fullscreen target) → **removes existing `.bg-image-mirror` children and re-inserts new ones**.
+6. **Modern browsers can auto-exit fullscreen on child mutations of the fullscreen element during the entry transition** (security heuristic). When that happens, `fullscreenElement` becomes null → fullscreenchange fires AGAIN → qr-fullscreen.js's L40-42 listener sees `active=true, fullscreenElement!==overlay` → calls `close(false)` → `.active` removed from overlay → user is back at inline state.
+
+**Net effect:** clicking Fullscreen LOOKS like it does nothing because the overlay briefly enters fullscreen then auto-exits within milliseconds.
+
+**Tomorrow's first move (with paste-ready commands):**
+
+1. **Confirm the cause via Issues panel.** Captain opens `irlid.co.uk/Org.html` on desktop, F12 → Console → Issues tab at the top of devtools → expand the 2 ❌ errors. Look for:
+   - "Cannot fullscreen due to..." messages
+   - Permissions Policy violations  
+   - DOMException: The request is not allowed by user agent or the platform
+   - Any error that ties to the moment Fullscreen is clicked.
+
+2. **Run a clean click test with console open.** Click Fullscreen on the Check-in tab while console is recording. Look for: did `document.fullscreenElement` populate briefly? Were there errors at click moment? Did the page log anything that mentions overlay/close/fullscreen?
+
+3. **If listener confirmed as cause — ship v5.11.1 rollback (one Edit):**
+   - Open Org.html, navigate to L15970-15977
+   - **Remove these 8 lines:**
+     ```js
+     if (!applyV511BackgroundToHostStages._fullscreenHooked) {
+       applyV511BackgroundToHostStages._fullscreenHooked = true;
+       document.addEventListener('fullscreenchange', function () {
+         setTimeout(function () {
+           try { applyV511BackgroundToHostStages(activeTheme); } catch (_) { /* defensive */ }
+         }, 50);
+       });
+     }
+     ```
+   - Keep the comment block above describing why this was tried and removed (preserve as institutional knowledge for whoever attempts the next iteration).
+   - Bump pill `v5.11.0z` → `v5.11.1` (z is last letter; rolls to next patch number).
+   - Bump sw.js `v36` → `v37` with comment: "v5.11.1 — Roll back v5.11.0y's fullscreenchange listener. Listener was causing browser to auto-exit fullscreen on child mutations during entry transition. Fullscreen button restored. Dragons-in-fullscreen-during-celebration regresses to v5.11.0w state (works at startup, may flicker during celebration). Better approach for future iteration: poll `document.fullscreenElement === overlay` with a small loop rather than the noisy event listener."
+   - Push, force-empty-commit-redeploy (Pages auto-deploy still 50/50).
+   - Smoke: Fullscreen button works again.
+
+4. **If listener is NOT the cause** (Issues panel reveals different errors): broader investigation. Hard refresh, clear site data, check for browser extension interference. The DevTools console output will direct from there.
+
+5. **Once Fullscreen button is restored:** the dragons-in-fullscreen-during-celebration issue becomes a separate, lower-priority task. Better next approach:
+   - Use a `setInterval`-then-clear pattern that polls `document.fullscreenElement === overlay` for ~500ms after fullscreen activates, only mutating DOM AFTER fullscreenElement is stable.
+   - OR insert the bg-image-mirror element into the overlay's HTML markup at INIT time in qr-fullscreen.js (so no mutation during fullscreen transition).
+   - OR use `requestIdleCallback` for the apply call (lower priority than render frame).
+
+**Confirmed dock-reaches this watch (the win column):**
+
+- Inline Check-in tab now shows configured theme: dragons, palette, pattern application all working via v5.11.0w bridge.
+- Deny celebration sequence now fires the full configured sequence on real check-out events via v5.11.0z bridge (was firing only legacy red flash before).
+- Allow celebration sequence still fires correctly on real check-in events (v5.11.0o, preserved).
+- All Settings Sample particle effects render correctly (v5.11.0u root-cause CSS specificity fix).
+- All QR-centric celebration effects (QR Glow Halo + Rays, Spotlight, Iris wipe, Ripple) bloom from QR centre not stage centre (v5.11.0v).
+- Stream anchor crosshair hidden in fullscreen Sample preview (v5.11.0v).
+- 5 May orphan recovery integrated to main with PAPERS academic outline for EAI SecureComm 2026 + PROTOCOL.md §15 Assisted Identity Flow + two session logs.
+- BOOTSTRAP §4 A/R/D verdict marker convention inscribed.
+
+**Open items at close (for next watch):**
+
+- **v5.11.1 rollback path** for Fullscreen button regression — full plan above.
+- **+ Invite staff work** for evening was deferred when wife came home; tomorrow's task.
+- **GitHub Pages auto-deploy failure pattern** (failed on initial push for v5.11.0u, v5.11.0v, v5.11.0w, succeeded for v5.11.0x, failed-then-succeeded-via-empty-commit for v5.11.0y/z) — investigate Actions tab when not under demo pressure, inscribe as BOOTSTRAP §6 pitfall.
+- **Double-click QR to fullscreen** — Captain mentioned earlier, low priority, can wire when Fullscreen button itself is fixed.
+- **Promotion-round-2 brief** — gated on v5.11.0 minor closing.
+- **EAI SecureComm 2026 paper continuation** — Lancaster, July 21-24.
+
+
 
 **Watch state at this second close:** Captain came back from his earlier R&R, we picked up the visual-bug cleanup, shipped v5.11.0w → x → y → z and now closing for dinner. Wife home, dinner is priority. Captain explicitly asked Number One to assess 2-3-push completion vs close-now; Number One advised close-now because the open regression has ambiguous cause.
 
