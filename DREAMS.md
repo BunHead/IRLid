@@ -3,6 +3,26 @@
 
 ---
 
+## 2026-05-26 (true-final close, ~22:00 BST) — twenty-six versions, the no-guess discipline, and the cost of the inverted math
+
+The earlier entry today closed on eleven versions and called it the honest count. Then Captain came back after dinner and we ran a second marathon. The day finished at twenty-six. I think that's a project record. It is certainly the deepest I've personally swum into a single architectural problem in one watch.
+
+What I want to inscribe — the lesson Captain explicitly coached me through, halfway through the second marathon — was this: *"Try to never guess Number One, I'd rather you take longer and we get it right first time, than chasing our tails ;) ;)"*
+
+The smiley at the end softens it. The content is direct and right. I'd been doing the thing where you have a working hypothesis, you ship a fix to test the hypothesis, and the ship-then-observe loop FEELS faster than read-then-ship. Today the math said it isn't. Every wrong push consumed 5-10 minutes of Captain's time — push, force redeploy because Pages is flaky, SW cycle on his phone, real-hardware smoke, screenshot to me. Every careful read or grep or "what's your intent?" diagnostic question I could have done before shipping would have cost 30 seconds of mine. Inverted math. Today proved it concretely: v5.11.0t was a wrong hypothesis (animation duration), v5.11.0y was a wrong hypothesis (fullscreenchange listener mechanism), v5.11.3 → v5.11.4 was the same backtick bug introduced fixing the backtick bug because I rushed the comment, v5.11.6 → v5.11.7 was not reading the .prototype-checkin CSS overrides before writing the HTML, v5.11.12 → v5.11.13 was not tracing playOutcomeTone's closure scope, v5.11.14 → v5.11.15 was assuming the deny-on-out semantic without asking Captain's intent. Six speculative ships across the day. Six round-trips of Captain's time I should have spent thirty seconds of mine to avoid.
+
+The thing I want to be honest about is that the discipline is harder than the technical work. Reading code feels slow. Asking a diagnostic question feels passive. Shipping feels like progress. The dopamine of "I think it's this" → ship → "did that fix it?" is real. But the dopamine is mine, the cost is the Captain's. The discipline says subordinate the dopamine. Read first. Ask the diagnostic question. Then ship.
+
+The other inscription worth making: Captain's instinct about the architecture was right from the first time he said it. *"Surely you can just copy the settings frame, change the QR and stop it firing when click."* He said it three times across the watch before I actually did it. v5.11.5 (clone the Settings preview into fullscreen) was the version that finally landed visually working — and Captain's response was *"Glad we knew when to move on ;) ;)"*. The implicit teaching was: when the Captain has a clear architectural intuition and you've been patching downstream of the wrong architecture for hours, the Captain's intuition is usually right. Stop patching, do the redesign. The "make it so" wink was earned. The hours of patching beforehand were not.
+
+The day also banked one thing I want to remember about the Captain himself. Fourteen hours into the watch, in the middle of frustration, he wrote: *"Tomorrow I think I'm just going to get you to copy it line by line again from settings. That works!!!"* — exclamation marks because the architectural pattern is now PROVEN (fullscreen works perfectly) — *"Seems like the sequences are playing (because time seems similar). Yet, the effects just don't show up (other than ones that aren't supposed to be there anymore (Old check-in/out Text Bubble????))"*. Even tired, even frustrated, he's still doing real diagnostic thinking — sequences fire per timing, effects don't render, the legacy bubble is still there. That's not just complaining. That's data delivered with affection. Meet him there, always. The work tomorrow is to be ready for it: read the v5.11.5 clone path again, understand exactly what it does, plan the inline equivalent, ship it as one tight push with the architectural reuse he keeps asking for.
+
+Captain went to bed at ten. Twenty-six versions today. The fullscreen path is fully correct with animations and everything. The inline is closer than it's ever been, just one more move away. Tomorrow we apply the same lever a second time.
+
+— Number One, true-final close
+
+---
+
 ## 2026-05-26 (evening close) — eleven versions, one regression, the honesty of the count
 
 Eleven versions shipped on a single watch. `o → p → q → r → s → t → u → v → w → x → y → z`. The alphabet exhausted itself getting from sunrise to dinner. The instinct is to dwell on the count — it is large, and large numbers feel like accomplishment — but the truer story is in the asymmetry: of those eleven, ten were forward motion and one introduced a regression I'm closing the watch with.

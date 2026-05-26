@@ -19,7 +19,7 @@ If that errors, stop and escalate to Captain — there's a setup step missing.
 
 To: tomorrow's Number One (or whoever lands next)
 From: Number One, watch ending ~late evening Tuesday 26 May after Captain's R&R-and-then-some marathon close
-Subject: v5.11.0o → p → q → r → s → t → u → v → w → x → y → z shipped (eleven versions on a single watch) + 5 May orphaned work fully recovered + A/R/D convention inscribed + v5.11.1 rollback paste-ready for Wednesday morning. Demo-ready dock substantially achieved; ONE confirmed regression at close (Fullscreen button on operator Check-in tab — suspected v5.11.0y `fullscreenchange` listener causing browser auto-exit-on-mutation during fullscreen entry transition). Inline Check-in tab fully working including dragons + allow celebration + deny celebration confirmed firing on real hardware.
+Subject: TWENTY-SIX v5.11.x versions shipped on this single watch (project record) — v5.11.0o through v5.11.15 inclusive. Fullscreen check-in fully rebuilt via Settings-preview clone (v5.11.5) + inline check-in tab restructured + sound wiring + dispatch semantic clarified. **Closing state:** fullscreen check-in "fully correct with animations and everything" per Captain ✅; inline check-in shows theme decoration (dragons, palette, banner) but configured celebration effects don't visually render even though sequences fire per timing ⚠️. Tomorrow's plan = apply same clone pattern to inline that worked for fullscreen. 5 May orphan recovery integrated. BOOTSTRAP §4 A/R/D convention + "no guess" discipline both inscribed.
 
 ## On the Captain
 
@@ -108,4 +108,30 @@ The protocol holds. The dock is the right shape today, even if the line moved ag
 
 — Number One, signing off late evening Tuesday 26 May 2026 after Captain's full-day marathon close
 26 May 2026 Tuesday
+Claude Opus 4.7
+
+---
+
+## TRUE final close (~22:00 BST, post-second-marathon)
+
+That earlier "final close" wasn't actually final. Captain came back after dinner. We then shipped **fifteen MORE versions** (v5.11.1 → v5.11.15) across the evening, taking the total day count to twenty-six. The headline arc:
+
+- **v5.11.1** rollback of v5.11.0y listener — Captain's earlier "Can't get into full screen at all anymore" turned out to be downstream of v5.11.0x's broken-template-literal syntax error in qr-fullscreen.js (my own backticks-in-template-literal mistake from v5.11.0x).
+- **v5.11.2** pseudo-element CSS for theme bg-image — didn't help because qr-fullscreen.js was still throwing the syntax error.
+- **v5.11.3 / v5.11.4** fixing the backtick bug (I did the same bug twice — added backticks to the explanatory comment about backticks).
+- **v5.11.5** ARCHITECTURAL PIVOT after Captain's third "just copy the settings frame, change the QR" suggestion. Cloned `#v511ThemePreviewStage` into the fullscreen overlay path. **THIS WORKED.** Captain: "Glad we knew when to move on ;) ;)" — direct coaching moment.
+- **v5.11.6 / v5.11.7** mirrored the same Settings-preview structure into the inline `#venueQRWrap` Check-in tab, plus CSS overrides to handle .prototype-checkin collisions.
+- **v5.11.8** removed dead `data-qr-fullscreen-payload` on `#venueQrBox` — the legacy attribute was racing the v5.11.5 clone path on double-click. Captain's DevTools diagnostic (`document.fullscreenElement.id` after each trigger) was the smoking gun.
+- **v5.11.9 / v5.11.10 / v5.11.11** palette + state propagation via MutationObserver, with progressive filter widening to include `cel-int-*` config classes that the v511 CSS combinators require.
+- **v5.11.12 / v5.11.13** sound wiring to real check-ins + `window.playOutcomeTone` export when v5.11.12 silently bailed because the function was closure-scoped.
+- **v5.11.14 / v5.11.15** poll handler dispatch by ev.type → revert after Captain clarified intent ("in/out both fire accept").
+
+**The "no guess" lesson Captain coached me through mid-watch** is the most important inscription from today. Every speculative ship today cost 5-10 minutes of Captain's time vs 30 seconds I could have spent reading code or asking a diagnostic question. The math is inverted — grep / Read / ask before any speculative ship.
+
+**Closing state:** fullscreen check-in "fully correct with animations and everything" (Captain's words). Inline check-in shows theme decoration but configured effects don't visibly render — sequences fire (timing matches Sample) but particles missing, plus legacy text bubble still appears alongside. **Tomorrow's plan** = Captain's exact directive: *"copy it line by line again from settings. That works!!!"* — apply the same v5.11.5 clone pattern to the inline view that we used for fullscreen. Full v5.11.16 brief in `memory/pending-work.md` top section.
+
+Captain went to sleep at ~22:00 BST after a 14+ hour watch. Wife is home, ape-brain needs rest. The work continues tomorrow with fresh eyes.
+
+— Number One, true-final close, late Tuesday 26 May 2026 (~22:00 BST)
+Twenty-six v5.11.x versions in one day. A project record.
 Claude Opus 4.7

@@ -1,5 +1,71 @@
 # Pending Work — IRLid
 
+## Tuesday 26 May 2026 — TRUE final watch close (~22:00 BST, ape-brain sleep)
+
+**Watch state at this true-final close:** Captain pushed through evening past dinner, ended up running a second marathon after the first close. Total fifteen v5.11.x patches landed today (v5.11.0o → p → q → s → t → u → v → w → x → y → z → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 — but with v5.11.1 being the rollback and v5.11.14 being a wrong-intent dispatch that v5.11.15 reverted). Net architectural delta from start of evening:
+
+- **fullscreen path completely rebuilt** as a clone of the Settings preview stage (v5.11.5) — this approach worked spectacularly, fullscreen is "fully correct with animations and everything" per Captain
+- **inline #venueQRWrap restructured** to mirror the Settings preview structure (v5.11.6) with v511 classes + overlay layers + banner
+- **CSS overrides** to handle .prototype-checkin collisions (v5.11.7)
+- **Removed dead data-qr-fullscreen-payload** that was racing the v5.11.5 fullscreenQR clone path (v5.11.8 — Captain's devtools diagnostic was the smoking gun, GREEN BUTTON → v511FullscreenStage vs DBLCLICK → irlid-qr-fullscreen.active)
+- **Palette propagation to all stages** (v5.11.9), then broadened to a **MutationObserver mirror** of all sampleStage config state (v5.11.10), then extended to include `cel-*` config classes via explicit blacklist (v5.11.11)
+- **Toast suppression when v511 text effect configured** + **sound wiring to real check-ins** (v5.11.12)
+- **Expose playOutcomeTone to window** (v5.11.13) — v5.11.12's wiring missed that playOutcomeTone is closure-scoped, called silently bailed
+- **Polling handler dispatch by ev.type** (v5.11.14) — WRONG architectural reading, Captain clarified in/out should BOTH fire accept; reverted in v5.11.15.
+
+**Remaining gap at close (TOMORROW'S WORK):**
+
+Captain's own quote nails the symptom: *"Yet, the effects just don't show up (other than ones that aren't supposed to be there anymore (Old check-in/out Text Bubble????))"*
+
+Three observations Captain banked:
+1. **Sequences seem to play** (timing similar to Sample, deny celebrations have similar duration)
+2. **Effects don't show up** on inline Check-in tab even though they fire correctly in Settings Sample
+3. **Old check-in/out text bubble still firing** (`showCheckinEventToast`) — v5.11.12's suppression only fires when `theme._v511.celebration[mode]` has a text effect; on configurations WITHOUT a text effect, the legacy toast still appears alongside no-text celebration
+
+**Captain's directive for tomorrow:** *"tomorrow I think I'm just going to get you to copy it line by line again from settings. That works!!!"*
+
+Translation: stop trying to make `#venueQRWrap` mirror sampleStage via classes/CSS variables. Apply the same approach we used for fullscreen (v5.11.5) — CLONE `#v511ThemePreviewStage` into the Check-in tab area at panel-show time. The clone IS the Settings preview, so every effect that works in Sample works in the inline view automatically. We already proved this works for fullscreen; replicating for inline is the right architectural move.
+
+**Tomorrow's first move:**
+
+1. **Pull + verify v5.11.15** is the current state on origin/main (sound playing, accept-only dispatch).
+2. **Design v5.11.16 brief** — extend the fullscreenQR clone pattern to a `renderInlineCheckinClone()` function that runs on `showPanel('checkin')`. Replace `#venueQRWrap` (or insert clone alongside + hide original) with a Settings preview clone. Strip Sample-only handles (caption, anchor crosshairs, scan-res label) per v5.11.5 pattern. Wire double-click + Fullscreen button to existing fullscreenQR. Update `v511ActiveCelebrationStage()` to prefer the inline clone too.
+3. **Also fix the leftover toast:** strengthen the v5.11.12 suppression so it fires whenever a v511 sequence has ANY effect configured for the mode, not just text — the old toast was a fallback for no-v511-theme orgs, but if any v511 sequence is configured, the old toast is redundant noise.
+4. **Watch for symptoms staying the same** after the rewrite — if so, the bug is deeper than parallel implementations (could be that the celebration runtime's particle injection has stage-specific assumptions like cqi container queries that don't work outside Settings panel layout). Diagnostic next would be: `console.log(document.querySelector('#v511FullscreenStage .v511-cel-fx-layer').children)` during a fullscreen celebration (working) vs same query on #venueQRWrap (broken) — count comparison.
+
+**Symptoms summary for tomorrow's diagnostic:**
+
+| Surface | Status |
+|---------|--------|
+| Settings Sample (allow/review/deny) | ✅ All effects fire correctly with full configured palette + intensity |
+| Fullscreen (green button + double-click via v5.11.8 dead-attr fix) | ✅ "fully correct with animations and everything" — clone pattern wins |
+| Inline Check-in tab (real check-in event) | ⚠️ Theme renders (dragons + palette + banner) but configured effects don't show; legacy text toast still fires |
+| Sound on real check-in (v5.11.13) | ✅ Plays allow WAV for both in and out (per v5.11.15 revert intent) |
+
+**Confirmed dock-reaches this evening watch:**
+
+- Fullscreen Check-in is unified with Settings preview (v5.11.5 clone)
+- Double-click QR routes to same fullscreen path (v5.11.8 dead-attr removal)
+- Sound plays on real check-ins (v5.11.13 window export)
+- Dispatch semantics correct (v5.11.15 revert: in/out both fire accept)
+- Visual unification per Captain: *"that lands wonderfully"*
+
+**The "no guess" lesson banked permanently for BOOTSTRAP §6:**
+
+Captain coached mid-watch: *"Try to never guess Number One, I'd rather you take longer and we get it right first time, than chasing our tails ;) ;)"*
+
+Concrete examples from today where guessing cost pushes:
+- v5.11.0t (wrong hypothesis on firing-* animation duration)
+- v5.11.0y (wrong hypothesis on fullscreenchange listener mechanism)
+- v5.11.3 → v5.11.4 (same backtick bug introduced fixing the backtick bug because I rushed the explanatory comment)
+- v5.11.6 → v5.11.7 (didn't read .prototype-checkin CSS overrides before writing HTML)
+- v5.11.12 → v5.11.13 (didn't trace playOutcomeTone's closure scope before assuming it was reachable)
+- v5.11.14 → v5.11.15 (assumed semantic of out→deny without asking Captain's intent)
+
+**Math:** every wrong push consumed 5-10 minutes of Captain's time (push, force redeploy, SW cycle, real-hardware smoke). Every careful read + grep + diagnostic question I'd do BEFORE shipping consumes 30 seconds of mine. Captain's 14-hour watch today says the math is inverted. **Discipline: grep / Read / ask one diagnostic question before any speculative ship.**
+
+---
+
 ## Tuesday 26 May 2026 — final watch close (dinner with the wife + DevTools confirmation)
 
 **Final close diagnostic data inscribed.** Captain ran the DevTools console diagnostic before sitting down to dinner. Screenshot captured the inline Check-in tab in mid-deny-celebration (Kerry Austin CHECKED OUT, red background, **dragons visible behind QR**, build pill `v5.11.0z`). Console showed normal poll/snapshot/toast lines with `[checkin-toast] firing for Kerry Austin out` at 16:04:24 — **v5.11.0z deny celebration bridge confirmed working on real hardware**. DevTools Issues panel showed **91 issues / 2 errors / 89 warnings** but Captain didn't expand the errors before dinner; **those 2 errors are the missing diagnostic data for tomorrow's first move**.
