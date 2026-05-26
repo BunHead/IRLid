@@ -55,7 +55,15 @@
       .irlid-qr-fullscreen-title{min-height:1.2em;font:800 clamp(22px,4vmin,48px)/1.05 "Segoe UI",system-ui,sans-serif;}
       .irlid-qr-fullscreen-subtitle{min-height:1.2em;color:rgba(255,255,255,0.72);font:600 clamp(12px,1.6vmin,16px)/1.35 "Segoe UI",system-ui,sans-serif;}
       .irlid-qr-fullscreen-holder{width:min(78vmin,calc(100dvh - 180px),720px);aspect-ratio:1;display:grid;place-items:center;padding:clamp(10px,1.8vmin,18px);box-sizing:border-box;background:#fff;border-radius:clamp(12px,2vmin,22px);box-shadow:0 28px 90px rgba(0,0,0,0.54);}
-      .irlid-qr-fullscreen:has(.irlid-qr-fullscreen-holder[class*="cel-"]){background:transparent;}
+      /* v5.11.0x — was `background:transparent` (shorthand) which clobbered
+         both background-color AND background-image. Theme bg-image (dragons,
+         set via body[data-bg-mode="image"] .irlid-qr-fullscreen at L2770 of
+         Org.html) was being wiped during every celebration window — Captain's
+         smoke surfaced it as "Effects have not port to the checkin page".
+         Use `background-color:transparent` so only the dark navy fill is
+         cleared (to unmask the celebration Glow halo per v5.11.0q intent),
+         leaving the theme bg-image intact. */
+      .irlid-qr-fullscreen:has(.irlid-qr-fullscreen-holder[class*="cel-"]){background-color:transparent;}
       .irlid-qr-fullscreen-holder[class*="cel-"]{background:transparent;box-shadow:none;}
       .irlid-qr-fullscreen-holder canvas,.irlid-qr-fullscreen-holder img{display:block;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain;}
       .irlid-qr-fullscreen-close{position:fixed;top:18px;right:18px;width:42px;height:42px;border:0;border-radius:999px;background:rgba(255,255,255,0.12);color:#fff;font-size:24px;line-height:1;cursor:pointer;}
