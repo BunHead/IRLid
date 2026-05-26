@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v29'; // v5.11.0s — Settings Sample particle effect fixes
+const CACHE_VERSION = 'irlid-shell-v30'; // v5.11.0t — Sample firing-* animation duration 1.4s → 300ms (inset shadow was masking particle effects with bg-tint wash)
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
