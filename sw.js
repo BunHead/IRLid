@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v44'; // v5.11.8 — Captain's DevTools diagnostic at v5.11.7 caught the bug: GREEN BUTTON fullscreens v511FullscreenStage (clone, correct), DBLCLICK fullscreens .irlid-qr-fullscreen.active (qr-fullscreen.js's legacy overlay, wrong). Root cause: generateVenueQR() at Org.html L13307+ set data-qr-fullscreen-payload on #venueQrBox. v5.11.5 replaced the qr-fullscreen.js dependency for venue QR fullscreen, but the data attributes were left behind. qr-fullscreen.js's document-level dblclick listener (qr-fullscreen.js L281) still caught the event via closest('[data-qr-fullscreen-payload]') and raced my fullscreenQR clone path. v5.11.8 removes the dead attribute assignments + explicitly deletes any pre-existing values from prior page loads (defensive). Now only my ondblclick=fullscreenQR handler fires.
+const CACHE_VERSION = 'irlid-shell-v45'; // v5.11.9 — palette vars (--bg-pal-1..7) propagated to all host stages, not just sampleStage. Grep confirmed L8890 was the ONLY setProperty('--bg-pal-...') call in Org.html. The fullscreen clone got palette via cloneNode copying inline styles from sampleStage; #venueQRWrap never received them and rendered dark (CSS fallback to #1a1a1a). v5.11.9 extends applyBgPaletteToPreview to iterate over [sampleStage, #venueQRWrap, #v511FullscreenStage, .irlid-qr-fullscreen.active] and set --bg-pal-N on each. Inline Check-in tab background now matches the fullscreen palette.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

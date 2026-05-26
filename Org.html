@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.9</span></div>
   </div>
 </div>
 
@@ -8883,12 +8883,30 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // collapse to a solid colour instead of cycling orphaned values that
           // were left set on the stage from a previous wider palette.
           function applyBgPaletteToPreview() {
-            if (!sampleStage) return;
             var inputs = document.querySelectorAll('.v511-bg-palette-row .v511-palette-swatch-wrap input[type="color"]');
             var first = inputs[0] ? inputs[0].value : '#1a1a1a';
-            for (var i = 1; i <= 7; i++) {
-              sampleStage.style.setProperty('--bg-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
-            }
+            // v5.11.9 — propagate palette vars to ALL host stages, not just
+            // the Settings preview. Before this, --bg-pal-N was set only on
+            // sampleStage. The fullscreen clone got it via cloneNode copying
+            // inline styles, but #venueQRWrap (Check-in tab inline, post-
+            // v5.11.6 a v511-theme-preview-stage) never received them — the
+            // CSS fell back to #1a1a1a default and the inline panel rendered
+            // dark navy while the fullscreen showed the correct palette
+            // gradient. Captain's smoke at v5.11.8 surfaced the mismatch.
+            // Verified via grep: this is the ONLY setProperty('--bg-pal-...)
+            // call in Org.html (no other code path was setting them either).
+            var stages = [
+              sampleStage,
+              document.getElementById('venueQRWrap'),
+              document.getElementById('v511FullscreenStage'),
+              document.querySelector('.irlid-qr-fullscreen.active')
+            ];
+            stages.forEach(function (stage) {
+              if (!stage) return;
+              for (var i = 1; i <= 7; i++) {
+                stage.style.setProperty('--bg-pal-' + i, inputs[i - 1] ? inputs[i - 1].value : first);
+              }
+            });
           }
           document.addEventListener('input', function (e) {
             if (e.target.matches('.v511-bg-palette-row input[type="color"]')) applyBgPaletteToPreview();
