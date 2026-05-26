@@ -3,7 +3,7 @@
 **Status:** Live  
 **Version:** 3  
 **Author:** Spencer Austin  
-**Last updated:** 9 May 2026 — §14.18 OAuth identity linkage refined to user-held-envelope design (Captain's GDPR / data-minimisation call). Schema changed: Worker now stores only `link_hash`, not `external_id` or `display_label`. Linking and verification flows documented. Future blockchain anchoring noted as additive layer (consistent with §11 tsTokens).
+**Last updated:** April 2026
 
 ---
 
@@ -16,10 +16,8 @@
 | v3 | `canonical()` replaces `JSON.stringify()` for all hashing; `offer.hash`, `a.hash`, `b.hash` no longer transmitted in compact receipts — verifier recomputes all; compact JWK public keys |
 | v4 | Trust history (depth, location diversity, device consistency); optional WebAuthn bio-metric gate (`bioVerified` cryptographically bound into signed payload); redacted-receipt mode (`gps_hash` replaces lat/lon/acc); hotspot novelty scoring. Shipped 17 April 2026. All optional, off by default. |
 | v5 | Hardware-backed signing keys via WebAuthn / Passkeys — private key lives in Secure Enclave (Apple) / TEE (Android) / TPM (Windows Hello), never extractable. v5 receipts carry a `webauthn` envelope (`authData`, `clientData`) alongside the existing ECDSA `sig` field. Closes localStorage extraction (THREAT-MODEL.md §III.2). Score 70/100 when v5 verifies. Specification in §13. In-implementation, default OFF. |
-| v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. §16 (Offline-capable operation) added 6 May 2026 — adopts offline-first as a design principle, four-tier path (PWA shell → IndexedDB write queue → cached snapshot → multi-device mesh), time-anchoring via §11 tsTokens, blinking-red-dot UI directive. Tiers 1-3 ship as `v5.5.x` patches; Tier 4 graduates to `v6.0` flagship. |
-| v5.6 | Assisted identity flow for venue check-in. An unrecognised attendee can show a signed assist-request QR to staff; staff scan it from the OrgCheckin dashboard and bind the device to an expected attendee, create-and-bind a new expected attendee, or reject with audit trail. Specification in §15. Receipt format unchanged. **Implementation note:** the v5.7+ doorman flow (§14.17) ultimately used `device_key` envelopes rather than `assist_request` envelopes; the three-outcome flow shipped substantially as specified but the wire-level envelope shape diverged. §15 spec recovered from `codex/assistqr-protocol` commit `823ced8` and merged to main 26 May 2026. |
-| v5.7.1 | Doorman flow (§14.17) alive end-to-end on real hardware 6 May 2026 night — three-outcome state machine (green / red / orange) with role-tiered Add at the door (Attendee → Staff → Manager → Lead Admin) and dashboard escalation modal. Receipt format unchanged. §16 Tier 1 (PWA shell) shipped 7 May — Service Worker pre-caches the OrgCheckin.html shell + JS bundle; cache-versioned `irlid-shell-vN`; HTML/navigation requests served network-first so updates propagate without manual cache bumps. Audit mode shipped 8 May — `body.audit-mode` strips chrome and promotes the attendance card to fill the viewport (`requestFullscreen()` + `screen.orientation.lock('landscape')` best-effort) for the airport-arrivals-board view on door-staff tablets. Auto staff sign-in on venue arrival (`org-entry.html` recognises staff-tier devices on the Expected list and diverts to `org-login.html` after the green-confirm hold). |
-| v5.9 | **Org dashboard live deployment** (10 May 2026, ~36 hours ahead of Wednesday 13 May target). Path A scope: separate Worker `irlid-api-org` (verbatim copy of test env Worker source), separate D1 `irlid-db-org` (full schema, 16 tables / 19 indexes, snapshot-from-test pinned as v6.1 unification baseline), file-copy of `OrgCheckin.html` + `org-entry.html` + `org.html` + 5 dashboard JS files + `manifest.json` + `sw.js` from test env to live repo. Live's existing `js/sign.js` (Deploy 78) deliberately preserved; test env's older Deploy 76 not copied. SW path filter installed to prevent dashboard SW hijacking consumer pages (scan.html / receipt.html / index.html stay served network-first by browser, not by dashboard SW). DEV bootstrap path gated to test surfaces. Dashboard QR + scan URLs derive from `window.location` (ORIGIN_BASE) so QRs generated on live point to live, not test env. Service-account sign-in via `org_`-prefixed api_key proven end-to-end. v5 hardware-bootstrap on fresh D1 deferred to v6.2 / §14.18 OAuth identity chapter — `BOOTSTRAP_DEVELOPER_FP` Worker secret pre-configured for that work. Cosmetic polish (footer string, sidebar org-name fetch, Forums link in Info dropdown bulk edit, .wrangler/ .gitignore tidy) deferred. Four post-deploy inline patches landed (v5.9.0.1 scan.html org QR types + dashboard ORIGIN_BASE; v5.9.0.2 developer auth gate widened to accept org_ keys; v5.9.0.3 null-safe session refs). Receipt format and protocol §13/§14 specs unchanged. |
+| v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. |
+| v5.6 | Assisted identity flow for venue check-in. An unrecognised attendee can show a signed assist-request QR to staff; staff scan it from the OrgCheckin dashboard and bind the device to an expected attendee, create-and-bind a new expected attendee, or reject with audit trail. Specification in §15. Receipt format unchanged. |
 
 ---
 
@@ -891,22 +889,6 @@ To set expectations clearly:
 
 The §III.2 row is the headline. cym13's r/netsec criticism, which is the strongest honest critique of the protocol on public record, is closed by v5.
 
-### 13.18 Signature is not authority (v5.10.1 Path B)
-
-Per-action signed envelopes carry two orthogonal proofs:
-
-1. **Signature** - the WebAuthn-signed envelope proves a specific device, holding a specific v5 credential, performed a user-verified gesture at a specific time, against a non-replayable nonce. This is non-repudiation. The signing fingerprint is recorded as the action's actor.
-
-2. **Authority** - the request's Bearer session token resolves to a `portal_users` row with a role on the org. The session user's role can be what the action gate evaluates.
-
-If the signing fingerprint has sufficient role on the org, via membership or bootstrap developer recognition, authority resolves directly from the signature. Otherwise, authority may be delegated from the Bearer session, provided the session user has sufficient role. In all cases, audit evidence must capture both:
-- `actor_pub_fp` - who signed.
-- `authorized_by_user_id` - who the session was issued to.
-
-This permits cross-device delegation while maintaining device-level non-repudiation. A user signed in as developer via QR on Phone X may sign manager actions from any other device Y, provided Y holds an enrolled v5 credential and the user's session is alive.
-
-Action nonces remain global per the existing freshness window. Each signed envelope is single-use, regardless of which authority path validated it.
-
 ---
 
 ## 14. Identity-Bound Sessions (v5.5)
@@ -1128,20 +1110,14 @@ The `theme_scrape_status: "queued"` field is a forward-defined hook for Batch D 
 | Role | Read-only ops | Mutating ops on attendance | Admin ops on memberships | Org settings | Create new orgs |
 |------|--------------|---------------------------|-------------------------|--------------|-----------------|
 | attendee | Yes (their own attendance only) | None | None | None | No |
-| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review; add attendee to Expected List | None | None | No |
+| staff | Yes (org attendance) | Create check-ins (manual + scan); confirm review | None | None | No |
 | manager | Yes | All staff + edit/delete attendance + edit expected list | Add/remove staff and attendees in this org | View only | No |
-| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add/remove lead_admins | Edit all | Yes (multiple) |
+| lead_admin | Yes | All manager + restricted-history operations | Add/remove managers, add lead_admins | Edit all | Yes (multiple) |
 | developer | Yes (any org via __system__) | All lead_admin in any org | All in any org | All in any org | Yes (unlimited) |
 
 A user MAY hold different roles in different orgs. A real example: someone is `lead_admin` of their own conference venue and `staff` at a friend's event next weekend. The `org_memberships` table is the source of truth; the session token resolves to a `user_id`, the dashboard queries memberships per org.
 
-The five role identifiers (`attendee`, `staff`, `manager`, `lead_admin`, `developer`) are protocol-internal and never change — they are database keys, code paths, and audit-log entries. Orgs MAY override the user-visible **display label** for each role to match domain vocabulary: a school might display `staff` as "Teacher" and `attendee` as "Student"; a venue might display `staff` as "Usher". Display labels live in `settings_json.role_labels` as a `{ role_id: label }` map; missing entries fall back to defaults ("Attendee", "Staff", "Manager", "Lead Admin", "Developer"). Validation: each label is 1–30 characters, plain text, no HTML. The `developer` label is fixed and cannot be overridden — it is platform-level, not org-level. The `lead_admin` label MAY be overridden, but the protocol recommends keeping a recognisable suffix or prefix (e.g. "Head Teacher (Lead Admin)") so users can map a custom name back to platform privilege when reading audit logs or contacting support.
-
-The `lead_admin` role is subject to one count invariant: an org must always have at least one lead_admin (no orphaning). Add/remove permissions are unbounded above this floor — a lead_admin MAY add another lead_admin in any state, and MAY delete another lead_admin (including themselves) provided the org would still hold at least 1 lead_admin after the deletion. An attempt to delete the sole lead_admin returns `409 {error: "would_orphan_org"}` at the Worker layer.
-
-The recommended handover pattern is for an outgoing lead_admin to add the incoming one first (count 1 → 2), confirm the new one is operating correctly, then remove themselves (count back to 1). The protocol does not enforce this pattern; it is operational guidance. Batch C.5 (§14.15) is the first surface that exposes lead_admin add/remove to the UI; the count-floor check lands in the Worker as part of that batch.
-
-The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level. It also overrides the lead_admin count floor: a developer may delete the last lead_admin (orphaning the org for cleanup) and may restore an orphaned org by adding a new lead_admin — the only path back from a 0-state.
+The `developer` role is reserved for the bootstrap fingerprint (and any subsequent fingerprints the developer explicitly elevates). It is NOT a role granted by lead_admins; it is platform-level.
 
 ### 14.10 Threat model
 
@@ -1428,199 +1404,11 @@ Cached structure:
 
 **Estimated effort:** 1 day (Worker scrape endpoint + image proxy + client-side canvas sampler + UI for "Use this colour / use this logo").
 
-### 14.17 Doorman flow
-
-The doorman flow is the canonical state machine that runs every time a scan envelope arrives at the dashboard's check-in surface during a live event. It is the default check-in path. A doorman is not a role — it is staff (or higher) acting at the door. The flow is the same regardless of which role tier is acting; the role only gates what the actor can do during the staff-mediated escalation described below.
-
-Three outcomes are possible per scan, distinguished by whether the scanned `pub_jwk` matches an Expected List entry for the active event:
-
-**Recognised + Allowed (green).** The fingerprint matches an active Expected List entry — the attendee is expected, has not been previously rejected for this event, and has not already checked in. The Worker writes an `event_attendance` row with `status: "checked_in"`; the dashboard displays the attendee's resolved name and a green confirmation; the surface returns to scan-ready.
-
-**Recognised + Not allowed (red).** The fingerprint matches an Expected List entry but the entry is in a state that prohibits entry — denied, expired (post-event-close beyond grace period), banned, or already-checked-in for this event. The Worker writes an `event_attendance` row with `status: "rejected"` (the rejection is recorded, not silenced — audit-trail principle from §14.9). The dashboard displays a red rejection screen and returns to scan-ready.
-
-**Unrecognised (orange).** The fingerprint matches no Expected List entry. No attendance row is written yet. The attendee's screen displays an orange "?" panel showing their device-key QR (encoding `pub_jwk` and display intent); the dashboard surfaces a "Get a member of staff" prompt. The flow forks to the staff-mediated escalation below.
-
-#### Staff-mediated escalation
-
-Resolution of an unrecognised scan requires staff (or higher) to act at the dashboard:
-
-1. The acting staff member scans the attendee's orange QR. The QR encodes the attendee's `pub_jwk` (Device Enclave Key in v5 terminology).
-2. The dashboard surfaces two actions, role-gated as below: **Choose from List** or **Add Attendee** (and at higher role tiers, Add Staff / Add Manager / Add Lead Admin).
-
-**Choose from List.** The acting staff visually identifies the attendee against an existing Expected List entry — typical case: the person is on the list but has re-enrolled on a new device, or scanned with a different credential. The new `pub_jwk` is **added** to the existing entry's key set rather than replacing it; old keys remain valid until explicitly revoked through the recovery path. Multi-key binding matches the multi-device reality and dovetails with the user-recovery quorum design in §14.18, where keys come and go independently. After binding, the original scan resolves into the recognised+allowed branch.
-
-**Add Attendee / Add Staff / Add Manager / Add Lead Admin.** The acting staff creates a new Expected List entry (for an attendee — event-scoped, not a membership) or a new `org_memberships` row (for staff, manager, or lead_admin — org-wide). The new entry binds the attendee's `pub_jwk` from creation. The role tier of the new entry is gated by the acting staff member's own role:
-
-| Acting role | May add at the door |
-|-------------|---------------------|
-| `staff` | Attendee (Expected List entry only — not a new membership) |
-| `manager` | + Staff (membership) |
-| `lead_admin` | + Manager / Lead Admin (the latter subject to the §14.9 count invariant) |
-| `developer` | All ops, in any state |
-
-Once the escalation completes, the original scan resolves into the recognised+allowed branch and the attendee is checked in.
-
-#### Auth freshness
-
-The escalation path is privileged. Two tiers apply:
-
-- **Add (any tier).** The acting staff session must be backed by a fresh Staff HELLO scan (`requireFreshStaffProof`, the §14.10 step-up principle). Adding identity creates a permanent record; the highest auth gate applies. The dashboard prompts for a fresh Staff HELLO if the session is older than the configured freshness window.
-- **Choose from List.** The standing Bearer session is sufficient. The op binds a key to an existing identity that the acting staff has visually confirmed; no new identity is created; the standing session covers the operation.
-
-A Developer Bearer session MAY substitute for a fresh Staff HELLO across the escalation path (per the Polish 11 Task 2 implementation queue), reflecting that the `developer` role is platform-level and a Bearer session backed by `BOOTSTRAP_DEVELOPER_FP` is itself a higher trust signal than a fresh Staff HELLO from a non-platform actor.
-
-#### Backward compatibility
-
-The doorman flow defined here is the operational state machine that has been implicit in `OrgCheckin.html` since Batch 8. This subsection formalises it without changing the wire-level behaviour of any existing endpoint. Existing scans continue to dispatch into the green / red / orange branches as they always have; the formalisation captures the shape so that §14.18 (OAuth + recovery quorum), §14.15 (Batch C.5 — Staff invite scan-in flow), and the upcoming Assisted Identity Flow (v5.6, currently in spec on `codex/assistqr-protocol`) can reference a stable description.
-
-### 14.18 OAuth identity linkage, proof hierarchy, and user-recovery quorum
-
-This section captures three related design surfaces that together govern how an IRLid user's identity is linked to external providers, what kinds of proof the protocol accepts for which operations, and how a user can recover when their hardware credential is lost. The principle that ties them together is: **hardware signs, OAuth identifies**. Hardware proves that the user consents to a specific act, right now, with a specific device. OAuth proves who the user claims to be. The two are different jobs and the protocol does not allow either to substitute for the other in their respective scopes.
-
-#### OAuth identity linkage
-
-A `portal_users` row represents the IRLid identity. External provider linkages (Google, Apple, Microsoft, GitHub, etc.) follow the protocol's data-minimisation philosophy: **the user holds the linkage proof; the Worker holds only its hash for lookup**. This mirrors how receipts work elsewhere in the protocol — the user owns the signed object, the central store is a witness, not a data vault.
-
-A user MAY have zero, one, or many linked providers. Most users will have both a hardware credential (for portal admin operations) and one or more OAuth links (for receipts and recovery). Some — particularly attendees who never administer an org — may have only OAuth or even neither.
-
-##### The link envelope (user-held)
-
-A self-verifying signed object the user stores on their own device (localStorage, IndexedDB, or future user-controlled backup). They are responsible for keeping a copy, just as they are for receipts.
-
-```
-{
-  "v": 1,
-  "type": "oauth_link",
-  "portal_user_id": "...",                 // IRLid user id
-  "provider": "google",                    // 'google' | 'apple' | 'microsoft' | 'github' | ...
-  "external_id": "1234567890",             // provider's stable user id (OIDC `sub`)
-  "display_label": "spencer@gmail.com",    // optional, user's choice; omit for pseudonymous links
-  "linked_at": 1715000000000,
-  "device_pub_jwk": { ... },               // hardware key that authorised the link at link time
-  "device_sig": "...",                     // hardware signature over canonical(payload-without-sig)
-  "provider_proof": {                      // OIDC ID token from the provider, attesting external_id
-    "id_token": "eyJ..."
-  }
-}
-```
-
-The `external_id` is the provider's stable user identifier (OIDC `sub` or equivalent), which does not rotate when the user changes their provider-side email. This protects against silent identity drift if a user changes their email with the provider. Switching, e.g., a Google account from `a@gmail.com` to `b@gmail.com` requires generating a new envelope (the `external_id` differs).
-
-##### The Worker index (hash-only)
-
-The Worker holds only what is needed to confirm an envelope's existence and route recovery quorum operations:
-
-```sql
-CREATE TABLE portal_user_external_links (
-  portal_user_id TEXT NOT NULL REFERENCES portal_users(id),
-  provider       TEXT NOT NULL,         -- duplicated here for query convenience; not authoritative
-  link_hash      TEXT NOT NULL,         -- SHA-256 of canonical(envelope) — proves user has the envelope
-  linked_at      INTEGER NOT NULL,      -- ms timestamp, duplicated for ordering and recovery-quorum diversity checks
-  PRIMARY KEY (portal_user_id, provider, link_hash)
-);
-```
-
-**No `external_id`. No `display_label`. No email. No OIDC subject.** Those live in the envelope the user holds. The Worker can confirm *"yes, this user has linked an envelope from this provider"* but cannot enumerate the user's external identifiers, contact emails, or external account names. If the Worker is compromised or compelled, the linkage map (which provider, when linked) is exposed; the *identities behind those links* are not.
-
-The `(portal_user_id, provider, link_hash)` primary key admits multiple envelopes per user-per-provider over time (e.g. the user re-links after rotating their hardware credential, or replaces a stale envelope after a provider-side identity drift). The most recent `linked_at` for a given `(portal_user_id, provider)` is the active envelope; older rows are historical and used for the recovery quorum's diversity checks.
-
-##### Linking flow (creating a new link)
-
-1. User opens the Link Provider UI in the dashboard; selects a provider.
-2. Browser performs the standard OIDC authorization-code flow with the chosen provider.
-3. Browser receives the OIDC ID token. **It does NOT send the token to the Worker.**
-4. Browser constructs the link envelope: assembles fields, captures the user's hardware credential signature over `canonical(payload-without-sig)`, embeds the ID token as `provider_proof`.
-5. Browser computes `link_hash = SHA-256(canonical(envelope))`.
-6. Browser POSTs only `{portal_user_id, provider, link_hash, linked_at}` to the Worker. The envelope itself is stored in browser storage.
-7. Worker writes the row.
-
-##### Verification flow (user proves they control a previously-linked provider)
-
-1. User presents the envelope (from their browser storage) along with a fresh OIDC sign-in to the same provider.
-2. Worker recomputes `SHA-256(canonical(envelope))` and matches against the stored `link_hash`. If no match, reject — envelope is forged or tampered.
-3. Worker verifies the envelope's `device_sig` against the user's current hardware credential (or the multi-key set per §14.17). If invalid, reject.
-4. Worker verifies the embedded `provider_proof.id_token` is well-formed and was issued by the provider (signature against provider JWKS, expiry tolerance per §11). If invalid, reject.
-5. Worker verifies the user just completed a fresh OIDC flow at this provider whose `sub` matches the envelope's `external_id`. If mismatch, reject — the envelope is for a different account.
-6. All checks pass → the user has proven they control the linked provider.
-
-##### GDPR position
-
-Under this design, what lives on the Worker (Cloudflare D1 or equivalent) is:
-
-- The IRLid identity row (`portal_users`) — opaque ID, no PII.
-- Hardware fingerprints (`pub_fp`) — non-identifying cryptographic primitives on their own.
-- Linkage hashes and timestamps — proves *that* a link exists, not *what* it is.
-- Per-org Expected entries the org chose to record (`org_expected.first_name`, `surname`) — the org's own legitimate-interest data; the org is the data controller for these.
-
-What does NOT live on the Worker:
-
-- OAuth `sub` claims, email addresses, provider display labels.
-- ID tokens or any provider-issued credentials.
-- The user's mapping between IRLid identity and external account contents.
-
-The user is the data controller of their own identity envelopes. The org is the data controller of its own attendance records. Cloudflare (or whoever hosts the Worker) is a thin processor, holding hashes and routing authentication checks. The protocol minimises what flows to the central layer to the maximum extent compatible with the operations the Worker must perform.
-
-##### Future anchoring (optional, additive)
-
-Link envelopes can be optionally anchored to a public time-witnessing layer when the user wants to prove the envelope existed before time T without trusting the Worker's own `linked_at` timestamp. The mechanism is the same as `§11 tsTokens` on receipts:
-
-- User computes `SHA-256(canonical(envelope))` (already the `link_hash`).
-- User submits the hash to a Trusted Timestamp Authority (RFC 3161), to OpenTimestamps (which writes to Bitcoin), to an Ethereum or L2 anchor contract, or to any other public chain.
-- The returned timestamp token is stored alongside the envelope in the user's storage.
-- A future verifier can independently confirm "this envelope hash existed at or before time T" by checking the public chain — without the Worker, without Cloudflare, without IRLid being online.
-
-Anchoring is additive. The protocol functions without it. Most users will never anchor anything; high-stakes users (legal evidence chains, recovery disputes, multi-decade verification) will anchor selectively. The blockchain becomes one of several optional public witnesses, not the substrate.
-
-##### Privilege
-
-OAuth linkage does NOT grant or alter portal privileges. It is a recognition mechanism — *"this IRLid user controls this external account, demonstrably"* — and its consequences for privilege are governed by the proof hierarchy below.
-
-#### Three-tier proof hierarchy
-
-IRLid distinguishes three tiers of proof. Each tier admits the user to a different scope of operation:
-
-**Tier 1 — Hardware-backed credential.** A signature produced by a credential held in a Secure Enclave, TEE, or FIDO authenticator (the v5 envelope from §13). Required for any **write or privileged** operation: creating an org, modifying memberships, signing a receipt, performing any escalation in §14.17, modifying settings. The credential is non-extractable (or operating in non-extractable posture for Synced Passkeys), so the signature attests to live possession of the device that holds the key.
-
-**Tier 2 — OAuth account verification.** A successful sign-in flow with a linked external provider. Sufficient for **read** access to the user's own data — viewing their attendance history, downloading their own receipts, browsing public org pages as themselves. Tier 2 is **never** sufficient on its own for privileged ops. A user signed in with only OAuth cannot create check-ins, mutate memberships, modify settings, or sign new receipts.
-
-**Tier 3 — Multi-account recovery quorum.** N-of-M linked OAuth accounts collectively authorising the enrolment of a NEW hardware credential. Used only when the user has lost access to their previous hardware key and needs to bootstrap a new one. Detailed in the next subsection.
-
-The bright line is between Tier 1 and Tier 2. **Hardware signs, OAuth identifies.** A request that arrives with only Tier 2 proof against a Tier 1 endpoint is rejected at the Worker layer with `401 {error: "tier_insufficient", required: "hardware"}` regardless of how many OAuth providers were involved or how recently they verified.
-
-#### User-recovery quorum
-
-When a user loses their hardware credential — phone destroyed, device reset, biometric enrolment cleared — they need a path back without an attacker being able to forge that path. The recovery quorum is that path.
-
-**Default threshold: 4-of-5 of the user's linked OAuth accounts.** The protocol recommends linking at least 5 providers during normal account hygiene to make recovery available at the default threshold. Scaling for users with fewer than 5 links (e.g. 3-of-4, 3-of-3) is left to the v5.6 reference implementation; until that lands, users with fewer than 5 links rely on `developer` override (a Tier 1 platform-level act) for emergency recovery.
-
-**Mechanism.** Each of the N participating providers must independently sign a recovery agreement statement of the form `{portal_user_id, new_pub_jwk, recovery_intent: true, timestamp}` using their normal OAuth flow. Signatures are collected over different days or sessions deliberately — staged collection defeats fast-cascade attack scenarios in which an attacker compromises the user's primary email account and chains through multiple OAuth password resets in one sitting. The Worker rejects a recovery quorum where every participating signature was issued within a single 24-hour window unless the user has explicitly opted into expedited recovery at link time.
-
-**On successful quorum:**
-
-1. The new `pub_jwk` is bound to the existing `portal_user` row (multi-key binding per §14.17 — the new key joins the key set, doesn't replace the old).
-2. The previous `pub_fp` (hardware fingerprint) is added to a revocation list. It can no longer be used to authenticate new sessions; existing sessions backed by it are invalidated at next request.
-3. Subsequent operations by the user are performed under the new hardware credential, with all Tier 1 privileges restored.
-
-**Diversity.** The protocol asks the user at link time to consider geographic and jurisdictional diversity of their linked providers — picking, for example, Google + Apple + Microsoft + GitHub spans multiple US-based corporate entities but no single one controls all of them. The protocol does not enforce diversity (most consumer providers are US-based, and forcing non-US providers would frustrate normal users), but the link-time prompt is a "did you consider" nudge. Commercial and technical diversity (different account-recovery surfaces for different providers) is the practical defence regardless of jurisdictional spread.
-
-**Distinct from network constitutional quorum.** This per-user recovery quorum is NOT the same as the network-level constitutional Quorum described in `LONG-TERM-SUCCESSION.md` (4-of-7 standby regents authorising INTERIM mode after the original Developer becomes unavailable). Both are M-of-N threshold mechanisms; both are legitimate; but they operate at different scopes:
-
-| Layer | Mechanism | Purpose |
-|------|-----------|---------|
-| Per-user identity recovery | 4-of-5 of the user's linked OAuth accounts | User regains access after device loss |
-| Network constitutional succession | 4-of-7 standby Quorum + AI-witness ledger | Network continues if the original Developer is unavailable |
-
-The two MUST NOT be conflated in implementation. Future implementers will be tempted to share a single threshold scheme; the temptation should be resisted, because the trust models, the participants, the failure modes, and the legitimate authorities are different.
-
----
-
-*Sections 10, 11, 12, 13, 14, and 15 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
-
 ---
 
 ## 15. Assisted Identity Flow (v5.6)
 
-**Status:** Specification draft, 5 May 2026. Recovered from `codex/assistqr-protocol` commit `823ced8` and merged to main 26 May 2026 (the spec was orphaned on a branch that was almost deleted; preserved via `recovered/assistqr-protocol`). Implementation target: test environment first, then live environment after dogfooding. **Implementation note:** the v5.7+ doorman escalation modal (§14.17 doorman flow) ultimately used `device_key` envelopes rather than the `assist_request` envelope specified here; the FLOW (phone-shows-QR, staff-scans, three-outcomes) is substantially what shipped, but the wire-level envelope shape diverged. This spec is preserved as design history and as the source of the three-outcome contract semantics.
+**Status:** Specification draft, 5 May 2026. Implementation target: test environment first, then live environment after dogfooding.
 
 This section defines the staff-mediated recovery path for venue check-in when a phone is present at the venue but its device key cannot be matched to an expected attendee. The phone produces a signed assist-request QR. A staff member scans it from the OrgCheckin dashboard and chooses one of three explicit outcomes: bind the device to an existing expected attendee, create a new expected attendee and bind the device atomically, or reject the request with an audit record.
 
@@ -1773,215 +1561,4 @@ The assist flow does not change the compact receipt format, trust scoring, redac
 
 ---
 
-## 16. Offline-Capable Operation
-
-**Status:** Tiers 1-3 ratified for `v5.5.x` patch series. Tier 4 ratified as `v6` flagship research-grade work. Section drafted 6 May 2026; ratified by Captain same evening; promoted from `OFFLINE-MODE-PROPOSAL.md` (now archived).
-
-### 16.1 Position statement
-
-**IRLid is architecturally one of the better-suited identity systems for operating offline, because the cryptography is already client-side.** The receipt protocol's whole point is that two phones can sign a co-presence proof with no server in the loop. Where offline support is missing today is not in the cryptography — it is in *state management* (where do pending writes live before they sync?) and *sync semantics* (when connectivity returns, how do offline-recorded events reconcile against the canonical store?).
-
-This section commits IRLid to **offline-first as a design principle** going forward. Online is a sync convenience and a centralised query path; it is not a precondition for the protocol's operation. The reverse is not true: a vendor whose check-in system requires a live database round-trip per scan has built a system that is, by definition, less robust than IRLid's protocol layer already is. Closing the implementation gap is mostly engineering, not new cryptography.
-
-### 16.2 What already works offline today (zero implementation gap)
-
-The receipt protocol's core flow is fully offline-capable as shipped:
-
-- **HELLO → ACCEPT → COMBINED RECEIPT** — two phones meet IRL, exchange QRs, both sign. Receipt object generated locally on both devices. No server touched. The receipt can sit on either party's device for hours, days, or until either reconnects.
-- **Trust history scoring** — `v4` trust history runs against `localStorage`; the score is computed on-device.
-- **Bio-metric verification** — `v4` bio-metric gate fires `WebAuthn` against the local platform authenticator. No server.
-- **Hardware-backed signing** — `v5` Passkey signing fires `WebAuthn` against the local Secure Enclave / TEE / Windows Hello / Android Keystore. No server.
-- **Receipt verification** (`check.html`) — re-runs every cryptographic check in the browser. The party verifying needs no server access.
-
-The org check-in surface (`OrgCheckin.html`) is currently the part that *does* require connectivity for live operation. That is what this section addresses.
-
-### 16.3 Four-tier implementation path
-
-Implementation is an additive ladder. Each tier is independently shippable and useful; later tiers depend on earlier ones.
-
-#### Tier 1 — PWA shell
-
-**Goal:** the page loads from cold even with zero connectivity, provided it has been visited at least once.
-
-**Implementation:**
-- Service Worker registered at first visit, caches the HTML / CSS / JS / vendor libs / fonts / static assets via the Cache API.
-- `manifest.json` declares the page as installable; users get "Add to Home Screen" prompts on supported browsers.
-- Installed instances run in `display: standalone` (or `fullscreen`) — hides the URL bar, partially addresses the "chimps mess with back buttons" concern.
-
-**Outcome:** opening `OrgCheckin.html?dev=0` (or the future production URL) on a phone with no internet shows the page exactly as if connectivity were available. Last-known cached state is what renders.
-
-**Effort:** ~1 day. **Tag:** `v5.5.12` (next-up shipping window).
-
-#### Tier 2 — IndexedDB write queue + Background Sync
-
-**Goal:** any action the user takes while offline (check someone in, add an attendee, edit settings) succeeds locally, queues a pending sync record, and replays to the Worker when connectivity returns.
-
-**Implementation:**
-- IndexedDB store `pending_ops` — each entry is a signed envelope of the operation (type, target, payload, device-side timestamp, idempotency key).
-- Operations write to IndexedDB first; the existing Worker POST is fire-and-forget against a separate queue.
-- Background Sync API replays the queue when connectivity returns. Works in many browsers even after the tab closes; falls back to "replay on next page load" where Background Sync is unsupported.
-- UI shows a sync indicator (see §16.5 for the visible offline state directive).
-
-**Conflict resolution:**
-- Multiple staff devices checking the same person in offline → both writes hit the server when each device reconnects → DB's `event_attendance` table accepts both rows. The "warts-and-all" immutability rule (§14.9 / `crew-protocol §2.2`) is exactly the right shape for this — old rows survive; the audit trail is the truth, not a "deduplicated final answer."
-- Settings edits made offline on two devices for the same org → last-write-wins by server-side timestamp (with both writes preserved in audit if needed). This is fine for org settings, which have a clear single owner anyway (lead_admin+).
-
-**Outcome:** an attendee scans at the door during a wifi outage. The dashboard records them locally with a "pending sync" badge. Connectivity returns; the row syncs; badge clears. No flow disruption.
-
-**Effort:** ~2-3 days.
-
-#### Tier 3 — Cached org snapshot
-
-**Goal:** the dashboard has the data it needs to operate offline before connectivity drops, not just after.
-
-**Implementation:**
-- On every successful sync (and on first sign-in), pull a full snapshot of the active org's settings, expected list, recent attendance (last ~24h), and theme. Store in IndexedDB.
-- When offline, the dashboard reads from the snapshot rather than from a (probably empty) `localStorage` ad-hoc cache.
-- Snapshot freshness shown in the offline indicator: *"Showing snapshot from 14:32 — reconnecting…"*.
-
-**Outcome:** staff arrives at the venue, wifi is dead, opens the dashboard — it shows the expected list pulled this morning, accepts new check-ins offline (Tier 2), and presents the same workflow staff would have online. Tier 3 is what makes offline mode genuinely useful for events, not just a panic fallback.
-
-**Effort:** ~2 days.
-
-#### Tier 4 — Multi-device offline mesh (v6 flagship)
-
-**Goal:** two staff devices at the same door, both offline, sync to each other directly so they don't both check the same attendee in twice.
-
-**Implementation:**
-- WebRTC over local-network discovery (or BLE / Wi-Fi Direct on supported platforms via a thin native shell, if v6 has graduated to a mobile app).
-- Each device exposes its `pending_ops` queue to peers in the same org session.
-- Peer reconciliation runs continuously while in mesh mode; pending ops merge across devices before any reach the server.
-
-**Outcome:** the venue's wifi is dead all night. Two staff at the door each have their device. They check 200 people in across the night. Neither device ever reached the server. In the morning, one device reaches wifi first, syncs, and the merged dataset is already coherent because the two devices kept each other in sync.
-
-**Effort:** ~1-2 weeks. **Tag:** `v6.0` flagship implementation. Discovery on offline LANs is genuine research-grade work (mDNS / Bonjour browser support is thin); cross-platform compatibility varies; the v6 design conversation will resolve transport choice. Tier 4 architecturally completes the v6 trust-network theme.
-
-### 16.4 Time-anchoring offline-recorded receipts
-
-The hard problem with offline-signed receipts is *trust in the timestamp*. When a device signs a check-in at 14:32 device-clock with no internet, can a verifier in the future trust that the timestamp is real? Two answers, both already in the protocol:
-
-**Answer 1 (low-stakes — adequate for venue check-in):** trust the device clock. Phones synchronise over NTP frequently when online; the clock skew is bounded for any device that has been connected within the last few days. For attendance-tracking purposes (proving someone was at the door at the event), device-clock is sufficient.
-
-**Answer 2 (protocol-grade — required for receipts that may be evidence):** when the device reconnects, anchor the offline-signed receipt to a Trusted Timestamp Authority (TSA) and/or `OpenTimestamps`. The receipt envelope already supports `tsTokens` per §11. The flow:
-
-1. Device signs receipt at offline time T₀ with `device_signed_at: T₀`.
-2. Device reconnects at T₁ (could be hours, days, or a week later).
-3. Device requests a TSA token for the receipt hash.
-4. TSA returns a signed timestamp asserting "this hash existed at or before T₁."
-5. Receipt now carries a verifiable upper bound on its creation time: T₀ ≤ creation ≤ T₁.
-
-The receipt's actual creation time falls within this window; for most use cases that's sufficient. For applications that need tighter bounds (court evidence, prison custody chains), pre-anchoring to a TSA on the way out (when connectivity is briefly available before going offline) tightens the lower bound.
-
-This dovetails exactly with the §11 multi-witness time anchoring spec, which is already forward-defined for v6.
-
-### 16.5 The visible offline indicator (blinking red dot)
-
-**Captain's directive 6 May, captured verbatim:** *"In the offline mode though, have an offline blinking red dot in a badge, somewhere."*
-
-Specification:
-
-- **Visual:** a small red circle (~10-12px diameter), pulsing at ~1Hz with a subtle alpha animation (full opacity to ~60% and back). Same shape as the recording indicator on phone cameras — instantly recognisable as "active state, not normal."
-- **Position:** top-right of the dashboard chrome, near the sign-out / refresh controls. Visible in every panel (Organisation / Check-in / Dashboard / Settings).
-- **Companion text** (optional, narrow viewports may hide): *"OFFLINE"* or simply the red dot.
-- **Tooltip / aria-label:** *"Working offline — changes will sync when reconnected. Last sync: HH:MM."*
-- **Disappears cleanly when connectivity returns** — the dot fades out, replaced briefly by a green check (1-2s), then nothing (steady state = online).
-- **Surfacing pending sync:** if `pending_ops` is non-empty, the red dot shows a small numeric badge (count of pending operations) until they all replay.
-
-**Companion CSS (canonical):**
-
-```css
-.offline-indicator {
-  position: fixed; top: 16px; right: 16px;
-  display: flex; align-items: center; gap: 8px;
-  z-index: 100; pointer-events: auto;
-}
-.offline-indicator .dot {
-  width: 12px; height: 12px; border-radius: 50%;
-  background: #C62828;
-  animation: offline-pulse 1.4s ease-in-out infinite;
-}
-@keyframes offline-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: .55; }
-}
-.offline-indicator .label {
-  font: 600 12px/1 system-ui, sans-serif;
-  color: #C62828; letter-spacing: .04em;
-}
-.offline-indicator.with-count .badge {
-  background: #C62828; color: #fff;
-  border-radius: 10px; padding: 2px 7px;
-  font: 700 11px/1 system-ui, sans-serif;
-}
-```
-
-Making the offline state **visible and constant** prevents the "wait, did that save?" anxiety. Users adapt their behaviour when they see they're offline; they keep working but with mild caution. That's healthier than a UI that pretends everything is fine and surprises them with sync errors later.
-
-### 16.6 Connection to other v6 themes
-
-Offline mode is not a standalone feature; it is the engineering substrate that makes several other parts of the v6 roadmap feasible:
-
-- **Multi-party custody receipts** (§10.4, queued) — drop-offs, prison transfers, chain-of-custody handoffs *literally happen offline most of the time*. A protocol that can't record them offline cannot serve those use cases at all.
-- **Wisdom / ASE Tech humanitarian drone delivery** — the entire premise is "delivery to villages without connectivity." Offline-signed receipts are *the* protocol contribution to that partnership. Tier 4 (multi-device mesh) is essentially the protocol-level support for "drone records the receipt; recipient's phone counter-signs; both sync to the network when one of them next sees infrastructure."
-- **Trust network + spatial primitives** (§12 six-axis coordinates, §14.18 recovery quorum) — once offline-resilient, the protocol can be deployed in places where the trust network is the *only* trust available (no central authority within radio range). Trust-network operations need to merge across offline-then-reconnected devices the same way Tier 4's mesh design does.
-- **Time anchoring** (§11 `tsTokens`) — already covered above. Offline mode is the most compelling reason §11 exists.
-
-### 16.7 Progressive enhancement vs graceful degradation
-
-A common framing of offline support is *"the system gracefully degrades when connectivity drops."* This implies online is the normal state and offline is the unhealthy fallback.
-
-**IRLid adopts the inverse framing: progressive enhancement.** The protocol works offline; connectivity is an *enhancement* that adds central storage, cross-device sync, and audit query. The dashboard is *not* "offline mode kicking in when something failed"; it is "the offline mode plus a network sync layer, when network is available." This is more than a vibe — it changes engineering decisions:
-
-- Local writes are the *primary path*; server POSTs are mirrors of an already-completed local operation.
-- The UI never shows "loading…" spinners on writes; writes are instant locally, and the sync state is shown as a small indicator (the red dot, or a counter) rather than blocking the user.
-- "Online" is a service that *augments* the dashboard with cross-device awareness, not a service the dashboard *depends on* for its primary function.
-- Network failures are non-events at the user-experience level. They show up only as "your dashboard is currently offline" indicators; nothing fails, nothing requires retry.
-
-This is how mature offline-capable systems (notebooks, drawing apps, even some banking apps) handle the question. It is the right shape for IRLid given its protocol foundation.
-
-### 16.8 Implementation phasing
-
-| Window | Tier(s) | Tag(s) | Estimate |
-|---|---|---|---|
-| **Window A — PWA + write queue** | Tiers 1 + 2 | `v5.5.x` patch series (e.g. `v5.5.12`–`v5.5.14`) | ~1 week |
-| **Window B — Cached org snapshot** | Tier 3 | `v5.5.x` (e.g. `v5.5.15`) | ~2 days |
-| **Window C — Multi-device mesh** | Tier 4 | `v6.0` flagship implementation | ~1-2 weeks (post-v6 design ratification) |
-
-Windows A and B ship as `v5.5.x` patches under the existing minor; the user-facing capability becomes "offline-capable check-in" and gets the marketing attention. Window C is where v6 formally begins, and is where the trust-network / mesh / multi-party-custody themes pull together.
-
-### 16.9 Threat model implications
-
-Offline operation introduces and modifies several threat-model considerations:
-
-| Attack | Online posture | Offline posture | Defence |
-|---|---|---|---|
-| Replay of a captured receipt | TSA + nonce reject | Same; nonce + ts window | Unchanged. The 90-second `ts` window applies regardless of online state. |
-| Stolen device with active session | Re-auth on sensitive ops | Same; UV-required actions still require local biometric | Local hardware credential + UV is the gate; offline doesn't soften it. |
-| Local clock manipulation | Server stamps with its own clock | Device clock only | Tier 4 mesh (peer-to-peer ts cross-checks) + TSA-on-reconnect tighten the bound. For high-stakes use, require recent online sync before trusting offline timestamps. |
-| Forged offline check-in | Server validates signature | Local validation + later sync | The signature is verified locally on receipt, exactly as today. The server eventually re-validates on sync. The receipt stands or falls on the cryptography, not the network state. |
-| Pending-queue tampering | N/A | Attacker with device access could tamper with IndexedDB | All queued envelopes are pre-signed before queuing. Tampering with a queued envelope produces an invalid signature on sync. The attacker must have the signing key, in which case they can sign new envelopes anyway — no new attack surface. |
-| Sync flooding (DoS on reconnect) | N/A | Attacker queues many fake operations offline, floods server on reconnect | Server-side rate limiting per device; signature verification cheap; the attacker burns their own device storage to attempt this. Low-impact attack. |
-
-Offline mode does not fundamentally weaken the protocol's security posture, because the protocol's security model was already client-side-cryptography-based. Online operation was already a convenience layer, not a security gate.
-
-### 16.10 Open questions (defer or research)
-
-These questions are flagged for future deliberation rather than resolved here:
-
-1. **Background Sync browser support** — iOS Safari historically lags. Fallback strategy for iOS likely "replay on next page load" with a more visible "you have N pending ops, please reconnect" prompt.
-2. **Snapshot freshness policy** — how stale before the dashboard shows a "your snapshot is too old, reconnect to continue" warning? Suggested default: 24 hours, configurable per org.
-3. **PWA install prompts** — when to surface the install prompt. Captain's decision; could be at first sign-in, or only after the user has seen the page work normally a few times.
-4. **Tier 4 transport** — WebRTC vs Web Bluetooth vs a thin native shell with proper Bluetooth/Wi-Fi Direct. Cross-platform compatibility varies wildly. v6 design conversation.
-5. **Offline-acquired Bearer sessions** — currently Bearer auth requires a live Worker round-trip. An offline-issued temporary session (signed by the device's hardware credential) that the server retroactively ratifies on sync is probably warranted; needs a small spec extension.
-6. **Time anchoring trigger** — does every offline-signed receipt automatically request a TSA token on reconnect, or only ones that explicitly opt in (e.g., flagged as "evidence-grade")? Suggested default: opt-in for now, default-on for receipts created by drones / multi-party custody / other v6+ flows.
-
-### 16.11 Genesis
-
-This section's existence is owed to:
-
-- Captain's experience at work with a check-in system that died in an ISP outage on 6 May 2026.
-- Captain's own ISP outage later the same day, which made the question feel personal and obvious.
-- The Wisdom (ASE Tech) humanitarian-drone partnership that has been quietly shaping the v6 design space since April.
-- The receipt protocol's original architecture (Captain's design, years before this section was written), which made offline-first feasible without any cryptographic changes. The protocol was already most of the way to "works at the edge"; this section just names it.
-
-Drafted as `OFFLINE-MODE-PROPOSAL.md` and ratified to canonical spec same evening. Original proposal preserved at `archive/OFFLINE-MODE-PROPOSAL.md` as design history.
+*Sections 10, 11, 12, 13, 14, and 15 are forward-defined or in-implementation specifications. They commit IRLid to design coherence, not to implementation timeline. The principle is consistent throughout: build for the destination, not just the next milestone.*
