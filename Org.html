@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.6</span></div>
   </div>
 </div>
 
@@ -3471,18 +3471,31 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </div>
 
               <div class="checkin-mode-stage" id="checkinModeStage">
-                <div id="venueQRWrap" class="qr-wrap" aria-hidden="false">
-                  <div class="qr-box" id="venueQrBox"></div>
-                  <div class="qr-info">
-                    <h4>Event Check-in QR</h4>
-                    <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
-                    <div class="qr-actions">
-                      <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
-                      <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
-                      <button class="btn btn-secondary btn-sm" onclick="copyText(venueQrPayload)">Copy URL</button>
-                    </div>
-                    <div class="qr-payload-preview" id="qrPayloadPreview"></div>
+                <!-- v5.11.6 — Check-in tab inline view restructured to mirror the
+                     Settings Visual Theming preview stage exactly: same class,
+                     same overlay layers (cel-bg, cel-text, cel-fx), same banner-
+                     above-QR layout, same double-click-for-fullscreen affordance.
+                     The Settings preview's theme decoration (palette ::before,
+                     image ::after, symmetry variants, QR-centric celebration
+                     anchoring) ALL apply natively because this IS a preview
+                     stage now. The .qr-info text + actions strip moved below
+                     the stage so it doesn't break the centered layout. -->
+                <div id="venueQRWrap" class="qr-wrap v511-theme-preview-stage v511-checkin-tab-stage" data-mode="allow" aria-hidden="false" ondblclick="fullscreenQR()" title="Double-click anywhere to fullscreen (Esc to exit)">
+                  <div class="v511-cel-bg-overlay" aria-hidden="true"></div>
+                  <div class="v511-cel-text-overlay" aria-hidden="true">Welcome!</div>
+                  <div class="v511-cel-fx-layer" aria-hidden="true"></div>
+                  <div class="v511-theme-preview-banner" id="venueQRBanner">Event Check-in</div>
+                  <div class="qr-box v511-theme-preview-qr" id="venueQrBox" role="img"></div>
+                </div>
+                <div class="qr-info">
+                  <h4>Event Check-in QR</h4>
+                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
+                  <div class="qr-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
+                    <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
+                    <button class="btn btn-secondary btn-sm" onclick="copyText(venueQrPayload)">Copy URL</button>
                   </div>
+                  <div class="qr-payload-preview" id="qrPayloadPreview"></div>
                 </div>
 
                 <div id="doormanWrap" class="mode-inactive" aria-hidden="true">
@@ -5382,6 +5395,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background-position: var(--sym-pos-1, 0% 0%), var(--sym-pos-2, 100% 0%), var(--sym-pos-3, 0% 100%), var(--sym-pos-4, 100% 100%);
           background-size: var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto), var(--bg-image-size, 10% auto);
           background-repeat: no-repeat;
+        }
+        /* v5.11.6 — Check-in tab inline view uses the v511-theme-preview-stage class
+           so the same theme decoration (palette ::before, image ::after, symmetry,
+           QR-centric celebration anchoring) renders natively. The .v511-checkin-tab-stage
+           marker class scopes Check-in-specific overrides:
+           (a) Suppress the legacy body[data-bg-mode="image"] #venueQRWrap direct-
+               background-image rule from L2766 — v511 ::after handles it now, having
+               both would double-render the dragons.
+           (b) Allow more vertical space than the Settings preview's 48vh cap, since
+               the Check-in tab is the actual display surface (use larger min-height
+               and remove max-height cap).
+           (c) Hide the default "Welcome!" text in .v511-cel-text-overlay until a
+               celebration actually fires (otherwise the placeholder text shows
+               permanently on the inline Check-in tab). */
+        body[data-bg-mode="image"] #venueQRWrap.v511-checkin-tab-stage {
+          background-image: none !important;
+        }
+        #venueQRWrap.v511-checkin-tab-stage {
+          max-height: none;
+          min-height: 60vh;
+          margin-bottom: 16px;
+          cursor: zoom-in;
+        }
+        #venueQRWrap.v511-checkin-tab-stage .v511-cel-text-overlay {
+          opacity: 0;
+        }
+        #venueQRWrap.v511-checkin-tab-stage.cel-text .v511-cel-text-overlay,
+        #venueQRWrap.v511-checkin-tab-stage.firing-allow .v511-cel-text-overlay,
+        #venueQRWrap.v511-checkin-tab-stage.firing-deny .v511-cel-text-overlay,
+        #venueQRWrap.v511-checkin-tab-stage.firing-review .v511-cel-text-overlay {
+          opacity: 1;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
            applied when .cel-qr class is on the stage. */
