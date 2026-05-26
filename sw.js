@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v50'; // v5.11.14 — Captain's smoke "accept each time, don't believe deny fires when checking out" surfaced a different bug: polling handler at L12993 was unconditionally calling triggerAcceptCycleAnimation regardless of ev.type. showCheckinEventToast was correctly using ev.type for IN/OUT text, but the animation dispatch ignored it. Captain's question "why does Sample work but real doesn't" was the clue: Sample reads samplePicker.value and dispatches by mode; poll handler was missing the dispatch. v5.11.14 adds `if (ev.type === 'out') triggerDenyCycleAnimation(ev.name); else triggerAcceptCycleAnimation(ev.name);` Real check-OUT events now fire the deny path (correct sound + configured deny celebration).
+const CACHE_VERSION = 'irlid-shell-v51'; // v5.11.15 — REVERT v5.11.14 conditional dispatch. Captain clarified intent: in/out both fire allow ("Checkout isn't deny and don't remember ever saying that, in/out should be accept :)"). v5.11.14 misread architectural intent. "deny" mode is for REJECTION scenarios (not-on-expected-list, doorman rejected), called from L14525/15717 directly. Polling handler reverted to always triggerAcceptCycleAnimation regardless of ev.type. Original code intent restored.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
