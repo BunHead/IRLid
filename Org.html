@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.7</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.8</span></div>
   </div>
 </div>
 
@@ -13303,14 +13303,25 @@ function generateVenueQR() {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
   venueQrPayload = buildVenuePayload(); box.innerHTML = '';
   new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-  const orgName = currentOrg?.name || portalState.orgCode || 'Venue check-in';
-  box.dataset.qrFullscreenPayload = venueQrPayload;
-  box.dataset.qrFullscreenTitle = orgName;
-  box.dataset.qrFullscreenSubtitle = 'Scan to check in at this organisation';
-  box.dataset.qrFullscreenLogoUrl = getFullscreenLogoUrl();
-  box.dataset.qrFullscreenLogoAlt = `${orgName} logo`;
-  box.dataset.qrFullscreenShowTitle = 'false';
-  box.dataset.qrFullscreenLastRefreshed = fullscreenRefreshStamp();
+  // v5.11.8 — removed dead data-qr-fullscreen-* attributes on #venueQrBox.
+  // Pre-v5.11.5 these enabled qr-fullscreen.js's double-tap-to-fullscreen,
+  // but v5.11.5 replaced that dependency with the clone-based fullscreenQR().
+  // The attributes still triggered qr-fullscreen.js's document-level dblclick
+  // listener (qr-fullscreen.js L281), which raced my fullscreenQR clone path
+  // and won — causing double-click to fullscreen the wrong overlay
+  // (.irlid-qr-fullscreen) instead of the clone (#v511FullscreenStage).
+  // Captain's diagnostic at v5.11.7 confirmed: GREEN BUTTON → v511FullscreenStage,
+  // DBLCLICK → irlid-qr-fullscreen active. Removing the attributes here so
+  // qr-fullscreen.js's listener bails (no matching element) and only my
+  // ondblclick="fullscreenQR()" handler runs.
+  // Defensive: also clear any pre-existing values from prior page loads.
+  delete box.dataset.qrFullscreenPayload;
+  delete box.dataset.qrFullscreenTitle;
+  delete box.dataset.qrFullscreenSubtitle;
+  delete box.dataset.qrFullscreenLogoUrl;
+  delete box.dataset.qrFullscreenLogoAlt;
+  delete box.dataset.qrFullscreenShowTitle;
+  delete box.dataset.qrFullscreenLastRefreshed;
   document.getElementById('qrPayloadPreview').textContent = 'Debug QR URL:\n' + venueQrPayload;
 }
 function staffAuthKey() {

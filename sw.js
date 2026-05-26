@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v43'; // v5.11.7 — fixes v5.11.6 layout collision. .prototype-checkin #panel-checkin overrides at Org.html L3160-3167 (display:grid on #venueQRWrap + position:absolute right:-48px on .qr-info) won over the v511-theme-preview-stage flex layout I'd assumed would apply, making .qr-info float over the dragon area. v5.11.7 adds .v511-checkin-tab-stage-scoped overrides that restore the flex-column behavior, reset .qr-box to a v511-sized centered element, and reset .qr-info to static positioning so it flows BELOW the stage cleanly.
+const CACHE_VERSION = 'irlid-shell-v44'; // v5.11.8 — Captain's DevTools diagnostic at v5.11.7 caught the bug: GREEN BUTTON fullscreens v511FullscreenStage (clone, correct), DBLCLICK fullscreens .irlid-qr-fullscreen.active (qr-fullscreen.js's legacy overlay, wrong). Root cause: generateVenueQR() at Org.html L13307+ set data-qr-fullscreen-payload on #venueQrBox. v5.11.5 replaced the qr-fullscreen.js dependency for venue QR fullscreen, but the data attributes were left behind. qr-fullscreen.js's document-level dblclick listener (qr-fullscreen.js L281) still caught the event via closest('[data-qr-fullscreen-payload]') and raced my fullscreenQR clone path. v5.11.8 removes the dead attribute assignments + explicitly deletes any pre-existing values from prior page loads (defensive). Now only my ondblclick=fullscreenQR handler fires.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
