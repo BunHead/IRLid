@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0z</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.1</span></div>
   </div>
 </div>
 
@@ -15957,24 +15957,22 @@ function applyV511BackgroundToHostStages(theme) {
   });
   syncBgImageMirrorLayers(cfg);
 
-  // v5.11.0y — qr-fullscreen.js's open() is async (awaits render() which
-  // wipes holder.innerHTML at L106 of qr-fullscreen.js). When fullscreenQR()
-  // calls applyV511BackgroundToHostStages via requestAnimationFrame at
-  // L14409, the browser has NOT yet entered fullscreen mode (requestFullscreen
-  // is async) and the overlay DOM is not fully settled. So mirror insertions
-  // land in a transient state and the bg-image cascade doesn't take. Hook
-  // fullscreenchange (fires after browser actually enters/exits fullscreen)
-  // and re-fire applyV511 with a small settle delay so render() has finished
-  // and the overlay is the actual fullscreen element. Idempotent guard — only
-  // attach the listener on first call.
-  if (!applyV511BackgroundToHostStages._fullscreenHooked) {
-    applyV511BackgroundToHostStages._fullscreenHooked = true;
-    document.addEventListener('fullscreenchange', function () {
-      setTimeout(function () {
-        try { applyV511BackgroundToHostStages(activeTheme); } catch (_) { /* defensive */ }
-      }, 50);
-    });
-  }
+  // v5.11.0y — Attempted to hook fullscreenchange here to re-apply theme
+  // after browser actually enters fullscreen (because qr-fullscreen.js's
+  // open() is async and the requestAnimationFrame path in fullscreenQR()
+  // races the overlay's settled state). The listener mutated DOM children
+  // (.bg-image-mirror remove + re-insert via syncBgImageMirrorLayers) on
+  // the fullscreen overlay element during the entry transition. Modern
+  // browsers can auto-exit fullscreen on such mutations as a security
+  // heuristic. qr-fullscreen.js's own auto-close listener at L40-42 then
+  // saw `active=true, fullscreenElement!==overlay` and called close(false),
+  // making the Fullscreen button appear broken.
+  // v5.11.1 — Listener removed. Tradeoff: dragons-in-fullscreen-during-
+  // celebration regresses to v5.11.0w state (works at fullscreen open,
+  // may flicker during celebration). Better next approach when iterating:
+  // poll `document.fullscreenElement === overlay` with a small loop OR
+  // inject .bg-image-mirror into qr-fullscreen.js's overlay markup at
+  // INIT time (so no mutation during fullscreen transition).
 }
 
 function setThemeSaveStatus(message, klass) {

@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v36'; // v5.11.0z — Mirror v5.11.0o's allow-mode v5.11 celebration bridge into the deny path. triggerDenyCycleAnimation was firing only the legacy `cycle-deny-burst` class, so theme._v511.celebration.deny (Captain's configured check-out animation) was ignored. Now reads v511ConfiguredCelebrationSequence(theme, 'deny') and fires via fireConfiguredSequence. Caller at L15413 now passes attendee name. Re-entry guard via __irlidDenyCycleActive.
+const CACHE_VERSION = 'irlid-shell-v37'; // v5.11.1 — Roll back v5.11.0y's fullscreenchange listener. Listener was causing browser to auto-exit fullscreen on child mutations during entry transition (syncBgImageMirrorLayers removed-and-re-inserted .bg-image-mirror divs on the overlay element while it was the fullscreen target). qr-fullscreen.js's own auto-close listener at L40-42 then saw fullscreenElement!==overlay and called close(false). Net effect: Fullscreen button appeared dead. Listener removed; Fullscreen button restored. Dragons-in-fullscreen-during-celebration regresses to v5.11.0w state (works at open, may flicker during celebration) — deferred fix.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
