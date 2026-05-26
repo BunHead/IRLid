@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0y</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0z</span></div>
   </div>
 </div>
 
@@ -15410,7 +15410,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(name); } catch (_) {}
     } else if (mode === 'deny') {
       try { showCheckinEventToast(name, 'out'); } catch (_) {}
-      try { if (typeof triggerDenyCycleAnimation === 'function') triggerDenyCycleAnimation(); } catch (_) {}
+      try { if (typeof triggerDenyCycleAnimation === 'function') triggerDenyCycleAnimation(name); } catch (_) {}
     } else {
       // review — no celebration burst; orange state is the venue-QR flow's job.
       // Fire just the toast as a soft acknowledgement of the test.
@@ -16541,8 +16541,40 @@ function triggerAcceptCycleAnimation(attendeeName) {
   clearAcceptCycleGuard(ms);
 }
 
-function triggerDenyCycleAnimation() {
-  triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-deny-burst', denyCycleMs());
+function triggerDenyCycleAnimation(attendeeName) {
+  // v5.11.0z — Mirror v5.11.0o's allow-mode bridge into the deny path.
+  // Previously this fired only the legacy `cycle-deny-burst` class, so
+  // theme._v511.celebration.deny was ignored on real check-out events —
+  // Captain's configured deny sequence (confetti / sparkles / glow / etc.)
+  // never ran. The text overlay still appeared because it's a separate
+  // code path via showCheckinEventToast.
+  // Re-entry guard via __irlidDenyCycleActive (sibling pattern to the
+  // accept side's __irlidAcceptCycleActive).
+  if (window.__irlidDenyCycleActive) return;
+  window.__irlidDenyCycleActive = true;
+  const denyMs = denyCycleMs();
+  const clearDenyGuard = function (delay) {
+    setTimeout(function () { window.__irlidDenyCycleActive = false; }, Math.max(0, delay || denyMs));
+  };
+  const configuredSeq = (typeof v511ConfiguredCelebrationSequence === 'function')
+    ? v511ConfiguredCelebrationSequence(activeTheme, 'deny')
+    : null;
+  if (configuredSeq && configuredSeq.length && typeof window.fireConfiguredSequence === 'function') {
+    try {
+      window.fireConfiguredSequence(configuredSeq, 'deny', v511ActiveCelebrationStage(), {
+        theme: activeTheme,
+        attendeeName: attendeeName,
+        action: 'out'
+      }).finally(function () { window.__irlidDenyCycleActive = false; });
+      return;
+    } catch (err) {
+      window.__irlidDenyCycleActive = false;
+      console.warn('[v511 celebration] deny sequence failed; falling back to legacy', err);
+    }
+  }
+  // Legacy fallback (pre-v5.11): the simple `cycle-deny-burst` red flash.
+  triggerCycleClassOnTargets(cycleBurstTargets(true), 'cycle-deny-burst', denyMs);
+  clearDenyGuard(denyMs);
 }
 
 async function loadThemeFromServer() {

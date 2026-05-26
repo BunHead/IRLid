@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v35'; // v5.11.0y — Hook fullscreenchange event in applyV511BackgroundToHostStages so theme bg-image mirrors are re-applied AFTER browser actually enters fullscreen (qr-fullscreen.js's async render() wipes holder.innerHTML, and requestFullscreen() is async, so the rAF-scheduled apply call in fullscreenQR() races the overlay's settled state). 50ms settle delay after fullscreenchange. Idempotent (listener attached once).
+const CACHE_VERSION = 'irlid-shell-v36'; // v5.11.0z — Mirror v5.11.0o's allow-mode v5.11 celebration bridge into the deny path. triggerDenyCycleAnimation was firing only the legacy `cycle-deny-burst` class, so theme._v511.celebration.deny (Captain's configured check-out animation) was ignored. Now reads v511ConfiguredCelebrationSequence(theme, 'deny') and fires via fireConfiguredSequence. Caller at L15413 now passes attendee name. Re-entry guard via __irlidDenyCycleActive.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
