@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.14</span></div>
   </div>
 </div>
 
@@ -12990,7 +12990,21 @@ async function refreshAttendance() {
         events.forEach(function (ev) {
           if (__lastToastEventId === ev.id) { console.log('[poll] skipping dup event for id', ev.id); return; }
           showCheckinEventToast(ev.name, ev.type);
-          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name); } catch (_) {}
+          // v5.11.14 — dispatch animation by ev.type, not unconditionally to accept.
+          // Pre-v5.11.14 this always fired triggerAcceptCycleAnimation, so check-out
+          // events (ev.type === 'out') played the allow sound + allow celebration
+          // while the v511 deny sequence was never triggered. The Sample button
+          // works correctly because it reads samplePicker.value and dispatches by
+          // mode; the poll handler was missing the same dispatch. Captain's smoke
+          // at v5.11.13 surfaced it: "Sound plays, but accept each time, don't
+          // believe deny fires when checking out".
+          try {
+            if (ev.type === 'out') {
+              if (typeof triggerDenyCycleAnimation === 'function') triggerDenyCycleAnimation(ev.name);
+            } else {
+              if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name);
+            }
+          } catch (_) {}
         });
       }
     }
