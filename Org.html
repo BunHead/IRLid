@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.11</span></div>
   </div>
 </div>
 
@@ -8914,11 +8914,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // v511-runtime-stage) which is per-stage and shouldn't propagate.
           function v511MirrorSettingsStateToHostStages() {
             if (!sampleStage) return;
-            var configClassPrefixes = ['bg-mode-', 'bg-dir-', 'bg-bounce-', 'bg-trans-', 'bg-symmetry-', 'pattern-'];
+            // v5.11.11 — broader class mirror. Use a BLACKLIST of transient
+            // celebration state classes (added per-stage by the celebration
+            // runtime, should NOT propagate) and mirror everything cel-*/
+            // bg-*/pattern-* that ISN'T in the blacklist. v5.11.10 used a
+            // narrow prefix whitelist that excluded ALL cel-*, but CSS
+            // combinators like .cel-pulse.cel-int-subtle require BOTH the
+            // transient (cel-pulse) and configured (cel-int-subtle) classes
+            // to select the right animation variant. Without cel-int-* etc.
+            // propagating to #venueQRWrap, particles defaulted to weak/
+            // off-position behaviour and Captain's smoke at v5.11.10 showed
+            // "most of the effects just missing". Blacklist source: L7318-
+            // 7320 transient class lists in the celebration runtime.
+            var transientClasses = new Set([
+              'v511-runtime-stage',
+              'firing-allow', 'firing-deny', 'firing-review',
+              'cel-pulse', 'cel-bg', 'cel-qr', 'cel-glow', 'cel-pattern', 'cel-text',
+              'cel-outer-glow', 'cel-spotlight', 'cel-cam-flash', 'cel-strobe',
+              'cel-shake', 'cel-scale-punch', 'cel-iris-wipe', 'cel-ripple',
+              'cel-qr-disappear', 'cel-bounce-eff-loop',
+              'cel-confetti', 'cel-sparkles', 'cel-stream', 'cel-flame', 'cel-glitch'
+            ]);
+            function isV511ConfigClass(c) {
+              if (transientClasses.has(c)) return false;
+              if (c === 'v511-theme-preview-stage' || c === 'v511-checkin-tab-stage' || c === 'qr-wrap') return false;
+              return c.indexOf('bg-') === 0 || c.indexOf('pattern-') === 0 || c.indexOf('cel-') === 0;
+            }
+            var mirrorablePrefixes = ['bg-', 'pattern-', 'cel-'];
             var cssVarPrefixes = ['--bg-pal-', '--cel-pal-', '--bg-image-', '--sym-pos-', '--theme-'];
-            var sourceClasses = Array.from(sampleStage.classList).filter(function (c) {
-              return configClassPrefixes.some(function (p) { return c.indexOf(p) === 0; });
-            });
+            var sourceClasses = Array.from(sampleStage.classList).filter(isV511ConfigClass);
             var cssVarsToMirror = {};
             for (var i = 0; i < sampleStage.style.length; i++) {
               var prop = sampleStage.style[i];
@@ -8932,11 +8956,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             ];
             targets.forEach(function (target) {
               if (!target || target === sampleStage) return;
-              // Remove existing config classes so we sync (not just add)
+              // Remove existing v511 config classes so we sync (not just accumulate).
+              // Use same isV511ConfigClass filter so transient classes added by
+              // celebration runtime on this target are preserved.
               Array.from(target.classList).forEach(function (c) {
-                if (configClassPrefixes.some(function (p) { return c.indexOf(p) === 0; })) {
-                  target.classList.remove(c);
-                }
+                if (isV511ConfigClass(c)) target.classList.remove(c);
               });
               // Add the source's config classes
               sourceClasses.forEach(function (c) { target.classList.add(c); });
