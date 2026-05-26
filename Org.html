@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0u</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0v</span></div>
   </div>
 </div>
 
@@ -4430,7 +4430,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-glow > .v511-cel-fx-layer,
         .v511-runtime-stage.cel-glow > .v511-cel-fx-layer {
           animation: v511CelGlowHaloWash var(--cel-cycle-dur, 1.4s) ease-out;
-          background: radial-gradient(circle at center, var(--cel-pal-1, #58a6ff) 0 12%, color-mix(in srgb, var(--cel-pal-1, #58a6ff) 45%, transparent) 28%, transparent 62%);
+          background: radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), var(--cel-pal-1, #58a6ff) 0 12%, color-mix(in srgb, var(--cel-pal-1, #58a6ff) 45%, transparent) 28%, transparent 62%);
           mix-blend-mode: screen;
         }
         @keyframes v511CelGlowHalo { 0%, 100% { filter: brightness(1) drop-shadow(0 0 0 transparent); } 50% { filter: brightness(1.16) drop-shadow(0 0 30px var(--cel-pal-1, #58a6ff)); } }
@@ -4447,26 +4447,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"] > .v511-cel-fx-layer {
           animation: v511CelQrGlowRays var(--cel-cycle-dur, 1.4s) linear;
           background:
-            radial-gradient(circle at center, rgba(255,255,255,0.78) 0 4%, transparent 15%),
-            repeating-conic-gradient(from -8deg,
+            radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), rgba(255,255,255,0.78) 0 4%, transparent 15%),
+            repeating-conic-gradient(from -8deg at var(--qr-cx, 50%) var(--qr-cy, 50%),
               color-mix(in srgb, var(--cel-pal-1, #58a6ff) 82%, transparent) 0deg 3deg,
               transparent 3deg 18deg,
               color-mix(in srgb, var(--cel-pal-2, var(--cel-pal-1, #58a6ff)) 72%, transparent) 18deg 20deg,
               transparent 20deg 45deg);
-          clip-path: circle(48% at center);
+          clip-path: circle(48% at var(--qr-cx, 50%) var(--qr-cy, 50%));
           filter: blur(0.6px) drop-shadow(0 0 18px var(--cel-pal-1, #58a6ff));
           mix-blend-mode: screen;
-          transform-origin: center;
+          transform-origin: var(--qr-cx, 50%) var(--qr-cy, 50%);
         }
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-glow[data-cel-glow-style="rays"].cel-int-subtle > .v511-cel-fx-layer,
         .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"].cel-int-subtle > .v511-cel-fx-layer {
-          background: repeating-conic-gradient(from -8deg, color-mix(in srgb, var(--cel-pal-1, #58a6ff) 68%, transparent) 0deg 3deg, transparent 3deg 45deg);
+          background: repeating-conic-gradient(from -8deg at var(--qr-cx, 50%) var(--qr-cy, 50%), color-mix(in srgb, var(--cel-pal-1, #58a6ff) 68%, transparent) 0deg 3deg, transparent 3deg 45deg);
         }
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-glow[data-cel-glow-style="rays"].cel-int-strong > .v511-cel-fx-layer,
         .v511-runtime-stage.cel-glow[data-cel-glow-style="rays"].cel-int-strong > .v511-cel-fx-layer {
           background:
-            radial-gradient(circle at center, rgba(255,255,255,0.86) 0 5%, transparent 14%),
-            repeating-conic-gradient(from -8deg,
+            radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), rgba(255,255,255,0.86) 0 5%, transparent 14%),
+            repeating-conic-gradient(from -8deg at var(--qr-cx, 50%) var(--qr-cy, 50%),
               color-mix(in srgb, var(--cel-pal-1, #58a6ff) 88%, transparent) 0deg 3deg,
               transparent 3deg 11deg,
               color-mix(in srgb, var(--cel-pal-2, var(--cel-pal-1, #58a6ff)) 78%, transparent) 11deg 13deg,
@@ -4637,7 +4637,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelOuterGlowSubtle  { 0% { box-shadow: inset 0 0 0 0 transparent; }    20%, 80% { box-shadow: inset 0 0 55px 10px var(--cel-pal-1, #66e0ff);   } 100% { box-shadow: inset 0 0 0 0 transparent; } }
         @keyframes v511CelOuterGlowStrong  { 0% { box-shadow: inset 0 0 0 0 transparent; }    20%, 80% { box-shadow: inset 0 0 180px 48px var(--cel-pal-1, #66e0ff);  filter: brightness(1.15); } 100% { box-shadow: inset 0 0 0 0 transparent; } }
         /* Light: spotlight (radial dim with bright centre) */
-        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight > .v511-cel-fx-layer { animation: v511CelSpotlight var(--cel-cycle-dur, 1.4s) ease-in-out; background: radial-gradient(circle at center, transparent 0%, transparent 20%, rgba(0,0,0,0.75) 70%); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight > .v511-cel-fx-layer { animation: v511CelSpotlight var(--cel-cycle-dur, 1.4s) ease-in-out; background: radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), transparent 0%, transparent 20%, rgba(0,0,0,0.75) 70%); }
         @keyframes v511CelSpotlight { 0%, 100% { opacity: 0; } 40%, 60% { opacity: 1; } }
         /* Light: camera flash (full-screen white pulse) */
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-cam-flash > .v511-cel-fx-layer { animation: v511CelCamFlash var(--cel-cycle-dur, 0.4s) ease-out; background: #fff; }
@@ -4685,16 +4685,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Motion: iris-wipe (circular reveal that closes then opens) */
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-iris-wipe { animation: v511CelIrisWipe var(--cel-cycle-dur, 1s) ease-in-out; }
         /* Default = close-then-open: stage clips in to 25% then back out */
-        @keyframes v511CelIrisWipe { 0%, 100% { clip-path: circle(150% at center); } 50% { clip-path: circle(25% at center); } }
+        @keyframes v511CelIrisWipe { 0%, 100% { clip-path: circle(150% at var(--qr-cx, 50%) var(--qr-cy, 50%)); } 50% { clip-path: circle(25% at var(--qr-cx, 50%) var(--qr-cy, 50%)); } }
         /* Tier 4.3.16 — Iris wipe direction variants (data-cel-iris-dir) */
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-iris-wipe[data-cel-iris-dir="open-then-close"] { animation-name: v511CelIrisWipeOC; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-iris-wipe[data-cel-iris-dir="close only"]      { animation-name: v511CelIrisWipeClose; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-iris-wipe[data-cel-iris-dir="open only"]       { animation-name: v511CelIrisWipeOpen; }
-        @keyframes v511CelIrisWipeOC    { 0%, 100% { clip-path: circle(25% at center); }  50% { clip-path: circle(150% at center); } }
-        @keyframes v511CelIrisWipeClose { 0% { clip-path: circle(150% at center); }       100% { clip-path: circle(0% at center); } }
-        @keyframes v511CelIrisWipeOpen  { 0% { clip-path: circle(0% at center); }         100% { clip-path: circle(150% at center); } }
+        @keyframes v511CelIrisWipeOC    { 0%, 100% { clip-path: circle(25% at var(--qr-cx, 50%) var(--qr-cy, 50%)); }  50% { clip-path: circle(150% at var(--qr-cx, 50%) var(--qr-cy, 50%)); } }
+        @keyframes v511CelIrisWipeClose { 0% { clip-path: circle(150% at var(--qr-cx, 50%) var(--qr-cy, 50%)); }       100% { clip-path: circle(0% at var(--qr-cx, 50%) var(--qr-cy, 50%)); } }
+        @keyframes v511CelIrisWipeOpen  { 0% { clip-path: circle(0% at var(--qr-cx, 50%) var(--qr-cy, 50%)); }         100% { clip-path: circle(150% at var(--qr-cx, 50%) var(--qr-cy, 50%)); } }
         /* Motion: ripple (single circular wave from centre) */
-        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-ripple > .v511-cel-fx-layer { animation: v511CelRipple var(--cel-cycle-dur, 1.2s) ease-out; border-radius: 50%; border: 4px solid var(--cel-pal-1, #66e0ff); background: transparent; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-ripple > .v511-cel-fx-layer { animation: v511CelRipple var(--cel-cycle-dur, 1.2s) ease-out; border-radius: 50%; border: 4px solid var(--cel-pal-1, #66e0ff); background: transparent; transform-origin: var(--qr-cx, 50%) var(--qr-cy, 50%); }
         @keyframes v511CelRipple { 0% { transform: scale(0.1); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
         /* Tier 4.3.19 — Ripple thickness (data-cel-thickness) — ring border-width */
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-ripple[data-cel-thickness="thin"]  > .v511-cel-fx-layer { border-width: 2px; }
@@ -5106,8 +5106,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         @keyframes v511CelPulseCycleSubtle { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0  var(--cel-pal-1, rgba(255,255,255,0.6)); }  33% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 4px  var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.5))); }  66% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 8px  var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.35)))); }  100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 10px rgba(0,0,0,0); } }
         @keyframes v511CelPulseCycleStrong { 0% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 0  var(--cel-pal-1, rgba(255,255,255,0.85)); } 33% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 14px var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.75))); } 66% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 28px var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, rgba(255,255,255,0.55)))); } 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 0 0 40px rgba(0,0,0,0); } }
         /* --- Spotlight intensity (gradient extent + darkness) --- */
-        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight.cel-int-subtle > .v511-cel-fx-layer { background: radial-gradient(circle at center, transparent 0%, transparent 30%, rgba(0,0,0,0.45) 80%); }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight.cel-int-strong > .v511-cel-fx-layer { background: radial-gradient(circle at center, transparent 0%, transparent 15%, rgba(0,0,0,0.92) 60%); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight.cel-int-subtle > .v511-cel-fx-layer { background: radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), transparent 0%, transparent 30%, rgba(0,0,0,0.45) 80%); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-spotlight.cel-int-strong > .v511-cel-fx-layer { background: radial-gradient(circle at var(--qr-cx, 50%) var(--qr-cy, 50%), transparent 0%, transparent 15%, rgba(0,0,0,0.92) 60%); }
         /* --- QR-disappear easing + intensity --- */
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-qr-disappear[data-cel-easing="linear"] .v511-theme-preview-qr { animation-timing-function: linear; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-qr-disappear[data-cel-easing="snap"]   .v511-theme-preview-qr { animation-timing-function: steps(4, jump-none); }
@@ -5205,6 +5205,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            with subtle shadow + pulse so it's visible on any palette. */
         .v511-anchor-crosshairs { position: absolute; inset: 0; pointer-events: none; z-index: 9; display: none; }
         .v511-anchor-crosshairs.is-visible { display: block; }
+        /* v5.11.0v — hide the Stream anchor crosshair configurator
+           affordance whenever the stage is in browser fullscreen mode.
+           The crosshair is useful in the inline Settings preview for
+           tweaking stream offsets; it's pollution in the "what does it
+           actually look like" fullscreen review. Vendor prefix covers
+           Safari + older Chrome/Edge. */
+        :fullscreen .v511-anchor-crosshairs,
+        :-webkit-full-screen .v511-anchor-crosshairs { display: none !important; }
         .v511-anchor-crosshair-marker { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
         /* T4.3.35 — Crosshair contrast via mix-blend-mode: difference + white
            ink. Inverts whatever's underneath, so it's visible on any palette
@@ -8166,7 +8174,26 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             });
             var qr = stage.querySelector('.qr-box, .qr-box-large, .qr-box-small') || stage.querySelector(':scope > canvas, :scope > img');
-            if (qr) qr.classList.add('v511-theme-preview-qr');
+            if (qr) {
+              qr.classList.add('v511-theme-preview-qr');
+              // v5.11.0v — anchor QR-centric celebration effects (QR Glow,
+              // Spotlight, Iris wipe, Ripple) to the QR's actual position
+              // on the stage rather than stage centre. Without this the QR
+              // sits below stage centre by the title's height and the
+              // radial blooms / iris closure / spotlight focus look off.
+              // Stream's emit-from-anchor logic is JS-driven and never
+              // consults these variables — orthogonal systems, no collision.
+              try {
+                var sRect = stage.getBoundingClientRect();
+                var qRect = qr.getBoundingClientRect();
+                if (sRect.width > 0 && sRect.height > 0) {
+                  var qcx = ((qRect.left + qRect.width / 2) - sRect.left) / sRect.width * 100;
+                  var qcy = ((qRect.top + qRect.height / 2) - sRect.top) / sRect.height * 100;
+                  stage.style.setProperty('--qr-cx', qcx.toFixed(2) + '%');
+                  stage.style.setProperty('--qr-cy', qcy.toFixed(2) + '%');
+                }
+              } catch (e) { /* leave fallback to 50% 50% via var() defaults */ }
+            }
             var theme = (opts && opts.theme) || (typeof activeTheme !== 'undefined' ? activeTheme : null) || {};
             var palette = Array.isArray(theme.palette) && theme.palette.length ? theme.palette : ['#58a6ff'];
             for (var i = 1; i <= 7; i++) stage.style.setProperty('--cel-pal-' + i, palette[i - 1] || palette[0]);

@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v31'; // v5.11.0u — Sample particle effects root-cause CSS specificity fix (Org.html L4603 .v511-runtime-stage > * now excludes particle classes, matching parallel .v511-theme-preview-stage rule at L4362; previously forced particles into position:relative breaking absolute X%/Y% positioning)
+const CACHE_VERSION = 'irlid-shell-v32'; // v5.11.0v — QR-centric celebration effects (QR Glow Halo + Rays, Spotlight, Iris wipe, Ripple) now anchor to actual QR position via --qr-cx/--qr-cy custom properties set in v511EnsureRuntimeStage; previously anchored to stage centre and looked off when title pushed QR below it. Also hides Stream anchor crosshair configurator marker in :fullscreen mode.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
