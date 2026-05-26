@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v34'; // v5.11.0x — Fix v5.11.0q regression: `:has()` celebration transparency was using `background:transparent` shorthand which clobbered the theme bg-image (dragons) inserted by v5.11.0w's bridge. Changed to `background-color:transparent` so only the dark navy fill is cleared, preserving theme background image during celebration.
+const CACHE_VERSION = 'irlid-shell-v35'; // v5.11.0y — Hook fullscreenchange event in applyV511BackgroundToHostStages so theme bg-image mirrors are re-applied AFTER browser actually enters fullscreen (qr-fullscreen.js's async render() wipes holder.innerHTML, and requestFullscreen() is async, so the rAF-scheduled apply call in fullscreenQR() races the overlay's settled state). 50ms settle delay after fullscreenchange. Idempotent (listener attached once).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

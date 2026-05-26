@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0x</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0y</span></div>
   </div>
 </div>
 
@@ -15956,6 +15956,25 @@ function applyV511BackgroundToHostStages(theme) {
     else stage.style.removeProperty('--bg-image-url');
   });
   syncBgImageMirrorLayers(cfg);
+
+  // v5.11.0y — qr-fullscreen.js's open() is async (awaits render() which
+  // wipes holder.innerHTML at L106 of qr-fullscreen.js). When fullscreenQR()
+  // calls applyV511BackgroundToHostStages via requestAnimationFrame at
+  // L14409, the browser has NOT yet entered fullscreen mode (requestFullscreen
+  // is async) and the overlay DOM is not fully settled. So mirror insertions
+  // land in a transient state and the bg-image cascade doesn't take. Hook
+  // fullscreenchange (fires after browser actually enters/exits fullscreen)
+  // and re-fire applyV511 with a small settle delay so render() has finished
+  // and the overlay is the actual fullscreen element. Idempotent guard — only
+  // attach the listener on first call.
+  if (!applyV511BackgroundToHostStages._fullscreenHooked) {
+    applyV511BackgroundToHostStages._fullscreenHooked = true;
+    document.addEventListener('fullscreenchange', function () {
+      setTimeout(function () {
+        try { applyV511BackgroundToHostStages(activeTheme); } catch (_) { /* defensive */ }
+      }, 50);
+    });
+  }
 }
 
 function setThemeSaveStatus(message, klass) {
