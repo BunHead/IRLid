@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0q</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0r</span></div>
   </div>
 </div>
 
@@ -4359,7 +4359,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite;
         }
         .v511-theme-preview-stage::after { z-index: 2; opacity: 0; }
-        .v511-theme-preview-stage > * { position: relative; z-index: 4; }
+        .v511-theme-preview-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay):not(.v511-stream-particle):not(.v511-sparkle-particle):not(.v511-confetti-particle) { position: relative; z-index: 4; }
         @keyframes v511BgPageCycle { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         /* Tier 4.1.9 — 9-direction grid. Each cell maps to a starting edge/corner
            the palette cycle flows OUT FROM. Linear gradients for the 8 perimeter
@@ -4473,18 +4473,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            text doesn't blow out the palette base while it fires. */
         /* Tier 4.3.2 — Text overlay z-index BUMPED to 6 so it sits above content
            (z-4) and the cel-fx-layer (z-5). Caption was visually masking it. */
-        .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 4cqi; text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); z-index: 6; opacity: 0; pointer-events: none; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage) > .v511-cel-text-overlay { position: absolute; bottom: 3cqi; left: 0; right: 0; text-align: center; color: #fff; font-weight: 800; font-size: 4cqi; text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); z-index: 6; opacity: 0; pointer-events: none; }
         /* Tier 4.3.6 — Text content now set via JS textContent (reads custom
            welcome message from Post-Accept). ::before rules retired. */
-        :is(.v511-theme-preview-stage, .v511-runtime-stage).cel-text .v511-cel-text-overlay,
-        .v511-runtime-stage.cel-text .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage).cel-text > .v511-cel-text-overlay { animation: v511CelText var(--cel-cycle-dur, 1.4s) ease-out; }
         /* Text overlay setting variants */
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-pos="top"]    .v511-cel-text-overlay { top: 3cqi; bottom: auto; }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-pos="centre"] .v511-cel-text-overlay { top: 50%; bottom: auto; transform: translateY(-50%); }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-pos="bottom"] .v511-cel-text-overlay { bottom: 3cqi; top: auto; }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-size="small"]  .v511-cel-text-overlay { font-size: 2.4cqi; }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-size="medium"] .v511-cel-text-overlay { font-size: 4cqi; }
-        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-size="large"]  .v511-cel-text-overlay { font-size: 6cqi; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-pos="top"]    > .v511-cel-text-overlay { top: 3cqi; bottom: auto; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-pos="centre"] > .v511-cel-text-overlay { top: 50%; bottom: auto; transform: translateY(-50%); }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-pos="bottom"] > .v511-cel-text-overlay { bottom: 3cqi; top: auto; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-size="small"]  > .v511-cel-text-overlay { font-size: 2.4cqi; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-size="medium"] > .v511-cel-text-overlay { font-size: 4cqi; }
+        :is(.v511-theme-preview-stage, .v511-theme-preview-stage:fullscreen, .v511-runtime-stage)[data-cel-text-size="large"]  > .v511-cel-text-overlay { font-size: 6cqi; }
 
         /* ==========================================================
            T4.3.48 — Text effect typography expansion.
@@ -4798,6 +4797,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background: #ffffff;
           pointer-events: none;
           opacity: 0;
+          z-index: 5;
           will-change: transform, opacity;
           transform: translate(-50%, -50%) scale(0.4) rotate(var(--sp-rot, 0deg));
           /* 4-point star polygon — narrow rays so the centre reads as a dot
@@ -8154,16 +8154,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             opts = opts || {};
             return fireConfiguredSequence(sequence, opts.mode || 'allow', opts.stage, opts);
           };
+          function fireSampleSequence(outcome) {
+            v511ClearCelClasses(sampleStage);
+            sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
+            void sampleStage.offsetWidth;
+            sampleStage.classList.add('firing-' + outcome);
+            try { playOutcomeTone(outcome); } catch (e) {}
+            var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
+            return fireConfiguredSequence(seq, outcome, sampleStage, {
+              theme: activeTheme,
+              attendeeName: 'Kerry',
+              action: outcome === 'deny' ? 'out' : 'in'
+            });
+          }
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
-              v511ClearCelClasses(sampleStage);
-              sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
-              void sampleStage.offsetWidth;
-              sampleStage.classList.add('firing-' + outcome);
-              playOutcomeTone(outcome);
-              var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
-              fireConfiguredSequence(seq, outcome, sampleStage, { theme: activeTheme, attendeeName: 'Kerry', action: outcome === 'deny' ? 'out' : 'in' });
+              fireSampleSequence(outcome);
               // Tier 4.2 — Auto-clear handled per-step inside v511PlaySequence.
               // Old leftover global timeout retired.
             });
@@ -8784,13 +8791,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511FsClickTimer = setTimeout(function () {
                 v511FsClickTimer = null;
                 var outcome = samplePicker ? samplePicker.value : 'allow';
-                v511ClearCelClasses();
-                sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
-                void sampleStage.offsetWidth;
-                sampleStage.classList.add('firing-' + outcome);
-                try { playOutcomeTone(outcome); } catch (e) {}
-                var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
-                v511PlaySequence(seq);
+                fireSampleSequence(outcome);
               }, 240);
             });
             sampleStage.addEventListener('dblclick', function () {
