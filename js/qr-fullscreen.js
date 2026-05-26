@@ -63,14 +63,19 @@
          Use 'background-color:transparent' so only the dark navy fill is
          cleared (to unmask the celebration Glow halo per v5.11.0q intent),
          leaving the theme bg-image intact.
-         v5.11.3 — fixed: this comment originally used backticks around the
-         CSS property values; backticks inside a template literal (the
-         style.textContent = `...` block at L49+) terminated the literal
-         prematurely, breaking the IIFE and preventing
-         window.IRLidQrFullscreen from being registered. fullscreenQR() at
-         Org.html L14438 then fell through to legacy Path B, which builds a
-         .qr-fullscreen-overlay (not .irlid-qr-fullscreen) and has no v5.11
-         theme integration. Replaced backticks with single quotes. */
+         v5.11.3 (superseded by v5.11.4) — earlier this comment used backticks
+         around CSS property values, AND v5.11.3 attempted to explain the bug
+         using more backticks around the words style.textContent equals dots
+         block — both attempts placed backticks INSIDE a template literal,
+         which terminated the literal prematurely and broke the IIFE before
+         window.IRLidQrFullscreen could register. fullscreenQR at Org.html
+         L14438 then fell through to legacy Path B which builds qr-fullscreen-
+         overlay (NOT irlid-qr-fullscreen) and has no v5.11 theme integration.
+         v5.11.4 — no backticks anywhere in this comment. No code-formatting
+         delimiters at all. Plain prose only. Lesson for the watch log: never
+         use any backtick in a comment that lives inside a template literal,
+         even to describe the bug. Use single quotes, plain words, or
+         parentheses. */
       .irlid-qr-fullscreen:has(.irlid-qr-fullscreen-holder[class*="cel-"]){background-color:transparent;}
       .irlid-qr-fullscreen-holder[class*="cel-"]{background:transparent;box-shadow:none;}
       .irlid-qr-fullscreen-holder canvas,.irlid-qr-fullscreen-holder img{display:block;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;object-fit:contain;}
