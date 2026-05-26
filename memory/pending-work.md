@@ -1,5 +1,41 @@
 # Pending Work — IRLid
 
+## Tuesday 26 May 2026 — second watch close (dinner with the wife)
+
+**Watch state at this second close:** Captain came back from his earlier R&R, we picked up the visual-bug cleanup, shipped v5.11.0w → x → y → z and now closing for dinner. Wife home, dinner is priority. Captain explicitly asked Number One to assess 2-3-push completion vs close-now; Number One advised close-now because the open regression has ambiguous cause.
+
+**Open suspected regression (top priority next watch):** After v5.11.0y / v5.11.0z deploys, Captain reports "Can't get into full screen at all anymore". Inline Check-in tab still shows dragons correctly (v5.11.0w bridge working), build pill reads v5.11.0z, but clicking the Fullscreen button on the operator Check-in tab no longer activates fullscreen. Most likely culprit is the **v5.11.0y `fullscreenchange` event listener** added inside `applyV511BackgroundToHostStages`. The mechanism that could cause it: my listener re-runs `applyV511BackgroundToHostStages` 50ms after the browser enters fullscreen, which calls `syncBgImageMirrorLayers` → removes and re-inserts DOM elements inside the overlay element. Modern browsers can auto-exit fullscreen if the fullscreen element's DOM tree mutates in certain patterns (security heuristic). The race between requestFullscreen and the DOM mutation may be triggering an immediate exit.
+
+**Tomorrow's first move — diagnostic:**
+
+1. **Captain runs DevTools diagnostic.** Open `irlid.co.uk/Org.html?v=5.11.0z` (or fresh cache-bust) on desktop, F12 → Console, click Fullscreen button. Look for: (a) red errors at click moment, (b) whether `document.fullscreenElement` briefly populates then nulls, (c) whether `.irlid-qr-fullscreen.active` class flickers in Elements panel.
+
+2. **If diagnostic confirms listener is the cause — ship `v5.11.1` rollback as one-Edit:** remove the `_fullscreenHooked` block (the `if (!applyV511BackgroundToHostStages._fullscreenHooked) { ... }` block at the end of `applyV511BackgroundToHostStages` in Org.html around L15960+). Bump pill v5.11.0z → v5.11.1, sw.js v36 → v37. Single push, Pages-redeploy-likely-needed. Acceptance: Fullscreen button works again (back to v5.11.0w behaviour). Tradeoff: dragons-in-fullscreen-during-celebration regress to broken state.
+
+3. **If diagnostic shows different cause** (no errors, fullscreen state looks fine but visual doesn't activate, etc.): broader investigation. Could be cache (try hard refresh + clear site data), could be browser API change, could be something else entirely. Number One has the diagnostic in hand and will redirect from there.
+
+4. **Once Fullscreen button is restored:** the dragons-in-fullscreen-during-celebration fix becomes a separate v5.11.x task. Better approach next time: use a `transitionend` event OR poll `document.fullscreenElement === overlay` with a small loop, rather than the noisy `fullscreenchange` listener that fires on both enter AND exit and may interfere with the browser's fullscreen state machine.
+
+**Also closed this watch (post-first-R&R block):**
+
+| Version | Surface | What |
+|---------|---------|------|
+| v5.11.0w | Org.html + sw.js v32→v33 | Mr. Data PR #53 — `applyV511BackgroundToHostStages` + `v511ThemeBackgroundConfig` bridge v5.11 theme shape to legacy `applyThemeVars` / `syncBgImageMirrorLayers` machinery. Inline Check-in tab dragons working. Bash-diff verdict ✅ ACCEPT ✅ per A/R/D convention. |
+| v5.11.0x | js/qr-fullscreen.js + sw.js v33→v34 | Number One inline — fixed v5.11.0q shorthand regression (`background:transparent` was clobbering both color AND image). Changed to `background-color:transparent`. |
+| v5.11.0y | Org.html + sw.js v34→v35 | Number One inline — added `fullscreenchange` listener to re-apply theme after browser enters fullscreen. **SUSPECTED REGRESSION cause for the Fullscreen button issue.** |
+| v5.11.0z | Org.html + sw.js v35→v36 | Number One inline — `triggerDenyCycleAnimation` now mirrors `triggerAcceptCycleAnimation`'s v5.11.0o bridge: reads `theme._v511.celebration.deny` and fires `fireConfiguredSequence` for deny path. Caller at L15413 now passes attendee name. Should make Captain's configured check-out animation fire (currently fires only legacy red flash). |
+
+**Carry-forwards from earlier in watch (still pending):**
+
+- **Tonight's planned work: + Invite staff** — Captain deferred to evening but evening became dinner. This is now Wednesday morning OR Wednesday afternoon work depending on watch pacing.
+- v5.11.0w smoke for deny celebration (Kerry checks out → configured sequence fires, not just text overlay).
+- Pages auto-deploy failure pattern (2-of-3 today) — investigate Actions tab when not under demo pressure.
+- Promotion-round-2 brief — gated on v5.11.0 minor fully closing.
+- EAI SecureComm 2026 paper continuation (Lancaster, July 21-24).
+- Double-click QR to fullscreen (low priority, not blocking — Captain noted it as part of earlier visual gaps).
+
+---
+
 ## Tuesday 26 May 2026 — watch close (post-R&R-and-then-some)
 
 **Watch state at close.** Five-version arc shipped on top of Monday's marathon — v5.11.0o → p → q → u → v all live on production with multi-effect Settings Sample smoke green. 5 May orphaned work recovery integrated to main (PROTOCOL.md §15, PAPERS outline, two session logs, predecessor letter). BOOTSTRAP §4 A/R/D verdict marker convention inscribed. v5.11.0v inline-shipped tonight closed the QR-Glow off-centre issue across **five effects** (QR Glow Halo + Rays, Spotlight, Iris wipe, Ripple) plus hid the Stream anchor crosshair in fullscreen. Captain's final smoke after R&R + v5.11.0v deploy: "Centre certainly seems better :)" with the gold QR Glow bullseyed on the QR in fullscreen and Spencer Austin CHECKED OUT firing the configured celebration sequence on the real Check-in tab.
