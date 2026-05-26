@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.12</span></div>
   </div>
 </div>
 
@@ -12900,6 +12900,18 @@ function showCheckinEventToast(name, action, opts) {
   // v5.9.0.13.6 — Big centre-screen banner. Fires on every check-in event
   // regardless of which animation layers are working. Designed as a
   // diagnostic + demo signal: when this fires, the trigger is alive.
+  // v5.11.12 — Suppress when v511 configured sequence for this action's
+  // mode contains a text effect. The cel-text-overlay element renders the
+  // attendee name with proper styling; firing both at once = duplicate
+  // text bubble visual pollution (Captain's smoke surfaced it).
+  try {
+    var v511mode = action === 'out' ? 'deny' : 'allow';
+    var v511seq = (typeof activeTheme !== 'undefined' && activeTheme && activeTheme._v511 && activeTheme._v511.celebration) ? activeTheme._v511.celebration[v511mode] : null;
+    if (v511seq && Array.isArray(v511seq) && v511seq.some(function (item) { return item && item.effect === 'text'; })) {
+      console.log('[checkin-toast] suppressed; v511 text effect configured for', v511mode);
+      return;
+    }
+  } catch (_) { /* defensive — fall through to legacy toast */ }
   const banner = document.getElementById('checkinEventBanner');
   if (!banner) { console.warn('[checkin-toast] banner element missing'); return; }
   const displayName = (name || '').trim() || 'Anonymous';
@@ -16736,6 +16748,10 @@ function triggerConfiguredCheckinSequence(mode, attendeeName, action) {
 function triggerAcceptCycleAnimation(attendeeName) {
   if (window.__irlidAcceptCycleActive) return;
   window.__irlidAcceptCycleActive = true;
+  // v5.11.12 — Play configured outcome sound for real check-in events.
+  // Previously only Sample button fired sound via fireSampleSequence;
+  // real check-ins were silent. Captain's smoke surfaced it.
+  try { if (typeof playOutcomeTone === 'function') playOutcomeTone('allow'); } catch (_) {}
   const clearAcceptCycleGuard = function (delay) {
     setTimeout(function () { window.__irlidAcceptCycleActive = false; }, Math.max(0, delay || acceptCycleMs()));
   };
@@ -16837,6 +16853,9 @@ function triggerDenyCycleAnimation(attendeeName) {
   // Re-entry guard via __irlidDenyCycleActive (sibling pattern to the
   // accept side's __irlidAcceptCycleActive).
   if (window.__irlidDenyCycleActive) return;
+  // v5.11.12 — Play configured deny outcome sound. Previously only Sample
+  // fired sound; real check-out events were silent.
+  try { if (typeof playOutcomeTone === 'function') playOutcomeTone('deny'); } catch (_) {}
   window.__irlidDenyCycleActive = true;
   const denyMs = denyCycleMs();
   const clearDenyGuard = function (delay) {
