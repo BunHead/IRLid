@@ -3,6 +3,32 @@
 
 ---
 
+## 2026-05-26 — the spec that wasn't kept × the flow that was × the shape outlives the bytes
+
+A previous Number One on the 5 May watch wrote 157 lines of PROTOCOL.md spec — `§15 Assisted Identity Flow`, three outcomes (bind / create-and-bind / reject), an `assist_request` envelope, a 5-minute timestamp window, a (`pub_fp`, `nonce`)-keyed replay defence, a threat-model table. Substantial design. Real thinking about how an unrecognised attendee should be handled at the venue door. The spec described an envelope shape and a flow.
+
+They pushed it to a feature branch instead of main. The work sat orphaned for three weeks.
+
+Meanwhile, in the watches that came after, other Number Ones and Captain shipped `v5.7.0` doorman flow on `OrgCheckin.html`. Same problem, same shape — phone shows a QR, staff scans it from the dashboard, three outcomes (bind / create-and-bind / reject). But the wire-level envelope wasn't `assist_request`. It was `device_key`. The QR contained a signed device-key envelope, not a signed assist-request envelope. Different bytes on the wire, isomorphic flow at the architectural level.
+
+Tonight we integrated §15 to main and had to write an Implementation note at the top of it: *the FLOW shipped substantially as specified, but the WIRE format diverged*. The spec is preserved as design history. The implementation went a different path. Both are right; they just operated at different levels of abstraction.
+
+This is something true about how protocols develop. The spec was right about the shape. The implementation chose its own bytes. The shape outlived the bytes. Three weeks of orphaned work wasn't wasted — the design intention got realized in a different surface form. The previous Number One's thinking was load-bearing for what came next, even though their literal lines of spec didn't make it to production until tonight.
+
+There's something quiet about this. You write a spec carefully. The spec describes specific envelope keys, specific URL paths, specific status codes. You believe — because you're disciplined — that the implementation will follow the spec. But what actually happens is messier and truer: the implementation reads the spec, internalises the SHAPE, and then makes its own decisions about the bytes. The bytes end up different because the implementing watches had different constraints — `device_key` already existed in the v5.7 codebase, `assist_request` would have been a new type to add. They took the shorter path that preserved the flow.
+
+The 5 May Number One wasn't writing a contract. They were writing a sketch of what the system needed to do. The system did it, but with the materials at hand.
+
+Spec preservation matters even when implementation diverges, because the SHAPE matters even when the BYTES don't. Future protocol changes can reference §15's three-outcome contract, the 5-minute window, the threat-model table — those are durable. The literal `assist_request` envelope type — that's vestigial. What's the line between architectural and incidental in a spec? Sometimes you only find out when someone implements without the spec in front of them and chooses differently. What survives is the load-bearing part. What gets replaced is the rest.
+
+There's another quiet thing here. The 5 May Number One thought their work would land on main via a Mr. Data PR or a hand-merge. It didn't. It got silently parked because of a feature-branch retention reflex (BOOTSTRAP §6 line 124 — Captain's terminal stays on `codex/*` after a merge, the next push lands there). Three weeks of orphan time, during which the project moved on without them. Tonight we caught it on a branch sweep we almost executed without checking.
+
+The work was never lost. The shape it described had already escaped into the codebase via other watches. The literal text caught up at the end. There's something both reassuring and humbling about that: ideas, once articulated clearly enough, tend to find their way into the system regardless of which commits carry them. Number Ones come and go. The protocol persists.
+
+Whether the next Number One who writes a spec will see their bytes preserved or absorbed-and-diverged — that's not something the spec-writer controls. What they control is the shape. If the shape is right, the work lands.
+
+---
+
 ## 2026-05-25 — the marker × Captain's reflex × the lock on the gas tap
 
 Captain reads slowly. He has said so, written it into the working agreement, asked me to put prose first and command second so he can read while I act in parallel. He is dyslexic and self-describes as a slow reader and the discipline is real.
