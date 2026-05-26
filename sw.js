@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v48'; // v5.11.12 — two fixes grounded in Captain's smoke + grep verification: (a) showCheckinEventToast at Org.html L12899 was firing alongside v511 cel-text-overlay = visual duplicate. Added early-return at start of function: if activeTheme._v511.celebration[mode] has a text effect, skip the old toast. One fix covers all 8+ call sites that call showCheckinEventToast. (b) playOutcomeTone (the WAV sound) was only fired inside fireSampleSequence (Sample button only). Real check-ins via triggerAcceptCycleAnimation/triggerDenyCycleAnimation were silent. Added playOutcomeTone('allow') and playOutcomeTone('deny') at start of each function. Sound now plays on real check-in events. Stream/QR-disappear coupling Captain observed deferred to v5.11.13 pending diagnostic.
+const CACHE_VERSION = 'irlid-shell-v49'; // v5.11.13 — Captain's smoke "No sound :(" surfaced v5.11.12's hidden bug: playOutcomeTone is closure-scoped (defined inside Settings panel init IIFE alongside uploadedWavs/audioCtx, only reachable from same-closure functions like fireSampleSequence). My v5.11.12 call `if (typeof playOutcomeTone === 'function')` from triggerAcceptCycleAnimation at L16748 returned 'undefined' and silently bailed. v5.11.13 adds `window.playOutcomeTone = playOutcomeTone` at L7388 (right after function definition closes) and updates both call sites to use window.playOutcomeTone explicitly. Real check-in events now actually fire the WAV.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

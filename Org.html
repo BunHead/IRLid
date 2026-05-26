@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.13</span></div>
   </div>
 </div>
 
@@ -7384,6 +7384,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               osc.stop(audioCtx.currentTime + cfg.dur);
             } catch (_) {}
           }
+
+          // v5.11.13 — expose playOutcomeTone to window so the celebration
+          // runtime (triggerAcceptCycleAnimation / triggerDenyCycleAnimation
+          // at L16748/16846) can call it on real check-in events. Previously
+          // playOutcomeTone was closure-scoped (only fireSampleSequence at
+          // L8341 in this same closure could reach it), so v5.11.12's
+          // try { if (typeof playOutcomeTone === 'function') playOutcomeTone('allow') }
+          // calls at the celebration runtime got typeof === 'undefined' and
+          // silently bailed. Captain reported "No sound :(". This export
+          // makes the function reachable from any scope.
+          try { window.playOutcomeTone = playOutcomeTone; } catch (_) {}
 
           // Wire Replace button → hidden file input → store data URL for active mode
           // T4.3.26 — Also fire v511SaveDebounced after upload so the new WAV
@@ -16748,10 +16759,12 @@ function triggerConfiguredCheckinSequence(mode, attendeeName, action) {
 function triggerAcceptCycleAnimation(attendeeName) {
   if (window.__irlidAcceptCycleActive) return;
   window.__irlidAcceptCycleActive = true;
-  // v5.11.12 — Play configured outcome sound for real check-in events.
-  // Previously only Sample button fired sound via fireSampleSequence;
-  // real check-ins were silent. Captain's smoke surfaced it.
-  try { if (typeof playOutcomeTone === 'function') playOutcomeTone('allow'); } catch (_) {}
+  // v5.11.12 / v5.11.13 — Play configured outcome sound for real check-in
+  // events. v5.11.12 wired the call here but playOutcomeTone is closure-
+  // scoped; v5.11.13 exposed it as window.playOutcomeTone at L7388 so the
+  // call below reaches the function. Previously only Sample button fired
+  // sound via fireSampleSequence; real check-ins were silent.
+  try { if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone('allow'); } catch (_) {}
   const clearAcceptCycleGuard = function (delay) {
     setTimeout(function () { window.__irlidAcceptCycleActive = false; }, Math.max(0, delay || acceptCycleMs()));
   };
@@ -16853,9 +16866,10 @@ function triggerDenyCycleAnimation(attendeeName) {
   // Re-entry guard via __irlidDenyCycleActive (sibling pattern to the
   // accept side's __irlidAcceptCycleActive).
   if (window.__irlidDenyCycleActive) return;
-  // v5.11.12 — Play configured deny outcome sound. Previously only Sample
-  // fired sound; real check-out events were silent.
-  try { if (typeof playOutcomeTone === 'function') playOutcomeTone('deny'); } catch (_) {}
+  // v5.11.12 / v5.11.13 — Play configured deny outcome sound. v5.11.12
+  // wired the call but playOutcomeTone was closure-scoped; v5.11.13
+  // exposed it as window.playOutcomeTone at L7388.
+  try { if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone('deny'); } catch (_) {}
   window.__irlidDenyCycleActive = true;
   const denyMs = denyCycleMs();
   const clearDenyGuard = function (delay) {
