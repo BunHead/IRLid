@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v30'; // v5.11.0t — Sample firing-* animation duration 1.4s → 300ms (inset shadow was masking particle effects with bg-tint wash)
+const CACHE_VERSION = 'irlid-shell-v31'; // v5.11.0u — Sample particle effects root-cause CSS specificity fix (Org.html L4603 .v511-runtime-stage > * now excludes particle classes, matching parallel .v511-theme-preview-stage rule at L4362; previously forced particles into position:relative breaking absolute X%/Y% positioning)
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

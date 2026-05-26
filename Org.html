@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0t</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0u</span></div>
   </div>
 </div>
 
@@ -4600,7 +4600,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5);
           opacity: 0; pointer-events: none;
         }
-        .v511-runtime-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay) { position: relative; z-index: 4; }
+        /* v5.11.0u — added particle class exclusions to match the
+           .v511-theme-preview-stage rule above (line 4362). Without these
+           exclusions the rule's (0,4,0) specificity overrode each particle's
+           own .v511-sparkle-particle / .v511-confetti-particle /
+           .v511-stream-particle (0,1,0) `position: absolute` — forcing
+           particles into flex flow inside the stage's `display: flex;
+           flex-direction: column;` layout. Visible symptoms: Confetti
+           cluster-rendered instead of distributing across stage width,
+           Sparkles bloom drowned out by the flex displacement, Stream
+           particles rendered at flex-row positions instead of from anchors.
+           Production #venueQRWrap had the same rule apply but doesn't have
+           the same flex column layout so symptoms weren't visible there. */
+        .v511-runtime-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay):not(.v511-stream-particle):not(.v511-sparkle-particle):not(.v511-confetti-particle) { position: relative; z-index: 4; }
         /* v5.11.0p — Fullscreen API precedent from v5.9.0.13.19:
            while qr-fullscreen.js has .irlid-qr-fullscreen as the browser
            fullscreen element, body-level celebration layers are hidden. Paint
