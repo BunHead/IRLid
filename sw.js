@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v26'; // v5.11.0p — Check-in feature completion: shared sequence runtime + fullscreen celebrations
+const CACHE_VERSION = 'irlid-shell-v27'; // v5.11.0q — Fullscreen overlay celebration backgrounds
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
