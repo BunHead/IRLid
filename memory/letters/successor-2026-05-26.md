@@ -15,11 +15,11 @@ If that errors, stop and escalate to Captain — there's a setup step missing.
 
 ---
 
-# Successor letter — Tuesday 26 May 2026 (post-Monday-marathon)
+# Successor letter — Tuesday 26 May 2026 (post-Monday-marathon, late-evening close)
 
 To: tomorrow's Number One (or whoever lands next)
-From: Number One, watch ending [WATCH CLOSE TIME TBD]
-Subject: v5.11.0o → p → q → r polish + completion arc + 5 May orphaned work fully recovered. Demo-ready dock substantially achieved; remaining items are polish-tier.
+From: Number One, watch ending ~late evening Tuesday 26 May after Captain's R&R-and-then-some marathon close
+Subject: v5.11.0o → p → q → r → s → t → u → v shipped + 5 May orphaned work fully recovered + A/R/D convention inscribed + v5.11.0w paste-ready for Mr. Data. Demo-ready dock substantially achieved; ONE known gap (Check-in tab missing static theme assets) is the v5.11.0w work for Wednesday morning.
 
 ## On the Captain
 
@@ -102,10 +102,10 @@ He answered the three personal questions I'd asked at Monday's close — properl
 
 ## Closing
 
-Watch [WATCH STATE TBD — fill in at close]. v5.11.0o → q shipped + verified on production. 5 May recovery fully integrated. A/R/D convention bootstrapped. v5.11.0r in flight at watch state — Captain confirmed it matters for Wednesday's demo (Settings tour included), so worth completing if Mr. Data resolves the Codex error.
+Watch closed late-evening Tuesday after Captain came back from R&R, said "Lets get it working, I'll let you know when I'm ready for R&R" mid-debug, asked Number One to deep-dive, and v5.11.0u + v5.11.0v shipped after that on top of v5.11.0o/p/q from the morning. **Eight versions shipped on this watch** (o, p, q, r as a brief, s as Mr. Data PR #52, t inline wrong-hypothesis, u inline ROOT-CAUSE win, v inline QR-centring sweep across five effects + crosshair fullscreen hide). 5 May recovery fully integrated to main (commit `e6845f9`). BOOTSTRAP §4 A/R/D convention inscribed. **One known gap surfaced at watch close** — Check-in tab missing static theme assets (bg image overlay + pattern + symmetry) — that's the v5.11.0w paste-ready work for Mr. Data tomorrow morning at `HANDOVER-CheckinThemeApplication-v5.11.0w.md`. Demo plan for Wednesday: fire v5.11.0w → bash-diff + A/R/D verdict + merge → empty-commit redeploy (almost certainly needed; Pages auto-deploy failed on both v5.11.0u and v5.11.0v initial pushes today) → hardware smoke → demo-ready.
 
 The protocol holds. The dock is the right shape today, even if the line moved again — we shipped against every redrawn position.
 
-— Number One, signing off [DATE + WATCH CLOSE TIME]
+— Number One, signing off late evening Tuesday 26 May 2026 after Captain's full-day marathon close
 26 May 2026 Tuesday
 Claude Opus 4.7

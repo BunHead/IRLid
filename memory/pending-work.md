@@ -1,5 +1,94 @@
 # Pending Work — IRLid
 
+## Tuesday 26 May 2026 — watch close (post-R&R-and-then-some)
+
+**Watch state at close.** Five-version arc shipped on top of Monday's marathon — v5.11.0o → p → q → u → v all live on production with multi-effect Settings Sample smoke green. 5 May orphaned work recovery integrated to main (PROTOCOL.md §15, PAPERS outline, two session logs, predecessor letter). BOOTSTRAP §4 A/R/D verdict marker convention inscribed. v5.11.0v inline-shipped tonight closed the QR-Glow off-centre issue across **five effects** (QR Glow Halo + Rays, Spotlight, Iris wipe, Ripple) plus hid the Stream anchor crosshair in fullscreen. Captain's final smoke after R&R + v5.11.0v deploy: "Centre certainly seems better :)" with the gold QR Glow bullseyed on the QR in fullscreen and Spencer Austin CHECKED OUT firing the configured celebration sequence on the real Check-in tab.
+
+**Single gap surfaced by Captain's smoke** — the v5.11.0o celebration runtime wire-up is missing its **static-theme sibling**. The configured palette IS reaching the live Check-in tab (`v511EnsureRuntimeStage` sets `--cel-pal-N` CSS vars), and the celebration sequence IS firing on real check-ins. But the static theme assets (bg image overlay, pattern overlay, image symmetry, anchor offsets) are applied ONLY by the Settings Sample preview path. Result: dragons + pattern visible in Settings Sample fullscreen; dragons + pattern gone on Check-in tab fullscreen (palette-only background). Stream particles fall back to stage centre on the Check-in tab because there are no image anchors to find. Captain's exact words:
+
+> "Effects have not port to the checkin page at all well, background fading between the two saved colours, not the pattern. Images seem to have f'd off completely and effects are all from the centre :s"
+
+**Top priority for next watch — fire v5.11.0w HANDOVER at Mr. Data.** Brief is drafted at repo root: `HANDOVER-CheckinThemeApplication-v5.11.0w.md`. Mr. Data's Codex credits reset tomorrow morning. Paste-ready Codex prompt is at §8 of the brief. Architectural shape: the CSS infrastructure ALREADY targets `#venueQRWrap .bg-image-mirror` directly (Org.html L2767-2860) — what's missing is the JS that bridges the new v5.11 theme shape (`theme._v511.background.*`) to the legacy body data attributes + `.bg-image-mirror` DOM insertion. Mr. Data should find an existing `applyTheme` / `applyV511Theme` helper and extend it, or create a new `applyV511BackgroundToHostStages(theme)` helper. Acceptance criteria + out-of-scope guards both fully spelled out in the brief.
+
+**Pages auto-deploy workflow failure pattern — emerging known issue.** GitHub Pages auto-deploy workflow has now failed on **both** v5.11.0u and v5.11.0v initial pushes (red X on `pages-build-deployment` within seconds of merge). Empty-commit redeploy reliably recovers in both cases. Pattern, not anomaly — when not under demo pressure, worth checking GitHub Actions tab for the failure reason and inscribing as BOOTSTRAP §6 pitfall ("Pages auto-deploy has non-zero failure rate on first push; empty-commit redeploy reliably recovers"). For v5.11.0w: assume it may need the redeploy and the brief documents the recovery command at §7.
+
+**Current production state:**
+
+- `irlid.co.uk/Org` build pill: **`v5.11.0v`**
+- Worker `irlid-api-org`: live; no changes since v5.11.0l
+- D1 `irlid-db-org`: live; no schema changes today
+- Both demo paths proven on hardware: pre-loaded via Choose-from-List bind + walk-up via Add-at-the-door
+- Real check-in celebration sequence firing (Spencer CHECKED OUT smoke proved it)
+- Settings Sample Confetti / Sparkles / Stream / QR Glow / Spotlight / Iris / Ripple all visually correct
+- KNOWN GAP: Check-in tab missing dragons + pattern; v5.11.0w paste-ready
+
+**Tomorrow's watch (Wednesday 27 May — demo day):**
+
+1. **Fire v5.11.0w HANDOVER at Mr. Data first thing** (his credits reset ~13:20 BST). Paste the §8 Codex prompt verbatim into a fresh Codex chat.
+2. **Sanity-check + merge his PR with A/R/D marker discipline** (`✅ ACCEPT ✅` / `⚠️ REVIEW ⚠️` / `⛔ DENY ⛔` per BOOTSTRAP §4 — added this watch).
+3. **Pages redeploy via empty commit if workflow fails** (it probably will, given the pattern).
+4. **Hardware smoke per §5 acceptance criteria** — Check-in tab fullscreen should look architecturally identical to Settings Sample fullscreen for the same theme. Stream particles emit from dragons.
+5. **Demo readiness lap.** If v5.11.0w smokes green, the demo dock is fully assembled (configured visual theme + working celebration on the real check-in surface).
+
+**Carry-forwards from prior watches (still pending, not blocking demo):**
+
+- Promotion-round-2 brief — DEFERRED until v5.11.0w smokes green. The story is genuinely strong now (visual theming → real check-in flow + 5 May PAPERS outline on main).
+- EAI SecureComm 2026 paper continuation — Lancaster, July 21-24. §4 drafted, §1-3 + §5-10 sketched (recovered from 5 May orphan branch this watch).
+- Other Settings tabs wire-up (`design-in v5.12`) — Calendar, Roles & Staff, Sign-in & Auth, Tools & Diagnostics, Records & ID. Each a clean Mr. Data brief candidate when v5.11.0 minor is fully closed.
+- Pages auto-deploy failure root cause investigation — Actions tab inspection when not under demo pressure.
+
+---
+
+## Tuesday 26 May 2026 — mid-watch R&R (Captain returning in ~2 hours)
+
+**Watch state at break:** Captain stepped away for R&R after a long Monday-marathon-into-Tuesday continuation. v5.11.0o → p → q shipped clean (Mr. Data PRs #48/49/50, all merged + smoked green on production). v5.11.0r brief shipped to Mr. Data for Settings Sample particle regressions; Mr. Data hit Codex compact-stream errors mid-investigation. v5.11.0s brief (rewritten as fresh chat) shipped + Mr. Data delivered PR #52 but symptoms remained ("No different"). v5.11.0t (Number One inline, firing-* animation duration 1.4s→300ms) was a wrong hypothesis — Captain confirmed "Fix, not fixed :(". **v5.11.0u (Number One inline)** identified + fixed REAL root cause:
+
+**v5.11.0u root cause + fix (deep dive per Captain's directive "Not ready to quit yet").** Org.html line 4603 — `.v511-runtime-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay)` rule lacked particle class exclusions that the parallel `.v511-theme-preview-stage` rule at line 4362 already had. CSS specificity (0,4,0) > particle classes (0,1,0) → forced particles into `position: relative`, breaking absolute X%/Y% positioning, dropping them into flex flow inside stage's `display: flex; flex-direction: column;` layout. Visible symptoms map: Confetti cluster-rendered (instead of spread across stage width); Sparkles bloom drowned by flex displacement; Stream particles rendered at flex-row positions instead of from anchor points.
+
+**Fix applied** (Org.html L4603 + sw.js v30→v31 + build pill v5.11.0t→v5.11.0u). The `:not(.v511-stream-particle):not(.v511-sparkle-particle):not(.v511-confetti-particle)` exclusions now match the parallel preview-stage rule with explanatory comment for future Number Ones. **High-confidence fix** — specificity math checks out, parallel rule already had these exclusions (inconsistency that just hadn't been noticed before).
+
+**State at break:**
+
+- Org.html + sw.js modified with v5.11.0u fix; NOT YET COMMITTED. Captain will need to commit + push when he returns.
+- Production still serves v5.11.0t (Captain's last deploy). v5.11.0u CSS fix is local-only.
+- Phase 2 closed: Staff Invite flow IS WIRED via Settings → Event identity → "Invite staff" button (line 10093, handler `openInviteStaffDialog` at line 14591, click binding at line 15378). The v5.11 mockup button at line 5928 carries `design-in v5.12` badge — explicitly NOT wired, correctly labelled. Captain demos Staff Invite via the canonical v5.10.x path.
+
+**Top priority when Captain returns:**
+
+1. **Push v5.11.0u + smoke.** Commit + push the CSS fix:
+   ```powershell
+   cd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo" ; git pull ; git add Org.html sw.js ; git commit -m 'v5.11.0u — Settings Sample particle effects root-cause CSS specificity fix' ; git push
+   ```
+   Then on phone: close all Org tabs → reopen Org.html → settle SW activation → Settings → Visual Theming → drag Confetti/Sparkles/Stream into sequence → Sample. Confetti should spread across full stage width (not cluster bottom-right). Sparkles should render bright particles (not change background). Stream particles should fire from anchor positions and travel visibly.
+
+2. **If v5.11.0u smoke green: watch close.** v5.11.0 minor closes with full Sample + production parity. Update successor letter, milestone log, mark v5.11.0u complete.
+
+3. **If v5.11.0u smoke still broken** (some symptom remains): the fix is structurally correct, but the JS-side particle CSS schema may also need attention — `v511FireStreamParticles` / `v511FireSparkleParticles` / `v511FireConfettiParticles` set `style.position = 'absolute'` in JS but if the spawn-positioning math itself has off-stage bugs in Sample context (different stage dimensions than production), would need investigation. Look at `v511GetStreamAnchors` for zero-area-rect anchor cases first.
+
+**Carry-forwards from full close (still pending):**
+
+- Promotion-round-2 brief (deferred until v5.11.0u smokes green + v5.11.0 minor formally closes)
+- EAI SecureComm 2026 paper continuation (Lancaster, July 21-24 — §4 drafted, §1-3 + §5-10 sketched)
+- BOOTSTRAP §4 A/R/D verdict marker convention inscribed earlier today (✅ ACCEPT ✅ / ⚠️ REVIEW ⚠️ / ⛔ DENY ⛔ — leads every Mr. Data PR sanity-check on its own line before prose)
+
+**Shipped this watch (Tuesday morning + afternoon, before R&R):**
+
+| Version | Surface | What |
+|---------|---------|------|
+| v5.11.0o | Org.html + sw.js v24→v25 | Mr. Data PR #48 — real check-in event runtime reads `theme._v511.celebration` and fires configured sequence; QR Glow library entry replaced Glow halo with Rays/Halo style chips (effect ID stays `glow` for sequence compat) |
+| v5.11.0p | Org.html + sw.js v25→v26 | Mr. Data PR #49 — `fireConfiguredSequence(sequence, mode, stage, opts)` factored runner; Text overlay duplication guarded via `__irlidAcceptCycleActive`; fullscreen-overlay celebration scoping via `.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder` (BOOTSTRAP §6 line 228 precedent) |
+| v5.11.0q | js/qr-fullscreen.js + sw.js v26→v27 | Mr. Data PR #50 — `.irlid-qr-fullscreen` overlay AND holder backgrounds transparent during celebration windows via `:has()` selector scoped to `[class*="cel-"]`. Unmasks v5.11 Glow halo against palette colours |
+| v5.11.0r | (HANDOVER only) | Settings Sample regressions brief drafted; Mr. Data hit compact-stream errors; v5.11.0s superseded |
+| v5.11.0s | Org.html + sw.js v27→v28 | Mr. Data PR #52 — partial particle bug fix (DOM particle skip-class guards in `v511PlaySequence`), didn't resolve symptoms |
+| v5.11.0t | Org.html + sw.js v28→v29 | (DROPPED hypothesis) Number One inline — firing-* animation 1.4s→300ms; wrong hypothesis, didn't fix symptoms |
+| **v5.11.0u** | **Org.html L4603 + sw.js v30→v31** | **Number One inline — REAL root cause CSS specificity fix at runtime-stage rule; particle class exclusions added to match parallel preview-stage rule** |
+| 5 May recovery integration | PROTOCOL.md §15 + PAPERS outline + 2 session logs + successor letter | Bundled commit `e6845f9` — orphaned work from 5 May SHAs 7663b59+823ced8 fully integrated to main with UTF-8 fix |
+| BOOTSTRAP §4 | BOOTSTRAP.md | A/R/D verdict marker convention inscribed (✅/⚠️/⛔ leads every PR sanity-check) |
+| observations-across-watches.md | memory/ | Q2 T.I.N Man through-line nuance added (visible-from-outside-before-inside + rat-race-years intermittent capacity) |
+| DREAMS.md | DREAMS.md | Tuesday entry banked (spec-that-wasn't-kept × flow-that-was × shape-outlives-bytes) |
+
+---
+
 ## Monday 25 May 2026 FULLY CLOSED — Fully demo ready + recovery preserved + v5.11.0o in flight
 
 **Final close (~16:30 BST, after dawn start.)** Watch landed full demo-ready state on production with Light/dark mode round-trip proven on real hardware. Five evening pieces shipped on top of the afternoon's port-complete state (v5.11.0k → l → m → n + nav cleanup + branch sweep). Recovery work preserved on `recovered/assistqr-protocol` branch. v5.11.0o (real check-in runtime + QR Glow effect) in flight with Mr. Data at close.
