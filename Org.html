@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0v</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.0w</span></div>
   </div>
 </div>
 
@@ -8363,6 +8363,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var sequence = Array.isArray(activeState.sequence) ? activeState.sequence : [];
             var bgDur = parseFloat((document.getElementById('v511BgDuration') || {}).value);
             var celDur = parseFloat(activeState.v511CelDuration || (document.getElementById('v511CelDuration') || {}).value);
+            meta.background = {
+              bgMode: bgMode,
+              bgIntensity: base.bgIntensity || 'muted',
+              bgPattern: (document.getElementById('v511BgPattern') || {}).value || base.bgPattern || 'dots',
+              bgImageUrl: bgImageUrl,
+              bgImagePosition: bgImagePosition,
+              bgImageAnchor: v511PressedText('bgAnchor', base.bgImageAnchor || 'outer'),
+              bgImageSymmetryMode: v511PressedText('bgSymmetry', base.bgImageSymmetryMode || 'off'),
+              bgImageAlphaCycle: base.bgImageAlphaCycle === true,
+              bgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '0',
+              bgCycleDirection: v511ReadBgDirection(),
+              bgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
+              bgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
+            };
             return Object.assign({}, base, {
               primary: bgPalette[0] || base.primary || '#3FB950',
               accent: celPalette[0] || base.accent || '#58A6FF',
@@ -8375,9 +8389,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgPattern: (document.getElementById('v511BgPattern') || {}).value || base.bgPattern || 'dots',
               bgImageUrl: bgImageUrl,
               bgImagePosition: bgImagePosition,
-              bgImageAnchor: v511PressedText('bgAnchor', base.bgImageAnchor || 'outer'),
-              bgImageSymmetryMode: v511PressedText('bgSymmetry', base.bgImageSymmetryMode || 'off'),
-              bgImageAlphaCycle: base.bgImageAlphaCycle === true,
+              bgImageAnchor: meta.background.bgImageAnchor,
+              bgImageSymmetryMode: meta.background.bgImageSymmetryMode,
+              bgImageAlphaCycle: meta.background.bgImageAlphaCycle,
               cycleMode: sequence.length ? 'glow' : 'off',
               bgAnimDuration: Number.isFinite(bgDur) ? bgDur : (base.bgAnimDuration || 30),
               cycleAnimDuration: Number.isFinite(celDur) ? celDur : (base.cycleAnimDuration || 1.4),
@@ -8388,10 +8402,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511UploadedWavs: meta.uploadedWavs,
               v511UploadedWavNames: meta.uploadedWavNames,
               v511BgImageData: imageData.orig ? imageData : (currentTheme && currentTheme.v511BgImageData) || null,
-              v511BgImageScale: (document.getElementById('v511BgImageScale') || {}).value || '0',
-              v511BgCycleDirection: v511ReadBgDirection(),
-              v511BgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
-              v511BgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
+              v511BgImageScale: meta.background.bgImageScale,
+              v511BgCycleDirection: meta.background.bgCycleDirection,
+              v511BgBounce: meta.background.bgBounce,
+              v511BgTransition: meta.background.bgTransition
             });
           }
           function v511ApplyPaletteToRow(selector, colors) {
@@ -8543,6 +8557,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               activeTheme = normalizeThemeForSave(readbackSettings.theme);
               writeThemeToUI();
               applyThemeVars(activeTheme);
+              applyV511BackgroundToHostStages(activeTheme);
               v511ApplyThemeToVisualMockup(readbackSettings.theme || themePayload);
               if (typeof saveCurrentOrgSnapshot === 'function') await saveCurrentOrgSnapshot('v511-visual-theme-save');
               v511SetVisualSaveStatus('\u2713 Saved', '');
@@ -11143,6 +11158,11 @@ function showPanel(name, el) {
   if (name === 'setup') applySetupPanelSignedInState();
   // v5.7.1h — Audit-mode button is a Dashboard concept; only show it there.
   try { updateAuditButtonVisibility(name); } catch (_) {}
+  if (name === 'checkin') {
+    requestAnimationFrame(function () {
+      try { applyV511BackgroundToHostStages(activeTheme); } catch (_) {}
+    });
+  }
 }
 
 // Batch C polish 7 — toggles between the signed-in summary card and the
@@ -12272,6 +12292,7 @@ async function saveSettings() {
   activeTheme = normalizeThemeForSave(r.theme);
   writeThemeToUI();
   applyThemeVars(activeTheme);
+  applyV511BackgroundToHostStages(activeTheme);
   updateChromeLogo();
   renderPortalAll();
   renderTable(attendanceData);
@@ -14385,7 +14406,7 @@ function fullscreenQR() {
       lastRefreshedText: `Last Refreshed: ${fullscreenRefreshStamp()}`,
       refreshPayload: refreshVenueQrPayloadForFullscreen
     });
-    requestAnimationFrame(function () { syncBgImageMirrorLayers(activeTheme); });
+    requestAnimationFrame(function () { applyV511BackgroundToHostStages(activeTheme); });
     return;
   }
   const orgName = currentOrg?.name || portalState.orgCode || 'IRLid Event';
@@ -15717,26 +15738,51 @@ const BG_IMAGE_SYMMETRY_MODES = ['off','horizontal','vertical','quad'];
 let activeTheme = { ...THEME_DEFAULTS, palette: [...THEME_DEFAULTS.palette], bgPalette: [...THEME_DEFAULTS.bgPalette] };
 let _iroPickers = { primary: null, accent: null, qrFg: null };
 
+function v511ThemeBackgroundConfig(theme) {
+  const t = theme || {};
+  const meta = t._v511 && typeof t._v511 === 'object' ? t._v511 : {};
+  const v511 = meta.background && typeof meta.background === 'object' ? meta.background : {};
+  const pick = function (key, fallback) {
+    return v511[key] !== undefined && v511[key] !== null && v511[key] !== '' ? v511[key] : fallback;
+  };
+  let symmetryMode = pick('bgImageSymmetryMode', t.bgImageSymmetryMode);
+  if (BG_IMAGE_SYMMETRY_MODES.indexOf(symmetryMode) === -1) {
+    symmetryMode = (pick('bgImageSymmetric', t.bgImageSymmetric) === true) ? 'horizontal' : THEME_DEFAULTS.bgImageSymmetryMode;
+  }
+  return {
+    bgMode: pick('bgMode', t.bgMode),
+    bgIntensity: pick('bgIntensity', t.bgIntensity),
+    bgPattern: pick('bgPattern', t.bgPattern),
+    bgImageUrl: pick('bgImageUrl', t.bgImageUrl),
+    bgImagePosition: pick('bgImagePosition', t.bgImagePosition),
+    bgImageAnchor: pick('bgImageAnchor', t.bgImageAnchor),
+    bgImageSymmetryMode: symmetryMode,
+    bgImageAlphaCycle: pick('bgImageAlphaCycle', t.bgImageAlphaCycle),
+    v511BgImageScale: pick('bgImageScale', t.v511BgImageScale),
+    v511BgCycleDirection: pick('bgCycleDirection', t.v511BgCycleDirection),
+    v511BgBounce: pick('bgBounce', t.v511BgBounce),
+    v511BgTransition: pick('bgTransition', t.v511BgTransition)
+  };
+}
+
 function normalizeThemeForSave(theme) {
   const t = theme || {};
-  let bgMode = t.bgMode;
+  const bgCfg = v511ThemeBackgroundConfig(t);
+  let bgMode = bgCfg.bgMode;
   if (!bgMode) bgMode = (t.bgAnimEnabled === false) ? 'off' : THEME_DEFAULTS.bgMode;
   // v5.9.0.13.12 — 'glow' retired from Background Anim picker; legacy saves
   // with bgMode='glow' (halo on QR) migrate silently to 'off' on load.
   if (bgMode === 'glow') bgMode = 'off';
   if (['off','page','pattern','image'].indexOf(bgMode) === -1) bgMode = THEME_DEFAULTS.bgMode;
-  const bgImageUrl = typeof t.bgImageUrl === 'string' && t.bgImageUrl ? t.bgImageUrl : null;
-  if (bgMode === 'pattern' && t.bgPattern === 'custom' && bgImageUrl) bgMode = 'image';
-  let bgIntensity = t.bgIntensity;
+  const bgImageUrl = typeof bgCfg.bgImageUrl === 'string' && bgCfg.bgImageUrl ? bgCfg.bgImageUrl : null;
+  if (bgMode === 'pattern' && bgCfg.bgPattern === 'custom' && bgImageUrl) bgMode = 'image';
+  let bgIntensity = bgCfg.bgIntensity;
   if (!bgIntensity && (t.bgPalette === 'muted' || t.bgPalette === 'vibrant')) bgIntensity = t.bgPalette;
   if (bgIntensity !== 'muted' && bgIntensity !== 'vibrant') bgIntensity = THEME_DEFAULTS.bgIntensity;
   let cycleMode = t.cycleMode;
   if (!cycleMode) cycleMode = (t.acceptCycleEnabled === false) ? 'off' : THEME_DEFAULTS.cycleMode;
   if (['off','simple','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
-  let bgImageSymmetryMode = t.bgImageSymmetryMode;
-  if (BG_IMAGE_SYMMETRY_MODES.indexOf(bgImageSymmetryMode) === -1) {
-    bgImageSymmetryMode = t.bgImageSymmetric === true ? 'horizontal' : THEME_DEFAULTS.bgImageSymmetryMode;
-  }
+  let bgImageSymmetryMode = bgCfg.bgImageSymmetryMode;
   const v511Meta = t._v511 && typeof t._v511 === 'object' ? t._v511 : null;
   return {
     primary: t.primary || THEME_DEFAULTS.primary,
@@ -15747,12 +15793,12 @@ function normalizeThemeForSave(theme) {
     darkMode: t.darkMode === undefined ? THEME_DEFAULTS.darkMode : t.darkMode,
     bgMode: bgMode,
     bgIntensity: bgIntensity,
-    bgPattern: BG_PATTERNS.indexOf(t.bgPattern) !== -1 ? t.bgPattern : THEME_DEFAULTS.bgPattern,
+    bgPattern: BG_PATTERNS.indexOf(bgCfg.bgPattern) !== -1 ? bgCfg.bgPattern : THEME_DEFAULTS.bgPattern,
     bgImageUrl: bgImageUrl,
-    bgImagePosition: BG_IMAGE_POSITIONS.indexOf(t.bgImagePosition) !== -1 ? t.bgImagePosition : THEME_DEFAULTS.bgImagePosition,
-    bgImageAnchor: BG_IMAGE_ANCHORS.indexOf(t.bgImageAnchor) !== -1 ? t.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor,
+    bgImagePosition: BG_IMAGE_POSITIONS.indexOf(bgCfg.bgImagePosition) !== -1 ? bgCfg.bgImagePosition : THEME_DEFAULTS.bgImagePosition,
+    bgImageAnchor: BG_IMAGE_ANCHORS.indexOf(bgCfg.bgImageAnchor) !== -1 ? bgCfg.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor,
     bgImageSymmetryMode: bgImageSymmetryMode,
-    bgImageAlphaCycle: t.bgImageAlphaCycle === true,
+    bgImageAlphaCycle: bgCfg.bgImageAlphaCycle === true,
     cycleMode: cycleMode,
     bgAnimDuration: typeof t.bgAnimDuration === 'number' ? t.bgAnimDuration : THEME_DEFAULTS.bgAnimDuration,
     cycleAnimDuration: typeof t.cycleAnimDuration === 'number' ? t.cycleAnimDuration : THEME_DEFAULTS.cycleAnimDuration,
@@ -15765,10 +15811,10 @@ function normalizeThemeForSave(theme) {
     v511UploadedWavs: t.v511UploadedWavs,
     v511UploadedWavNames: t.v511UploadedWavNames,
     v511BgImageData: t.v511BgImageData,
-    v511BgImageScale: t.v511BgImageScale,
-    v511BgCycleDirection: t.v511BgCycleDirection,
-    v511BgBounce: t.v511BgBounce,
-    v511BgTransition: t.v511BgTransition
+    v511BgImageScale: bgCfg.v511BgImageScale,
+    v511BgCycleDirection: bgCfg.v511BgCycleDirection,
+    v511BgBounce: bgCfg.v511BgBounce,
+    v511BgTransition: bgCfg.v511BgTransition
   };
 }
 
@@ -15828,6 +15874,88 @@ function syncBgImageMirrorLayers(theme) {
   const specs = (theme && theme.bgMode === 'image' && theme.bgImageUrl) ? bgImageMirrorSpecs(theme) : [];
   renderBgImageMirrors(document.getElementById('venueQRWrap'), specs);
   renderBgImageMirrors(document.querySelector('.irlid-qr-fullscreen.active'), specs);
+  renderBgImageMirrors(document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder'), specs);
+}
+
+function applyV511BackgroundToHostStages(theme) {
+  const cfg = normalizeThemeForSave(theme || activeTheme || {});
+  const root = document.documentElement;
+  const body = document.body;
+  const bgMode = cfg.bgMode || THEME_DEFAULTS.bgMode;
+  const bgPattern = BG_PATTERNS.indexOf(cfg.bgPattern) !== -1 ? cfg.bgPattern : THEME_DEFAULTS.bgPattern;
+  const bgImagePosition = BG_IMAGE_POSITIONS.indexOf(cfg.bgImagePosition) !== -1 ? cfg.bgImagePosition : THEME_DEFAULTS.bgImagePosition;
+  const bgImageAnchor = BG_IMAGE_ANCHORS.indexOf(cfg.bgImageAnchor) !== -1 ? cfg.bgImageAnchor : THEME_DEFAULTS.bgImageAnchor;
+  const bgImageSymmetryMode = BG_IMAGE_SYMMETRY_MODES.indexOf(cfg.bgImageSymmetryMode) !== -1 ? cfg.bgImageSymmetryMode : THEME_DEFAULTS.bgImageSymmetryMode;
+
+  body.classList.remove('theme-bg-cycling', 'theme-bg-page-cycle', 'theme-bg-pattern');
+  body.removeAttribute('data-pattern');
+  body.removeAttribute('data-bg-image-position');
+  body.removeAttribute('data-bg-image-anchor');
+  body.removeAttribute('data-bg-image-symmetry-mode');
+  body.removeAttribute('data-bg-image-alpha-cycle');
+  body.setAttribute('data-bg-mode', bgMode);
+  if (bgMode === 'page') body.classList.add('theme-bg-page-cycle');
+  if (bgMode === 'pattern') {
+    body.classList.add('theme-bg-pattern');
+    body.setAttribute('data-pattern', bgPattern);
+  }
+  if (bgMode === 'image') {
+    if (cfg.bgImageUrl) root.style.setProperty('--theme-bg-image', 'url("' + cfg.bgImageUrl + '")');
+    body.setAttribute('data-bg-image-position', bgImagePosition);
+    body.setAttribute('data-bg-image-anchor', bgImageAnchor);
+    body.setAttribute('data-bg-image-symmetry-mode', bgImageSymmetryMode);
+    body.setAttribute('data-bg-image-alpha-cycle', cfg.bgImageAlphaCycle === true ? 'true' : 'false');
+  } else {
+    root.style.removeProperty('--theme-bg-image');
+  }
+
+  const posMap = {
+    'top-left': '0% 0%', 'top': '50% 0%', 'top-right': '100% 0%',
+    'left': '0% 50%', 'centre': '50% 50%', 'right': '100% 50%',
+    'bottom-left': '0% 100%', 'bottom': '50% 100%', 'bottom-right': '100% 100%'
+  };
+  const anchorOffset = { outer: 6, centre: 0, center: 0, inner: -10 };
+  const mirrorPos = function (pos, axis) {
+    const m = String(pos || '').match(/(-?\d+)%\s+(-?\d+)%/);
+    if (!m) return pos;
+    let x = parseInt(m[1], 10);
+    let y = parseInt(m[2], 10);
+    if (axis === 'x' || axis === 'xy') x = 100 - x;
+    if (axis === 'y' || axis === 'xy') y = 100 - y;
+    return x + '% ' + y + '%';
+  };
+  let basePos = posMap[bgImagePosition] || '50% 50%';
+  const offset = anchorOffset[bgImageAnchor] || 0;
+  const m = String(basePos).match(/(-?\d+)%\s+(-?\d+)%/);
+  if (m && offset !== 0) {
+    let x = parseInt(m[1], 10);
+    let y = parseInt(m[2], 10);
+    if (x < 50) x = x - offset; else if (x > 50) x = x + offset;
+    if (y < 50) y = y - offset; else if (y > 50) y = y + offset;
+    basePos = x + '% ' + y + '%';
+  }
+  const scaleRaw = parseFloat(cfg.v511BgImageScale);
+  const scale = Math.pow(5, (Number.isFinite(scaleRaw) ? scaleRaw : 0) / 100);
+  const baseSize = bgImagePosition === 'tile' ? 12 : 15;
+  const imageSize = bgImagePosition === 'cover' ? 'cover' : Math.max(1, Math.round(baseSize * scale)) + '% auto';
+  const imageRepeat = bgImagePosition === 'tile' ? 'repeat' : 'no-repeat';
+
+  [document.getElementById('venueQRWrap'), document.querySelector('.irlid-qr-fullscreen.active'), document.querySelector('.irlid-qr-fullscreen.active .irlid-qr-fullscreen-holder')].forEach(function (stage) {
+    if (!stage) return;
+    stage.classList.remove('bg-mode-off', 'bg-mode-page', 'bg-mode-pattern', 'bg-mode-image', 'bg-symmetry-off', 'bg-symmetry-horizontal', 'bg-symmetry-vertical', 'bg-symmetry-quad');
+    stage.classList.add('bg-mode-' + bgMode);
+    stage.classList.add('bg-symmetry-' + bgImageSymmetryMode);
+    stage.style.setProperty('--bg-image-pos', basePos);
+    stage.style.setProperty('--sym-pos-1', basePos);
+    stage.style.setProperty('--sym-pos-2', mirrorPos(basePos, 'x'));
+    stage.style.setProperty('--sym-pos-3', mirrorPos(basePos, 'y'));
+    stage.style.setProperty('--sym-pos-4', mirrorPos(basePos, 'xy'));
+    stage.style.setProperty('--bg-image-size', imageSize);
+    stage.style.setProperty('--bg-image-repeat', imageRepeat);
+    if (cfg.bgImageUrl) stage.style.setProperty('--bg-image-url', 'url("' + cfg.bgImageUrl + '")');
+    else stage.style.removeProperty('--bg-image-url');
+  });
+  syncBgImageMirrorLayers(cfg);
 }
 
 function setThemeSaveStatus(message, klass) {
@@ -15964,7 +16092,7 @@ function applyThemeVars(theme) {
   if (bgPanel) bgPanel.setAttribute('data-bg-mode', bgMode);
   const cyclePanel = document.getElementById('themeCycleAnimPanel');
   if (cyclePanel) cyclePanel.setAttribute('data-cycle-mode', theme.cycleMode || 'glow');
-  syncBgImageMirrorLayers(theme);
+  applyV511BackgroundToHostStages(theme);
 
   // Batch 6.5f — write the dynamic pattern colour keyframe so patterns drift
   // through the bgPalette in sync with the cycle. CSS @property + JS-injected
@@ -16412,6 +16540,7 @@ async function loadThemeFromServer() {
     activeTheme = normalizeThemeForSave(t);
     writeThemeToUI();
     applyThemeVars(activeTheme);
+    applyV511BackgroundToHostStages(activeTheme);
     if (typeof window.v511ApplyThemeToVisualMockup === 'function') window.v511ApplyThemeToVisualMockup(t);
     await saveCurrentOrgSnapshot('theme-refresh');
   } catch (err) {
@@ -16420,6 +16549,7 @@ async function loadThemeFromServer() {
       activeTheme = normalizeThemeForSave(snap.theme);
       writeThemeToUI();
       applyThemeVars(activeTheme);
+      applyV511BackgroundToHostStages(activeTheme);
       if (typeof window.v511ApplyThemeToVisualMockup === 'function') window.v511ApplyThemeToVisualMockup(snap.theme);
       updateSnapshotFreshnessLabel(snap.synced_at);
       return;
@@ -16864,7 +16994,7 @@ function wireThemePanel() {
       // to the fullscreen overlay so the third picker actually changes the QR.
       colorDark: activeTheme.qrFg || '#000000'
     });
-    requestAnimationFrame(function () { syncBgImageMirrorLayers(activeTheme); });
+    requestAnimationFrame(function () { applyV511BackgroundToHostStages(activeTheme); });
     // Trigger a celebration burst after a beat for the demo flourish.
     // Batch 6.5f — gate on cycleMode !== 'off' instead of acceptCycleEnabled.
     if (activeTheme.cycleMode && activeTheme.cycleMode !== 'off') {

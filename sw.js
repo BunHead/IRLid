@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v32'; // v5.11.0v — QR-centric celebration effects (QR Glow Halo + Rays, Spotlight, Iris wipe, Ripple) now anchor to actual QR position via --qr-cx/--qr-cy custom properties set in v511EnsureRuntimeStage; previously anchored to stage centre and looked off when title pushed QR below it. Also hides Stream anchor crosshair configurator marker in :fullscreen mode.
+const CACHE_VERSION = 'irlid-shell-v33'; // v5.11.0w — Check-in tab static theme application: bg image overlay, pattern, symmetry, and image-position vars now apply to #venueQRWrap/fullscreen host stages, matching Settings Sample.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
