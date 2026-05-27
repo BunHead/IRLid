@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.16</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.16a</span></div>
   </div>
 </div>
 
@@ -14849,7 +14849,20 @@ function renderInlineCheckinClone(opts) {
   // Insert clone immediately before the legacy #venueQRWrap and hide the wrap.
   // Hiding (not removing) means all existing references to #venueQRWrap stay
   // valid for code that hasn't been refactored to point at the clone.
-  inlineWrap.style.display = 'none';
+  //
+  // v5.11.16a — Captain's screenshot exposed a second visible frame below the
+  // clone. Root cause: the v5.11.7 CSS rule at Org.html:5436 — `.prototype-
+  // checkin #panel-checkin #venueQRWrap.v511-checkin-tab-stage { display: flex
+  // !important }` — was beating the plain inline `style.display = 'none'`. Two
+  // fixes belt-and-braces: (1) strip the `v511-checkin-tab-stage` class so the
+  // specificity-+-!important selector no longer matches; (2) use inline
+  // !important display:none which wins over CSS !important at equal specificity
+  // because inline-style specificity is higher. The clone still carries the
+  // class (line 14824), so v5.11.6/7 theme + celebration CSS rules at L5412-
+  // 5446 still target the clone correctly.
+  inlineWrap.classList.remove('v511-checkin-tab-stage');
+  inlineWrap.style.cssText = 'display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important;';
+  inlineWrap.setAttribute('aria-hidden', 'true');
   inlineWrap.parentNode.insertBefore(clone, inlineWrap);
 
   return clone;
