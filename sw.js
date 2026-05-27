@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v53'; // v5.11.16a — fix phantom second frame below the inline Check-in clone. Captain's hardware smoke caught it: v5.11.7's `.prototype-checkin #panel-checkin #venueQRWrap.v511-checkin-tab-stage { display: flex !important }` rule at Org.html:5436 was beating my plain inline `style.display = 'none'`. Fix: strip `v511-checkin-tab-stage` class from the wrap so the selector no longer matches, and use `cssText` with `display: none !important` + `visibility: hidden !important` + `aria-hidden`. Clone keeps the class so theme + celebration CSS rules at L5412-5446 still apply correctly to it. BOOTSTRAP §6 pitfall candidate: inline `style.display` LOSES to author-stylesheet `!important` rules of any specificity; use inline cssText with `!important` OR strip the class the conflicting selector matches OR (belt-and-braces) both.
+const CACHE_VERSION = 'irlid-shell-v54'; // v5.11.17 — Staff & Rooms + Invite staff demo flow is UI-only: modal, fake single-use QR onboarding state, in-memory staff row, no Worker calls.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
