@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.17</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.18</span></div>
   </div>
 </div>
 
@@ -3504,14 +3504,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="qr-box v511-theme-preview-qr" id="venueQrBox" role="img"></div>
                 </div>
                 <div class="qr-info">
-                  <h4>Event Check-in QR</h4>
-                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
+                  <!-- v5.11.18 — Captain's layout directive: buttons row first
+                       (horizontal, across the screen), Debug QR URL single full-
+                       width line second, h4 + description third. Adds ▶ Test
+                       anim as a permanent debug affordance for firing the
+                       celebration on the inline clone — pairs with (and will
+                       outlive) the temporary click-to-fire handler from
+                       v5.11.16 once that's removed. -->
                   <div class="qr-actions">
                     <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
                     <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
                     <button class="btn btn-secondary btn-sm" onclick="copyText(venueQrPayload)">Copy URL</button>
+                    <button class="btn btn-secondary btn-sm" onclick="testInlineCheckinAnimation()" title="Fire celebration on the inline frame using the current Sample mode picker — debug-only">▶ Test anim</button>
                   </div>
                   <div class="qr-payload-preview" id="qrPayloadPreview"></div>
+                  <h4>Event Check-in QR</h4>
+                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
                 </div>
 
                 <div id="doormanWrap" class="mode-inactive" aria-hidden="true">
@@ -5477,6 +5485,56 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           margin-top: 0;
           padding: 12px 16px;
           z-index: auto;
+        }
+        /* v5.11.18 — Bigger inline Check-in clone (Captain: "takes up most of
+           the frame, QR definitely viewable/scannable"). Overrides the
+           Settings-preview default sizing baked into .v511-theme-preview-stage
+           which is too small for a check-in surface. */
+        .prototype-checkin #panel-checkin #v511InlineCheckinStage {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: clamp(420px, calc(100dvh - 230px), 880px) !important;
+          max-height: 78dvh !important;
+          aspect-ratio: auto !important;
+          margin: 0 auto 12px auto !important;
+        }
+        .prototype-checkin #panel-checkin #v511InlineCheckinStage .v511-theme-preview-qr,
+        .prototype-checkin #panel-checkin #v511InlineCheckinStage .qr-box {
+          width: clamp(240px, min(50dvh, 50vw), 560px) !important;
+          height: clamp(240px, min(50dvh, 50vw), 560px) !important;
+        }
+        /* v5.11.18 — .qr-info reordered: buttons row first, then Debug URL
+           single-line full-width, then h4 + description. Captain's layout
+           directive. */
+        .prototype-checkin #panel-checkin .qr-info .qr-actions {
+          display: flex !important;
+          flex-wrap: wrap;
+          gap: 10px;
+          justify-content: center;
+          align-items: center;
+          margin: 0 0 14px 0 !important;
+        }
+        .prototype-checkin #panel-checkin .qr-info .qr-payload-preview {
+          max-width: 100% !important;
+          max-height: none !important;
+          width: 100%;
+          white-space: nowrap !important;
+          word-break: normal !important;
+          overflow-x: auto !important;
+          overflow-y: hidden !important;
+          text-overflow: ellipsis;
+          margin: 0 0 14px 0 !important;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 11px;
+          padding: 8px 12px;
+          box-sizing: border-box;
+        }
+        .prototype-checkin #panel-checkin .qr-info h4 {
+          margin-top: 0;
+          margin-bottom: 6px;
+        }
+        .prototype-checkin #panel-checkin .qr-info p {
+          margin-bottom: 0;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
            applied when .cel-qr class is on the stage. */
@@ -14979,6 +15037,28 @@ function setupInlineCheckinCloneObserver() {
   });
 }
 window.setupInlineCheckinCloneObserver = setupInlineCheckinCloneObserver;
+
+// v5.11.18 — Permanent debug-test affordance for the inline Check-in clone.
+// Wired to the ▶ Test anim button in .qr-info. Reads the current Sample mode
+// picker value and fires fireSampleSequence on the inline clone, so Captain
+// (and future staff) can verify celebration visuals without triggering a real
+// check-in/out. Captain's directive: "extra (debug) test anim button (so when
+// we remove click there's still a way to test)". The click-on-clone handler
+// from v5.11.16 is marked temporary; this button stays after that's stripped.
+window.testInlineCheckinAnimation = function() {
+  var clone = document.getElementById('v511InlineCheckinStage');
+  if (!clone) {
+    if (typeof showToast === 'function') showToast('Inline check-in clone not ready yet', true);
+    return;
+  }
+  if (typeof window.fireSampleSequence !== 'function') {
+    if (typeof showToast === 'function') showToast('Sample sequence runner not available', true);
+    return;
+  }
+  var picker = document.getElementById('v511SamplePicker');
+  var mode = (picker && picker.value) || 'allow';
+  window.fireSampleSequence(mode, clone);
+};
 
 function normalizeFullscreenQr(qrTarget) {
   qrTarget.querySelectorAll('canvas, img').forEach((node) => {

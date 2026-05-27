@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v54'; // v5.11.17 — Staff & Rooms + Invite staff demo flow is UI-only: modal, fake single-use QR onboarding state, in-memory staff row, no Worker calls.
+const CACHE_VERSION = 'irlid-shell-v55'; // v5.11.18 — Bigger inline Check-in clone (height: clamp(420px, calc(100dvh - 230px), 880px), max 78dvh) so it fills most of the viewport with the QR clearly scannable. .qr-info reordered: buttons row first (Refresh QR / Fullscreen / Copy URL / new ▶ Test anim) horizontally aligned across the screen, Debug QR URL second on a single full-width line with overflow-x:auto for long payloads, h4 + description third. testInlineCheckinAnimation() wired on window — permanent debug-test affordance for firing fireSampleSequence on the inline clone using current Sample mode picker value; pairs with the temporary click-to-fire handler from v5.11.16 and will outlive it.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
