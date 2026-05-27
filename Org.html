@@ -354,7 +354,23 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .invite-token-line { word-break: break-all; font-size: 11px; color: var(--muted); line-height: 1.4; }
 .invite-staff-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .invite-status { min-height: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.v511-invite-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.v511-invite-modal-close { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 20px; line-height: 1; }
+.v511-invite-modal-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.v511-invite-modal-grid label { display: grid; gap: 5px; font-size: 12px; color: var(--text); }
+.v511-invite-modal-grid input, .v511-invite-modal-grid select { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 6px; background: #0d1117; color: var(--text); }
+.v511-invite-modal-grid .v511-invite-modal-role { grid-column: 1 / -1; }
+.v511-invite-modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.v511-invite-add:disabled { opacity: 0.45; cursor: not-allowed; }
+.v511-invite-add:not(:disabled) { border-color: rgba(126,231,135,0.8); background: var(--green, #7ee787); color: #06130a; }
+.v511-invite-qr-placeholder { width: 200px; height: 200px; margin: 12px auto; display: grid; place-items: center; background: #fff; color: #24292f; font-size: 12px; border: 1px solid #d0d7de; border-radius: 8px; }
+.v511-invite-qr-placeholder > div { text-align: center; line-height: 1.4; }
+.v511-invite-qr-mark { width: 54px; height: 54px; margin: 0 auto 8px; display: grid; place-items: center; border: 2px solid #24292f; border-radius: 10px; font-weight: 800; }
+.v511-invite-status { min-height: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.v511-invite-status.ok { color: var(--green); }
+.v511-invite-status.revoked { color: var(--orange); }
 @media (max-width: 720px) { .invite-staff-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .v511-invite-modal-grid { grid-template-columns: 1fr; } }
 .dashboard-scan-box { margin-top: 14px; border: 1px solid var(--line); background: rgba(13,17,23,0.58); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
 .dashboard-scan-title { font-size: 13px; font-weight: 700; color: var(--text); }
 .dashboard-scan-sub { font-size: 11px; color: var(--muted); line-height: 1.35; }
@@ -3256,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.16a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.17</span></div>
   </div>
 </div>
 
@@ -6053,7 +6069,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-staff"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
           <div class="v511-staff"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
 
-          <div style="margin-top: 14px;"><button type="button" class="v511-btn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
+          <div style="margin-top: 14px;"><button type="button" class="v511-btn" id="v511InviteStaffBtn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
 
           <details class="v511-expander">
             <summary>Role vocabulary <span class="v511-hint-inline">(rename what each role is called in YOUR org)</span></summary>
@@ -10972,6 +10988,55 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <canvas id="staffHelloDecodeCanvas" hidden></canvas>
   </div>
 </div>
+<div class="staff-hello-backdrop hidden" id="v511InviteStaffDialog" role="dialog" aria-modal="true" aria-labelledby="v511InviteStaffTitle">
+  <div class="staff-hello-modal">
+    <div class="v511-invite-modal-head">
+      <div>
+        <h3 id="v511InviteStaffTitle">Invite staff</h3>
+        <p id="v511InviteStaffIntro">Create a demo single-use invite for the Staff &amp; Rooms flow.</p>
+      </div>
+      <button type="button" class="v511-invite-modal-close" id="v511InviteStaffCloseBtn" aria-label="Close invite staff">&times;</button>
+    </div>
+    <div id="v511InviteStaffForm">
+      <div class="v511-invite-modal-grid">
+        <label>First name
+          <input type="text" id="v511InviteStaffFirstName" maxlength="60" autocomplete="given-name" required>
+        </label>
+        <label>Surname
+          <input type="text" id="v511InviteStaffSurname" maxlength="60" autocomplete="family-name" required>
+        </label>
+        <label class="v511-invite-modal-role">Role
+          <select id="v511InviteStaffRole"></select>
+        </label>
+      </div>
+      <div class="v511-invite-modal-actions">
+        <button type="button" class="v511-btn" id="v511InviteStaffCancelBtn">Cancel</button>
+        <button type="button" class="v511-btn v511-invite-add" id="v511InviteStaffAddBtn" disabled>Add</button>
+      </div>
+    </div>
+    <div id="v511InviteStaffOnboarding" hidden>
+      <div class="v511-invite-qr-placeholder" aria-hidden="true">
+        <div>
+          <div class="v511-invite-qr-mark">QR</div>
+          <div><strong>Single-use invite QR</strong></div>
+          <div style="opacity: 0.65; margin-top: 4px;">demo placeholder</div>
+        </div>
+      </div>
+      <div class="v511-invite-status ok" id="v511InviteStaffStatus"></div>
+      <div class="v511-invite-modal-actions">
+        <button type="button" class="v511-btn v511-btn-primary" id="v511InviteStaffDoneBtn">Done</button>
+        <button type="button" class="v511-btn" id="v511InviteStaffRevokeBtn">Revoke</button>
+      </div>
+    </div>
+    <div id="v511InviteStaffRevoked" hidden>
+      <div class="v511-invite-status revoked" id="v511InviteStaffRevokedStatus">Invite revoked. Press Done to close this demo flow.</div>
+      <div class="v511-invite-modal-actions">
+        <button type="button" class="v511-btn v511-btn-primary" id="v511InviteStaffRevokedDoneBtn">Done</button>
+        <button type="button" class="v511-btn" disabled>Revoke</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="expected-confirm-backdrop hidden" id="expectedConfirmDialog" role="dialog" aria-modal="true" aria-labelledby="expectedConfirmText">
   <div class="expected-confirm">
     <p id="expectedConfirmText"></p>
@@ -15768,6 +15833,130 @@ async function tryProcessStaffScanIfPending() {
 // v5.5.12 - Offline indicator state machine.
 // §16.5 directive: blinking red dot when offline; numeric badge if
 // pending_ops is non-empty; brief green check on full drain; hide otherwise.
+function v511InviteStaffRoleOptions() {
+  const labelFor = function (key, fallback) {
+    return (typeof window.roleLabel === 'function' && window.roleLabel(key)) || fallback;
+  };
+  return [
+    { value: 'staff', label: labelFor('staff', 'Staff') },
+    { value: 'manager', label: labelFor('manager', 'Manager') }
+  ];
+}
+let v511InviteStaffState = null;
+function v511InviteStaffPopulateRoles(selectedRole) {
+  const select = document.getElementById('v511InviteStaffRole');
+  if (!select) return;
+  const options = v511InviteStaffRoleOptions();
+  select.innerHTML = options.map(function (opt) {
+    return '<option value="' + escapeHtml(opt.value) + '"' + (opt.value === selectedRole ? ' selected' : '') + '>' + escapeHtml(opt.label) + '</option>';
+  }).join('');
+}
+function v511InviteStaffUpdateAddState() {
+  const first = (document.getElementById('v511InviteStaffFirstName')?.value || '').trim();
+  const surname = (document.getElementById('v511InviteStaffSurname')?.value || '').trim();
+  const addBtn = document.getElementById('v511InviteStaffAddBtn');
+  if (addBtn) addBtn.disabled = !(first && surname);
+}
+function openV511InviteStaffModal() {
+  const dialog = document.getElementById('v511InviteStaffDialog');
+  if (!dialog) return;
+  v511InviteStaffState = null;
+  v511InviteStaffPopulateRoles('staff');
+  document.getElementById('v511InviteStaffFirstName').value = '';
+  document.getElementById('v511InviteStaffSurname').value = '';
+  document.getElementById('v511InviteStaffForm').hidden = false;
+  document.getElementById('v511InviteStaffOnboarding').hidden = true;
+  document.getElementById('v511InviteStaffRevoked').hidden = true;
+  v511InviteStaffUpdateAddState();
+  dialog.classList.remove('hidden');
+  setTimeout(function () { document.getElementById('v511InviteStaffFirstName')?.focus(); }, 0);
+}
+function closeV511InviteStaffModal() {
+  const dialog = document.getElementById('v511InviteStaffDialog');
+  if (!dialog) return;
+  dialog.classList.add('hidden');
+  v511InviteStaffState = null;
+  const status = document.getElementById('v511InviteStaffStatus');
+  if (status) status.textContent = '';
+}
+function startV511InviteStaffOnboarding() {
+  const firstName = (document.getElementById('v511InviteStaffFirstName')?.value || '').trim();
+  const surname = (document.getElementById('v511InviteStaffSurname')?.value || '').trim();
+  if (!firstName || !surname) return;
+  const roleKey = document.getElementById('v511InviteStaffRole')?.value || 'staff';
+  const role = v511InviteStaffRoleOptions().find(function (opt) { return opt.value === roleKey; }) || v511InviteStaffRoleOptions()[0];
+  v511InviteStaffState = { firstName: firstName, surname: surname, roleKey: role.value, roleLabel: role.label, appended: false };
+  document.getElementById('v511InviteStaffForm').hidden = true;
+  document.getElementById('v511InviteStaffOnboarding').hidden = false;
+  document.getElementById('v511InviteStaffRevoked').hidden = true;
+  const status = document.getElementById('v511InviteStaffStatus');
+  if (status) status.textContent = 'Invite created for ' + firstName + ' ' + surname + ' — role: ' + role.label + '. Waiting for them to scan...';
+}
+function addV511StaffRow(firstName, surname, roleKey) {
+  const inviteBtn = document.getElementById('v511InviteStaffBtn');
+  const insertBefore = inviteBtn && inviteBtn.closest('div');
+  if (!insertBefore || !insertBefore.parentNode) return;
+  const roleOptions = v511InviteStaffRoleOptions();
+  const row = document.createElement('div');
+  row.className = 'v511-staff v511-invite-staff-demo-row';
+  const nameCell = document.createElement('div');
+  nameCell.textContent = firstName + ' ' + surname;
+  const roleCell = document.createElement('div');
+  const select = document.createElement('select');
+  roleOptions.forEach(function (opt) {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    option.selected = opt.value === roleKey;
+    select.appendChild(option);
+  });
+  roleCell.appendChild(select);
+  const actionCell = document.createElement('div');
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'v511-btn v511-btn-mini';
+  removeBtn.textContent = 'Remove';
+  removeBtn.addEventListener('click', function () { row.remove(); });
+  actionCell.appendChild(removeBtn);
+  row.append(nameCell, roleCell, actionCell);
+  insertBefore.parentNode.insertBefore(row, insertBefore);
+}
+function finishV511InviteStaffDemo() {
+  if (v511InviteStaffState && !v511InviteStaffState.appended) {
+    addV511StaffRow(v511InviteStaffState.firstName, v511InviteStaffState.surname, v511InviteStaffState.roleKey);
+    v511InviteStaffState.appended = true;
+  }
+  closeV511InviteStaffModal();
+}
+function revokeV511InviteStaffDemo() {
+  if (!v511InviteStaffState) return;
+  document.getElementById('v511InviteStaffOnboarding').hidden = true;
+  document.getElementById('v511InviteStaffRevoked').hidden = false;
+  const status = document.getElementById('v511InviteStaffRevokedStatus');
+  if (status) status.textContent = 'Invite for ' + v511InviteStaffState.firstName + ' ' + v511InviteStaffState.surname + ' revoked. Press Done to close this demo flow.';
+}
+function bindV511InviteStaffDemo() {
+  document.getElementById('v511InviteStaffBtn')?.addEventListener('click', openV511InviteStaffModal);
+  document.getElementById('v511InviteStaffCloseBtn')?.addEventListener('click', closeV511InviteStaffModal);
+  document.getElementById('v511InviteStaffCancelBtn')?.addEventListener('click', closeV511InviteStaffModal);
+  document.getElementById('v511InviteStaffAddBtn')?.addEventListener('click', startV511InviteStaffOnboarding);
+  document.getElementById('v511InviteStaffDoneBtn')?.addEventListener('click', finishV511InviteStaffDemo);
+  document.getElementById('v511InviteStaffRevokedDoneBtn')?.addEventListener('click', finishV511InviteStaffDemo);
+  document.getElementById('v511InviteStaffRevokeBtn')?.addEventListener('click', revokeV511InviteStaffDemo);
+  ['v511InviteStaffFirstName', 'v511InviteStaffSurname'].forEach(function (id) {
+    document.getElementById(id)?.addEventListener('input', v511InviteStaffUpdateAddState);
+  });
+  document.getElementById('v511InviteStaffDialog')?.addEventListener('click', function (event) {
+    if (event.target && event.target.id === 'v511InviteStaffDialog') closeV511InviteStaffModal();
+  });
+}
+document.addEventListener('keydown', function (event) {
+  if (event.key === 'Escape') {
+    const dialog = document.getElementById('v511InviteStaffDialog');
+    if (dialog && !dialog.classList.contains('hidden')) closeV511InviteStaffModal();
+  }
+});
+
 function updateOfflineIndicator() {
   const indicator = document.getElementById('offlineIndicator');
   const badge = document.getElementById('offlineQueueBadge');
@@ -15894,6 +16083,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('inviteStaffCloseBtn')?.addEventListener('click', closeInviteStaffDialog);
   document.getElementById('inviteStaffCopyBtn')?.addEventListener('click', () => copyText(activeStaffInvite?.qr_payload || ''));
   document.getElementById('inviteStaffRevokeBtn')?.addEventListener('click', revokeActiveStaffInvite);
+  bindV511InviteStaffDemo();
   document.getElementById('staffHelloImageInput')?.addEventListener('change', (event) => {
     const file = event.target.files && event.target.files[0];
     setStaffHelloDialogStatus(file ? `Selected ${file.name}. Click Decode image.` : '');
