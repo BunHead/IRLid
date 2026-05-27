@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.19</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.19a</span></div>
   </div>
 </div>
 
@@ -5511,11 +5511,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         .prototype-checkin #panel-checkin .qr-info h4 {
           margin-top: 0;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
           text-align: left;
         }
         .prototype-checkin #panel-checkin .qr-info p {
-          margin-bottom: 12px;
+          /* v5.11.19a — buttons up a touch: trim the p margin-bottom so the
+             button row sits closer to the description. */
+          margin-bottom: 8px;
           text-align: left;
           max-width: 72ch;
         }
@@ -5525,10 +5527,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           gap: 10px;
           justify-content: center;
           align-items: center;
-          margin: 0 0 12px 0 !important;
+          margin: 0 0 10px 0 !important;
         }
         .prototype-checkin #panel-checkin .qr-info .qr-payload-preview {
-          max-width: min(100%, 72ch) !important;
+          /* v5.11.19a — full width again ("extend the Debug QR across the
+             whole frame"). v5.11.19's 72ch cap is undone here. */
+          max-width: 100% !important;
           max-height: none !important;
           width: 100%;
           white-space: nowrap !important;
@@ -13573,6 +13577,10 @@ function generateVenueQR() {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
   venueQrPayload = buildVenuePayload(); box.innerHTML = '';
   new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  // v5.11.19a — also update the inline Check-in tab clone's QR slot so the
+  // Refresh QR button refreshes the visible QR (the hidden #venueQrBox above
+  // is the legacy slot; the clone is what attendees actually see).
+  try { if (typeof renderRealVenueQrIntoInlineClone === 'function') renderRealVenueQrIntoInlineClone(); } catch (_) {}
   // v5.11.8 — removed dead data-qr-fullscreen-* attributes on #venueQrBox.
   // Pre-v5.11.5 these enabled qr-fullscreen.js's double-tap-to-fullscreen,
   // but v5.11.5 replaced that dependency with the clone-based fullscreenQR().
@@ -14970,23 +14978,15 @@ function renderInlineCheckinClone(opts) {
     el.id = el.id + 'CheckinInline';
   });
 
-  // Captain's "temporary click function" — clicking the inline clone fires
-  // the celebration sample on the clone itself, using the current Sample
-  // mode picker value. Mirrors the fullscreen single-click pattern at the
-  // Settings preview (line 9090 sampleStage click handler) so Captain can
-  // test celebration visuals without going through a real check-in/out.
-  // Suppressed if a fullscreen element is active (the fullscreen clone
-  // handles its own clicks; the inline clone is underneath and shouldn't
-  // double-fire).
-  clone.style.cursor = 'pointer';
-  clone.setAttribute('title', 'Click to fire celebration sample — v5.11.16 temporary affordance');
-  clone.addEventListener('click', function(e) {
-    if (document.fullscreenElement) return;
-    if (typeof window.fireSampleSequence !== 'function') return;
-    const picker = document.getElementById('v511SamplePicker');
-    const mode = (picker && picker.value) || 'allow';
-    window.fireSampleSequence(mode, clone);
-  });
+  // v5.11.19a — Captain's directive: "wire in the genuine check-in QR and
+  // have the checkin/out trigger the animation". The temporary click-to-fire
+  // handler from v5.11.16 is removed now that real check-in events drive
+  // triggerAcceptCycleAnimation → v511ActiveCelebrationStage → the inline
+  // clone (already wired). The ▶ Test anim button in .qr-info remains as the
+  // permanent debug affordance for test-firing without a real check-in.
+  // Removing cursor pointer + title; double-click still routes to
+  // fullscreenQR via the ondblclick attribute inherited from the source
+  // stage's container.
 
   // Insert clone immediately before the legacy #venueQRWrap and hide the wrap.
   // Hiding (not removing) means all existing references to #venueQRWrap stay
@@ -15007,9 +15007,46 @@ function renderInlineCheckinClone(opts) {
   inlineWrap.setAttribute('aria-hidden', 'true');
   inlineWrap.parentNode.insertBefore(clone, inlineWrap);
 
+  // v5.11.19a — replace the Settings-preview placeholder QR in the clone
+  // with the actual venue QR (the one attendees scan). Every observer-fired
+  // re-clone calls this so the real QR survives theme edits.
+  try { renderRealVenueQrIntoInlineClone(); } catch (err) { console.warn('[v5.11.19a] real QR render failed:', err); }
+
   return clone;
 }
 window.renderInlineCheckinClone = renderInlineCheckinClone;
+
+// v5.11.19a — Replaces the cloned placeholder QR (#v511PreviewQrBoxCheckinInline)
+// with the live venue QR using the real venueQrPayload. Called from
+// renderInlineCheckinClone after each re-clone (so theme edits don't revert
+// it to the placeholder), and from generateVenueQR after the Refresh QR
+// button regenerates the payload (so the clone stays in sync).
+function renderRealVenueQrIntoInlineClone() {
+  var clone = document.getElementById('v511InlineCheckinStage');
+  if (!clone || !window.QRCode) return;
+  // The QR slot inside the clone — class survives the ID rename done in
+  // renderInlineCheckinClone (id became v511PreviewQrBoxCheckinInline).
+  var qrSlot = clone.querySelector('.v511-theme-preview-qr');
+  if (!qrSlot) return;
+  if (!venueQrPayload) {
+    try { venueQrPayload = buildVenuePayload(); } catch (_) { return; }
+  }
+  if (!venueQrPayload) return;
+  qrSlot.innerHTML = '';
+  try {
+    new QRCode(qrSlot, {
+      text: venueQrPayload,
+      width: 500,
+      height: 500,
+      colorDark: (window.IRLID_THEME_QR_FG || '#000000'),
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : undefined
+    });
+  } catch (e) {
+    qrSlot.textContent = 'QR unavailable';
+  }
+}
+window.renderRealVenueQrIntoInlineClone = renderRealVenueQrIntoInlineClone;
 
 function setupInlineCheckinCloneObserver() {
   const sourceStage = document.getElementById('v511ThemePreviewStage');
