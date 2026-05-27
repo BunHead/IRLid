@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v61'; // v5.11.21 — Settings UI for editable celebration text templates and optional banner font styling.
+const CACHE_VERSION = 'irlid-shell-v62'; // v5.11.22 - Settings save uses Worker POST echo to avoid D1 readback race.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

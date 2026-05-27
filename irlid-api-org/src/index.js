@@ -1947,7 +1947,13 @@ async function orgUpdateSettings(request, env) {
   for (const k of allowed) { if (body[k] !== undefined) current[k] = body[k]; }
   await env.DB.prepare("UPDATE organisations SET settings_json=?, updated_at=? WHERE id=?")
     .bind(JSON.stringify(current), now(), org.id).run();
-  return json({ settings: current });
+  // v5.11.22 - echo the row after UPDATE so clients can merge the persisted
+  // settings without a separate readback GET racing D1 propagation.
+  const persisted = await env.DB.prepare("SELECT settings_json FROM organisations WHERE id=?")
+    .bind(org.id).first();
+  let persistedTheme = null;
+  try { persistedTheme = persisted?.settings_json ? JSON.parse(persisted.settings_json) : null; } catch (_) { persistedTheme = null; }
+  return json({ ok: true, theme: persistedTheme });
 }
 
 async function orgGetQR(request, env) {
