@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v60'; // v5.11.20 — Settings polish trio: Role vocabulary persists through theme.roleVocabulary, + Add event suffix reflects past/today/future, and save feedback converges on v511 saved pulses.
+const CACHE_VERSION = 'irlid-shell-v61'; // v5.11.21 — Settings UI for editable celebration text templates and optional banner font styling.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
