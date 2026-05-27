@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v58'; // v5.11.19b — Fix legacy "CHECKED OUT" pill leaking on checkout alongside the v5.11 celebration. Two issues in showCheckinEventToast suppression: (1) Mode mapping was `action === 'out' ? 'deny' : 'allow'` but per v5.11.15 architectural intent both in/out fire the 'allow' sequence (deny mode is for REJECTION scenarios called via triggerDenyCycleAnimation directly). Fixed to always check 'allow'. (2) Strengthened suppression per Captain's earlier directive — any v511 sequence configured now suppresses the legacy pill (was: only when a text effect was configured). The v511 cel-text-overlay renders the attendee name natively; firing both = duplicate visual pollution. Combined effect: checkout now shows only the v5.11 celebration on the inline frame, no legacy red CHECKED OUT pill.
+const CACHE_VERSION = 'irlid-shell-v59'; // v5.11.20 — Settings polish trio: Role vocabulary persists through theme.roleVocabulary, + Add event suffix reflects past/today/future, and save feedback converges on v511 saved pulses.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
