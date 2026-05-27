@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.21</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.22</span></div>
   </div>
 </div>
 
@@ -12940,17 +12940,24 @@ async function saveSettings() {
     return;
   }
 
-  // Mandatory post-save readback. If the Worker accepted but the next GET
-  // doesn't show our values, the bug is in the merge layer and we need to know.
   let readback;
-  try {
-    readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
-    console.log('[settings save] Readback:', readback);
-  } catch (rbErr) {
-    console.warn('[settings save] Readback failed:', rbErr);
-    setThemeSaveStatus('Saved, but readback failed.', 'err');
-    showToast('Saved, but readback failed (network)', true);
-    return;
+  if (resp && resp.theme) {
+    // v5.11.22 - Worker POST echoes the persisted settings row, avoiding the
+    // immediate readback GET race against D1 propagation.
+    readback = { settings: resp.theme };
+    console.log('[settings save] Persisted POST echo:', readback);
+  } else {
+    // Defensive rollout fallback for old Workers that have not deployed the
+    // v5.11.22 response shape yet.
+    try {
+      readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+      console.log('[settings save] Readback:', readback);
+    } catch (rbErr) {
+      console.warn('[settings save] Readback failed:', rbErr);
+      setThemeSaveStatus('Saved, but readback failed.', 'err');
+      showToast('Saved, but readback failed (network)', true);
+      return;
+    }
   }
 
   const r = (readback && readback.settings) || {};
