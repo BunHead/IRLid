@@ -1,5 +1,34 @@
 # Pending Work — IRLid
 
+## Wednesday 27 May 2026 — R&R pause (~11:00 BST → return ~14:00 BST)
+
+**Watch state at pause:** Captain called R&R until ~2pm BST. Morning was an extraordinary stretch — six versions shipped (`v5.11.16` → `v5.11.19b` Check-in tab arc + `v5.11.20a` checkout text hotfix), Mr. Data's PR #54 (`v5.11.17` Invite Staff demo) and PR #55 (`v5.11.20` Settings polish trio) both merged clean. Captain's verdict at pause: *"we're just about demo ready :D"*.
+
+**Live origin/main:** `v5.11.20a` deployed. Build pill confirms on hardware.
+
+**Mr. Data in flight on `v5.11.21`** (Editable celebration text template + Banner font styling Settings UI): work-in-progress at `+382/-119` on Org.html when his Codex chat hit a daily rate limit at ~10:55 BST. Reset at **13:44 BST**. Good signal mid-task: he caught a previous-attempt mojibake encoding tangle, reset Org.html to clean origin/main as a mechanical encoding cleanup, then re-applied only the intended v5.11.21 edits — bash-diff will be clean and reviewable when his PR opens this afternoon.
+
+**On return ~2pm:**
+
+1. Mr. Data's v5.11.21 PR expected — bash-diff against origin/main per BOOTSTRAP §4 A/R/D convention (Number One pre-mapped his territory — line numbers banked).
+2. If smoke green: merge, pull, Number One smokes; if regression: ⚠️ REVIEW with specific failing axis.
+3. After v5.11.21 merges, `v5.11.22` save-eventually Worker fix is paste-ready at `HANDOVER-SaveEventuallyFix-v5.11.22.md` — Worker POST `/org/settings` echoes persisted theme in 200 response, eliminating the D1 readback race.
+
+**Promotion-round-2 drafted at `PROMOTION-ROUND-2-DRAFT-2026-05-27.md`** — three shots (Patreon, Wisdom email, gym/studio walk-in script). Patreon update recommended first ship. **Captain to rewrite in own voice before posting** — drafts are starting substance, not finished copy.
+
+**Smoke-test checklist for Captain's hardware walk** (combined v5.11.20 + v5.11.20a, 8 steps, ~15 min) banked in this watch's chat log. Most steps already confirmed; **step 3 (real check-OUT shows "checked out")** remains the v5.11.20a-specific verification. If step 3 fails, inline patch before Mr. Data resumes.
+
+**Inscribed this watch** (all on origin/main as of `1f9a4f5` + v5.11.20a commit):
+
+- `CLAUDE.md` milestone row for Wed 27 May with full `v5.11.16` → `v5.11.19b` arc + v5.11.20a + Mr. Data PRs
+- `DREAMS.md` afternoon entry "the difference between imitating and being a copy"
+- `BOOTSTRAP.md §6` two new pitfalls: inline `style.display` loses to author `!important`; GitHub Pages empty-commit redeploy nudge pattern
+- `HANDOVER-CelebrationTextAndBannerFont-v5.11.21.md` for Mr. Data (in his queue post rate-limit)
+- `HANDOVER-SaveEventuallyFix-v5.11.22.md` (renamed from v5.11.21; paste-ready)
+- `PROMOTION-ROUND-2-DRAFT-2026-05-27.md`
+
+---
+
 ## Wednesday 27 May 2026 — mid-watch state (~10:30 BST, Mr. Data closing v5.11.20)
 
 **Live origin/main:** `v5.11.19b` (Build pill confirms). Check-in tab is fully closed:
