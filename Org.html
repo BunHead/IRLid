@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.20a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.21</span></div>
   </div>
 </div>
 
@@ -4588,6 +4588,38 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Stroke — comic/cartoon outline via -webkit-text-stroke */
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-stroke="thin"] .v511-cel-text-overlay { -webkit-text-stroke: 1px rgba(0,0,0,0.65); paint-order: stroke fill; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-cel-text-stroke="bold"] .v511-cel-text-overlay { -webkit-text-stroke: 2.5px rgba(0,0,0,0.85); paint-order: stroke fill; }
+
+        /* v5.11.21 — Optional banner typography. Gated so OFF preserves the default banner font. */
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="sans"]       .v511-theme-preview-banner { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="serif"]      .v511-theme-preview-banner { font-family: Georgia, "Times New Roman", "Iowan Old Style", serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="mono"]       .v511-theme-preview-banner { font-family: "SF Mono", Consolas, "Liberation Mono", "Courier New", monospace; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="display"]    .v511-theme-preview-banner { font-family: "Impact", "Arial Black", "Helvetica Neue", sans-serif; font-stretch: condensed; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="bebas"]      .v511-theme-preview-banner { font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif; letter-spacing: 0.02em; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="oswald"]     .v511-theme-preview-banner { font-family: "Oswald", "Helvetica Neue", Arial, sans-serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="pacifico"]   .v511-theme-preview-banner { font-family: "Pacifico", "Brush Script MT", cursive; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="caveat"]     .v511-theme-preview-banner { font-family: "Caveat", "Comic Sans MS", cursive; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="marker"]     .v511-theme-preview-banner { font-family: "Permanent Marker", "Comic Sans MS", cursive; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="playfair"]   .v511-theme-preview-banner { font-family: "Playfair Display", Georgia, "Times New Roman", serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="lobster"]    .v511-theme-preview-banner { font-family: "Lobster", "Brush Script MT", cursive; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="inter"]      .v511-theme-preview-banner { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="montserrat"] .v511-theme-preview-banner { font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="light"]   .v511-theme-preview-banner { font-weight: 300; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="regular"] .v511-theme-preview-banner { font-weight: 400; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="bold"]    .v511-theme-preview-banner { font-weight: 800; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="black"]   .v511-theme-preview-banner { font-weight: 900; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-italic="on"]      .v511-theme-preview-banner { font-style: italic; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-spacing="tight"]  .v511-theme-preview-banner { letter-spacing: -0.02em; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-spacing="normal"] .v511-theme-preview-banner { letter-spacing: 0; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-spacing="loose"]  .v511-theme-preview-banner { letter-spacing: 0.08em; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-spacing="wide"]   .v511-theme-preview-banner { letter-spacing: 0.22em; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-colour="white"]     .v511-theme-preview-banner { color: #ffffff; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-colour="warm"]      .v511-theme-preview-banner { color: #fff5d0; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-colour="palette-1"] .v511-theme-preview-banner { color: var(--cel-pal-1, #ffffff); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-colour="palette-2"] .v511-theme-preview-banner { color: var(--cel-pal-2, var(--cel-pal-1, #ffffff)); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-colour="palette-3"] .v511-theme-preview-banner { color: var(--cel-pal-3, var(--cel-pal-2, var(--cel-pal-1, #ffffff))); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-shadow="off"]    .v511-theme-preview-banner { text-shadow: none; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-shadow="soft"]   .v511-theme-preview-banner { text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-shadow="strong"] .v511-theme-preview-banner { text-shadow: 0 2px 8px rgba(0,0,0,0.85), 0 0 16px rgba(0,0,0,0.5); }
         @keyframes v511CelText { 0% { opacity: 0; transform: translateY(20px); } 30%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-10px); } }
         /* Tier 4.1 — Background celebration: a real overlay flashes through the
            celebration palette colours (--cel-pal-1..3) so changing the celebration
@@ -6475,6 +6507,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </details>
 
           <details class="v511-expander">
+            <summary>
+              <span class="v511-expander-toggle" onclick="event.stopPropagation()" style="display: inline-flex; align-items: center; gap: 6px; margin-right: 8px;"><input type="checkbox" id="v511BannerCustomise" /> <span style="font-size: 11px; color: var(--muted);">customise</span></span>
+              Banner styling <span class="v511-hint-inline">(optional font styling for the banner above the QR)</span>
+            </summary>
+            <div class="v511-expander-body" id="v511BannerStylingBody">
+              <div class="v511-anim-row"><label>Font</label><div class="v511-chips v511-chips-wrap" data-banner-setting="font"><button type="button" class="v511-chip" data-banner-value="sans" aria-pressed="true">sans</button><button type="button" class="v511-chip" data-banner-value="serif" aria-pressed="false">serif</button><button type="button" class="v511-chip" data-banner-value="mono" aria-pressed="false">mono</button><button type="button" class="v511-chip" data-banner-value="display" aria-pressed="false">display</button><button type="button" class="v511-chip" data-banner-value="bebas" aria-pressed="false">bebas</button><button type="button" class="v511-chip" data-banner-value="oswald" aria-pressed="false">oswald</button><button type="button" class="v511-chip" data-banner-value="pacifico" aria-pressed="false">pacifico</button><button type="button" class="v511-chip" data-banner-value="caveat" aria-pressed="false">caveat</button><button type="button" class="v511-chip" data-banner-value="marker" aria-pressed="false">marker</button><button type="button" class="v511-chip" data-banner-value="playfair" aria-pressed="false">playfair</button><button type="button" class="v511-chip" data-banner-value="lobster" aria-pressed="false">lobster</button><button type="button" class="v511-chip" data-banner-value="inter" aria-pressed="false">inter</button><button type="button" class="v511-chip" data-banner-value="montserrat" aria-pressed="false">montserrat</button></div></div>
+              <div class="v511-anim-row"><label>Weight</label><div class="v511-chips" data-banner-setting="weight"><button type="button" class="v511-chip" data-banner-value="light" aria-pressed="false">light</button><button type="button" class="v511-chip" data-banner-value="regular" aria-pressed="false">regular</button><button type="button" class="v511-chip" data-banner-value="bold" aria-pressed="true">bold</button><button type="button" class="v511-chip" data-banner-value="black" aria-pressed="false">black</button></div></div>
+              <div class="v511-anim-row"><label>Italic</label><div class="v511-chips" data-banner-setting="italic"><button type="button" class="v511-chip" data-banner-value="off" aria-pressed="true">off</button><button type="button" class="v511-chip" data-banner-value="on" aria-pressed="false">on</button></div></div>
+              <div class="v511-anim-row"><label>Spacing</label><div class="v511-chips" data-banner-setting="spacing"><button type="button" class="v511-chip" data-banner-value="tight" aria-pressed="false">tight</button><button type="button" class="v511-chip" data-banner-value="normal" aria-pressed="true">normal</button><button type="button" class="v511-chip" data-banner-value="loose" aria-pressed="false">loose</button><button type="button" class="v511-chip" data-banner-value="wide" aria-pressed="false">wide</button></div></div>
+              <div class="v511-anim-row"><label>Colour</label><div class="v511-chips" data-banner-setting="colour"><button type="button" class="v511-chip" data-banner-value="white" aria-pressed="true">white</button><button type="button" class="v511-chip" data-banner-value="warm" aria-pressed="false">warm</button><button type="button" class="v511-chip" data-banner-value="palette-1" aria-pressed="false">palette-1</button><button type="button" class="v511-chip" data-banner-value="palette-2" aria-pressed="false">palette-2</button><button type="button" class="v511-chip" data-banner-value="palette-3" aria-pressed="false">palette-3</button></div></div>
+              <div class="v511-anim-row"><label>Shadow</label><div class="v511-chips" data-banner-setting="shadow"><button type="button" class="v511-chip" data-banner-value="off" aria-pressed="false">off</button><button type="button" class="v511-chip" data-banner-value="soft" aria-pressed="true">soft</button><button type="button" class="v511-chip" data-banner-value="strong" aria-pressed="false">strong</button></div></div>
+            </div>
+          </details>
+
+          <details class="v511-expander">
             <summary><span id="v511PostAcceptSummary">Accept behaviour</span> <span class="v511-hint-inline">(for the currently active mode &mdash; switch mode at top to edit a different one)</span></summary>
             <div class="v511-expander-body">
               <div class="v511-sub" style="margin-top: 0;">Outcome sound <span class="v511-hint-inline">(played when this mode fires; same file fired by Sample button at top)</span></div>
@@ -7634,12 +7681,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var tmpl = s.template || 'welcome';
               var runtimeAction = (stage._v511Action || 'in').toLowerCase() === 'out' ? 'out' : 'in';
               var actionPhrase = 'checked ' + runtimeAction;
+              var titleAction = runtimeAction.charAt(0).toUpperCase() + runtimeAction.slice(1);
+              var titlePhrase = actionPhrase.charAt(0).toUpperCase() + actionPhrase.slice(1);
               var finalText;
               if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Kerry!';
               else if (tmpl === 'name + action') finalText = 'Kerry — ' + actionPhrase;
               else                                finalText = baseMsg;
               var runtimeName = (stage._v511AttendeeName || '').trim();
-              if (runtimeName) finalText = tmpl === 'welcome' ? baseMsg : (tmpl === 'name' ? baseMsg.replace(/[.!?]\s*$/, '') + ', ' + runtimeName + '!' : runtimeName + ' — ' + actionPhrase);
+              if (s.textTemplate && String(s.textTemplate).trim()) {
+                finalText = String(s.textTemplate)
+                  .replace(/\{name\}/g, runtimeName)
+                  .replace(/\{action\}/g, runtimeAction)
+                  .replace(/\{Action\}/g, titleAction)
+                  .replace(/\{verb\}/g, actionPhrase)
+                  .replace(/\{Verb\}/g, titlePhrase);
+              } else if (runtimeName) {
+                finalText = tmpl === 'welcome' ? baseMsg : (tmpl === 'name' ? baseMsg.replace(/[.!?]\s*$/, '') + ', ' + runtimeName + '!' : runtimeName + ' — ' + actionPhrase);
+              }
               var overlay = stage.querySelector('.v511-cel-text-overlay');
               if (overlay) overlay.textContent = finalText;
             }
@@ -8556,9 +8614,75 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var chip = document.querySelector('.v511-chips[data-chip-group="' + groupKey + '"] .v511-chip[aria-pressed="true"]');
             return chip ? chip.textContent.trim().toLowerCase().replace(/\s+.*$/, '') : fallback;
           }
+          var V511_BANNER_DEFAULTS = {
+            customise: 'off',
+            font: 'sans',
+            weight: 'bold',
+            italic: 'off',
+            spacing: 'normal',
+            colour: 'white',
+            shadow: 'soft'
+          };
+          var V511_BANNER_OPTIONS = {
+            customise: ['off','on'],
+            font: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'],
+            weight: ['light','regular','bold','black'],
+            italic: ['off','on'],
+            spacing: ['tight','normal','loose','wide'],
+            colour: ['white','warm','palette-1','palette-2','palette-3'],
+            shadow: ['off','soft','strong']
+          };
+          function normaliseV511BannerConfig(input) {
+            var src = input && typeof input === 'object' ? input : {};
+            var out = {};
+            Object.keys(V511_BANNER_DEFAULTS).forEach(function (key) {
+              var val = src[key];
+              out[key] = V511_BANNER_OPTIONS[key].indexOf(val) !== -1 ? val : V511_BANNER_DEFAULTS[key];
+            });
+            return out;
+          }
+          function applyV511BannerConfigToStage(stage, banner) {
+            if (!stage) return;
+            var cfg = normaliseV511BannerConfig(banner);
+            stage.setAttribute('data-banner-customise', cfg.customise);
+            stage.setAttribute('data-banner-font', cfg.font);
+            stage.setAttribute('data-banner-weight', cfg.weight);
+            stage.setAttribute('data-banner-italic', cfg.italic);
+            stage.setAttribute('data-banner-spacing', cfg.spacing);
+            stage.setAttribute('data-banner-colour', cfg.colour);
+            stage.setAttribute('data-banner-shadow', cfg.shadow);
+          }
           function v511PressedDataset(selector, attr, fallback) {
             var el = document.querySelector(selector + '[aria-pressed="true"]');
             return el ? (el.getAttribute(attr) || fallback) : fallback;
+          }
+          function v511ReadBannerSettingsFromUI() {
+            var out = { customise: (document.getElementById('v511BannerCustomise') || {}).checked ? 'on' : 'off' };
+            ['font','weight','italic','spacing','colour','shadow'].forEach(function (key) {
+              out[key] = v511PressedDataset('.v511-chips[data-banner-setting="' + key + '"] .v511-chip', 'data-banner-value', V511_BANNER_DEFAULTS[key]);
+            });
+            return normaliseV511BannerConfig(out);
+          }
+          function v511WriteBannerSettingsToUI(config) {
+            var cfg = normaliseV511BannerConfig(config);
+            var toggle = document.getElementById('v511BannerCustomise');
+            if (toggle) toggle.checked = cfg.customise === 'on';
+            ['font','weight','italic','spacing','colour','shadow'].forEach(function (key) {
+              document.querySelectorAll('.v511-chips[data-banner-setting="' + key + '"] .v511-chip').forEach(function (chip) {
+                chip.setAttribute('aria-pressed', chip.getAttribute('data-banner-value') === cfg[key] ? 'true' : 'false');
+              });
+            });
+            var body = document.getElementById('v511BannerStylingBody');
+            if (body) {
+              body.style.opacity = cfg.customise === 'on' ? '1' : '0.55';
+              body.style.pointerEvents = cfg.customise === 'on' ? 'auto' : 'none';
+            }
+          }
+          function v511ApplyBannerSettingsFromUI() {
+            var cfg = v511ReadBannerSettingsFromUI();
+            if (sampleStage) applyV511BannerConfigToStage(sampleStage, cfg);
+            v511MirrorSettingsStateToHostStages();
+            return cfg;
           }
           function v511ReadBgDirection() {
             var cell = document.querySelector('.v511-cycle-dir-cell[aria-pressed="true"]');
@@ -8624,6 +8748,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
               bgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
             };
+            meta.banner = v511ReadBannerSettingsFromUI();
             return Object.assign({}, base, {
               primary: bgPalette[0] || base.primary || '#3FB950',
               accent: celPalette[0] || base.accent || '#58A6FF',
@@ -8757,6 +8882,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (bgPattern && theme.bgPattern) bgPattern.value = theme.bgPattern;
             var bgDurEl = document.getElementById('v511BgDuration');
             if (bgDurEl && theme.bgAnimDuration) { bgDurEl.value = theme.bgAnimDuration; bgDurEl.dispatchEvent(new Event('input')); }
+            v511WriteBannerSettingsToUI(meta.banner);
+            v511ApplyBannerSettingsFromUI();
             var imgEnable = document.getElementById('v511BgImageEnable');
             var patEnable = document.getElementById('v511BgPatternEnable');
             if (imgEnable) imgEnable.checked = theme.bgMode === 'image';
@@ -9039,6 +9166,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Filtering: only mirror CONFIG classes/vars (bg-*, pattern-*, the
           // CSS var prefixes below). Skip transient state (firing-*, cel-*,
           // v511-runtime-stage) which is per-stage and shouldn't propagate.
+          var V511_DATA_ATTRS_TO_MIRROR = ['data-banner-customise','data-banner-font','data-banner-weight','data-banner-italic','data-banner-spacing','data-banner-colour','data-banner-shadow'];
           function v511MirrorSettingsStateToHostStages() {
             if (!sampleStage) return;
             // v5.11.11 — broader class mirror. Use a BLACKLIST of transient
@@ -9095,6 +9223,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               Object.keys(cssVarsToMirror).forEach(function (prop) {
                 target.style.setProperty(prop, cssVarsToMirror[prop]);
               });
+              V511_DATA_ATTRS_TO_MIRROR.forEach(function (attr) {
+                if (sampleStage.hasAttribute(attr)) target.setAttribute(attr, sampleStage.getAttribute(attr));
+                else target.removeAttribute(attr);
+              });
             });
           }
 
@@ -9102,14 +9234,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var sampleStageObserver = new MutationObserver(function (mutations) {
               var needsMirror = false;
               for (var m = 0; m < mutations.length; m++) {
-                if (mutations[m].attributeName === 'class' || mutations[m].attributeName === 'style') {
+                if (mutations[m].attributeName === 'class' || mutations[m].attributeName === 'style' || V511_DATA_ATTRS_TO_MIRROR.indexOf(mutations[m].attributeName) !== -1) {
                   needsMirror = true;
                   break;
                 }
               }
               if (needsMirror) v511MirrorSettingsStateToHostStages();
             });
-            sampleStageObserver.observe(sampleStage, { attributes: true, attributeFilter: ['class', 'style'] });
+            sampleStageObserver.observe(sampleStage, { attributes: true, attributeFilter: ['class', 'style'].concat(V511_DATA_ATTRS_TO_MIRROR) });
             // Initial sync at page-load — runs once the script has parsed past
             // sampleStage's CSS-variable-setting code above.
             v511MirrorSettingsStateToHostStages();
@@ -9538,6 +9670,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var imageEnable = document.getElementById('v511BgImageEnable');
           if (patternEnable) patternEnable.addEventListener('change', applyBgState);
           if (imageEnable) imageEnable.addEventListener('change', applyBgState);
+          var bannerToggle = document.getElementById('v511BannerCustomise');
+          if (bannerToggle) bannerToggle.addEventListener('change', function () {
+            v511WriteBannerSettingsToUI(v511ReadBannerSettingsFromUI());
+            v511ApplyBannerSettingsFromUI();
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          });
+          document.querySelectorAll('.v511-chips[data-banner-setting] .v511-chip').forEach(function (chip) {
+            chip.addEventListener('click', function () {
+              var group = chip.closest('.v511-chips[data-banner-setting]');
+              if (!group) return;
+              group.querySelectorAll('.v511-chip').forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
+              v511ApplyBannerSettingsFromUI();
+              if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+            });
+          });
+          v511WriteBannerSettingsToUI(V511_BANNER_DEFAULTS);
+          v511ApplyBannerSettingsFromUI();
 
           // =====================================================================
           // Tier 4.2 — Celebration animation: library + sequence builder.
@@ -9913,6 +10062,31 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
             return defaults;
           }
+          function v511DefaultTextTemplateForPreset(preset) {
+            var ms = modeStates[currentMode] || {};
+            var liveMsg = (document.getElementById('v511PaWelcome') || {}).value;
+            var baseMsg = (typeof liveMsg === 'string' && liveMsg.length ? liveMsg : (ms.v511PaWelcome || 'Welcome back!'));
+            if (preset === 'welcome') return baseMsg;
+            if (preset === 'name') return baseMsg.replace(/[.!?]\s*$/, '') + ', {name}!';
+            return '{name} — {verb}';
+          }
+          function v511RenderTextTemplate(template, name, action) {
+            var runtimeName = String(name || '');
+            var runtimeAction = String(action || 'in').toLowerCase() === 'out' ? 'out' : 'in';
+            var actionPhrase = 'checked ' + runtimeAction;
+            var titleAction = runtimeAction.charAt(0).toUpperCase() + runtimeAction.slice(1);
+            var titlePhrase = actionPhrase.charAt(0).toUpperCase() + actionPhrase.slice(1);
+            return String(template || '{name} — {verb}')
+              .replace(/\{name\}/g, runtimeName)
+              .replace(/\{action\}/g, runtimeAction)
+              .replace(/\{Action\}/g, titleAction)
+              .replace(/\{verb\}/g, actionPhrase)
+              .replace(/\{Verb\}/g, titlePhrase);
+          }
+          function v511RefreshTextTemplatePreview(root, template) {
+            var preview = root && root.querySelector('[data-setting-text-template-preview]');
+            if (preview) preview.textContent = v511RenderTextTemplate(template || '{name} — {verb}', 'Kerry', 'in');
+          }
           var V511_SETTINGS_GRID_THRESHOLD = 5;
           function v511SetSettingsLayout(useGrid) {
             if (!v511CelSettingsBody) return;
@@ -10006,6 +10180,47 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
               v511CelSettingsBody.appendChild(row);
             });
+            if (item.effect === 'text') {
+              var textTemplateRow = document.createElement('div');
+              textTemplateRow.className = 'v511-cel-setting-row';
+              textTemplateRow.setAttribute('data-setting-key', 'textTemplate');
+              var textTemplateLabel = document.createElement('label');
+              textTemplateLabel.setAttribute('for', 'v511TextTemplateInput');
+              textTemplateLabel.textContent = 'Text template';
+              textTemplateRow.appendChild(textTemplateLabel);
+              var textTemplateWrap = document.createElement('div');
+              textTemplateWrap.style.cssText = 'display: grid; gap: 7px;';
+              var inputLine = document.createElement('div');
+              inputLine.style.cssText = 'display: flex; gap: 8px; align-items: center;';
+              var textInput = document.createElement('input');
+              textInput.type = 'text';
+              textInput.id = 'v511TextTemplateInput';
+              textInput.className = 'v511-cel-text-template-input';
+              textInput.setAttribute('data-setting-text-template', 'textTemplate');
+              textInput.placeholder = '{name} — {verb}';
+              textInput.value = item.settings.textTemplate || '';
+              textInput.style.cssText = 'flex: 1; min-width: 0; height: 32px; padding: 0 10px; background: rgba(5,10,20,0.45); color: var(--text); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; font-family: inherit; font-size: 13px;';
+              var resetBtn = document.createElement('button');
+              resetBtn.type = 'button';
+              resetBtn.className = 'v511-btn v511-btn-mini';
+              resetBtn.setAttribute('data-setting-text-template-reset', '1');
+              resetBtn.textContent = 'Reset to default';
+              inputLine.appendChild(textInput);
+              inputLine.appendChild(resetBtn);
+              textTemplateWrap.appendChild(inputLine);
+              var hint = document.createElement('div');
+              hint.className = 'v511-hint';
+              hint.textContent = 'Use {name}, {verb}, {action}, {Action}, {Verb} as placeholders. Default: {name} — {verb}';
+              textTemplateWrap.appendChild(hint);
+              var preview = document.createElement('div');
+              preview.className = 'v511-hint';
+              preview.style.cssText = 'display: inline-block; padding: 6px 9px; border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; background: rgba(255,255,255,0.04); color: var(--text);';
+              preview.setAttribute('data-setting-text-template-preview', '1');
+              textTemplateWrap.appendChild(preview);
+              textTemplateRow.appendChild(textTemplateWrap);
+              v511CelSettingsBody.appendChild(textTemplateRow);
+              v511RefreshTextTemplatePreview(textTemplateRow, textInput.value);
+            }
           }
 
           // Selection + click handling for sequence rows. Clicking the row body
@@ -10037,6 +10252,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // T4.3.32 — Slider input handler — updates item.settings + label + saves.
           if (v511CelSettingsBody) {
             v511CelSettingsBody.addEventListener('input', function (e) {
+              var textTemplateInput = e.target.closest('[data-setting-text-template]');
+              if (textTemplateInput) {
+                var seqForText = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+                if (v511SelectedSeqIdx < 0 || v511SelectedSeqIdx >= seqForText.length) return;
+                var textItem = seqForText[v511SelectedSeqIdx];
+                if (!textItem.settings) textItem.settings = {};
+                textItem.settings.textTemplate = textTemplateInput.value || '';
+                v511RefreshTextTemplatePreview(textTemplateInput.closest('.v511-cel-setting-row'), textTemplateInput.value);
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+                return;
+              }
               var slider = e.target.closest('.v511-cel-slider');
               if (!slider) return;
               var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
@@ -10085,8 +10311,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 if (!chipKey) return;
                 chipGroup.querySelectorAll('.v511-chip').forEach(function (c) { c.setAttribute('aria-pressed', c === chip ? 'true' : 'false'); });
                 item.settings[chipKey] = chip.getAttribute('data-opt');
+                if (item.effect === 'text' && chipKey === 'template') {
+                  item.settings.textTemplate = v511DefaultTextTemplateForPreset(item.settings.template);
+                  v511RenderSettingsForItem(v511SelectedSeqIdx);
+                }
                 if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
                 try { v511UpdateAnchorCrosshairs(); } catch (e) {} // T4.3.34
+                return;
+              }
+              var reset = e.target.closest('[data-setting-text-template-reset]');
+              if (reset) {
+                item.settings.textTemplate = '';
+                v511RenderSettingsForItem(v511SelectedSeqIdx);
+                if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
                 return;
               }
             });
@@ -16560,6 +16797,33 @@ const CELEB_GLOW_SWEEPS = ['outward','inward','rotate'];
 const CELEB_GLOW_CENTRES = ['on','off'];
 const CELEB_GLOW_SATS = ['muted','vivid','hyper'];
 const CELEB_PATTERNS = ['dots','hex','diagonal','checker','grid','weave','chevron','isometric'];
+const V511_BANNER_DEFAULTS = {
+  customise: 'off',
+  font: 'sans',
+  weight: 'bold',
+  italic: 'off',
+  spacing: 'normal',
+  colour: 'white',
+  shadow: 'soft'
+};
+const V511_BANNER_OPTIONS = {
+  customise: ['off','on'],
+  font: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'],
+  weight: ['light','regular','bold','black'],
+  italic: ['off','on'],
+  spacing: ['tight','normal','loose','wide'],
+  colour: ['white','warm','palette-1','palette-2','palette-3'],
+  shadow: ['off','soft','strong']
+};
+function normaliseV511BannerConfig(input) {
+  const src = input && typeof input === 'object' ? input : {};
+  const out = {};
+  Object.keys(V511_BANNER_DEFAULTS).forEach(function (key) {
+    const val = src[key];
+    out[key] = V511_BANNER_OPTIONS[key].indexOf(val) !== -1 ? val : V511_BANNER_DEFAULTS[key];
+  });
+  return out;
+}
 function normaliseCelebration(t) {
   const src = (t && t.celebration) || null;
   const def = THEME_DEFAULTS.celebration;
@@ -16669,7 +16933,8 @@ function normalizeThemeForSave(theme) {
   if (!cycleMode) cycleMode = (t.acceptCycleEnabled === false) ? 'off' : THEME_DEFAULTS.cycleMode;
   if (['off','simple','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
   let bgImageSymmetryMode = bgCfg.bgImageSymmetryMode;
-  const v511Meta = t._v511 && typeof t._v511 === 'object' ? t._v511 : null;
+  const v511Meta = t._v511 && typeof t._v511 === 'object' ? Object.assign({}, t._v511) : {};
+  v511Meta.banner = normaliseV511BannerConfig(v511Meta.banner);
   return {
     roleVocabulary: normaliseV511RoleVocabulary(t.roleVocabulary),
     primary: t.primary || THEME_DEFAULTS.primary,
@@ -16765,6 +17030,17 @@ function syncBgImageMirrorLayers(theme) {
   // v5.11.5 — clone-based fullscreen stage also receives bg-image mirrors.
   renderBgImageMirrors(document.getElementById('v511FullscreenStage'), specs);
 }
+function applyV511BannerConfigToStage(stage, banner) {
+  if (!stage) return;
+  const cfg = normaliseV511BannerConfig(banner);
+  stage.setAttribute('data-banner-customise', cfg.customise);
+  stage.setAttribute('data-banner-font', cfg.font);
+  stage.setAttribute('data-banner-weight', cfg.weight);
+  stage.setAttribute('data-banner-italic', cfg.italic);
+  stage.setAttribute('data-banner-spacing', cfg.spacing);
+  stage.setAttribute('data-banner-colour', cfg.colour);
+  stage.setAttribute('data-banner-shadow', cfg.shadow);
+}
 
 function applyV511BackgroundToHostStages(theme) {
   const cfg = normalizeThemeForSave(theme || activeTheme || {});
@@ -16843,6 +17119,7 @@ function applyV511BackgroundToHostStages(theme) {
     stage.style.setProperty('--bg-image-repeat', imageRepeat);
     if (cfg.bgImageUrl) stage.style.setProperty('--bg-image-url', 'url("' + cfg.bgImageUrl + '")');
     else stage.style.removeProperty('--bg-image-url');
+    applyV511BannerConfigToStage(stage, cfg._v511 && cfg._v511.banner);
   });
   syncBgImageMirrorLayers(cfg);
 
