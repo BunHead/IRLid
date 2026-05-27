@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.18</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.19</span></div>
   </div>
 </div>
 
@@ -3504,13 +3504,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="qr-box v511-theme-preview-qr" id="venueQrBox" role="img"></div>
                 </div>
                 <div class="qr-info">
-                  <!-- v5.11.18 — Captain's layout directive: buttons row first
-                       (horizontal, across the screen), Debug QR URL single full-
-                       width line second, h4 + description third. Adds ▶ Test
-                       anim as a permanent debug affordance for firing the
-                       celebration on the inline clone — pairs with (and will
-                       outlive) the temporary click-to-fire handler from
-                       v5.11.16 once that's removed. -->
+                  <!-- v5.11.19 — Captain's layout refinement after v5.11.18:
+                       Event Check-in QR header + description moved to JUST
+                       under the inline frame, left-aligned. Buttons stay
+                       horizontally aligned below the header. Debug QR URL
+                       shortened horizontally (no longer full-width) so it
+                       matches the reference image proportions. -->
+                  <h4>Event Check-in QR</h4>
+                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
                   <div class="qr-actions">
                     <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
                     <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
@@ -3518,8 +3519,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <button class="btn btn-secondary btn-sm" onclick="testInlineCheckinAnimation()" title="Fire celebration on the inline frame using the current Sample mode picker — debug-only">▶ Test anim</button>
                   </div>
                   <div class="qr-payload-preview" id="qrPayloadPreview"></div>
-                  <h4>Event Check-in QR</h4>
-                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
                 </div>
 
                 <div id="doormanWrap" class="mode-inactive" aria-hidden="true">
@@ -5486,36 +5485,50 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           padding: 12px 16px;
           z-index: auto;
         }
-        /* v5.11.18 — Bigger inline Check-in clone (Captain: "takes up most of
-           the frame, QR definitely viewable/scannable"). Overrides the
-           Settings-preview default sizing baked into .v511-theme-preview-stage
-           which is too small for a check-in surface. */
+        /* v5.11.18 → v5.11.19 — Inline Check-in clone sizing. v5.11.18 made
+           it big (Captain: "takes up most of the frame"); v5.11.19 trims a
+           touch so the buttons row + h4 + debug URL all sit comfortably
+           below it without push-down on smaller laptops. */
         .prototype-checkin #panel-checkin #v511InlineCheckinStage {
           width: 100% !important;
           max-width: 100% !important;
-          height: clamp(420px, calc(100dvh - 230px), 880px) !important;
-          max-height: 78dvh !important;
+          height: clamp(380px, calc(100dvh - 320px), 720px) !important;
+          max-height: 68dvh !important;
           aspect-ratio: auto !important;
-          margin: 0 auto 12px auto !important;
+          margin: 0 auto 14px auto !important;
         }
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .v511-theme-preview-qr,
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .qr-box {
-          width: clamp(240px, min(50dvh, 50vw), 560px) !important;
-          height: clamp(240px, min(50dvh, 50vw), 560px) !important;
+          width: clamp(220px, min(44dvh, 44vw), 500px) !important;
+          height: clamp(220px, min(44dvh, 44vw), 500px) !important;
         }
-        /* v5.11.18 — .qr-info reordered: buttons row first, then Debug URL
-           single-line full-width, then h4 + description. Captain's layout
-           directive. */
+        /* v5.11.19 — .qr-info reordered per Captain's reference image:
+           h4 + p left-aligned under the frame, then buttons centred row,
+           then Debug QR URL on a shorter (not full-width) line so it
+           matches the reference image proportions. */
+        .prototype-checkin #panel-checkin .qr-info {
+          text-align: left;
+        }
+        .prototype-checkin #panel-checkin .qr-info h4 {
+          margin-top: 0;
+          margin-bottom: 6px;
+          text-align: left;
+        }
+        .prototype-checkin #panel-checkin .qr-info p {
+          margin-bottom: 12px;
+          text-align: left;
+          max-width: 72ch;
+        }
         .prototype-checkin #panel-checkin .qr-info .qr-actions {
           display: flex !important;
           flex-wrap: wrap;
           gap: 10px;
           justify-content: center;
           align-items: center;
-          margin: 0 0 14px 0 !important;
+          margin: 0 0 12px 0 !important;
         }
         .prototype-checkin #panel-checkin .qr-info .qr-payload-preview {
-          max-width: 100% !important;
+          max-width: min(100%, 72ch) !important;
           max-height: none !important;
           width: 100%;
           white-space: nowrap !important;
@@ -5523,18 +5536,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           overflow-x: auto !important;
           overflow-y: hidden !important;
           text-overflow: ellipsis;
-          margin: 0 0 14px 0 !important;
+          margin: 0 0 8px 0 !important;
           font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
           font-size: 11px;
           padding: 8px 12px;
           box-sizing: border-box;
-        }
-        .prototype-checkin #panel-checkin .qr-info h4 {
-          margin-top: 0;
-          margin-bottom: 6px;
-        }
-        .prototype-checkin #panel-checkin .qr-info p {
-          margin-bottom: 0;
         }
         /* Tier 3.6 — QR motion variants: data-qr-motion attribute switches the animation
            applied when .cel-qr class is on the stage. */
@@ -6202,7 +6208,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-theme-preview-mode-label" id="v511ThemePreviewModeLabel">DETECTED SCAN RES: —</div>
               <div class="v511-theme-preview-banner">Test Event — Theme Demo</div>
               <div class="v511-theme-preview-qr" id="v511PreviewQrBox" role="img"></div>
-              <div class="v511-theme-preview-caption">Live preview. Save All applies pending edits. Sample fires the selected outcome. Double-click to fullscreen.</div>
+              <!-- v5.11.19 — caption removed at Captain's request: "remove
+                   'Live preview. Save All applies pending edits. Sample fires
+                   the selected outcome. Double-click to fullscreen.' from all
+                   areas". Removing from source kills it for Settings preview
+                   + inline clone + fullscreen clone in one stroke (the
+                   fullscreen clone's existing .remove() call becomes a safe
+                   no-op). -->
               <!-- T4.3.34 — Anchor crosshairs overlay. Shows where Stream particles
                    will emit from while a Stream sequence row is selected. Hidden
                    by default; v511UpdateAnchorCrosshairs() populates + reveals. -->
@@ -14945,6 +14957,13 @@ function renderInlineCheckinClone(opts) {
   const clone = sourceStage.cloneNode(true);
   clone.id = 'v511InlineCheckinStage';
   clone.classList.add('v511-runtime-stage', 'v511-checkin-tab-stage');
+
+  // v5.11.19 — strip the ACTIVE MODE badge from the inline clone only.
+  // Settings preview keeps it (it's a configurator affordance there);
+  // the Check-in tab is the public-facing branded surface and shouldn't
+  // expose the editor's mode label. Captain: "remove ... the Active Mode:
+  // Allow from check-in only."
+  clone.querySelector('.v511-theme-preview-mode-label')?.remove();
 
   // Rename inner IDs to avoid duplicates (mirrors the fullscreenQR pattern).
   Array.from(clone.querySelectorAll('[id]')).forEach(function(el) {
