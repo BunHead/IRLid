@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.22</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.22a</span></div>
   </div>
 </div>
 
@@ -13481,7 +13481,9 @@ async function refreshAttendance() {
           // celebration — "deny" mode is reserved for rejection scenarios
           // (not-on-expected-list, fingerprint mismatch, etc) which have their
           // own call sites at L14525/15717. My v5.11.14 misread the intent.
-          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name); } catch (_) {}
+          // v5.11.22a — pass ev.type ('in'/'out') so triggerAcceptCycleAnimation
+          // threads it through to the cel-text-overlay template.
+          try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name, ev.type); } catch (_) {}
         });
       }
     }
@@ -17630,14 +17632,16 @@ function triggerConfiguredCheckinSequence(mode, attendeeName, action) {
   }
 }
 
-function triggerAcceptCycleAnimation(attendeeName) {
+function triggerAcceptCycleAnimation(attendeeName, action) {
+  // v5.11.22a — accept an action parameter ('in' or 'out') so the
+  // cel-text-overlay template can show "checked out" on real checkout
+  // events. Previously hardcoded to 'in'. Captain's fullscreen smoke
+  // caught checkout still showing "checked in" because this function
+  // was the single bottleneck — every real check-in and check-out
+  // routes through here, but the action was never threaded through.
+  var resolvedAction = (action && String(action).toLowerCase() === 'out') ? 'out' : 'in';
   if (window.__irlidAcceptCycleActive) return;
   window.__irlidAcceptCycleActive = true;
-  // v5.11.12 / v5.11.13 — Play configured outcome sound for real check-in
-  // events. v5.11.12 wired the call here but playOutcomeTone is closure-
-  // scoped; v5.11.13 exposed it as window.playOutcomeTone at L7388 so the
-  // call below reaches the function. Previously only Sample button fired
-  // sound via fireSampleSequence; real check-ins were silent.
   try { if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone('allow'); } catch (_) {}
   const clearAcceptCycleGuard = function (delay) {
     setTimeout(function () { window.__irlidAcceptCycleActive = false; }, Math.max(0, delay || acceptCycleMs()));
@@ -17648,7 +17652,7 @@ function triggerAcceptCycleAnimation(attendeeName) {
       window.fireConfiguredSequence(configuredSeq, 'allow', v511ActiveCelebrationStage(), {
         theme: activeTheme,
         attendeeName: attendeeName,
-        action: 'in'
+        action: resolvedAction
       }).finally(function () { window.__irlidAcceptCycleActive = false; });
       return;
     } catch (err) {
