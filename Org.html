@@ -363,9 +363,10 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .v511-invite-modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .v511-invite-add:disabled { opacity: 0.45; cursor: not-allowed; }
 .v511-invite-add:not(:disabled) { border-color: rgba(126,231,135,0.8); background: var(--green, #7ee787); color: #06130a; }
-.v511-invite-qr-placeholder { width: 200px; height: 200px; margin: 12px auto; display: grid; place-items: center; background: #fff; color: #24292f; font-size: 12px; border: 1px solid #d0d7de; border-radius: 8px; }
-.v511-invite-qr-placeholder > div { text-align: center; line-height: 1.4; }
+.v511-invite-qr-box { width: 200px; min-height: 200px; margin: 12px auto; display: grid; place-items: center; background: #fff; color: #24292f; font-size: 12px; border: 1px solid #d0d7de; border-radius: 8px; padding: 10px; overflow-wrap: anywhere; }
+.v511-invite-qr-box > div { text-align: center; line-height: 1.4; }
 .v511-invite-qr-mark { width: 54px; height: 54px; margin: 0 auto 8px; display: grid; place-items: center; border: 2px solid #24292f; border-radius: 10px; font-weight: 800; }
+.v511-invite-token { margin-top: 8px; font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); overflow-wrap: anywhere; }
 .v511-invite-status { min-height: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .v511-invite-status.ok { color: var(--green); }
 .v511-invite-status.revoked { color: var(--orange); }
@@ -3272,7 +3273,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.22a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.23</span></div>
   </div>
 </div>
 
@@ -11320,7 +11321,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="v511-invite-modal-head">
       <div>
         <h3 id="v511InviteStaffTitle">Invite staff</h3>
-        <p id="v511InviteStaffIntro">Create a demo single-use invite for the Staff &amp; Rooms flow.</p>
+        <p id="v511InviteStaffIntro">Create a single-use invite for the Staff &amp; Rooms flow.</p>
       </div>
       <button type="button" class="v511-invite-modal-close" id="v511InviteStaffCloseBtn" aria-label="Close invite staff">&times;</button>
     </div>
@@ -11342,13 +11343,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
       </div>
     </div>
     <div id="v511InviteStaffOnboarding" hidden>
-      <div class="v511-invite-qr-placeholder" aria-hidden="true">
+      <div class="v511-invite-qr-box" id="v511InviteStaffQrBox">
         <div>
           <div class="v511-invite-qr-mark">QR</div>
           <div><strong>Single-use invite QR</strong></div>
-          <div style="opacity: 0.65; margin-top: 4px;">demo placeholder</div>
+          <div style="opacity: 0.65; margin-top: 4px;">Created after signing</div>
         </div>
       </div>
+      <div class="v511-invite-token" id="v511InviteStaffPayloadLine"></div>
       <div class="v511-invite-status ok" id="v511InviteStaffStatus"></div>
       <div class="v511-invite-modal-actions">
         <button type="button" class="v511-btn v511-btn-primary" id="v511InviteStaffDoneBtn">Done</button>
@@ -15762,12 +15764,29 @@ async function tryRedeemStaffInviteIfPending() {
   if (!__staffInvitePending || !qrLoginSession?.session_token) return false;
   const token = __staffInvitePending;
   try {
-    const res = await window.IRLidOrgApi.redeemInvite(qrLoginSession.session_token, token);
+    if (typeof irlidV5GetPublicJwk !== 'function' || typeof irlidPubFp !== 'function') {
+      throw new Error('Hardware-backed v5 credential required to redeem invite');
+    }
+    const pubJwk = irlidV5GetPublicJwk();
+    if (!pubJwk) throw new Error('Hardware-backed v5 credential required to redeem invite');
+    const pubFp = await irlidPubFp(pubJwk);
+    const res = await window.IRLidOrgApi.redeemInvite({
+      invite_payload: token,
+      new_device_pub_jwk: pubJwk,
+      new_device_pub_fp: pubFp
+    });
     __staffInvitePending = null;
     clearPendingStaffInvite();
-    if (res && res.org) {
+    if (res && res.ok) {
       showToast('Invite accepted');
-      await loadDashboardForOrg(res.org);
+      if (qrLoginSession?.session_token) {
+        const orgsResp = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
+        const org = (orgsResp.orgs || []).find(function (item) { return String(item.id) === String(res.org_id); });
+        if (org) {
+          await loadDashboardForOrg(org);
+          return true;
+        }
+      }
       return true;
     }
   } catch (err) {
@@ -16318,6 +16337,28 @@ function v511InviteStaffRoleOptions() {
   ];
 }
 let v511InviteStaffState = null;
+function v511InviteStaffEncodeToken(payload) {
+  if (typeof irlidEncodeJsonToB64url !== 'function') throw new Error('Invite encoder unavailable.');
+  return 'I:' + irlidEncodeJsonToB64url(payload);
+}
+function v511InviteStaffSetBusy(isBusy) {
+  ['v511InviteStaffAddBtn', 'v511InviteStaffRevokeBtn', 'v511InviteStaffDoneBtn'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !!isBusy;
+  });
+}
+function v511InviteStaffRenderQr(payload) {
+  const box = document.getElementById('v511InviteStaffQrBox');
+  const line = document.getElementById('v511InviteStaffPayloadLine');
+  if (line) line.textContent = payload || '';
+  if (!box) return;
+  box.innerHTML = '';
+  if (payload && typeof QRCode !== 'undefined') {
+    new QRCode(box, { text: payload, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    box.textContent = payload || 'QR unavailable';
+  }
+}
 function v511InviteStaffPopulateRoles(selectedRole) {
   const select = document.getElementById('v511InviteStaffRole');
   if (!select) return;
@@ -16342,6 +16383,8 @@ function openV511InviteStaffModal() {
   document.getElementById('v511InviteStaffForm').hidden = false;
   document.getElementById('v511InviteStaffOnboarding').hidden = true;
   document.getElementById('v511InviteStaffRevoked').hidden = true;
+  v511InviteStaffRenderQr('');
+  v511InviteStaffSetBusy(false);
   v511InviteStaffUpdateAddState();
   dialog.classList.remove('hidden');
   setTimeout(function () { document.getElementById('v511InviteStaffFirstName')?.focus(); }, 0);
@@ -16353,19 +16396,71 @@ function closeV511InviteStaffModal() {
   v511InviteStaffState = null;
   const status = document.getElementById('v511InviteStaffStatus');
   if (status) status.textContent = '';
+  v511InviteStaffRenderQr('');
+  v511InviteStaffSetBusy(false);
 }
-function startV511InviteStaffOnboarding() {
+async function startV511InviteStaffOnboarding() {
+  if (!currentOrg?.id || !qrLoginSession?.session_token) return showToast('Sign in with a Lead Admin or Developer session first', true);
+  if (typeof signActionPayload !== 'function') return showToast('Hardware-backed action signing unavailable', true);
   const firstName = (document.getElementById('v511InviteStaffFirstName')?.value || '').trim();
   const surname = (document.getElementById('v511InviteStaffSurname')?.value || '').trim();
   if (!firstName || !surname) return;
   const roleKey = document.getElementById('v511InviteStaffRole')?.value || 'staff';
   const role = v511InviteStaffRoleOptions().find(function (opt) { return opt.value === roleKey; }) || v511InviteStaffRoleOptions()[0];
-  v511InviteStaffState = { firstName: firstName, surname: surname, roleKey: role.value, roleLabel: role.label, appended: false };
+  const label = (firstName + ' ' + surname).trim();
+  const status = document.getElementById('v511InviteStaffStatus');
+  v511InviteStaffState = { firstName: firstName, surname: surname, roleKey: role.value, roleLabel: role.label, label, invite: null, revoked: false, appended: false };
   document.getElementById('v511InviteStaffForm').hidden = true;
   document.getElementById('v511InviteStaffOnboarding').hidden = false;
   document.getElementById('v511InviteStaffRevoked').hidden = true;
-  const status = document.getElementById('v511InviteStaffStatus');
-  if (status) status.textContent = 'Invite created for ' + firstName + ' ' + surname + ' — role: ' + role.label + '. Waiting for them to scan...';
+  v511InviteStaffRenderQr('');
+  if (status) {
+    status.className = 'v511-invite-status';
+    status.textContent = 'Touch your hardware credential to sign this invite...';
+  }
+  v511InviteStaffSetBusy(true);
+  try {
+    const expiryTs = Date.now() + (10 * 60 * 1000);
+    const issuerPub = irlidV5GetPublicJwk();
+    const issuerFp = await irlidPubFp(issuerPub);
+    const signed = await signActionPayload('irlid_invite_v5', currentOrg.id, {
+      org_id: currentOrg.id,
+      role: role.value,
+      label,
+      issuer_pub_fp: issuerFp,
+      expiry_ts: expiryTs
+    });
+    const invitePayload = Object.assign({}, signed.payload, {
+      issuer_pub_fp: issuerFp,
+      sig: signed.sig,
+      pub: signed.pub,
+      webauthn: signed.webauthn
+    });
+    const inviteToken = v511InviteStaffEncodeToken(invitePayload);
+    const res = await window.IRLidOrgApi.createInvite(qrLoginSession.session_token, {
+      org_id: currentOrg.id,
+      role: role.value,
+      label,
+      invite_payload: inviteToken,
+      expiry_ms: 10 * 60 * 1000
+    });
+    const qrPayload = res.invite_qr || inviteToken;
+    v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: res.nonce || signed.payload.nonce, expiry_ts: res.expiry_ts || expiryTs };
+    v511InviteStaffRenderQr(qrPayload);
+    if (status) {
+      status.className = 'v511-invite-status ok';
+      status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';
+    }
+  } catch (err) {
+    document.getElementById('v511InviteStaffForm').hidden = false;
+    document.getElementById('v511InviteStaffOnboarding').hidden = true;
+    const message = err?.data?.error || err?.message || 'Could not create invite';
+    showToast(message, true);
+    v511InviteStaffState = null;
+  } finally {
+    v511InviteStaffSetBusy(false);
+    v511InviteStaffUpdateAddState();
+  }
 }
 function addV511StaffRow(firstName, surname, roleKey) {
   const inviteBtn = document.getElementById('v511InviteStaffBtn');
@@ -16373,7 +16468,7 @@ function addV511StaffRow(firstName, surname, roleKey) {
   if (!insertBefore || !insertBefore.parentNode) return;
   const roleOptions = v511InviteStaffRoleOptions();
   const row = document.createElement('div');
-  row.className = 'v511-staff v511-invite-staff-demo-row';
+  row.className = 'v511-staff v511-invite-staff-row';
   const nameCell = document.createElement('div');
   nameCell.textContent = firstName + ' ' + surname;
   const roleCell = document.createElement('div');
@@ -16396,28 +16491,44 @@ function addV511StaffRow(firstName, surname, roleKey) {
   row.append(nameCell, roleCell, actionCell);
   insertBefore.parentNode.insertBefore(row, insertBefore);
 }
-function finishV511InviteStaffDemo() {
-  if (v511InviteStaffState && !v511InviteStaffState.appended) {
+function finishV511InviteStaffReal() {
+  if (v511InviteStaffState?.invite && !v511InviteStaffState.revoked && !v511InviteStaffState.appended) {
     addV511StaffRow(v511InviteStaffState.firstName, v511InviteStaffState.surname, v511InviteStaffState.roleKey);
     v511InviteStaffState.appended = true;
   }
   closeV511InviteStaffModal();
 }
-function revokeV511InviteStaffDemo() {
-  if (!v511InviteStaffState) return;
-  document.getElementById('v511InviteStaffOnboarding').hidden = true;
-  document.getElementById('v511InviteStaffRevoked').hidden = false;
-  const status = document.getElementById('v511InviteStaffRevokedStatus');
-  if (status) status.textContent = 'Invite for ' + v511InviteStaffState.firstName + ' ' + v511InviteStaffState.surname + ' revoked. Press Done to close this demo flow.';
+async function revokeV511InviteStaffReal() {
+  if (!v511InviteStaffState?.invite?.nonce || !currentOrg?.id || !qrLoginSession?.session_token) return;
+  v511InviteStaffSetBusy(true);
+  try {
+    await window.IRLidOrgApi.revokeInvite(qrLoginSession.session_token, {
+      org_id: currentOrg.id,
+      nonce: v511InviteStaffState.invite.nonce
+    });
+    v511InviteStaffState.revoked = true;
+    document.getElementById('v511InviteStaffOnboarding').hidden = true;
+    document.getElementById('v511InviteStaffRevoked').hidden = false;
+    const status = document.getElementById('v511InviteStaffRevokedStatus');
+    if (status) status.textContent = 'Invite for ' + v511InviteStaffState.label + ' revoked.';
+  } catch (err) {
+    const status = document.getElementById('v511InviteStaffStatus');
+    if (status) {
+      status.className = 'v511-invite-status revoked';
+      status.textContent = err?.data?.error || err?.message || 'Could not revoke invite';
+    }
+  } finally {
+    v511InviteStaffSetBusy(false);
+  }
 }
-function bindV511InviteStaffDemo() {
+function bindV511InviteStaffReal() {
   document.getElementById('v511InviteStaffBtn')?.addEventListener('click', openV511InviteStaffModal);
   document.getElementById('v511InviteStaffCloseBtn')?.addEventListener('click', closeV511InviteStaffModal);
   document.getElementById('v511InviteStaffCancelBtn')?.addEventListener('click', closeV511InviteStaffModal);
   document.getElementById('v511InviteStaffAddBtn')?.addEventListener('click', startV511InviteStaffOnboarding);
-  document.getElementById('v511InviteStaffDoneBtn')?.addEventListener('click', finishV511InviteStaffDemo);
-  document.getElementById('v511InviteStaffRevokedDoneBtn')?.addEventListener('click', finishV511InviteStaffDemo);
-  document.getElementById('v511InviteStaffRevokeBtn')?.addEventListener('click', revokeV511InviteStaffDemo);
+  document.getElementById('v511InviteStaffDoneBtn')?.addEventListener('click', finishV511InviteStaffReal);
+  document.getElementById('v511InviteStaffRevokedDoneBtn')?.addEventListener('click', finishV511InviteStaffReal);
+  document.getElementById('v511InviteStaffRevokeBtn')?.addEventListener('click', revokeV511InviteStaffReal);
   ['v511InviteStaffFirstName', 'v511InviteStaffSurname'].forEach(function (id) {
     document.getElementById(id)?.addEventListener('input', v511InviteStaffUpdateAddState);
   });
@@ -16558,7 +16669,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('inviteStaffCloseBtn')?.addEventListener('click', closeInviteStaffDialog);
   document.getElementById('inviteStaffCopyBtn')?.addEventListener('click', () => copyText(activeStaffInvite?.qr_payload || ''));
   document.getElementById('inviteStaffRevokeBtn')?.addEventListener('click', revokeActiveStaffInvite);
-  bindV511InviteStaffDemo();
+  bindV511InviteStaffReal();
   document.getElementById('staffHelloImageInput')?.addEventListener('change', (event) => {
     const file = event.target.files && event.target.files[0];
     setStaffHelloDialogStatus(file ? `Selected ${file.name}. Click Decode image.` : '');

@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v63'; // v5.11.22a - Thread action ('in'/'out') through triggerAcceptCycleAnimation so cel-text-overlay shows "checked out" on real checkout. The function signature changes from (attendeeName) to (attendeeName, action); polling handler at L13484 passes ev.type. Root cause of the "fullscreen still says checked in on checkout" bug Captain reported.
+const CACHE_VERSION = 'irlid-shell-v64'; // v5.11.23 - Wire v5.11 Invite Staff modal to real WebAuthn-signed Worker invites and redeem flow.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
