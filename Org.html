@@ -3273,7 +3273,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.23</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.23a</span></div>
   </div>
 </div>
 
@@ -5482,6 +5482,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         #venueQRWrap.v511-checkin-tab-stage.firing-deny .v511-cel-text-overlay,
         #venueQRWrap.v511-checkin-tab-stage.firing-review .v511-cel-text-overlay {
           opacity: 1;
+        }
+        /* v5.11.23a — Stage logo. Rendered above the banner text on all three
+           stage surfaces (Settings preview, inline clone, fullscreen clone).
+           Uses org's uploaded logo or falls back to IRLid logo.png.
+           Drop-shadow provides contrast on any palette background. */
+        :is(.v511-theme-preview-stage, .v511-runtime-stage) .v511-stage-logo {
+          position: relative;
+          z-index: 5;
+          max-width: clamp(48px, 8cqi, 80px);
+          max-height: clamp(48px, 8cqi, 80px);
+          object-fit: contain;
+          margin: 0 auto 0.5cqi;
+          display: block;
+          filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
         }
         /* v5.11.7 — Override .prototype-checkin overrides from L3160-3167 that
            conflict with the v511-theme-preview-stage layout. v5.11.6 added v511
@@ -15347,6 +15361,9 @@ function renderInlineCheckinClone(opts) {
   inlineWrap.setAttribute('aria-hidden', 'true');
   inlineWrap.parentNode.insertBefore(clone, inlineWrap);
 
+  // v5.11.23a — render org logo above the banner on the inline clone.
+  try { if (typeof renderLogoOnStage === 'function') renderLogoOnStage(clone); } catch (_) {}
+
   // v5.11.19a — replace the Settings-preview placeholder QR in the clone
   // with the actual venue QR (the one attendees scan). Every observer-fired
   // re-clone calls this so the real QR survives theme edits.
@@ -15387,6 +15404,37 @@ function renderRealVenueQrIntoInlineClone() {
   }
 }
 window.renderRealVenueQrIntoInlineClone = renderRealVenueQrIntoInlineClone;
+
+// v5.11.23a — Render the org logo (or IRLid default) above the banner text
+// on any stage surface. Captain: "default to IRLid logo (with contrast)" when
+// no custom logo uploaded. Logo position: above banner, centred (default).
+// The drop-shadow in CSS provides contrast against any palette background.
+function renderLogoOnStage(stage) {
+  if (!stage) return;
+  // Remove any prior logo to avoid duplicates on re-clone
+  var existing = stage.querySelector('.v511-stage-logo');
+  if (existing) existing.remove();
+  // Resolve logo URL — same fallback chain as fullscreen clone
+  var logoUrl = '';
+  try { logoUrl = (typeof settings !== 'undefined' && settings && settings.logoUrl) || ''; } catch (_) {}
+  if (!logoUrl) { try { logoUrl = (typeof portalState !== 'undefined' && portalState && portalState.logoUrl) || ''; } catch (_) {} }
+  logoUrl = (logoUrl || '').trim() || 'logo.png';
+  // Create the img element
+  var img = document.createElement('img');
+  img.className = 'v511-stage-logo';
+  img.src = logoUrl;
+  img.alt = 'Organisation logo';
+  img.setAttribute('aria-hidden', 'true');
+  // Insert BEFORE the banner element so it appears above it
+  var banner = stage.querySelector('.v511-theme-preview-banner');
+  if (banner) {
+    banner.parentNode.insertBefore(img, banner);
+  } else {
+    // No banner — append to stage
+    stage.appendChild(img);
+  }
+}
+window.renderLogoOnStage = renderLogoOnStage;
 
 function setupInlineCheckinCloneObserver() {
   const sourceStage = document.getElementById('v511ThemePreviewStage');
@@ -17901,6 +17949,15 @@ async function loadThemeFromServer() {
     applyThemeVars(activeTheme);
     applyV511BackgroundToHostStages(activeTheme);
     if (typeof window.v511ApplyThemeToVisualMockup === 'function') window.v511ApplyThemeToVisualMockup(t);
+    // v5.11.23a — Set the Settings preview banner to the real org name +
+    // render the org logo above it. Re-applied (originally v5.11.21a, lost
+    // in git reset). All clones inherit via MutationObserver re-clone.
+    try {
+      var orgName = (currentOrg && currentOrg.name) || 'Event Check-in';
+      var previewBanner = document.querySelector('#v511ThemePreviewStage .v511-theme-preview-banner');
+      if (previewBanner) previewBanner.textContent = orgName;
+      if (typeof renderLogoOnStage === 'function') renderLogoOnStage(document.getElementById('v511ThemePreviewStage'));
+    } catch (_) {}
     await saveCurrentOrgSnapshot('theme-refresh');
   } catch (err) {
     const snap = await loadCurrentOrgSnapshot();

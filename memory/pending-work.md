@@ -1,5 +1,20 @@
 # Pending Work — IRLid
 
+## Wednesday 27 May 2026 — watch close (~16:30 BST)
+
+**Final state:** `v5.11.23a` on working tree (logo on Check-in surface + banner text from org name). v5.11.23 (real Invite Staff with WebAuthn) merged on origin as PR #58. Mr. Data's v5.12.0 reorg brief (`HANDOVER-VisualThemingReorg-v5.12.0.md`) + updated mockup (`visual-theming-v512-mockup.html` Rev 3) both in repo. Repo cleaned: 19 HANDOVERs archived, dead `scrollCalToNow()` removed, stale branches deleted from origin (local refs stuck on OneDrive lock — cosmetic). Promotion-round-2 draft ready at `PROMOTION-ROUND-2-DRAFT-2026-05-27.md`.
+
+**Next watch priorities:**
+1. **Push v5.11.23a** (logo + banner text fix on working tree — not yet committed/pushed)
+2. **Fire Mr. Data on v5.12.0** when his weekly resets (Sat 3:00 AM) — brief + mockup ready in repo
+3. **Hardware-test v5.11.23 invite redemption** (steps 6-11 of the smoke — needs two real devices)
+4. **Patreon post** — draft ready, Captain to rewrite in own voice + screenshot
+5. **Wisdom re-engagement email** — draft ready
+6. **Roadmap update** — two-line split (Consumer + Orgs) identified but not yet implemented in roadmap.html
+7. **v5.11.22 save-eventually brief** at `HANDOVER-SaveEventuallyFix-v5.11.22.md` — paste-ready
+
+---
+
 ## Wednesday 27 May 2026 — R&R pause (~11:00 BST → return ~14:00 BST)
 
 **Watch state at pause:** Captain called R&R until ~2pm BST. Morning was an extraordinary stretch — six versions shipped (`v5.11.16` → `v5.11.19b` Check-in tab arc + `v5.11.20a` checkout text hotfix), Mr. Data's PR #54 (`v5.11.17` Invite Staff demo) and PR #55 (`v5.11.20` Settings polish trio) both merged clean. Captain's verdict at pause: *"we're just about demo ready :D"*.
