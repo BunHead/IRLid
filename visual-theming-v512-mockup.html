@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Theming v5.12 — Reorganisation Mockup (Rev 2 — Captain feedback applied)</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --surface2: #1c2129; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #7ee787; --orange: #d29922; --red: #f85149; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 20px; max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 4px; margin-left: 8px; }
+  .badge-mockup { background: rgba(210,153,34,0.18); color: var(--orange); }
+  .badge-current { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+  /* Preview stage */
+  .preview-frame { width: 100%; height: 280px; border-radius: 10px; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; background: linear-gradient(135deg, #dc143c 0%, #8b0000 30%, #ff6b6b 60%, #ffb347 100%); }
+  .preview-banner { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); text-align: center; }
+  .preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 8px; display: grid; place-items: center; font-size: 11px; color: #333; }
+  .preview-label { position: absolute; top: 10px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.6); }
+
+  /* Sections */
+  .section { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  .section-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; background: var(--surface); user-select: none; }
+  .section-header:hover { background: var(--surface2); }
+  .section-header h3 { font-size: 14px; font-weight: 600; flex: 1; }
+  .section-number { width: 24px; height: 24px; border-radius: 50%; background: rgba(88,166,255,0.15); color: var(--accent); display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .section-body { padding: 16px 18px; display: none; border-top: 1px solid var(--line); background: var(--bg); }
+  .section.open .section-body { display: block; }
+  .section-header .arrow { transition: transform 0.2s; font-size: 12px; color: var(--muted); }
+  .section.open .section-header .arrow { transform: rotate(90deg); }
+
+  /* Rows */
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 0; flex-wrap: wrap; }
+  .row label { width: 140px; flex-shrink: 0; font-size: 13px; color: var(--muted); }
+  .row input[type="text"], .row input[type="url"], .row select, .row textarea { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px; }
+  .row textarea { min-height: 60px; resize: vertical; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; cursor: pointer; background: var(--surface); color: var(--text); user-select: none; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .toggle-row label { font-size: 13px; color: var(--text); font-weight: 500; }
+  .toggle { width: 36px; height: 20px; border-radius: 10px; background: var(--line); position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+  .toggle.on { background: var(--green); }
+  .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+  .toggle.on::after { left: 18px; }
+
+  /* Palette swatches */
+  .palette-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .swatch { width: 32px; height: 32px; border-radius: 6px; border: 2px solid var(--line); cursor: pointer; }
+  .swatch:hover { border-color: var(--accent); }
+  .add-swatch { width: 32px; height: 32px; border-radius: 6px; border: 2px dashed var(--line); display: grid; place-items: center; font-size: 16px; color: var(--muted); cursor: pointer; }
+
+  /* Sub-section */
+  .sub { font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .sub:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+  /* Sequence builder placeholder */
+  .sequence-placeholder { min-height: 120px; border: 2px dashed var(--line); border-radius: 8px; display: grid; place-items: center; color: var(--muted); font-size: 13px; margin: 8px 0; padding: 16px; text-align: center; }
+
+  /* Comparison */
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .comparison > div { padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+  .comparison h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .comparison ul { padding-left: 18px; font-size: 12px; color: var(--muted); line-height: 1.8; }
+  @media (max-width: 700px) { .comparison { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span></h1>
+<p class="subtitle">Proposed reorganisation of the Visual Theming Settings panel into 5 logical sections. Click any section header to expand. This file is a standalone demo — it does NOT touch the live site.</p>
+
+<div class="comparison">
+  <div>
+    <h4 style="color: var(--muted);">Current (v5.11.21) — organic growth order</h4>
+    <ul>
+      <li>Background (palette + cycle motion)</li>
+      <li>Banner styling (NEW — font toggle)</li>
+      <li>Pattern overlay</li>
+      <li>Image overlay</li>
+      <li>QR customization (mixes QR colour + celebration palette + effects)</li>
+      <li>Post-accept behaviour (mixes welcome message + celebration sequence + sound)</li>
+    </ul>
+  </div>
+  <div>
+    <h4 style="color: var(--green);">Proposed (v5.12) — human-thinking order</h4>
+    <ul>
+      <li><strong>1. Brand identity</strong> — banner text, font, logo</li>
+      <li><strong>2. Colour &amp; background</strong> — palette, pattern, image, light/dark</li>
+      <li><strong>3. QR appearance</strong> — foreground colour, motion style</li>
+      <li><strong>4. Check-in/out Experience</strong> — palette, sequence builder, text template, sound (mode picker = Accept/Review/Deny)</li>
+      <li><strong>5. Post-Accept Flow</strong> — welcome message, redirect, dwell time</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Preview stage (static demo) -->
+<div class="preview-frame">
+  <div class="preview-label">Live preview</div>
+  <div class="preview-banner" id="demoBanner">Your Event Name</div>
+  <div class="preview-qr">QR</div>
+</div>
+
+<!-- SECTION 1: Brand Identity -->
+<div class="section open">
+  <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="section-number">1</div>
+    <h3>Brand Identity <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">banner text, global font, logo</span></h3>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <label>Banner text</label>
+      <input type="text" value="{org} — {event}" placeholder="{org}, {event}, {room} placeholders" oninput="document.getElementById('demoBanner').textContent = this.value.replace('{org}','Yoga Studio').replace('{event}','Morning Flow').replace('{room}','Studio 1')" />
+    </div>
+    <div class="hint" style="margin-left: 152px; margin-bottom: 12px;">Placeholders: <code>{org}</code> = org name, <code>{event}</code> = current event name, <code>{room}</code> = room/studio name. Default: <code>{org}</code></div>
+
+    <div class="sub">Font</div>
+    <div class="hint" style="margin-bottom: 8px;">One font setting — applies globally to the banner, outcome text overlay, and welcome message display. Set once here, all surfaces follow.</div>
+    <div class="toggle-row">
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      <label>Customise font</label>
+      <span style="font-size: 11px; color: var(--muted);">(off = browser default)</span>
+    </div>
+    <div class="row"><label>Font</label><div class="chips"><span class="chip">sans</span><span class="chip">serif</span><span class="chip">mono</span><span class="chip">display</span><span class="chip">bebas</span><span class="chip">oswald</span><span class="chip active">pacifico</span><span class="chip">caveat</span><span class="chip">marker</span><span class="chip">playfair</span><span class="chip">lobster</span><span class="chip">inter</span><span class="chip">montserrat</span></div></div>
+    <div class="row"><label>Weight</label><div class="chips"><span class="chip">light</span><span class="chip">regular</span><span class="chip active">bold</span><span class="chip">black</span></div></div>
+    <div class="row"><label>Italic</label><div class="chips"><span class="chip active">off</span><span class="chip">on</span></div></div>
+    <div class="row"><label>Spacing</label><div class="chips"><span class="chip">tight</span><span class="chip active">normal</span><span class="chip">loose</span><span class="chip">wide</span></div></div>
+    <div class="row"><label>Colour</label><div class="chips"><span class="chip active">white</span><span class="chip">warm</span><span class="chip">palette-1</span><span class="chip">palette-2</span><span class="chip">palette-3</span></div></div>
+    <div class="row"><label>Shadow</label><div class="chips"><span class="chip">off</span><span class="chip active">soft</span><span class="chip">strong</span></div></div>
+
+    <div class="sub">Logo</div>
+    <div class="row">
+      <label>Logo image</label>
+      <button style="padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">Upload logo</button>
+      <span style="font-size: 11px; color: var(--muted); margin-left: 8px;">PNG / SVG / JPEG, ≤ 200 KB</span>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: Colour & Background -->
+<div class="section">
+  <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="section-number">2</div>
+    <h3>Colour &amp; Background <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">palette, pattern, image, light/dark mode</span></h3>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <label>Light/dark mode</label>
+      <select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select>
+    </div>
+
+    <div class="sub">Background palette</div>
+    <div class="hint">Up to 7 colours. One swatch = solid. Two or more = cycle animation.</div>
+    <div class="palette-row" style="margin-top: 8px;">
+      <div class="swatch" style="background: #dc143c;"></div>
+      <div class="swatch" style="background: #8b0000;"></div>
+      <div class="swatch" style="background: #ff6b6b;"></div>
+      <div class="swatch" style="background: #ffb347;"></div>
+      <div class="add-swatch">+</div>
+    </div>
+    <div class="row" style="margin-top: 12px;"><label>Cycle direction</label><div class="chips"><span class="chip active">forward</span><span class="chip">reverse</span><span class="chip">bounce</span></div></div>
+    <div class="row"><label>Cycle duration</label><input type="text" value="8s" style="max-width: 80px;" /></div>
+
+    <div class="sub">Pattern overlay</div>
+    <div class="toggle-row">
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      <label>Enable pattern</label>
+    </div>
+    <div class="row"><label>Pattern style</label><div class="chips"><span class="chip active">dots</span><span class="chip">hex</span><span class="chip">diagonal</span><span class="chip">checker</span><span class="chip">grid</span><span class="chip">weave</span><span class="chip">chevron</span><span class="chip">isometric</span></div></div>
+
+    <div class="sub">Image overlay</div>
+    <div class="toggle-row">
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      <label>Enable background image</label>
+    </div>
+    <div class="row"><label>Image</label><button style="padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">Upload image</button><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">≤ 200 KB</span></div>
+    <div class="row"><label>Position</label><div class="chips"><span class="chip">position grid</span><span class="chip active">tile</span><span class="chip">cover</span></div></div>
+    <div class="row"><label>Symmetry</label><div class="chips"><span class="chip active">none</span><span class="chip">horizontal</span><span class="chip">vertical</span><span class="chip">quad</span></div></div>
+    <div class="row"><label>Scale</label><input type="range" min="10" max="150" value="100" style="flex: 1;" /></div>
+  </div>
+</div>
+
+<!-- SECTION 3: QR Appearance -->
+<div class="section">
+  <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="section-number">3</div>
+    <h3>QR Appearance <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">foreground colour, scan-time motion + direction</span></h3>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="section-body">
+    <div class="row"><label>QR foreground</label><input type="color" value="#000000" style="width: 40px; height: 32px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer;" /><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">WCAG 4.5:1 contrast against white enforced</span></div>
+    <div class="row"><label>QR motion</label><div class="chips"><span class="chip active">wobble</span><span class="chip">zoom in</span><span class="chip">zoom out</span><span class="chip">rotate CW</span><span class="chip">rotate CCW</span><span class="chip">dissolve</span><span class="chip">pixel dissolve</span><span class="chip">block dissolve</span><span class="chip">bounce</span><span class="chip">fade</span><span class="chip">flip X</span><span class="chip">flip Y</span><span class="chip">glitch</span><span class="chip">spiral</span><span class="chip">none</span></div></div>
+    <div class="row"><label>Motion direction</label>
+      <div style="display: grid; grid-template-columns: repeat(3, 36px); gap: 3px;">
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↖</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↑</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↗</div>
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">←</div><div class="chip active" style="text-align:center; padding: 6px 0; font-size: 10px;">●</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">→</div>
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↙</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↓</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↘</div>
+      </div>
+      <span style="font-size: 11px; color: var(--muted); margin-left: 10px;">Origin/direction for dissolve, zoom, bounce, flip. Centre = default radial.</span>
+    </div>
+    <div class="hint" style="margin-left: 152px;">Motion plays during the outcome sequence. Direction grid applies to dissolve, zoom, bounce, flip, spiral. Rotate + wobble ignore direction (always centre-axis). "None" = QR stays static.</div>
+  </div>
+</div>
+
+<!-- SECTION 4: Check-in/out Experience -->
+<div class="section">
+  <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="section-number">4</div>
+    <h3>Check-in/out Experience <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">effects, text, palette, sound — mode picker selects Accept/Review/Deny</span></h3>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="section-body">
+    <div class="row">
+      <label>Active mode</label>
+      <select style="max-width: 160px;"><option selected>✓ Allow</option><option>? Review</option><option>× Deny</option></select>
+      <button style="padding: 6px 14px; border: 1px solid var(--green); border-radius: 6px; background: rgba(126,231,135,0.1); color: var(--green); cursor: pointer; font-weight: 600;">▶ Sample</button>
+      <span style="font-size: 11px; color: var(--muted);">Settings below apply to the active mode. Switch mode to edit a different outcome.</span>
+    </div>
+
+    <div class="sub">Outcome Palette</div>
+    <div class="hint">Colours used by outcome effects (glow, pulse, pattern flash). Separate from background palette.</div>
+    <div class="palette-row" style="margin-top: 8px;">
+      <div class="swatch" style="background: #7ee787;"></div>
+      <div class="swatch" style="background: #3fb950;"></div>
+      <div class="swatch" style="background: #238636;"></div>
+      <div class="add-swatch">+</div>
+    </div>
+
+    <div class="sub">Effect Sequence</div>
+    <div class="hint">Drag effects from the library into the sequence. They play top-to-bottom on each scan outcome. Each effect has its own duration + settings.</div>
+    <div class="sequence-placeholder">
+      <div>
+        <div style="font-weight: 600; margin-bottom: 6px;">Sequence builder</div>
+        <div>Library: Pulse · Background · QR motion · Glow · Pattern · Text · Confetti · Sparkles · Stream · Spotlight · Camera flash · Shake · Iris wipe · Ripple · Flame · Glitch</div>
+        <div style="margin-top: 8px; font-size: 11px;">(existing sequence builder — relocated from old "Accept behaviour" expander, internals unchanged)</div>
+      </div>
+    </div>
+
+    <div class="sub">Text Template</div>
+    <div class="row">
+      <label>Text template</label>
+      <input type="text" value="{name} — {verb}" placeholder="{name}, {verb}, {action}, {Action}, {Verb}" />
+    </div>
+    <div class="hint" style="margin-left: 152px;">Placeholders: <code>{name}</code> = attendee, <code>{verb}</code> = "checked in"/"checked out", <code>{action}</code> = "in"/"out". Preview: <strong style="color: var(--green);">Kerry — checked in</strong></div>
+    <div class="row"><label>Quick presets</label><div class="chips"><span class="chip">welcome</span><span class="chip">name</span><span class="chip active">name + action</span></div></div>
+    <div class="row"><label>Text position</label>
+      <div style="display: grid; grid-template-columns: repeat(3, 36px); gap: 3px;">
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TL</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TR</div>
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">ML</div><div class="chip active" style="text-align:center; padding: 6px 0; font-size: 10px;">MC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">MR</div>
+        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BL</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BR</div>
+      </div>
+      <span style="font-size: 11px; color: var(--muted); margin-left: 10px;">9-position grid</span>
+    </div>
+
+    <div class="sub">Outcome Sound</div>
+    <div class="toggle-row">
+      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      <label>Play sound on outcome</label>
+    </div>
+    <div class="row"><label>Check-in sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">allow.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 4px;">Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
+    <div class="row"><label>Check-out sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">checkout.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 4px;">Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
+  </div>
+</div>
+
+<!-- SECTION 5: Post-Accept Flow -->
+<div class="section">
+  <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
+    <div class="section-number">5</div>
+    <h3>Post-Accept Flow <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">welcome message, redirect, dwell time</span></h3>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="section-body">
+    <div class="row"><label>Welcome message</label><textarea placeholder="Welcome to the venue! Your class starts in 10 minutes."></textarea></div>
+    <div class="hint" style="margin-left: 152px;">Supports <code>{name}</code>, <code>{event}</code>, <code>{room}</code> placeholders. Shown on the attendee's phone after check-in.</div>
+    <div class="row"><label>Post-accept redirect</label><input type="url" placeholder="https://example.com/welcome" /></div>
+    <div class="row"><label>Staff redirect</label><input type="url" placeholder="https://example.com/staff-page" /></div>
+    <div class="row"><label>Dwell time</label><select><option>3 seconds</option><option selected>5 seconds</option><option>7 seconds</option><option>10 seconds</option></select><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">How long the celebration plays before redirecting</span></div>
+    <div class="row"><label>Check-out grace</label><input type="text" value="60 minutes" style="max-width: 120px;" /></div>
+
+    <div class="sub">Smart receptionist mode <span class="badge badge-mockup">v5.12+</span></div>
+    <div class="toggle-row">
+      <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      <label>Auto-route by Expected list</label>
+      <span style="font-size: 11px; color: var(--muted);">(single QR at entrance → system resolves event + room from attendance data)</span>
+    </div>
+    <div class="hint">When enabled with multiple concurrent events: attendees scan ONE venue QR at the front door. The system checks all active events' Expected lists, finds the match, and routes them. Post-accept message shows: "Welcome, {name}! You're in {room} for {event}." If multiple matches: attendee picks from a list on their phone.</div>
+  </div>
+</div>
+
+<div style="margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);">
+  <h4 style="font-size: 13px; margin-bottom: 8px;">Design notes for Captain</h4>
+  <ul style="font-size: 12px; color: var(--muted); line-height: 1.8; padding-left: 18px;">
+    <li><strong>Section 1 (Brand identity)</strong> is NEW — consolidates banner text + font + logo from scattered locations. Banner text template with <code>{org}</code> / <code>{event}</code> / <code>{room}</code> makes the "Test Event — Theme Demo" problem go away permanently.</li>
+    <li><strong>Section 2 (Colour &amp; background)</strong> folds the current Background + Pattern overlay + Image overlay expanders into one section. Sub-headers instead of three separate expanders.</li>
+    <li><strong>Section 3 (QR appearance)</strong> is EXTRACTED from the current "QR customization" expander which bundled QR colour with celebration palette. QR is its own thing.</li>
+    <li><strong>Section 4 (Celebrations)</strong> is the HEAVIEST section — all the creative-fun stuff. Celebration palette (separated from QR colour), sequence builder (relocated from "Accept behaviour" expander), text template (new from v5.11.21), sound. Mode picker stays at the top.</li>
+    <li><strong>Section 5 (Post-accept flow)</strong> is EXTRACTED from the old "Accept behaviour" expander. Welcome message + redirect + dwell time are "what happens after" — they shouldn't live mixed with celebration effects. Smart receptionist toggle is future-work (v5.12+).</li>
+    <li><strong>Org tab slimmed</strong> — logo upload + description tagline migrate to Visual Theming → Brand Identity. Org tab keeps: Display name, Slug, Website URL, Contact email, Org terms/disclaimer, Brand polish &amp; contact info expander. Lean admin surface — set once, rarely revisit.</li>
+    <li><strong>No new data shapes</strong> — the reorganisation is UI reshuffling only. All existing <code>theme._v511.*</code> persistence stays the same. The only new key is <code>theme.bannerText</code> (the template string, e.g. <code>"{org} — {event}"</code>).</li>
+    <li><strong>No Worker changes</strong> — same <code>POST /org/settings</code> round-trip.</li>
+  </ul>
+</div>
+
+<script>
+// Make chips clickable (visual demo only)
+document.querySelectorAll('.chips').forEach(function(group) {
+  group.querySelectorAll('.chip').forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+    });
+  });
+});
+</script>
+</body>
+</html>

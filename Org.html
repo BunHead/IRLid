@@ -6758,9 +6758,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function positionNowLine() {
             if (typeof v511WeeklyRenderAll === 'function') v511WeeklyRenderAll();
           }
-          function scrollCalToNow() {
-            if (typeof v511WeeklyJumpToNow === 'function') v511WeeklyJumpToNow();
-          }
+          // v5.11.22a repo cleanup — scrollCalToNow() removed (dead function,
+          // defined but never called; v511WeeklyJumpToNow is called directly).
           // T4.3.56 - Weekly calendar renderer lives in localStorage only.
           (function initV511WeeklyCalendar() {
             var LIVE_EVENTS_KEY_REMOVED = 'v511_live_weekly_events_placeholder';
