@@ -3256,7 +3256,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.15</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.16</span></div>
   </div>
 </div>
 
@@ -8344,19 +8344,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             opts = opts || {};
             return fireConfiguredSequence(sequence, opts.mode || 'allow', opts.stage, opts);
           };
-          function fireSampleSequence(outcome) {
-            v511ClearCelClasses(sampleStage);
-            sampleStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
-            void sampleStage.offsetWidth;
-            sampleStage.classList.add('firing-' + outcome);
+          function fireSampleSequence(outcome, customStage) {
+            // v5.11.16 — accept an optional customStage so the new inline
+            // Check-in tab clone (#v511InlineCheckinStage) can fire the
+            // sample sequence on itself when Captain clicks it. The default
+            // remains the Settings preview stage (sampleStage), so existing
+            // Sample button behaviour is untouched. modeStates is still
+            // read from closure scope; we only redirect the firing target.
+            var targetStage = customStage || sampleStage;
+            v511ClearCelClasses(targetStage);
+            targetStage.classList.remove('firing-allow', 'firing-review', 'firing-deny');
+            void targetStage.offsetWidth;
+            targetStage.classList.add('firing-' + outcome);
             try { playOutcomeTone(outcome); } catch (e) {}
             var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
-            return fireConfiguredSequence(seq, outcome, sampleStage, {
+            return fireConfiguredSequence(seq, outcome, targetStage, {
               theme: activeTheme,
               attendeeName: 'Kerry',
               action: outcome === 'deny' ? 'out' : 'in'
             });
           }
+          // v5.11.16 — expose for the inline Check-in tab clone's click handler.
+          window.fireSampleSequence = fireSampleSequence;
           if (sampleBtn && samplePicker && sampleStage) {
             sampleBtn.addEventListener('click', function () {
               var outcome = samplePicker.value;
@@ -14759,6 +14768,140 @@ function fullscreenQR() {
     clone.requestFullscreen().catch(function(){ /* fallback: clone is already full-viewport-styled */ });
   }
 }
+
+// v5.11.16 — Inline Check-in tab clone of the Settings preview frame.
+//
+// Captain's directive after twenty-six versions of state-mirroring failed to
+// land effects visibly on the Check-in tab: "copy it line by line again from
+// settings. That works!!! 100% duplication of the Settings inline frame, to
+// the check-in inline frame, even want the click function to persist
+// (temporarily), so when it lands, I don't have to do a true checkin/out to
+// get it to fire. Even take the fake QR, just want it to transfer over and
+// have it work."
+//
+// Strategy mirrors v5.11.5 fullscreen clone, but for inline:
+//   1. Clone the live #v511ThemePreviewStage DOM verbatim.
+//   2. Insert as a sibling immediately BEFORE #venueQRWrap in the Check-in tab.
+//   3. Hide #venueQRWrap (display:none) so existing code that references it
+//      (theme application, QR generation, mode toggles) keeps working on the
+//      hidden element while the visible UI is the clone.
+//   4. MutationObserver on the source stage re-clones on any change, so the
+//      inline view stays 1:1 with the Settings preview without state mirroring.
+//   5. Click handler on the clone fires fireSampleSequence with the current
+//      mode-picker value, targeting the clone itself — Captain's "temporary
+//      click function" so he can test celebrations without a real check-in.
+//   6. The fake QR placeholder transfers across automatically because we're
+//      cloning the source verbatim (Captain: "Even take the fake QR").
+//
+// Real check-ins also target this clone via v511ActiveCelebrationStage below.
+function renderInlineCheckinClone(opts) {
+  opts = opts || {};
+  const sourceStage = document.getElementById('v511ThemePreviewStage');
+  if (!sourceStage) return null;
+
+  const inlineWrap = document.getElementById('venueQRWrap');
+  if (!inlineWrap || !inlineWrap.parentNode) return null;
+
+  const existing = document.getElementById('v511InlineCheckinStage');
+
+  // Don't clobber an in-flight celebration. The clone has its own firing-*
+  // state; tearing it down mid-animation would visibly cut the celebration.
+  // applyV511BackgroundToHostStages mutates sampleStage on theme changes, which
+  // would otherwise trigger re-clone mid-firing. Skip until firing settles.
+  if (existing && !opts.force) {
+    if (existing.classList.contains('firing-allow') ||
+        existing.classList.contains('firing-review') ||
+        existing.classList.contains('firing-deny')) {
+      return existing;
+    }
+  }
+
+  // Remove existing clone before re-clone (avoid duplicate-id collisions).
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+  const clone = sourceStage.cloneNode(true);
+  clone.id = 'v511InlineCheckinStage';
+  clone.classList.add('v511-runtime-stage', 'v511-checkin-tab-stage');
+
+  // Rename inner IDs to avoid duplicates (mirrors the fullscreenQR pattern).
+  Array.from(clone.querySelectorAll('[id]')).forEach(function(el) {
+    el.id = el.id + 'CheckinInline';
+  });
+
+  // Captain's "temporary click function" — clicking the inline clone fires
+  // the celebration sample on the clone itself, using the current Sample
+  // mode picker value. Mirrors the fullscreen single-click pattern at the
+  // Settings preview (line 9090 sampleStage click handler) so Captain can
+  // test celebration visuals without going through a real check-in/out.
+  // Suppressed if a fullscreen element is active (the fullscreen clone
+  // handles its own clicks; the inline clone is underneath and shouldn't
+  // double-fire).
+  clone.style.cursor = 'pointer';
+  clone.setAttribute('title', 'Click to fire celebration sample — v5.11.16 temporary affordance');
+  clone.addEventListener('click', function(e) {
+    if (document.fullscreenElement) return;
+    if (typeof window.fireSampleSequence !== 'function') return;
+    const picker = document.getElementById('v511SamplePicker');
+    const mode = (picker && picker.value) || 'allow';
+    window.fireSampleSequence(mode, clone);
+  });
+
+  // Insert clone immediately before the legacy #venueQRWrap and hide the wrap.
+  // Hiding (not removing) means all existing references to #venueQRWrap stay
+  // valid for code that hasn't been refactored to point at the clone.
+  inlineWrap.style.display = 'none';
+  inlineWrap.parentNode.insertBefore(clone, inlineWrap);
+
+  return clone;
+}
+window.renderInlineCheckinClone = renderInlineCheckinClone;
+
+function setupInlineCheckinCloneObserver() {
+  const sourceStage = document.getElementById('v511ThemePreviewStage');
+  if (!sourceStage) return;
+  if (sourceStage.__v511InlineCloneObserverAttached) return;
+  sourceStage.__v511InlineCloneObserverAttached = true;
+
+  // Debounce via rAF so a flurry of attribute changes during applyV511 results
+  // in a single re-clone, not one per mutation.
+  let pending = false;
+  const schedule = function() {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(function() {
+      pending = false;
+      renderInlineCheckinClone();
+    });
+  };
+
+  const observer = new MutationObserver(function(mutations) {
+    // Don't re-clone for transient firing-* class flips on the source stage.
+    // Sample button mutates sampleStage's firing-* class; the inline clone has
+    // its own independent firing-* state driven by its own click handler.
+    // Mirroring sampleStage's firing-* into the clone would cancel an in-
+    // flight inline celebration whenever Captain hits Sample on Settings.
+    const onlyFiringClassChange = mutations.length > 0 && mutations.every(function(m) {
+      if (m.type !== 'attributes' || m.attributeName !== 'class') return false;
+      const oldClasses = (m.oldValue || '').split(/\s+/).filter(Boolean);
+      const newClasses = Array.from(sourceStage.classList);
+      const diff = oldClasses.filter(function(c) { return newClasses.indexOf(c) < 0; })
+        .concat(newClasses.filter(function(c) { return oldClasses.indexOf(c) < 0; }));
+      return diff.length > 0 && diff.every(function(c) { return /^firing-(allow|review|deny)$/.test(c); });
+    });
+    if (onlyFiringClassChange) return;
+    schedule();
+  });
+
+  observer.observe(sourceStage, {
+    attributes: true,
+    attributeOldValue: true,
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+}
+window.setupInlineCheckinCloneObserver = setupInlineCheckinCloneObserver;
+
 function normalizeFullscreenQr(qrTarget) {
   qrTarget.querySelectorAll('canvas, img').forEach((node) => {
     const isHiddenCanvas = node.tagName === 'CANVAS' && getComputedStyle(node).display === 'none';
@@ -16743,6 +16886,13 @@ function v511ActiveCelebrationStage() {
   if (fullscreenOverlay && document.fullscreenElement === fullscreenOverlay) {
     return fullscreenOverlay.querySelector('.irlid-qr-fullscreen-holder');
   }
+  // v5.11.16 — inline Check-in tab clone of the Settings preview frame.
+  // Real check-ins (triggerAcceptCycleAnimation, triggerDenyCycleAnimation)
+  // route here when no fullscreen is active. The clone IS a copy of the
+  // working sampleStage so all celebration CSS applies natively, with no
+  // state-mirroring complexity.
+  const inlineClone = document.getElementById('v511InlineCheckinStage');
+  if (inlineClone) return inlineClone;
   return document.getElementById('venueQRWrap') || (fullscreenOverlay && fullscreenOverlay.querySelector('.irlid-qr-fullscreen-holder'));
 }
 
@@ -17399,6 +17549,28 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     };
     tryLoad();
+
+    // v5.11.16 — Initialise the inline Check-in tab clone of the Settings
+    // preview frame. The v5.11 Tier 1 IIFE has already created and wired
+    // sampleStage (#v511ThemePreviewStage) by the time we reach this deferred
+    // boot block, so we can clone safely. Retry briefly if it isn't there
+    // yet (covers slow init on older devices). Observer keeps the clone in
+    // sync with the source on every subsequent change.
+    let cloneAttempts = 0;
+    const tryCloneInit = function () {
+      if (document.getElementById('v511ThemePreviewStage')) {
+        try { renderInlineCheckinClone(); } catch (err) { console.warn('[v5.11.16] inline clone init failed:', err); }
+        try { setupInlineCheckinCloneObserver(); } catch (err) { console.warn('[v5.11.16] inline clone observer setup failed:', err); }
+        return;
+      }
+      if (cloneAttempts < 20) {
+        cloneAttempts++;
+        setTimeout(tryCloneInit, 200);
+      } else {
+        console.warn('[v5.11.16] Settings preview stage never appeared; inline clone skipped');
+      }
+    };
+    tryCloneInit();
   }, 50);
 });
 // =================== /THEMING — Batch 6.5 ===================

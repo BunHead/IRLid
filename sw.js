@@ -12,7 +12,7 @@
 // this any time HTML/JS changes need to be guaranteed-fresh on phones.
 // Also: switched HTML strategy to network-first below so this manual
 // bump is the *backstop*, not the only path to a fresh shell.
-const CACHE_VERSION = 'irlid-shell-v51'; // v5.11.15 — REVERT v5.11.14 conditional dispatch. Captain clarified intent: in/out both fire allow ("Checkout isn't deny and don't remember ever saying that, in/out should be accept :)"). v5.11.14 misread architectural intent. "deny" mode is for REJECTION scenarios (not-on-expected-list, doorman rejected), called from L14525/15717 directly. Polling handler reverted to always triggerAcceptCycleAnimation regardless of ev.type. Original code intent restored.
+const CACHE_VERSION = 'irlid-shell-v52'; // v5.11.16 — 100% clone of Settings preview frame (#v511ThemePreviewStage) into the inline Check-in tab as #v511InlineCheckinStage. Captain's directive after 26 versions of state-mirroring failed to land effects visibly: "copy it line by line again from settings. That works!!!" Strategy mirrors v5.11.5 fullscreen pattern — cloneNode(true) on the live sampleStage, insert as sibling before #venueQRWrap (hidden), MutationObserver re-clones on any source change (debounced via rAF, skips transient firing-* class flips), click handler fires fireSampleSequence on the clone using current mode picker value (Captain's temporary affordance for click-to-test without real check-in). v511ActiveCelebrationStage updated to prefer the inline clone for real check-ins when no fullscreen is active. fireSampleSequence exposed on window with optional customStage param.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
