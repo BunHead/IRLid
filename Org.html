@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.19a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.19b</span></div>
   </div>
 </div>
 
@@ -13063,11 +13063,21 @@ function showCheckinEventToast(name, action, opts) {
   // mode contains a text effect. The cel-text-overlay element renders the
   // attendee name with proper styling; firing both at once = duplicate
   // text bubble visual pollution (Captain's smoke surfaced it).
+  // v5.11.19b — Two fixes after Captain's checkout-pill leak smoke:
+  //   1. Mode mapping: 'out' was reading the 'deny' sequence and missing
+  //      because per v5.11.15 in/out both fire 'allow'. Use 'allow' for both.
+  //      The 'deny' mode is reserved for REJECTION scenarios (not-on-expected-
+  //      list, doorman rejected) which call triggerDenyCycleAnimation directly,
+  //      not this toast.
+  //   2. Strengthening per Captain's earlier directive: "any v511 sequence
+  //      configured suppresses the legacy toast". Drop the text-effect-only
+  //      gate so the legacy pill stops firing whenever a v511 celebration is
+  //      configured at all — the v511 cel-text-overlay renders the name.
   try {
-    var v511mode = action === 'out' ? 'deny' : 'allow';
+    var v511mode = 'allow';
     var v511seq = (typeof activeTheme !== 'undefined' && activeTheme && activeTheme._v511 && activeTheme._v511.celebration) ? activeTheme._v511.celebration[v511mode] : null;
-    if (v511seq && Array.isArray(v511seq) && v511seq.some(function (item) { return item && item.effect === 'text'; })) {
-      console.log('[checkin-toast] suppressed; v511 text effect configured for', v511mode);
+    if (v511seq && Array.isArray(v511seq) && v511seq.length > 0) {
+      console.log('[checkin-toast] suppressed; v511 sequence configured for', v511mode, '(action was', action + ')');
       return;
     }
   } catch (_) { /* defensive — fall through to legacy toast */ }

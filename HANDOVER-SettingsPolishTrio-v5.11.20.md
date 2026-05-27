@@ -4,7 +4,7 @@
 **Type:** UI + light Worker round-trip. **No D1 schema changes. No new endpoints.** Three independent Settings polish items Captain surfaced after the v5.11.19 Check-in tab smoke.
 **Live file:** `D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\Org.html` (+ minimal touch to `js/orgapi.js` only if needed for Role Vocab; do not touch Worker source unless absolutely necessary)
 **Target build pill:** `v5.11.20`
-**SW cache bump:** `irlid-shell-v57 → v58` (current is `v57` after v5.11.19a; if v57 isn't on origin yet, use v58 anyway — cache bumps are monotonic and one accidental skip is harmless)
+**SW cache bump:** `irlid-shell-v58 → v59` (current is `v58` after v5.11.19b; if `v58` isn't on origin yet, use `v59` anyway — cache bumps are monotonic and one accidental skip is harmless)
 **Parallel work:** None — Number One is in a holding pattern for follow-up polish on the Check-in tab. Pull `origin/main` immediately before starting AND immediately before pushing.
 
 ---
