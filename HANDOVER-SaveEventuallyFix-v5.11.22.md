@@ -1,10 +1,10 @@
-# HANDOVER — `v5.11.21` — Fix Settings save "works eventually" race
+# HANDOVER — `v5.11.22` — Fix Settings save "works eventually" race
 
 **Owner:** Whoever picks it up next — small, isolated, can be Number One inline or Mr. Data
 **Type:** Worker change + tiny client tweak. **No D1 schema change, no new endpoints.**
-**Target build pill:** `v5.11.21` (after `v5.11.20` Mr. Data Settings polish trio merges)
+**Target build pill:** `v5.11.22` (after `v5.11.20` Mr. Data Settings polish trio merges)
 **SW cache bump:** monotonic — read current state of `sw.js` line 15 before bumping
-**Gating:** Wait for v5.11.20 to land on origin/main; this builds on top.
+**Gating:** Wait for v5.11.20 + v5.11.21 to land on origin/main; this builds on top. (Renumbered from v5.11.21 → v5.11.22 on 27 May to clear the v5.11.21 slot for Captain's higher-priority celebration text + banner font Settings UI work.)
 
 ---
 
@@ -57,7 +57,7 @@ Change to return the persisted blob:
 await env.DB.prepare("UPDATE organisations SET settings_json = ? WHERE id = ?")
   .bind(JSON.stringify(newSettings), orgId)
   .run();
-// v5.11.21 — Echo the persisted settings in the response so the client can
+// v5.11.22 — Echo the persisted settings in the response so the client can
 // merge directly without a separate readback GET. Eliminates the save-
 // eventually race where the readback GET could hit a D1 edge node that
 // hadn't yet seen the UPDATE commit.
@@ -85,13 +85,13 @@ activeTheme = { ...activeTheme, ...fresh.theme };
 To:
 
 ```javascript
-// v5.11.21 — Worker POST now echoes the persisted theme; skip the readback
+// v5.11.22 — Worker POST now echoes the persisted theme; skip the readback
 // GET to eliminate the save-eventually race.
 const postResp = await api.post('/org/settings', payload);
 if (postResp && postResp.theme) {
   activeTheme = { ...activeTheme, ...postResp.theme };
 } else {
-  // Defensive fallback for pre-v5.11.21 Worker (shouldn't happen post-deploy,
+  // Defensive fallback for pre-v5.11.22 Worker (shouldn't happen post-deploy,
   // but covers a Pages-deploys-faster-than-Worker race during rollout).
   const fresh = await api.get('/org/settings');
   if (fresh && fresh.theme) activeTheme = { ...activeTheme, ...fresh.theme };

@@ -3272,7 +3272,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.20</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.20a</span></div>
   </div>
 </div>
 
@@ -7622,17 +7622,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // the text overlay. Template chips wrap the message:
               //   welcome      → message verbatim
               //   name         → "Welcome, Kerry!" (uses message as the welcome word)
-              //   name+action  → "Kerry — checked in"
+              //   name+action  → "Kerry — checked in" / "Kerry — checked out"
+              // v5.11.20a — action-aware. Previously the name+action template
+              // hardcoded "checked in" regardless of direction; Captain's smoke
+              // caught the checkout case still showing "checked in". Now reads
+              // stage._v511Action (set by v511EnsureRuntimeStage from
+              // opts.action) and pluralises accordingly.
               var ms = modeStates[currentMode] || {};
               var liveMsg = (document.getElementById('v511PaWelcome') || {}).value;
               var baseMsg = (typeof liveMsg === 'string' && liveMsg.length ? liveMsg : (ms.v511PaWelcome || 'Welcome back!'));
               var tmpl = s.template || 'welcome';
+              var runtimeAction = (stage._v511Action || 'in').toLowerCase() === 'out' ? 'out' : 'in';
+              var actionPhrase = 'checked ' + runtimeAction;
               var finalText;
               if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Kerry!';
-              else if (tmpl === 'name + action') finalText = 'Kerry — checked in';
+              else if (tmpl === 'name + action') finalText = 'Kerry — ' + actionPhrase;
               else                                finalText = baseMsg;
               var runtimeName = (stage._v511AttendeeName || '').trim();
-              if (runtimeName) finalText = tmpl === 'welcome' ? baseMsg : (tmpl === 'name' ? baseMsg.replace(/[.!?]\s*$/, '') + ', ' + runtimeName + '!' : runtimeName + ' — checked in');
+              if (runtimeName) finalText = tmpl === 'welcome' ? baseMsg : (tmpl === 'name' ? baseMsg.replace(/[.!?]\s*$/, '') + ', ' + runtimeName + '!' : runtimeName + ' — ' + actionPhrase);
               var overlay = stage.querySelector('.v511-cel-text-overlay');
               if (overlay) overlay.textContent = finalText;
             }
@@ -8422,6 +8429,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var palette = Array.isArray(theme.palette) && theme.palette.length ? theme.palette : ['#58a6ff'];
             for (var i = 1; i <= 7; i++) stage.style.setProperty('--cel-pal-' + i, palette[i - 1] || palette[0]);
             if (opts && opts.attendeeName) stage._v511AttendeeName = String(opts.attendeeName);
+            // v5.11.20a — also store the action ('in' or 'out') so the text-
+            // effect template can pluralise "checked in" vs "checked out"
+            // correctly on real check-in/out events. Previously hardcoded to
+            // "checked in" regardless of direction (Captain's smoke caught it
+            // on his own checkout: text overlay said "Spencer Austin — checked
+            // in" when he'd actually checked out).
+            if (opts && opts.action) stage._v511Action = String(opts.action);
             return stage;
           }
           function fireConfiguredSequence(sequence, mode, stage, opts) {
