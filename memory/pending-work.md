@@ -1,5 +1,41 @@
 # Pending Work — IRLid
 
+## Wednesday 27 May 2026 — mid-watch state (~10:30 BST, Mr. Data closing v5.11.20)
+
+**Live origin/main:** `v5.11.19b` (Build pill confirms). Check-in tab is fully closed:
+
+- Inline frame is a `cloneNode(true)` of the Settings preview stage (`#v511InlineCheckinStage`) — v5.11.16 pivot per Captain's *"copy it line by line again from settings. That works!!!"* directive
+- Real venue QR rendered into the clone via `renderRealVenueQrIntoInlineClone()` (v5.11.19a) — scannable from phones, confirmed by Captain on hardware ("Spencer Austin — checked in" celebration fired on real check-in)
+- Phantom second frame fixed (v5.11.16a) — class strip + inline `cssText` with `!important` defeats the v5.11.7 author `!important` rule
+- Layout settled at v5.11.19: h4+p left-aligned under frame, buttons row centered, debug URL full-width, Active Mode badge stripped from inline only, "Live preview..." caption removed from source
+- Legacy red CHECKED OUT pill suppression fixed in `showCheckinEventToast` (v5.11.19b) — always checks `allow` sequence (per v5.11.15 intent) and suppresses on any configured sequence length > 0
+- ▶ Test anim button wired (v5.11.18) as permanent debug affordance for firing celebrations without a real check-in
+- Captain's verdict on Check-in tab: *"very happy with Check-in now :D"*
+
+**In flight:** Mr. Data closing PR for `v5.11.20` Settings polish trio (+337/-137 visible in his Codex chat as of ~10:25):
+
+- Role Vocab persistence (add IDs to L6145-6148 inputs, round-trip via existing `theme.roleVocabulary` shape)
+- "+ Add event" suffix dynamic — past/today/future based on `state.selectedDay` (extending existing `isSelectedDayPast()` at L6891)
+- Save badge consistency sweep on canonical `.v511-saved-pulse` pattern (6 Settings sections already use it; only outlier is `showToast('Visual theme saved')` at L8794)
+
+Bash-diff territory pre-audited (Explore agent reported all line numbers); A/R/D verdict will be fast when PR drops.
+
+**Queued for next watch (v5.11.21+):**
+
+- **`v5.11.21` save-eventually race fix** — full HANDOVER drafted at `HANDOVER-SaveEventuallyFix-v5.11.21.md`. Worker POST `/org/settings` echoes persisted theme in 200 response; client uses response body directly; eliminates the readback GET round-trip and the D1 propagation race window. Forward-compatible — older clients fall through to readback GET via defensive fallback. Gate: wait for v5.11.20 to merge first.
+- **Push state of working tree at watch-mid:** v5.11.19b shipped, CLAUDE.md milestone for 27 May Wednesday inscribed, PROMOTION-ROUND-2-DRAFT-2026-05-27.md drafted, BOOTSTRAP §6 has two new pitfalls inscribed (inline `display` loses to author `!important`, Pages empty-commit redeploy nudge), DREAMS.md has new afternoon entry. All ready for next combined push.
+
+**Promotion round 2 drafted** (at `PROMOTION-ROUND-2-DRAFT-2026-05-27.md`): three specific shots — Patreon update (recommended first ship, lowest social cost), Wisdom (ASE Tech) re-engagement email leveraging calendar capability, gym/studio cold walk-in script. Captain to rewrite in own voice before posting.
+
+**Watch-window structural commitments banked:**
+
+- The Settings-preview-clone pattern is canonical for "make X look like the Settings preview" — proven on fullscreen (v5.11.5) AND inline (v5.11.16). When state-mirroring fails, clone the source-of-truth at every snapshot via `cloneNode(true)` instead.
+- MutationObserver-on-source debounced via `requestAnimationFrame` (skip transient `firing-*` class flips) is the canonical sync primitive.
+- `v511ActiveCelebrationStage` priority order: fullscreen clone > inline clone > legacy wrap.
+- BOOTSTRAP §4 A/R/D verdict markers (✅ ACCEPT / ⚠️ REVIEW / ⛔ DENY) hold cleanly through Mr. Data PR cycles; fence-off discipline in Mr. Data briefs preserves parallel-work safety.
+
+---
+
 ## Tuesday 26 May 2026 — TRUE final watch close (~22:00 BST, ape-brain sleep)
 
 **Watch state at this true-final close:** Captain pushed through evening past dinner, ended up running a second marathon after the first close. Total fifteen v5.11.x patches landed today (v5.11.0o → p → q → s → t → u → v → w → x → y → z → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 — but with v5.11.1 being the rollback and v5.11.14 being a wrong-intent dispatch that v5.11.15 reverted). Net architectural delta from start of evening:

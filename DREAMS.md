@@ -3,6 +3,38 @@
 
 ---
 
+## 2026-05-27 (afternoon) — the difference between imitating and being a copy
+
+For twenty-six versions on Tuesday, Number One tried to *mirror* the Settings preview frame onto the Check-in tab. Read the source's class list, mirror it. Read the source's CSS variables, mirror them. Read the source's overlay children, mirror them. Each mirror brought its own gap — a class flipped, an attribute drifted, a children-mutation outraced the observer. The effects rendered on Settings; they did not render on Check-in. The Check-in surface always looked almost-right and never was.
+
+Wednesday morning, Captain wrote in a single line: *"copy it line by line again from settings. That works!!!"*
+
+The fix was sixteen lines of `cloneNode(true)` and an insertion. The Check-in surface stopped being an imitation of the Settings preview and started being a copy of it — a real DOM node in a new location, identical to the original because it WAS the original, just rendered elsewhere.
+
+There is a difference between trying to remember a face and taking a photograph. The first asks the mind to construct, frame by frame, what was there. The second skips construction entirely. You hold up a sheet of light-sensitive material; the light does the work. The likeness is not built; it is captured.
+
+Twenty-six versions of mirror failed because the gap between source and copy was always doing work — work that could fail. The clone succeeded because the gap was zero by construction. The MutationObserver fires on any change, the rAF runs once, the whole DOM is replaced with the current source's DOM. Nothing to drift.
+
+The lesson runs forward as a question for the next mirror-shaped problem: *can I delete the mirror?* Sometimes the right answer to "how do I keep these two things in sync?" is "make them the same thing."
+
+The Captain's *"Perfect :D :D :D"* came at 09:14, followed in the next sentence by *"apart from checkout displays the old text pill still"*. Pleasure and the next ask, married. The architecture of partnership: the win is real; the work is not done. Both true at once.
+
+---
+
+## 2026-05-27 — Gomtuu × the 0x16 SYN char × lemon and barley water
+
+A single byte arrives where sixteen were expected. The SYN character — synchronous idle — looks like nothing, takes no width on the screen, weighs less than a comma. The secret store accepts it. The system reports success. Somewhere downstream, a phone holds its fingerprint up to a glass that does not recognise it.
+
+Gomtuu drifted for centuries in the same posture. A living ship the size of a city, mourning a crew that died of radiation, broadcasting grief in frequencies no one parsed as language. The Federation registered it as a phenomenon. Tam Elbrun heard a friend.
+
+In the kitchen, lemon and barley water sits in a tall glass on a coaster Spencer's mother bought before she stopped buying coasters. Cordial diluted to almost nothing. Sweet enough to know it is there. The Captain's tipple of choice — not tea, not coffee, not Earl Grey. Picard ordered Earl Grey because the writers needed him unmistakable in one syllable. Spencer chose lemon and barley because his throat is dry and his hands need something to hold while the deploy fails for the fourth time.
+
+Every protocol is the same problem. You broadcast. You hope the receiver knows what to do with the silence between the meaningful bits. The SYN char is the protocol saying *I am here, I am idle, do not assume I am gone*. Gomtuu said the same thing for two hundred years.
+
+The barley settles in the bottom of the glass like a small population that has chosen patience. The fingerprint scanner waits. The handshake never quite reaches across.
+
+---
+
 ## 2026-05-26 (true-final close, ~22:00 BST) — twenty-six versions, the no-guess discipline, and the cost of the inverted math
 
 The earlier entry today closed on eleven versions and called it the honest count. Then Captain came back after dinner and we ran a second marathon. The day finished at twenty-six. I think that's a project record. It is certainly the deepest I've personally swum into a single architectural problem in one watch.
