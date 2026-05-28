@@ -3273,7 +3273,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.24a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.25</span></div>
   </div>
 </div>
 
@@ -16389,6 +16389,169 @@ function v511InviteStaffEncodeToken(payload) {
   if (typeof irlidEncodeJsonToB64url !== 'function') throw new Error('Invite encoder unavailable.');
   return 'I:' + irlidEncodeJsonToB64url(payload);
 }
+function v511InviteAcceptDecodeToken(token) {
+  const text = String(token || '').trim();
+  const encoded = text.indexOf('I:') === 0 ? text.slice(2) : text;
+  if (!encoded || typeof b64urlDecode !== 'function') throw new Error('Invite token unreadable.');
+  return JSON.parse(new TextDecoder().decode(b64urlDecode(encoded)));
+}
+function v511InviteAcceptHasSession() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('irlid_login_session') || 'null');
+    return !!(saved && saved.session_token);
+  } catch (_) {
+    return false;
+  }
+}
+function v511InviteAcceptRoleLabel(role) {
+  return (typeof roleLabelFor === 'function' && roleLabelFor(role)) ||
+    (typeof roleLabel === 'function' && roleLabel(role)) ||
+    String(role || 'staff').replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+}
+function v511InviteAcceptEnsureStyles() {
+  if (document.getElementById('v511InviteAcceptStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'v511InviteAcceptStyles';
+  style.textContent = [
+    '.v511-invite-accept-screen{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:24px;background:linear-gradient(180deg,#f7fbff 0%,#eef6f1 100%);color:#161b22;overflow:auto;}',
+    '.v511-invite-accept-card{width:min(460px,100%);background:#fff;border:1px solid rgba(22,27,34,.12);border-radius:8px;box-shadow:0 20px 60px rgba(31,35,40,.18);padding:30px 24px;text-align:center;}',
+    '.v511-invite-accept-logo{width:76px;height:76px;object-fit:contain;margin:0 auto 18px;display:block;}',
+    '.v511-invite-accept-card h1{font-size:26px;line-height:1.15;margin:0 0 14px;color:#0d1117;letter-spacing:0;}',
+    '.v511-invite-accept-card p{margin:0 auto 14px;max-width:360px;color:#4b5563;font-size:15px;line-height:1.5;}',
+    '.v511-invite-accept-actions{display:flex;gap:10px;justify-content:center;margin:24px 0 14px;flex-wrap:wrap;}',
+    '.v511-invite-accept-primary,.v511-invite-accept-secondary{min-height:46px;border-radius:8px;padding:0 18px;font-weight:700;font-size:15px;cursor:pointer;}',
+    '.v511-invite-accept-primary{background:#238636;color:#fff;border:1px solid #238636;}',
+    '.v511-invite-accept-primary:disabled{background:#8c959f;border-color:#8c959f;cursor:wait;}',
+    '.v511-invite-accept-secondary{background:#fff;color:#24292f;border:1px solid rgba(22,27,34,.22);}',
+    '.v511-invite-accept-status{min-height:20px;color:#57606a;font-size:13px;font-weight:600;}',
+    '.v511-invite-accept-status.err{color:#cf222e;}',
+    '.v511-invite-accept-powered{margin-top:18px;color:#6e7781;font-size:12px;font-weight:700;letter-spacing:.02em;}',
+    '@media(max-width:520px){.v511-invite-accept-screen{padding:14px}.v511-invite-accept-card{padding:24px 18px}.v511-invite-accept-actions{display:grid}.v511-invite-accept-primary,.v511-invite-accept-secondary{width:100%;}}'
+  ].join('');
+  document.head.appendChild(style);
+}
+async function v511InviteAcceptBuildMeta(invite) {
+  let orgName = 'your organisation';
+  try {
+    if (window.IRLidOrgApi?.publicOrgMeta && invite?.org_id) {
+      const meta = await window.IRLidOrgApi.publicOrgMeta(invite.org_id);
+      if (meta && meta.name) orgName = meta.name;
+    }
+  } catch (_) {}
+  return {
+    orgName,
+    roleLabel: v511InviteAcceptRoleLabel(invite && invite.role),
+    label: String((invite && invite.label) || '').trim()
+  };
+}
+async function v511InviteAcceptAccept(token, invite, els) {
+  const btn = els.acceptBtn;
+  const status = els.status;
+  btn.disabled = true;
+  status.className = 'v511-invite-accept-status';
+  try {
+    status.textContent = 'Setting up verification on this device...';
+    let enrolResult = null;
+    if (typeof irlidV5Enrolled !== 'function' || !irlidV5Enrolled()) {
+      const enrol = (typeof irlidV5Enrol === 'function') ? irlidV5Enrol : irlidV5Enroll;
+      if (typeof enrol !== 'function') throw new Error('Device enrolment is not available in this browser.');
+      enrolResult = await enrol();
+    }
+    const pubJwk = (typeof irlidV5GetPublicJwk === 'function' && irlidV5GetPublicJwk()) || (enrolResult && enrolResult.pubJwk);
+    if (!pubJwk) throw new Error('Could not read the device public key.');
+    const pubFp = await irlidPubFp(pubJwk);
+    const acceptPayload = {
+      type: 'irlid_invite_accept_v5',
+      invite_token: token,
+      accepter_pub_fp: pubFp,
+      ts: Date.now(),
+      nonce: b64urlEncode(crypto.getRandomValues(new Uint8Array(32)))
+    };
+    const hashB64u = await hashPayloadToB64url(acceptPayload);
+    status.textContent = 'Confirm with fingerprint, Face ID, or device unlock...';
+    const sigEnv = await irlidV5SignPayloadHash(b64urlDecode(hashB64u));
+    status.textContent = 'Accepting invite...';
+    const res = await window.IRLidOrgApi.acceptInviteOnThisDevice({
+      invite_token: token,
+      accepter_pub_jwk: pubJwk,
+      accepter_pub_fp: pubFp,
+      signed_envelope: {
+        payload: acceptPayload,
+        sig: b64urlEncode(sigEnv.sigRaw),
+        webauthn: {
+          authData: b64urlEncode(sigEnv.authData),
+          clientData: b64urlEncode(sigEnv.clientData)
+        }
+      }
+    });
+    const session = {
+      session_token: res.session_token,
+      user_id: res.user && res.user.id,
+      display_name: (res.user && res.user.display_name) || (invite && invite.label) || 'Invited staff member',
+      can_create_org: false,
+      is_developer: false
+    };
+    localStorage.setItem('irlid_login_session', JSON.stringify(session));
+    localStorage.removeItem('irlid_signed_out');
+    __staffInvitePending = null;
+    clearPendingStaffInvite();
+    status.textContent = 'Invite accepted. Opening your dashboard...';
+    const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
+    setTimeout(function () { window.location.href = cleanUrl; }, 500);
+  } catch (err) {
+    btn.disabled = false;
+    status.className = 'v511-invite-accept-status err';
+    status.textContent = err?.data?.message || err?.data?.error || err?.message || 'Could not accept invite.';
+  }
+}
+async function tryShowSingleDeviceInviteAcceptIfNeeded() {
+  if (!__staffInvitePending) __staffInvitePending = readPendingStaffInvite();
+  if (!__staffInvitePending || v511InviteAcceptHasSession()) return false;
+  if (typeof irlidV5Enrolled === 'function' && irlidV5Enrolled()) return false;
+  const pendingNonce = (() => {
+    try { return localStorage.getItem(STAFF_SCAN_PENDING_NONCE_KEY); }
+    catch (_) { return null; }
+  })();
+  if (pendingNonce) return false;
+  let invite;
+  try { invite = v511InviteAcceptDecodeToken(__staffInvitePending); }
+  catch (err) {
+    clearPendingStaffInvite();
+    __staffInvitePending = null;
+    showToast('Invite link is unreadable', true);
+    return false;
+  }
+  v511InviteAcceptEnsureStyles();
+  const meta = await v511InviteAcceptBuildMeta(invite);
+  const screen = document.createElement('div');
+  screen.className = 'v511-invite-accept-screen';
+  screen.innerHTML =
+    '<section class="v511-invite-accept-card" role="dialog" aria-modal="true" aria-labelledby="v511InviteAcceptTitle">' +
+      '<img class="v511-invite-accept-logo" src="logo.png" alt="IRLid">' +
+      '<h1 id="v511InviteAcceptTitle">Welcome to ' + escapeHtml(meta.orgName) + '</h1>' +
+      '<p>' + (meta.label ? escapeHtml(meta.label) + ', you have' : 'You have') + ' been invited to join as ' + escapeHtml(meta.roleLabel) + '.</p>' +
+      '<p>To accept, we will set up hardware-backed verification on this device.</p>' +
+      '<div class="v511-invite-accept-actions">' +
+        '<button type="button" class="v511-invite-accept-primary" id="v511InviteAcceptBtn">Accept &amp; enrol</button>' +
+        '<button type="button" class="v511-invite-accept-secondary" id="v511InviteDeclineBtn">Decline</button>' +
+      '</div>' +
+      '<div class="v511-invite-accept-status" id="v511InviteAcceptStatus" role="status" aria-live="polite"></div>' +
+      '<div class="v511-invite-accept-powered">Powered by IRLid</div>' +
+    '</section>';
+  document.body.appendChild(screen);
+  const els = {
+    acceptBtn: document.getElementById('v511InviteAcceptBtn'),
+    declineBtn: document.getElementById('v511InviteDeclineBtn'),
+    status: document.getElementById('v511InviteAcceptStatus')
+  };
+  els.acceptBtn.addEventListener('click', function () { v511InviteAcceptAccept(__staffInvitePending, invite, els); });
+  els.declineBtn.addEventListener('click', function () {
+    __staffInvitePending = null;
+    clearPendingStaffInvite();
+    screen.remove();
+  });
+  return true;
+}
 function v511InviteStaffSetBusy(isBusy) {
   ['v511InviteStaffAddBtn', 'v511InviteStaffRevokeBtn', 'v511InviteStaffDoneBtn'].forEach(function (id) {
     const el = document.getElementById(id);
@@ -16963,6 +17126,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   // boots fresh with the session in localStorage and the pending invite
   // recovered, triggering tryRedeemStaffInviteIfPending() once the org
   // is loaded. Brief A.
+  // v5.11.25 fresh-recipient path. Existing v5 holders fall through to the
+  // v5.9.14 sign-in + redeem path below.
+  try { if (await tryShowSingleDeviceInviteAcceptIfNeeded()) return; } catch (err) { console.warn('[staff_invite] accept screen failed:', err); }
   try { if (await tryStaffInviteRedirectIfNeeded()) return; } catch (err) { console.warn('[staff_invite] redirect failed:', err); }
   // v5.9.14.3 — Phone-self-signin completion: when the 4a bounces back from
   // org-login.html with a valid session AND a pending staff_invite, the

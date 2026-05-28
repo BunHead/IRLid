@@ -1544,6 +1544,108 @@ async function orgInviteRedeem(request, env) {
   return json({ ok: true, org_id: invite.org_id, role: invite.role, member_id: user.id });
 }
 
+async function orgInviteAcceptOnThisDevice(request, env) {
+  let body; try { body = await request.json(); } catch { return inviteJsonError("invalid_json", "Invalid JSON.", 400); }
+  const inviteToken = String(body.invite_token || body.invite_payload || body.invite_qr || "").trim();
+  let payload;
+  try { payload = decodeInvitePayload(inviteToken); }
+  catch (_) { return inviteJsonError("invite_payload_required", "Invite payload is required.", 400); }
+  const invite = inviteUnsignedPayload(payload);
+  if (invite.role === "lead_admin" || invite.role === "developer") {
+    return inviteJsonError("lead_admin_invite_deferred", "Lead Admin and Developer invites are deferred.", 400);
+  }
+  const role = inviteRole(invite.role);
+  if (!role) return inviteJsonError("invalid_invite_role", "Invite role must be staff or manager.", 400);
+
+  let issuer;
+  try { issuer = await verifyInvitePayloadSignature(env, payload); }
+  catch (_) { issuer = null; }
+  if (!issuer) return inviteJsonError("invite_bad_signature", "Invite signature could not be verified.", 400);
+  if (issuer.role !== "lead_admin" && issuer.role !== "developer") {
+    return inviteJsonError("issuer_role_revoked", "The invite issuer no longer has authority for this organisation.", 403);
+  }
+
+  const row = await env.DB.prepare(
+    "SELECT * FROM org_invites WHERE nonce = ? AND org_id = ? LIMIT 1"
+  ).bind(invite.nonce, invite.org_id).first();
+  if (!row) return inviteJsonError("invite_unknown", "Invite was not found.", 404);
+  if (row.status === "claimed" || row.status === "redeemed") return inviteJsonError("invite_already_claimed", "Invite has already been claimed.", 409);
+  if (row.status === "revoked") return inviteJsonError("invite_revoked", "Invite has been revoked.", 410);
+  if (row.status !== "pending") return inviteJsonError("invite_not_pending", "Invite is no longer pending.", 409);
+
+  const tMs = Date.now();
+  if (Number(row.expiry_ts) <= tMs || Number(invite.expiry_ts) <= tMs) {
+    await env.DB.prepare("UPDATE org_invites SET status='expired' WHERE nonce=? AND status='pending'").bind(invite.nonce).run();
+    return inviteJsonError("invite_expired", "Invite has expired.", 410);
+  }
+
+  const pubJwk = body.accepter_pub_jwk;
+  const pubFp = String(body.accepter_pub_fp || "").trim();
+  if (!pubJwk || !pubFp) return inviteJsonError("device_key_required", "Accepter public key and fingerprint are required.", 400);
+  const computedFp = await deviceKeyFp(pubJwk);
+  if (computedFp !== pubFp) return inviteJsonError("device_fp_mismatch", "Device fingerprint does not match the public key.", 400);
+
+  const existingUser = await env.DB.prepare("SELECT id FROM portal_users WHERE pub_fp = ? LIMIT 1").bind(pubFp).first();
+  if (existingUser) return inviteJsonError("device_already_enrolled", "This device is already enrolled.", 409);
+
+  const envelope = body.signed_envelope || {};
+  const acceptPayload = envelope.payload || {};
+  if (acceptPayload.type !== "irlid_invite_accept_v5") {
+    return inviteJsonError("invalid_accept_envelope", "Acceptance envelope type is invalid.", 400);
+  }
+  if (String(acceptPayload.invite_token || "") !== inviteToken || String(acceptPayload.accepter_pub_fp || "") !== pubFp) {
+    return inviteJsonError("invalid_accept_envelope", "Acceptance envelope does not match this invite and device.", 400);
+  }
+  if (!acceptPayload.nonce || String(acceptPayload.nonce).length < 16) {
+    return inviteJsonError("invalid_accept_envelope", "Acceptance nonce is missing.", 400);
+  }
+  const acceptTs = Number(acceptPayload.ts || acceptPayload.timestamp || 0);
+  if (!Number.isFinite(acceptTs) || Math.abs(tMs - acceptTs) > 5 * 60 * 1000) {
+    return inviteJsonError("invalid_accept_envelope", "Acceptance timestamp is invalid.", 400);
+  }
+  try {
+    await verifyV5Envelope(acceptPayload, pubJwk, envelope.sig, envelope.webauthn);
+  } catch (_) {
+    return inviteJsonError("accept_bad_signature", "Acceptance signature could not be verified.", 400);
+  }
+
+  const userId = randomToken().slice(0, 26);
+  const sessionToken = randomToken();
+  const t = now();
+  const displayName = String(invite.label || "Invited staff member").trim().slice(0, 120) || "Invited staff member";
+  const ipHash = await hashIp(request);
+  const ua = (request.headers.get("user-agent") || "").slice(0, 256);
+
+  let results;
+  try {
+    results = await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+      ).bind(userId, JSON.stringify(pubJwk), pubFp, displayName, t, t, invite.nonce, invite.org_id),
+      env.DB.prepare(
+        "INSERT INTO org_memberships (user_id,org_id,role,granted_by,granted_at,created_via) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+      ).bind(userId, invite.org_id, role, issuer.id, t, "invite:" + invite.nonce, invite.nonce, invite.org_id),
+      env.DB.prepare(
+        "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+      ).bind(sessionToken, userId, t, t + LOGIN_SESSION_TTL_S, ipHash, ua, invite.nonce, invite.org_id),
+      env.DB.prepare(
+        "UPDATE org_invites SET status='claimed', redeemed_by_fp=?, redeemed_ts=? WHERE nonce=? AND org_id=? AND status='pending'"
+      ).bind(pubFp, tMs, invite.nonce, invite.org_id)
+    ]);
+  } catch (_) {
+    return inviteJsonError("invite_accept_failed", "Invite acceptance could not be completed.", 409);
+  }
+  const claimed = (results && results[3] && results[3].meta && results[3].meta.changes) || 0;
+  if (claimed < 1) return inviteJsonError("invite_already_claimed", "Invite has already been claimed.", 409);
+
+  return json({
+    ok: true,
+    session_token: sessionToken,
+    user: { id: userId, display_name: displayName, pub_fp: pubFp },
+    membership: { user_id: userId, org_id: invite.org_id, role }
+  });
+}
+
 async function orgInviteRevoke(request, env) {
   let body; try { body = await request.json(); } catch { return inviteJsonError("invalid_json", "Invalid JSON.", 400); }
   const orgId = String(body.org_id || body.orgId || "").trim();
@@ -3768,6 +3870,7 @@ export default {
       else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
       else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
       else if (method === "POST" && path === "/org/invites/revoke")  response = await orgInviteRevoke(request, env);
+      else if (method === "POST" && path === "/org/invite/accept-on-this-device") response = await orgInviteAcceptOnThisDevice(request, env);
       else if (method === "GET"  && path === "/org/public-meta")     response = await orgPublicMeta(request, env);
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);
