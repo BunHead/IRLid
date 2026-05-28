@@ -3,22 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visual Theming v5.12 — Reorganisation Mockup (Rev 2 — Captain feedback applied)</title>
+<title>Visual Theming v5.12 — Reorganisation Mockup (Rev 4 — Anchor system redesign)</title>
 <style>
-  :root { --bg: #0d1117; --surface: #161b22; --surface2: #1c2129; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #7ee787; --orange: #d29922; --red: #f85149; }
+  :root { --bg: #0d1117; --surface: #161b22; --surface2: #1c2129; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #7ee787; --orange: #d29922; --red: #f85149; --magenta: #db61a2; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; padding: 20px; max-width: 1000px; margin: 0 auto; }
   h1 { font-size: 20px; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
   .badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 8px; border-radius: 4px; margin-left: 8px; }
   .badge-mockup { background: rgba(210,153,34,0.18); color: var(--orange); }
   .badge-current { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .badge-new { background: rgba(126,231,135,0.18); color: var(--green); }
 
-  /* Preview stage */
-  .preview-frame { width: 100%; height: 280px; border-radius: 10px; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; background: linear-gradient(135deg, #dc143c 0%, #8b0000 30%, #ff6b6b 60%, #ffb347 100%); }
-  .preview-banner { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); text-align: center; }
-  .preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 8px; display: grid; place-items: center; font-size: 11px; color: #333; }
-  .preview-label { position: absolute; top: 10px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.6); }
+  /* Rev 4 callout */
+  .rev4-callout { border: 1px solid rgba(126,231,135,0.4); border-left: 4px solid var(--green); background: rgba(126,231,135,0.05); border-radius: 6px; padding: 14px 18px; margin: 16px 0 24px; }
+  .rev4-callout h4 { font-size: 13px; color: var(--green); margin-bottom: 8px; }
+  .rev4-callout ul { font-size: 12px; color: var(--text); line-height: 1.8; padding-left: 18px; margin: 0; }
+  .rev4-callout li { margin-bottom: 2px; }
+  .rev4-callout strong { color: var(--green); }
+
+  /* Preview stage with anchors */
+  .preview-frame { width: 100%; height: 320px; border-radius: 10px; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; background: linear-gradient(135deg, #dc143c 0%, #8b0000 30%, #ff6b6b 60%, #ffb347 100%); }
+  .preview-logo { width: 38px; height: 38px; background: rgba(255,255,255,0.92); border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #111; }
+  .preview-banner { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); text-align: center; font-family: 'Pacifico', cursive; }
+  .preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 8px; display: grid; place-items: center; font-size: 11px; color: #333; position: relative; }
+  .preview-label { position: absolute; top: 10px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.7); }
+  /* Anchor crosshair overlay */
+  .anchor-crosshair { position: absolute; width: 28px; height: 28px; pointer-events: none; transform: translate(-50%, -50%); z-index: 5; transition: opacity 0.2s; }
+  .anchor-crosshair::before, .anchor-crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); box-shadow: 0 0 0 1px rgba(0,0,0,0.6); }
+  .anchor-crosshair::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+  .anchor-crosshair::after { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+  .anchor-crosshair .anchor-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,0,0,0.7); padding: 1px 5px; border-radius: 3px; }
+  .anchors-hidden .anchor-crosshair { opacity: 0; }
 
   /* Sections */
   .section { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
@@ -43,6 +59,9 @@
   .chip { padding: 5px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; cursor: pointer; background: var(--surface); color: var(--text); user-select: none; }
   .chip:hover { border-color: var(--accent); }
   .chip.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .chip.anchor-chip { display: inline-flex; align-items: center; gap: 4px; }
+  .chip.anchor-chip .anchor-letter { display: none; font-size: 10px; font-weight: 700; background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px; margin-left: 4px; }
+  .anchor-multi-on .chip.anchor-chip.active .anchor-letter { display: inline-block; }
 
   /* Toggle */
   .toggle-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
@@ -61,9 +80,97 @@
   /* Sub-section */
   .sub { font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin: 16px 0 8px; padding-top: 12px; border-top: 1px solid var(--line); }
   .sub:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+  .sub-new { color: var(--green); }
 
   /* Sequence builder placeholder */
-  .sequence-placeholder { min-height: 120px; border: 2px dashed var(--line); border-radius: 8px; display: grid; place-items: center; color: var(--muted); font-size: 13px; margin: 8px 0; padding: 16px; text-align: center; }
+  .sequence-placeholder { min-height: 120px; border: 2px dashed var(--line); border-radius: 8px; padding: 16px; margin: 8px 0; }
+  .sequence-placeholder-title { font-weight: 600; margin-bottom: 8px; font-size: 13px; }
+
+  /* Effect cards in sequence */
+  .effect-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
+  .effect-card:hover { border-color: var(--accent); }
+  .effect-card.selected { border-color: var(--accent); background: rgba(88,166,255,0.06); box-shadow: 0 0 0 1px var(--accent); }
+  .effect-card .drag-handle { color: var(--muted); cursor: grab; font-size: 14px; user-select: none; }
+  .effect-card .effect-name { flex: 1; font-size: 13px; font-weight: 500; }
+  .effect-card .effect-anchor-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(88,166,255,0.12); color: var(--accent); border: 1px solid rgba(88,166,255,0.3); }
+  .effect-card .effect-anchor-badge.no-anchor { background: rgba(139,148,158,0.1); color: var(--muted); border-color: var(--line); }
+  .effect-card .effect-duration { font-size: 11px; color: var(--muted); min-width: 50px; text-align: right; }
+  .effect-card .icon-btn { width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); color: var(--text); display: grid; place-items: center; cursor: pointer; font-size: 12px; }
+  .effect-card .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Anchor system block — the headline of Rev 4 */
+  .anchor-system { background: rgba(126,231,135,0.04); border: 1px solid rgba(126,231,135,0.3); border-radius: 8px; padding: 14px; margin-top: 12px; }
+  .anchor-system-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .anchor-system-header h4 { font-size: 13px; font-weight: 600; color: var(--green); flex: 1; }
+  .anchor-system-header .selected-effect-name { font-size: 12px; color: var(--text); padding: 4px 10px; background: var(--surface); border: 1px solid var(--accent); border-radius: 4px; }
+  .anchor-system-header .selected-effect-name strong { color: var(--accent); }
+  .crosshair-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; user-select: none; }
+  .crosshair-toggle.on { border-color: var(--accent); background: rgba(88,166,255,0.1); color: var(--accent); }
+  .crosshair-toggle .anchor-icon { font-size: 14px; }
+
+  /* Anchor target row */
+  .anchor-target-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+  .multi-toggle { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; cursor: pointer; user-select: none; }
+  .multi-toggle.on { background: rgba(210,153,34,0.12); border-color: var(--orange); color: var(--orange); }
+
+  /* + shape sliders + 9-cell grid, side by side */
+  .anchor-controls-grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-top: 16px; align-items: start; }
+  @media (max-width: 700px) { .anchor-controls-grid { grid-template-columns: 1fr; } }
+
+  /* The + slider cross */
+  .offset-cross { position: relative; width: 220px; height: 220px; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface); }
+  .offset-cross::before { content: '+ Offset'; position: absolute; top: -10px; left: 12px; padding: 0 6px; background: var(--bg); font-size: 10px; color: var(--muted); }
+  .offset-cross .slider-h { position: absolute; left: 8px; right: 8px; top: 50%; transform: translateY(-50%); -webkit-appearance: none; appearance: none; height: 4px; background: var(--accent); border-radius: 2px; outline: none; cursor: pointer; }
+  .offset-cross .slider-v { position: absolute; top: 8px; bottom: 8px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; -webkit-appearance: slider-vertical; appearance: slider-vertical; width: 4px; background: var(--accent); border-radius: 2px; outline: none; cursor: pointer; }
+  .offset-cross input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; cursor: pointer; }
+  .offset-cross input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; cursor: pointer; }
+  .offset-cross .cross-centre { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: 700; color: var(--accent); pointer-events: none; padding: 3px 8px; background: var(--bg); border-radius: 4px; border: 1px solid var(--accent); display: flex; align-items: center; gap: 4px; }
+  .offset-cross .cross-label { position: absolute; font-size: 9px; color: var(--muted); }
+  .offset-cross .cross-label-h-l { left: 4px; top: calc(50% + 12px); }
+  .offset-cross .cross-label-h-r { right: 4px; top: calc(50% + 12px); }
+  .offset-cross .cross-label-v-t { top: 4px; left: calc(50% + 12px); }
+  .offset-cross .cross-label-v-b { bottom: 4px; left: calc(50% + 12px); }
+
+  /* 9-cell direction grid */
+  .direction-grid-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .direction-grid-wrap > .label-row { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .direction-grid { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 4px; }
+  .direction-grid .cell { display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; font-size: 16px; background: var(--surface); user-select: none; }
+  .direction-grid .cell:hover { border-color: var(--accent); }
+  .direction-grid .cell.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+
+  /* Anchor list (when multi-select on) */
+  .active-anchors-list { margin-top: 14px; padding: 10px; background: var(--surface); border-radius: 6px; border: 1px dashed rgba(210,153,34,0.4); display: none; }
+  .anchor-multi-on .active-anchors-list { display: block; }
+  .active-anchors-list h5 { font-size: 11px; color: var(--orange); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .anchor-list-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--line); }
+  .anchor-list-row:last-child { border-bottom: none; }
+  .anchor-list-row .anchor-letter-tag { width: 24px; height: 24px; border-radius: 4px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .anchor-list-row .anchor-list-name { flex: 1; font-size: 12px; }
+  .anchor-list-row .anchor-list-offset { font-size: 11px; color: var(--muted); font-family: monospace; }
+
+  /* Reset / undo buttons */
+  .reset-btn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+  .reset-btn:hover { border-color: var(--orange); color: var(--orange); }
+  .reset-btn .reset-glyph { font-family: 'Segoe UI Symbol', system-ui; font-size: 13px; line-height: 1; }
+
+  /* Undo/redo hint pill */
+  .undo-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 10px; color: var(--muted); font-family: monospace; }
+  .undo-pill kbd { background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
+
+  /* Tooltip helper */
+  .tooltip-host { position: relative; display: inline-block; }
+  .tooltip-host[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #000; color: #fff; padding: 5px 9px; border-radius: 4px; font-size: 11px; pointer-events: none; z-index: 100; }
+  .tooltip-host[data-tip]:hover::before { content: ''; position: absolute; bottom: calc(100% + 3px); left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #000; z-index: 100; }
+
+  /* Drag-to-anchor hint area on preview */
+  .drag-hint { position: absolute; bottom: 8px; left: 12px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.6); pointer-events: none; text-align: center; }
+
+  /* Polish carry-overs box */
+  .polish-box { border: 1px dashed var(--orange); background: rgba(210,153,34,0.05); border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
+  .polish-box h4 { font-size: 13px; color: var(--orange); margin-bottom: 8px; }
+  .polish-box ul { font-size: 12px; color: var(--text); line-height: 1.7; padding-left: 18px; margin: 0; }
+  .polish-box li { margin-bottom: 4px; }
 
   /* Comparison */
   .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
@@ -75,19 +182,35 @@
 </head>
 <body>
 
-<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span></h1>
-<p class="subtitle">Proposed reorganisation of the Visual Theming Settings panel into 5 logical sections. Click any section header to expand. This file is a standalone demo — it does NOT touch the live site.</p>
+<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span> <span class="badge badge-new">REV 4</span></h1>
+<p class="subtitle">Anchor system redesign per Captain's 28 May feedback. Click any section header to expand. The Anchor System block inside Section 4 is the headline change. This file is a standalone demo — it does NOT touch the live site.</p>
+
+<div class="rev4-callout">
+  <h4>What's new in Rev 4</h4>
+  <ul>
+    <li><strong>Anchor presets</strong> — Centre · Image · Logo · QR chips replace implicit/fixed anchor. Logo is just one option among four.</li>
+    <li><strong>⚓ Show crosshairs toggle</strong> — anchor-icon button toggles crosshair overlay on the preview. Visual affordance, not a text checkbox.</li>
+    <li><strong>Multi-select mode</strong> — orange "Multi" toggle. When on, anchor chips become checkboxes and active anchors get <strong>A1 / A2 / A3</strong> letter tags.</li>
+    <li><strong>+-shape offset sliders</strong> — horizontal + vertical sliders intersecting visually as a <strong>+</strong>, sized to match the 9-cell direction grid. Drag H-slider left → anchor moves left. Slider body teaches function.</li>
+    <li><strong>Per-effect anchor badge</strong> — every effect card in the sequence shows its current anchor at a glance (e.g. <code>⚓ Logo</code>, <code>⚓ A1+A2</code>).</li>
+    <li><strong>Drag-to-anchor on preview</strong> — Photoshop-style: drag the crosshair onto Centre/Image/Logo/QR to snap-select.</li>
+    <li><strong>Per-effect ↺ reset</strong> — restores Captain-recommended defaults for just that effect. Distinct glyph from refresh ↻.</li>
+    <li><strong>Ctrl+Z / Ctrl+Y undo stack</strong> — global undo across the panel. Pill at the top of Section 4 indicates state.</li>
+    <li><strong>Tooltips on anchor names</strong> — explain Image/Logo/QR spatially. <code>aria-describedby</code> for WCAG 2.1 SC 3.3.2 compliance.</li>
+  </ul>
+</div>
 
 <div class="comparison">
   <div>
-    <h4 style="color: var(--muted);">Current (v5.11.21) — organic growth order</h4>
+    <h4 style="color: var(--muted);">Current (v5.11.24a) — organic growth order</h4>
     <ul>
       <li>Background (palette + cycle motion)</li>
-      <li>Banner styling (NEW — font toggle)</li>
+      <li>Banner styling (font toggle)</li>
       <li>Pattern overlay</li>
       <li>Image overlay</li>
       <li>QR customization (mixes QR colour + celebration palette + effects)</li>
       <li>Post-accept behaviour (mixes welcome message + celebration sequence + sound)</li>
+      <li><em>Anchors implicit, often default to logo position</em></li>
     </ul>
   </div>
   <div>
@@ -96,21 +219,26 @@
       <li><strong>1. Brand identity</strong> — banner text, font, logo</li>
       <li><strong>2. Colour &amp; background</strong> — palette, pattern, image, light/dark</li>
       <li><strong>3. QR appearance</strong> — foreground colour, motion style</li>
-      <li><strong>4. Check-in/out Experience</strong> — palette, sequence builder, text template, sound (mode picker = Accept/Review/Deny)</li>
+      <li><strong>4. Check-in/out Experience</strong> — palette, sequence builder, <strong style="color: var(--green);">explicit anchor system</strong>, text template, sound (mode = Allow/Review/Deny)</li>
       <li><strong>5. Post-Accept Flow</strong> — welcome message, redirect, dwell time</li>
     </ul>
   </div>
 </div>
 
-<!-- Preview stage (static demo) -->
-<div class="preview-frame">
+<!-- Preview stage (static demo with anchor crosshairs) -->
+<div class="preview-frame" id="previewFrame">
   <div class="preview-label">Live preview</div>
-  <div class="preview-banner" id="demoBanner">Your Event Name</div>
-  <div class="preview-qr">QR</div>
+  <div class="preview-logo">IRL</div>
+  <div class="preview-banner" id="demoBanner">Test Event</div>
+  <div class="preview-qr" id="previewQr">QR</div>
+  <!-- Anchor crosshairs (positioned absolutely; positions are illustrative) -->
+  <div class="anchor-crosshair" style="top: 22%; left: 50%;"><span class="anchor-label">A1 · Logo</span></div>
+  <div class="anchor-crosshair" style="top: 64%; left: 50%;"><span class="anchor-label">A2 · QR</span></div>
+  <div class="drag-hint">Drag a crosshair onto Centre/Image/Logo/QR to snap-select that anchor</div>
 </div>
 
 <!-- SECTION 1: Brand Identity -->
-<div class="section open">
+<div class="section">
   <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
     <div class="section-number">1</div>
     <h3>Brand Identity <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">banner text, global font, logo</span></h3>
@@ -124,17 +252,17 @@
     <div class="hint" style="margin-left: 152px; margin-bottom: 12px;">Placeholders: <code>{org}</code> = org name, <code>{event}</code> = current event name, <code>{room}</code> = room/studio name. Default: <code>{org}</code></div>
 
     <div class="sub">Font</div>
-    <div class="hint" style="margin-bottom: 8px;">One font setting — applies globally to the banner, outcome text overlay, and welcome message display. Set once here, all surfaces follow.</div>
+    <div class="hint" style="margin-bottom: 8px;">One font setting — applies globally to the banner, outcome text overlay, and welcome message display.</div>
     <div class="toggle-row">
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
       <label>Customise font</label>
       <span style="font-size: 11px; color: var(--muted);">(off = browser default)</span>
     </div>
-    <div class="row"><label>Font</label><div class="chips"><span class="chip">sans</span><span class="chip">serif</span><span class="chip">mono</span><span class="chip">display</span><span class="chip">bebas</span><span class="chip">oswald</span><span class="chip active">pacifico</span><span class="chip">caveat</span><span class="chip">marker</span><span class="chip">playfair</span><span class="chip">lobster</span><span class="chip">inter</span><span class="chip">montserrat</span></div></div>
+    <div class="row"><label>Font</label><div class="chips"><span class="chip">sans</span><span class="chip">serif</span><span class="chip">mono</span><span class="chip">bebas</span><span class="chip active">pacifico</span><span class="chip">caveat</span><span class="chip">marker</span><span class="chip">playfair</span><span class="chip">lobster</span><span class="chip">inter</span><span class="chip">montserrat</span></div></div>
     <div class="row"><label>Weight</label><div class="chips"><span class="chip">light</span><span class="chip">regular</span><span class="chip active">bold</span><span class="chip">black</span></div></div>
     <div class="row"><label>Italic</label><div class="chips"><span class="chip active">off</span><span class="chip">on</span></div></div>
     <div class="row"><label>Spacing</label><div class="chips"><span class="chip">tight</span><span class="chip active">normal</span><span class="chip">loose</span><span class="chip">wide</span></div></div>
-    <div class="row"><label>Colour</label><div class="chips"><span class="chip active">white</span><span class="chip">warm</span><span class="chip">palette-1</span><span class="chip">palette-2</span><span class="chip">palette-3</span></div></div>
+    <div class="row"><label>Colour</label><div class="chips"><span class="chip active">white</span><span class="chip">warm</span><span class="chip">palette-1</span><span class="chip">palette-2</span></div></div>
     <div class="row"><label>Shadow</label><div class="chips"><span class="chip">off</span><span class="chip active">soft</span><span class="chip">strong</span></div></div>
 
     <div class="sub">Logo</div>
@@ -199,33 +327,26 @@
   </div>
   <div class="section-body">
     <div class="row"><label>QR foreground</label><input type="color" value="#000000" style="width: 40px; height: 32px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer;" /><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">WCAG 4.5:1 contrast against white enforced</span></div>
-    <div class="row"><label>QR motion</label><div class="chips"><span class="chip active">wobble</span><span class="chip">zoom in</span><span class="chip">zoom out</span><span class="chip">rotate CW</span><span class="chip">rotate CCW</span><span class="chip">dissolve</span><span class="chip">pixel dissolve</span><span class="chip">block dissolve</span><span class="chip">bounce</span><span class="chip">fade</span><span class="chip">flip X</span><span class="chip">flip Y</span><span class="chip">glitch</span><span class="chip">spiral</span><span class="chip">none</span></div></div>
-    <div class="row"><label>Motion direction</label>
-      <div style="display: grid; grid-template-columns: repeat(3, 36px); gap: 3px;">
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↖</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↑</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↗</div>
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">←</div><div class="chip active" style="text-align:center; padding: 6px 0; font-size: 10px;">●</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">→</div>
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↙</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↓</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">↘</div>
-      </div>
-      <span style="font-size: 11px; color: var(--muted); margin-left: 10px;">Origin/direction for dissolve, zoom, bounce, flip. Centre = default radial.</span>
-    </div>
-    <div class="hint" style="margin-left: 152px;">Motion plays during the outcome sequence. Direction grid applies to dissolve, zoom, bounce, flip, spiral. Rotate + wobble ignore direction (always centre-axis). "None" = QR stays static.</div>
+    <div class="row"><label>QR motion</label><div class="chips"><span class="chip active">wobble</span><span class="chip">zoom in</span><span class="chip">zoom out</span><span class="chip">rotate CW</span><span class="chip">rotate CCW</span><span class="chip">dissolve</span><span class="chip">bounce</span><span class="chip">fade</span><span class="chip">flip X</span><span class="chip">flip Y</span><span class="chip">glitch</span><span class="chip">spiral</span><span class="chip">none</span></div></div>
+    <div class="hint" style="margin-left: 152px;">Motion plays during the outcome sequence. Rotate + wobble ignore direction (centre-axis). "None" = QR stays static.</div>
   </div>
 </div>
 
-<!-- SECTION 4: Check-in/out Experience -->
-<div class="section">
+<!-- SECTION 4: Check-in/out Experience — THE HEADLINE SECTION FOR REV 4 -->
+<div class="section open">
   <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
     <div class="section-number">4</div>
-    <h3>Check-in/out Experience <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">effects, text, palette, sound — mode picker selects Accept/Review/Deny</span></h3>
+    <h3>Check-in/out Experience <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">effects, anchors, text, palette, sound</span> <span class="badge badge-new">ANCHOR REDESIGN</span></h3>
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
-    <div class="row">
+    <div class="row" style="align-items: center;">
       <label>Active mode</label>
       <select style="max-width: 160px;"><option selected>✓ Allow</option><option>? Review</option><option>× Deny</option></select>
       <button style="padding: 6px 14px; border: 1px solid var(--green); border-radius: 6px; background: rgba(126,231,135,0.1); color: var(--green); cursor: pointer; font-weight: 600;">▶ Sample</button>
-      <span style="font-size: 11px; color: var(--muted);">Settings below apply to the active mode. Switch mode to edit a different outcome.</span>
+      <span class="undo-pill" title="Ctrl+Z to undo, Ctrl+Y to redo"><kbd>⌃Z</kbd> undo · <kbd>⌃Y</kbd> redo · <span style="color: var(--accent);">3 steps</span></span>
     </div>
+    <div class="hint" style="margin-left: 152px;">Settings below apply to the active mode. Switch mode to edit a different outcome. Undo/redo applies across the whole panel.</div>
 
     <div class="sub">Outcome Palette</div>
     <div class="hint">Colours used by outcome effects (glow, pulse, pattern flash). Separate from background palette.</div>
@@ -237,12 +358,109 @@
     </div>
 
     <div class="sub">Effect Sequence</div>
-    <div class="hint">Drag effects from the library into the sequence. They play top-to-bottom on each scan outcome. Each effect has its own duration + settings.</div>
+    <div class="hint">Effects play top-to-bottom on each scan outcome. Drag to reorder. Click a card to edit its anchor + settings below. Selected card shows blue outline.</div>
     <div class="sequence-placeholder">
-      <div>
-        <div style="font-weight: 600; margin-bottom: 6px;">Sequence builder</div>
-        <div>Library: Pulse · Background · QR motion · Glow · Pattern · Text · Confetti · Sparkles · Stream · Spotlight · Camera flash · Shake · Iris wipe · Ripple · Flame · Glitch</div>
-        <div style="margin-top: 8px; font-size: 11px;">(existing sequence builder — relocated from old "Accept behaviour" expander, internals unchanged)</div>
+      <div class="effect-card selected" data-effect="glow-rays">
+        <span class="drag-handle">⋮⋮</span>
+        <span class="effect-name">Glow rays</span>
+        <span class="effect-anchor-badge">⚓ Logo</span>
+        <span class="effect-duration">800ms</span>
+        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
+        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
+      </div>
+      <div class="effect-card" data-effect="ripple">
+        <span class="drag-handle">⋮⋮</span>
+        <span class="effect-name">Ripple</span>
+        <span class="effect-anchor-badge">⚓ Centre</span>
+        <span class="effect-duration">600ms</span>
+        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
+        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
+      </div>
+      <div class="effect-card" data-effect="sparkles">
+        <span class="drag-handle">⋮⋮</span>
+        <span class="effect-name">Sparkles</span>
+        <span class="effect-anchor-badge">⚓ A1+A2</span>
+        <span class="effect-duration">1200ms</span>
+        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
+        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
+      </div>
+      <div class="effect-card" data-effect="confetti">
+        <span class="drag-handle">⋮⋮</span>
+        <span class="effect-name">Confetti</span>
+        <span class="effect-anchor-badge no-anchor">— full-screen —</span>
+        <span class="effect-duration">2000ms</span>
+        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
+        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
+      </div>
+      <div style="margin-top: 8px; font-size: 11px; color: var(--muted); text-align: center;">Library: Pulse · Background · QR motion · Glow · Pattern · Text · Confetti · Sparkles · Stream · Spotlight · Camera flash · Shake · Iris wipe · Ripple · Flame · Glitch · Vignette · Vapour</div>
+    </div>
+
+    <!-- ANCHOR SYSTEM — the headline of Rev 4 -->
+    <div class="anchor-system" id="anchorSystem">
+      <div class="anchor-system-header">
+        <h4>Anchor System</h4>
+        <span class="selected-effect-name">Configuring: <strong>Glow rays</strong></span>
+        <span class="crosshair-toggle on" id="crosshairToggle" onclick="this.classList.toggle('on'); document.getElementById('previewFrame').classList.toggle('anchors-hidden', !this.classList.contains('on'));">
+          <span class="anchor-icon">⚓</span>
+          <span>Show crosshairs</span>
+        </span>
+      </div>
+
+      <div class="hint" style="margin-bottom: 12px;">Pick the focal point that this effect emits from / orients around. Full-screen effects (Confetti, surface flashes) ignore the anchor — they have no focal point.</div>
+
+      <div class="anchor-target-row" id="anchorTargetRow">
+        <span style="font-size: 12px; color: var(--muted); font-weight: 600;">Target:</span>
+        <div class="chips">
+          <span class="chip anchor-chip active tooltip-host" data-anchor="centre" data-tip="The geometric centre of the stage">⚓ Centre <span class="anchor-letter">A1</span></span>
+          <span class="chip anchor-chip tooltip-host" data-anchor="image" data-tip="The background image overlay">⚓ Image <span class="anchor-letter">A?</span></span>
+          <span class="chip anchor-chip tooltip-host" data-anchor="logo" data-tip="The IRL/org logo above the QR">⚓ Logo <span class="anchor-letter">A?</span></span>
+          <span class="chip anchor-chip tooltip-host" data-anchor="qr" data-tip="The scannable QR square">⚓ QR <span class="anchor-letter">A?</span></span>
+        </div>
+        <span class="multi-toggle" id="multiToggle" onclick="document.getElementById('anchorSystem').classList.toggle('anchor-multi-on'); this.classList.toggle('on'); updateAnchorLetters();" title="Allow multiple anchors at once">
+          <span>⊞ Multi</span>
+        </span>
+      </div>
+
+      <div class="active-anchors-list">
+        <h5>Active anchors</h5>
+        <div class="anchor-list-row">
+          <span class="anchor-letter-tag">A1</span>
+          <span class="anchor-list-name">Logo</span>
+          <span class="anchor-list-offset">offset (-10%, +5%)</span>
+        </div>
+        <div class="anchor-list-row">
+          <span class="anchor-letter-tag">A2</span>
+          <span class="anchor-list-name">QR</span>
+          <span class="anchor-list-offset">offset (0%, 0%)</span>
+        </div>
+        <div class="hint" style="margin-top: 6px;">When configuring direction (below), click an A-tag first to choose which crosshair's direction you're setting.</div>
+      </div>
+
+      <div class="anchor-controls-grid">
+        <div>
+          <div style="font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px;">+ Offset (relative to anchor centre)</div>
+          <div class="offset-cross">
+            <span class="cross-label cross-label-h-l">← left</span>
+            <span class="cross-label cross-label-h-r">right →</span>
+            <span class="cross-label cross-label-v-t">↑ up</span>
+            <span class="cross-label cross-label-v-b">down ↓</span>
+            <input type="range" class="slider-h" min="-100" max="100" value="0" oninput="document.getElementById('offsetReadout').textContent = '(' + this.value + '%, ' + document.querySelector('.slider-v').value + '%)';" />
+            <input type="range" class="slider-v" min="-100" max="100" value="0" oninput="document.getElementById('offsetReadout').textContent = '(' + document.querySelector('.slider-h').value + '%, ' + this.value + '%)';" />
+            <span class="cross-centre">⚓ <span id="offsetReadout">(0%, 0%)</span></span>
+          </div>
+          <div class="hint" style="margin-top: 6px;">Drag horizontal slider L↔R, vertical slider ↕. They cross at the anchor centre. Slider's body teaches the function — no text labels needed.</div>
+        </div>
+
+        <div class="direction-grid-wrap">
+          <span class="label-row">Direction (for radial / emitter effects)</span>
+          <div class="direction-grid">
+            <div class="cell">↖</div><div class="cell">↑</div><div class="cell">↗</div>
+            <div class="cell">←</div><div class="cell active">●</div><div class="cell">→</div>
+            <div class="cell">↙</div><div class="cell">↓</div><div class="cell">↘</div>
+          </div>
+          <span style="font-size: 11px; color: var(--muted);">Centre = radial / omnidirectional. Arrows = directed emission.</span>
+          <button class="reset-btn" style="margin-top: 6px;"><span class="reset-glyph">↶</span> Reset Glow rays to defaults</button>
+        </div>
       </div>
     </div>
 
@@ -251,24 +469,16 @@
       <label>Text template</label>
       <input type="text" value="{name} — {verb}" placeholder="{name}, {verb}, {action}, {Action}, {Verb}" />
     </div>
-    <div class="hint" style="margin-left: 152px;">Placeholders: <code>{name}</code> = attendee, <code>{verb}</code> = "checked in"/"checked out", <code>{action}</code> = "in"/"out". Preview: <strong style="color: var(--green);">Kerry — checked in</strong></div>
+    <div class="hint" style="margin-left: 152px;">Placeholders: <code>{name}</code> = attendee, <code>{verb}</code> = "checked in" / "checked out", <code>{action}</code> = "in" / "out". Preview: <strong style="color: var(--green);">Kerry — checked in</strong></div>
     <div class="row"><label>Quick presets</label><div class="chips"><span class="chip">welcome</span><span class="chip">name</span><span class="chip active">name + action</span></div></div>
-    <div class="row"><label>Text position</label>
-      <div style="display: grid; grid-template-columns: repeat(3, 36px); gap: 3px;">
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TL</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">TR</div>
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">ML</div><div class="chip active" style="text-align:center; padding: 6px 0; font-size: 10px;">MC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">MR</div>
-        <div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BL</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BC</div><div class="chip" style="text-align:center; padding: 6px 0; font-size: 10px;">BR</div>
-      </div>
-      <span style="font-size: 11px; color: var(--muted); margin-left: 10px;">9-position grid</span>
-    </div>
 
     <div class="sub">Outcome Sound</div>
     <div class="toggle-row">
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
       <label>Play sound on outcome</label>
     </div>
-    <div class="row"><label>Check-in sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">allow.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 4px;">Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
-    <div class="row"><label>Check-out sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">checkout.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 4px;">Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
+    <div class="row"><label>Check-in sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">allow.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button class="reset-btn" style="margin-left: 4px;"><span class="reset-glyph">↶</span> Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
+    <div class="row"><label>Check-out sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">checkout.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button class="reset-btn" style="margin-left: 4px;"><span class="reset-glyph">↶</span> Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
   </div>
 </div>
 
@@ -286,41 +496,98 @@
     <div class="row"><label>Staff redirect</label><input type="url" placeholder="https://example.com/staff-page" /></div>
     <div class="row"><label>Dwell time</label><select><option>3 seconds</option><option selected>5 seconds</option><option>7 seconds</option><option>10 seconds</option></select><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">How long the celebration plays before redirecting</span></div>
     <div class="row"><label>Check-out grace</label><input type="text" value="60 minutes" style="max-width: 120px;" /></div>
-
-    <div class="sub">Smart receptionist mode <span class="badge badge-mockup">v5.12+</span></div>
-    <div class="toggle-row">
-      <div class="toggle" onclick="this.classList.toggle('on')"></div>
-      <label>Auto-route by Expected list</label>
-      <span style="font-size: 11px; color: var(--muted);">(single QR at entrance → system resolves event + room from attendance data)</span>
-    </div>
-    <div class="hint">When enabled with multiple concurrent events: attendees scan ONE venue QR at the front door. The system checks all active events' Expected lists, finds the match, and routes them. Post-accept message shows: "Welcome, {name}! You're in {room} for {event}." If multiple matches: attendee picks from a list on their phone.</div>
   </div>
 </div>
 
+<!-- Polish carry-overs from Captain's 28 May review -->
+<div class="polish-box">
+  <h4>Polish carry-overs (Captain's 28 May review)</h4>
+  <ul>
+    <li><strong>Ripple effect — border around frame looks odd</strong> (current v5.11.24a). Effect's outer radial gradient may be painting past the orange-dome rounded bottom corners. Either clip to stage shape with <code>border-radius: inherit</code> on the effect layer, or constrain the radial gradient size to fit within the stage's inscribed rectangle. Fixable as a small <code>v5.11.24b</code> inline patch OR rolled into v5.12.0.</li>
+    <li><strong>Vignette flash — same border-around-frame issue</strong>. Vignette uses a radial gradient from edges-inward; if the stage has rounded corners the corners can paint through. Same clip-to-stage fix.</li>
+    <li><strong>EDITING: DENY pill</strong> — magenta border framing the live preview when in Deny editing mode might distract from preview content. Worth deciding: keep as honest "you are editing X mode" signal, or move to a less prominent badge above the preview frame.</li>
+    <li><strong>↺ Reset glyph</strong> — must be visually distinct from refresh ↻ to avoid confusion. Candidates: <code>↶</code> (rotate anti-clockwise with serif tail), <code>⟲</code> (reload with arrow), plain word "Default", or <code>↩</code> (return arrow). Decision: pick at Rev 5 review.</li>
+    <li><strong>Inline-vs-fullscreen offset dialling</strong> — solved architecturally by storing anchor positions as <strong>percentage offsets from the anchor target's centre</strong>, not absolute pixels. Same percentage values render correctly at any stage size — inline (400px), fullscreen (1920px), 4a phone (720px) — because everything scales proportionally to the target element's bounding box. Drag-to-anchor UI updates the percentage; render code reads same percentage and computes pixels per stage.</li>
+    <li><strong>W3C accessibility</strong> — tooltips on anchor names use <code>aria-describedby</code> pattern pointing to a visually-hidden span. WCAG 2.1 SC 3.3.2 (Labels or Instructions) and 1.3.1 (Info and Relationships). Same anchor name always means the same spatial position across the whole app: SC 3.2.4 (Consistent Identification). Real boost for the W3C cert ambition.</li>
+    <li><strong>Ctrl+Z / Ctrl+Y undo stack</strong> — global undo across the whole panel. 50-entry ring buffer of theme-state snapshots; every meaningful change pushes a new state. Per-effect <code>↺</code> Reset is a narrower scope: restores Captain-recommended defaults for that effect only.</li>
+  </ul>
+</div>
+
+<!-- Design notes -->
 <div style="margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);">
   <h4 style="font-size: 13px; margin-bottom: 8px;">Design notes for Captain</h4>
   <ul style="font-size: 12px; color: var(--muted); line-height: 1.8; padding-left: 18px;">
-    <li><strong>Section 1 (Brand identity)</strong> is NEW — consolidates banner text + font + logo from scattered locations. Banner text template with <code>{org}</code> / <code>{event}</code> / <code>{room}</code> makes the "Test Event — Theme Demo" problem go away permanently.</li>
-    <li><strong>Section 2 (Colour &amp; background)</strong> folds the current Background + Pattern overlay + Image overlay expanders into one section. Sub-headers instead of three separate expanders.</li>
-    <li><strong>Section 3 (QR appearance)</strong> is EXTRACTED from the current "QR customization" expander which bundled QR colour with celebration palette. QR is its own thing.</li>
-    <li><strong>Section 4 (Celebrations)</strong> is the HEAVIEST section — all the creative-fun stuff. Celebration palette (separated from QR colour), sequence builder (relocated from "Accept behaviour" expander), text template (new from v5.11.21), sound. Mode picker stays at the top.</li>
-    <li><strong>Section 5 (Post-accept flow)</strong> is EXTRACTED from the old "Accept behaviour" expander. Welcome message + redirect + dwell time are "what happens after" — they shouldn't live mixed with celebration effects. Smart receptionist toggle is future-work (v5.12+).</li>
-    <li><strong>Org tab slimmed</strong> — logo upload + description tagline migrate to Visual Theming → Brand Identity. Org tab keeps: Display name, Slug, Website URL, Contact email, Org terms/disclaimer, Brand polish &amp; contact info expander. Lean admin surface — set once, rarely revisit.</li>
-    <li><strong>No new data shapes</strong> — the reorganisation is UI reshuffling only. All existing <code>theme._v511.*</code> persistence stays the same. The only new key is <code>theme.bannerText</code> (the template string, e.g. <code>"{org} — {event}"</code>).</li>
-    <li><strong>No Worker changes</strong> — same <code>POST /org/settings</code> round-trip.</li>
+    <li><strong>Section 4 is the headline of Rev 4.</strong> The Anchor System block sits between Effect Sequence and Text Template. It only configures the <em>currently-selected</em> effect (blue-outlined card in the sequence). Selecting a different effect card swaps the anchor block's contents.</li>
+    <li><strong>Anchor controls are per-effect, not global.</strong> Different effects need different anchors (Glow rays = Logo, Ripple = Centre, Stream = QR). The ⚓ "Show crosshairs" toggle is the only global control — it just decides whether the crosshair overlay is visible on the preview frame.</li>
+    <li><strong>Multi-select adds the A1/A2 letter tags.</strong> Single-select mode = one anchor, named by its target ("Logo"). Multi-select mode = multiple anchors, labelled by order added (A1, A2, A3). Effect cards show <code>⚓ A1+A2</code> when multi is active for that effect.</li>
+    <li><strong>+ slider layout teaches the function.</strong> Horizontal slider running L↔R lives on the X axis. Vertical slider running ↕ lives on the Y axis. They cross visually at the anchor centre. Cognitively: dragging H-slider physically left moves the anchor left. No translation step.</li>
+    <li><strong>Sensible defaults per effect type.</strong> Confetti = full-screen (no anchor — explicit "— full-screen —" badge on card). Ripple = Centre. Sparkles = Image. Stream = QR. Glow rays = Logo. Apes can change but the first run looks right without thinking.</li>
+    <li><strong>No new data shapes beyond Rev 2.</strong> Anchor state lives inside each effect's existing <code>settings</code> object as <code>anchor: { targets: ['logo'], offset: { x: -10, y: 5 }, direction: 'centre' }</code>. Backward compat: missing <code>anchor</code> field falls back to effect's default (the "sensible default").</li>
+    <li><strong>No Worker changes.</strong> Same <code>POST /org/settings</code> round-trip.</li>
   </ul>
 </div>
 
 <script>
 // Make chips clickable (visual demo only)
 document.querySelectorAll('.chips').forEach(function(group) {
+  // Anchor chips have multi-select behaviour when .anchor-multi-on is set on parent
   group.querySelectorAll('.chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-      group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
-      chip.classList.add('active');
+    chip.addEventListener('click', function(ev) {
+      var isAnchorChip = chip.classList.contains('anchor-chip');
+      var isMulti = isAnchorChip && document.getElementById('anchorSystem') && document.getElementById('anchorSystem').classList.contains('anchor-multi-on');
+      if (!isMulti) {
+        group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
+      }
+      chip.classList.toggle('active');
+      if (isAnchorChip) updateAnchorLetters();
     });
   });
 });
+
+// Update A1, A2, A3 letter tags on anchor chips when multi-select is on
+function updateAnchorLetters() {
+  var active = document.querySelectorAll('#anchorTargetRow .anchor-chip.active');
+  active.forEach(function(chip, i) {
+    var letter = chip.querySelector('.anchor-letter');
+    if (letter) letter.textContent = 'A' + (i + 1);
+  });
+  // Also tag inactive chips with A? as a hint that they'd get a number if activated
+  document.querySelectorAll('#anchorTargetRow .anchor-chip:not(.active) .anchor-letter').forEach(function(l) { l.textContent = 'A?'; });
+}
+
+// Effect-card selection (only one card shows the blue selected outline)
+document.querySelectorAll('.effect-card').forEach(function(card) {
+  card.addEventListener('click', function(ev) {
+    if (ev.target.classList.contains('icon-btn')) return; // ignore button clicks
+    document.querySelectorAll('.effect-card').forEach(function(c) { c.classList.remove('selected'); });
+    card.classList.add('selected');
+    // Update "Configuring: <effect name>" header
+    var nameEl = card.querySelector('.effect-name');
+    var label = document.querySelector('.selected-effect-name strong');
+    if (nameEl && label) label.textContent = nameEl.textContent;
+  });
+});
+
+// Cosmetic drag-and-drop on preview frame: drag crosshairs around
+(function() {
+  var dragging = null;
+  document.querySelectorAll('.anchor-crosshair').forEach(function(ch) {
+    ch.style.pointerEvents = 'auto';
+    ch.style.cursor = 'grab';
+    ch.addEventListener('mousedown', function(ev) { dragging = ch; ch.style.cursor = 'grabbing'; ev.preventDefault(); });
+  });
+  document.addEventListener('mousemove', function(ev) {
+    if (!dragging) return;
+    var frame = document.getElementById('previewFrame').getBoundingClientRect();
+    var x = ((ev.clientX - frame.left) / frame.width) * 100;
+    var y = ((ev.clientY - frame.top) / frame.height) * 100;
+    dragging.style.left = Math.max(5, Math.min(95, x)) + '%';
+    dragging.style.top = Math.max(8, Math.min(92, y)) + '%';
+  });
+  document.addEventListener('mouseup', function() {
+    if (dragging) { dragging.style.cursor = 'grab'; dragging = null; }
+  });
+})();
 </script>
 </body>
 </html>
