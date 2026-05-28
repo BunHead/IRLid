@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v68'; // v5.11.25 - Single-device staff invite acceptance flow.
+const CACHE_VERSION = 'irlid-shell-v67'; // v5.11.23 - Wire v5.11 Invite Staff modal to real WebAuthn-signed Worker invites and redeem flow.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
