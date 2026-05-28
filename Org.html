@@ -3273,7 +3273,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.23a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.24</span></div>
   </div>
 </div>
 
@@ -16402,7 +16402,52 @@ function v511InviteStaffRenderQr(payload) {
   if (!box) return;
   box.innerHTML = '';
   if (payload && typeof QRCode !== 'undefined') {
-    new QRCode(box, { text: payload, width: 180, height: 180, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+    // v5.11.24 — bumped from 180→340 and L correction so the dense ~1500-char
+    // signed-envelope token is readable by lower-resolution cameras (Pixel 4a
+    // couldn't resolve modules at 180px M). L gives ~7% damage tolerance which
+    // is plenty for screen-to-camera scans (no print damage); bigger modules
+    // beat error correction every time for camera readability.
+    new QRCode(box, { text: payload, width: 340, height: 340, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+    // v5.11.24 — tap-to-fullscreen for low-res scanner cameras. Tap the QR to
+    // expand to full viewport; tap again to dismiss. Same pattern as venue
+    // Check-in QR but with a simpler overlay (no theme decoration needed).
+    box.style.cursor = 'pointer';
+    box.title = 'Tap to enlarge for scanning';
+    if (!box.__v511FullscreenHandlerAttached) {
+      box.__v511FullscreenHandlerAttached = true;
+      box.addEventListener('click', function() {
+        var existing = document.getElementById('v511InviteQrFullscreen');
+        if (existing) { existing.remove(); return; }
+        var overlay = document.createElement('div');
+        overlay.id = 'v511InviteQrFullscreen';
+        overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+        var inner = document.createElement('div');
+        inner.style.cssText = 'background:#fff;padding:24px;border-radius:12px;max-width:90vw;max-height:90vh;width:min(90vw,90vh);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;';
+        overlay.appendChild(inner);
+        if (typeof QRCode !== 'undefined' && payload) {
+          try {
+            new QRCode(inner, { text: payload, width: 720, height: 720, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+            // Force the rendered canvas/img to fit the inner box responsively
+            requestAnimationFrame(function() {
+              inner.querySelectorAll('canvas, img').forEach(function(el) {
+                el.style.width = '100%';
+                el.style.height = 'auto';
+                el.style.maxWidth = '100%';
+                el.style.maxHeight = '100%';
+              });
+            });
+          } catch (e) {
+            inner.textContent = 'QR unavailable';
+          }
+        }
+        var hint = document.createElement('div');
+        hint.textContent = 'Tap anywhere to close';
+        hint.style.cssText = 'position:absolute;bottom:30px;left:0;right:0;text-align:center;color:#fff;font-size:14px;opacity:0.7;';
+        overlay.appendChild(hint);
+        overlay.addEventListener('click', function() { overlay.remove(); });
+        document.body.appendChild(overlay);
+      });
+    }
   } else {
     box.textContent = payload || 'QR unavailable';
   }
