@@ -117,12 +117,6 @@
       const params = new URLSearchParams(location.search);
       const nonce = (params.get("nonce") || "").trim();
       const workerRaw = (params.get("worker") || "").trim();
-      const staffInviteMatch = String(location.hash || "").match(/[#&]staff_invite=([^&]+)/);
-      if (staffInviteMatch && staffInviteMatch[1]) {
-        const orgPath = location.hostname === "irlid.co.uk" ? "/Org" : new URL("Org.html", location.href).pathname;
-        location.replace(location.origin + orgPath + "#staff_invite=" + encodeURIComponent(decodeURIComponent(staffInviteMatch[1])));
-        return;
-      }
 
       // ── Worker URL allowlist (PROTOCOL.md §14.5 + safety) ─────────────────
       // The worker URL is supplied in the QR. A malicious QR could try to point
