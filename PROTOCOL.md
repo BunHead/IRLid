@@ -19,6 +19,7 @@
 | v5.5 | Identity-bound sessions — "Sign in with IRLid" via QR scan. New `users` and `org_memberships` tables on the Worker; api_key model retained for service accounts. Hardcoded developer pub_fp bootstraps the first founder; invite-token fallback (v5.6+) once email infrastructure is live. Specification in §14. Receipt format unchanged. §16 (Offline-capable operation) added 6 May 2026 — adopts offline-first as a design principle, four-tier path (PWA shell → IndexedDB write queue → cached snapshot → multi-device mesh), time-anchoring via §11 tsTokens, blinking-red-dot UI directive. Tiers 1-3 ship as `v5.5.x` patches; Tier 4 graduates to `v6.0` flagship. |
 | v5.6 | Assisted identity flow for venue check-in. An unrecognised attendee can show a signed assist-request QR to staff; staff scan it from the OrgCheckin dashboard and bind the device to an expected attendee, create-and-bind a new expected attendee, or reject with audit trail. Specification in §15. Receipt format unchanged. **Implementation note:** the v5.7+ doorman flow (§14.17) ultimately used `device_key` envelopes rather than `assist_request` envelopes; the three-outcome flow shipped substantially as specified but the wire-level envelope shape diverged. §15 spec recovered from `codex/assistqr-protocol` commit `823ced8` and merged to main 26 May 2026. |
 | v5.7.1 | Doorman flow (§14.17) alive end-to-end on real hardware 6 May 2026 night — three-outcome state machine (green / red / orange) with role-tiered Add at the door (Attendee → Staff → Manager → Lead Admin) and dashboard escalation modal. Receipt format unchanged. §16 Tier 1 (PWA shell) shipped 7 May — Service Worker pre-caches the OrgCheckin.html shell + JS bundle; cache-versioned `irlid-shell-vN`; HTML/navigation requests served network-first so updates propagate without manual cache bumps. Audit mode shipped 8 May — `body.audit-mode` strips chrome and promotes the attendance card to fill the viewport (`requestFullscreen()` + `screen.orientation.lock('landscape')` best-effort) for the airport-arrivals-board view on door-staff tablets. Auto staff sign-in on venue arrival (`org-entry.html` recognises staff-tier devices on the Expected list and diverts to `org-login.html` after the green-confirm hold). |
+| v6.0 | **Org check-in receipt bridge** — two-line convergence. Every Org check-in mints a consumer-format ECDSA receipt alongside the operational `org_checkins` row. Signed by the org's venue key; verifiable by any third party via `check.html`; downloadable from the dashboard; storable on attendee's phone. Closes the trust gap before public promotion. Specification in §17. New D1 table `org_receipts`. New endpoints `GET /org/receipt/:id` + `GET /org/public-info/:slug`. Worker `createCheckin` handler extended (~100 lines). Backward compatible — pre-v6.0 `org_checkins` rows can be backfilled in v6.1. Drafted 28 May 2026 (Thursday morning watch); implementation queued for Mr. Data Saturday 03:00 BST onward. |
 | v5.9 | **Org dashboard live deployment** (10 May 2026, ~36 hours ahead of Wednesday 13 May target). Path A scope: separate Worker `irlid-api-org` (verbatim copy of test env Worker source), separate D1 `irlid-db-org` (full schema, 16 tables / 19 indexes, snapshot-from-test pinned as v6.1 unification baseline), file-copy of `OrgCheckin.html` + `org-entry.html` + `org.html` + 5 dashboard JS files + `manifest.json` + `sw.js` from test env to live repo. Live's existing `js/sign.js` (Deploy 78) deliberately preserved; test env's older Deploy 76 not copied. SW path filter installed to prevent dashboard SW hijacking consumer pages (scan.html / receipt.html / index.html stay served network-first by browser, not by dashboard SW). DEV bootstrap path gated to test surfaces. Dashboard QR + scan URLs derive from `window.location` (ORIGIN_BASE) so QRs generated on live point to live, not test env. Service-account sign-in via `org_`-prefixed api_key proven end-to-end. v5 hardware-bootstrap on fresh D1 deferred to v6.2 / §14.18 OAuth identity chapter — `BOOTSTRAP_DEVELOPER_FP` Worker secret pre-configured for that work. Cosmetic polish (footer string, sidebar org-name fetch, Forums link in Info dropdown bulk edit, .wrangler/ .gitignore tidy) deferred. Four post-deploy inline patches landed (v5.9.0.1 scan.html org QR types + dashboard ORIGIN_BASE; v5.9.0.2 developer auth gate widened to accept org_ keys; v5.9.0.3 null-safe session refs). Receipt format and protocol §13/§14 specs unchanged. |
 
 ---
@@ -1985,3 +1986,218 @@ This section's existence is owed to:
 - The receipt protocol's original architecture (Captain's design, years before this section was written), which made offline-first feasible without any cryptographic changes. The protocol was already most of the way to "works at the edge"; this section just names it.
 
 Drafted as `OFFLINE-MODE-PROPOSAL.md` and ratified to canonical spec same evening. Original proposal preserved at `archive/OFFLINE-MODE-PROPOSAL.md` as design history.
+
+---
+
+## 17. Org Check-in Receipt Bridge
+
+The "two-line convergence" — every Org check-in produces a consumer-format verifiable receipt alongside the operational `org_checkins` row. The Org dashboard view and the consumer trust artifact become two views of the same underlying signed event. This closes the trust gap before public promotion.
+
+### 17.1 Motivation
+
+As of v5.11.23a, IRLid carries **two parallel data models**:
+
+| Surface | What it records | Where stored | Verifiable artifact? |
+|---|---|---|---|
+| Consumer (peer-to-peer scan) | Co-presence receipt: A scanned B | localStorage + Worker | ✓ Yes — ECDSA signed, `check.html` verifies |
+| Organisation (venue QR check-in) | Attendance row: Spencer checked in at 14:32 | D1 `org_checkins` table | ✗ Database row only — not a portable trust artifact |
+
+The consumer surface has had verifiable receipts since v3. The Org surface — built out across April-May 2026 (calendar, Expected lists, doorman flow, celebrations, themes, role hierarchy, multi-device staff invites) — produces only operational rows. A user who checked into Studio 1 last Tuesday cannot today export, share, or verify that check-in as a signed artifact.
+
+This bridge closes the gap: each org check-in **also** mints a consumer-format receipt, signed by the org's venue key, with the same canonical hash chain and verification primitive as the P2P protocol. The receipt is downloadable from the dashboard, viewable on `receipt.html`, and verifiable by any third party via `check.html` — same as a P2P receipt.
+
+### 17.2 Receipt format
+
+The Org check-in receipt is a `v: 5` receipt envelope (same major version as current consumer receipts), with a new `kind: "org_checkin"` field distinguishing it from P2P receipts (`kind: "p2p_meet"` is now the canonical name for P2P; existing P2P receipts without a `kind` field are treated as `p2p_meet` by readers — backward compatible).
+
+Canonical Org receipt shape:
+
+```json
+{
+  "v": 5,
+  "kind": "org_checkin",
+  "ts": "2026-05-28T14:32:17.000Z",
+  "nonce": "<32 bytes base64url>",
+  "org": {
+    "id": "<org UUID>",
+    "slug": "<org slug>",
+    "name": "<org display name at time of check-in>"
+  },
+  "event": {
+    "id": "<event UUID, optional — null if no event-level routing>",
+    "name": "<event name at time of check-in>",
+    "room": "<room name, optional>"
+  },
+  "attendee": {
+    "pub_fp": "<attendee's hardware-credential fingerprint>",
+    "display_name": "<from org's Expected list at time of check-in, OR redacted>",
+    "anonymous": false
+  },
+  "action": "in" | "out",
+  "score": 70,
+  "bioVerified": true,
+  "gps": { "lat": 52.9XX, "lon": -1.4XX, "acc_m": 8 },
+  "venue_pub_jwk": { "kty": "EC", "crv": "P-256", "x": "...", "y": "..." },
+  "sig": "<ECDSA P-256 signature over canonical(payload-without-sig) using org's venue private key>"
+}
+```
+
+**Compact / redacted variants:**
+
+- **Privacy mode** (org Settings → privacy_mode = true): `gps` replaced by `gps_hash` (same SHA-256-over-coordinates pattern as v4 redacted receipts). `attendee.display_name` redacted to first-initial-surname or "Attendee #<short hash>" per existing Org redaction rules.
+- **Anonymous mode** (`anonymous_mode = true`): `attendee.display_name` omitted entirely. `attendee.pub_fp` retained — the receipt still binds to a specific device, just not a specific human identity.
+- **QR-compact form** (for sharing via QR code): `venue_pub_jwk` omitted; verifier recovers it from the Worker via `org.id` lookup. Receipt shrinks from ~600 bytes to ~280 bytes — fits comfortably in a high-density QR.
+
+### 17.3 Signing key model
+
+Each org has a **venue keypair** generated at org creation time and stored in D1 `organisations.venue_pub_jwk` (public) + `organisations.venue_priv_key` (private, encrypted at rest with a Worker-side master key derived from `BOOTSTRAP_DEVELOPER_FP` + per-org salt).
+
+The Worker signs Org receipts with the org's venue private key. The signature can be verified by any party who has the org's `venue_pub_jwk` — fetchable from `GET /org/public-info/:slug` (a new unauthenticated endpoint returning org name + slug + venue_pub_jwk only; no other org data).
+
+**Why org-keyed not attendee-keyed:**
+
+- The attendee's hardware credential signs the check-in REQUEST (per-action auth — already exists, v5.10.1 Path B).
+- The org's venue key signs the RECEIPT (proves the org acknowledged the check-in).
+- Mutual cryptographic binding: the attendee proves they were present + their hardware was used to sign the request; the org proves they ack'd the check-in within their authority.
+- A receipt verifier checks both: attendee's `pub_fp` matches a Worker-recorded membership, org's signature matches the published `venue_pub_jwk`.
+
+This matches the existing P2P receipt model where BOTH parties sign — A signs their HELLO, B signs their ACCEPT, the combined receipt carries both signatures. The Org receipt is the same primitive: attendee's per-action signature on the inbound, org's signature on the outbound, both bound by the canonical hash.
+
+### 17.4 Mint flow
+
+```
+1. Attendee phone scans venue QR
+2. Phone WebAuthn-signs the check-in request (existing v5.10.1 Path B)
+3. POST /org/checkin to Worker
+   {
+     pub_fp, signed_action_envelope, org_id, event_id?, action: 'in'|'out',
+     ts, nonce, gps?, bioVerified?, score
+   }
+4. Worker verifies signed_action_envelope (existing requireSignedAction)
+5. Worker resolves: org name, event name, room name, attendee display_name from Expected list
+6. Worker INSERT INTO org_checkins (existing — the operational row)
+7. Worker constructs the receipt payload (§17.2 shape)
+8. Worker signs canonical(receipt-without-sig) with org's venue private key
+9. Worker INSERT INTO org_receipts (new table — see §17.5)
+10. Worker returns:
+    { ok: true, checkin_id, receipt_id, receipt_url }
+11. Client redirects attendee to receipt_url (post-accept flow) — or stores receipt_id
+    in localStorage for the consumer-side receipt viewer to pick up
+```
+
+The receipt mint happens in the SAME Worker request handler as the existing `org_checkins` INSERT. No new round-trips, no race window. If the receipt INSERT fails (D1 hiccup), the response includes `receipt_unavailable: true` and the operational check-in still succeeds — the receipt can be re-minted from the `org_checkins` row at any later time via a backfill endpoint (`POST /org/receipt/backfill/:checkin_id`).
+
+### 17.5 D1 schema
+
+New table `org_receipts`:
+
+```sql
+CREATE TABLE IF NOT EXISTS org_receipts (
+  id TEXT PRIMARY KEY,                    -- UUID, used as receipt URL slug
+  org_id TEXT NOT NULL REFERENCES organisations(id),
+  checkin_id TEXT NOT NULL REFERENCES org_checkins(id),
+  attendee_pub_fp TEXT NOT NULL,
+  payload_json TEXT NOT NULL,              -- the canonical receipt payload (§17.2)
+  signature TEXT NOT NULL,                 -- base64url ECDSA sig over canonical(payload)
+  created_at INTEGER NOT NULL,             -- unix epoch ms
+  privacy_mode INTEGER NOT NULL DEFAULT 0  -- 1 if gps is hashed, attendee_name redacted
+);
+CREATE INDEX IF NOT EXISTS idx_org_receipts_org ON org_receipts(org_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_org_receipts_attendee ON org_receipts(attendee_pub_fp, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_org_receipts_checkin ON org_receipts(checkin_id);
+```
+
+Migration file: `apply_v6_0_org_receipts.ps1` — idempotent CREATE TABLE + 3 indexes. Runs cleanly against the existing v5.11 `irlid-db-org` schema without affecting any existing rows.
+
+### 17.6 Endpoints
+
+| Endpoint | Auth | Returns |
+|---|---|---|
+| `GET /org/receipt/:receipt_id` | None (public) | The receipt envelope (§17.2 shape). Used by `receipt.html` and `check.html`. |
+| `GET /org/receipts?attendee_pub_fp=...` | Bearer (the attendee, OR an org admin viewing their org's receipts) | Paginated list of receipts for that attendee or org. Filterable by date, event. |
+| `GET /org/public-info/:slug` | None (public) | `{ org_id, slug, name, venue_pub_jwk }` — minimum needed to verify a receipt without org credentials. No staff list, no Expected list, no settings. |
+| `POST /org/receipt/backfill/:checkin_id` | Bearer + lead_admin role | Re-mint a receipt for an existing `org_checkins` row that didn't get one (e.g., minted before v6.0 deploy, or where the v6.0 mint failed). |
+
+`receipt.html` is updated to:
+- Accept `?org_receipt=<receipt_id>` URL parameter
+- Fetch from `GET /org/receipt/:receipt_id`
+- Render the Org receipt with the same visual treatment as P2P receipts (verifying badge, score, GPS map if not redacted, attendee + org names)
+- "Verify" button on the receipt page triggers a client-side verification: fetch `venue_pub_jwk` from `/org/public-info/:slug`, recompute canonical hash, ECDSA verify. Same primitive as `check.html`.
+
+### 17.7 Privacy model
+
+- **Public information** (anyone can fetch via `GET /org/receipt/:receipt_id`): the receipt itself, including org name, event name (if not redacted), attendee display_name (subject to privacy/anonymous mode), GPS (subject to privacy mode), timestamp, signature.
+- **Not public**: the Expected list, the org's staff list, the org's settings, other attendees' receipts, the venue's private key.
+- **Attendee's control**: a public-mode flag on the receipt (default true for `kind: "org_checkin"`, default false for `privacy_mode` orgs) determines whether the receipt is fetchable by URL without auth. If false, only the attendee (via Bearer) and org admins can fetch it.
+
+This mirrors the existing P2P model: P2P receipts are shareable by URL by default (anyone with the URL can verify), but the receipt itself only contains what the two parties signed — no broader social graph leak.
+
+### 17.8 Threat model deltas vs P2P receipts
+
+| Risk | P2P mitigation | Org mitigation | Notes |
+|---|---|---|---|
+| Forged receipt | A's signature + B's signature both required; canonical hash binds them | Org's signature (proves org ack'd) + attendee's signed_action_envelope (proves attendee initiated) — both stored, both verifiable | Same dual-signature primitive. Difference: in Org receipts the "B" is an organisation (with a published venue_pub_jwk), not an individual. |
+| Org claims someone checked in who didn't | Same as P2P: A's signature is missing → forgery detectable | Without the attendee's signed_action_envelope in the `org_checkins` row + verifiable against attendee's `pub_fp`, the org cannot fabricate a check-in | Attendee's hardware credential is unforgeable; org cannot mint a receipt that an attendee didn't sign-action-authorize. |
+| Org claims someone DIDN'T check in who did | Same as P2P: B can produce the receipt | Attendee can produce their copy of the receipt (downloaded to their device at check-in time, or fetched via `/org/receipt/:id` if public-mode) | Need: client-side receipt storage on attendee's phone after check-in. Hook in `org-entry.html` post-accept flow stores receipt in localStorage. |
+| Receipt tampering after mint | Signature over canonical hash | Same. ECDSA P-256 over canonical(payload). | Identical primitive. |
+| Replay (same receipt presented twice) | nonce in receipt; verifier dedupes | nonce in receipt; verifier dedupes; D1 `org_receipts.id` is unique | Identical. |
+| Lost org private key | N/A (no central key) | All historical receipts can no longer be re-verified against a current key; need key rotation procedure with overlap (publish both old + new venue_pub_jwk during transition) | Key rotation is v6.1+ work. Design now: `org_public_keys` table with `valid_from` / `valid_to` so a receipt minted under key K1 can still verify against K1 after rotation to K2. |
+| Org goes out of business | N/A | If `/org/public-info/:slug` returns 404 (org deleted), receipts cannot be verified | Mitigation: the receipt payload itself contains `venue_pub_jwk` in the FULL (non-compact) form. As long as the attendee has their copy, they can verify against the embedded key. The Worker endpoint is a convenience, not a requirement. |
+
+### 17.9 Phasing
+
+**Phase A (v6.0 — the bridge):**
+
+- D1 migration `apply_v6_0_org_receipts.ps1` (new `org_receipts` table)
+- Worker `createCheckin` extended: after the `org_checkins` INSERT, mint receipt + INSERT into `org_receipts`
+- New endpoint `GET /org/receipt/:receipt_id` (public, returns the receipt)
+- New endpoint `GET /org/public-info/:slug` (public, returns org name + venue_pub_jwk)
+- Client (`org-entry.html`) stores the receipt in localStorage after a successful check-in
+- Dashboard "Attendance Today" rows gain a "↓ Receipt" link per row
+- `receipt.html` accepts `?org_receipt=<id>` and renders accordingly
+
+**Phase B (v6.0a — consumer surface):**
+
+- `receipt.html` and `check.html` get a unified receipt list view (P2P + Org receipts together, filterable)
+- The consumer page at `irlid.co.uk/` gets a "View my receipts" link prominently above the fold
+
+**Phase C (v6.1 — admin tools):**
+
+- Backfill endpoint `POST /org/receipt/backfill/:checkin_id` for the receipts-missing edge cases
+- Org admin "Export receipts" CSV/JSON bundle for the org's compliance/audit needs
+- Public read-only receipt log page per org (opt-in, off by default) for venues that want a public attendance feed (e.g., open events, public meetings)
+
+**Phase D (v6.2 — key rotation):**
+
+- `org_public_keys` table with `valid_from`/`valid_to` overlap windows
+- Self-service key rotation for lead_admins (requires hardware-backed auth)
+- Receipt verification accepts ANY historical public key for that org that was valid at the receipt's timestamp
+
+### 17.10 Backward compatibility
+
+- Existing P2P receipts (no `kind` field, or future `kind: "p2p_meet"`): unaffected. `check.html` reads them as today.
+- Existing `org_checkins` rows (pre-v6.0): no receipt was minted. Backfill endpoint (Phase C, v6.1) can mint receipts retroactively for any row in `org_checkins` that lacks an `org_receipts` row. Backfill uses the org's CURRENT venue key (acceptable — the receipt is still cryptographically valid, just signed with a key dated later than the check-in; the `ts` field reflects the original check-in time).
+- Dashboard UI: the "Attendance Today" table shows the "↓ Receipt" link only on rows where `org_receipts.id IS NOT NULL`. Pre-v6.0 rows show "Receipt — backfill?" for lead_admin+ users, no link for staff/attendee viewers.
+
+### 17.11 Acceptance criteria for v6.0 ship
+
+1. D1 migration runs idempotently against `irlid-db-org`.
+2. Worker `createCheckin` mints a receipt; the response includes `receipt_id` and `receipt_url`.
+3. `GET /org/receipt/:receipt_id` returns the canonical receipt envelope.
+4. `GET /org/public-info/:slug` returns `{ org_id, slug, name, venue_pub_jwk }`.
+5. `check.html` accepts an Org receipt URL and verifies it (fetches `public-info`, recomputes canonical hash, ECDSA verifies).
+6. Dashboard shows "↓ Receipt" link on new check-in rows.
+7. Attendee's localStorage gains a receipt entry after a real check-in on hardware.
+8. Multi-attendee smoke: 2-3 real check-ins from 2 devices produce 2-3 valid receipts, each verifiable independently.
+
+### 17.12 Genesis
+
+This section's existence is owed to:
+
+- Captain's observation 27 May 2026 that the consumer receipts page hasn't had a new entry since 14 May, because Org check-ins don't surface as receipts.
+- The honest framing emerged from yesterday's brainstorm: *"When (seems like if) people start using this, they'll want to access all their receipts."*
+- The architectural elegance of reusing the existing ECDSA signing primitive — the Worker already signs `org_checkins` rows for per-action auth (v5.10.1 Path B); v6.0 just ALSO outputs the receipt in the consumer-format envelope. Same signature, different wrapper.
+- The Patreon honesty gate: promotion lands stronger when the trust story is complete, not split across two parallel systems.
+
+Drafted 28 May 2026 (Thursday morning watch). Implementation queued for Mr. Data Saturday 03:00 BST onward.
+
