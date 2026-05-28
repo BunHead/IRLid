@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visual Theming v5.12 — Reorganisation Mockup (Rev 4 — Anchor system redesign)</title>
+<title>Visual Theming v5.12 — Reorganisation Mockup (Rev 5 — Design verdicts + font picker + per-mode sound)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Caveat&family=Inter:wght@400;700&family=Lobster&family=Montserrat:wght@400;700&family=Oswald&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:wght@400;700&family=Anton&family=Dancing+Script&display=swap" rel="stylesheet">
 <style>
   :root { --bg: #0d1117; --surface: #161b22; --surface2: #1c2129; --line: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #7ee787; --orange: #d29922; --red: #f85149; --magenta: #db61a2; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,26 +18,85 @@
   .badge-current { background: rgba(88,166,255,0.15); color: var(--accent); }
   .badge-new { background: rgba(126,231,135,0.18); color: var(--green); }
 
-  /* Rev 4 callout */
-  .rev4-callout { border: 1px solid rgba(126,231,135,0.4); border-left: 4px solid var(--green); background: rgba(126,231,135,0.05); border-radius: 6px; padding: 14px 18px; margin: 16px 0 24px; }
-  .rev4-callout h4 { font-size: 13px; color: var(--green); margin-bottom: 8px; }
-  .rev4-callout ul { font-size: 12px; color: var(--text); line-height: 1.8; padding-left: 18px; margin: 0; }
-  .rev4-callout li { margin-bottom: 2px; }
-  .rev4-callout strong { color: var(--green); }
+  /* Rev callout */
+  .rev-callout { border: 1px solid rgba(126,231,135,0.4); border-left: 4px solid var(--green); background: rgba(126,231,135,0.05); border-radius: 6px; padding: 14px 18px; margin: 16px 0 24px; }
+  .rev-callout h4 { font-size: 13px; color: var(--green); margin-bottom: 8px; }
+  .rev-callout ul { font-size: 12px; color: var(--text); line-height: 1.8; padding-left: 18px; margin: 0; }
+  .rev-callout strong { color: var(--green); }
+
+  /* Verdicts section — Captain picks one option per question */
+  .verdicts-section { border: 2px solid var(--orange); border-radius: 10px; padding: 18px; background: rgba(210,153,34,0.04); margin-bottom: 24px; }
+  .verdicts-section h2 { font-size: 16px; color: var(--orange); margin-bottom: 6px; }
+  .verdicts-section .sub-note { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+  .verdict-block { padding: 14px 0; border-top: 1px solid var(--line); }
+  .verdict-block:first-of-type { border-top: none; padding-top: 0; }
+  .verdict-block h3 { font-size: 14px; color: var(--text); margin-bottom: 4px; }
+  .verdict-block .v-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .verdict-options { display: grid; gap: 10px; }
+  .verdict-2 { grid-template-columns: 1fr 1fr; }
+  .verdict-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 700px) { .verdict-2, .verdict-3 { grid-template-columns: 1fr; } }
+  .v-option { border: 2px solid var(--line); border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--bg); }
+  .v-option:hover { border-color: var(--accent); }
+  .v-option.picked { border-color: var(--green); background: rgba(126,231,135,0.06); box-shadow: 0 0 0 1px var(--green); }
+  .v-option .v-label { font-size: 12px; font-weight: 600; color: var(--text); }
+  .v-option .v-sub { font-size: 10px; color: var(--muted); text-align: center; }
+  .v-option .v-pick { font-size: 10px; color: var(--green); font-weight: 700; opacity: 0; transition: opacity 0.15s; text-transform: uppercase; letter-spacing: 0.05em; }
+  .v-option.picked .v-pick { opacity: 1; }
+
+  /* Verdict 1: + cross size variants */
+  .cross-demo { border: 1px dashed var(--line); border-radius: 6px; background: var(--surface); position: relative; }
+  .cross-demo .h-bar { position: absolute; left: 6px; right: 6px; top: 50%; transform: translateY(-50%); height: 3px; background: var(--accent); border-radius: 2px; }
+  .cross-demo .v-bar { position: absolute; top: 6px; bottom: 6px; left: 50%; transform: translateX(-50%); width: 3px; background: var(--accent); border-radius: 2px; }
+  .cross-demo .c-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; }
+  .cross-demo .h-thumb, .cross-demo .v-thumb { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; }
+  .cross-demo .h-thumb { top: 50%; right: 30%; transform: translateY(-50%); }
+  .cross-demo .v-thumb { left: 50%; top: 30%; transform: translateX(-50%); }
+  .cross-180 { width: 180px; height: 180px; }
+  .cross-220 { width: 220px; height: 220px; }
+  .cross-260 { width: 260px; height: 260px; }
+
+  /* Verdict 2: multi-toggle visual variants */
+  .toggle-chip-style { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(210,153,34,0.12); border: 1px solid var(--orange); border-radius: 6px; color: var(--orange); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .toggle-proper { display: inline-flex; align-items: center; gap: 8px; }
+  .toggle-proper .tog { width: 38px; height: 22px; background: var(--green); border-radius: 11px; position: relative; }
+  .toggle-proper .tog::after { content: ''; position: absolute; top: 2px; left: 18px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .toggle-proper .tlbl { font-size: 12px; }
+  .toggle-dropdown { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; cursor: pointer; }
+
+  /* Verdict 3: drag snap zones */
+  .snap-demo { width: 100%; height: 140px; border-radius: 8px; background: linear-gradient(135deg, #dc143c, #8b0000); position: relative; overflow: hidden; }
+  .snap-demo .mini-logo { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 20px; height: 20px; background: rgba(255,255,255,0.9); border-radius: 4px; }
+  .snap-demo .mini-qr { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; background: #fff; border-radius: 4px; }
+  .snap-demo .snap-zone { position: absolute; border: 2px dashed var(--green); border-radius: 50%; opacity: 0.7; pointer-events: none; }
+  .snap-demo .crosshair { position: absolute; width: 18px; height: 18px; pointer-events: none; transform: translate(-50%, -50%); }
+  .snap-demo .crosshair::before, .snap-demo .crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.9); box-shadow: 0 0 0 1px rgba(0,0,0,0.6); }
+  .snap-demo .crosshair::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
+  .snap-demo .crosshair::after { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
+
+  /* Verdict 4: A? placeholder */
+  .chip-row-demo { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 0; }
+  .chip-demo { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 11px; background: var(--surface); color: var(--text); }
+  .chip-demo.on { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .chip-demo .a-tag { font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px; }
+  .chip-demo .a-tag-dim { font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.05); color: var(--muted); padding: 1px 4px; border-radius: 3px; }
+
+  /* Verdict 5: ↺ reset glyph candidates */
+  .glyph-demo { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 12px; }
 
   /* Preview stage with anchors */
   .preview-frame { width: 100%; height: 320px; border-radius: 10px; overflow: hidden; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; background: linear-gradient(135deg, #dc143c 0%, #8b0000 30%, #ff6b6b 60%, #ffb347 100%); }
   .preview-logo { width: 38px; height: 38px; background: rgba(255,255,255,0.92); border-radius: 7px; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #111; }
-  .preview-banner { font-size: 28px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); text-align: center; font-family: 'Pacifico', cursive; }
+  .preview-banner { font-size: 32px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.7); text-align: center; font-family: 'Pacifico', cursive; transition: font-family 0.2s; }
   .preview-qr { width: 140px; height: 140px; background: #fff; border-radius: 8px; display: grid; place-items: center; font-size: 11px; color: #333; position: relative; }
   .preview-label { position: absolute; top: 10px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.7); }
-  /* Anchor crosshair overlay */
   .anchor-crosshair { position: absolute; width: 28px; height: 28px; pointer-events: none; transform: translate(-50%, -50%); z-index: 5; transition: opacity 0.2s; }
   .anchor-crosshair::before, .anchor-crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); box-shadow: 0 0 0 1px rgba(0,0,0,0.6); }
   .anchor-crosshair::before { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
   .anchor-crosshair::after { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
   .anchor-crosshair .anchor-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: 700; color: #fff; background: rgba(0,0,0,0.7); padding: 1px 5px; border-radius: 3px; }
   .anchors-hidden .anchor-crosshair { opacity: 0; }
+  .drag-hint { position: absolute; bottom: 8px; left: 12px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.6); pointer-events: none; text-align: center; }
 
   /* Sections */
   .section { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
@@ -82,11 +144,21 @@
   .sub:first-child { border-top: none; margin-top: 0; padding-top: 0; }
   .sub-new { color: var(--green); }
 
-  /* Sequence builder placeholder */
-  .sequence-placeholder { min-height: 120px; border: 2px dashed var(--line); border-radius: 8px; padding: 16px; margin: 8px 0; }
-  .sequence-placeholder-title { font-weight: 600; margin-bottom: 8px; font-size: 13px; }
+  /* FONT PICKER REDESIGN — the headline of Rev 5 for Section 1 */
+  .font-picker { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--surface); margin: 8px 0 12px; }
+  .font-live-preview { padding: 22px 14px; background: linear-gradient(135deg, #dc143c, #ffb347); border-radius: 6px; text-align: center; font-size: 36px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); margin-bottom: 14px; min-height: 90px; display: grid; place-items: center; transition: font-family 0.2s; }
+  .font-categories { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .font-cat { padding: 4px 12px; font-size: 11px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--muted); cursor: pointer; }
+  .font-cat:hover { border-color: var(--accent); }
+  .font-cat.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .font-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .font-card { padding: 14px 10px; text-align: center; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; transition: all 0.15s; font-size: 22px; color: var(--text); min-height: 64px; display: grid; place-items: center; line-height: 1.1; }
+  .font-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .font-card.picked { background: rgba(88,166,255,0.1); border-color: var(--accent); }
+  .font-card .font-card-cat { display: block; font-size: 9px; color: var(--muted); margin-top: 4px; font-family: -apple-system, sans-serif; font-weight: normal; text-transform: uppercase; letter-spacing: 0.06em; }
 
   /* Effect cards in sequence */
+  .sequence-placeholder { min-height: 120px; border: 2px dashed var(--line); border-radius: 8px; padding: 16px; margin: 8px 0; }
   .effect-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.15s; }
   .effect-card:hover { border-color: var(--accent); }
   .effect-card.selected { border-color: var(--accent); background: rgba(88,166,255,0.06); box-shadow: 0 0 0 1px var(--accent); }
@@ -98,7 +170,7 @@
   .effect-card .icon-btn { width: 26px; height: 26px; border-radius: 4px; border: 1px solid var(--line); background: var(--bg); color: var(--text); display: grid; place-items: center; cursor: pointer; font-size: 12px; }
   .effect-card .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  /* Anchor system block — the headline of Rev 4 */
+  /* Anchor system block */
   .anchor-system { background: rgba(126,231,135,0.04); border: 1px solid rgba(126,231,135,0.3); border-radius: 8px; padding: 14px; margin-top: 12px; }
   .anchor-system-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
   .anchor-system-header h4 { font-size: 13px; font-weight: 600; color: var(--green); flex: 1; }
@@ -106,24 +178,19 @@
   .anchor-system-header .selected-effect-name strong { color: var(--accent); }
   .crosshair-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; user-select: none; }
   .crosshair-toggle.on { border-color: var(--accent); background: rgba(88,166,255,0.1); color: var(--accent); }
-  .crosshair-toggle .anchor-icon { font-size: 14px; }
 
-  /* Anchor target row */
   .anchor-target-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
   .multi-toggle { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; cursor: pointer; user-select: none; }
   .multi-toggle.on { background: rgba(210,153,34,0.12); border-color: var(--orange); color: var(--orange); }
 
-  /* + shape sliders + 9-cell grid, side by side */
   .anchor-controls-grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-top: 16px; align-items: start; }
   @media (max-width: 700px) { .anchor-controls-grid { grid-template-columns: 1fr; } }
 
-  /* The + slider cross */
   .offset-cross { position: relative; width: 220px; height: 220px; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface); }
   .offset-cross::before { content: '+ Offset'; position: absolute; top: -10px; left: 12px; padding: 0 6px; background: var(--bg); font-size: 10px; color: var(--muted); }
   .offset-cross .slider-h { position: absolute; left: 8px; right: 8px; top: 50%; transform: translateY(-50%); -webkit-appearance: none; appearance: none; height: 4px; background: var(--accent); border-radius: 2px; outline: none; cursor: pointer; }
   .offset-cross .slider-v { position: absolute; top: 8px; bottom: 8px; left: 50%; transform: translateX(-50%); writing-mode: vertical-rl; -webkit-appearance: slider-vertical; appearance: slider-vertical; width: 4px; background: var(--accent); border-radius: 2px; outline: none; cursor: pointer; }
   .offset-cross input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; cursor: pointer; }
-  .offset-cross input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; cursor: pointer; }
   .offset-cross .cross-centre { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: 700; color: var(--accent); pointer-events: none; padding: 3px 8px; background: var(--bg); border-radius: 4px; border: 1px solid var(--accent); display: flex; align-items: center; gap: 4px; }
   .offset-cross .cross-label { position: absolute; font-size: 9px; color: var(--muted); }
   .offset-cross .cross-label-h-l { left: 4px; top: calc(50% + 12px); }
@@ -131,7 +198,6 @@
   .offset-cross .cross-label-v-t { top: 4px; left: calc(50% + 12px); }
   .offset-cross .cross-label-v-b { bottom: 4px; left: calc(50% + 12px); }
 
-  /* 9-cell direction grid */
   .direction-grid-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
   .direction-grid-wrap > .label-row { font-size: 12px; color: var(--muted); font-weight: 600; }
   .direction-grid { display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px); gap: 4px; }
@@ -139,7 +205,6 @@
   .direction-grid .cell:hover { border-color: var(--accent); }
   .direction-grid .cell.active { background: rgba(88,166,255,0.15); border-color: var(--accent); color: var(--accent); }
 
-  /* Anchor list (when multi-select on) */
   .active-anchors-list { margin-top: 14px; padding: 10px; background: var(--surface); border-radius: 6px; border: 1px dashed rgba(210,153,34,0.4); display: none; }
   .anchor-multi-on .active-anchors-list { display: block; }
   .active-anchors-list h5 { font-size: 11px; color: var(--orange); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
@@ -149,30 +214,33 @@
   .anchor-list-row .anchor-list-name { flex: 1; font-size: 12px; }
   .anchor-list-row .anchor-list-offset { font-size: 11px; color: var(--muted); font-family: monospace; }
 
-  /* Reset / undo buttons */
   .reset-btn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
   .reset-btn:hover { border-color: var(--orange); color: var(--orange); }
-  .reset-btn .reset-glyph { font-family: 'Segoe UI Symbol', system-ui; font-size: 13px; line-height: 1; }
 
-  /* Undo/redo hint pill */
   .undo-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 10px; color: var(--muted); font-family: monospace; }
   .undo-pill kbd { background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 3px; font-size: 10px; }
 
-  /* Tooltip helper */
   .tooltip-host { position: relative; display: inline-block; }
   .tooltip-host[data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #000; color: #fff; padding: 5px 9px; border-radius: 4px; font-size: 11px; pointer-events: none; z-index: 100; }
   .tooltip-host[data-tip]:hover::before { content: ''; position: absolute; bottom: calc(100% + 3px); left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #000; z-index: 100; }
 
-  /* Drag-to-anchor hint area on preview */
-  .drag-hint { position: absolute; bottom: 8px; left: 12px; right: 12px; font-size: 10px; color: rgba(255,255,255,0.6); pointer-events: none; text-align: center; }
+  /* Per-mode outcome sound block */
+  .sound-mode-block { padding: 12px; background: var(--surface); border-radius: 6px; border: 1px solid var(--line); margin-top: 10px; display: none; }
+  .sound-mode-block.active { display: block; }
+  .sound-mode-block h5 { font-size: 12px; font-weight: 600; margin-bottom: 8px; }
+  .sound-mode-allow h5 { color: var(--green); }
+  .sound-mode-review h5 { color: var(--orange); }
+  .sound-mode-deny h5 { color: var(--red); }
+  .sound-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; flex-wrap: wrap; }
+  .sound-row label { width: 110px; color: var(--muted); }
+  .sound-row .file-name { font-family: monospace; font-size: 11px; padding: 2px 6px; background: var(--bg); border-radius: 3px; min-width: 110px; }
 
-  /* Polish carry-overs box */
+  /* Polish box */
   .polish-box { border: 1px dashed var(--orange); background: rgba(210,153,34,0.05); border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
   .polish-box h4 { font-size: 13px; color: var(--orange); margin-bottom: 8px; }
   .polish-box ul { font-size: 12px; color: var(--text); line-height: 1.7; padding-left: 18px; margin: 0; }
   .polish-box li { margin-bottom: 4px; }
 
-  /* Comparison */
   .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
   .comparison > div { padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
   .comparison h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
@@ -182,86 +250,261 @@
 </head>
 <body>
 
-<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span> <span class="badge badge-new">REV 4</span></h1>
-<p class="subtitle">Anchor system redesign per Captain's 28 May feedback. Click any section header to expand. The Anchor System block inside Section 4 is the headline change. This file is a standalone demo — it does NOT touch the live site.</p>
+<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span> <span class="badge badge-new">REV 5</span></h1>
+<p class="subtitle">Design verdicts + font picker redesign + per-mode outcome sound. Click options below to register preferences. This file is a standalone demo — it does NOT touch the live site.</p>
 
-<div class="rev4-callout">
-  <h4>What's new in Rev 4</h4>
+<div class="rev-callout">
+  <h4>What's new in Rev 5</h4>
   <ul>
-    <li><strong>Anchor presets</strong> — Centre · Image · Logo · QR chips replace implicit/fixed anchor. Logo is just one option among four.</li>
-    <li><strong>⚓ Show crosshairs toggle</strong> — anchor-icon button toggles crosshair overlay on the preview. Visual affordance, not a text checkbox.</li>
-    <li><strong>Multi-select mode</strong> — orange "Multi" toggle. When on, anchor chips become checkboxes and active anchors get <strong>A1 / A2 / A3</strong> letter tags.</li>
-    <li><strong>+-shape offset sliders</strong> — horizontal + vertical sliders intersecting visually as a <strong>+</strong>, sized to match the 9-cell direction grid. Drag H-slider left → anchor moves left. Slider body teaches function.</li>
-    <li><strong>Per-effect anchor badge</strong> — every effect card in the sequence shows its current anchor at a glance (e.g. <code>⚓ Logo</code>, <code>⚓ A1+A2</code>).</li>
-    <li><strong>Drag-to-anchor on preview</strong> — Photoshop-style: drag the crosshair onto Centre/Image/Logo/QR to snap-select.</li>
-    <li><strong>Per-effect ↺ reset</strong> — restores Captain-recommended defaults for just that effect. Distinct glyph from refresh ↻.</li>
-    <li><strong>Ctrl+Z / Ctrl+Y undo stack</strong> — global undo across the panel. Pill at the top of Section 4 indicates state.</li>
-    <li><strong>Tooltips on anchor names</strong> — explain Image/Logo/QR spatially. <code>aria-describedby</code> for WCAG 2.1 SC 3.3.2 compliance.</li>
+    <li><strong>Design verdicts section</strong> at the top — five side-by-side visual comparisons. Click your preferred option in each row.</li>
+    <li><strong>Font picker redesign</strong> in Section 1 — each font name rendered in its own font, category tabs, live banner preview.</li>
+    <li><strong>Outcome sound per-mode</strong> in Section 4 — separate sound configuration per Allow/Review/Deny mode, not a single shared pair.</li>
   </ul>
 </div>
+
+<!-- ====== DESIGN VERDICTS NEEDED ====== -->
+<div class="verdicts-section">
+  <h2>Design verdicts needed before Mr. Data wires v5.12</h2>
+  <p class="sub-note">Click one option in each row. Your picks lock the design before the brief is amended and Mr. Data picks it up Saturday morning.</p>
+
+  <!-- VERDICT 1: + cross size -->
+  <div class="verdict-block">
+    <h3>1. + slider cross size</h3>
+    <p class="v-desc">How big should the +-shape offset slider be? Same row sits alongside the 9-cell direction grid (3 cells × 60px = 180px).</p>
+    <div class="verdict-options verdict-3" data-verdict="cross-size">
+      <div class="v-option" data-pick="180">
+        <div class="cross-demo cross-180"><div class="h-bar"></div><div class="v-bar"></div><div class="c-dot"></div><div class="h-thumb"></div><div class="v-thumb"></div></div>
+        <span class="v-label">180 × 180</span>
+        <span class="v-sub">Matches direction grid exactly. Tighter footprint.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option picked" data-pick="220">
+        <div class="cross-demo cross-220"><div class="h-bar"></div><div class="v-bar"></div><div class="c-dot"></div><div class="h-thumb"></div><div class="v-thumb"></div></div>
+        <span class="v-label">220 × 220 <span style="color: var(--green); font-size: 10px;">(Rev 4 default)</span></span>
+        <span class="v-sub">Slightly larger than direction grid. More fine-control room.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option" data-pick="260">
+        <div class="cross-demo cross-260"><div class="h-bar"></div><div class="v-bar"></div><div class="c-dot"></div><div class="h-thumb"></div><div class="v-thumb"></div></div>
+        <span class="v-label">260 × 260</span>
+        <span class="v-sub">Generous tap targets. Best for fat-finger phones.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERDICT 2: Multi-toggle visual -->
+  <div class="verdict-block">
+    <h3>2. Multi-select mode toggle visual</h3>
+    <p class="v-desc">How should the "switch into multi-anchor mode" affordance look? Three candidates.</p>
+    <div class="verdict-options verdict-3" data-verdict="multi-toggle">
+      <div class="v-option picked" data-pick="chip">
+        <div style="height: 60px; display: grid; place-items: center;"><span class="toggle-chip-style">⊞ Multi</span></div>
+        <span class="v-label">Chip-style <span style="color: var(--green); font-size: 10px;">(Rev 4)</span></span>
+        <span class="v-sub">Orange-tinted chip. Signals "mode change" rather than "preference flip".</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option" data-pick="toggle">
+        <div style="height: 60px; display: grid; place-items: center;"><span class="toggle-proper"><span class="tog"></span><span class="tlbl">Multi-anchor</span></span></div>
+        <span class="v-label">Proper toggle</span>
+        <span class="v-sub">Familiar iOS-style. Consistent with other toggles on the page.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option" data-pick="dropdown">
+        <div style="height: 60px; display: grid; place-items: center;"><span class="toggle-dropdown">Anchors: <strong>Single</strong> ▾</span></div>
+        <span class="v-label">Dropdown</span>
+        <span class="v-sub">Single / Multi / Mirrored. Room to expand the model later.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERDICT 3: Drag-to-anchor snap zones -->
+  <div class="verdict-block">
+    <h3>3. Drag-to-anchor — snap zones or freeform?</h3>
+    <p class="v-desc">When you drag a crosshair around the preview, should the four named anchors (Centre/Image/Logo/QR) show visible snap targets that light up?</p>
+    <div class="verdict-options verdict-2" data-verdict="snap-zones">
+      <div class="v-option picked" data-pick="snap">
+        <div class="snap-demo">
+          <div class="mini-logo"></div>
+          <div class="mini-qr"></div>
+          <div class="snap-zone" style="top: 16px; left: 50%; width: 36px; height: 36px; margin-left: -18px; margin-top: 0;"></div>
+          <div class="snap-zone" style="top: 70px; left: 50%; width: 66px; height: 66px; margin-left: -33px; margin-top: -8px;"></div>
+          <div class="crosshair" style="top: 50%; left: 50%;"></div>
+        </div>
+        <span class="v-label">Snap zones</span>
+        <span class="v-sub">Green dashed rings on Logo + QR light up when crosshair approaches. Drop = snap-select. Chips reflect.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option" data-pick="freeform">
+        <div class="snap-demo">
+          <div class="mini-logo"></div>
+          <div class="mini-qr"></div>
+          <div class="crosshair" style="top: 50%; left: 50%;"></div>
+        </div>
+        <span class="v-label">Freeform</span>
+        <span class="v-sub">Crosshair drags anywhere. Chips remain the canonical way to name an anchor.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERDICT 4: A? placeholder -->
+  <div class="verdict-block">
+    <h3>4. "A?" placeholder on inactive anchor chips (Multi mode)</h3>
+    <p class="v-desc">When Multi is on and only some anchors are active, should inactive chips show a faint <code>A?</code> tag hinting they'd get the next letter if activated?</p>
+    <div class="verdict-options verdict-2" data-verdict="a-placeholder">
+      <div class="v-option" data-pick="hint">
+        <div class="chip-row-demo">
+          <span class="chip-demo on">⚓ Centre <span class="a-tag">A1</span></span>
+          <span class="chip-demo on">⚓ Logo <span class="a-tag">A2</span></span>
+          <span class="chip-demo">⚓ Image <span class="a-tag-dim">A?</span></span>
+          <span class="chip-demo">⚓ QR <span class="a-tag-dim">A?</span></span>
+        </div>
+        <span class="v-label">With "A?" hint <span style="color: var(--green); font-size: 10px;">(Rev 4)</span></span>
+        <span class="v-sub">Inactive chips show dim A? tag. Teaches "click me and I become A3".</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option picked" data-pick="clean">
+        <div class="chip-row-demo">
+          <span class="chip-demo on">⚓ Centre <span class="a-tag">A1</span></span>
+          <span class="chip-demo on">⚓ Logo <span class="a-tag">A2</span></span>
+          <span class="chip-demo">⚓ Image</span>
+          <span class="chip-demo">⚓ QR</span>
+        </div>
+        <span class="v-label">Clean (no A? hint)</span>
+        <span class="v-sub">Less visual clutter. Letter tags only appear when chip is activated.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERDICT 5: ↺ reset glyph -->
+  <div class="verdict-block">
+    <h3>5. "Reset to default" glyph (NOT to be confused with refresh ↻)</h3>
+    <p class="v-desc">Per-effect Reset button needs a glyph clearly distinct from refresh. Captain flagged Rev 4's ↶ as ambiguous.</p>
+    <div class="verdict-options verdict-3" data-verdict="reset-glyph">
+      <div class="v-option" data-pick="anti-arrow">
+        <div style="height: 50px; display: grid; place-items: center;"><span class="glyph-demo"><span style="font-size: 16px;">↶</span> Reset</span></div>
+        <span class="v-label">↶ Anti-arrow <span style="color: var(--green); font-size: 10px;">(Rev 4)</span></span>
+        <span class="v-sub">Rotate anti-clockwise with serif tail. Same risk of confusion with ↻ refresh.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option picked" data-pick="word">
+        <div style="height: 50px; display: grid; place-items: center;"><span class="glyph-demo">Default</span></div>
+        <span class="v-label">Word: "Default"</span>
+        <span class="v-sub">Unambiguous. Adds a few pixels but kills the glyph-confusion problem stone dead.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+      <div class="v-option" data-pick="return">
+        <div style="height: 50px; display: grid; place-items: center;"><span class="glyph-demo"><span style="font-size: 16px;">↩</span> Reset</span></div>
+        <span class="v-label">↩ Return arrow</span>
+        <span class="v-sub">"Carriage return" associations. Less rotation-y than ↻ ↺.</span>
+        <span class="v-pick">✓ PICKED</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top: 14px; padding: 10px; background: var(--surface); border-radius: 6px; font-size: 12px; color: var(--muted);">
+    <strong style="color: var(--accent);">Note:</strong> green-highlighted options above are Rev 4 defaults. Click any other option to change the verdict. Picked options show ✓ PICKED.
+  </div>
+</div>
+<!-- ====== END DESIGN VERDICTS ====== -->
 
 <div class="comparison">
   <div>
     <h4 style="color: var(--muted);">Current (v5.11.24a) — organic growth order</h4>
     <ul>
       <li>Background (palette + cycle motion)</li>
-      <li>Banner styling (font toggle)</li>
+      <li>Banner styling (font wall-of-chips)</li>
       <li>Pattern overlay</li>
       <li>Image overlay</li>
       <li>QR customization (mixes QR colour + celebration palette + effects)</li>
       <li>Post-accept behaviour (mixes welcome message + celebration sequence + sound)</li>
-      <li><em>Anchors implicit, often default to logo position</em></li>
+      <li><em>Anchors implicit, sound not per-mode</em></li>
     </ul>
   </div>
   <div>
     <h4 style="color: var(--green);">Proposed (v5.12) — human-thinking order</h4>
     <ul>
-      <li><strong>1. Brand identity</strong> — banner text, font, logo</li>
+      <li><strong>1. Brand identity</strong> — banner text, <strong style="color: var(--green);">font picker with previews</strong>, logo</li>
       <li><strong>2. Colour &amp; background</strong> — palette, pattern, image, light/dark</li>
       <li><strong>3. QR appearance</strong> — foreground colour, motion style</li>
-      <li><strong>4. Check-in/out Experience</strong> — palette, sequence builder, <strong style="color: var(--green);">explicit anchor system</strong>, text template, sound (mode = Allow/Review/Deny)</li>
+      <li><strong>4. Check-in/out Experience</strong> — palette, sequence, <strong style="color: var(--green);">explicit anchors</strong>, text, <strong style="color: var(--green);">per-mode sound</strong></li>
       <li><strong>5. Post-Accept Flow</strong> — welcome message, redirect, dwell time</li>
     </ul>
   </div>
 </div>
 
-<!-- Preview stage (static demo with anchor crosshairs) -->
+<!-- Preview stage -->
 <div class="preview-frame" id="previewFrame">
   <div class="preview-label">Live preview</div>
   <div class="preview-logo">IRL</div>
   <div class="preview-banner" id="demoBanner">Test Event</div>
   <div class="preview-qr" id="previewQr">QR</div>
-  <!-- Anchor crosshairs (positioned absolutely; positions are illustrative) -->
   <div class="anchor-crosshair" style="top: 22%; left: 50%;"><span class="anchor-label">A1 · Logo</span></div>
   <div class="anchor-crosshair" style="top: 64%; left: 50%;"><span class="anchor-label">A2 · QR</span></div>
   <div class="drag-hint">Drag a crosshair onto Centre/Image/Logo/QR to snap-select that anchor</div>
 </div>
 
-<!-- SECTION 1: Brand Identity -->
-<div class="section">
+<!-- SECTION 1: Brand Identity — FONT PICKER REDESIGNED -->
+<div class="section open">
   <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
     <div class="section-number">1</div>
-    <h3>Brand Identity <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">banner text, global font, logo</span></h3>
+    <h3>Brand Identity <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">banner text, font, logo</span> <span class="badge badge-new">FONT PICKER REDESIGN</span></h3>
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
     <div class="row">
       <label>Banner text</label>
-      <input type="text" value="{org} — {event}" placeholder="{org}, {event}, {room} placeholders" oninput="document.getElementById('demoBanner').textContent = this.value.replace('{org}','Yoga Studio').replace('{event}','Morning Flow').replace('{room}','Studio 1')" />
+      <input type="text" value="Test Event" id="bannerInput" oninput="document.getElementById('demoBanner').textContent = this.value; document.getElementById('fontLivePreview').textContent = this.value || 'Test Event';" />
     </div>
     <div class="hint" style="margin-left: 152px; margin-bottom: 12px;">Placeholders: <code>{org}</code> = org name, <code>{event}</code> = current event name, <code>{room}</code> = room/studio name. Default: <code>{org}</code></div>
 
     <div class="sub">Font</div>
-    <div class="hint" style="margin-bottom: 8px;">One font setting — applies globally to the banner, outcome text overlay, and welcome message display.</div>
+    <div class="hint" style="margin-bottom: 8px;">One font setting — applies globally to the banner, outcome text overlay, and welcome message display. Click any card to set; the live preview above updates.</div>
+
     <div class="toggle-row">
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
       <label>Customise font</label>
       <span style="font-size: 11px; color: var(--muted);">(off = browser default)</span>
     </div>
-    <div class="row"><label>Font</label><div class="chips"><span class="chip">sans</span><span class="chip">serif</span><span class="chip">mono</span><span class="chip">bebas</span><span class="chip active">pacifico</span><span class="chip">caveat</span><span class="chip">marker</span><span class="chip">playfair</span><span class="chip">lobster</span><span class="chip">inter</span><span class="chip">montserrat</span></div></div>
+
+    <div class="font-picker">
+      <!-- Big live preview at the top -->
+      <div class="font-live-preview" id="fontLivePreview" style="font-family: 'Pacifico', cursive;">Test Event</div>
+
+      <!-- Category tabs -->
+      <div class="font-categories">
+        <span class="font-cat active" data-cat="all">All</span>
+        <span class="font-cat" data-cat="sans">Sans-serif</span>
+        <span class="font-cat" data-cat="serif">Serif</span>
+        <span class="font-cat" data-cat="display">Display</span>
+        <span class="font-cat" data-cat="handwriting">Handwriting</span>
+        <span class="font-cat" data-cat="mono">Mono</span>
+      </div>
+
+      <!-- Font cards — each rendered in its own font -->
+      <div class="font-grid" id="fontGrid">
+        <div class="font-card" data-cat="sans" style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">System sans<span class="font-card-cat">sans</span></div>
+        <div class="font-card" data-cat="sans" style="font-family: 'Inter', sans-serif;">Inter<span class="font-card-cat">sans</span></div>
+        <div class="font-card" data-cat="sans" style="font-family: 'Montserrat', sans-serif; font-weight: 700;">Montserrat<span class="font-card-cat">sans</span></div>
+        <div class="font-card" data-cat="serif" style="font-family: Georgia, 'Times New Roman', serif;">System serif<span class="font-card-cat">serif</span></div>
+        <div class="font-card" data-cat="serif" style="font-family: 'Playfair Display', serif;">Playfair<span class="font-card-cat">serif</span></div>
+        <div class="font-card" data-cat="display" style="font-family: 'Bebas Neue', sans-serif;">Bebas<span class="font-card-cat">display</span></div>
+        <div class="font-card" data-cat="display" style="font-family: 'Anton', sans-serif;">Anton<span class="font-card-cat">display</span></div>
+        <div class="font-card" data-cat="display" style="font-family: 'Oswald', sans-serif;">Oswald<span class="font-card-cat">display</span></div>
+        <div class="font-card picked" data-cat="handwriting" style="font-family: 'Pacifico', cursive;">Pacifico<span class="font-card-cat">handwriting</span></div>
+        <div class="font-card" data-cat="handwriting" style="font-family: 'Caveat', cursive; font-size: 26px;">Caveat<span class="font-card-cat">handwriting</span></div>
+        <div class="font-card" data-cat="handwriting" style="font-family: 'Dancing Script', cursive; font-size: 24px;">Dancing<span class="font-card-cat">handwriting</span></div>
+        <div class="font-card" data-cat="handwriting" style="font-family: 'Lobster', cursive;">Lobster<span class="font-card-cat">handwriting</span></div>
+        <div class="font-card" data-cat="display" style="font-family: 'Permanent Marker', cursive; font-size: 20px;">Marker<span class="font-card-cat">display</span></div>
+        <div class="font-card" data-cat="mono" style="font-family: 'SF Mono', Consolas, monospace; font-size: 18px;">System mono<span class="font-card-cat">mono</span></div>
+      </div>
+    </div>
+
     <div class="row"><label>Weight</label><div class="chips"><span class="chip">light</span><span class="chip">regular</span><span class="chip active">bold</span><span class="chip">black</span></div></div>
     <div class="row"><label>Italic</label><div class="chips"><span class="chip active">off</span><span class="chip">on</span></div></div>
-    <div class="row"><label>Spacing</label><div class="chips"><span class="chip">tight</span><span class="chip active">normal</span><span class="chip">loose</span><span class="chip">wide</span></div></div>
     <div class="row"><label>Colour</label><div class="chips"><span class="chip active">white</span><span class="chip">warm</span><span class="chip">palette-1</span><span class="chip">palette-2</span></div></div>
     <div class="row"><label>Shadow</label><div class="chips"><span class="chip">off</span><span class="chip active">soft</span><span class="chip">strong</span></div></div>
 
@@ -282,39 +525,10 @@
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
-    <div class="row">
-      <label>Light/dark mode</label>
-      <select><option>Auto (follow OS)</option><option>Light</option><option selected>Dark</option></select>
-    </div>
-
+    <div class="row"><label>Light/dark mode</label><select><option>Auto</option><option>Light</option><option selected>Dark</option></select></div>
     <div class="sub">Background palette</div>
-    <div class="hint">Up to 7 colours. One swatch = solid. Two or more = cycle animation.</div>
-    <div class="palette-row" style="margin-top: 8px;">
-      <div class="swatch" style="background: #dc143c;"></div>
-      <div class="swatch" style="background: #8b0000;"></div>
-      <div class="swatch" style="background: #ff6b6b;"></div>
-      <div class="swatch" style="background: #ffb347;"></div>
-      <div class="add-swatch">+</div>
-    </div>
-    <div class="row" style="margin-top: 12px;"><label>Cycle direction</label><div class="chips"><span class="chip active">forward</span><span class="chip">reverse</span><span class="chip">bounce</span></div></div>
-    <div class="row"><label>Cycle duration</label><input type="text" value="8s" style="max-width: 80px;" /></div>
-
-    <div class="sub">Pattern overlay</div>
-    <div class="toggle-row">
-      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-      <label>Enable pattern</label>
-    </div>
-    <div class="row"><label>Pattern style</label><div class="chips"><span class="chip active">dots</span><span class="chip">hex</span><span class="chip">diagonal</span><span class="chip">checker</span><span class="chip">grid</span><span class="chip">weave</span><span class="chip">chevron</span><span class="chip">isometric</span></div></div>
-
-    <div class="sub">Image overlay</div>
-    <div class="toggle-row">
-      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-      <label>Enable background image</label>
-    </div>
-    <div class="row"><label>Image</label><button style="padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">Upload image</button><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">≤ 200 KB</span></div>
-    <div class="row"><label>Position</label><div class="chips"><span class="chip">position grid</span><span class="chip active">tile</span><span class="chip">cover</span></div></div>
-    <div class="row"><label>Symmetry</label><div class="chips"><span class="chip active">none</span><span class="chip">horizontal</span><span class="chip">vertical</span><span class="chip">quad</span></div></div>
-    <div class="row"><label>Scale</label><input type="range" min="10" max="150" value="100" style="flex: 1;" /></div>
+    <div class="palette-row" style="margin-top: 8px;"><div class="swatch" style="background: #dc143c;"></div><div class="swatch" style="background: #8b0000;"></div><div class="swatch" style="background: #ff6b6b;"></div><div class="swatch" style="background: #ffb347;"></div><div class="add-swatch">+</div></div>
+    <div class="row" style="margin-top: 12px;"><label>Cycle</label><div class="chips"><span class="chip active">forward</span><span class="chip">reverse</span><span class="chip">bounce</span></div></div>
   </div>
 </div>
 
@@ -322,91 +536,50 @@
 <div class="section">
   <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
     <div class="section-number">3</div>
-    <h3>QR Appearance <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">foreground colour, scan-time motion + direction</span></h3>
+    <h3>QR Appearance <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">foreground colour, scan-time motion</span></h3>
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
-    <div class="row"><label>QR foreground</label><input type="color" value="#000000" style="width: 40px; height: 32px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer;" /><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">WCAG 4.5:1 contrast against white enforced</span></div>
-    <div class="row"><label>QR motion</label><div class="chips"><span class="chip active">wobble</span><span class="chip">zoom in</span><span class="chip">zoom out</span><span class="chip">rotate CW</span><span class="chip">rotate CCW</span><span class="chip">dissolve</span><span class="chip">bounce</span><span class="chip">fade</span><span class="chip">flip X</span><span class="chip">flip Y</span><span class="chip">glitch</span><span class="chip">spiral</span><span class="chip">none</span></div></div>
-    <div class="hint" style="margin-left: 152px;">Motion plays during the outcome sequence. Rotate + wobble ignore direction (centre-axis). "None" = QR stays static.</div>
+    <div class="row"><label>QR foreground</label><input type="color" value="#000000" style="width: 40px; height: 32px; border: 1px solid var(--line); border-radius: 4px;" /></div>
+    <div class="row"><label>QR motion</label><div class="chips"><span class="chip active">wobble</span><span class="chip">zoom</span><span class="chip">rotate</span><span class="chip">dissolve</span><span class="chip">glitch</span><span class="chip">none</span></div></div>
   </div>
 </div>
 
-<!-- SECTION 4: Check-in/out Experience — THE HEADLINE SECTION FOR REV 4 -->
+<!-- SECTION 4: Check-in/out Experience -->
 <div class="section open">
   <div class="section-header" onclick="this.parentElement.classList.toggle('open')">
     <div class="section-number">4</div>
-    <h3>Check-in/out Experience <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">effects, anchors, text, palette, sound</span> <span class="badge badge-new">ANCHOR REDESIGN</span></h3>
+    <h3>Check-in/out Experience <span style="color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px;">effects, anchors, text, per-mode sound</span> <span class="badge badge-new">ANCHOR + PER-MODE SOUND</span></h3>
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
     <div class="row" style="align-items: center;">
       <label>Active mode</label>
-      <select style="max-width: 160px;"><option selected>✓ Allow</option><option>? Review</option><option>× Deny</option></select>
+      <select id="activeModeSelect" style="max-width: 160px;" onchange="document.querySelectorAll('.sound-mode-block').forEach(function(b){b.classList.remove('active');}); document.querySelector('.sound-mode-' + this.value).classList.add('active');"><option value="allow" selected>✓ Allow</option><option value="review">? Review</option><option value="deny">× Deny</option></select>
       <button style="padding: 6px 14px; border: 1px solid var(--green); border-radius: 6px; background: rgba(126,231,135,0.1); color: var(--green); cursor: pointer; font-weight: 600;">▶ Sample</button>
-      <span class="undo-pill" title="Ctrl+Z to undo, Ctrl+Y to redo"><kbd>⌃Z</kbd> undo · <kbd>⌃Y</kbd> redo · <span style="color: var(--accent);">3 steps</span></span>
+      <span class="undo-pill" title="Ctrl+Z to undo, Ctrl+Y to redo"><kbd>⌃Z</kbd> undo · <kbd>⌃Y</kbd> redo</span>
     </div>
-    <div class="hint" style="margin-left: 152px;">Settings below apply to the active mode. Switch mode to edit a different outcome. Undo/redo applies across the whole panel.</div>
+    <div class="hint" style="margin-left: 152px;">All settings below — palette, sequence, anchors, text, sound — apply to the active mode. Flip mode to edit a different outcome.</div>
 
     <div class="sub">Outcome Palette</div>
-    <div class="hint">Colours used by outcome effects (glow, pulse, pattern flash). Separate from background palette.</div>
-    <div class="palette-row" style="margin-top: 8px;">
-      <div class="swatch" style="background: #7ee787;"></div>
-      <div class="swatch" style="background: #3fb950;"></div>
-      <div class="swatch" style="background: #238636;"></div>
-      <div class="add-swatch">+</div>
-    </div>
+    <div class="palette-row" style="margin-top: 8px;"><div class="swatch" style="background: #7ee787;"></div><div class="swatch" style="background: #3fb950;"></div><div class="swatch" style="background: #238636;"></div><div class="add-swatch">+</div></div>
 
     <div class="sub">Effect Sequence</div>
-    <div class="hint">Effects play top-to-bottom on each scan outcome. Drag to reorder. Click a card to edit its anchor + settings below. Selected card shows blue outline.</div>
     <div class="sequence-placeholder">
-      <div class="effect-card selected" data-effect="glow-rays">
-        <span class="drag-handle">⋮⋮</span>
-        <span class="effect-name">Glow rays</span>
-        <span class="effect-anchor-badge">⚓ Logo</span>
-        <span class="effect-duration">800ms</span>
-        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
-        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
-      </div>
-      <div class="effect-card" data-effect="ripple">
-        <span class="drag-handle">⋮⋮</span>
-        <span class="effect-name">Ripple</span>
-        <span class="effect-anchor-badge">⚓ Centre</span>
-        <span class="effect-duration">600ms</span>
-        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
-        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
-      </div>
-      <div class="effect-card" data-effect="sparkles">
-        <span class="drag-handle">⋮⋮</span>
-        <span class="effect-name">Sparkles</span>
-        <span class="effect-anchor-badge">⚓ A1+A2</span>
-        <span class="effect-duration">1200ms</span>
-        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
-        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
-      </div>
-      <div class="effect-card" data-effect="confetti">
-        <span class="drag-handle">⋮⋮</span>
-        <span class="effect-name">Confetti</span>
-        <span class="effect-anchor-badge no-anchor">— full-screen —</span>
-        <span class="effect-duration">2000ms</span>
-        <button class="icon-btn tooltip-host" data-tip="Reset this effect to defaults">↶</button>
-        <button class="icon-btn tooltip-host" data-tip="Configure">⚙</button>
-      </div>
-      <div style="margin-top: 8px; font-size: 11px; color: var(--muted); text-align: center;">Library: Pulse · Background · QR motion · Glow · Pattern · Text · Confetti · Sparkles · Stream · Spotlight · Camera flash · Shake · Iris wipe · Ripple · Flame · Glitch · Vignette · Vapour</div>
+      <div class="effect-card selected"><span class="drag-handle">⋮⋮</span><span class="effect-name">Glow rays</span><span class="effect-anchor-badge">⚓ Logo</span><span class="effect-duration">800ms</span><button class="icon-btn">Default</button><button class="icon-btn">⚙</button></div>
+      <div class="effect-card"><span class="drag-handle">⋮⋮</span><span class="effect-name">Ripple</span><span class="effect-anchor-badge">⚓ Centre</span><span class="effect-duration">600ms</span><button class="icon-btn">Default</button><button class="icon-btn">⚙</button></div>
+      <div class="effect-card"><span class="drag-handle">⋮⋮</span><span class="effect-name">Sparkles</span><span class="effect-anchor-badge">⚓ A1+A2</span><span class="effect-duration">1200ms</span><button class="icon-btn">Default</button><button class="icon-btn">⚙</button></div>
+      <div class="effect-card"><span class="drag-handle">⋮⋮</span><span class="effect-name">Confetti</span><span class="effect-anchor-badge no-anchor">— full-screen —</span><span class="effect-duration">2000ms</span><button class="icon-btn">Default</button><button class="icon-btn">⚙</button></div>
     </div>
 
-    <!-- ANCHOR SYSTEM — the headline of Rev 4 -->
+    <!-- Anchor System -->
     <div class="anchor-system" id="anchorSystem">
       <div class="anchor-system-header">
         <h4>Anchor System</h4>
         <span class="selected-effect-name">Configuring: <strong>Glow rays</strong></span>
-        <span class="crosshair-toggle on" id="crosshairToggle" onclick="this.classList.toggle('on'); document.getElementById('previewFrame').classList.toggle('anchors-hidden', !this.classList.contains('on'));">
-          <span class="anchor-icon">⚓</span>
-          <span>Show crosshairs</span>
-        </span>
+        <span class="crosshair-toggle on" onclick="this.classList.toggle('on'); document.getElementById('previewFrame').classList.toggle('anchors-hidden', !this.classList.contains('on'));"><span>⚓</span><span>Show crosshairs</span></span>
       </div>
-
-      <div class="hint" style="margin-bottom: 12px;">Pick the focal point that this effect emits from / orients around. Full-screen effects (Confetti, surface flashes) ignore the anchor — they have no focal point.</div>
+      <div class="hint" style="margin-bottom: 12px;">Pick the focal point that this effect emits from. Full-screen effects (Confetti, surface flashes) ignore the anchor.</div>
 
       <div class="anchor-target-row" id="anchorTargetRow">
         <span style="font-size: 12px; color: var(--muted); font-weight: 600;">Target:</span>
@@ -416,69 +589,83 @@
           <span class="chip anchor-chip tooltip-host" data-anchor="logo" data-tip="The IRL/org logo above the QR">⚓ Logo <span class="anchor-letter">A?</span></span>
           <span class="chip anchor-chip tooltip-host" data-anchor="qr" data-tip="The scannable QR square">⚓ QR <span class="anchor-letter">A?</span></span>
         </div>
-        <span class="multi-toggle" id="multiToggle" onclick="document.getElementById('anchorSystem').classList.toggle('anchor-multi-on'); this.classList.toggle('on'); updateAnchorLetters();" title="Allow multiple anchors at once">
-          <span>⊞ Multi</span>
-        </span>
+        <span class="multi-toggle" id="multiToggle" onclick="document.getElementById('anchorSystem').classList.toggle('anchor-multi-on'); this.classList.toggle('on'); updateAnchorLetters();"><span>⊞ Multi</span></span>
       </div>
 
       <div class="active-anchors-list">
         <h5>Active anchors</h5>
-        <div class="anchor-list-row">
-          <span class="anchor-letter-tag">A1</span>
-          <span class="anchor-list-name">Logo</span>
-          <span class="anchor-list-offset">offset (-10%, +5%)</span>
-        </div>
-        <div class="anchor-list-row">
-          <span class="anchor-letter-tag">A2</span>
-          <span class="anchor-list-name">QR</span>
-          <span class="anchor-list-offset">offset (0%, 0%)</span>
-        </div>
-        <div class="hint" style="margin-top: 6px;">When configuring direction (below), click an A-tag first to choose which crosshair's direction you're setting.</div>
+        <div class="anchor-list-row"><span class="anchor-letter-tag">A1</span><span class="anchor-list-name">Logo</span><span class="anchor-list-offset">offset (-10%, +5%)</span></div>
+        <div class="anchor-list-row"><span class="anchor-letter-tag">A2</span><span class="anchor-list-name">QR</span><span class="anchor-list-offset">offset (0%, 0%)</span></div>
       </div>
 
       <div class="anchor-controls-grid">
         <div>
           <div style="font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 6px;">+ Offset (relative to anchor centre)</div>
           <div class="offset-cross">
-            <span class="cross-label cross-label-h-l">← left</span>
-            <span class="cross-label cross-label-h-r">right →</span>
-            <span class="cross-label cross-label-v-t">↑ up</span>
-            <span class="cross-label cross-label-v-b">down ↓</span>
+            <span class="cross-label cross-label-h-l">← left</span><span class="cross-label cross-label-h-r">right →</span><span class="cross-label cross-label-v-t">↑ up</span><span class="cross-label cross-label-v-b">down ↓</span>
             <input type="range" class="slider-h" min="-100" max="100" value="0" oninput="document.getElementById('offsetReadout').textContent = '(' + this.value + '%, ' + document.querySelector('.slider-v').value + '%)';" />
             <input type="range" class="slider-v" min="-100" max="100" value="0" oninput="document.getElementById('offsetReadout').textContent = '(' + document.querySelector('.slider-h').value + '%, ' + this.value + '%)';" />
             <span class="cross-centre">⚓ <span id="offsetReadout">(0%, 0%)</span></span>
           </div>
-          <div class="hint" style="margin-top: 6px;">Drag horizontal slider L↔R, vertical slider ↕. They cross at the anchor centre. Slider's body teaches the function — no text labels needed.</div>
         </div>
-
         <div class="direction-grid-wrap">
           <span class="label-row">Direction (for radial / emitter effects)</span>
-          <div class="direction-grid">
-            <div class="cell">↖</div><div class="cell">↑</div><div class="cell">↗</div>
-            <div class="cell">←</div><div class="cell active">●</div><div class="cell">→</div>
-            <div class="cell">↙</div><div class="cell">↓</div><div class="cell">↘</div>
-          </div>
-          <span style="font-size: 11px; color: var(--muted);">Centre = radial / omnidirectional. Arrows = directed emission.</span>
-          <button class="reset-btn" style="margin-top: 6px;"><span class="reset-glyph">↶</span> Reset Glow rays to defaults</button>
+          <div class="direction-grid"><div class="cell">↖</div><div class="cell">↑</div><div class="cell">↗</div><div class="cell">←</div><div class="cell active">●</div><div class="cell">→</div><div class="cell">↙</div><div class="cell">↓</div><div class="cell">↘</div></div>
+          <button class="reset-btn" style="margin-top: 6px;">Default — Reset Glow rays</button>
         </div>
       </div>
     </div>
 
     <div class="sub">Text Template</div>
-    <div class="row">
-      <label>Text template</label>
-      <input type="text" value="{name} — {verb}" placeholder="{name}, {verb}, {action}, {Action}, {Verb}" />
-    </div>
-    <div class="hint" style="margin-left: 152px;">Placeholders: <code>{name}</code> = attendee, <code>{verb}</code> = "checked in" / "checked out", <code>{action}</code> = "in" / "out". Preview: <strong style="color: var(--green);">Kerry — checked in</strong></div>
-    <div class="row"><label>Quick presets</label><div class="chips"><span class="chip">welcome</span><span class="chip">name</span><span class="chip active">name + action</span></div></div>
+    <div class="row"><label>Text template</label><input type="text" value="{name} — {verb}" /></div>
+    <div class="hint" style="margin-left: 152px;">Placeholders: <code>{name}</code> = attendee, <code>{verb}</code> = "checked in" / "checked out". Preview: <strong style="color: var(--green);">Kerry — checked in</strong></div>
 
-    <div class="sub">Outcome Sound</div>
-    <div class="toggle-row">
-      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-      <label>Play sound on outcome</label>
+    <!-- PER-MODE OUTCOME SOUND — Rev 5 fix -->
+    <div class="sub sub-new">Outcome Sound <span style="font-size: 10px; color: var(--muted); margin-left: 8px;">per active mode — flip Active Mode above to swap</span></div>
+    <div class="toggle-row"><div class="toggle on" onclick="this.classList.toggle('on')"></div><label>Play sound on outcome</label></div>
+
+    <div class="sound-mode-block sound-mode-allow active">
+      <h5>✓ Allow mode sounds</h5>
+      <div class="hint" style="margin-bottom: 8px;">Both check-in and check-out fire the allow celebration (v5.11.15). Two sounds for the two directions.</div>
+      <div class="sound-row">
+        <label>Check-in</label>
+        <span class="file-name">allow-checkin.wav</span>
+        <button class="reset-btn">Replace</button>
+        <button class="reset-btn">Default</button>
+        <button class="reset-btn" style="border-color: var(--accent); color: var(--accent);">▶ Play</button>
+      </div>
+      <div class="sound-row">
+        <label>Check-out</label>
+        <span class="file-name">allow-checkout.wav</span>
+        <button class="reset-btn">Replace</button>
+        <button class="reset-btn">Default</button>
+        <button class="reset-btn" style="border-color: var(--accent); color: var(--accent);">▶ Play</button>
+      </div>
     </div>
-    <div class="row"><label>Check-in sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">allow.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button class="reset-btn" style="margin-left: 4px;"><span class="reset-glyph">↶</span> Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
-    <div class="row"><label>Check-out sound</label><span style="font-size: 12px; color: var(--muted); min-width: 80px;">checkout.wav</span><button style="padding: 4px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; margin-left: 8px;">Replace</button><button class="reset-btn" style="margin-left: 4px;"><span class="reset-glyph">↶</span> Reset</button><button style="padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px; background: rgba(88,166,255,0.1); color: var(--accent); cursor: pointer; font-size: 11px; margin-left: 4px;">▶ Play</button></div>
+
+    <div class="sound-mode-block sound-mode-review">
+      <h5>? Review mode sound</h5>
+      <div class="hint" style="margin-bottom: 8px;">Review = human-judgment-pending. One sound (no in/out distinction — flow paused until staff decides).</div>
+      <div class="sound-row">
+        <label>Review</label>
+        <span class="file-name">review.wav</span>
+        <button class="reset-btn">Replace</button>
+        <button class="reset-btn">Default</button>
+        <button class="reset-btn" style="border-color: var(--accent); color: var(--accent);">▶ Play</button>
+      </div>
+    </div>
+
+    <div class="sound-mode-block sound-mode-deny">
+      <h5>× Deny mode sound</h5>
+      <div class="hint" style="margin-bottom: 8px;">Deny = rejection. One sound (no in/out distinction — no flow past denial).</div>
+      <div class="sound-row">
+        <label>Deny</label>
+        <span class="file-name">deny.wav</span>
+        <button class="reset-btn">Replace</button>
+        <button class="reset-btn">Default</button>
+        <button class="reset-btn" style="border-color: var(--accent); color: var(--accent);">▶ Play</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -490,85 +677,99 @@
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
-    <div class="row"><label>Welcome message</label><textarea placeholder="Welcome to the venue! Your class starts in 10 minutes."></textarea></div>
-    <div class="hint" style="margin-left: 152px;">Supports <code>{name}</code>, <code>{event}</code>, <code>{room}</code> placeholders. Shown on the attendee's phone after check-in.</div>
+    <div class="row"><label>Welcome message</label><textarea placeholder="Welcome to the venue!"></textarea></div>
     <div class="row"><label>Post-accept redirect</label><input type="url" placeholder="https://example.com/welcome" /></div>
-    <div class="row"><label>Staff redirect</label><input type="url" placeholder="https://example.com/staff-page" /></div>
-    <div class="row"><label>Dwell time</label><select><option>3 seconds</option><option selected>5 seconds</option><option>7 seconds</option><option>10 seconds</option></select><span style="font-size: 11px; color: var(--muted); margin-left: 8px;">How long the celebration plays before redirecting</span></div>
-    <div class="row"><label>Check-out grace</label><input type="text" value="60 minutes" style="max-width: 120px;" /></div>
+    <div class="row"><label>Dwell time</label><select><option>3 seconds</option><option selected>5 seconds</option><option>7 seconds</option></select></div>
   </div>
 </div>
 
-<!-- Polish carry-overs from Captain's 28 May review -->
+<!-- Polish carry-overs -->
 <div class="polish-box">
   <h4>Polish carry-overs (Captain's 28 May review)</h4>
   <ul>
-    <li><strong>Ripple effect — border around frame looks odd</strong> (current v5.11.24a). Effect's outer radial gradient may be painting past the orange-dome rounded bottom corners. Either clip to stage shape with <code>border-radius: inherit</code> on the effect layer, or constrain the radial gradient size to fit within the stage's inscribed rectangle. Fixable as a small <code>v5.11.24b</code> inline patch OR rolled into v5.12.0.</li>
-    <li><strong>Vignette flash — same border-around-frame issue</strong>. Vignette uses a radial gradient from edges-inward; if the stage has rounded corners the corners can paint through. Same clip-to-stage fix.</li>
-    <li><strong>EDITING: DENY pill</strong> — magenta border framing the live preview when in Deny editing mode might distract from preview content. Worth deciding: keep as honest "you are editing X mode" signal, or move to a less prominent badge above the preview frame.</li>
-    <li><strong>↺ Reset glyph</strong> — must be visually distinct from refresh ↻ to avoid confusion. Candidates: <code>↶</code> (rotate anti-clockwise with serif tail), <code>⟲</code> (reload with arrow), plain word "Default", or <code>↩</code> (return arrow). Decision: pick at Rev 5 review.</li>
-    <li><strong>Inline-vs-fullscreen offset dialling</strong> — solved architecturally by storing anchor positions as <strong>percentage offsets from the anchor target's centre</strong>, not absolute pixels. Same percentage values render correctly at any stage size — inline (400px), fullscreen (1920px), 4a phone (720px) — because everything scales proportionally to the target element's bounding box. Drag-to-anchor UI updates the percentage; render code reads same percentage and computes pixels per stage.</li>
-    <li><strong>W3C accessibility</strong> — tooltips on anchor names use <code>aria-describedby</code> pattern pointing to a visually-hidden span. WCAG 2.1 SC 3.3.2 (Labels or Instructions) and 1.3.1 (Info and Relationships). Same anchor name always means the same spatial position across the whole app: SC 3.2.4 (Consistent Identification). Real boost for the W3C cert ambition.</li>
-    <li><strong>Ctrl+Z / Ctrl+Y undo stack</strong> — global undo across the whole panel. 50-entry ring buffer of theme-state snapshots; every meaningful change pushes a new state. Per-effect <code>↺</code> Reset is a narrower scope: restores Captain-recommended defaults for that effect only.</li>
-  </ul>
-</div>
-
-<!-- Design notes -->
-<div style="margin-top: 24px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);">
-  <h4 style="font-size: 13px; margin-bottom: 8px;">Design notes for Captain</h4>
-  <ul style="font-size: 12px; color: var(--muted); line-height: 1.8; padding-left: 18px;">
-    <li><strong>Section 4 is the headline of Rev 4.</strong> The Anchor System block sits between Effect Sequence and Text Template. It only configures the <em>currently-selected</em> effect (blue-outlined card in the sequence). Selecting a different effect card swaps the anchor block's contents.</li>
-    <li><strong>Anchor controls are per-effect, not global.</strong> Different effects need different anchors (Glow rays = Logo, Ripple = Centre, Stream = QR). The ⚓ "Show crosshairs" toggle is the only global control — it just decides whether the crosshair overlay is visible on the preview frame.</li>
-    <li><strong>Multi-select adds the A1/A2 letter tags.</strong> Single-select mode = one anchor, named by its target ("Logo"). Multi-select mode = multiple anchors, labelled by order added (A1, A2, A3). Effect cards show <code>⚓ A1+A2</code> when multi is active for that effect.</li>
-    <li><strong>+ slider layout teaches the function.</strong> Horizontal slider running L↔R lives on the X axis. Vertical slider running ↕ lives on the Y axis. They cross visually at the anchor centre. Cognitively: dragging H-slider physically left moves the anchor left. No translation step.</li>
-    <li><strong>Sensible defaults per effect type.</strong> Confetti = full-screen (no anchor — explicit "— full-screen —" badge on card). Ripple = Centre. Sparkles = Image. Stream = QR. Glow rays = Logo. Apes can change but the first run looks right without thinking.</li>
-    <li><strong>No new data shapes beyond Rev 2.</strong> Anchor state lives inside each effect's existing <code>settings</code> object as <code>anchor: { targets: ['logo'], offset: { x: -10, y: 5 }, direction: 'centre' }</code>. Backward compat: missing <code>anchor</code> field falls back to effect's default (the "sensible default").</li>
-    <li><strong>No Worker changes.</strong> Same <code>POST /org/settings</code> round-trip.</li>
+    <li><strong>Ripple effect — border around frame looks odd</strong>. Effect's outer radial gradient painting past the orange-dome rounded bottom corners. Fix: <code>border-radius: inherit; overflow: hidden</code> on the effect layer.</li>
+    <li><strong>Vignette flash — same border issue</strong>. Same clip-to-stage fix.</li>
+    <li><strong>EDITING: DENY pill</strong> — magenta border framing the live preview during Deny mode editing might distract.</li>
+    <li><strong>Inline-vs-fullscreen offset</strong> — store anchor positions as <strong>percentage offsets from anchor target's centre</strong>, not absolute pixels. Same percentage renders correctly at any stage size.</li>
+    <li><strong>W3C accessibility</strong> — anchor name tooltips use <code>aria-describedby</code> for WCAG 2.1 SC 3.3.2, 1.3.1, 3.2.4.</li>
+    <li><strong>Ctrl+Z / Ctrl+Y undo stack</strong> — 50-entry ring buffer. Per-effect "Default" button is narrower scope (reset one effect's settings).</li>
   </ul>
 </div>
 
 <script>
-// Make chips clickable (visual demo only)
+// Make chips clickable
 document.querySelectorAll('.chips').forEach(function(group) {
-  // Anchor chips have multi-select behaviour when .anchor-multi-on is set on parent
   group.querySelectorAll('.chip').forEach(function(chip) {
-    chip.addEventListener('click', function(ev) {
-      var isAnchorChip = chip.classList.contains('anchor-chip');
-      var isMulti = isAnchorChip && document.getElementById('anchorSystem') && document.getElementById('anchorSystem').classList.contains('anchor-multi-on');
-      if (!isMulti) {
-        group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
-      }
+    chip.addEventListener('click', function() {
+      var isAnchor = chip.classList.contains('anchor-chip');
+      var isMulti = isAnchor && document.getElementById('anchorSystem') && document.getElementById('anchorSystem').classList.contains('anchor-multi-on');
+      if (!isMulti) group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('active'); });
       chip.classList.toggle('active');
-      if (isAnchorChip) updateAnchorLetters();
+      if (isAnchor) updateAnchorLetters();
     });
   });
 });
 
-// Update A1, A2, A3 letter tags on anchor chips when multi-select is on
 function updateAnchorLetters() {
   var active = document.querySelectorAll('#anchorTargetRow .anchor-chip.active');
   active.forEach(function(chip, i) {
     var letter = chip.querySelector('.anchor-letter');
     if (letter) letter.textContent = 'A' + (i + 1);
   });
-  // Also tag inactive chips with A? as a hint that they'd get a number if activated
   document.querySelectorAll('#anchorTargetRow .anchor-chip:not(.active) .anchor-letter').forEach(function(l) { l.textContent = 'A?'; });
 }
 
-// Effect-card selection (only one card shows the blue selected outline)
+// Effect card selection
 document.querySelectorAll('.effect-card').forEach(function(card) {
   card.addEventListener('click', function(ev) {
-    if (ev.target.classList.contains('icon-btn')) return; // ignore button clicks
+    if (ev.target.classList.contains('icon-btn')) return;
     document.querySelectorAll('.effect-card').forEach(function(c) { c.classList.remove('selected'); });
     card.classList.add('selected');
-    // Update "Configuring: <effect name>" header
     var nameEl = card.querySelector('.effect-name');
     var label = document.querySelector('.selected-effect-name strong');
     if (nameEl && label) label.textContent = nameEl.textContent;
   });
 });
 
-// Cosmetic drag-and-drop on preview frame: drag crosshairs around
+// Verdict option picking
+document.querySelectorAll('.v-option').forEach(function(opt) {
+  opt.addEventListener('click', function() {
+    var group = opt.closest('.verdict-options');
+    if (!group) return;
+    group.querySelectorAll('.v-option').forEach(function(o) { o.classList.remove('picked'); });
+    opt.classList.add('picked');
+  });
+});
+
+// Font picker — click a card to apply the font to the live preview AND the demo banner
+document.querySelectorAll('#fontGrid .font-card').forEach(function(card) {
+  card.addEventListener('click', function() {
+    document.querySelectorAll('#fontGrid .font-card').forEach(function(c) { c.classList.remove('picked'); });
+    card.classList.add('picked');
+    // Read the inline font-family from the card itself
+    var fontFamily = card.style.fontFamily;
+    document.getElementById('fontLivePreview').style.fontFamily = fontFamily;
+    document.getElementById('demoBanner').style.fontFamily = fontFamily;
+  });
+});
+
+// Font category filter
+document.querySelectorAll('.font-cat').forEach(function(cat) {
+  cat.addEventListener('click', function() {
+    document.querySelectorAll('.font-cat').forEach(function(c) { c.classList.remove('active'); });
+    cat.classList.add('active');
+    var filter = cat.getAttribute('data-cat');
+    document.querySelectorAll('#fontGrid .font-card').forEach(function(card) {
+      if (filter === 'all' || card.getAttribute('data-cat') === filter) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  });
+});
+
+// Cosmetic drag-anchor crosshairs on preview
 (function() {
   var dragging = null;
   document.querySelectorAll('.anchor-crosshair').forEach(function(ch) {
@@ -584,9 +785,7 @@ document.querySelectorAll('.effect-card').forEach(function(card) {
     dragging.style.left = Math.max(5, Math.min(95, x)) + '%';
     dragging.style.top = Math.max(8, Math.min(92, y)) + '%';
   });
-  document.addEventListener('mouseup', function() {
-    if (dragging) { dragging.style.cursor = 'grab'; dragging = null; }
-  });
+  document.addEventListener('mouseup', function() { if (dragging) { dragging.style.cursor = 'grab'; dragging = null; } });
 })();
 </script>
 </body>
