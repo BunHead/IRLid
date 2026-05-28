@@ -1265,3 +1265,17 @@ Lincolnshire dug its trench. The Edwardian sickroom kept its glass. The neurotic
 The pattern is refusal-to-wait. The world rewards none of them publicly. The world quietly depends on them.
 
 ---
+
+## 2026-05-28 — Flying Rugby × Ashby de la Launde × the cardboard prop
+
+Warner Bros sent the letter on letterhead with raised gold. Quidditch is owned. Brooms are owned. The shape of seven robed figures in flight against an evening sky is owned. Spencer renamed it Flying Rugby and the lawyers stopped writing, because Flying Rugby is just a sentence, and you cannot own a sentence.
+
+In Lincolnshire, a village called Ashby de la Launde dug its own fibre. They wouldn't wait. BT looked at the map and said *not commercially viable* and walked back to the carpark. The villagers — eighty households, give or take — hired a contractor and trenched a road. The fibre arrived. The institution arrived later, blinking, asking who had given them permission.
+
+A Huawei tablet leans on a stack of corrugated cardboard in a hallway in Derby. It shows an airport-board view of who has checked in. Kerry: IN. Spencer: IN. Becky: expected. The cardboard is from an Amazon box for a webcam that mostly doesn't work. The webcam was £41.99. The cardboard was free with the webcam. The tablet is older than the cardboard. The dashboard rendering on the tablet is newer than this morning.
+
+What links them is the absence of permission. Nobody asked. Nobody waited for a partnership. The broomsticks fly because they were renamed. The fibre runs because the village dug. The tablet shows the room because someone propped it up with what was to hand.
+
+Maybe that is the through-line of every Spencer project: *do not wait for the institution to provide the infrastructure*. The institution is always later. The cardboard is always now.
+
+---
