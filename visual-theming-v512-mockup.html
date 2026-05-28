@@ -196,21 +196,27 @@
   .polish-box { border: 1px dashed var(--orange); background: rgba(210,153,34,0.05); border-radius: 8px; padding: 14px 18px; margin: 18px 0; }
   .polish-box h4 { font-size: 13px; color: var(--orange); margin-bottom: 8px; }
   .polish-box ul { font-size: 12px; color: var(--text); line-height: 1.7; padding-left: 18px; margin: 0; }
+
+  /* REV 9: Permanent Active mode row — lives directly under the preview frame, not in any expander */
+  .active-mode-bar { border: 1px solid var(--line); border-left: 4px solid var(--green); border-radius: 8px; padding: 12px 18px; background: linear-gradient(90deg, rgba(126,231,135,0.05) 0%, var(--surface) 60%); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -8px 0 14px; }
+  .active-mode-bar > label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .active-mode-bar > select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 13px; min-width: 130px; }
+  .active-mode-bar .mode-hint { font-size: 11px; color: var(--muted); flex: 1; min-width: 200px; }
+  .active-mode-bar .undo-pill { margin-left: auto; padding: 6px 12px; font-size: 12px; }
 </style>
 </head>
 <body>
 
-<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span> <span class="badge badge-new">REV 8</span></h1>
-<p class="subtitle">Three small polish items from Captain's late 28 May feedback. Same architecture as Rev 7 — undo controls now right-anchored on the Active mode row, axis sliders solid coloured (Blender-style), axis labels sit on their respective axes.</p>
+<h1>Visual Theming — v5.12 Reorganisation Mockup <span class="badge badge-mockup">MOCKUP ONLY</span> <span class="badge badge-new">REV 9</span></h1>
+<p class="subtitle">Active mode hoisted out of Section 4 as a permanent row directly under the preview frame — matches the live v5.11.24a layout. Undo/redo at the right end of that permanent row stays at eye-line with the preview while you edit any section below.</p>
 
 <div class="rev-callout">
-  <h4>What's new in Rev 8</h4>
+  <h4>What's new in Rev 9</h4>
   <ul>
-    <li><strong>Undo/redo pushed to the right end of the Active mode row</strong> — sits at the persistent header for Section 4, never scrolls away while editing celebrations. Eye-line with the preview. <code>margin-left: auto</code> in the flex row.</li>
-    <li><strong>Axis sliders now solid coloured</strong> (Blender / Maya / Unreal gizmo convention). Horizontal slider = solid red (X axis). Vertical slider = solid <strong>clearer</strong> green (X11 <code>#22c55e</code> instead of GitHub's slightly cyan-tinted <code>#7ee787</code>). No gradient — no "fill from top" perception, no axis-colour ambiguity.</li>
-    <li><strong>X / Y labels relocated onto their axes</strong> — X sits on the right end of the horizontal slider (the +X extreme), Y sits on the top end of the vertical slider (the +Y extreme). Axis-anchored, symmetric. The label IS on the axis it's naming.</li>
+    <li><strong>Active mode row is now PERMANENT</strong> — sits directly under the preview frame, outside the section accordion. Switching mode (Allow/Review/Deny) updates context globally; Sample button + undo/redo are always at eye-level with the preview. Mirrors the live v5.11.24a layout pattern.</li>
+    <li><strong>Section 4 no longer owns Active mode</strong> — Section 4 starts with Outcome Palette → Effect Sequence → Anchor System → Text → Sound. The mode picker controls all of these from above.</li>
   </ul>
-  <div style="margin-top: 10px; padding: 8px 12px; background: rgba(88,166,255,0.06); border-radius: 4px; font-size: 11px; color: var(--muted);"><strong style="color: var(--accent);">Rev 7 architecture preserved:</strong> verdicts retired, live drag, click-to-select anchors, per-anchor direction, magnet snap-toggle, compact font list, orange multi-mode context, per-mode sound.</div>
+  <div style="margin-top: 10px; padding: 8px 12px; background: rgba(88,166,255,0.06); border-radius: 4px; font-size: 11px; color: var(--muted);"><strong style="color: var(--accent);">Rev 8 polish preserved:</strong> solid axis colours (red/green), clearer green (#22c55e), X/Y labels on their axes. <strong style="color: var(--accent);">Rev 7 architecture preserved:</strong> live drag, click-to-select anchors, per-anchor direction, magnet snap-toggle, compact font list, orange multi-mode context, per-mode sound.</div>
 </div>
 
 <!-- Preview stage -->
@@ -223,6 +229,15 @@
   <div class="anchor-crosshair selected" id="ch-A1" data-anchor-id="A1" style="top: 22%; left: 50%;"><span class="anchor-label">A1 · Logo</span></div>
   <div class="anchor-crosshair" id="ch-A2" data-anchor-id="A2" style="top: 64%; left: 50%;"><span class="anchor-label">A2 · QR</span></div>
   <div class="drag-hint">Drag a crosshair to move it. Click A1/A2 in the list below to switch which one you're editing.</div>
+</div>
+
+<!-- REV 9: PERMANENT Active mode bar — directly under preview, never collapses, undo/redo at eye-line -->
+<div class="active-mode-bar">
+  <label>Active mode:</label>
+  <select id="globalActiveModeSelect" onchange="document.querySelectorAll('.sound-mode-block').forEach(function(b){b.classList.remove('active');}); document.querySelector('.sound-mode-' + this.value).classList.add('active');"><option value="allow" selected>✓ Allow</option><option value="review">? Review</option><option value="deny">× Deny</option></select>
+  <button style="padding: 6px 14px; border: 1px solid var(--green); border-radius: 6px; background: rgba(126,231,135,0.1); color: var(--green); cursor: pointer; font-weight: 600;">▶ Sample</button>
+  <span class="mode-hint">Settings below apply to the active mode. Switch mode to edit a different outcome.</span>
+  <span class="undo-pill"><kbd>⌃Z</kbd> undo · <kbd>⌃Y</kbd> redo</span>
 </div>
 
 <!-- SECTION 1: Brand Identity -->
@@ -316,14 +331,7 @@
     <span class="arrow">▶</span>
   </div>
   <div class="section-body">
-    <div class="row" style="align-items: center;">
-      <label>Active mode</label>
-      <select style="max-width: 160px;" onchange="document.querySelectorAll('.sound-mode-block').forEach(function(b){b.classList.remove('active');}); document.querySelector('.sound-mode-' + this.value).classList.add('active');"><option value="allow" selected>✓ Allow</option><option value="review">? Review</option><option value="deny">× Deny</option></select>
-      <button style="padding: 6px 14px; border: 1px solid var(--green); border-radius: 6px; background: rgba(126,231,135,0.1); color: var(--green); cursor: pointer; font-weight: 600;">▶ Sample</button>
-      <span class="undo-pill" style="margin-left: auto; padding: 6px 12px; font-size: 12px;"><kbd>⌃Z</kbd> undo · <kbd>⌃Y</kbd> redo</span>
-    </div>
-
-    <div class="sub">Outcome Palette</div>
+    <div class="sub" style="margin-top: 0; padding-top: 0;">Outcome Palette</div>
     <div class="palette-row" style="margin-top: 8px;"><div class="swatch" style="background: #7ee787;"></div><div class="swatch" style="background: #3fb950;"></div><div class="swatch" style="background: #238636;"></div><div class="add-swatch">+</div></div>
 
     <div class="sub">Effect Sequence</div>
