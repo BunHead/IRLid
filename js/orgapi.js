@@ -132,6 +132,12 @@
         body: payload
       });
     },
+    acceptInviteOnThisDevice(payload) {
+      return request("/org/invite/accept-on-this-device", {
+        method: "POST",
+        body: payload
+      });
+    },
     publicOrgMeta(orgId) {
       return request("/org/public-meta?org_id=" + encodeURIComponent(orgId));
     },
