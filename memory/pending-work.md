@@ -1,5 +1,63 @@
 # Pending Work — IRLid
 
+## Thursday 28 May 2026 — watch close (~22:00 BST)
+
+**Live origin/main:** `v5.11.24a` on `irlid.co.uk/Org`. Build pill verified on Captain's hardware. SW cache `v67`. Test anim + Fullscreen both confirmed firing correctly post-deploy.
+
+**What shipped today:**
+
+- `v5.11.24` invite QR camera-readability fix (340px + L correction + tap-to-fullscreen 720px overlay)
+- `v5.11.24a` URL wrap so 4a camera recognises QR as URL (`https://irlid.co.uk/Org#staff_invite=<encoded_token>`) + canvas/img post-render overflow fix
+- 8 Pro → 8 Pro +Invite Staff demo proven end-to-end on real hardware
+- `PROTOCOL.md §17` Org Check-in Receipt Bridge spec published (~250 lines)
+- v6.0 row added to Version History table
+- DREAMS entry "the reassuring 404"
+- CLAUDE.md milestone row for Thursday 28 May
+- This session log (`memory/sessions/2026-05-28-01.md`)
+
+**Mr. Data Saturday queue** (credits reset ~03:00 BST Saturday; 4 briefs paste-ready in repo):
+
+1. **`HANDOVER-ReceiptBridge-v6.0.md`** — Captain's "trust gate before Patreon" directive. Implements PROTOCOL.md §17. New `org_receipts` D1 table, extend `createCheckin` Worker handler to mint consumer-format ECDSA receipts signed by org's venue key, downloadable from dashboard "↓ Receipt" link, verifiable via `check.html`. Two-line convergence (P2P consumer receipts + Org check-in attendance rows both signed, both verifiable).
+2. **`HANDOVER-CrossDeviceAdminAuth-v6.1.md`** — desktop shows action QR → phone signs → desktop polls. New `pending_action_authorizations` table + 3 endpoints (`/org/action/init`, `/org/action/poll/:nonce`, `/org/action/claim`) + new page `org-action-auth.html`. Unblocks desktop admin work without the per-device fingerprint dance (closes the multi-device fp issue diagnosed on Thursday morning — Worker L1463 `unsigned.issuer_pub_fp !== issuer.user.pub_fp` rejection when desktop credential ≠ portal_users-bound 8 Pro fp).
+3. **`HANDOVER-SingleDeviceInviteAccept-v5.11.25.md`** — fresh-user single-device WebAuthn enrolment in-place on the recipient device. New `POST /org/invite/accept-on-this-device` Worker endpoint (atomic INSERT portal_users + org_memberships + login_sessions + mark org_invites claimed) + new Org.html inline acceptance UI (welcome screen → Accept triggers `irlidV5Enrol()` → signs `irlid_invite_accept_v5` envelope → POST). Closes the architectural gap surfaced by Thursday's 4a smoke. Restrict acceptable invite roles to staff/manager (NOT lead_admin/developer — preserve Captain's *"Lead admin invites stays!!!!!"* governance rule).
+4. **`HANDOVER-VisualThemingReorg-v5.12.0.md`** — Settings tab 5-section consolidation per Wednesday's mockup work (visual-theming-v512-mockup.html Rev 3).
+
+**v5.11.26 inline scope** (Number One territory, queued):
+
+- Remove button + purge confirmation modal — Captain's spec: *"fires a are you sure, as this will........ if you proceed, red confirm button to make it seem serious :0 (synergy)"*. Combined with Remove on Expected list. Purges device binding + attendance history.
+- Lead Admin appointment UI — surface "Appoint Lead Admin" action for Developer-only role. Preserve governance: only Developer can appoint, only one Lead Admin per org (briefly 2 during crossover).
+- Mobile nav compact mode — Org/Event/Staff tabs take too much screen on 8 Pro per Captain's smoke; reduce padding/font-size on narrow viewports.
+- **Drop:** change-role endpoint scope (Captain's call — remove + re-invite is cleaner than change-role for governance hygiene).
+- **Drop:** Pending Invites view (Captain's call — short window to 15 minutes instead, simpler architecture).
+
+**Pre-Patreon prep** (forward-looking, between Mr. Data Saturday and next promo push):
+
+- Consumer surface refresh — index.html / scan.html / receipt.html / widget.html. **Preserve index.html uncluttered principle per Captain's directive** (*"I like the index page, as uncluttered, simple and a curiosity to those visiting"*). Lighter polish, not redesign.
+- `roadmap.html` two-line split — visualise Consumer branch + Orgs branch as parallel tracks. Identified Wednesday, not yet implemented.
+- Promotion-round-2 polish — `PROMOTION-ROUND-2-DRAFT-2026-05-27.md` exists; refine after Mr. Data Saturday lands receipts so promo can cite concrete two-line capability.
+
+**Open bugs parked:**
+
+- "Venue" banner text on Check-in tab header — display_name not propagating to `currentOrg.name`. Cosmetic on Test Event (the header reads "Test Event" correctly because that IS the org's display_name), but the underlying data-flow path needs auditing for when org names diverge from slugs.
+- Mobile Check-in tab review — pending 8 Pro hands-on by Captain.
+- Hardware-test invite redemption — fully gated on v5.11.25 landing (Saturday).
+- Stale `codex/*` branches still on origin from earlier watches — local refs stuck on OneDrive lock (cosmetic only, doesn't affect functionality).
+
+**External-facing waits:**
+
+- EAI SecureComm 2026 (Lancaster, July 21-24) — Kerry "orange light" on attendance, depends on her day-off approval. Captain to confirm when known.
+- Wisdom daughter-drone hardware spec — Captain to gather details from Wisdom (ASE Tech). Retroreflective QR + IR beacon + GPS layered landing architecture sketched but un-spec'd.
+
+**Architectural constraints re-affirmed Thursday** (for any next Number One who needs to know):
+
+- **Single-device-per-person rule.** Each user has ONE `portal_users` row with ONE `pub_fp`. Mobile-only credential is the design intent. The "what happens when I upgrade my phone" recovery problem is forward design work (recovery quorum from `LONG-TERM-SUCCESSION.md`), not a current bug.
+- **Lead Admin governance.** Only Developer/Super-Admin can appoint Lead Admin. Only one Lead Admin per org (briefly two during cross-over). Lead Admins can invite staff/manager but NOT lead_admin or developer — same restriction applies to all invite paths including v5.11.25's new single-device flow.
+- **Re-invite > change-role.** Removing a staff member + re-inviting with new role is the canonical pattern for role changes. No change-role endpoint should be added. Keeps governance state clean.
+- **No promo within the site.** The site is the tool. Promotion lives externally (Patreon, Reddit, conferences). Captain explicitly preserves this boundary.
+- **15-minute invite window.** Invites expire after 15 minutes (was longer; Captain shortened today). No Pending Invites view — short window means most invites are there-and-then.
+
+---
+
 ## Wednesday 27 May 2026 — watch close (~16:30 BST)
 
 **Final state:** `v5.11.23a` on working tree (logo on Check-in surface + banner text from org name). v5.11.23 (real Invite Staff with WebAuthn) merged on origin as PR #58. Mr. Data's v5.12.0 reorg brief (`HANDOVER-VisualThemingReorg-v5.12.0.md`) + updated mockup (`visual-theming-v512-mockup.html` Rev 3) both in repo. Repo cleaned: 19 HANDOVERs archived, dead `scrollCalToNow()` removed, stale branches deleted from origin (local refs stuck on OneDrive lock — cosmetic). Promotion-round-2 draft ready at `PROMOTION-ROUND-2-DRAFT-2026-05-27.md`.
