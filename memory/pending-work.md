@@ -53,6 +53,18 @@
 - No promo within the site
 - 15-minute invite window
 
+**Working pattern adjustments (late Friday — Captain reduced plan to Pro)** :
+
+- Number One running lighter: shorter responses, fewer proactive doc-dumps, lean on Mr. Data for build work (he doesn't cost Captain tokens)
+- Lock-and-ship rather than iterate-forever on mockups (Rev 9 was the lock; no Rev 10 unless implementation surfaces architectural snag)
+- A/R/D verdicts from Number One = marker + 2-3 lines, not paragraphs
+- Brief amendments preferred over long debug threads when Mr. Data hits issues
+- Spread the Saturday queue across days — v5.11.25b + v6.0 priority, v6.1 + v5.12.0 next week
+
+**Test device count expanded:** Captain found Samsung A20e + Nokia Google One in a drawer Friday evening. Four total now — 8 Pro (Developer), 4a (previous test), A20e (NEW, fresh), Nokia G-series (NEW, fresh). Pair-of-fresh-devices unlocks proper "any device combo" smoke for v5.11.25b — issue from 8 Pro, redeem on A20e + Nokia separately, confirm two distinct portal_users entries.
+
+**Pre-bed v5.11.25b smoke walkthrough delivered (Friday late evening):** Captain has the 6-step quick smoke + revert path in his head for Saturday morning execution. Critical step = #4 (welcome screen vs "Show login QR" — if "Show login QR", v5.11.25b regressed and we revert).
+
 ---
 
 ## Thursday 28 May 2026 — watch close (~22:00 BST)
