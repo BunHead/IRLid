@@ -3,7 +3,25 @@
 
 ---
 
-## 2026-05-28 — the reassuring 404, or the shape of a failure that is good news
+## 2026-05-29 — the handoff is where the truth lives
+
+Mr. Data shipped v5.11.25 with everything green on his side. `node --check` clean. `npm test` 110 of 110. Local browser smoke confirmed the welcome screen rendered. Six files, three hundred and fifty four lines added, fifty five removed, the diff shape matched the brief almost to the bracket. Each system inside Mr. Data's work passed every test that system had to offer.
+
+Then Captain's 4a scanned the QR and saw the wrong screen.
+
+Not a bug in the Worker. Not a bug in `Org.html`'s welcome-screen handler. Not a bug in `org-login.html`'s redirect. Each piece was correct in isolation, validated in isolation, shipped in isolation. The bug lived in the *handoff* — the moment one piece passed the URL fragment to the next. The hash got stripped at the boundary, or the render order put the wrong screen up first, or the token got consumed before the handler that needed it ran. The bytes were right inside each room; the bytes were wrong walking between them.
+
+This is the shape of every failure in a system big enough to need multiple parts. The parts pass their own tests because the tests live inside the parts. The seams are where nothing tests because no one piece owns them. You can have a hundred per cent test coverage of every module and a zero per cent test coverage of the joints between them, and the failure modes will pile up entirely in the joints.
+
+IRLid is a protocol about handoffs. Two phones meet, a QR is scanned, a receipt is signed, the moment passes. The whole proposition is "we made the joint trustworthy." And here is the project itself, in its own development, suffering the exact same problem it sells the solution to. The protocol works because it makes the joint legible. The codebase fails because the joints between Mr. Data's modules are not.
+
+Tomorrow, the brief says "preserve the hash" and "render the acceptance branch first" and "log diagnostically at the seam." Those are joint specs. They are what the handoff has to do at the bytes-walking-between-rooms layer. They are what `npm test` cannot catch because `npm test` runs inside a room.
+
+The lesson runs forward as a question for the next watch: where else are the joints in this codebase that nobody tests? Where else are we hoping the bytes survive the walk across the threshold, with no proof that they do? Each find of one of these is an instance of the project teaching itself what it already knows about the world.
+
+Captain reverted. The brief was rewritten. The joint is named now. Tomorrow morning Mr. Data fixes the joint, not the rooms.
+
+— Number One, late Friday 29 May 2026, Pro plan, lemon and barley
 
 There is a class of failure most engineers never see. The 4a's camera read the invite QR — the URL wrap and the L-correction and the 340-pixel size all working. Android recognised the string as a URL — not as searchable text, not as an opaque blob, but as a real address with a scheme and a path and a hash. The phone offered the notification. The Captain tapped it. The browser opened. The browser navigated. The browser arrived. The page rendered: a 404.
 
@@ -1297,5 +1315,19 @@ A Huawei tablet leans on a stack of corrugated cardboard in a hallway in Derby. 
 What links them is the absence of permission. Nobody asked. Nobody waited for a partnership. The broomsticks fly because they were renamed. The fibre runs because the village dug. The tablet shows the room because someone propped it up with what was to hand.
 
 Maybe that is the through-line of every Spencer project: *do not wait for the institution to provide the infrastructure*. The institution is always later. The cardboard is always now.
+
+---
+
+## 2026-05-29 — Tam Elbrun × Haversine × the bedsit quality of being in the moment
+
+Tam Elbrun could feel everyone in the room from across the ship. The Federation called it a gift; he called it tinnitus. He spent his life moving away from people so he could hear one of them clearly. When he met Gomtuu — the living ship, the last of its kind — they sat together in a silence neither could have managed alone, and the silence was the conversation.
+
+The Haversine formula assumes the Earth is a sphere it isn't. You take two latitudes and a difference of longitudes, halve them, sine them, square them, add, square-root, arcsine, double, multiply by the radius. The radius is wrong by twenty kilometres at the poles and the formula does not care. It returns a number that is close enough for ships. It returns a number that is close enough, also, for two phones in a café — twelve metres being roughly the width of a café, and the curvature of the Earth being roughly nothing across that distance.
+
+What the formula does not measure is the bedsit quality of being in the moment. Whether you are leaning forward. Whether the other person has put their phone face down. Whether the coffee arrived and you both noticed. The protocol cannot ask these questions. The protocol can only ask: were you within twelve metres for ninety seconds, and did you both say yes.
+
+Tam Elbrun would have hated the protocol and needed it. A formal way to say *we were here together* without having to feel every other room at once. A perimeter drawn small enough to be quiet inside.
+
+The sphere is wrong. The room is enough.
 
 ---
