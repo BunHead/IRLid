@@ -1,8 +1,123 @@
 # HANDOVER — Mr. Data — `v5.12.0` — Visual Theming Panel Reorganisation
 
-**Design reference:** `visual-theming-v512-mockup.html` in repo root — open locally in Chrome.
+**Design reference:** `visual-theming-v512-mockup.html` in repo root — **CURRENT VERSION IS REV 9**. Open locally in Chrome OR live at `https://irlid.co.uk/visual-theming-v512-mockup.html`.
 **Target:** `v5.12.0`. SW cache bump: monotonic from current.
 **Branch:** `codex/v5.12.0-visual-theming-reorg`
+
+---
+
+## ⚠️ READ THIS REV 9 SUPPLEMENT FIRST ⚠️
+
+The mockup has gone through Rev 2 → Rev 9 since this brief was first drafted. The original sections (Brand Identity / Colour & Background / QR Appearance / Check-in/out Experience / Post-Accept Flow) are still correct — keep them. BUT Section 4 (Check-in/out Experience) has substantial new architecture, and there are several locked design decisions that supersede earlier guidance. **Read this supplement first**, then read the original brief below for the section-level details.
+
+### Rev 9 architectural change: Permanent Active mode bar
+
+The **Active mode picker (Allow / Review / Deny) is no longer inside Section 4** — it's a PERMANENT row directly below the preview frame, outside the section accordion. The bar contains: `Active mode dropdown` + `Sample button` + `hint text` + `Undo/Redo pill (right-anchored)`. The bar never collapses; it stays at eye-level with the preview while the user edits any section below.
+
+This is critical UX: when the user hits `Ctrl+Z`, their eye is on the preview (which updates live), not on a buried settings header. The bar's undo/redo + Sample button are always reachable without scrolling.
+
+Section 4 starts directly with **Outcome Palette**, then **Effect Sequence**, then **Anchor System**, then **Text Template**, then **Outcome Sound**. The Active mode header at the top of Section 4 is GONE — it lives above the sections now.
+
+### The Anchor System (NEW in Section 4)
+
+This is the headline feature for Section 4. Sits between Effect Sequence and Text Template. Architecture:
+
+- **Per-effect anchors.** Each effect in the sequence has its own anchor configuration. Click an effect card in the sequence to "select" it; the Anchor System block reconfigures to show that effect's anchors.
+- **Four named anchor targets:** `⚓ Centre` · `⚓ Image` · `⚓ Logo` · `⚓ QR`. Chips in a row labelled "Target:". Tooltip on each (e.g., `Centre` → "The geometric centre of the stage").
+- **Multi-select toggle (orange).** Default OFF — single anchor per effect. When ON: multiple anchor chips can be active simultaneously, each gets a letter tag (A1, A2, A3...). When Multi is ON, active anchor chips turn orange (matching the Multi toggle's orange context) instead of accent-blue.
+- **🧲 Magnet snap-toggle** in the Anchor System header. ON = drag snaps to named anchor positions (Centre/Image/Logo/QR snap zones light up as crosshair approaches). OFF = freeform drag anywhere. Blender / Maya / Unreal convention.
+- **⚓ Show crosshairs toggle** in the Anchor System header. Toggles whether crosshair markers are visible on the preview frame.
+- **Active Anchors list** (visible only when Multi is ON). Shows each active anchor as a row: `[A1 letter tag] [target name] [offset readout]`. Click an A-tag row → that anchor becomes "selected" (its crosshair gets an orange halo on the preview; the sliders + direction grid + offset readout below now bind to that anchor's state).
+- **Per-anchor offset.** Each anchor has its own `(X%, Y%)` offset stored as percentages relative to the anchor target's centre (NOT pixels — see "Inline-vs-fullscreen offset" below).
+- **Per-anchor direction.** Each anchor has its own direction setting (9-cell grid: `↖ ↑ ↗ ← ● → ↙ ↓ ↘`). Different anchors on the same effect can emit in different directions. A1 might emit upward, A2 downward, same effect.
+- **`+`-shape offset cross.** Two `<input type="range">` sliders intersecting visually as a `+`. Horizontal slider on the X axis, vertical slider on the Y axis. 220×220px footprint. Sits alongside the 9-cell direction grid.
+- **Live drag → live settings.** Dragging a crosshair on the preview frame updates the offset values in the sliders + readout in real time. Sliders update the crosshair position in real time. They're bidirectional bindings on the same state.
+
+### Locked design verdicts (NO ambiguity, ship these exactly)
+
+1. **`+` cross size:** 180×180px (matches the 3×60px direction grid exactly)
+2. **Multi-select visual:** Chip-style toggle (orange-tinted "⊞ Multi" chip with orange border). NOT a proper toggle. NOT a dropdown.
+3. **Drag-to-anchor:** BOTH snap and freeform. Magnet toggle in the anchor system header switches modes.
+4. **Inactive anchor chips:** Clean (no `A?` hint placeholder). Letter tags only appear on ACTIVE chips when Multi is on.
+5. **Reset glyph:** Use the word **`Default`** instead of any rotation arrow glyph. The character `↻` is too easily confused with refresh; the character `↶` is also ambiguous. Plain text "Default" is unambiguous. Per-effect button reads `↩ Default — Reset {effect name}` or just `Default`.
+
+### Axis colours (RED horizontal, GREEN vertical — Blender convention)
+
+- Horizontal slider track: **solid red** (`#f85149` or similar). No gradient.
+- Vertical slider track: **solid green** (`#22c55e` — NOT GitHub's `#7ee787` which is cyan-tinted; use the more saturated `#22c55e`). No gradient.
+- X label sits at the **right end** of the horizontal slider (the +X extreme).
+- Y label sits at the **top end** of the vertical slider (the +Y extreme).
+- Both labels coloured to match their axis (red/green).
+
+### ⚠️ Y-axis vertical slider styling gotcha ⚠️
+
+Captain's hardware smoke of Rev 8 showed the Y-axis slider track NOT rendering as green even though CSS specified `background: var(--axis-green)` on the input element. The vertical slider with `writing-mode: vertical-rl` + `-webkit-appearance: slider-vertical` doesn't reliably apply the input's `background` colour to the runnable track. You MUST style the WebKit pseudo-element directly:
+
+```css
+.offset-cross .slider-v::-webkit-slider-runnable-track {
+  background: var(--axis-green);
+  width: 6px;
+  border-radius: 3px;
+}
+.offset-cross .slider-v::-moz-range-track {
+  background: var(--axis-green);
+  width: 6px;
+  border-radius: 3px;
+}
+```
+
+Same applies if horizontal slider has track-paint issues. Test on Chrome + Firefox + Safari (if possible). The mockup file (Rev 9) does NOT have this fix — it's a known gotcha to address in implementation.
+
+### Font picker — Word-style flat list
+
+- Drop the category tabs (Sans / Serif / Display / Handwriting / Mono) — Captain explicitly said "Don't need filter, just have all fonts on screen, there aren't that many of them."
+- Scrollable list, ~4 rows visible, max-height around 180px, the rest scrolls.
+- Each row shows the font name **rendered in its own font** (left-aligned, ~18px), plus a small grey label of the font category on the right (e.g., `SANS`, `DISPLAY`, `SCRIPT`).
+- Click a row → that font is applied to the LIVE preview banner at the top of the page in real time. **One preview surface only** — no separate "font preview" inside the font picker.
+- ~25 fonts total. Mix of system + Google Fonts. See Rev 9 mockup `font-list` for the exact list.
+
+### Per-mode sound (Section 4 bottom)
+
+The Outcome Sound block swaps content based on Active mode:
+- **Allow mode** → two rows: `Check-in sound` + `Check-out sound` (both fire the allow celebration per v5.11.15 architectural call — different sounds for the two directions)
+- **Review mode** → one row: `Review sound` (no in/out distinction — flow paused for human judgment)
+- **Deny mode** → one row: `Deny sound` (no in/out distinction — rejection, no flow past it)
+
+The block visible at any time = the block matching the current Active mode (header bar above). Switching Active mode swaps the block.
+
+### What this supersedes in the original brief
+
+- Original §"Mode picker (Accept/Review/Deny) at top" of Section 4 — **superseded**. Active mode is now the permanent bar OUTSIDE Section 4.
+- Original §"Check-in sound + Check-out sound — split into two separate rows" — **partially superseded**. The split applies only to Allow mode; Review and Deny have a single sound each.
+- Original `theme.checkoutSound` persistence key — **superseded by per-mode sound keys**: `theme._v512.sound.allow.checkin`, `theme._v512.sound.allow.checkout`, `theme._v512.sound.review`, `theme._v512.sound.deny`.
+
+### What stays unchanged from the original brief (read below for full detail)
+
+- Section names and order (1. Brand Identity / 2. Colour & Background / 3. QR Appearance / 4. Check-in/out Experience / 5. Post-Accept Flow)
+- Brand Identity contents (banner text template, ONE global font, logo position, description, sidebar logo source)
+- Colour & Background folding (palette + pattern + image into one section)
+- QR Appearance extraction (foreground colour + motion, separate from celebration palette)
+- Post-Accept Flow contents (welcome message, redirects, dwell time, smart receptionist toggle)
+- What moves from Org tab (logo + description)
+- What NOT to touch (check-in tab clones, v5.11.23 invite flow, Worker, etc.)
+
+### Updated smoke test additions (in addition to original §"Smoke Test")
+
+After steps 1-11 of the original smoke:
+
+12. **Permanent Active mode bar** sits directly under the preview, never collapses when Section 4 is closed.
+13. **Click an effect card in the sequence** → Anchor System block reconfigures to that effect's anchors.
+14. **Drag a crosshair on the preview** → offset (X%, Y%) updates in the readout + sliders in real time.
+15. **Toggle Multi on** → active anchor chips turn orange; A1/A2/A3 letter tags appear on active chips; Active Anchors list slides in. Click an A-tag row → selected halo moves to that crosshair.
+16. **Toggle magnet on** → drag crosshair near a named anchor (Logo / QR) → snap-zone ring lights up green; release → snaps to that anchor.
+17. **Switch Active mode** (top bar) → Outcome Sound block at bottom of Section 4 swaps content. Allow shows in+out sounds, Review/Deny show one sound each.
+18. **Vertical slider in the offset cross** renders as solid green (not blue). Horizontal as solid red. Confirm `::-webkit-slider-runnable-track` styling is present.
+19. **Font picker** is a flat scrollable list (no category tabs). Click a font → preview banner above re-renders in that font.
+20. **Undo/Redo (Ctrl+Z / Ctrl+Y)** at the right end of the permanent Active mode bar works globally — undoes the last change across any section.
+
+If 12-20 pass alongside the original 1-11, ✅ ACCEPT ✅.
+
+---
 
 ---
 

@@ -1,5 +1,60 @@
 # Pending Work — IRLid
 
+## Friday 29 May 2026 — watch close (~22:00 BST, after a hard day)
+
+**Live origin/main:** `v5.11.24a` on `irlid.co.uk/Org`. Build pill verified post complete-revert.
+
+**Today's arc:**
+- Mr. Data delivered v5.11.25 (single-device invite acceptance). Captain merged + wrangler-deployed (Worker `47ea051f`).
+- Smoke failed at step 4: 4a hit "Show login QR" sign-in surface, not the new welcome screen. Routing was correct, render order/hash preservation wrong.
+- First revert attempt failed (dirty working tree); second attempt (stash + revert) pushed `a3df9fa..e1b2a85` and wrangler redeployed Worker to `a07d0d6c`. BUT revert was incomplete — stash-pop re-introduced v5.11.25 changes on disk.
+- Complete revert via `git checkout 68db8b8 -- Org.html sw.js js/orgapi.js js/sign.js org-login.html` + commit + push (`e1b2a85..7271274`). Live site verified at v5.11.24a.
+- Visual theming mockup iterated Rev 7 → 8 → 9. Rev 9 = locked canonical design.
+
+**Mr. Data Saturday queue** (credits reset ~03:00 BST Saturday; all briefs paste-ready in repo):
+
+1. **`HANDOVER-SingleDeviceInviteAcceptFix-v5.11.25b.md`** — re-do of single-device invite with three failure-mode hypotheses + hash-preservation requirement + handler-order guard + diagnostic console.log lines + explicit step-4 verification in smoke. This is the top priority — closes the +Invite end-to-end loop.
+2. **`HANDOVER-ReceiptBridge-v6.0.md`** — Captain's "trust gate before Patreon" directive.
+3. **`HANDOVER-CrossDeviceAdminAuth-v6.1.md`** — desktop admin auth unlock.
+4. **`HANDOVER-VisualThemingReorg-v5.12.0.md`** — AMENDED with Rev 9 supplement (permanent Active mode bar, anchor system architecture, per-anchor offset+direction, magnet snap-toggle, font picker Word-style flat list, per-mode sound, solid axis colours, Y-axis vertical-slider styling gotcha, 5 locked verdicts).
+
+**v5.11.26 inline scope** (Number One territory, unchanged from Thursday):
+
+- Remove + purge confirmation modal
+- Lead Admin appointment UI (Developer-only)
+- Mobile nav compact mode (Org/Event/Staff tabs)
+- Drop change-role endpoint (re-invite is cleaner per Captain)
+- Drop Pending Invites view (15-min cap simpler)
+
+**Pre-Patreon prep:**
+
+- Consumer surface refresh (preserve index.html uncluttered principle)
+- `roadmap.html` two-line split (Consumer + Orgs branches visualised)
+- Promotion-round-2 polish after v6.0 receipts land
+
+**Open carry-overs:**
+
+- "Venue" banner text bug — display_name not propagating to currentOrg.name on Check-in tab header
+- Mobile Check-in tab review on 8 Pro
+- Y-axis vertical-slider styling: `::-webkit-slider-runnable-track` CSS gotcha noted in v5.12.0 brief (Mr. Data territory; mockup file Rev 9 doesn't have this fix)
+- **Bash sandbox down all Friday** — couldn't bash-diff v5.11.25 PR per BOOTSTRAP §4. Will need to retry Saturday for v5.11.25b verification.
+- **NEW BOOTSTRAP §6 pitfall candidate** (waiting to inscribe): stash-pop after revert can re-introduce reverted state if stashed files overlap with reverted files. Pattern: commit before revert, never stash across revert boundaries. Captain hit this today.
+
+**External waits:**
+
+- EAI SecureComm 2026 (Lancaster, July 21-24) — Kerry orange light, pending her day-off confirmation
+- Wisdom daughter-drone hardware spec
+
+**Architectural constraints (unchanged from Thursday):**
+
+- Single-device-per-person rule (one portal_users + one pub_fp per user)
+- Lead Admin governance (Developer-only appointment, one per org)
+- Re-invite > change-role
+- No promo within the site
+- 15-minute invite window
+
+---
+
 ## Thursday 28 May 2026 — watch close (~22:00 BST)
 
 **Live origin/main:** `v5.11.24a` on `irlid.co.uk/Org`. Build pill verified on Captain's hardware. SW cache `v67`. Test anim + Fullscreen both confirmed firing correctly post-deploy.
