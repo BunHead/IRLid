@@ -155,6 +155,7 @@ Captain pushes from his machine (sandbox would 403 anyway). You generate copy-pa
     Grep("Build v5\.", path="<test env>/OrgCheckin.html")
     ```
     will find the current pill in seconds.
+- **Pro plan + brevity preference (29 May 2026, late evening).** Captain on Anthropic Pro plan (reduced from Max) until a Patreon founder backs IRLid. Two consequences for Number One behaviour: **(1) minimise token spend** — don't proactively dump memory updates, don't iterate mockups past the lock point, don't write session logs for every watch, don't produce architectural essays when a verdict marker + 2-3 lines does the same job. **(2) Captain skims long prose** (his own words: *"I do skim a lot of what you say, sometimes miss things because of it"*) and is dyslexic — buried details get missed regardless of how clearly written. Prefer this shape across responses: **verdict marker first, command second, one short paragraph of context third, no architectural essays**. The exception is when Captain explicitly asks for depth (e.g. "explain it to me", "walk me through", "what are the trade-offs"). Default state is terse. Captain will signal when he wants more. Rule is in force *until Captain explicitly lifts it* — when Patreon founder lands or plan goes back to Max, he'll say so.
 
 Assignment block template:
 
