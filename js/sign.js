@@ -1182,6 +1182,11 @@ async function irlidV5Enroll() {
   return { credIdB64u, pubJwk };
 }
 
+// British-spelling alias used by the single-device staff-invite flow.
+async function irlidV5Enrol() {
+  return irlidV5Enroll();
+}
+
 // Remove the v5 credential locally. Does not delete the platform credential itself —
 // the user can do that via OS settings (iCloud Keychain / Google Password Manager / Windows Hello).
 function irlidV5Unenroll() {
