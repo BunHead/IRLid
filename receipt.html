@@ -609,12 +609,12 @@
     // Pill content: icon + version + descriptive label
     const icon = version === "v5" ? "🔒" : version === "v4" ? "👆" : "🔓";
     const label = version === "v5" ? "v5 — Hardware-backed"
-                : version === "v4" ? "v4 — Bio-metric"
+                : version === "v4" ? "v4 — Device unlock"
                 : "v3 — Base";
     el.className = "version-pill " + version;
     el.innerHTML = '<span class="pill-icon">' + icon + '</span><span>' + label + '</span>';
     el.title = version === "v5" ? "Signed via Secure Enclave / TEE / Hello TPM — keys non-extractable"
-            : version === "v4" ? "Signed with bio-metric verification (WebAuthn UV at signing time)"
+            : version === "v4" ? "Signed with a live device unlock (WebAuthn user-verification — biometric or passcode — at signing time)"
             : "Signed with base protocol (localStorage signing key)";
     el.style.display = "inline-flex";
   }
@@ -1827,8 +1827,8 @@
         const aBio = respA && respA.payload && respA.payload.bioVerified === true;
         const bBio = respB && respB.payload && respB.payload.bioVerified === true;
         if (aBio || bBio) {
-          if (aBio) addCheck("Self: bio-metric", true, "Device biometrically unlocked at time of signing");
-          if (bBio) addCheck("Guest: bio-metric", true, "Device biometrically unlocked at time of signing");
+          if (aBio) addCheck("Self: device unlock", true, "Device unlocked (biometric or passcode) at time of signing");
+          if (bBio) addCheck("Guest: device unlock", true, "Device unlocked (biometric or passcode) at time of signing");
         }
       } catch(e) {
         // Bio-metric field absent — not an error, not shown

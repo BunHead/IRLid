@@ -260,11 +260,12 @@
         This is a deliberate starting point: prove the cryptographic model works before adding layers on top.
       </p>
       <p>
-        Optional bio-metric and hardware-backed enhancements are now available as Settings-gated features.
-        v4 (April 2026) added an optional bio-metric gate — Face ID, Touch ID, fingerprint, or Windows Hello at handshake time, proving
-        the device owner (not just the device) was physically present. v5 (May 2026) added optional hardware-backed signing — keys live
-        in the device's Secure Enclave / TEE / Hello TPM and are non-extractable even on rooted devices. Bio-metric data never leaves
-        the device in either case. Both are off by default and never prompted during a scan; the core handshake works the same without them.
+        Optional hardware-backed enhancements are now available as Settings-gated features.
+        v4 (April 2026) added an optional device-unlock gate — a live unlock (Face ID, Touch ID, fingerprint, or passcode) at handshake time,
+        proving the receipt was signed on this device by someone who could unlock it at that moment (not copied, automated, or replayed —
+        it deliberately doesn't claim which person or which method; identifying the person is a separate layer). v5 (May 2026) added optional
+        hardware-backed signing — keys live in the device's Secure Enclave / TEE / Hello TPM and are non-extractable even on rooted devices.
+        No biometric data leaves the device in either case. Both are off by default and never prompted during a scan; the core handshake works the same without them.
       </p>
       <p>
         Even today, linking a Google account (and soon, a direct email login) improves the experience in practical ways:

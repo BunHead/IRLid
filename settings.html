@@ -164,8 +164,8 @@
 
       <!-- ===== Bio-metric verification ===== -->
       <div class="panel">
-        <h3 style="margin:0 0 4px;">👆 Bio-metric Verification</h3>
-        <p class="small" style="margin:0 0 12px; color:#888;">Require Face ID or fingerprint before each handshake. Proves <em>you</em> (not just your device) were present. Bio-metric data never leaves your device. Off by default — enrol once to enable.</p>
+        <h3 style="margin:0 0 4px;">👆 Hardware-Backed Verification</h3>
+        <p class="small" style="margin:0 0 12px; color:#888;">Require a live device unlock (Face ID, fingerprint, or passcode) before each handshake. Proves the receipt was signed on this device with a live unlock — not copied, automated, or replayed. The unlock check happens on your device; no biometric data leaves it. Off by default — enrol once to enable.</p>
 
         <div id="bioStatusRow" class="bio-status-row not-enrolled">
           <div class="bio-dot dot-orange" id="bioDot"></div>
@@ -173,7 +173,7 @@
         </div>
 
         <div id="bioEnrolSection" style="display:none;">
-          <button class="btn" id="bioEnrolBtn" type="button">👆 Set up bio-metric</button>
+          <button class="btn" id="bioEnrolBtn" type="button">👆 Enrol this device</button>
           <div class="settings-kv" style="margin-top:6px;">You'll be prompted once to register. Takes about 5 seconds.</div>
         </div>
 
@@ -181,7 +181,7 @@
           <div class="settings-row" style="margin-bottom:10px;">
             <label style="display:flex; gap:10px; align-items:center;">
               <input type="checkbox" id="bioEnabledToggle" />
-              <span><b>Require bio-metric to sign</b></span>
+              <span><b>Require device unlock to sign</b></span>
             </label>
           </div>
           <button class="btn secondary" id="bioRemoveBtn" type="button">Remove enrolment</button>
@@ -189,7 +189,7 @@
         </div>
 
         <div id="bioUnavailSection" style="display:none;">
-          <div class="settings-kv" style="color:#aaa;">Face ID / fingerprint via WebAuthn is not available on this device or browser. Try Safari on iOS 16+ or Chrome on Android 9+.</div>
+          <div class="settings-kv" style="color:#aaa;">Device unlock (Face ID / fingerprint / passcode) via WebAuthn is not available on this device or browser. Try Safari on iOS 16+ or Chrome on Android 9+.</div>
         </div>
       </div>
 
@@ -209,7 +209,7 @@
         <p class="small" style="margin:0 0 12px; color:#888;">
           Move your IRLid signing key into your device's Secure Enclave (Apple) /
           TEE (Android) / Windows Hello TPM. Private key never leaves the hardware,
-          and Face ID / Touch ID / fingerprint is required at every signature.
+          and a device unlock (Face ID, Touch ID, fingerprint, or passcode) is required at every signature.
           Closes the strongest honest criticism of v3/v4 (localStorage extraction —
           see <a href="https://github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md#iii-stolen-device-attacks" target="_blank" rel="noopener">THREAT-MODEL.md §III.2</a>).
           <strong>Off by default.</strong> Enrol once to enable.
@@ -239,7 +239,7 @@
           </div>
           <div class="settings-kv" id="v5EnabledHelp" style="margin-bottom:10px;">
             When ON, every HELLO and response signature requires a fresh user-verification
-            gesture (Face ID / Touch ID / Windows Hello). Score boost: +20 to 70/100 when v5 verifies.
+            unlock (Face ID, fingerprint, or passcode). Score boost: +20 to 70/100 when v5 verifies.
           </div>
           <button class="btn secondary" id="v5RemoveBtn" type="button">Remove enrolment</button>
           <div class="settings-kv" style="margin-top:6px;">
@@ -431,7 +431,7 @@
       } else {
         bioStatusRow.className = "bio-status-row enrolled";
         bioDot.className = "bio-dot dot-green";
-        bioStatusText.textContent = "Enrolled — bio-metric credential active";
+        bioStatusText.textContent = "Enrolled — hardware credential active";
         bioActiveSection.style.display = "block";
         bioEnabledToggle.checked = enabled;
       }
@@ -440,23 +440,23 @@
     if (bioEnrolBtn) {
       bioEnrolBtn.addEventListener("click", async function() {
         bioEnrolBtn.disabled = true;
-        bioEnrolBtn.textContent = "Waiting for bio-metric…";
+        bioEnrolBtn.textContent = "Waiting for device unlock…";
         try {
           await irlidBiometricEnroll();
           localStorage.setItem("irlid_bio_enabled", "1");
           await renderBioState();
         } catch(e) {
-          alert("Bio-metric enrolment failed: " + (e.message || e));
+          alert("Enrolment failed: " + (e.message || e));
         } finally {
           bioEnrolBtn.disabled = false;
-          bioEnrolBtn.textContent = "👆 Set up bio-metric";
+          bioEnrolBtn.textContent = "👆 Enrol this device";
         }
       });
     }
 
     if (bioRemoveBtn) {
       bioRemoveBtn.addEventListener("click", async function() {
-        if (!confirm("Remove bio-metric enrolment? You can re-enrol at any time.")) return;
+        if (!confirm("Remove this device's enrolment? You can re-enrol at any time.")) return;
         if (typeof irlidBiometricUnenroll === "function") irlidBiometricUnenroll();
         await renderBioState();
       });

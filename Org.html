@@ -3417,7 +3417,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <div class="stat-card"><div class="stat-label">Checked In</div><div class="stat-value green" id="statIn">12</div><div class="stat-sub" id="statInSub">18 total today</div></div>
         <div class="stat-card"><div class="stat-label">Checked Out</div><div class="stat-value blue" id="statOut">6</div></div>
         <div class="stat-card"><div class="stat-label">Avg Score</div><div class="stat-value orange" id="statScore">84%</div><div class="stat-sub">Min threshold: <span id="statMin">50%</span></div><div class="threshold-bar" aria-hidden="true"><div class="threshold-bar-fill" id="scoreProgress"></div><div class="threshold-bar-marker" id="scoreThresholdMarker"></div></div></div>
-        <div class="stat-card"><div class="stat-label">Bio-metric Verified</div><div class="stat-value purple" id="statBio">7</div></div>
+        <div class="stat-card"><div class="stat-label">Unlock-Verified</div><div class="stat-value purple" id="statBio">7</div></div>
       </div>
       <button type="button" class="view-board-btn" id="viewBoardBtn" hidden>
         <span class="view-board-icon">⛶</span>
@@ -10744,7 +10744,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="settings-group">
                 <h4>Core gates and policy</h4>
                 <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Bio-metric Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a face or biometric step is required before allow.</div></label>
+                  <label class="switch-tile"><div class="switch-top"><strong>Device Unlock Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a live device unlock (biometric or passcode) is required before allow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Privacy Mode</strong><label class="switch-wrap"><input id="privacyMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Prefer reduced personal detail in the entry flow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Anonymous Mode</strong><label class="switch-wrap"><input id="anonymousMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Permit anonymous-style handling where appropriate.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Check-out Required</strong><label class="switch-wrap"><input id="checkoutRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Marks the event as requiring an exit/check-out flow later.</div></label>
@@ -15905,7 +15905,7 @@ function buildPortalSummaryText() {
     `Org code: ${portalState.orgCode || ''}`,
     `Event code: ${portalState.eventCode || ''}`,
     `Minimum Trust Score: ${normalizeScore(portalState.minimumTrustScore)}%`,
-    `Bio-metric Required: ${portalState.biometricRequired ? 'Yes' : 'No'}`,
+    `Device Unlock Required: ${portalState.biometricRequired ? 'Yes' : 'No'}`,
     `Privacy Mode: ${portalState.privacyMode ? 'Yes' : 'No'}`,
     `Anonymous Mode: ${portalState.anonymousMode ? 'Yes' : 'No'}`,
     `Check-out Required: ${portalState.checkoutRequired ? 'Yes' : 'No'}`,
@@ -16016,7 +16016,7 @@ function buildPortalSummaryItems() {
     ['Org code',        displayValue(portalState.orgCode)],
     ['Event code',      displayValue(portalState.eventCode)],
     ['Min score',       `${normalizeScore(portalState.minimumTrustScore)}%`],
-    ['Bio-metric',      portalState.biometricRequired ? 'Yes' : 'No'],
+    ['Device unlock',   portalState.biometricRequired ? 'Yes' : 'No'],
     ['Privacy mode',    portalState.privacyMode ? 'Yes' : 'No'],
     ['Anonymous',       portalState.anonymousMode ? 'Yes' : 'No'],
     ['Check-out',       portalState.checkoutRequired ? 'Yes' : 'No'],
