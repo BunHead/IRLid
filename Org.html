@@ -7708,8 +7708,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var titleAction = runtimeAction.charAt(0).toUpperCase() + runtimeAction.slice(1);
               var titlePhrase = actionPhrase.charAt(0).toUpperCase() + actionPhrase.slice(1);
               var finalText;
-              if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Kerry!';
-              else if (tmpl === 'name + action') finalText = 'Kerry — ' + actionPhrase;
+              if (tmpl === 'name')               finalText = baseMsg.replace(/[.!?]\s*$/, '') + ', Name!';
+              else if (tmpl === 'name + action') finalText = 'Name — ' + actionPhrase;
               else                                finalText = baseMsg;
               var runtimeName = (stage._v511AttendeeName || '').trim();
               if (s.textTemplate && String(s.textTemplate).trim()) {
@@ -8549,7 +8549,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var seq = (modeStates[outcome] && Array.isArray(modeStates[outcome].sequence)) ? modeStates[outcome].sequence : [];
             return fireConfiguredSequence(seq, outcome, targetStage, {
               theme: activeTheme,
-              attendeeName: 'Kerry',
+              attendeeName: 'Name',
               action: outcome === 'deny' ? 'out' : 'in'
             });
           }
@@ -10109,7 +10109,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           function v511RefreshTextTemplatePreview(root, template) {
             var preview = root && root.querySelector('[data-setting-text-template-preview]');
-            if (preview) preview.textContent = v511RenderTextTemplate(template || '{name} — {verb}', 'Kerry', 'in');
+            if (preview) preview.textContent = v511RenderTextTemplate(template || '{name} — {verb}', 'Name', 'in');
           }
           var V511_SETTINGS_GRID_THRESHOLD = 5;
           function v511SetSettingsLayout(useGrid) {
