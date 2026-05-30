@@ -1,5 +1,37 @@
 # Pending Work — IRLid
 
+## Saturday 30 May 2026 — early watch (06:00 → ~07:15 BST)
+
+**Live origin/main:** `v5.11.25c` on `irlid.co.uk/Org` (frontend only; Worker `irlid-api-org` unchanged — the `/org/invite/accept-on-this-device` endpoint was already on main, Friday's revert only touched the 5 frontend files).
+
+**Shipped this watch:**
+- **v5.11.25b merged** (Mr. Data PR #60, fast-forward `bd1a247..22d1002`). Bash-diffed before merge → ✅ ACCEPT. Adds `tryShowSingleDeviceInviteAcceptIfNeeded()` which runs at boot BEFORE the org-login punt and renders the welcome-screen takeover in-place. Hash-preservation backstop added to `org-login.html` (`location.href`, not replace). 5 files, +207/−6, additive.
+- **v5.11.25c inline** (Number One — Org.html boot restore + sw.js v69→v70, build pill bumped). New boot block at the saved-session-restore region: when `savedSession.session_token` exists but there's NO cached org (`!(savedOrg && savedOrg.api_key)`), fetch `/user/orgs` with the Bearer and `loadDashboardForOrg(orgs[0])`. Intended to fix the post-accept drop-to-sign-in. **NOT pushed by Number One — Captain committed/pushed from his machine** (`...4cbfaec` empty-commit redeploy confirmed live, deploy #902).
+
+**PROVEN working (the Friday bug is DEAD):**
+- Welcome screen renders on a FRESH device — confirmed on BOTH the A20e and the Nokia ("Welcome to Test Event — Becky Wetherill, invited as Manager — Accept & enrol / Decline"). The exact step-4 failure that got v5.11.25 reverted Friday no longer occurs.
+- Accept & enrol → fingerprint → signed envelope → POST all fire.
+- **D1 write confirmed**: invite row `status='claimed'`, `redeemed_by_fp='Ddkeigor4xdvelGo'` (A20e). Worker created `portal_users` + `org_memberships` (Manager) + `login_sessions` and marked the invite claimed, atomically. The cryptography + DB layer work end-to-end.
+
+**STILL OPEN — the post-accept dashboard hold (next watch's first job):**
+- After Accept & enrol + fingerprint, the device drops to the **"Show login QR" sign-in surface** instead of loading the invited member's dashboard. Seen on A20e (on 25b) AND Nokia (after clear, on 25c-or-cached-25b — pill NOT confirmed during the failing test).
+- **v5.11.25c was meant to fix this but did NOT demonstrably land it.** Diagnosis so far (code-read, not yet hardware-confirmed):
+  - The boot block IS logically correct: it fires for `session && !cachedOrg`, and `userListOrgs` (Worker L1203) JOINs `org_memberships`→`organisations` and returns the member's org **with api_key** for any membership row — so Becky's org *would* come back. The path should work.
+  - Two unproven failure modes remain: **(1)** the Nokia never actually ran 25c (cache/CDN/SW not evicted — the build pill was never confirmed at `v5.11.25c` during the failing test); **(2)** a runtime issue inside the block or `loadDashboardForOrg` / `requireSession` rejecting the fresh session — invisible without the device console or a `wrangler tail`.
+- **Next-watch diagnostic plan (do in this order):**
+  1. On the test phone, CONFIRM the sidebar build pill reads `v5.11.25c` BEFORE concluding anything. If it says 25b, the fix was never on the device — hard-evict (Clear & reset, reopen twice for SW activation) and re-test.
+  2. If pill = 25c and it still drops to sign-in: open `wrangler tail` on `irlid-api-org` and re-run the accept. Watch for the `GET /user/orgs` call and its response (does it 401? return empty orgs? return the org?).
+  3. If needed, Nokia/A20e console over USB (`chrome://inspect`) — look for `[v5.11.25c] session-without-cached-org load failed` and the `[v5.5.5] /user/orgs returned:` log.
+- **D1 hygiene:** orphan `portal_users` rows from the failed attempts (A20e fp `Ddkeigor4xdvelGo`, plus any Nokia fp) + their `org_memberships`/`login_sessions` + claimed invites. Clean up before the next clean smoke so duplicate-Becky rows don't confuse the picture.
+
+**Device notes for next watch:** A20e and Nokia BOTH deliver the `#staff_invite` fragment correctly and BOTH render the welcome screen (my earlier "Nokia scanner strips the fragment" theory was WRONG — Captain corrected it). Either is a fine recipient test phone. 8 Pro = admin (developer, fp in `BOOTSTRAP_DEVELOPER_FP`). 4-device fleet: 8 Pro / 4a / A20e / Nokia.
+
+**Housekeeping done this watch:**
+- Branch sweep: deleted `codex/v5.11.23-invite-staff-real`, `codex/v5.11.25-single-device-invite-accept`, `no1/v5.9.14-staff-invite-clean-port` (all merged). KEPT `Website` (unmerged) + `recovered/assistqr-protocol` (sacred — 5 May SecureComm paper). `(root)` left alone.
+- BOOTSTRAP §6: two Friday pitfalls inscribed (stash-pop-across-revert re-introducing reverted state; wrangler-timeout retry-once-before-dashboard-fallback).
+
+---
+
 ## Friday 29 May 2026 — watch close (~22:00 BST, after a hard day)
 
 **Live origin/main:** `v5.11.24a` on `irlid.co.uk/Org`. Build pill verified post complete-revert.

@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v69'; // v5.11.25b - Single-device staff invite acceptance boot-order fix.
+const CACHE_VERSION = 'irlid-shell-v70'; // v5.11.25c - Boot restore: load org via /user/orgs when session present but no cached org (invited-member sign-in).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

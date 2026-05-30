@@ -3283,7 +3283,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.25b</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.25c</span></div>
   </div>
 </div>
 
@@ -17090,6 +17090,34 @@ window.addEventListener('DOMContentLoaded', async () => {
     catch (_) { return null; }
   })();
   const savedOrg = loadJson(STORAGE_KEY_ORG, null);
+  // v5.11.25c — Freshly-invited member: a valid session exists but no org has
+  // been cached locally yet. The single-device invite-accept flow stores only
+  // `irlid_login_session`, never STORAGE_KEY_ORG, so the savedOrg-gated restore
+  // below skips and the dashboard falls through to the sign-in QR (the A20e
+  // smoke symptom). Mirror handleQrLoginSuccess: fetch /user/orgs with the
+  // Bearer and load the first membership. Additive — only fires when a session
+  // is present WITHOUT a cached org.
+  if (savedSession && savedSession.session_token && !(savedOrg && savedOrg.api_key)) {
+    qrLoginSession = savedSession;
+    try { localStorage.removeItem('irlid_signed_out'); } catch (_) {}
+    document.querySelectorAll('[data-developer-only="true"]').forEach(function (el) {
+      el.style.display = savedSession.is_developer ? '' : 'none';
+    });
+    document.body.classList.toggle('developer-bearer-active', !!savedSession.is_developer);
+    try {
+      const r = await window.IRLidOrgApi.listMyOrgs(savedSession.session_token);
+      const myOrgs = (r && r.orgs) || [];
+      if (myOrgs.length) {
+        await loadDashboardForOrg(myOrgs[0]);
+        return; // signed in as the invited member; skip sign-in UI fallthrough
+      }
+      // Session valid but no memberships resolved — clear and fall through.
+      qrLoginSession = null;
+    } catch (err) {
+      console.warn('[v5.11.25c] session-without-cached-org load failed:', err);
+      qrLoginSession = null;
+    }
+  }
   if (savedSession && savedSession.session_token && savedOrg && savedOrg.api_key) {
     qrLoginSession = savedSession;
     // v5.7.1e — A valid restored session clears any lingering "signed out"
