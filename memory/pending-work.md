@@ -1,5 +1,28 @@
 # Pending Work — IRLid
 
+## Saturday 30 May 2026 — late morning continuation (~07:30 → ~09:00 BST)
+
+**Live origin/main:** `v5.11.25c` + HWB honesty pass. Build pill `v5.11.25c`, SW cache `v72`.
+
+**Shipped (Number One inline, on Captain's Max tank — he's mid-downgrade to Pro, applies today):**
+- **HWB copy honesty pass (2 commits).** Captain flagged we must not claim "biometrically signed" — WebAuthn UV can't distinguish biometric from PIN (Worker asserts UV at `verifyV5Envelope` L220, but UV = biometric OR passcode, by design). Commit 1 (`5cdda91`, 8 files): reframed every "biometric verification / proves you / bio-metric gate" overclaim → "hardware-backed / device-unlock (biometric or passcode)" across features.html, about.html, settings.html, Org.html, **receipt.html + check.html (the version pill + the receipt's own verification rows — most important, it's what a sceptic sees)**, pitch-humanitarian.html. Kept the true "no biometrics" base-flow lines + the anti-biometric blog. Commit 2 (pending push, see below): genericised the celebration Sample placeholder `Kerry` → `Name` (3 spots in Org.html — it was his wife's name hardwired into the preview); About-page co-presence line softened from "it **proves** that you were physically present" → "it lets two people create a tamper-evident, cryptographically **signed record** that they were physically present together" (Option B — leans on what's genuinely guaranteed); roadmap "biometric gate" → "device-unlock gate". **Site now claims exactly what the crypto proves.**
+- Honesty audit of the wider site (roadmap, about, blog): **site is already well-calibrated** — blog concedes co-presence is "good faith, not a cryptographic guarantee", cards say "strong evidence" not "proof", "tamper-evident" not "tamper-proof". Only real thread was the About "proves" line (fixed). Minor optional softenings flagged but not yet done (about "what each check proves"→"establishes"; card-3 "ensures real time"→"shows") — low priority, Captain's call.
+
+**RATIFIED + spec'd, ready to build — Lead Admin appointment, co-presence-gated** (`HANDOVER-LeadAdminCoPresence-DESIGN.md`):
+- Captain chose option (b): co-presence-gated, "do it right, only do it once." Number One's load-bearing point: if we gate on co-presence it must be **REAL** GPS+time co-presence (IRLid's own proof), not a Developer-attested honour system — else it's the exact overclaim the honesty pass just removed.
+- Three decisions RATIFIED: (1) real GPS+time co-presence, issuer always bootstrap Developer; (2) **Replace** (atomic appoint-new + demote-old, no zero-lead-admin window); (3) **allow fresh** appointee (enrols on the spot; co-presence + Developer sig out-verify the async invite path).
+- Mechanism: in-person HELLO→ACCEPT co-presence handshake (12m/90s, both sigs) + Developer per-action WebAuthn grant → Worker verifies Developer authority + grant sig + co-presence freshness (≤5min) + max-one/Replace → atomic lead_admin membership + immutable audit row. Primitives already exist (`haversineMeters` + 12m/90s in the org Worker; `irlidHaversineMeters` in sign.js) — reuse, don't rebuild.
+- **NEXT JOB. Build = Worker `/org/lead-admin/appoint` (~120-160 lines) + Org.html ceremony UI (~120 lines).** Worker half could go to Mr. Data tomorrow on token reset; OR Number One inline this evening. **Deploy + smoke MUST be with Captain present** (needs Developer + appointee phones physically co-present). Do NOT deploy blind.
+
+**Pending push at this watch break** (Captain went to family ~09:00, back this evening):
+```
+git add Org.html about.html roadmap.html sw.js HANDOVER-LeadAdminCoPresence-DESIGN.md memory/pending-work.md memory/STATE-OF-PLAY.md CLAUDE.md
+git commit -m '30 May: HWB honesty pass (Name placeholder, About signed-record framing) + Lead Admin co-presence spec ratified'
+git push origin main
+```
+
+---
+
 ## Saturday 30 May 2026 — early watch (06:00 → ~07:15 BST)
 
 **Live origin/main:** `v5.11.25c` on `irlid.co.uk/Org` (frontend only; Worker `irlid-api-org` unchanged — the `/org/invite/accept-on-this-device` endpoint was already on main, Friday's revert only touched the 5 frontend files).
