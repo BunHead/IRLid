@@ -1404,6 +1404,18 @@ function encodeInvitePayload(payload) {
   return "I:" + b64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
 }
 
+function deepCanonical(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(deepCanonical).join(",") + "]";
+  const keys = Object.keys(value).sort();
+  return "{" + keys.map(k => JSON.stringify(k) + ":" + deepCanonical(value[k])).join(",") + "}";
+}
+
+async function sha256DeepB64url(value) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(deepCanonical(value)));
+  return b64urlEncode(new Uint8Array(buf));
+}
+
 function inviteUnsignedPayload(payload) {
   const clean = Object.assign({}, payload || {});
   delete clean.sig;
@@ -1643,6 +1655,224 @@ async function orgInviteAcceptOnThisDevice(request, env) {
     session_token: sessionToken,
     user: { id: userId, display_name: displayName, pub_fp: pubFp },
     membership: { user_id: userId, org_id: invite.org_id, role }
+  });
+}
+
+function leadAdminJsonError(error, message, status) {
+  return json({ error, message }, status);
+}
+
+function leadAdminReceiptParty(receipt, side, fallbackPub) {
+  const part = receipt && receipt[side];
+  if (!part || !part.payload || !part.sig) return null;
+  return {
+    payload: part.payload,
+    hash: part.hash || null,
+    sig: part.sig,
+    pub: part.pub || fallbackPub || null,
+    webauthn: part.webauthn || null,
+    v: part.v || part.payload?.v || null
+  };
+}
+
+async function verifyLeadAdminReceiptSignature(party, label) {
+  if (!party || !party.payload || !party.sig || !party.pub) {
+    throw new Error(label + "_receipt_malformed");
+  }
+  const computed = await hashPayloadToB64url(party.payload, party.v);
+  if (party.hash && party.hash !== computed) throw new Error(label + "_hash_mismatch");
+  if (party.webauthn || Number(party.v || party.payload?.v || 0) === 5) {
+    await verifyV5Envelope(party.payload, party.pub, party.sig, party.webauthn);
+    return computed;
+  }
+  const ok = await verifySig(computed, party.sig, party.pub);
+  if (!ok) throw new Error(label + "_signature_invalid");
+  return computed;
+}
+
+async function verifyLeadAdminCopresence(receipt, issuerPubFp, appointeePubFp) {
+  if (!receipt || typeof receipt !== "object") throw new Error("copresence_receipt_required");
+  const hello = receipt.hello;
+  const accept = receipt.accept || receipt.b;
+  if (!hello || !hello.pub || !hello.offer || !accept) throw new Error("copresence_receipt_malformed");
+
+  const appointeeParty = leadAdminReceiptParty(
+    { a: Object.assign({}, hello.offer, { pub: hello.pub, v: hello.v || hello.offer?.payload?.v }) },
+    "a",
+    hello.pub
+  );
+  const developerParty = leadAdminReceiptParty({ b: accept }, "b", accept.pub);
+  const appointeeHash = await verifyLeadAdminReceiptSignature(appointeeParty, "appointee");
+  await verifyLeadAdminReceiptSignature(developerParty, "developer");
+
+  const helloHash = await helloHashB64url(hello, hello.v);
+  if (developerParty.payload.helloHash !== helloHash) throw new Error("accept_not_bound_to_hello");
+  if (developerParty.payload.offerHash && developerParty.payload.offerHash !== appointeeHash) {
+    throw new Error("accept_not_bound_to_offer");
+  }
+
+  const receiptAppFp = await deviceKeyFp(hello.pub);
+  const receiptDevFp = await deviceKeyFp(developerParty.pub);
+  if (receiptAppFp !== appointeePubFp) throw new Error("appointee_fp_mismatch");
+  if (receiptDevFp !== issuerPubFp) throw new Error("developer_fp_mismatch");
+
+  const appTs = Number(appointeeParty.payload.ts);
+  const devTs = Number(developerParty.payload.ts);
+  if (!Number.isFinite(appTs) || !Number.isFinite(devTs)) throw new Error("copresence_timestamp_missing");
+  const timeDeltaS = Math.abs(appTs - devTs);
+  if (timeDeltaS > 90) throw new Error("copresence_time_delta");
+
+  const t = now();
+  const newestTs = Math.max(appTs, devTs);
+  if (newestTs > t + 5 || t - newestTs > 5 * 60) throw new Error("copresence_stale");
+
+  const appLat = Number(appointeeParty.payload.lat);
+  const appLon = Number(appointeeParty.payload.lon);
+  const devLat = Number(developerParty.payload.lat);
+  const devLon = Number(developerParty.payload.lon);
+  if (![appLat, appLon, devLat, devLon].every(Number.isFinite)) throw new Error("copresence_gps_missing");
+  const distanceM = haversineMeters(devLat, devLon, appLat, appLon);
+  if (distanceM > 12) throw new Error("copresence_distance");
+
+  return {
+    appointee_pub_fp: receiptAppFp,
+    developer_pub_fp: receiptDevFp,
+    appointee_ts: appTs,
+    developer_ts: devTs,
+    time_delta_s: timeDeltaS,
+    distance_m: Math.round(distanceM * 100) / 100,
+    appointee_gps: { lat: appLat, lon: appLon, acc: appointeeParty.payload.acc ?? null },
+    developer_gps: { lat: devLat, lon: devLon, acc: developerParty.payload.acc ?? null }
+  };
+}
+
+async function orgLeadAdminAppoint(request, env) {
+  let body; try { body = await request.json(); } catch { return leadAdminJsonError("invalid_json", "Invalid JSON.", 400); }
+  const grant = body.grant_envelope || body.signed_grant || body.signed_action || null;
+  const receipt = body.copresence_receipt || body.copresence || null;
+  const appointeePubJwk = body.appointee_pub_jwk || body.appointee_pub || receipt?.hello?.pub || null;
+  const displayName = String(body.appointee_display_name || body.display_name || "Lead Admin").trim().slice(0, 120) || "Lead Admin";
+
+  if (!grant || typeof grant !== "object") return leadAdminJsonError("grant_required", "A signed lead-admin grant is required.", 400);
+  if (!receipt) return leadAdminJsonError("copresence_receipt_required", "A co-presence receipt is required.", 400);
+  if (!appointeePubJwk) return leadAdminJsonError("appointee_pub_required", "Appointee public key is required.", 400);
+
+  const payload = grant.payload || {};
+  const issuerPubJwk = grant.pub;
+  if (payload.type !== "irlid_leadadmin_grant_v5") {
+    return leadAdminJsonError("invalid_grant_type", "Lead Admin grant type is invalid.", 400);
+  }
+  const orgId = String(payload.org_id || "").trim();
+  const appointeePubFp = String(payload.appointee_pub_fp || "").trim();
+  const copresenceHash = String(payload.copresence_hash || "").trim();
+  if (!orgId || !appointeePubFp || !copresenceHash) {
+    return leadAdminJsonError("invalid_grant_payload", "Lead Admin grant is missing org, appointee, or co-presence hash.", 400);
+  }
+
+  const computedAppointeeFp = await deviceKeyFp(appointeePubJwk);
+  if (computedAppointeeFp !== appointeePubFp) {
+    return leadAdminJsonError("appointee_fp_mismatch", "Appointee public key does not match the grant.", 400);
+  }
+  const computedReceiptHash = await sha256DeepB64url(receipt);
+  if (computedReceiptHash !== copresenceHash) {
+    return leadAdminJsonError("copresence_hash_mismatch", "Co-presence receipt hash does not match the grant.", 400);
+  }
+
+  const issuerPubFp = await deviceKeyFp(issuerPubJwk);
+  if (!issuerPubFp || !isBootstrapDeveloperFp(env, issuerPubFp)) {
+    return leadAdminJsonError("developer_required", "Only a bootstrap Developer can appoint a Lead Admin.", 403);
+  }
+  if (issuerPubFp === appointeePubFp) {
+    return leadAdminJsonError("two_devices_required", "Developer and appointee must be distinct devices.", 400);
+  }
+
+  const grantTs = Number(payload.ts || payload.timestamp || 0);
+  if (!Number.isFinite(grantTs) || Math.abs(Date.now() - grantTs) > 5 * 60 * 1000) {
+    return leadAdminJsonError("grant_stale", "Lead Admin grant is stale.", 400);
+  }
+  const nonce = String(payload.nonce || "").trim();
+  if (!nonce || nonce.length < 16) return leadAdminJsonError("nonce_required", "Lead Admin grant nonce is missing.", 400);
+
+  try {
+    await verifyV5Envelope(payload, issuerPubJwk, grant.sig, grant.webauthn);
+  } catch (e) {
+    return leadAdminJsonError("grant_bad_signature", String(e && e.message || e).slice(0, 200), 401);
+  }
+
+  const org = await env.DB.prepare("SELECT id, name FROM organisations WHERE id = ? LIMIT 1").bind(orgId).first();
+  if (!org) return leadAdminJsonError("org_not_found", "Organisation was not found.", 404);
+  const nonceRow = await env.DB.prepare("SELECT nonce FROM action_nonces WHERE nonce = ? LIMIT 1").bind(nonce).first();
+  if (nonceRow) return leadAdminJsonError("nonce_already_used", "Lead Admin grant nonce has already been used.", 400);
+
+  let copresence;
+  try {
+    copresence = await verifyLeadAdminCopresence(receipt, issuerPubFp, appointeePubFp);
+  } catch (e) {
+    return leadAdminJsonError("copresence_invalid", String(e && e.message || e).slice(0, 200), 400);
+  }
+
+  const t = now();
+  let issuer = await env.DB.prepare("SELECT id, pub_fp FROM portal_users WHERE pub_fp = ? LIMIT 1").bind(issuerPubFp).first();
+  if (!issuer) issuer = { id: randomToken().slice(0, 26), pub_fp: issuerPubFp, create: true };
+  let appointee = await env.DB.prepare("SELECT id, pub_fp FROM portal_users WHERE pub_fp = ? LIMIT 1").bind(appointeePubFp).first();
+  if (!appointee) appointee = { id: randomToken().slice(0, 26), pub_fp: appointeePubFp, create: true };
+
+  const oldLeadRows = await env.DB.prepare(
+    "SELECT u.pub_fp FROM org_memberships m JOIN portal_users u ON u.id = m.user_id WHERE m.org_id = ? AND m.role = 'lead_admin' AND m.user_id <> ?"
+  ).bind(orgId, appointee.id).all();
+  const replacedLeadAdminFps = (oldLeadRows.results || []).map(r => r.pub_fp).filter(Boolean);
+  const auditId = randomToken().slice(0, 26);
+  const gpsJson = JSON.stringify({
+    developer: copresence.developer_gps,
+    appointee: copresence.appointee_gps
+  });
+
+  const statements = [];
+  if (issuer.create) {
+    statements.push(env.DB.prepare(
+      "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(issuer.id, JSON.stringify(issuerPubJwk), issuerPubFp, "Developer (Super-Admin)", t, t));
+  }
+  if (appointee.create) {
+    statements.push(env.DB.prepare(
+      "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(appointee.id, JSON.stringify(appointeePubJwk), appointeePubFp, displayName, t, t));
+  }
+  statements.push(env.DB.prepare(
+    "UPDATE org_memberships SET role='manager', granted_by=?, granted_at=?, created_via=? WHERE org_id=? AND role='lead_admin' AND user_id<>?"
+  ).bind(issuer.id, t, "lead_admin_replace:" + auditId, orgId, appointee.id));
+  statements.push(env.DB.prepare(
+    "INSERT INTO org_memberships (user_id,org_id,role,granted_by,granted_at,created_via) VALUES (?,?,?,?,?,?) " +
+    "ON CONFLICT(user_id,org_id) DO UPDATE SET role=excluded.role, granted_by=excluded.granted_by, granted_at=excluded.granted_at, created_via=excluded.created_via"
+  ).bind(appointee.id, orgId, "lead_admin", issuer.id, t, "lead_admin_copresence:" + auditId));
+  statements.push(env.DB.prepare(
+    "INSERT INTO lead_admin_appointment_audit (id,org_id,issuer_user_id,issuer_pub_fp,appointee_user_id,appointee_pub_fp,copresence_hash,distance_m,time_delta_s,developer_ts,appointee_ts,gps_json,replaced_lead_admin_fps,grant_nonce,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).bind(
+    auditId, orgId, issuer.id, issuerPubFp, appointee.id, appointeePubFp, copresenceHash,
+    copresence.distance_m, copresence.time_delta_s, copresence.developer_ts, copresence.appointee_ts,
+    gpsJson, JSON.stringify(replacedLeadAdminFps), nonce, t
+  ));
+  statements.push(env.DB.prepare(
+    "INSERT INTO action_nonces (nonce, used_at, expires_at) VALUES (?, ?, ?)"
+  ).bind(nonce, t, t + 600));
+
+  try {
+    await env.DB.batch(statements);
+  } catch (e) {
+    return leadAdminJsonError("lead_admin_appoint_failed", String(e && e.message || e).slice(0, 200), 409);
+  }
+
+  return json({
+    ok: true,
+    org_id: orgId,
+    appointee_user_id: appointee.id,
+    appointee_pub_fp: appointeePubFp,
+    role: "lead_admin",
+    replaced_lead_admin_fps: replacedLeadAdminFps,
+    audit_id: auditId,
+    copresence_hash: copresenceHash,
+    distance_m: copresence.distance_m,
+    time_delta_s: copresence.time_delta_s
   });
 }
 
@@ -3880,6 +4110,7 @@ export default {
       else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
       else if (method === "POST" && path === "/org/invites/revoke")  response = await orgInviteRevoke(request, env);
       else if (method === "POST" && path === "/org/invite/accept-on-this-device") response = await orgInviteAcceptOnThisDevice(request, env);
+      else if (method === "POST" && path === "/org/lead-admin/appoint") response = await orgLeadAdminAppoint(request, env);
       else if (method === "GET"  && path === "/org/public-meta")     response = await orgPublicMeta(request, env);
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);

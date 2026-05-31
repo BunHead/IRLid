@@ -346,9 +346,9 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .staff-hello-modal p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
 .staff-hello-grid { display: grid; gap: 12px; }
 .staff-hello-grid label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
-.staff-hello-grid input[type=file], .staff-hello-grid textarea { width: 100%; background: #0a0f15; border: 1px solid var(--line); border-radius: 7px; color: var(--text); padding: 10px; font-size: 12px; }
+.staff-hello-grid input[type=file], .staff-hello-grid input[type=text], .staff-hello-grid textarea { width: 100%; background: #0a0f15; border: 1px solid var(--line); border-radius: 7px; color: var(--text); padding: 10px; font-size: 12px; }
 .staff-hello-grid textarea { min-height: 112px; resize: vertical; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.staff-hello-grid textarea:focus, .staff-hello-grid input[type=file]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(88,166,255,0.16); }
+.staff-hello-grid textarea:focus, .staff-hello-grid input[type=file]:focus, .staff-hello-grid input[type=text]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 2px rgba(88,166,255,0.16); }
 .staff-hello-status { min-height: 18px; font-size: 12px; line-height: 1.45; color: var(--muted); }
 .staff-hello-status.error { color: var(--red); }
 .staff-hello-status.ok { color: var(--green); }
@@ -1262,6 +1262,7 @@ body:not(.developer-bearer-active) .prototype-note { display: none; }
   color: var(--text);
 }
 :root[data-theme="light"] .staff-hello-grid input[type=file],
+:root[data-theme="light"] .staff-hello-grid input[type=text],
 :root[data-theme="light"] .staff-hello-grid textarea {
   background: #ffffff;
   color: var(--text);
@@ -11125,6 +11126,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   </div>
                   <button type="button" class="btn btn-secondary btn-sm" id="inviteStaffBtn" data-min-role="lead_admin">Invite staff</button>
                 </div>
+                <div class="invite-staff-row" data-min-role="developer" data-developer-only="true">
+                  <div>
+                    <strong>Appoint Lead Admin</strong>
+                    <span>Developer-only in-person ceremony with GPS and time co-presence.</span>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" id="leadAdminAppointBtn" data-min-role="developer" data-developer-only="true">Appoint</button>
+                </div>
               </div>
 
               <div class="settings-group">
@@ -11773,6 +11781,41 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <button type="button" class="v511-btn v511-btn-primary" id="v511InviteStaffRevokedDoneBtn">Done</button>
         <button type="button" class="v511-btn" disabled>Revoke</button>
       </div>
+    </div>
+  </div>
+</div>
+<div class="staff-hello-backdrop hidden" id="leadAdminAppointDialog" role="dialog" aria-modal="true" aria-labelledby="leadAdminAppointTitle">
+  <div class="staff-hello-modal">
+    <div class="v511-invite-modal-head">
+      <div>
+        <h3 id="leadAdminAppointTitle">Appoint Lead Admin</h3>
+        <p>Both phones must be together. Scan the appointee's HELLO code, then this Developer device signs the grant.</p>
+      </div>
+      <button type="button" class="v511-invite-modal-close" id="leadAdminAppointCloseBtn" aria-label="Close Lead Admin appointment">&times;</button>
+    </div>
+    <div class="staff-hello-grid">
+      <label>Appointee name
+        <input id="leadAdminAppointeeName" type="text" maxlength="120" autocomplete="name" placeholder="e.g. Priya Kaur">
+      </label>
+      <label>Appointee HELLO payload
+        <textarea id="leadAdminHelloInput" placeholder="Scan or paste the appointee HELLO QR payload"></textarea>
+      </label>
+      <input type="file" id="leadAdminHelloImageInput" accept="image/*">
+      <div class="dashboard-scan-camera" id="leadAdminScanCameraWrap">
+        <div id="leadAdminScanCameraView" class="dashboard-scan-camera-view" data-state="idle">
+          <div class="dashboard-scan-camera-placeholder">Camera idle - click Scan HELLO to start.</div>
+        </div>
+        <div class="dashboard-scan-camera-controls">
+          <select id="leadAdminScanCameraSelect" class="dashboard-scan-camera-select" aria-label="Select camera"></select>
+        </div>
+      </div>
+      <div class="staff-hello-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="leadAdminScanStartBtn">Scan HELLO</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="leadAdminScanStopBtn" disabled>Stop camera</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="leadAdminDecodeImageBtn">Decode image</button>
+        <button type="button" class="btn btn-primary btn-sm" id="leadAdminAppointSubmitBtn">Sign and appoint</button>
+      </div>
+      <div class="staff-hello-status" id="leadAdminAppointStatus" role="status" aria-live="polite"></div>
     </div>
   </div>
 </div>
@@ -17100,6 +17143,224 @@ function closeV511InviteStaffModal() {
   v511InviteStaffRenderQr('');
   v511InviteStaffSetBusy(false);
 }
+function leadAdminSetStatus(message, kind='') {
+  const el = document.getElementById('leadAdminAppointStatus');
+  if (!el) return;
+  el.textContent = message || '';
+  el.className = 'staff-hello-status' + (kind ? ' ' + kind : '');
+}
+function leadAdminSetBusy(isBusy) {
+  ['leadAdminAppointSubmitBtn', 'leadAdminDecodeImageBtn', 'leadAdminScanStartBtn'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !!isBusy;
+  });
+}
+function openLeadAdminAppointDialog() {
+  if (!qrLoginSession?.is_developer) return showToast('Bootstrap Developer session required', true);
+  const dialog = document.getElementById('leadAdminAppointDialog');
+  if (!dialog) return;
+  document.getElementById('leadAdminAppointeeName').value = '';
+  document.getElementById('leadAdminHelloInput').value = '';
+  const file = document.getElementById('leadAdminHelloImageInput');
+  if (file) file.value = '';
+  leadAdminSetStatus('');
+  leadAdminSetBusy(false);
+  dialog.classList.remove('hidden');
+  setTimeout(function () { document.getElementById('leadAdminAppointeeName')?.focus(); }, 0);
+}
+async function closeLeadAdminAppointDialog() {
+  await stopLeadAdminCameraScan(true);
+  document.getElementById('leadAdminAppointDialog')?.classList.add('hidden');
+  leadAdminSetBusy(false);
+}
+async function leadAdminParseHelloInput(raw) {
+  let text = String(raw || '').trim();
+  if (!text) throw new Error('Scan or paste the appointee HELLO first.');
+  let url = null;
+  try { url = new URL(text); } catch (_) {}
+  if (url) text = (url.searchParams.get('payload') || url.searchParams.get('qr') || url.searchParams.get('irlid') || text).trim();
+  if (text.startsWith('HZ:')) return irlidDecompressFromB64url(text.slice(3));
+  if (text.startsWith('H:')) return irlidDecodeB64urlJson(text.slice(2));
+  if (/^\s*\{/.test(text)) return JSON.parse(text);
+  return irlidDecodeB64urlJson(text);
+}
+function leadAdminDeepCanonical(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(leadAdminDeepCanonical).join(',') + ']';
+  const keys = Object.keys(value).sort();
+  return '{' + keys.map(function (key) { return JSON.stringify(key) + ':' + leadAdminDeepCanonical(value[key]); }).join(',') + '}';
+}
+async function leadAdminReceiptHash(receipt) {
+  return b64urlEncode(await sha256Bytes(leadAdminDeepCanonical(receipt)));
+}
+async function decodeLeadAdminHelloImage() {
+  const file = document.getElementById('leadAdminHelloImageInput')?.files?.[0];
+  const input = document.getElementById('leadAdminHelloInput');
+  if (!file) return leadAdminSetStatus('Choose a HELLO QR image first.', 'error');
+  if (!window.jsQR) return leadAdminSetStatus('QR decoder unavailable.', 'error');
+  leadAdminSetBusy(true);
+  leadAdminSetStatus('Decoding image...');
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('Could not read image file.'));
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Could not load image.'));
+      image.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const decoded = window.jsQR(pixels.data, pixels.width, pixels.height);
+    if (!decoded?.data) return leadAdminSetStatus('Could not decode QR - try a clearer image.', 'error');
+    if (input) input.value = decoded.data;
+    leadAdminSetStatus('HELLO decoded. Keep both phones together and appoint.', 'ok');
+  } catch (err) {
+    leadAdminSetStatus(err?.message || 'Could not decode QR.', 'error');
+  } finally {
+    leadAdminSetBusy(false);
+  }
+}
+let leadAdminCameraScanner = null;
+async function listLeadAdminCameras() {
+  if (typeof Html5Qrcode === 'undefined' || !Html5Qrcode.getCameras) return null;
+  const select = document.getElementById('leadAdminScanCameraSelect');
+  if (!select) return null;
+  let cams = [];
+  try { cams = await Html5Qrcode.getCameras(); } catch (err) { console.warn('[lead-admin] camera enumeration failed:', err); return null; }
+  if (!cams.length) return null;
+  select.innerHTML = cams.map(function (c) {
+    return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.label || ('Camera ' + c.id.slice(0, 6))) + '</option>';
+  }).join('');
+  const pick = cams.find(c => /back|rear|environment/i.test(c.label || '')) || cams[0];
+  select.value = pick.id;
+  return pick.id;
+}
+async function startLeadAdminCameraScan() {
+  if (!qrLoginSession?.is_developer) return leadAdminSetStatus('Bootstrap Developer session required.', 'error');
+  if (typeof Html5Qrcode === 'undefined') return leadAdminSetStatus('Camera library not available.', 'error');
+  const view = document.getElementById('leadAdminScanCameraView');
+  const startBtn = document.getElementById('leadAdminScanStartBtn');
+  const stopBtn = document.getElementById('leadAdminScanStopBtn');
+  if (!view) return;
+  leadAdminSetStatus('Starting camera...');
+  const select = document.getElementById('leadAdminScanCameraSelect');
+  const camId = (select && select.value) || await listLeadAdminCameras();
+  if (!camId) return leadAdminSetStatus('No camera available. Use Decode image or paste instead.', 'error');
+  try { await stopLeadAdminCameraScan(true); } catch (_) {}
+  if (startBtn) startBtn.disabled = true;
+  if (stopBtn) stopBtn.disabled = false;
+  view.dataset.state = 'scanning';
+  view.innerHTML = '';
+  try {
+    leadAdminCameraScanner = new Html5Qrcode('leadAdminScanCameraView');
+    await leadAdminCameraScanner.start(
+      { deviceId: { exact: camId } },
+      { fps: 15, qrbox: function (vw, vh) { const size = Math.max(160, Math.floor(Math.min(vw, vh) * 0.7)); return { width: size, height: size }; }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+      async function (decodedText) {
+        try { await stopLeadAdminCameraScan(true); } catch (_) {}
+        const input = document.getElementById('leadAdminHelloInput');
+        if (input) input.value = decodedText;
+        leadAdminSetStatus('HELLO scanned. Keep both phones together and appoint.', 'ok');
+      },
+      function () {}
+    );
+    leadAdminSetStatus('Camera live - scan the appointee HELLO QR.', 'ok');
+  } catch (err) {
+    leadAdminSetStatus('Camera error: ' + (err?.message || err), 'error');
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+    view.dataset.state = 'idle';
+    view.innerHTML = '<div class="dashboard-scan-camera-placeholder">Camera idle - click Scan HELLO to start.</div>';
+  }
+}
+async function stopLeadAdminCameraScan(silent) {
+  const view = document.getElementById('leadAdminScanCameraView');
+  const startBtn = document.getElementById('leadAdminScanStartBtn');
+  const stopBtn = document.getElementById('leadAdminScanStopBtn');
+  if (leadAdminCameraScanner) {
+    try { await leadAdminCameraScanner.stop(); } catch (_) {}
+    try { await leadAdminCameraScanner.clear(); } catch (_) {}
+    leadAdminCameraScanner = null;
+  }
+  if (view) {
+    view.dataset.state = 'idle';
+    view.innerHTML = '<div class="dashboard-scan-camera-placeholder">Camera idle - click Scan HELLO to start.</div>';
+  }
+  if (startBtn) startBtn.disabled = false;
+  if (stopBtn) stopBtn.disabled = true;
+  if (!silent) leadAdminSetStatus('Camera stopped.');
+}
+async function appointLeadAdminCopresence() {
+  if (!currentOrg?.id || !qrLoginSession?.session_token) return leadAdminSetStatus('Sign in with a Developer session first.', 'error');
+  if (!qrLoginSession.is_developer) return leadAdminSetStatus('Bootstrap Developer session required.', 'error');
+  if (typeof signActionPayload !== 'function') return leadAdminSetStatus('Hardware-backed grant signing unavailable.', 'error');
+  const submit = document.getElementById('leadAdminAppointSubmitBtn');
+  const helloText = document.getElementById('leadAdminHelloInput')?.value || '';
+  const name = (document.getElementById('leadAdminAppointeeName')?.value || '').trim() || 'Lead Admin';
+  leadAdminSetBusy(true);
+  if (submit) submit.textContent = 'Verifying co-presence...';
+  try {
+    const hello = await leadAdminParseHelloInput(helloText);
+    if (!hello || hello.type !== 'hello' || !hello.pub || !hello.offer) throw new Error('That is not a signed HELLO payload.');
+    await verifyHelloOfferAsync(hello, { tsTolS: 90 });
+    if (typeof irlidV5Enrolled !== 'function' || !irlidV5Enrolled()) throw new Error('Hardware-backed signing required - enrol v5 in Settings first.');
+    const appointeeFp = await irlidPubFp(hello.pub);
+    const previousV5Enabled = localStorage.getItem('irlid_v5_enabled');
+    localStorage.setItem('irlid_v5_enabled', '1');
+    let accept;
+    try {
+      accept = await makeReturnForHelloAsync(irlidEncodeJsonToB64url(hello), { tsTolS: 90 });
+    } finally {
+      if (previousV5Enabled === null) localStorage.removeItem('irlid_v5_enabled');
+      else localStorage.setItem('irlid_v5_enabled', previousV5Enabled);
+    }
+    const distance = irlidHaversineMeters(
+      { lat: accept.payload.lat, lon: accept.payload.lon },
+      { lat: hello.offer.payload.lat, lon: hello.offer.payload.lon }
+    );
+    const dt = Math.abs(Number(accept.payload.ts) - Number(hello.offer.payload.ts));
+    if (distance > 12) throw new Error('Phones are ' + distance.toFixed(1) + 'm apart; must be 12m or less.');
+    if (dt > 90) throw new Error('HELLO and ACCEPT are ' + dt + 's apart; must be 90s or less.');
+    const receipt = { type: 'irlid_leadadmin_copresence_v5', hello, accept };
+    const copresenceHash = await leadAdminReceiptHash(receipt);
+    if (submit) submit.textContent = 'Touch credential...';
+    const grant = await signActionPayload('irlid_leadadmin_grant_v5', currentOrg.id, {
+      org_id: currentOrg.id,
+      appointee_pub_fp: appointeeFp,
+      copresence_hash: copresenceHash,
+      ts: Date.now()
+    });
+    if (submit) submit.textContent = 'Appointing...';
+    const res = await window.IRLidOrgApi.appointLeadAdmin(qrLoginSession.session_token, {
+      grant_envelope: grant,
+      copresence_receipt: receipt,
+      appointee_pub_jwk: hello.pub,
+      appointee_display_name: name
+    });
+    leadAdminSetStatus('Lead Admin appointed - co-presence verified (' + Number(res.distance_m || distance).toFixed(1) + 'm apart, ' + Math.round(Number(res.time_delta_s || dt)) + 's).', 'ok');
+    showToast('Lead Admin appointed');
+    if (qrLoginSession?.session_token) {
+      const orgsResp = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
+      const myOrgs = (Array.isArray(orgsResp.orgs) ? orgsResp.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
+      const refreshed = myOrgs.find(o => o.id === currentOrg.id);
+      if (refreshed) await loadDashboardForOrg(refreshed);
+    }
+  } catch (err) {
+    leadAdminSetStatus(err?.data?.message || err?.data?.error || err?.message || 'Could not appoint Lead Admin.', 'error');
+  } finally {
+    leadAdminSetBusy(false);
+    if (submit) submit.textContent = 'Sign and appoint';
+  }
+}
 async function startV511InviteStaffOnboarding() {
   if (!currentOrg?.id || !qrLoginSession?.session_token) return showToast('Sign in with a Lead Admin or Developer session first', true);
   if (typeof signActionPayload !== 'function') return showToast('Hardware-backed action signing unavailable', true);
@@ -17236,11 +17497,25 @@ function bindV511InviteStaffReal() {
   document.getElementById('v511InviteStaffDialog')?.addEventListener('click', function (event) {
     if (event.target && event.target.id === 'v511InviteStaffDialog') closeV511InviteStaffModal();
   });
+  document.getElementById('leadAdminAppointBtn')?.addEventListener('click', openLeadAdminAppointDialog);
+  document.getElementById('leadAdminAppointCloseBtn')?.addEventListener('click', closeLeadAdminAppointDialog);
+  document.getElementById('leadAdminDecodeImageBtn')?.addEventListener('click', decodeLeadAdminHelloImage);
+  document.getElementById('leadAdminScanStartBtn')?.addEventListener('click', startLeadAdminCameraScan);
+  document.getElementById('leadAdminScanStopBtn')?.addEventListener('click', function () { stopLeadAdminCameraScan(false); });
+  document.getElementById('leadAdminScanCameraSelect')?.addEventListener('change', function () {
+    if (leadAdminCameraScanner) startLeadAdminCameraScan();
+  });
+  document.getElementById('leadAdminAppointSubmitBtn')?.addEventListener('click', appointLeadAdminCopresence);
+  document.getElementById('leadAdminAppointDialog')?.addEventListener('click', function (event) {
+    if (event.target && event.target.id === 'leadAdminAppointDialog') closeLeadAdminAppointDialog();
+  });
 }
 document.addEventListener('keydown', function (event) {
   if (event.key === 'Escape') {
     const dialog = document.getElementById('v511InviteStaffDialog');
     if (dialog && !dialog.classList.contains('hidden')) closeV511InviteStaffModal();
+    const leadDialog = document.getElementById('leadAdminAppointDialog');
+    if (leadDialog && !leadDialog.classList.contains('hidden')) closeLeadAdminAppointDialog();
   }
 });
 
