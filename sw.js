@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v74'; // Check-in frame v2 - taller frame (100dvh-230) + QR reserves 96px for the Test Event banner so it sits fully below it, no clip.
+const CACHE_VERSION = 'irlid-shell-v75'; // v5.12.0 visual theming settings reorg.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
