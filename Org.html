@@ -3283,7 +3283,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0a</span></div>
   </div>
 </div>
 
@@ -5395,33 +5395,29 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           outline: none;
           cursor: pointer;
         }
-        .v512-offset-cross .slider-h {
-          position: absolute;
-          left: 8px;
-          right: 8px;
-          top: 50%;
-          height: 6px;
-          transform: translateY(-50%);
-          background: var(--axis-red);
-          border-radius: 3px;
-        }
+        .v512-offset-cross .slider-h,
         .v512-offset-cross .slider-v {
           position: absolute;
-          top: 8px;
-          bottom: 8px;
+          top: 50%;
           left: 50%;
-          width: 6px;
-          transform: translateX(-50%);
-          writing-mode: vertical-rl;
-          -webkit-appearance: slider-vertical;
-          appearance: slider-vertical;
-          background: var(--axis-green);
+          width: 164px;
+          height: 6px;
+          margin: 0;
           border-radius: 3px;
+          z-index: 1;
+        }
+        .v512-offset-cross .slider-h {
+          transform: translate(-50%, -50%);
+          background: var(--axis-red);
+        }
+        .v512-offset-cross .slider-v {
+          transform: translate(-50%, -50%) rotate(-90deg);
+          background: var(--axis-green);
         }
         .v512-offset-cross .slider-h::-webkit-slider-runnable-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
         .v512-offset-cross .slider-h::-moz-range-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
-        .v512-offset-cross .slider-v::-webkit-slider-runnable-track { background: var(--axis-green); width: 6px; border-radius: 3px; }
-        .v512-offset-cross .slider-v::-moz-range-track { background: var(--axis-green); width: 6px; border-radius: 3px; }
+        .v512-offset-cross .slider-v::-webkit-slider-runnable-track { background: var(--axis-green); height: 6px; border-radius: 3px; }
+        .v512-offset-cross .slider-v::-moz-range-track { background: var(--axis-green); height: 6px; border-radius: 3px; }
         .v512-offset-cross input[type=range]::-webkit-slider-thumb {
           -webkit-appearance: none;
           width: 18px;
@@ -5451,6 +5447,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v512-offset-cross .axis-x { right: 4px; top: 50%; transform: translateY(-50%); color: var(--axis-red); }
         .v512-offset-cross .axis-y { top: 4px; left: 50%; transform: translateX(-50%); color: var(--axis-green); }
         .v512-offset-readout { left: 8px; bottom: 8px; color: #58a6ff; border: 1px solid rgba(88,166,255,0.45); }
+        .v512-cross-centre-dot {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 8px;
+          height: 8px;
+          transform: translate(-50%, -50%);
+          border-radius: 50%;
+          background: rgba(255,255,255,0.62);
+          pointer-events: none;
+          z-index: 3;
+        }
         .v512-dir-grid {
           display: grid;
           grid-template-columns: repeat(3, 60px);
@@ -8130,6 +8138,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // left-side dragon blows RIGHT). axisFlip values are ±1.
           function v511GetStreamAnchors(stage, item) {
             var s = (item && item.settings) || {};
+            if (window.v512AnchorsForStage) {
+              try {
+                var v512Anchors = window.v512AnchorsForStage(stage, item);
+                if (Array.isArray(v512Anchors) && v512Anchors.length) return v512Anchors;
+              } catch (_) {}
+            }
             if (s.streamAnchor !== 'image-anchor') return [{ pos: { x: 50, y: 50 }, axisFlip: { x: 1, y: 1 } }];
             if (stage && stage.classList && stage.classList.contains('v511-theme-preview-stage') && !stage.classList.contains('bg-mode-image')) {
               return [{ pos: { x: 50, y: 50 }, axisFlip: { x: 1, y: 1 } }];
@@ -8237,6 +8251,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Sequences saved with older approaches continue to work, interpreted
           // as their original (stage-%) units.
           function v511GetStreamOffsets(stage, s) {
+            if (s && s.v512Anchors) return { x: 0, y: 0 };
             // 1. T4.3.43 image-relative — the canonical path.
             var oxImg = parseFloat(s.streamOffsetX_img);
             var oyImg = parseFloat(s.streamOffsetY_img);
@@ -9057,6 +9072,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function v511BuildThemePayload(currentTheme) {
             var base = (typeof normalizeThemeForSave === 'function') ? normalizeThemeForSave(currentTheme || activeTheme || {}) : (currentTheme || {});
             snapshotMode(currentMode);
+            if (typeof window.v512PersistActiveAnchorBucket === 'function') window.v512PersistActiveAnchorBucket({ silent: true });
             var activeState = modeStates[currentMode] || modeStates.allow || {};
             var meta = v511MetaFromModeStates();
             var bgPalette = v511HexListFromRow('.v511-bg-palette-row');
@@ -9276,17 +9292,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var originalText = visualSaveBtn.textContent;
             visualSaveBtn.textContent = 'Saving...';
             v511SetVisualSaveStatus('Saving...', '');
+            var currentResp = null;
+            var currentSettings = {};
+            var themePayload = null;
+            var payload = null;
+            var resp = null;
             try {
-              var currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
-              var currentSettings = (currentResp && currentResp.settings) || {};
-              var themePayload = v511BuildThemePayload(currentSettings.theme || {});
-              var payload = Object.assign({}, currentSettings, { theme: themePayload });
-              var resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
+              currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+              currentSettings = (currentResp && currentResp.settings) || {};
+              themePayload = v511BuildThemePayload(currentSettings.theme || {});
+              payload = Object.assign({}, currentSettings, { theme: themePayload });
+              console.log('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
+              resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
+              console.log('[v5.12 visual theme save] Worker response:', resp);
               if (resp && resp.queued) { v511SetVisualSaveStatus('Queued offline', ''); return; }
-              var readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+              var readback;
+              if (resp && resp.theme) {
+                // v5.12.0a - Match the working canonical Settings save path:
+                // the Worker echoes the persisted settings row after POST, avoiding
+                // an immediate GET readback race against D1 propagation.
+                readback = { settings: resp.theme };
+                console.log('[v5.12 visual theme save] Persisted POST echo:', readback);
+              } else {
+                readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+                console.log('[v5.12 visual theme save] GET readback:', readback);
+              }
               var readbackSettings = (readback && readback.settings) || {};
               var lost = (typeof themeRoundTripMismatches === 'function') ? themeRoundTripMismatches(themePayload, readbackSettings.theme) : [];
-              if (lost.length) throw new Error('Did not round-trip: ' + lost.join(', '));
+              if (lost.length) {
+                console.error('[v5.12 visual theme save] Round-trip mismatch:', { sent: payload, received: readbackSettings, mismatched: lost });
+                throw new Error('Did not round-trip: ' + lost.join(', '));
+              }
               activeTheme = normalizeThemeForSave(readbackSettings.theme);
               writeThemeToUI();
               applyThemeVars(activeTheme);
@@ -9296,7 +9332,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511SetVisualSaveStatus('\u2713 Saved', '');
               if (typeof showToast === 'function') showToast('\u2713 Visual theme saved');
             } catch (err) {
-              console.error('[v5.11 visual theme save] failed', err);
+              console.error('[v5.12 visual theme save] failed', { error: err, payload: payload, response: resp, currentSettings: currentSettings });
               v511SetVisualSaveStatus('Save failed: ' + (err && err.message ? err.message : 'unknown'), 'error');
               if (typeof showToast === 'function') showToast('Visual theme save failed', true);
             } finally {
@@ -19138,6 +19174,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var effect = selectedEffectKey();
     if (!state[mode]) state[mode] = {};
     if (!state[mode][effect]) {
+      var item = selectedSequenceItem();
+      var saved = item && item.settings && item.settings.v512Anchors;
       state[mode][effect] = {
         multi: false,
         snap: true,
@@ -19145,18 +19183,100 @@ document.addEventListener('DOMContentLoaded', function () {
         selected: 'centre',
         anchors: { centre: { x: 0, y: 0, dir: 'c' } }
       };
+      if (saved && typeof saved === 'object') {
+        state[mode][effect] = Object.assign(state[mode][effect], cloneAnchorBucket(saved));
+      }
     }
     return state[mode][effect];
   }
   function activeAnchorKeys(bucket) {
-    var keys = Object.keys((bucket && bucket.anchors) || {});
+    var keys = Object.keys((bucket && bucket.anchors) || {}).filter(function(key) { return !!TARGETS[key]; });
     return keys.length ? keys : ['centre'];
   }
-  function anchorAbsolute(targetKey, anchor) {
+  function clamp(n, min, max) {
+    n = Number(n);
+    if (!Number.isFinite(n)) n = 0;
+    return Math.max(min, Math.min(max, n));
+  }
+  function formatSignedPct(n) {
+    n = Math.round(Number(n) || 0);
+    return (n > 0 ? '+' : '') + n + '%';
+  }
+  function formatOffset(anchor) {
+    return 'X ' + formatSignedPct(anchor && anchor.x) + ' / Y ' + formatSignedPct(anchor && anchor.y);
+  }
+  function targetPoint(targetKey) {
+    return targetPointOnStage($('#v511ThemePreviewStage'), targetKey);
+  }
+  function targetPointOnStage(stage, targetKey) {
     var target = TARGETS[targetKey] || TARGETS.centre;
+    if (!stage) return { x: target.x, y: target.y };
+    var sr = stage.getBoundingClientRect();
+    if (!sr.width || !sr.height) return { x: target.x, y: target.y };
+    function centreOf(el, fallback) {
+      if (!el) return fallback;
+      var r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return fallback;
+      return {
+        x: ((r.left + r.width / 2 - sr.left) / sr.width) * 100,
+        y: ((r.top + r.height / 2 - sr.top) / sr.height) * 100
+      };
+    }
+    if (targetKey === 'logo') return centreOf($('.v511-stage-logo', stage), target);
+    if (targetKey === 'qr') return centreOf($('.v511-theme-preview-qr', stage), target);
+    if (targetKey === 'image') {
+      var cs = getComputedStyle(stage);
+      var raw = cs.getPropertyValue('--bg-image-pos').trim();
+      var m = raw.match(/(-?\d+(?:\.\d+)?)\s*%\s+(-?\d+(?:\.\d+)?)\s*%/);
+      if (m) return { x: clamp(parseFloat(m[1]), 0, 100), y: clamp(parseFloat(m[2]), 0, 100) };
+    }
+    return { x: target.x, y: target.y };
+  }
+  function selectedSequenceItem() {
+    try {
+      var seq = (modeStates[currentMode()] && modeStates[currentMode()].sequence) || [];
+      if (typeof v511SelectedSeqIdx === 'number' && v511SelectedSeqIdx >= 0 && v511SelectedSeqIdx < seq.length) return seq[v511SelectedSeqIdx];
+    } catch (_) {}
+    return null;
+  }
+  function cloneAnchorBucket(bucket) {
+    return JSON.parse(JSON.stringify(bucket || {}));
+  }
+  function persistAnchorBucket(bucket, opts) {
+    opts = opts || {};
+    var item = selectedSequenceItem();
+    if (item) {
+      item.settings = item.settings || {};
+      item.settings.v512Anchors = cloneAnchorBucket(bucket);
+      var first = activeAnchorKeys(bucket)[0] || 'centre';
+      if (item.effect === 'stream') {
+        item.settings.streamAnchor = first === 'image' ? 'image-anchor' : 'centre';
+        item.settings.direction9 = ((bucket.anchors[first] || {}).dir) || item.settings.direction9 || 'c';
+        item.settings.streamOffsetX_img = clamp((bucket.anchors[first] || {}).x, -100, 100);
+        item.settings.streamOffsetY_img = clamp((bucket.anchors[first] || {}).y, -100, 100);
+      }
+    }
+    var stage = $('#v511ThemePreviewStage');
+    if (stage) {
+      var keys = activeAnchorKeys(bucket);
+      var firstAnchor = bucket.anchors[keys[0]] || { x: 0, y: 0, dir: 'c' };
+      var pos = anchorAbsolute(keys[0], firstAnchor);
+      stage.style.setProperty('--v512-anchor-x', pos.x + '%');
+      stage.style.setProperty('--v512-anchor-y', pos.y + '%');
+      stage.setAttribute('data-v512-anchor-dir', firstAnchor.dir || 'c');
+      stage.setAttribute('data-v512-anchor-targets', keys.join(' '));
+    }
+    if (typeof v511UpdateAnchorCrosshairs === 'function') {
+      try { v511UpdateAnchorCrosshairs(); } catch (_) {}
+    }
+    if (!opts.silent && typeof v511SaveDebounced === 'function') v511SaveDebounced();
+  }
+  function anchorAbsolute(targetKey, anchor) {
+    var target = targetPoint(targetKey);
+    var scale = 0.3;
     return {
-      x: Math.max(2, Math.min(98, target.x + (Number(anchor && anchor.x) || 0))),
-      y: Math.max(2, Math.min(98, target.y + (Number(anchor && anchor.y) || 0)))
+      x: clamp(target.x + (Number(anchor && anchor.x) || 0) * scale, 2, 98),
+      y: clamp(target.y + (Number(anchor && anchor.y) || 0) * scale, 2, 98)
     };
   }
   function setStageBannerFromTemplate() {
@@ -19299,7 +19419,7 @@ document.addEventListener('DOMContentLoaded', function () {
       Object.keys(TARGETS).map(function(k){ return '<button type="button" class="v512-anchor-chip" data-anchor="' + k + '" title="' + htmlEscape(TARGETS[k].tip) + '">' + htmlEscape(TARGETS[k].label) + '<span class="v512-anchor-letter"></span></button>'; }).join('') +
       '<button type="button" class="v512-anchor-toggle" data-toggle="multi">Multi</button><button type="button" class="v511-btn v511-btn-mini" id="v512AnchorDefaultBtn">Default</button></div>' +
       '<div class="v512-active-anchors" id="v512ActiveAnchors"></div>' +
-      '<div class="v512-anchor-controls"><div class="v512-offset-cross"><input type="range" min="-40" max="40" value="0" class="slider-h" id="v512AnchorX" aria-label="Anchor X offset"><input type="range" min="-40" max="40" value="0" class="slider-v" id="v512AnchorY" aria-label="Anchor Y offset"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="v512-offset-readout" id="v512AnchorReadout">0%, 0%</span></div><div><div class="v511-hint" style="margin-bottom:8px;">Direction</div><div class="v512-dir-grid" id="v512AnchorDir">' +
+      '<div class="v512-anchor-controls"><div class="v512-offset-cross"><input type="range" min="-100" max="100" value="0" class="slider-h" id="v512AnchorX" aria-label="Anchor X offset"><input type="range" min="-100" max="100" value="0" class="slider-v" id="v512AnchorY" aria-label="Anchor Y offset"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="v512-cross-centre-dot"></span><span class="v512-offset-readout" id="v512AnchorReadout">X +0% / Y +0%</span></div><div><div class="v511-hint" style="margin-bottom:8px;">Direction</div><div class="v512-dir-grid" id="v512AnchorDir">' +
       DIRS.map(function(d){ return '<button type="button" data-dir="' + d[0] + '">' + d[1] + '</button>'; }).join('') +
       '</div></div></div>';
     var settings = $('#v511CelSettings');
@@ -19313,6 +19433,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (t === 'multi') bucket.multi = !bucket.multi;
         if (t === 'snap') bucket.snap = !bucket.snap;
         if (t === 'show') bucket.show = !bucket.show;
+        persistAnchorBucket(bucket);
         refreshAnchorUi();
         return;
       }
@@ -19329,6 +19450,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         bucket.selected = key;
         selectedAnchorId = key;
+        persistAnchorBucket(bucket);
         refreshAnchorUi();
         return;
       }
@@ -19343,12 +19465,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if (dir) {
         var a = bucket.anchors[bucket.selected] || bucket.anchors[activeAnchorKeys(bucket)[0]];
         a.dir = dir.getAttribute('data-dir');
+        persistAnchorBucket(bucket);
         refreshAnchorUi();
         return;
       }
       if (e.target.id === 'v512AnchorDefaultBtn') {
         bucket.anchors = { centre: { x: 0, y: 0, dir: 'c' } };
         bucket.selected = 'centre';
+        persistAnchorBucket(bucket);
         refreshAnchorUi();
       }
     });
@@ -19357,11 +19481,26 @@ document.addEventListener('DOMContentLoaded', function () {
         var bucket = anchorBucket();
         var key = bucket.selected || activeAnchorKeys(bucket)[0];
         var a = bucket.anchors[key] || (bucket.anchors[key] = { x: 0, y: 0, dir: 'c' });
-        a.x = Number($('#v512AnchorX').value) || 0;
-        a.y = Number($('#v512AnchorY').value) || 0;
+        a.x = clamp($('#v512AnchorX').value, -100, 100);
+        a.y = clamp($('#v512AnchorY').value, -100, 100);
+        persistAnchorBucket(bucket);
         refreshAnchorUi();
       });
     });
+    var cross = $('.v512-offset-cross', anchor);
+    if (cross) {
+      cross.addEventListener('pointerdown', function(e) {
+        var rect = cross.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        var bucket = anchorBucket();
+        var key = bucket.selected || activeAnchorKeys(bucket)[0];
+        var a = bucket.anchors[key] || (bucket.anchors[key] = { x: 0, y: 0, dir: 'c' });
+        a.x = clamp(((e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)) * 100, -100, 100);
+        a.y = clamp(((e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2)) * 100, -100, 100);
+        persistAnchorBucket(bucket);
+        refreshAnchorUi();
+      });
+    }
   }
   function buildTextTemplate(container) {
     if (!container || $('#v512OutcomeTextTemplate')) return;
@@ -19441,9 +19580,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!bucket.selected || !bucket.anchors[bucket.selected]) bucket.selected = activeAnchorKeys(bucket)[0];
     selectedAnchorId = bucket.selected;
     root.classList.toggle('is-multi', !!bucket.multi);
-    $('[data-toggle="multi"]', root).classList.toggle('is-on', !!bucket.multi);
-    $('[data-toggle="snap"]', root).classList.toggle('is-on', bucket.snap !== false);
-    $('[data-toggle="show"]', root).classList.toggle('is-on', bucket.show !== false);
+    all('.v512-anchor-toggle', root).forEach(function(toggle) {
+      var name = toggle.getAttribute('data-toggle');
+      var on = name === 'multi' ? !!bucket.multi : (name === 'snap' ? bucket.snap !== false : bucket.show !== false);
+      toggle.classList.toggle('is-on', on);
+      toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
     var label = $('#v512AnchorEffectName');
     if (label) label.textContent = selectedEffectLabel();
     var keys = activeAnchorKeys(bucket);
@@ -19459,17 +19601,18 @@ document.addEventListener('DOMContentLoaded', function () {
     if (list) {
       list.innerHTML = keys.map(function(k, i) {
         var a = bucket.anchors[k] || { x: 0, y: 0, dir: 'c' };
-        return '<button type="button" class="v512-anchor-list-row' + (k === bucket.selected ? ' is-selected' : '') + '" data-anchor="' + k + '"><span>A' + (i + 1) + '</span><strong>' + TARGETS[k].label + '</strong><span>' + Math.round(a.x || 0) + '%, ' + Math.round(a.y || 0) + '%</span></button>';
+        return '<button type="button" class="v512-anchor-list-row' + (k === bucket.selected ? ' is-selected' : '') + '" data-anchor="' + k + '"><span>A' + (i + 1) + '</span><strong>' + TARGETS[k].label + '</strong><span>' + htmlEscape(formatOffset(a)) + '</span></button>';
       }).join('');
     }
     var a = bucket.anchors[bucket.selected] || { x: 0, y: 0, dir: 'c' };
     var x = $('#v512AnchorX'); var y = $('#v512AnchorY'); var readout = $('#v512AnchorReadout');
     if (x) x.value = a.x || 0;
     if (y) y.value = a.y || 0;
-    if (readout) readout.textContent = Math.round(a.x || 0) + '%, ' + Math.round(a.y || 0) + '%';
+    if (readout) readout.textContent = formatOffset(a);
     all('#v512AnchorDir button').forEach(function(btn) {
       btn.setAttribute('aria-pressed', btn.getAttribute('data-dir') === (a.dir || 'c') ? 'true' : 'false');
     });
+    persistAnchorBucket(bucket, { silent: true });
     renderStageCrosshairs(bucket);
   }
   function renderStageCrosshairs(bucket) {
@@ -19513,20 +19656,22 @@ document.addEventListener('DOMContentLoaded', function () {
       var targetKey = dragging;
       if (bucket.snap !== false) {
         Object.keys(TARGETS).forEach(function(k) {
-          var t = TARGETS[k];
+          var t = targetPoint(k);
           if (Math.abs(px - t.x) < 6 && Math.abs(py - t.y) < 6) targetKey = k;
         });
         if (targetKey !== dragging) {
-          bucket.anchors[targetKey] = bucket.anchors[dragging] || { x: 0, y: 0, dir: 'c' };
+          var old = bucket.anchors[dragging] || { x: 0, y: 0, dir: 'c' };
+          bucket.anchors[targetKey] = { x: 0, y: 0, dir: old.dir || 'c' };
           delete bucket.anchors[dragging];
           dragging = targetKey;
           bucket.selected = targetKey;
         }
       }
-      var base = TARGETS[dragging] || TARGETS.centre;
+      var base = targetPoint(dragging);
       var a = bucket.anchors[dragging] || (bucket.anchors[dragging] = { x: 0, y: 0, dir: 'c' });
-      a.x = Math.max(-40, Math.min(40, px - base.x));
-      a.y = Math.max(-40, Math.min(40, py - base.y));
+      a.x = clamp((px - base.x) / 0.3, -100, 100);
+      a.y = clamp((py - base.y) / 0.3, -100, 100);
+      persistAnchorBucket(bucket);
       refreshAnchorUi();
     });
     stage.addEventListener('pointerup', function() { dragging = null; });
@@ -19542,6 +19687,27 @@ document.addEventListener('DOMContentLoaded', function () {
     wireStageDrag();
   }
   window.v512RefreshVisualTheming = refreshAll;
+  window.v512PersistActiveAnchorBucket = function(opts) {
+    persistAnchorBucket(anchorBucket(), opts || {});
+  };
+  window.v512AnchorsForStage = function(stage, item) {
+    var s = (item && item.settings) || {};
+    var bucket = s.v512Anchors;
+    if (!bucket || !bucket.anchors || typeof bucket.anchors !== 'object') return null;
+    return activeAnchorKeys(bucket).map(function(key) {
+      var anchor = bucket.anchors[key] || { x: 0, y: 0, dir: 'c' };
+      var base = targetPointOnStage(stage || $('#v511ThemePreviewStage'), key);
+      return {
+        pos: {
+          x: clamp(base.x + (Number(anchor.x) || 0) * 0.3, 0, 100),
+          y: clamp(base.y + (Number(anchor.y) || 0) * 0.3, 0, 100)
+        },
+        axisFlip: { x: 1, y: 1 },
+        dir: anchor.dir || 'c',
+        target: key
+      };
+    });
+  };
   document.addEventListener('DOMContentLoaded', function() {
     setTimeout(refreshAll, 80);
     setTimeout(refreshAll, 450);
