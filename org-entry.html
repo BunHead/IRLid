@@ -1194,11 +1194,13 @@
     box.innerHTML = "";
     if (typeof QRCode === "function") {
       const qrSize = Math.min(720, Math.max(360, Math.floor(Math.min(window.innerWidth || 390, window.innerHeight || 844) * 0.86)));
-      // v5.9.0.13.23 — Error correction Level H → M. With the lighter payload
-      // (above), Level M still gives 15% damage tolerance plus much sparser
-      // QR pattern. Phone screens don't get damaged; the tradeoff is purely
-      // decoder-friendliness, and Level H was the bottleneck.
-      new QRCode(box, { text: helloQrData, width: qrSize, height: qrSize, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+      // v5.9.0.13.23 → Error correction Level H → M, then M → L (30 May 2026).
+      // Screen-to-screen scanning is a CLEAN source (no print damage), so L's
+      // 7% redundancy is plenty; the win is ~15% fewer modules = bigger modules
+      // at the same render size = the camera locks focus far more easily. The
+      // "tracks but won't lock on" failure on the 8 Pro is module-density, not
+      // payload correctness — fewer modules is the direct fix.
+      new QRCode(box, { text: helloQrData, width: qrSize, height: qrSize, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
       normalizeHelloQr(box);
       requestAnimationFrame(() => normalizeHelloQr(box));
     } else {
@@ -1575,7 +1577,7 @@
       }
       box.innerHTML = "";
       if (typeof QRCode === "function") {
-        new QRCode(box, { text: helloQrData, width: 220, height: 220, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+        new QRCode(box, { text: helloQrData, width: 260, height: 260, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.L });
         normalizeHelloQr(box);
         requestAnimationFrame(() => normalizeHelloQr(box));
       } else {

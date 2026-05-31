@@ -3184,8 +3184,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 .prototype-checkin #panel-checkin .card-title::after { content: "Public QR"; margin-left: 8px; font-size: 10px; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; }
 .prototype-checkin #panel-checkin .card-body { padding: clamp(8px, 1.2vw, 18px); }
 .prototype-checkin #panel-checkin .checkin-mode-stage { display: block; }
-.prototype-checkin #panel-checkin #venueQRWrap { position: relative; width: 100%; max-width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; height: clamp(260px, calc(100dvh - 330px), 720px); min-height: 0; padding: clamp(8px, 1.2vw, 18px); overflow: hidden; }
-.prototype-checkin #panel-checkin .qr-box { grid-column: 1; grid-row: 1; z-index: 2; justify-self: center; align-self: center; width: clamp(190px, min(68dvh, calc(100dvh - 360px), calc(100vw - 360px), 52vw), 700px); height: clamp(190px, min(68dvh, calc(100dvh - 360px), calc(100vw - 360px), 52vw), 700px); max-width: calc(100% - 16px); max-height: calc(100% - 16px); min-width: 0; min-height: 0; }
+.prototype-checkin #panel-checkin #venueQRWrap { position: relative; width: 100%; max-width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; justify-items: center; height: clamp(260px, calc(100dvh - 300px), 760px); min-height: 0; padding: clamp(8px, 1.2vw, 18px); overflow: hidden; }
+.prototype-checkin #panel-checkin .qr-box { grid-column: 1; grid-row: 1; z-index: 2; justify-self: center; align-self: center; width: clamp(190px, min(70dvh, calc(100dvh - 320px), calc(100vw - 360px), 52vw), 720px); height: clamp(190px, min(70dvh, calc(100dvh - 320px), calc(100vw - 360px), 52vw), 720px); max-width: calc(100% - 16px); max-height: calc(100% - 16px); min-width: 0; min-height: 0; }
 .prototype-checkin #panel-checkin .qr-box canvas,
 .prototype-checkin #panel-checkin .qr-box img { width: calc(100% - 36px) !important; height: calc(100% - 36px) !important; max-width: none; max-height: none; }
 .prototype-checkin #panel-checkin .qr-info h4 { font-size: 18px; }
@@ -3461,7 +3461,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     </div>
 
     <div class="panel" id="panel-checkin">
-      <div class="prototype-note"><strong>Prototype:</strong> Check-in is now the public-safe branded event QR screen. No names, expected list, attendance table, debug controls, or dashboard actions should be visible here.</div>
       <div class="two-col">
         <div>
           <div class="card">
@@ -3522,7 +3521,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                        shortened horizontally (no longer full-width) so it
                        matches the reference image proportions. -->
                   <h4>Event Check-in QR</h4>
-                  <p>Display this branded QR at the entrance. Attendees scan here; the system decides check-in, review, deny, or checkout from their state.</p>
                   <div class="qr-actions">
                     <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
                     <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
@@ -3530,6 +3528,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <button class="btn btn-secondary btn-sm" onclick="testInlineCheckinAnimation()" title="Fire celebration on the inline frame using the current Sample mode picker — debug-only">▶ Test anim</button>
                   </div>
                   <div class="qr-payload-preview" id="qrPayloadPreview"></div>
+                  <div class="prototype-note" style="margin-top:14px;"><strong>Prototype:</strong> Check-in is now the public-safe branded event QR screen. No names, expected list, attendance table, debug controls, or dashboard actions should be visible here.</div>
                 </div>
 
                 <div id="doormanWrap" class="mode-inactive" aria-hidden="true">
@@ -13940,7 +13939,7 @@ async function resolveConflict(conflictId, resolution) {
 function generateVenueQR() {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
   venueQrPayload = buildVenuePayload(); box.innerHTML = '';
-  new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
   // v5.11.19a — also update the inline Check-in tab clone's QR slot so the
   // Refresh QR button refreshes the visible QR (the hidden #venueQrBox above
   // is the legacy slot; the clone is what attendees actually see).

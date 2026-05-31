@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v72'; // Honesty pass - genericise celebration sample placeholder to 'Name'; About-page co-presence wording softened to signed-record framing; roadmap device-unlock label.
+const CACHE_VERSION = 'irlid-shell-v73'; // QR density - orange device_key + venue check-in QRs M->L (fewer modules, easier lock-on); Check-in frame: banner moved to bottom, caption removed, height reservation loosened so QR shows fully.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

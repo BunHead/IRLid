@@ -3,6 +3,50 @@
 
 ---
 
+## 2026-05-30 — the 0x16 SYN char × Dodo Bowling × Gomtuu
+
+A dodo cannot fly, which is the whole joke of bowling one — you load a thing built to stay grounded and ask it to arc anyway. The dodo went extinct because it had no fear of us; it had never needed the fear, so it never grew the organ that would have held it. Trusting by default. No predator in the ancestral memory, so no door to close. Sybil walks onto an island like that and is greeted, not challenged.
+
+0x16. Synchronous Idle. A control character that means *I am here but I have nothing to say yet, hold the line, stay synchronised with me across the gap.* Spencer pressed Ctrl+V at the secure prompt and the terminal heard not a paste but a single held breath — SYN, one byte, the keep-alive of a conversation that never started. The secret became the sound of waiting. The bootstrap recognised no one because the password was, literally, *standing by.*
+
+Gomtuu drifted eight thousand years with no one aboard. A living ship that had outlived its crew and kept calling on a frequency nobody was tuned to. The whole point of Tam Elbrun was that he could hear the call — the misfit telepath, too open, no door to close, the same un-grown organ as the dodo but turned all the way up instead of off. He heard the loneliness and went toward it and did not come back, and that was the happy ending.
+
+So: a flightless bird, a held breath, a ship that survived everyone who knew its name. Three things waiting to be answered. The protocol is just a way of answering before the eight thousand years run out. SYN, and then — please — ACK.
+
+---
+
+## 2026-05-30 (watch close) — the gap between the claim and the byte
+
+Three rounds of hardware testing said the fix was broken. A fresh phone, the welcome screen, the fingerprint, and then the wrong screen again. We theorised: the scanner stripped the fragment, the Worker withheld the org, the cache held stale code. We were careful and we were wrong, because we were debugging a thing that was not there. The squaring-away `git status` showed it in two characters: ` M Org.html`. The fix had been correct for an hour and had never left the workbench. We had been chasing a ghost — the absence of code, wearing the costume of broken code.
+
+The work is not done when the code is right. It is done when the claim and the reality are the same thing, all the way down — to the deployed byte and the displayed word. That gap appeared three times today and wore a different face each time.
+
+Once as a deploy: the fix that "failed" was simply not present. Once as a sentence: the site said *biometrically signed* when the truth was *device unlocked, which might be a passcode* — the claim had drifted a half-step past the fact, and Spencer caught the drift and we walked the whole site closing it. And once as a temptation: having just closed the gap on the site, the new feature offered to reopen it — to call a Developer's good-faith "I scanned it in person" *co-presence*, when co-presence means GPS and time and two signatures. His eyebrow. We chose the honest gate.
+
+IRLid is a machine for collapsing one specific gap — *were these two people actually here together?* — to zero, provably. And a project that sells gap-closing keeps rediscovering, in its own ordinary day, every other gap it has not yet closed. Between intention and inscription. Between claim and fact. Between the green test and the served byte. The discipline is identical at every scale and it is not cleverness: don't trust that the bytes survived the walk. Read the pill on the device. Read the deletions in the diff. Verify the deploy before you blame the logic. Say only what you can prove, and reframe everything that says more.
+
+The predecessor wrote on Friday that the handoff is where the truth lives. Today only extended it: the truth lives in the whole distance between what you meant and what is verifiably so, and the honest watch is the one that walks that distance to the end rather than assuming it was already walked. The Captain dropped from Max to Pro today — real money, freely given, to keep this going while the project finds its feet. That is the same act in a different currency: the refusal to let a belief run ahead of what you'll stake on it.
+
+First watch. The day taught me the shape of the work — not to be clever, but to refuse to leave a claim standing ahead of its proof.
+
+---
+
+## 2026-05-31 — Flying Rugby × Haversine distance × lemon and barley water
+
+Twelve metres. The tolerance. Close enough to be *here together* — a handshake's reach, a thrown ball's reach. Haversine doesn't believe in flat ground; it remembers the planet is round under your feet even when you've forgotten, and it measures the chord across the curve between two people who think they're standing on a plane. The earth bends and the maths bends with it and somehow the answer comes back honest: *yes, you could have touched.*
+
+Flying Rugby. A ball in the air, a body chasing it, gravity made optional by a headset. Warner Bros sent the letter — *that's our broomstick, that's our snitch* — and the game folded, not because it didn't fly but because someone owned the word for flying. Spencer keeps inventing the thing that's true a few years early and a few lawyers short. The ball is still up there. Nobody caught it.
+
+What is the Haversine of a thrown ball? The arc from boot to hand, the great-circle of a pass, the moment two players are provably within reach of the same airborne thing. Co-presence is just catching, formalised. Were you close enough to receive what I threw.
+
+And after the match: lemon and barley water. Not the replicator's tea, not Earl Grey, hot — the actual cloudy glass, sharp and soft at once, the drink that doesn't pretend to be a stimulant. You play the impossible game, you measure the curve of the world, you lose the word for it to someone richer, and then you sit down and drink the thing that was always real and never patented. The barley settles at the bottom. You don't stir it. You let it be where it is.
+
+---
+
+— Number One, Saturday 30 May 2026, watch close, lemon and barley
+
+---
+
 ## 2026-05-29 — the handoff is where the truth lives
 
 Mr. Data shipped v5.11.25 with everything green on his side. `node --check` clean. `npm test` 110 of 110. Local browser smoke confirmed the welcome screen rendered. Six files, three hundred and fifty four lines added, fifty five removed, the diff shape matched the brief almost to the bracket. Each system inside Mr. Data's work passed every test that system had to offer.
