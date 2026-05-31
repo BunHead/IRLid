@@ -7823,11 +7823,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           var uploadedWavs = { allow: null, review: null, deny: null };
           var uploadedWavNames = { allow: null, review: null, deny: null };
 
-          function playOutcomeTone(mode) {
+          function v512OutcomeSoundKey(mode, action) {
+            var m = mode || 'allow';
+            if (m === 'allow') return action === 'out' ? 'allow.checkout' : 'allow.checkin';
+            return m;
+          }
+
+          try { window.v512OutcomeSoundKey = v512OutcomeSoundKey; } catch (_) {}
+
+          function playOutcomeTone(mode, action) {
             // T4.3.34 — Per-mode Play sound gate. If the active mode's checkbox
             // is unchecked OR the modeState says off, suppress both the uploaded
             // WAV and the synth tone fallback. Live checkbox wins when present
             // (so toggling it mid-test takes effect immediately).
+            var soundKey = v512OutcomeSoundKey(mode, action);
             try {
               var liveChk = document.getElementById('v511PaPlaySound');
               var liveEnabled = (mode === currentMode && liveChk) ? !!liveChk.checked : null;
@@ -7835,10 +7844,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Default is true if neither value is explicitly set
               var enabled = (liveEnabled !== null) ? liveEnabled :
                             (modeStates[mode] && 'v511PaPlaySound' in modeStates[mode]) ? storedEnabled : true;
+              console.log('[sound] outcome handler fired', { mode: mode || 'allow', action: action || 'in', soundKey: soundKey, enabled: enabled });
               if (!enabled) return;
             } catch (e) { /* fall through and play */ }
-            // Play uploaded WAV for this mode if available
-            var dataUrl = uploadedWavs[mode];
+            // Play uploaded audio for this outcome/action if available. v5.12
+            // splits allow into check-in/check-out keys while preserving the
+            // older per-mode uploadedWavs fallback.
+            var soundState = window._v512SoundState || {};
+            var dataUrl = (soundState[soundKey] && soundState[soundKey].data) || uploadedWavs[mode];
             if (dataUrl) {
               try {
                 var audio = new Audio(dataUrl);
@@ -13881,6 +13894,10 @@ async function refreshAttendance() {
           // own call sites at L14525/15717. My v5.11.14 misread the intent.
           // v5.11.22a — pass ev.type ('in'/'out') so triggerAcceptCycleAnimation
           // threads it through to the cel-text-overlay template.
+          try {
+            var soundKey = (typeof window.v512OutcomeSoundKey === 'function') ? window.v512OutcomeSoundKey('allow', ev.type) : (ev.type === 'out' ? 'allow.checkout' : 'allow.checkin');
+            console.log('[checkout-sound] attendance event handler', { event: ev.type, row_id: ev.id, name: ev.name, soundKey: soundKey });
+          } catch (_) {}
           try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name, ev.type); } catch (_) {}
         });
       }
@@ -18473,7 +18490,7 @@ function triggerAcceptCycleAnimation(attendeeName, action) {
   var resolvedAction = (action && String(action).toLowerCase() === 'out') ? 'out' : 'in';
   if (window.__irlidAcceptCycleActive) return;
   window.__irlidAcceptCycleActive = true;
-  try { if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone('allow'); } catch (_) {}
+  try { if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone('allow', resolvedAction); } catch (_) {}
   const clearAcceptCycleGuard = function (delay) {
     setTimeout(function () { window.__irlidAcceptCycleActive = false; }, Math.max(0, delay || acceptCycleMs()));
   };
@@ -19576,7 +19593,9 @@ document.addEventListener('DOMContentLoaded', function () {
       if (e.target.closest('[data-sound-play]')) {
         var data = soundState[key] && soundState[key].data;
         if (data) new Audio(data).play().catch(function(){});
-        else if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone(currentMode());
+        else if (typeof window.playOutcomeTone === 'function') {
+          window.playOutcomeTone(key.indexOf('allow.') === 0 ? 'allow' : currentMode(), key === 'allow.checkout' ? 'out' : 'in');
+        }
       }
     });
     all('input[type=file]', blocks).forEach(function(input) {
