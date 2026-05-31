@@ -138,6 +138,13 @@
         body: payload
       });
     },
+    appointLeadAdmin(sessionToken, payload) {
+      return request("/org/lead-admin/appoint", {
+        method: "POST",
+        sessionToken,
+        body: payload
+      });
+    },
     publicOrgMeta(orgId) {
       return request("/org/public-meta?org_id=" + encodeURIComponent(orgId));
     },
