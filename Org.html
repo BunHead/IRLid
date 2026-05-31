@@ -14596,7 +14596,13 @@ function shortFingerprint(fp) {
 }
 async function verifyDeviceEnvelope(env) {
   if (!env || env.type !== 'device_key') return env;
-  if (!env.pub_jwk || !env.pub_fp) throw new Error('Device-key QR missing pub_jwk or pub_fp.');
+  if (!env.pub_jwk?.x || !env.pub_jwk?.y) throw new Error('Device-key QR missing public key.');
+  env = {
+    ...env,
+    pub_jwk: { ...env.pub_jwk, kty: env.pub_jwk.kty || 'EC', crv: env.pub_jwk.crv || 'P-256' }
+  };
+  if (env.pub_jwk.kty !== 'EC' || env.pub_jwk.crv !== 'P-256') throw new Error('Device-key QR public key is not P-256.');
+  env.pub_fp = env.pub_fp || await irlidPubFp(env.pub_jwk);
   // v5.9.0.13.24 — Stripped doorman QR (no sig/hash) is accepted because the
   // doorman flow doesn't rely on cryptographic sig at the door — staff verifies
   // the human in person. The Worker's doorman_scan handler also doesn't verify

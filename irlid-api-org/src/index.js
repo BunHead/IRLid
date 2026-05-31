@@ -2627,9 +2627,10 @@ async function orgCheckin(request, env) {
   if (gps && (settings.privacyMode !== false)) {
     gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));
   }
-  const attendeeKeyId = helloPayload?.pub ? await pubKeyId(helloPayload.pub) : null;
-  const attendeePubJwk = helloPayload?.pub ? JSON.stringify(helloPayload.pub) : null;
-  const attendeeDeviceFp = helloPayload?.pub ? await deviceKeyFp(helloPayload.pub) : null;
+  const helloPubJwk = normaliseDevicePubJwk(helloPayload?.pub);
+  const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
+  const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
+  const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
   const label = settings.anonymousMode ? null : (attendeeLabel || null);
   const displayName = settings.anonymousMode ? null : ((name || attendeeLabel || "").trim() || null);
   // Batch C polish 5 — defence in depth against ghost-row creation. When the
@@ -3466,6 +3467,14 @@ function validDevicePubJwk(pubJwk) {
     && typeof pubJwk.y === "string";
 }
 
+function normaliseDevicePubJwk(pubJwk) {
+  if (!pubJwk || typeof pubJwk.x !== "string" || typeof pubJwk.y !== "string") return null;
+  const kty = pubJwk.kty || "EC";
+  const crv = pubJwk.crv || "P-256";
+  if (kty !== "EC" || crv !== "P-256") return null;
+  return { ...pubJwk, kty, crv };
+}
+
 function doorRolePermitted(actorRole, targetRole) {
   const actor = expectedMemberRole(actorRole);
   const target = expectedMemberRole(targetRole);
@@ -3509,10 +3518,10 @@ async function bindAdditionalExpectedKey(request, env, id) {
   });
   if (action.error) return action.error;
 
-  const pubJwk = body.pub_jwk || body.pub || body.device_pub_jwk;
+  const pubJwk = normaliseDevicePubJwk(body.pub_jwk || body.pub || body.device_pub_jwk);
   if (!validDevicePubJwk(pubJwk)) return err("pub_jwk must be a P-256 public JWK");
-  const pubFp = String(body.pub_fp || body.device_pub_fp || action.payload.new_device_key_fp || "").trim();
   const computedFp = await deviceKeyFp(pubJwk);
+  const pubFp = String(body.pub_fp || body.device_pub_fp || action.payload.new_device_key_fp || computedFp || "").trim();
   if (!pubFp) return err("pub_fp required");
   if (pubFp !== computedFp) return err("pub_fp does not match pub_jwk", 422);
   // Cross-check: the device fp in the signed payload must match what's
@@ -3564,7 +3573,7 @@ async function orgExpectedCreateAndBind(request, env) {
   const firstName = (body.first_name || "").trim();
   const surname = (body.surname || "").trim();
   const prototypeRole = attendeeOnlyExpectedRole(body, "orgExpectedCreateAndBind");
-  const pubJwk = body.device_pub_jwk || body.pub_jwk || body.pub;
+  const pubJwk = normaliseDevicePubJwk(body.device_pub_jwk || body.pub_jwk || body.pub);
   const suppliedFp = String(body.device_pub_fp || body.pub_fp || "").trim();
   if (!firstName || !surname) return err("first_name and surname required");
   if (!validDevicePubJwk(pubJwk)) return err("device_pub_jwk must be a P-256 public JWK");
