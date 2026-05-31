@@ -3284,7 +3284,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0b</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0d</span></div>
   </div>
 </div>
 
@@ -5375,6 +5375,94 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background: rgba(210,153,34,0.22);
         }
         .v512-anchor-system.is-multi .v512-anchor-chip[aria-pressed="true"] .v512-anchor-letter { display: inline-block; }
+        .v512-anchor-local-preview {
+          position: relative;
+          min-height: 230px;
+          margin-top: 12px;
+          border: 1px solid rgba(88,166,255,0.24);
+          border-radius: 8px;
+          overflow: hidden;
+          background:
+            linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.055) 1px, transparent 1px),
+            radial-gradient(circle at 50% 58%, rgba(88,166,255,0.2), transparent 18%),
+            linear-gradient(135deg, rgba(88,166,255,0.12), rgba(126,231,135,0.08));
+          background-size: 24px 24px, 24px 24px, auto, auto;
+          touch-action: none;
+        }
+        .v512-anchor-local-preview::before {
+          content: "";
+          position: absolute;
+          left: 50%;
+          top: 58%;
+          width: 86px;
+          height: 86px;
+          transform: translate(-50%, -50%);
+          border-radius: 6px;
+          background: #fff;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+          z-index: 1;
+        }
+        .v512-anchor-local-preview::after {
+          content: "QR";
+          position: absolute;
+          left: 50%;
+          top: 58%;
+          transform: translate(-50%, -50%);
+          color: #111827;
+          font: 800 18px/1 system-ui, sans-serif;
+          letter-spacing: 0;
+          z-index: 2;
+        }
+        .v512-anchor-local-logo {
+          position: absolute;
+          left: 50%;
+          top: 18%;
+          width: 46px;
+          height: 46px;
+          transform: translate(-50%, -50%);
+          border-radius: 8px;
+          display: grid;
+          place-items: center;
+          color: #fff;
+          background: rgba(13,17,23,0.78);
+          border: 1px solid rgba(255,255,255,0.22);
+          font: 800 11px/1 system-ui, sans-serif;
+          z-index: 2;
+        }
+        .v512-anchor-local-image {
+          position: absolute;
+          left: 22%;
+          top: 28%;
+          width: 74px;
+          height: 48px;
+          transform: translate(-50%, -50%);
+          border-radius: 8px;
+          background: linear-gradient(135deg, #8b5cf6, #22c55e);
+          box-shadow: inset 0 0 0 1px rgba(255,255,255,0.24), 0 6px 16px rgba(0,0,0,0.22);
+          z-index: 1;
+        }
+        .v512-anchor-local-target {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          transform: translate(-50%, -50%);
+          border-radius: 50%;
+          background: rgba(255,255,255,0.68);
+          box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 0 5px rgba(255,255,255,0.08);
+          pointer-events: none;
+          z-index: 3;
+        }
+        .v512-anchor-local-target span {
+          position: absolute;
+          left: 50%;
+          top: 13px;
+          transform: translateX(-50%);
+          color: rgba(255,255,255,0.78);
+          text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+          font: 800 10px/1 system-ui, sans-serif;
+          white-space: nowrap;
+        }
         .v512-anchor-controls {
           display: grid;
           grid-template-columns: 180px minmax(180px, 1fr);
@@ -5511,6 +5599,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           font: 800 11px/1 system-ui, sans-serif;
         }
         .v512-crosshairs-hidden .v512-stage-crosshair { display: none; }
+        .v512-anchor-local-preview.v512-crosshairs-hidden .v512-stage-crosshair { display: none; }
         .v512-sound-block { display: none; padding: 12px; border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; background: rgba(255,255,255,0.04); }
         .v512-sound-block.is-active { display: grid; gap: 8px; }
         .v512-sound-row label { width: 116px; color: var(--muted); }
@@ -5537,6 +5626,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           .v511-cel-sequence,
           .v511-cel-settings,
           .v512-anchor-system { min-width: 0; }
+          .v512-anchor-local-preview { min-height: 210px; }
           .v512-anchor-controls { grid-template-columns: 1fr; }
           .v512-offset-cross { width: 180px; height: 180px; justify-self: center; }
           .v512-dir-grid { grid-template-columns: repeat(3, minmax(52px, 60px)); justify-content: center; }
@@ -19719,6 +19809,9 @@ document.addEventListener('DOMContentLoaded', function () {
       Object.keys(TARGETS).map(function(k){ return '<button type="button" class="v512-anchor-chip" data-anchor="' + k + '" title="' + htmlEscape(TARGETS[k].tip) + '">' + htmlEscape(TARGETS[k].label) + '<span class="v512-anchor-letter"></span></button>'; }).join('') +
       '<button type="button" class="v512-anchor-toggle" data-toggle="multi">Multi</button><button type="button" class="v511-btn v511-btn-mini" id="v512AnchorDefaultBtn">Default</button></div>' +
       '<div class="v512-active-anchors" id="v512ActiveAnchors"></div>' +
+      '<div class="v512-anchor-local-preview" id="v512AnchorLocalPreview" aria-label="Anchor preview"><div class="v512-anchor-local-image"></div><div class="v512-anchor-local-logo">LOGO</div>' +
+      Object.keys(TARGETS).map(function(k){ return '<div class="v512-anchor-local-target" data-target="' + k + '" style="left:' + TARGETS[k].x + '%;top:' + TARGETS[k].y + '%"><span>' + htmlEscape(TARGETS[k].label) + '</span></div>'; }).join('') +
+      '</div>' +
       '<div class="v512-anchor-controls"><div class="v512-offset-cross"><input type="range" min="-100" max="100" value="0" class="slider-h" id="v512AnchorX" aria-label="Anchor X offset"><input type="range" min="-100" max="100" value="0" class="slider-v" id="v512AnchorY" aria-label="Anchor Y offset"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="v512-cross-centre-dot"></span><span class="v512-offset-readout" id="v512AnchorReadout">X +0% / Y +0%</span></div><div><div class="v511-hint" style="margin-bottom:8px;">Direction</div><div class="v512-dir-grid" id="v512AnchorDir">' +
       DIRS.map(function(d){ return '<button type="button" data-dir="' + d[0] + '">' + d[1] + '</button>'; }).join('') +
       '</div></div></div>';
@@ -19951,29 +20044,46 @@ document.addEventListener('DOMContentLoaded', function () {
     persistAnchorBucket(bucket, { silent: true });
     renderStageCrosshairs(bucket);
   }
-  function renderStageCrosshairs(bucket) {
-    var stage = $('#v511ThemePreviewStage');
-    if (!stage) return;
-    stage.classList.toggle('v512-crosshairs-hidden', bucket.show === false);
-    all('.v512-stage-crosshair', stage).forEach(function(n) { n.remove(); });
+  function targetPointForSurface(surface, targetKey) {
+    if (surface && surface.id === 'v512AnchorLocalPreview') {
+      var target = TARGETS[targetKey] || TARGETS.centre;
+      return { x: target.x, y: target.y };
+    }
+    return targetPoint(targetKey);
+  }
+  function anchorAbsoluteForSurface(surface, targetKey, anchor) {
+    var target = targetPointForSurface(surface, targetKey);
+    var scale = 0.3;
+    return {
+      x: clamp(target.x + (Number(anchor && anchor.x) || 0) * scale, 2, 98),
+      y: clamp(target.y + (Number(anchor && anchor.y) || 0) * scale, 2, 98)
+    };
+  }
+  function renderCrosshairsOnSurface(surface, bucket) {
+    if (!surface) return;
+    surface.classList.toggle('v512-crosshairs-hidden', bucket.show === false);
+    all('.v512-stage-crosshair', surface).forEach(function(n) { n.remove(); });
     activeAnchorKeys(bucket).forEach(function(k, i) {
       var a = bucket.anchors[k] || { x: 0, y: 0, dir: 'c' };
-      var pos = anchorAbsolute(k, a);
+      var pos = anchorAbsoluteForSurface(surface, k, a);
       var marker = document.createElement('div');
       marker.className = 'v512-stage-crosshair' + (k === bucket.selected ? ' is-selected' : '');
       marker.dataset.anchor = k;
       marker.style.left = pos.x + '%';
       marker.style.top = pos.y + '%';
       marker.innerHTML = '<span>' + (bucket.multi ? 'A' + (i + 1) + ' - ' : '') + TARGETS[k].label + '</span>';
-      stage.appendChild(marker);
+      surface.appendChild(marker);
     });
   }
-  function wireStageDrag() {
-    var stage = $('#v511ThemePreviewStage');
-    if (!stage || stage.dataset.v512Drag) return;
-    stage.dataset.v512Drag = '1';
+  function renderStageCrosshairs(bucket) {
+    renderCrosshairsOnSurface($('#v511ThemePreviewStage'), bucket);
+    renderCrosshairsOnSurface($('#v512AnchorLocalPreview'), bucket);
+  }
+  function wireCrosshairDrag(surface, flag) {
+    if (!surface || surface.dataset[flag]) return;
+    surface.dataset[flag] = '1';
     var dragging = null;
-    stage.addEventListener('pointerdown', function(e) {
+    surface.addEventListener('pointerdown', function(e) {
       var m = e.target.closest('.v512-stage-crosshair');
       if (!m) return;
       dragging = m.dataset.anchor;
@@ -19983,16 +20093,17 @@ document.addEventListener('DOMContentLoaded', function () {
       refreshAnchorUi();
       e.preventDefault();
     });
-    stage.addEventListener('pointermove', function(e) {
+    surface.addEventListener('pointermove', function(e) {
       if (!dragging) return;
       var bucket = anchorBucket();
-      var rect = stage.getBoundingClientRect();
+      var rect = surface.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
       var px = ((e.clientX - rect.left) / rect.width) * 100;
       var py = ((e.clientY - rect.top) / rect.height) * 100;
       var targetKey = dragging;
       if (bucket.snap !== false) {
         Object.keys(TARGETS).forEach(function(k) {
-          var t = targetPoint(k);
+          var t = targetPointForSurface(surface, k);
           if (Math.abs(px - t.x) < 6 && Math.abs(py - t.y) < 6) targetKey = k;
         });
         if (targetKey !== dragging) {
@@ -20003,15 +20114,19 @@ document.addEventListener('DOMContentLoaded', function () {
           bucket.selected = targetKey;
         }
       }
-      var base = targetPoint(dragging);
+      var base = targetPointForSurface(surface, dragging);
       var a = bucket.anchors[dragging] || (bucket.anchors[dragging] = { x: 0, y: 0, dir: 'c' });
       a.x = clamp((px - base.x) / 0.3, -100, 100);
       a.y = clamp((py - base.y) / 0.3, -100, 100);
       persistAnchorBucket(bucket);
       refreshAnchorUi();
     });
-    stage.addEventListener('pointerup', function() { dragging = null; });
-    stage.addEventListener('pointercancel', function() { dragging = null; });
+    surface.addEventListener('pointerup', function() { dragging = null; });
+    surface.addEventListener('pointercancel', function() { dragging = null; });
+  }
+  function wireStageDrag() {
+    wireCrosshairDrag($('#v511ThemePreviewStage'), 'v512Drag');
+    wireCrosshairDrag($('#v512AnchorLocalPreview'), 'v512LocalDrag');
   }
   function refreshAll() {
     enhanceActiveBar();
