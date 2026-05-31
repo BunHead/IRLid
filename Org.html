@@ -3283,7 +3283,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.11.25c</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0</span></div>
   </div>
 </div>
 
@@ -5236,6 +5236,305 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         /* Tier 4.2 — Library + sequence two-pane UI */
         .v511-cel-builder { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; margin-top: 10px; }
         @media (max-width: 720px) { .v511-cel-builder { grid-template-columns: 1fr; } }
+        /* v5.12.0 Rev 9 visual-theming reorg. Additive layer over the proven
+           v5.11 sequence engine: five sections, permanent active-mode bar,
+           phone-first spacing, and the new anchor control surface. */
+        .v512-active-mode-bar {
+          border: 1px solid var(--line);
+          border-left: 4px solid #7ee787;
+          border-radius: 8px;
+          padding: 12px 14px;
+          background: linear-gradient(90deg, rgba(126,231,135,0.06), rgba(255,255,255,0.03) 70%);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-top: 12px;
+        }
+        .v512-active-mode-bar > label { width: auto; color: var(--muted); font-weight: 700; }
+        .v512-active-mode-bar select { min-width: 132px; }
+        .v512-active-mode-bar .v511-hint { flex: 1 1 210px; }
+        .v512-undo-pill {
+          margin-left: auto;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 10px;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          background: rgba(255,255,255,0.04);
+          color: var(--muted);
+          font: 700 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+          white-space: nowrap;
+        }
+        .v512-undo-pill kbd {
+          padding: 1px 4px;
+          border-radius: 4px;
+          background: rgba(255,255,255,0.08);
+          color: var(--text);
+          font: inherit;
+        }
+        .v512-section > summary {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .v512-section-num {
+          flex: 0 0 24px;
+          width: 24px;
+          height: 24px;
+          display: inline-grid;
+          place-items: center;
+          border-radius: 999px;
+          background: rgba(105,168,255,0.16);
+          color: #c8e0ff;
+          font-size: 11px;
+          font-weight: 800;
+        }
+        .v512-section-title { flex: 1 1 auto; min-width: 0; }
+        .v512-font-list {
+          max-height: 180px;
+          overflow-y: auto;
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 8px;
+          padding: 6px;
+          background: rgba(0,0,0,0.14);
+          display: grid;
+          gap: 2px;
+        }
+        .v512-font-list .v511-chip {
+          width: 100%;
+          justify-content: space-between;
+          border-radius: 4px;
+          min-height: 38px;
+          padding: 7px 10px;
+          text-align: left;
+        }
+        .v512-font-name { font-size: 18px; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .v512-font-meta { margin-left: 12px; color: var(--muted); font: 700 10px/1 system-ui, sans-serif; letter-spacing: 0.04em; }
+        .v512-brand-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 14px;
+        }
+        .v512-brand-grid .v511-row {
+          grid-template-columns: 132px 1fr;
+          padding: 0;
+        }
+        .v512-anchor-system {
+          --axis-red: #f85149;
+          --axis-green: #22c55e;
+          margin-top: 14px;
+          padding: 14px;
+          border: 1px solid rgba(126,231,135,0.34);
+          border-radius: 8px;
+          background: rgba(126,231,135,0.045);
+        }
+        .v512-anchor-head,
+        .v512-anchor-targets,
+        .v512-sound-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .v512-anchor-head { margin-bottom: 12px; }
+        .v512-anchor-head h4 {
+          margin: 0;
+          color: #7ee787;
+          font-size: 13px;
+          flex: 1 1 180px;
+        }
+        .v512-anchor-chip,
+        .v512-anchor-toggle,
+        .v512-anchor-list-row {
+          border: 1px solid rgba(255,255,255,0.14);
+          background: rgba(255,255,255,0.05);
+          color: var(--text);
+          border-radius: 6px;
+          min-height: 32px;
+          padding: 6px 10px;
+          font: 700 12px/1 system-ui, sans-serif;
+          cursor: pointer;
+        }
+        .v512-anchor-chip[aria-pressed="true"] { border-color: #58a6ff; color: #58a6ff; background: rgba(88,166,255,0.14); }
+        .v512-anchor-system.is-multi .v512-anchor-chip[aria-pressed="true"],
+        .v512-anchor-toggle.is-on[data-toggle="multi"],
+        .v512-anchor-list-row.is-selected {
+          border-color: #d29922;
+          color: #d29922;
+          background: rgba(210,153,34,0.13);
+        }
+        .v512-anchor-letter {
+          display: none;
+          margin-left: 5px;
+          padding: 1px 5px;
+          border-radius: 4px;
+          background: rgba(210,153,34,0.22);
+        }
+        .v512-anchor-system.is-multi .v512-anchor-chip[aria-pressed="true"] .v512-anchor-letter { display: inline-block; }
+        .v512-anchor-controls {
+          display: grid;
+          grid-template-columns: 180px minmax(180px, 1fr);
+          gap: 16px;
+          align-items: start;
+          margin-top: 14px;
+        }
+        .v512-offset-cross {
+          position: relative;
+          width: 180px;
+          height: 180px;
+          border: 1px dashed rgba(255,255,255,0.16);
+          border-radius: 8px;
+          background: rgba(0,0,0,0.16);
+        }
+        .v512-offset-cross input[type=range] {
+          -webkit-appearance: none;
+          appearance: none;
+          outline: none;
+          cursor: pointer;
+        }
+        .v512-offset-cross .slider-h {
+          position: absolute;
+          left: 8px;
+          right: 8px;
+          top: 50%;
+          height: 6px;
+          transform: translateY(-50%);
+          background: var(--axis-red);
+          border-radius: 3px;
+        }
+        .v512-offset-cross .slider-v {
+          position: absolute;
+          top: 8px;
+          bottom: 8px;
+          left: 50%;
+          width: 6px;
+          transform: translateX(-50%);
+          writing-mode: vertical-rl;
+          -webkit-appearance: slider-vertical;
+          appearance: slider-vertical;
+          background: var(--axis-green);
+          border-radius: 3px;
+        }
+        .v512-offset-cross .slider-h::-webkit-slider-runnable-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
+        .v512-offset-cross .slider-h::-moz-range-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
+        .v512-offset-cross .slider-v::-webkit-slider-runnable-track { background: var(--axis-green); width: 6px; border-radius: 3px; }
+        .v512-offset-cross .slider-v::-moz-range-track { background: var(--axis-green); width: 6px; border-radius: 3px; }
+        .v512-offset-cross input[type=range]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #58a6ff;
+          border: 2px solid #fff;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+        }
+        .v512-offset-cross input[type=range]::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #58a6ff;
+          border: 2px solid #fff;
+        }
+        .v512-offset-cross .axis-x,
+        .v512-offset-cross .axis-y,
+        .v512-offset-readout {
+          position: absolute;
+          z-index: 2;
+          padding: 1px 5px;
+          border-radius: 4px;
+          background: rgba(0,0,0,0.55);
+          font: 800 11px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+        .v512-offset-cross .axis-x { right: 4px; top: 50%; transform: translateY(-50%); color: var(--axis-red); }
+        .v512-offset-cross .axis-y { top: 4px; left: 50%; transform: translateX(-50%); color: var(--axis-green); }
+        .v512-offset-readout { left: 8px; bottom: 8px; color: #58a6ff; border: 1px solid rgba(88,166,255,0.45); }
+        .v512-dir-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 60px);
+          grid-template-rows: repeat(3, 60px);
+          gap: 4px;
+        }
+        .v512-dir-grid button {
+          border: 1px solid rgba(255,255,255,0.14);
+          border-radius: 6px;
+          background: rgba(255,255,255,0.05);
+          color: var(--text);
+          font-size: 16px;
+          cursor: pointer;
+        }
+        .v512-dir-grid button[aria-pressed="true"] { border-color: #58a6ff; color: #58a6ff; background: rgba(88,166,255,0.14); }
+        .v512-active-anchors { display: none; margin-top: 12px; padding: 10px; border: 1px dashed rgba(210,153,34,0.42); border-radius: 7px; background: rgba(0,0,0,0.12); }
+        .v512-anchor-system.is-multi .v512-active-anchors { display: grid; gap: 6px; }
+        .v512-anchor-list-row { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; align-items: center; width: 100%; text-align: left; }
+        .v512-stage-crosshair {
+          position: absolute;
+          width: 28px;
+          height: 28px;
+          transform: translate(-50%, -50%);
+          z-index: 8;
+          cursor: grab;
+          touch-action: none;
+        }
+        .v512-stage-crosshair::before,
+        .v512-stage-crosshair::after {
+          content: "";
+          position: absolute;
+          background: rgba(255,255,255,0.9);
+          box-shadow: 0 0 0 1px rgba(0,0,0,0.55);
+        }
+        .v512-stage-crosshair::before { top: 0; bottom: 0; left: 50%; width: 2px; transform: translateX(-50%); }
+        .v512-stage-crosshair::after { left: 0; right: 0; top: 50%; height: 2px; transform: translateY(-50%); }
+        .v512-stage-crosshair.is-selected::before,
+        .v512-stage-crosshair.is-selected::after { background: #d29922; box-shadow: 0 0 8px rgba(210,153,34,0.75); }
+        .v512-stage-crosshair span {
+          position: absolute;
+          left: 50%;
+          top: -20px;
+          transform: translateX(-50%);
+          white-space: nowrap;
+          color: #fff;
+          text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+          font: 800 11px/1 system-ui, sans-serif;
+        }
+        .v512-crosshairs-hidden .v512-stage-crosshair { display: none; }
+        .v512-sound-block { display: none; padding: 12px; border: 1px solid rgba(255,255,255,0.10); border-radius: 8px; background: rgba(255,255,255,0.04); }
+        .v512-sound-block.is-active { display: grid; gap: 8px; }
+        .v512-sound-row label { width: 116px; color: var(--muted); }
+        .v512-sound-file { min-width: 112px; padding: 3px 7px; border-radius: 4px; background: rgba(0,0,0,0.2); color: var(--muted); font: 700 11px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; }
+        @media (max-width: 700px) {
+          .v511-mockup { padding: 10px; }
+          .v511-panel { padding: 12px; border-radius: 10px; }
+          .v511-tabs { top: 0; overflow-x: auto; flex-wrap: nowrap; border-radius: 8px; }
+          .v511-tabs button { flex: 0 0 auto; min-height: 44px; }
+          .v511-theme-preview-stage { min-height: 260px; }
+          .v512-active-mode-bar { align-items: stretch; gap: 8px; }
+          .v512-active-mode-bar > label,
+          .v512-active-mode-bar select,
+          .v512-active-mode-bar .v511-btn,
+          .v512-active-mode-bar .v511-hint,
+          .v512-undo-pill { flex: 1 1 100%; margin-left: 0; }
+          .v511-row,
+          .v511-anim-row,
+          .v512-brand-grid,
+          .v512-brand-grid .v511-row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+          .v511-row > label,
+          .v511-anim-row > label { width: auto; }
+          .v511-cel-library,
+          .v511-cel-sequence,
+          .v511-cel-settings,
+          .v512-anchor-system { min-width: 0; }
+          .v512-anchor-controls { grid-template-columns: 1fr; }
+          .v512-offset-cross { width: 180px; height: 180px; justify-self: center; }
+          .v512-dir-grid { grid-template-columns: repeat(3, minmax(52px, 60px)); justify-content: center; }
+          .v512-dir-grid button { min-height: 52px; }
+          .v512-sound-row { align-items: stretch; }
+          .v512-sound-row label,
+          .v512-sound-row .v511-btn,
+          .v512-sound-file { flex: 1 1 100%; width: 100%; }
+        }
         .v511-cel-library, .v511-cel-sequence { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 8px 8px 10px; }
         .v511-cel-library h4, .v511-cel-sequence h4 { margin: 4px 6px 8px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: flex; justify-content: space-between; align-items: center; }
         .v511-cel-sequence h4 .v511-cel-seq-count { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -5506,6 +5805,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           display: block;
           filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
         }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-logo-position="hidden"] .v511-stage-logo { display: none; }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-logo-position="top-left"] .v511-stage-logo,
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-logo-position="top-right"] .v511-stage-logo {
+          position: absolute;
+          top: clamp(10px, 2cqi, 18px);
+          margin: 0;
+        }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-logo-position="top-left"] .v511-stage-logo { left: clamp(10px, 2cqi, 18px); }
+        :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-logo-position="top-right"] .v511-stage-logo { right: clamp(10px, 2cqi, 18px); }
         /* v5.11.7 — Override .prototype-checkin overrides from L3160-3167 that
            conflict with the v511-theme-preview-stage layout. v5.11.6 added v511
            class to #venueQRWrap but the prototype-checkin grid+absolute-positioning
@@ -8736,7 +9044,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 deny: JSON.parse(JSON.stringify((modeStates.deny && modeStates.deny.sequence) || []))
               },
               uploadedWavs: JSON.parse(JSON.stringify(uploadedWavs || {})),
-              uploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {}))
+              uploadedWavNames: JSON.parse(JSON.stringify(uploadedWavNames || {})),
+              v512: JSON.parse(JSON.stringify({
+                anchors: window._v512AnchorState || {},
+                sound: window._v512SoundState || {},
+                textTemplate: (document.getElementById('v512OutcomeTextTemplate') || {}).value || '',
+                bannerText: (document.getElementById('v512BannerText') || {}).value || '',
+                logoPosition: (document.getElementById('v512LogoPosition') || {}).value || 'above-banner'
+              }))
             };
           }
           function v511BuildThemePayload(currentTheme) {
@@ -8772,6 +9087,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
             };
             meta.banner = v511ReadBannerSettingsFromUI();
+            var v512Existing = base._v512 && typeof base._v512 === 'object' ? Object.assign({}, base._v512) : {};
+            var v512Payload = Object.assign({}, v512Existing, meta.v512 || {});
             return Object.assign({}, base, {
               primary: bgPalette[0] || base.primary || '#3FB950',
               accent: celPalette[0] || base.accent || '#58A6FF',
@@ -8792,6 +9109,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               cycleAnimDuration: Number.isFinite(celDur) ? celDur : (base.cycleAnimDuration || 1.4),
               celebration: v511CelebrationFromSequence(sequence),
               _v511: Object.assign({}, base._v511 || {}, meta),
+              _v512: v512Payload,
+              bannerText: v512Payload.bannerText || base.bannerText || '{org}',
+              globalFont: Object.assign({}, base.globalFont || {}, { font: (meta.banner && meta.banner.font) || 'sans' }),
+              logoPosition: v512Payload.logoPosition || base.logoPosition || 'above-banner',
               v511ActiveMode: currentMode,
               v511ModeStates: meta.modeStates,
               v511UploadedWavs: meta.uploadedWavs,
@@ -8896,6 +9217,21 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var savedWavNames = meta.uploadedWavNames || theme.v511UploadedWavNames;
             if (savedWavs && typeof savedWavs === 'object') uploadedWavs = Object.assign(uploadedWavs, savedWavs);
             if (savedWavNames && typeof savedWavNames === 'object') uploadedWavNames = Object.assign(uploadedWavNames, savedWavNames);
+            if (theme._v512 && typeof theme._v512 === 'object') {
+              var v512AnchorTarget = window._v512AnchorState || (window._v512AnchorState = {});
+              Object.keys(v512AnchorTarget).forEach(function(key) { delete v512AnchorTarget[key]; });
+              Object.assign(v512AnchorTarget, theme._v512.anchors || {});
+              var v512SoundTarget = window._v512SoundState || (window._v512SoundState = {});
+              Object.keys(v512SoundTarget).forEach(function(key) { delete v512SoundTarget[key]; });
+              Object.assign(v512SoundTarget, theme._v512.sound || {});
+              var v512BannerText = document.getElementById('v512BannerText');
+              if (v512BannerText) v512BannerText.value = theme._v512.bannerText || theme.bannerText || '{org}';
+              var v512TextTemplate = document.getElementById('v512OutcomeTextTemplate');
+              if (v512TextTemplate) v512TextTemplate.value = theme._v512.textTemplate || '';
+              var v512LogoPosition = document.getElementById('v512LogoPosition');
+              if (v512LogoPosition) v512LogoPosition.value = theme._v512.logoPosition || theme.logoPosition || 'above-banner';
+              if (typeof window.v512RefreshVisualTheming === 'function') window.v512RefreshVisualTheming();
+            }
             if (theme.v511BgImageData) window._v511ImageData = theme.v511BgImageData;
             var lightDark = document.getElementById('v511LightDarkMode');
             if (lightDark) lightDark.value = theme.darkMode === 'auto' ? 'auto' : (theme.darkMode ? 'dark' : 'light');
@@ -15420,6 +15756,14 @@ window.renderRealVenueQrIntoInlineClone = renderRealVenueQrIntoInlineClone;
 // The drop-shadow in CSS provides contrast against any palette background.
 function renderLogoOnStage(stage) {
   if (!stage) return;
+  var logoPosition = 'above-banner';
+  try {
+    logoPosition = (document.getElementById('v512LogoPosition') && document.getElementById('v512LogoPosition').value) ||
+      (activeTheme && (activeTheme.logoPosition || (activeTheme._v512 && activeTheme._v512.logoPosition))) ||
+      'above-banner';
+  } catch (_) {}
+  if (['above-banner','top-left','top-right','hidden'].indexOf(logoPosition) === -1) logoPosition = 'above-banner';
+  stage.setAttribute('data-logo-position', logoPosition);
   // Remove any prior logo to avoid duplicates on re-clone
   var existing = stage.querySelector('.v511-stage-logo');
   if (existing) existing.remove();
@@ -17381,6 +17725,7 @@ function normalizeThemeForSave(theme) {
   if (['off','simple','page','glow','pattern'].indexOf(cycleMode) === -1) cycleMode = THEME_DEFAULTS.cycleMode;
   let bgImageSymmetryMode = bgCfg.bgImageSymmetryMode;
   const v511Meta = t._v511 && typeof t._v511 === 'object' ? Object.assign({}, t._v511) : {};
+  const v512Meta = t._v512 && typeof t._v512 === 'object' ? Object.assign({}, t._v512) : {};
   v511Meta.banner = normaliseV511BannerConfig(v511Meta.banner);
   return {
     roleVocabulary: normaliseV511RoleVocabulary(t.roleVocabulary),
@@ -17405,6 +17750,10 @@ function normalizeThemeForSave(theme) {
     // both fresh-default seeding and legacy cycleMode migration.
     celebration: normaliseCelebration(t),
     _v511: v511Meta,
+    _v512: v512Meta,
+    bannerText: typeof t.bannerText === 'string' ? t.bannerText : (v512Meta.bannerText || '{org}'),
+    globalFont: t.globalFont && typeof t.globalFont === 'object' ? Object.assign({}, t.globalFont) : (v512Meta.globalFont || null),
+    logoPosition: ['above-banner','top-left','top-right','hidden'].indexOf(t.logoPosition) !== -1 ? t.logoPosition : (v512Meta.logoPosition || 'above-banner'),
     v511ActiveMode: t.v511ActiveMode,
     v511ModeStates: t.v511ModeStates,
     v511UploadedWavs: t.v511UploadedWavs,
@@ -18746,6 +19095,465 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 // =================== /THEMING — Batch 6.5 ===================
 
+</script>
+
+<script>
+(function(){
+  var TARGETS = {
+    centre: { label: 'Centre', x: 50, y: 50, tip: 'The geometric centre of the stage' },
+    image:  { label: 'Image',  x: 22, y: 28, tip: 'The current image overlay anchor' },
+    logo:   { label: 'Logo',   x: 50, y: 18, tip: 'The stage logo position' },
+    qr:     { label: 'QR',     x: 50, y: 58, tip: 'The centre of the QR code' }
+  };
+  var DIRS = [['tl','NW'], ['t','N'], ['tr','NE'], ['l','W'], ['c','O'], ['r','E'], ['bl','SW'], ['b','S'], ['br','SE']];
+  var FONTS = {
+    sans: ['Inter', 'SANS'], serif: ['Georgia', 'SERIF'], mono: ['SF Mono', 'MONO'], display: ['Impact', 'DISPLAY'],
+    bebas: ['Bebas Neue', 'DISPLAY'], oswald: ['Oswald', 'SANS'], pacifico: ['Pacifico', 'SCRIPT'],
+    caveat: ['Caveat', 'SCRIPT'], marker: ['Permanent Marker', 'DISPLAY'], playfair: ['Playfair Display', 'SERIF'],
+    lobster: ['Lobster', 'SCRIPT'], inter: ['Inter', 'SANS'], montserrat: ['Montserrat', 'SANS']
+  };
+  var state = window._v512AnchorState || (window._v512AnchorState = {});
+  var soundState = window._v512SoundState || (window._v512SoundState = {});
+  var selectedAnchorId = 'centre';
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function all(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
+  function htmlEscape(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+    });
+  }
+  function currentMode() { return ($('#v511SamplePicker') || {}).value || 'allow'; }
+  function selectedEffectKey() {
+    var row = $('.v511-cel-seq-item--selected');
+    if (!row) return 'default';
+    return row.getAttribute('data-seq-id') || row.getAttribute('data-effect') || String(all('.v511-cel-seq-item').indexOf(row));
+  }
+  function selectedEffectLabel() {
+    var row = $('.v511-cel-seq-item--selected');
+    if (!row) return 'No sequence item selected';
+    return (row.querySelector('.v511-cel-seq-label') || row).textContent.trim() || 'Selected effect';
+  }
+  function anchorBucket() {
+    var mode = currentMode();
+    var effect = selectedEffectKey();
+    if (!state[mode]) state[mode] = {};
+    if (!state[mode][effect]) {
+      state[mode][effect] = {
+        multi: false,
+        snap: true,
+        show: true,
+        selected: 'centre',
+        anchors: { centre: { x: 0, y: 0, dir: 'c' } }
+      };
+    }
+    return state[mode][effect];
+  }
+  function activeAnchorKeys(bucket) {
+    var keys = Object.keys((bucket && bucket.anchors) || {});
+    return keys.length ? keys : ['centre'];
+  }
+  function anchorAbsolute(targetKey, anchor) {
+    var target = TARGETS[targetKey] || TARGETS.centre;
+    return {
+      x: Math.max(2, Math.min(98, target.x + (Number(anchor && anchor.x) || 0))),
+      y: Math.max(2, Math.min(98, target.y + (Number(anchor && anchor.y) || 0)))
+    };
+  }
+  function setStageBannerFromTemplate() {
+    var input = $('#v512BannerText');
+    var banner = $('#v511ThemePreviewStage .v511-theme-preview-banner');
+    if (!input || !banner) return;
+    var org = 'IRLid';
+    try { org = (currentOrg && currentOrg.name) || org; } catch (_) {}
+    var text = (input.value || '{org}')
+      .replace(/\{org\}/g, org)
+      .replace(/\{event\}/g, 'Test Event')
+      .replace(/\{room\}/g, 'Main Room');
+    banner.textContent = text;
+  }
+  function addSectionNumber(details, number, title, hint) {
+    if (!details) return;
+    details.classList.add('v512-section');
+    var summary = details.querySelector(':scope > summary');
+    if (!summary || summary.dataset.v512Numbered) return;
+    summary.dataset.v512Numbered = '1';
+    summary.innerHTML = '<span class="v512-section-num">' + number + '</span><span class="v512-section-title">' + htmlEscape(title) + (hint ? ' <span class="v511-hint-inline">' + htmlEscape(hint) + '</span>' : '') + '</span>';
+  }
+  function enhanceActiveBar() {
+    var bar = $('.v511-theme-preview-controls-strip');
+    if (!bar) return;
+    bar.classList.add('v512-active-mode-bar');
+    if (!bar.querySelector('.v512-undo-pill')) {
+      var undo = document.createElement('span');
+      undo.className = 'v512-undo-pill';
+      undo.innerHTML = '<kbd>Ctrl+Z</kbd> undo <span aria-hidden="true">/</span> <kbd>Ctrl+Y</kbd> redo';
+      bar.appendChild(undo);
+    }
+  }
+  function enhanceFontPicker() {
+    var group = $('.v511-chips[data-banner-setting="font"]');
+    if (!group || group.dataset.v512Fonts) return;
+    group.dataset.v512Fonts = '1';
+    group.classList.add('v512-font-list');
+    all('.v511-chip', group).forEach(function(btn) {
+      var key = btn.getAttribute('data-banner-value') || btn.textContent.trim();
+      var meta = FONTS[key] || [btn.textContent.trim(), 'FONT'];
+      btn.innerHTML = '<span class="v512-font-name" style="font-family:' + htmlEscape(meta[0]) + ', system-ui, sans-serif;">' + htmlEscape(meta[0]) + '</span><span class="v512-font-meta">' + htmlEscape(meta[1]) + '</span>';
+      btn.addEventListener('click', function() {
+        setTimeout(function() {
+          var stage = $('#v511ThemePreviewStage');
+          if (stage) stage.setAttribute('data-banner-customise', 'on');
+        }, 0);
+      });
+    });
+  }
+  function buildBrandIntro(section) {
+    var body = section && section.querySelector(':scope > .v511-expander-body');
+    if (!body || body.querySelector('#v512BannerText')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'v512-brand-grid';
+    wrap.innerHTML =
+      '<div class="v511-row"><label for="v512BannerText">Banner text</label><input type="text" id="v512BannerText" value="{org}" placeholder="{org}"></div>' +
+      '<div class="v511-row"><label for="v512LogoPosition">Logo position</label><select id="v512LogoPosition"><option value="above-banner">Above banner</option><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="hidden">Hidden</option></select></div>' +
+      '<div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn v511-btn-mini" id="v512LogoUploadBtn">Upload logo</button> <span class="v511-hint">Uses the org logo field; defaults to logo.png with contrast.</span></div></div>' +
+      '<div class="v511-row"><label for="v512OrgDescription">Description</label><input type="text" id="v512OrgDescription" placeholder="Organisation tagline"></div>';
+    body.insertBefore(wrap, body.firstChild);
+    $('#v512BannerText').addEventListener('input', function() {
+      setStageBannerFromTemplate();
+      if (typeof window.v511SaveDebounced === 'function') window.v511SaveDebounced();
+    });
+    $('#v512LogoPosition').addEventListener('change', function() {
+      if (typeof window.renderLogoOnStage === 'function') window.renderLogoOnStage($('#v511ThemePreviewStage'));
+    });
+  }
+  function splitVisualSections() {
+    var panel = $('.v511-panel[data-v511-panel="theme"]');
+    if (!panel) return;
+    var background = all(':scope > details.v511-expander', panel).find(function(d) {
+      return /^Background\b/.test((d.querySelector('summary') || {}).textContent || '');
+    });
+    var qr = $('.v511-qr-customization-block');
+    var brand = all(':scope > details.v511-expander', panel).find(function(d) {
+      return /Banner styling/.test((d.querySelector('summary') || {}).textContent || '');
+    });
+    var post = all(':scope > details.v511-expander', panel).find(function(d) {
+      return /Accept behaviour|Review behaviour|Deny behaviour|Post-Accept Flow/.test((d.querySelector('summary') || {}).textContent || '');
+    });
+    addSectionNumber(brand, 1, 'Brand Identity', 'banner text, font, logo');
+    addSectionNumber(background, 2, 'Colour & Background', 'palette, pattern, image');
+    addSectionNumber(qr, 3, 'QR Appearance', 'foreground colour and motion');
+    addSectionNumber(post, 5, 'Post-Accept Flow', 'welcome, redirects, dwell time');
+    if (brand) {
+      buildBrandIntro(brand);
+      var insertAfter = $('.v511-theme-preview');
+      if (insertAfter && brand.previousElementSibling !== insertAfter) insertAfter.insertAdjacentElement('afterend', brand);
+    }
+    if (background && brand && background.previousElementSibling !== brand) brand.insertAdjacentElement('afterend', background);
+    var experience = $('#v512ExperienceSection');
+    if (!experience) {
+      experience = document.createElement('details');
+      experience.id = 'v512ExperienceSection';
+      experience.className = 'v511-expander v512-section';
+      experience.open = true;
+      experience.innerHTML = '<summary data-v512-numbered="1"><span class="v512-section-num">4</span><span class="v512-section-title">Check-in/out Experience <span class="v511-hint-inline">outcome palette, sequence, anchors, text, sound</span></span></summary><div class="v511-expander-body" id="v512ExperienceBody"></div>';
+    }
+    var expBody = $('#v512ExperienceBody', experience);
+    if (qr) {
+      var qrBody = qr.querySelector(':scope > .v511-expander-body');
+      var celSub = all('.v511-sub', qrBody).find(function(n) { return /Celebration palette/.test(n.textContent); });
+      if (celSub && !expBody.contains(celSub)) {
+        var moving = [];
+        var node = celSub;
+        while (node) {
+          var next = node.nextSibling;
+          moving.push(node);
+          node = next;
+        }
+        moving.forEach(function(n) { expBody.appendChild(n); });
+      }
+      if (background) background.insertAdjacentElement('afterend', qr);
+      qr.insertAdjacentElement('afterend', experience);
+    }
+    var soundSlot = $('#v511ActiveWavSlot');
+    if (soundSlot && !expBody.contains(soundSlot)) {
+      var soundSub = document.createElement('div');
+      soundSub.className = 'v511-sub';
+      soundSub.textContent = 'Outcome Sound';
+      expBody.appendChild(soundSub);
+      expBody.appendChild(soundSlot);
+    }
+    buildAnchorSystem(expBody);
+    buildTextTemplate(expBody);
+    buildSoundBlocks(expBody);
+    if (post && experience.nextElementSibling !== post) experience.insertAdjacentElement('afterend', post);
+    buildSmartReceptionist(post);
+  }
+  function buildAnchorSystem(container) {
+    if (!container || $('#v512AnchorSystem')) return;
+    var anchor = document.createElement('div');
+    anchor.id = 'v512AnchorSystem';
+    anchor.className = 'v512-anchor-system';
+    anchor.innerHTML =
+      '<div class="v512-anchor-head"><h4>Anchor System <span class="v511-hint-inline" id="v512AnchorEffectName">No sequence item selected</span></h4><button type="button" class="v512-anchor-toggle is-on" data-toggle="snap">Magnet snap</button><button type="button" class="v512-anchor-toggle is-on" data-toggle="show">Show crosshairs</button></div>' +
+      '<div class="v512-anchor-targets"><span class="v511-hint">Target:</span>' +
+      Object.keys(TARGETS).map(function(k){ return '<button type="button" class="v512-anchor-chip" data-anchor="' + k + '" title="' + htmlEscape(TARGETS[k].tip) + '">' + htmlEscape(TARGETS[k].label) + '<span class="v512-anchor-letter"></span></button>'; }).join('') +
+      '<button type="button" class="v512-anchor-toggle" data-toggle="multi">Multi</button><button type="button" class="v511-btn v511-btn-mini" id="v512AnchorDefaultBtn">Default</button></div>' +
+      '<div class="v512-active-anchors" id="v512ActiveAnchors"></div>' +
+      '<div class="v512-anchor-controls"><div class="v512-offset-cross"><input type="range" min="-40" max="40" value="0" class="slider-h" id="v512AnchorX" aria-label="Anchor X offset"><input type="range" min="-40" max="40" value="0" class="slider-v" id="v512AnchorY" aria-label="Anchor Y offset"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="v512-offset-readout" id="v512AnchorReadout">0%, 0%</span></div><div><div class="v511-hint" style="margin-bottom:8px;">Direction</div><div class="v512-dir-grid" id="v512AnchorDir">' +
+      DIRS.map(function(d){ return '<button type="button" data-dir="' + d[0] + '">' + d[1] + '</button>'; }).join('') +
+      '</div></div></div>';
+    var settings = $('#v511CelSettings');
+    if (settings && settings.parentElement === container) settings.insertAdjacentElement('afterend', anchor);
+    else container.appendChild(anchor);
+    anchor.addEventListener('click', function(e) {
+      var bucket = anchorBucket();
+      var toggle = e.target.closest('.v512-anchor-toggle');
+      if (toggle) {
+        var t = toggle.getAttribute('data-toggle');
+        if (t === 'multi') bucket.multi = !bucket.multi;
+        if (t === 'snap') bucket.snap = !bucket.snap;
+        if (t === 'show') bucket.show = !bucket.show;
+        refreshAnchorUi();
+        return;
+      }
+      var chip = e.target.closest('.v512-anchor-chip');
+      if (chip) {
+        var key = chip.getAttribute('data-anchor');
+        if (bucket.multi) {
+          if (bucket.anchors[key]) delete bucket.anchors[key];
+          else bucket.anchors[key] = { x: 0, y: 0, dir: 'c' };
+          if (!Object.keys(bucket.anchors).length) bucket.anchors[key] = { x: 0, y: 0, dir: 'c' };
+        } else {
+          bucket.anchors = {};
+          bucket.anchors[key] = { x: 0, y: 0, dir: 'c' };
+        }
+        bucket.selected = key;
+        selectedAnchorId = key;
+        refreshAnchorUi();
+        return;
+      }
+      var row = e.target.closest('.v512-anchor-list-row');
+      if (row) {
+        bucket.selected = row.getAttribute('data-anchor');
+        selectedAnchorId = bucket.selected;
+        refreshAnchorUi();
+        return;
+      }
+      var dir = e.target.closest('#v512AnchorDir button');
+      if (dir) {
+        var a = bucket.anchors[bucket.selected] || bucket.anchors[activeAnchorKeys(bucket)[0]];
+        a.dir = dir.getAttribute('data-dir');
+        refreshAnchorUi();
+        return;
+      }
+      if (e.target.id === 'v512AnchorDefaultBtn') {
+        bucket.anchors = { centre: { x: 0, y: 0, dir: 'c' } };
+        bucket.selected = 'centre';
+        refreshAnchorUi();
+      }
+    });
+    ['v512AnchorX','v512AnchorY'].forEach(function(id) {
+      $('#' + id).addEventListener('input', function() {
+        var bucket = anchorBucket();
+        var key = bucket.selected || activeAnchorKeys(bucket)[0];
+        var a = bucket.anchors[key] || (bucket.anchors[key] = { x: 0, y: 0, dir: 'c' });
+        a.x = Number($('#v512AnchorX').value) || 0;
+        a.y = Number($('#v512AnchorY').value) || 0;
+        refreshAnchorUi();
+      });
+    });
+  }
+  function buildTextTemplate(container) {
+    if (!container || $('#v512OutcomeTextTemplate')) return;
+    var wrap = document.createElement('div');
+    wrap.innerHTML = '<div class="v511-sub">Text Template</div><div class="v511-row"><label for="v512OutcomeTextTemplate">Template</label><input type="text" id="v512OutcomeTextTemplate" placeholder="{name} - {verb}" value="{name} - {verb}"></div>';
+    var sound = $('#v511ActiveWavSlot');
+    if (sound && sound.parentElement === container) container.insertBefore(wrap, sound);
+    else container.appendChild(wrap);
+  }
+  function soundRow(key, label) {
+    return '<div class="v512-sound-row" data-sound-key="' + key + '"><label>' + label + '</label><span class="v512-sound-file">default</span><button type="button" class="v511-btn v511-btn-mini" data-sound-replace>Replace</button><button type="button" class="v511-btn v511-btn-mini" data-sound-reset>Reset</button><button type="button" class="v511-btn v511-btn-mini" data-sound-play>Play</button><input type="file" accept="audio/*" hidden></div>';
+  }
+  function buildSoundBlocks(container) {
+    if (!container || $('#v512SoundBlocks')) return;
+    var blocks = document.createElement('div');
+    blocks.id = 'v512SoundBlocks';
+    blocks.innerHTML =
+      '<div class="v512-sound-block" data-mode="allow"><h5>Allow sound</h5>' + soundRow('allow.checkin','Check-in sound') + soundRow('allow.checkout','Check-out sound') + '</div>' +
+      '<div class="v512-sound-block" data-mode="review"><h5>Review sound</h5>' + soundRow('review','Review sound') + '</div>' +
+      '<div class="v512-sound-block" data-mode="deny"><h5>Deny sound</h5>' + soundRow('deny','Deny sound') + '</div>';
+    container.appendChild(blocks);
+    blocks.addEventListener('click', function(e) {
+      var row = e.target.closest('.v512-sound-row');
+      if (!row) return;
+      var key = row.getAttribute('data-sound-key');
+      if (e.target.closest('[data-sound-replace]')) row.querySelector('input[type=file]').click();
+      if (e.target.closest('[data-sound-reset]')) {
+        delete soundState[key];
+        refreshSoundBlocks();
+      }
+      if (e.target.closest('[data-sound-play]')) {
+        var data = soundState[key] && soundState[key].data;
+        if (data) new Audio(data).play().catch(function(){});
+        else if (typeof window.playOutcomeTone === 'function') window.playOutcomeTone(currentMode());
+      }
+    });
+    all('input[type=file]', blocks).forEach(function(input) {
+      input.addEventListener('change', function() {
+        var file = input.files && input.files[0];
+        var row = input.closest('.v512-sound-row');
+        if (!file || !row) return;
+        var key = row.getAttribute('data-sound-key');
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          soundState[key] = { name: file.name, data: evt.target.result };
+          refreshSoundBlocks();
+        };
+        reader.readAsDataURL(file);
+        input.value = '';
+      });
+    });
+    refreshSoundBlocks();
+  }
+  function refreshSoundBlocks() {
+    all('.v512-sound-block').forEach(function(block) {
+      block.classList.toggle('is-active', block.getAttribute('data-mode') === currentMode());
+    });
+    all('.v512-sound-row').forEach(function(row) {
+      var key = row.getAttribute('data-sound-key');
+      var file = row.querySelector('.v512-sound-file');
+      if (file) file.textContent = (soundState[key] && soundState[key].name) || 'default';
+    });
+  }
+  function buildSmartReceptionist(post) {
+    var body = post && post.querySelector(':scope > .v511-expander-body');
+    if (!body || $('#v512SmartReceptionist')) return;
+    var wrap = document.createElement('div');
+    wrap.id = 'v512SmartReceptionist';
+    wrap.className = 'v511-row';
+    wrap.innerHTML = '<label>Smart Receptionist Mode</label><div><input type="checkbox" id="v512SmartReceptionistToggle"> <span class="v511-hint">Placeholder toggle for v5.12+ routing.</span></div>';
+    body.appendChild(wrap);
+  }
+  function refreshAnchorUi() {
+    var root = $('#v512AnchorSystem');
+    if (!root) return;
+    var bucket = anchorBucket();
+    if (!bucket.selected || !bucket.anchors[bucket.selected]) bucket.selected = activeAnchorKeys(bucket)[0];
+    selectedAnchorId = bucket.selected;
+    root.classList.toggle('is-multi', !!bucket.multi);
+    $('[data-toggle="multi"]', root).classList.toggle('is-on', !!bucket.multi);
+    $('[data-toggle="snap"]', root).classList.toggle('is-on', bucket.snap !== false);
+    $('[data-toggle="show"]', root).classList.toggle('is-on', bucket.show !== false);
+    var label = $('#v512AnchorEffectName');
+    if (label) label.textContent = selectedEffectLabel();
+    var keys = activeAnchorKeys(bucket);
+    all('.v512-anchor-chip', root).forEach(function(chip) {
+      var key = chip.getAttribute('data-anchor');
+      var active = keys.indexOf(key) >= 0;
+      chip.setAttribute('aria-pressed', active ? 'true' : 'false');
+      var ix = keys.indexOf(key);
+      var letter = chip.querySelector('.v512-anchor-letter');
+      if (letter) letter.textContent = ix >= 0 ? 'A' + (ix + 1) : '';
+    });
+    var list = $('#v512ActiveAnchors');
+    if (list) {
+      list.innerHTML = keys.map(function(k, i) {
+        var a = bucket.anchors[k] || { x: 0, y: 0, dir: 'c' };
+        return '<button type="button" class="v512-anchor-list-row' + (k === bucket.selected ? ' is-selected' : '') + '" data-anchor="' + k + '"><span>A' + (i + 1) + '</span><strong>' + TARGETS[k].label + '</strong><span>' + Math.round(a.x || 0) + '%, ' + Math.round(a.y || 0) + '%</span></button>';
+      }).join('');
+    }
+    var a = bucket.anchors[bucket.selected] || { x: 0, y: 0, dir: 'c' };
+    var x = $('#v512AnchorX'); var y = $('#v512AnchorY'); var readout = $('#v512AnchorReadout');
+    if (x) x.value = a.x || 0;
+    if (y) y.value = a.y || 0;
+    if (readout) readout.textContent = Math.round(a.x || 0) + '%, ' + Math.round(a.y || 0) + '%';
+    all('#v512AnchorDir button').forEach(function(btn) {
+      btn.setAttribute('aria-pressed', btn.getAttribute('data-dir') === (a.dir || 'c') ? 'true' : 'false');
+    });
+    renderStageCrosshairs(bucket);
+  }
+  function renderStageCrosshairs(bucket) {
+    var stage = $('#v511ThemePreviewStage');
+    if (!stage) return;
+    stage.classList.toggle('v512-crosshairs-hidden', bucket.show === false);
+    all('.v512-stage-crosshair', stage).forEach(function(n) { n.remove(); });
+    activeAnchorKeys(bucket).forEach(function(k, i) {
+      var a = bucket.anchors[k] || { x: 0, y: 0, dir: 'c' };
+      var pos = anchorAbsolute(k, a);
+      var marker = document.createElement('div');
+      marker.className = 'v512-stage-crosshair' + (k === bucket.selected ? ' is-selected' : '');
+      marker.dataset.anchor = k;
+      marker.style.left = pos.x + '%';
+      marker.style.top = pos.y + '%';
+      marker.innerHTML = '<span>' + (bucket.multi ? 'A' + (i + 1) + ' - ' : '') + TARGETS[k].label + '</span>';
+      stage.appendChild(marker);
+    });
+  }
+  function wireStageDrag() {
+    var stage = $('#v511ThemePreviewStage');
+    if (!stage || stage.dataset.v512Drag) return;
+    stage.dataset.v512Drag = '1';
+    var dragging = null;
+    stage.addEventListener('pointerdown', function(e) {
+      var m = e.target.closest('.v512-stage-crosshair');
+      if (!m) return;
+      dragging = m.dataset.anchor;
+      var bucket = anchorBucket();
+      bucket.selected = dragging;
+      m.setPointerCapture(e.pointerId);
+      refreshAnchorUi();
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove', function(e) {
+      if (!dragging) return;
+      var bucket = anchorBucket();
+      var rect = stage.getBoundingClientRect();
+      var px = ((e.clientX - rect.left) / rect.width) * 100;
+      var py = ((e.clientY - rect.top) / rect.height) * 100;
+      var targetKey = dragging;
+      if (bucket.snap !== false) {
+        Object.keys(TARGETS).forEach(function(k) {
+          var t = TARGETS[k];
+          if (Math.abs(px - t.x) < 6 && Math.abs(py - t.y) < 6) targetKey = k;
+        });
+        if (targetKey !== dragging) {
+          bucket.anchors[targetKey] = bucket.anchors[dragging] || { x: 0, y: 0, dir: 'c' };
+          delete bucket.anchors[dragging];
+          dragging = targetKey;
+          bucket.selected = targetKey;
+        }
+      }
+      var base = TARGETS[dragging] || TARGETS.centre;
+      var a = bucket.anchors[dragging] || (bucket.anchors[dragging] = { x: 0, y: 0, dir: 'c' });
+      a.x = Math.max(-40, Math.min(40, px - base.x));
+      a.y = Math.max(-40, Math.min(40, py - base.y));
+      refreshAnchorUi();
+    });
+    stage.addEventListener('pointerup', function() { dragging = null; });
+    stage.addEventListener('pointercancel', function() { dragging = null; });
+  }
+  function refreshAll() {
+    enhanceActiveBar();
+    enhanceFontPicker();
+    splitVisualSections();
+    setStageBannerFromTemplate();
+    refreshAnchorUi();
+    refreshSoundBlocks();
+    wireStageDrag();
+  }
+  window.v512RefreshVisualTheming = refreshAll;
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(refreshAll, 80);
+    setTimeout(refreshAll, 450);
+    document.getElementById('v511SamplePicker')?.addEventListener('change', function() {
+      refreshAnchorUi();
+      refreshSoundBlocks();
+    });
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.v511-cel-seq-item')) setTimeout(refreshAnchorUi, 0);
+    });
+  });
+})();
 </script>
 
 <script>
