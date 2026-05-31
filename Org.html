@@ -3283,7 +3283,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0b</span></div>
   </div>
 </div>
 
@@ -5394,6 +5394,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           appearance: none;
           outline: none;
           cursor: pointer;
+          padding: 0;
+          background: transparent;
         }
         .v512-offset-cross .slider-h,
         .v512-offset-cross .slider-v {
@@ -5404,15 +5406,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           height: 6px;
           margin: 0;
           border-radius: 3px;
+          transform-origin: 50% 50%;
           z-index: 1;
         }
         .v512-offset-cross .slider-h {
           transform: translate(-50%, -50%);
-          background: var(--axis-red);
         }
         .v512-offset-cross .slider-v {
           transform: translate(-50%, -50%) rotate(-90deg);
-          background: var(--axis-green);
         }
         .v512-offset-cross .slider-h::-webkit-slider-runnable-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
         .v512-offset-cross .slider-h::-moz-range-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
@@ -5426,6 +5427,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background: #58a6ff;
           border: 2px solid #fff;
           box-shadow: 0 1px 4px rgba(0,0,0,0.45);
+          margin-top: -6px;
         }
         .v512-offset-cross input[type=range]::-moz-range-thumb {
           width: 18px;
@@ -19429,12 +19431,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var bucket = anchorBucket();
       var toggle = e.target.closest('.v512-anchor-toggle');
       if (toggle) {
-        var t = toggle.getAttribute('data-toggle');
-        if (t === 'multi') bucket.multi = !bucket.multi;
-        if (t === 'snap') bucket.snap = !bucket.snap;
-        if (t === 'show') bucket.show = !bucket.show;
-        persistAnchorBucket(bucket);
-        refreshAnchorUi();
+        handleAnchorToggleClick(toggle);
         return;
       }
       var chip = e.target.closest('.v512-anchor-chip');
@@ -19481,8 +19478,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var bucket = anchorBucket();
         var key = bucket.selected || activeAnchorKeys(bucket)[0];
         var a = bucket.anchors[key] || (bucket.anchors[key] = { x: 0, y: 0, dir: 'c' });
-        a.x = clamp($('#v512AnchorX').value, -100, 100);
-        a.y = clamp($('#v512AnchorY').value, -100, 100);
+        if (id === 'v512AnchorX') a.x = clamp(this.value, -100, 100);
+        if (id === 'v512AnchorY') a.y = clamp(this.value, -100, 100);
         persistAnchorBucket(bucket);
         refreshAnchorUi();
       });
@@ -19501,6 +19498,45 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshAnchorUi();
       });
     }
+    wireAnchorToggleButtons(anchor);
+  }
+  function handleAnchorToggleClick(toggle, alreadyLogged) {
+    if (!toggle) return;
+    var t = toggle.getAttribute('data-toggle');
+    var bucket = anchorBucket();
+    if (!alreadyLogged && (t === 'snap' || t === 'show')) {
+      console.log('[v5.12.0b anchor toggle click]', t, {
+        snapBefore: bucket.snap !== false,
+        showBefore: bucket.show !== false
+      });
+    }
+    if (t === 'multi') bucket.multi = !bucket.multi;
+    if (t === 'snap') bucket.snap = !bucket.snap;
+    if (t === 'show') bucket.show = !bucket.show;
+    persistAnchorBucket(bucket);
+    refreshAnchorUi();
+  }
+  function wireAnchorToggleButtons(root) {
+    root = root || $('#v512AnchorSystem');
+    if (!root) return;
+    all('.v512-anchor-toggle', root).forEach(function(toggle) {
+      if (toggle.dataset.v512ToggleWired === '1') return;
+      toggle.dataset.v512ToggleWired = '1';
+      toggle.addEventListener('click', function(e) {
+        var t = toggle.getAttribute('data-toggle');
+        var logged = t === 'snap' || t === 'show';
+        if (logged) {
+          var bucket = anchorBucket();
+          console.log('[v5.12.0b anchor toggle click]', t, {
+            snapBefore: bucket.snap !== false,
+            showBefore: bucket.show !== false
+          });
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        handleAnchorToggleClick(toggle, logged);
+      });
+    });
   }
   function buildTextTemplate(container) {
     if (!container || $('#v512OutcomeTextTemplate')) return;
@@ -19682,6 +19718,7 @@ document.addEventListener('DOMContentLoaded', function () {
     enhanceFontPicker();
     splitVisualSections();
     setStageBannerFromTemplate();
+    wireAnchorToggleButtons();
     refreshAnchorUi();
     refreshSoundBlocks();
     wireStageDrag();
