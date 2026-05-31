@@ -1164,20 +1164,17 @@
   }
 
   function lightenEnvelopeForQr(envelope) {
-    // v5.9.0.13.23 — Strip orange-QR payload to the minimum the doorman flow
-    // actually uses: pub_fp + pub_jwk{x,y,kty,crv} + ts + org_code. The full
+    // v5.12.2 — Strip orange-QR payload to the minimum the doorman flow
+    // actually needs: pub_jwk{x,y} + ts + org_code. The full
     // envelope (with sig/hash/nonce/ext/key_ops) is still stored in localStorage
     // for future hardware-signed paths; the QR variant just carries what staff-
-    // side binding needs. runDoormanCheckin re-computes helloHash if missing.
-    // Worker's doorman_scan handler doesn't verify sig. Net QR character count
-    // drops roughly 250→100, making the QR much less dense and far more readable
-    // by camera + image upload decoders.
+    // side binding needs. The dashboard/Worker reconstruct pub_fp and P-256 JWK
+    // metadata before using the key.
     const pub = envelope.pub_jwk || {};
     return {
       v: envelope.v,
       type: envelope.type,
-      pub_fp: envelope.pub_fp,
-      pub_jwk: { x: pub.x, y: pub.y, kty: "EC", crv: "P-256" },
+      pub_jwk: { x: pub.x, y: pub.y },
       org_code: envelope.org_code,
       ts: envelope.ts
     };
