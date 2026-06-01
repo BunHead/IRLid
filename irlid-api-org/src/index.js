@@ -2474,11 +2474,24 @@ function orgReceiptUrl(request, receiptId) {
   return `${origin.replace(/\/+$/, "")}/receipt.html?org_receipt=${encodeURIComponent(receiptId)}`;
 }
 
+function parseVenueJwk(value) {
+  if (!value) return null;
+  try { return typeof value === "string" ? JSON.parse(value) : value; } catch { return null; }
+}
+
+function usableVenuePubJwk(jwk) {
+  return !!(jwk && jwk.kty === "EC" && jwk.crv === "P-256" && jwk.x && jwk.y);
+}
+
+function usableVenuePrvJwk(jwk) {
+  return usableVenuePubJwk(jwk) && !!jwk.d;
+}
+
 async function mintOrgReceipt(env, request, org, checkinRow, options) {
   const settings = JSON.parse(org.settings_json || "{}");
-  let venuePub = org.venue_pub_jwk ? JSON.parse(org.venue_pub_jwk) : null;
-  let venuePrv = org.venue_prv_jwk ? JSON.parse(org.venue_prv_jwk) : null;
-  if (!venuePub || !venuePrv) {
+  let venuePub = parseVenueJwk(org.venue_pub_jwk);
+  let venuePrv = parseVenueJwk(org.venue_prv_jwk);
+  if (!usableVenuePubJwk(venuePub) || !usableVenuePrvJwk(venuePrv)) {
     const venueKey = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
     venuePub = await crypto.subtle.exportKey("jwk", venueKey.publicKey);
     venuePrv = await crypto.subtle.exportKey("jwk", venueKey.privateKey);
