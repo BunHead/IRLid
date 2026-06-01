@@ -1,5 +1,26 @@
 # Pending Work — IRLid
 
+## 1 June 2026 — midday (v6.0 Receipt Bridge LIVE + proven, Captain off till 5pm)
+
+**Live main HEAD `7cb82c2` (PR #69 keyless-self-heal merged). Build pill v6.0.**
+
+**🎉 v6.0 ORG CHECK-IN RECEIPT BRIDGE IS LIVE AND PROVEN.** Kerry's check-in minted a real consumer-format receipt → dashboard ↓ Receipt link → `receipt.html?org_receipt=…` renders **100% Confirmed** with all four checks PASS (Org receipt structure / Venue public key present / Venue signature / Attendee device bound) + "Verify in check.html". Independently verifiable proof-of-attendance — the **Patreon trust gate is crossed.**
+
+**The saga to get there (3 hidden blockers, all now closed):**
+1. Migration via `--file ...ps1` failed (it's a PowerShell wrapper, not SQL). Fixed by creating the `org_receipts` table + 3 indexes via direct `wrangler d1 execute --command` (SQL from PROTOCOL.md §17.5). **§6 note: org migrations are `.ps1` wrappers — run as scripts or extract SQL to `--command`, never `--file`.**
+2. Mint failed silently because the **legacy seeded org (Test Event / imbue-ventures) had NULL venue_pub_jwk AND venue_prv_jwk** — `signCanonicalPayload` threw, swallowed by §17.4 graceful fallback, `org_receipts` stayed empty. Fixed by **PR #69 keyless-self-heal** (Mr. Data): `mintOrgReceipt` generates + persists a fresh ECDSA P-256 venue keypair on first mint if the org has none. ✅ bash-diffed ACCEPT.
+3. **`git pull` blocked by unmerged files → the next `wrangler deploy` silently shipped STALE local code** (deployed twice without the fix). Recovered via `git reset --hard origin/main` + redeploy. **§6 note: a pull blocked by conflict does NOT stop the next deploy — it ships stale code. Confirm a NEW Version ID AND that the pull succeeded.** (That same reset --hard also discarded unpushed local memory edits — commit/push memory promptly.)
+
+**Open / next:**
+- **PR #70 `codex/v6.0-attendance-actions-polish`** (↓ Receipt button cramped in Action column — cosmetic, Org.html + sw.js v80, pill v6.0.1, no Worker). **NOT bash-diffed — sandbox git index corrupted at the time.** Number One to verify + merge at 5pm. Low-risk.
+- **Org receipts not in consumer account history** — Captain signed into KezzyBabe (kezzybabe69) on the 4a, no org receipts there. By design: org receipts live in the checking-in device's localStorage (`irlid_org_receipts`) + server-side `org_receipts`, reached via the receipt URL — NOT linked to the consumer login account. **v6.x enhancement candidate: surface org receipts in the signed-in account's receipt list.**
+- **Anchor system PARKED** (Captain's call). Reset-fix `v5.12.0c` was in a local stash — likely lost in the reset --hard; re-derive if ever un-parked. Magnet-snap/crosshairs/inverted-Y deferred post-demo. v5.12.0d (local preview) is merged + live.
+- **Lead Admin** merged + dormant. Activate later: `lead-admin-copresence.sql` migration + `wrangler deploy` + **two-phone co-presence smoke with Captain + Number One**.
+
+**State of the demo:** invite loop, honest site, slim QR, theming + save + sound, Lead Admin built, and **independently-verifiable check-in receipts** — all live. Demo-ready + Patreon-ready.
+
+---
+
 ## Saturday 30 May 2026 — late morning continuation (~07:30 → ~09:00 BST)
 
 **Live origin/main:** `v5.11.25c` + HWB honesty pass. Build pill `v5.11.25c`, SW cache `v72`.
