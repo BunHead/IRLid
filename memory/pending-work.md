@@ -1,5 +1,15 @@
 # Pending Work — IRLid
 
+## 1 June 2026 — evening (~17:40, PR #70/#71/#72 merged, Number One near budget cap)
+
+All three bash-diffed ✅ ACCEPT before merge: **#70** (v6.0.1 action-cell cosmetic), **#71** (v6.2 Calendar / per-event attendance — event_id threaded, receipt link preserved, idempotent migration), **#72** (receipt date/time → system locale + check-in-time fix). Captain merged all three.
+
+**⚠️ #71 (Calendar) is NOT active until its Worker is deployed + migration run** (`apply_v6_2_calendar_attendance.ps1` — run as a SCRIPT, not `--file`; or extract SQL to `--command`). Until then the new Event & Calendar UI is live (Pages) but its Worker endpoints 404. #72 is frontend-only (Pages, no deploy needed). **Smoke checklist for next watch is in Number One's last message** (action-cell tidy on desktop+mobile; calendar: create event → check-in → per-event attendance; confirm ↓ Receipt link + dashboard still work post-Worker-deploy since the attendance query was rewritten; receipt date now UK format + correct check-in time).
+
+**v6.x backlog unchanged:** v6.1 cross-device admin auth; org-receipts-in-account-history (KezzyBabe gap); Lead Admin activation (migration+deploy+2-phone smoke); anchor system parked.
+
+---
+
 ## 1 June 2026 — midday (v6.0 Receipt Bridge LIVE + proven, Captain off till 5pm)
 
 **Live main HEAD `7cb82c2` (PR #69 keyless-self-heal merged). Build pill v6.0.**
