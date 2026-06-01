@@ -1,6 +1,6 @@
 <!-- receipt.html -->
 <!DOCTYPE html>
-<!-- Deploy 115 -->
+<!-- Deploy 116 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -690,6 +690,19 @@
     try { return new Date(tsMs).toLocaleString(); } catch { return null; }
   }
 
+  function formatReceiptTime(tsMs){
+    if (!tsMs) return "(unknown)";
+    try {
+      return new Date(tsMs).toLocaleString("en-GB", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch { return "(unknown)"; }
+  }
+
   function formatTimeShort(tsMs){
     if (!tsMs) return "Unknown time";
     try {
@@ -727,6 +740,12 @@
       if (ts > 1000000000) return Math.floor(ts * 1000);
     }
     return null;
+  }
+
+  function getOrgReceiptCheckinTsMs(receipt){
+    if (!receipt || !receipt.ts) return null;
+    const parsed = Date.parse(receipt.ts);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   function makeMapsUrl(lat, lon){
@@ -830,7 +849,7 @@
       renderAvatar(guestAvatarWrap, null);
 
       summarySection.style.display = "block";
-      sumTime.textContent = receipt.ts ? new Date(receipt.ts).toLocaleString() : "(unknown)";
+      sumTime.textContent = formatReceiptTime(getOrgReceiptCheckinTsMs(receipt));
       sumDistance.textContent = receipt.gps ? "Venue check-in GPS present" : (receipt.gps_hash ? "GPS redacted" : "(missing)");
       const mapUrl = receipt.gps ? makeMapsUrl(Number(receipt.gps.lat), Number(receipt.gps.lon)) : null;
       sumMap.innerHTML = mapUrl ? '<a href="' + mapUrl + '" target="_blank" rel="noopener noreferrer">Open map</a>' : "(not available)";
