@@ -6580,6 +6580,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div class="v511-expected-selected" id="v511EventExpectedSelected" role="list" aria-label="Currently selected expected"></div>
                 </div>
               </div>
+              <div class="v511-row v511-row-stack"><label>Attendance</label><div class="v511-expected-block" id="v511EventAttendancePanel">Save the event, then check-ins for this event will appear here.</div></div>
               <div class="v511-save">
                 <button type="button" class="v511-btn" id="v511EventDeleteBtn">Delete</button>
                 <button type="button" class="v511-btn" id="v511EventCancelBtn">Cancel</button>
@@ -7230,6 +7231,73 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             state.roomFilter = 'all';
             state.listFilterDay = null;
             var currentView = 'list';
+            var liveRooms = [];
+            var liveExpected = [];
+            function orgApiBaseUrl() { return window.IRLidOrgApi?.workerBaseUrl ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'') : 'https://irlid-api-org.irlid-bunhead.workers.dev'; }
+            async function calendarSigned(fields) {
+              if (typeof signActionPayload !== 'function') throw new Error('Hardware-backed action signing unavailable');
+              return signActionPayload('irlid_calendar_write_v5', currentOrg && currentOrg.id, fields || {});
+            }
+            async function liveCalendarApi(path, opts) {
+              opts = opts || {};
+              if (!currentOrg?.api_key) throw new Error('No organisation loaded');
+              var headers = Object.assign({ 'X-Org-Key': currentOrg.api_key }, opts.headers || {});
+              var token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
+              if (token) headers.Authorization = 'Bearer ' + token;
+              var body = opts.body;
+              if (body && !(body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+                body = JSON.stringify(body);
+              }
+              var response = await fetch(orgApiBaseUrl() + path, { method: opts.method || 'GET', headers: headers, body: body });
+              if (opts.raw) {
+                if (!response.ok) throw new Error('Request failed with status ' + response.status);
+                return response;
+              }
+              var data = null;
+              try { data = await response.json(); } catch (_) {}
+              if (!response.ok) throw new Error((data && data.error) || ('Request failed with status ' + response.status));
+              return data || {};
+            }
+            function normalizeExpectedRow(row) {
+              return { id: row.id || row.expected_id, name: row.name || row.display_name || '', role: row.role || row.role_key || row.prototype_role || 'attendee' };
+            }
+            async function refreshLiveCalendar(options) {
+              options = options || {};
+              if (!currentOrg?.api_key) return;
+              var payload = await Promise.all([
+                liveCalendarApi('/org/rooms'),
+                liveCalendarApi('/org/expected'),
+                liveCalendarApi('/org/weekly-events')
+              ]);
+              liveRooms = (payload[0].rooms || []).map(function (r, ix) { return { id: r.id, label: r.label || ('Room ' + (ix + 1)), subname: r.subname || '', capacity: parseInt(r.capacity || '0', 10) || 0 }; });
+              liveExpected = (payload[1].expected || []).map(normalizeExpectedRow).filter(function (p) { return p.id && p.name; });
+              state.events = (payload[2].events || []).map(function (ev) {
+                return Object.assign({}, ev, {
+                  expected_ids: Array.isArray(ev.expected_ids) ? ev.expected_ids : [],
+                  color_hex: ev.color_hex || (ROOM_META[ev.room_id] && ROOM_META[ev.room_id].color) || '#1f6feb'
+                });
+              });
+              saveRoomsState(liveRooms);
+              saveOrgExpectedState(liveExpected);
+              saveWeeklyState();
+              renderAll();
+              try { if (typeof generateVenueQR === 'function') generateVenueQR(); } catch (_) {}
+              if (options.toast) showGlobalSavedToast(options.toast);
+            }
+            window.refreshV511CalendarData = refreshLiveCalendar;
+            window.v511GetActiveCalendarEvent = function () {
+              var today = dayOfWeekForDate(new Date());
+              var mins = (new Date()).getHours() * 60 + (new Date()).getMinutes();
+              var todaysEvents = (state.events || []).filter(function (ev) { return Number(ev.day_of_week) === today; });
+              var active = todaysEvents.find(function (ev) {
+                var start = minutesFromTime(ev.start_time_local);
+                var end = start + (Number(ev.duration_min) || 0) + (Number(ev.late_grace_min) || 0);
+                return mins >= start && mins <= end;
+              });
+              if (!active) active = todaysEvents.filter(function (ev) { return minutesFromTime(ev.start_time_local) >= mins; }).sort(function (a, b) { return minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local); })[0] || todaysEvents[0] || null;
+              return active ? { id: active.id, name: active.name } : null;
+            };
             function pad2(n) { return String(n).padStart(2, '0'); }
             function htmlEscape(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'", '&#39;'); }
             function isoDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -7237,7 +7305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function minutesFromTime(t) { var p = String(t || '00:00').split(':'); return (parseInt(p[0], 10) || 0) * 60 + (parseInt(p[1], 10) || 0); }
             function timeFromMinutes(m) { m = Math.max(0, Math.min(1439, m)); return pad2(Math.floor(m / 60)) + ':' + pad2(m % 60); }
             function workerRoomsFallback() { return [{ id: 'studio1', label: 'Studio 1', subname: 'main hall', capacity: 30 }, { id: 'studio2', label: 'Studio 2', subname: '', capacity: 20 }, { id: 'studio3', label: 'Studio 3', subname: 'kids room', capacity: 15 }]; }
-            function loadRoomsState() { try { var raw = JSON.parse(localStorage.getItem('v511_removed_rooms_key') || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} var fallback = workerRoomsFallback(); try { localStorage.setItem('v511_removed_rooms_key', JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function loadRoomsState() { if (Array.isArray(liveRooms) && liveRooms.length) return liveRooms; try { var raw = JSON.parse(localStorage.getItem('v511_removed_rooms_key') || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} return workerRoomsFallback(); }
             function saveRoomsState(rooms) { try { localStorage.setItem('v511_removed_rooms_key', JSON.stringify(rooms)); } catch (_) {} }
             // T4.3.59 — Org-wide Expected list (per Captain's Option C choice). Single source of truth
             // for expected attendees + staff. Events reference IDs from this list.
@@ -7252,7 +7320,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 { id: 'p_tom',      name: 'Tom Brown',      role: 'attendee' }
               ];
             }
-            function loadOrgExpectedState() { try { var raw = JSON.parse(localStorage.getItem('v511_removed_expected_key') || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} var fallback = workerExpectedFallback(); try { localStorage.setItem('v511_removed_expected_key', JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function loadOrgExpectedState() { if (Array.isArray(liveExpected) && liveExpected.length) return liveExpected; try { var raw = JSON.parse(localStorage.getItem('v511_removed_expected_key') || 'null'); if (Array.isArray(raw) && raw.length) return raw; } catch (_) {} return workerExpectedFallback(); }
             function saveOrgExpectedState(list) { try { localStorage.setItem('v511_removed_expected_key', JSON.stringify(list)); } catch (_) {} }
             function findOrgExpectedById(id) { return loadOrgExpectedState().find(function (p) { return p.id === id; }); }
             function addOrgExpectedEntry(name, role) {
@@ -7265,6 +7333,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               list.push(newEntry);
               saveOrgExpectedState(list);
               return newEntry;
+            }
+            async function addOrgExpectedEntryLive(name, role) {
+              var clean = String(name || '').trim();
+              if (!clean) return null;
+              var existing = loadOrgExpectedState().find(function (p) { return p.name.toLowerCase() === clean.toLowerCase(); });
+              if (existing) return existing;
+              var data = await liveCalendarApi('/org/expected', { method: 'POST', body: { display_name: clean, role_key: role || 'attendee' } });
+              var entry = normalizeExpectedRow(data.expected || { id: data.expected_id, display_name: clean, role_key: role || 'attendee' });
+              liveExpected.push(entry);
+              saveOrgExpectedState(liveExpected);
+              return entry;
             }
             function roomMetaFromRooms(rooms) { var meta = {}; rooms.forEach(function (room, ix) { var id = room.id || ('room' + ix); meta[id] = { label: room.label || 'Untitled room', subname: room.subname || '', capacity: parseInt(room.capacity || '0', 10) || 0, className: ROOM_CLASSES[ix % ROOM_CLASSES.length], color: ROOM_COLORS[ix % ROOM_COLORS.length] }; }); return meta; }
             function refreshRoomMeta() { ROOM_META = roomMetaFromRooms(loadRoomsState()); }
@@ -7560,15 +7639,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               document.getElementById('v511EventDeleteBtn').hidden = isReadonly || !ev.id;
               document.getElementById('v511EventCancelBtn').textContent = isReadonly ? 'Close' : 'Cancel';
               document.getElementById('v511EventModal').hidden = false;
+              renderEventAttendance(ev.id, ev.day_of_week);
               if (!isReadonly) document.getElementById('v511EventName').focus();
             }
             function closeEventModal() { var modal = document.getElementById('v511EventModal'); if (modal) modal.hidden = true; }
-            function saveEventFromModal() {
+            async function renderEventAttendance(eventId, dow) {
+              var panel = document.getElementById('v511EventAttendancePanel');
+              if (!panel) return;
+              if (!eventId) { panel.textContent = 'Save the event, then check-ins for this event will appear here.'; return; }
+              panel.textContent = 'Loading attendance...';
+              try {
+                var dayDate = dateForDow(dow || state.selectedDay || dayOfWeekForDate(new Date()));
+                var since = Math.floor(new Date(isoDate(dayDate) + 'T00:00:00').getTime() / 1000);
+                var payload = await liveCalendarApi('/org/attendance?include_expected=1&event_id=' + encodeURIComponent(eventId) + '&since=' + encodeURIComponent(since));
+                var rows = payload.checkins || [];
+                if (!rows.length) { panel.innerHTML = '<div class="v511-expected-empty">No attendees returned for this event yet.</div>'; return; }
+                panel.innerHTML = rows.slice(0, 80).map(function (row) {
+                  var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
+                  var status = row.expected_only ? 'expected' : (row.checkout_at ? 'checked out' : 'checked in');
+                  return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong> <span class="v511-expected-role">' + htmlEscape(status) + '</span></div>';
+                }).join('');
+              } catch (err) {
+                panel.innerHTML = '<div class="v511-expected-empty">Could not load event attendance: ' + htmlEscape(err.message || err) + '</div>';
+              }
+            }
+            async function saveEventFromModal() {
               var roomId = document.getElementById('v511EventRoom').value || 'studio1';
-              var id = document.getElementById('v511EventId').value || ('evt-' + Date.now());
+              var id = document.getElementById('v511EventId').value || '';
               var dayOfWeek = parseInt(document.getElementById('v511EventDay').value, 10) || (state.selectedDay || 1);
               var next = {
-                id: id,
                 name: document.getElementById('v511EventName').value.trim() || 'Untitled event',
                 room_id: roomId,
                 day_of_week: dayOfWeek,
@@ -7577,13 +7676,29 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 color_hex: ROOM_META[roomId]?.color || '#1f6feb',
                 expected_ids: modalExpectedIds.slice()
               };
-              var ix = state.events.findIndex(function (ev) { return ev.id === id; });
-              if (ix >= 0) state.events[ix] = next; else state.events.push(next);
-              saveWeeklyState();
-              closeEventModal();
-              renderAll();
+              try {
+                var signedFields = Object.assign({ event_id: id || undefined }, next);
+                next.signed_action = await calendarSigned(signedFields);
+                var result = id
+                  ? await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'PATCH', body: next })
+                  : await liveCalendarApi('/org/weekly-events', { method: 'POST', body: next });
+                closeEventModal();
+                await refreshLiveCalendar({ toast: result.event?.name ? 'Saved ' + result.event.name : 'Saved event' });
+              } catch (err) {
+                showGlobalSavedToast('Save failed: ' + (err.message || err));
+              }
             }
-            function deleteEventFromModal() { var id = document.getElementById('v511EventId').value; state.events = state.events.filter(function (ev) { return ev.id !== id; }); saveWeeklyState(); closeEventModal(); renderAll(); }
+            async function deleteEventFromModal() {
+              var id = document.getElementById('v511EventId').value;
+              if (!id) return closeEventModal();
+              try {
+                await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'DELETE', body: { signed_action: await calendarSigned({ event_id: id }) } });
+                closeEventModal();
+                await refreshLiveCalendar({ toast: 'Deleted event' });
+              } catch (err) {
+                showGlobalSavedToast('Delete failed: ' + (err.message || err));
+              }
+            }
             function scrollToCalendar() { var el = document.getElementById('v511CalSwimlane') || document.getElementById('v511CalWrap'); if (el && el.scrollIntoView) { try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) { el.scrollIntoView(); } } }
             // T4.3.59.5 — Jump to now picks the Now line element belonging to the active view
             // (avoids scrolling to a hidden List Now line while the user is in Swim-lane, or vice-versa).
@@ -7836,7 +7951,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               else if (edit) openEventByIdSmart(edit.getAttribute('data-edit-event'));
             });
             // T4.3.59 — Expected list event delegation: toggle suggestion, remove chip, add new.
-            document.getElementById('v511EventExpectedSuggestions')?.addEventListener('click', function (e) {
+            document.getElementById('v511EventExpectedSuggestions')?.addEventListener('click', async function (e) {
               var toggle = e.target.closest('[data-expected-toggle]');
               var addNew = e.target.closest('[data-expected-add-new]');
               if (toggle) {
@@ -7847,7 +7962,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 renderModalExpectedSelected();
               } else if (addNew) {
                 var nm = addNew.getAttribute('data-expected-add-new');
-                var entry = addOrgExpectedEntry(nm, 'attendee');
+                var entry = await addOrgExpectedEntryLive(nm, 'attendee');
                 if (entry && modalExpectedIds.indexOf(entry.id) < 0) modalExpectedIds.push(entry.id);
                 document.getElementById('v511EventExpectedSearch').value = '';
                 renderModalExpectedSuggestions('');
@@ -7865,7 +7980,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               renderModalExpectedSelected();
             });
             document.getElementById('v511EventExpectedSearch')?.addEventListener('input', function (e) { renderModalExpectedSuggestions(e.target.value); });
-            document.getElementById('v511EventExpectedSearch')?.addEventListener('keydown', function (e) {
+            document.getElementById('v511EventExpectedSearch')?.addEventListener('keydown', async function (e) {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 var q = e.target.value.trim();
@@ -7875,7 +7990,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 if (exact) {
                   if (modalExpectedIds.indexOf(exact.id) < 0) modalExpectedIds.push(exact.id);
                 } else {
-                  var entry = addOrgExpectedEntry(q, 'attendee');
+                  var entry = await addOrgExpectedEntryLive(q, 'attendee');
                   if (entry && modalExpectedIds.indexOf(entry.id) < 0) modalExpectedIds.push(entry.id);
                   showGlobalSavedToast('✓ Added "' + entry.name + '" to org Expected list');
                 }
@@ -12692,7 +12807,7 @@ async function registerOrg() {
 }
 async function saveKeyAndContinue() {
   if (!currentOrg) return showToast('No organisation ready to continue with', true);
-  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
+  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
 }
 async function loadExistingKey() {
   const k = document.getElementById('existingKeyInput').value.trim();
@@ -12701,7 +12816,7 @@ async function loadExistingKey() {
   currentOrg = stored && stored.api_key === k ? stored : { name: 'IRLid Test Organisation', api_key: k, mode: 'irlid-api-test' };
   saveJson(STORAGE_KEY_ORG, currentOrg);
   document.getElementById('orgNameInput').value = currentOrg.name || '';
-  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
+  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
 }
 function signOutOrg() {
   clearStaffAuthSession();
@@ -13191,12 +13306,14 @@ function buildVenuePayload() {
   // generated QR points to the same origin that's serving this dashboard.
   const baseUrl = ORIGIN_BASE;
   const type = (currentMode === 'doorman_scan') ? 'doorman' : 'checkin';
+  const activeEvent = (typeof window.v511GetActiveCalendarEvent === 'function') ? window.v511GetActiveCalendarEvent() : null;
   const qp = new URLSearchParams({
     type,
     org: currentOrg?.api_key || 'demo',
-    event: currentOrg?.name || 'IRLid Event',
+    event: activeEvent?.name || currentOrg?.name || 'IRLid Event',
     returnAllowed: settings.returnAllowed ? '1' : '0'
   });
+  if (activeEvent?.id) qp.set('event_id', activeEvent.id);
   if (settings.welcomeMessage) qp.set('welcome', settings.welcomeMessage);
   if (settings.orgTerms) qp.set('terms', settings.orgTerms);
   if (settings.redirectUrl) qp.set('redirect', settings.redirectUrl);
@@ -15476,6 +15593,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     helloHash: env.hash || await hashPayloadToB64url(syntheticHelloPayload),
     attendeeLabel: expectedDisplayName(row),
     name: expectedDisplayName(row),
+    event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
     score: settings.minScore || 50,
     bioVerified: !!settings.bioRequired
   };
@@ -15518,6 +15636,7 @@ async function runDoormanCheckin(env) {
     helloHash: env.hash || await hashPayloadToB64url(env),
     attendeeLabel: '',
     name: '',
+    event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
     score: settings.minScore || 50,
     bioVerified: !!settings.bioRequired
   };
@@ -15658,6 +15777,7 @@ async function manualCheckin() {
       mode: 'doorman_scan',
       name: settings.anonymousMode ? '' : label,
       attendeeLabel: settings.anonymousMode ? '' : label,
+      event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
       score: settings.minScore || 50,
       bioVerified: !!settings.bioRequired
     };
@@ -17876,7 +17996,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('existingKeyInput').value = currentOrg.api_key || '';
     document.getElementById('apiKeyDisplay').textContent = currentOrg.api_key || '';
     document.getElementById('setupForm').style.display = 'none'; document.getElementById('setupResult').style.display = 'block';
-    setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); showPanel('checkin'); generateVenueQR(); renderPortalAll();
+    setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); showPanel('checkin'); generateVenueQR(); renderPortalAll();
     return;
   }
   // Batch C polish 4 — restore QR-login session on refresh. handleQrLoginSuccess
@@ -20213,8 +20333,7 @@ document.addEventListener('DOMContentLoaded', function () {
   async function calendarSigned(fields){ if(typeof signActionPayload!=='function') throw new Error('Hardware-backed action signing unavailable'); return signActionPayload('irlid_calendar_write_v5', currentOrg && currentOrg.id, fields||{}); }
   function base(){ return window.IRLidOrgApi?.workerBaseUrl ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'') : 'https://irlid-api-org.irlid-bunhead.workers.dev'; }
   async function api(path, opts){ opts=opts||{}; if(!currentOrg?.api_key) throw new Error('No organisation loaded'); const h=Object.assign({'X-Org-Key':currentOrg.api_key}, opts.headers||{}); const tok=(qrLoginSession&&qrLoginSession.session_token)||currentOrg.api_key; if(tok) h.Authorization='Bearer '+tok; let body=opts.body; if(body && !(body instanceof FormData)){ h['Content-Type']='application/json'; body=JSON.stringify(body); } const r=await fetch(base()+path,{method:opts.method||'GET',headers:h,body}); if(opts.raw){ if(!r.ok) throw new Error('Request failed with status '+r.status); return r; } let data=null; try{data=await r.json();}catch(_){} if(!r.ok) throw new Error((data&&data.error)||('Request failed with status '+r.status)); return data||{}; }
-  async function refreshLiveCalendar(){ try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
-  window.refreshV511CalendarData = refreshLiveCalendar;
+  async function refreshLiveCalendar(){ if (typeof window.refreshV511CalendarData === 'function') return window.refreshV511CalendarData(); try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
   document.addEventListener('DOMContentLoaded',function(){
     const exp=document.getElementById('v511ExportWeekBtn'); if(exp) exp.addEventListener('click',async function(e){ e.stopImmediatePropagation(); try{ const r=await api('/org/weekly-events/export-csv',{raw:true}); const blob=new Blob([await r.text()],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='week-export.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),500); }catch(err){ showToast('Export failed: '+(err.message||err), true); } }, true);
     const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);

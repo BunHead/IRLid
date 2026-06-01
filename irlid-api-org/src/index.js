@@ -2988,10 +2988,18 @@ async function orgCheckin(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const { mode, helloPayload, helloHash, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
+  const eventId = cleanOptionalText(body.event_id, 90);
   if (!mode || !["attendee_scan","doorman_scan"].includes(mode)) return err("mode must be attendee_scan or doorman_scan");
   if (mode === "doorman_scan") {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
     if (staffError) return staffError;
+  }
+  let eventRow = null;
+  if (eventId) {
+    eventRow = await env.DB.prepare(
+      "SELECT e.id,e.name,e.room_id,r.label AS room_label FROM weekly_events e LEFT JOIN rooms r ON r.id=e.room_id AND r.org_id=e.org_id WHERE e.id=? AND e.org_id=? AND e.archived_at IS NULL LIMIT 1"
+    ).bind(eventId, org.id).first();
+    if (!eventRow) return err("event_id not found for this organisation", 404);
   }
   const settings = JSON.parse(org.settings_json || "{}");
   const minScore = settings.minScore || 50;
@@ -3043,8 +3051,8 @@ async function orgCheckin(request, env) {
     }
   }
   await env.DB.prepare(
-    "INSERT INTO org_checkins (id,org_id,mode,attendee_label,attendee_key_id,hello_hash,score,bio_verified,gps_hash,checkin_at,created_at,name,attendee_pub_jwk,device_key_fp,status,expected_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-  ).bind(id, org.id, mode, label, attendeeKeyId, helloHash||null, score||null, bioVerified?1:0, gpsHash, t, t, displayName, attendeePubJwk, attendeeDeviceFp, status, expectedId).run();
+    "INSERT INTO org_checkins (id,org_id,mode,attendee_label,attendee_key_id,hello_hash,score,bio_verified,gps_hash,checkin_at,created_at,name,attendee_pub_jwk,device_key_fp,status,expected_id,event_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).bind(id, org.id, mode, label, attendeeKeyId, helloHash||null, score||null, bioVerified?1:0, gpsHash, t, t, displayName, attendeePubJwk, attendeeDeviceFp, status, expectedId, eventRow?.id || null).run();
   if (status === "conflict" && expected) {
     const conflict = await env.DB.prepare(
       "INSERT INTO attendee_conflicts (org_code,expected_id,checkin_id,bound_device_fp,claiming_device_fp,claimed_name,created_at) VALUES (?,?,?,?,?,?,?) RETURNING id"
@@ -3078,7 +3086,7 @@ async function orgCheckin(request, env) {
       device_key_fp: attendeeDeviceFp,
       status,
       expected_id: expectedId
-    }, { gps, expected, score, bioVerified, action: "in" });
+    }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
     receiptUnavailable = true;
@@ -3087,6 +3095,8 @@ async function orgCheckin(request, env) {
     checkin_id: id,
     checkin_at: t,
     org_name: org.name,
+    event_id: eventRow?.id || null,
+    event_name: eventRow?.name || null,
     settings,
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
@@ -3195,13 +3205,29 @@ async function orgAttendance(request, env) {
   const url = new URL(request.url);
   const includeExpected = url.searchParams.get("include_expected") === "1";
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
+  const eventId = cleanOptionalText(url.searchParams.get("event_id"), 90);
+  if (eventId) {
+    const eventRow = await env.DB.prepare(
+      "SELECT id FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
+    ).bind(eventId, org.id).first();
+    if (!eventRow) return err("event_id not found for this organisation", 404);
+  }
   // v5.11.2 - `since` is honoured if passed (client convention: local midnight today
   // as unix epoch). Fallback to 24h sliding window for legacy / unauth'd callers
   // only; the dashboard always passes since explicitly.
   const since = url.searchParams.get("since") ? parseInt(url.searchParams.get("since")) : (now() - 86400);
+  const checkinClauses = ["c.org_id=?", "c.checkin_at>=?"];
+  const checkinBinds = [org.id, since];
+  if (eventId) {
+    checkinClauses.push("c.event_id=?");
+    checkinBinds.push(eventId);
+  }
+  checkinBinds.push(limit);
   const rows = await env.DB.prepare(
-    "SELECT c.id,c.mode,c.attendee_label,c.attendee_key_id,c.hello_hash,c.score,c.bio_verified,c.gps_hash,c.checkin_at,c.checkout_at,c.duration_s,c.name,c.device_key_fp,c.status,c.expected_id,c.conflict_id,r.id AS receipt_id,CASE WHEN c.checkout_at IS NOT NULL AND c.checkout_signature IS NOT NULL THEN 'signed' WHEN c.checkout_at IS NOT NULL THEN 'legacy_button' ELSE c.checkout_method END AS checkout_method,c.checkout_ts FROM org_checkins c LEFT JOIN org_receipts r ON r.checkin_id=c.id WHERE c.org_id=? AND c.checkin_at>=? ORDER BY c.checkin_at DESC LIMIT ?"
-  ).bind(org.id, since, limit).all();
+    "SELECT c.id,c.mode,c.attendee_label,c.attendee_key_id,c.hello_hash,c.score,c.bio_verified,c.gps_hash,c.checkin_at,c.checkout_at,c.duration_s,c.name,c.device_key_fp,c.status,c.expected_id,c.conflict_id,c.event_id,r.id AS receipt_id,CASE WHEN c.checkout_at IS NOT NULL AND c.checkout_signature IS NOT NULL THEN 'signed' WHEN c.checkout_at IS NOT NULL THEN 'legacy_button' ELSE c.checkout_method END AS checkout_method,c.checkout_ts FROM org_checkins c LEFT JOIN org_receipts r ON r.checkin_id=c.id WHERE " +
+    checkinClauses.join(" AND ") +
+    " ORDER BY c.checkin_at DESC LIMIT ?"
+  ).bind(...checkinBinds).all();
   const checkins = rows.results || [];
   const total_in = checkins.filter(r => !r.checkout_at && r.status !== "invalid").length;
   const total_out = checkins.filter(r => r.checkout_at && r.status !== "invalid").length;
@@ -3210,9 +3236,11 @@ async function orgAttendance(request, env) {
   if (!includeExpected) {
     return json({ checkins, stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
   }
-  const expected = await env.DB.prepare(
-    "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e WHERE e.org_id=? AND e.archived_at IS NULL AND e.device_pub_fp IS NOT NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC"
-  ).bind(org.id, org.id, since).all();
+  const expectedSql = eventId
+    ? "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e JOIN event_expected ee ON ee.expected_id=e.id WHERE ee.event_id=? AND e.org_id=? AND e.archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.event_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC"
+    : "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e WHERE e.org_id=? AND e.archived_at IS NULL AND e.device_pub_fp IS NOT NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC";
+  const expectedBinds = eventId ? [eventId, org.id, org.id, eventId, since] : [org.id, org.id, since];
+  const expected = await env.DB.prepare(expectedSql).bind(...expectedBinds).all();
   const expectedRows = (expected.results || []).map(row => ({
     id: `expected:${row.expected_id}`,
     expected_id: row.expected_id,
