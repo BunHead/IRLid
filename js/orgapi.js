@@ -181,7 +181,12 @@
 
     listAttendance(orgKey, options) {
       const includeExpected = !!(options && options.includeExpected);
-      return request("/org/attendance" + (includeExpected ? "?include_expected=1" : ""), {
+      const params = new URLSearchParams();
+      if (includeExpected) params.set("include_expected", "1");
+      if (options && options.eventId) params.set("event_id", options.eventId);
+      if (options && options.since) params.set("since", options.since);
+      const suffix = params.toString() ? "?" + params.toString() : "";
+      return request("/org/attendance" + suffix, {
         orgKey
       });
     },

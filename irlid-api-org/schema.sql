@@ -70,7 +70,7 @@ CREATE TABLE org_checkins (
   checkout_at     INTEGER,             -- NULL until checkout
   duration_s      INTEGER,             -- populated on checkout
   created_at      INTEGER NOT NULL
-, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER);
+, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT);
 
 CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NULL, org_api_key TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
 
@@ -221,6 +221,8 @@ CREATE INDEX idx_challenges_expires ON login_challenges(expires_at);
 CREATE INDEX idx_checkins_at ON org_checkins(org_id, checkin_at);
 
 CREATE INDEX idx_checkins_org ON org_checkins(org_id);
+
+CREATE INDEX idx_checkins_event ON org_checkins(org_id, event_id, checkin_at);
 
 CREATE INDEX idx_checkout_tokens_checkin ON org_checkout_tokens(org_api_key, checkin_id, expires_at);
 
