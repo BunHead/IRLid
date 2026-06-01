@@ -1518,6 +1518,7 @@
       bioVerified: false
     });
     if (payload?.checkin_id) localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
+    if (payload?.receipt_id) storeOrgReceipt(payload);
     if (payload?.expected_name) localStorage.setItem(`irlid_org_name_${orgParam}`, payload.expected_name);
     if (payload?.conflict) {
       render({ status: "review", title: "Identity review", subtitle: "This name is linked to another device", meta: "The doorman can confirm or reject this phone" });
@@ -1526,6 +1527,29 @@
       render({ status: "allow", title: `Welcome back, ${welcomeName}`, subtitle: welcomeMessage || "You’re checked in", meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed" });
     }
     return payload;
+  }
+
+  function storeOrgReceipt(payload) {
+    try {
+      const key = "irlid_org_receipts";
+      const existing = JSON.parse(localStorage.getItem(key) || "[]");
+      const list = Array.isArray(existing) ? existing : [];
+      const entry = {
+        receipt_id: payload.receipt_id,
+        receipt_url: payload.receipt_url || `receipt.html?org_receipt=${encodeURIComponent(payload.receipt_id)}`,
+        checkin_id: payload.checkin_id || null,
+        org: orgParam || null,
+        org_name: payload.org_name || null,
+        created_at: Date.now(),
+        receipt: payload.receipt || null
+      };
+      const deduped = list.filter(item => item && item.receipt_id !== entry.receipt_id);
+      deduped.unshift(entry);
+      localStorage.setItem(key, JSON.stringify(deduped.slice(0, 50)));
+      localStorage.setItem("irlid_org_receipt_last", JSON.stringify(entry));
+    } catch (err) {
+      console.warn("Could not store org receipt locally:", err);
+    }
   }
 
   function configureHelloPanel() {

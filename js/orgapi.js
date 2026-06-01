@@ -148,6 +148,12 @@
     publicOrgMeta(orgId) {
       return request("/org/public-meta?org_id=" + encodeURIComponent(orgId));
     },
+    publicOrgInfo(slug) {
+      return request("/org/public-info/" + encodeURIComponent(slug));
+    },
+    getOrgReceipt(receiptId) {
+      return request("/org/receipt/" + encodeURIComponent(receiptId));
+    },
     revokeInvite(sessionToken, payload) {
       return request("/org/invites/revoke", {
         method: "POST",
