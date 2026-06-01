@@ -415,6 +415,33 @@
     return null;
   }
 
+  function extractOrgReceiptId(input) {
+    const t = (input || "").trim();
+    let m = t.match(/[?&]org_receipt=([A-Za-z0-9\-_]+)/);
+    if (m) return m[1];
+    m = t.match(/\/org\/receipt\/([A-Za-z0-9\-_]+)/);
+    if (m) return m[1];
+    return null;
+  }
+
+  function orgApiBase(){
+    return (window.IRLID_ORG_API_BASE_URL || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
+  }
+
+  async function fetchOrgReceipt(receiptId){
+    const resp = await fetch(orgApiBase() + "/org/receipt/" + encodeURIComponent(receiptId), { cache: "no-store" });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error((data && data.error) || "Org receipt not found");
+    return data;
+  }
+
+  async function fetchOrgPublicInfo(slug){
+    const resp = await fetch(orgApiBase() + "/org/public-info/" + encodeURIComponent(slug), { cache: "no-store" });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error((data && data.error) || "Org public info not found");
+    return data;
+  }
+
   // Try to parse input as a redacted receipt JSON blob
   function extractRedactedReceipt(input) {
     const t = (input || "").trim();
@@ -702,6 +729,90 @@
     }
   }
 
+  async function checkOrgReceipt(receiptId) {
+    resultCard.style.display = "none";
+    checksGrid.innerHTML = "";
+    setStatus("Fetching org receipt...");
+    let data;
+    try {
+      data = await fetchOrgReceipt(receiptId);
+    } catch (e) {
+      setStatus("");
+      resultCard.style.display = "block";
+      confirmBar.textContent = "Receipt Not Found";
+      confirmBar.style.background = "#1a1a1a";
+      dbStatus.innerHTML = '<span class="db-not-found">This org receipt was not found.</span>';
+      addCheck("Org receipt loaded", false);
+      return;
+    }
+
+    const receipt = data.receipt || (data.payload ? Object.assign({}, data.payload, { sig: data.signature }) : null);
+    setStatus("");
+    resultCard.style.display = "block";
+    if (!receipt || receipt.kind !== "org_checkin") {
+      confirmBar.textContent = "Not an Org Receipt";
+      confirmBar.style.background = "#1a1a1a";
+      addCheck('kind:"org_checkin"', false);
+      return;
+    }
+
+    renderVersionPill("versionA", "v5", "panelA");
+    renderVersionPill("versionB", "v5", "panelB");
+    document.getElementById("nameA").textContent = receipt.attendee?.display_name || "Attendee";
+    document.getElementById("nameB").textContent = receipt.org?.name || "Organisation";
+    renderAvatar(document.getElementById("avatarA"), null);
+    renderAvatar(document.getElementById("avatarB"), null);
+    document.getElementById("locA").textContent = receipt.gps ? "Location: " + receipt.gps.lat + ", " + receipt.gps.lon : (receipt.gps_hash ? "Location: GPS redacted" : "Location: not present");
+    document.getElementById("timeA").textContent = "Time: " + (receipt.ts ? new Date(receipt.ts).toLocaleString() : "unknown");
+    document.getElementById("accA").textContent = receipt.score != null ? "Score: " + receipt.score : "Score: unknown";
+    const orgSlug = receipt.org?.slug || "";
+    document.getElementById("locB").innerHTML = orgSlug
+      ? 'Org: <a href="' + orgApiBase() + '/org/public-info/' + encodeURIComponent(orgSlug) + '" target="_blank" rel="noopener noreferrer">' + orgSlug.replace(/[&<>"']/g, "") + '</a>'
+      : "Org: unknown";
+    document.getElementById("timeB").textContent = "Event: " + (receipt.event?.name || "none");
+    document.getElementById("accB").textContent = "Room: " + (receipt.event?.room || "none");
+    document.getElementById("metaTime").textContent = receipt.ts ? new Date(receipt.ts).toLocaleString() : "unknown";
+    document.getElementById("metaDist").textContent = receipt.gps ? "Org check-in GPS present" : (receipt.gps_hash ? "GPS redacted" : "not present");
+    document.getElementById("metaHash").textContent = receiptId;
+    dbStatus.innerHTML = '<span class="db-found">&#10004; This org receipt exists in the IRLid org receipt table.</span>';
+
+    let passCount = 0;
+    let totalCount = 0;
+    function count(label, ok) {
+      totalCount++;
+      if (addCheck(label, ok)) passCount++;
+    }
+
+    count('kind:"org_checkin"', receipt.kind === "org_checkin");
+    count("Org fields", !!(receipt.org && receipt.org.id && receipt.org.slug && receipt.org.name));
+    count("Attendee device", !!(receipt.attendee && receipt.attendee.pub_fp));
+    count("Venue key embedded", !!receipt.venue_pub_jwk);
+
+    let sigOk = false;
+    try {
+      const copy = Object.assign({}, receipt);
+      const sig = copy.sig;
+      delete copy.sig;
+      const publicInfo = receipt.org?.slug ? await fetchOrgPublicInfo(receipt.org.slug) : null;
+      const pub = (publicInfo && publicInfo.venue_pub_jwk) || receipt.venue_pub_jwk;
+      const hash = await hashPayloadToB64url(copy, 5);
+      sigOk = !!(sig && pub && await verifySig(hash, sig, pub));
+      count("Public org key", !!(publicInfo && publicInfo.venue_pub_jwk));
+    } catch (e) {
+      count("Public org key", false);
+    }
+    count("Venue signature", sigOk);
+
+    const pct = totalCount > 0 ? Math.round((passCount / totalCount) * 100) : 0;
+    confirmBar.textContent = pct + " % Verified";
+    confirmBar.style.background = getConfirmColor(pct);
+    confirmBar.style.color = pct >= 75 ? "#000" : "#fff";
+    const checksDropdown = document.getElementById("checksDropdown");
+    const checksSummary = document.getElementById("checksSummary");
+    checksSummary.textContent = passCount + "/" + totalCount + " checks passed";
+    checksDropdown.open = pct < 100;
+  }
+
   // --- Redacted receipt verification ---
   async function checkRedactedReceipt(comb) {
     resultCard.style.display = "none";
@@ -833,6 +944,8 @@
   checkBtn.addEventListener("click", () => {
     const redacted = extractRedactedReceipt(hashInput.value);
     if (redacted) { checkRedactedReceipt(redacted); return; }
+    const orgReceiptId = extractOrgReceiptId(hashInput.value);
+    if (orgReceiptId) { checkOrgReceipt(orgReceiptId); return; }
     const hash = extractHash(hashInput.value);
     if (!hash) {
       setStatus("Please enter a valid receipt hash, URL, or paste a privacy receipt JSON.");
@@ -872,6 +985,12 @@
         async (text) => {
           await stopScanner();
           // Try to extract a receipt hash from the scanned QR
+          const orgReceiptId = extractOrgReceiptId(text);
+          if (orgReceiptId) {
+            hashInput.value = text;
+            checkOrgReceipt(orgReceiptId);
+            return;
+          }
           const hash = extractHash(text);
           if (hash) {
             hashInput.value = hash;
@@ -916,6 +1035,9 @@
     const t = text.trim();
 
     // Receipt URL / hash — cheapest check first
+    const orgReceiptId = extractOrgReceiptId(t);
+    if (orgReceiptId) return { stage: "org_receipt", orgReceiptId };
+
     const receiptHash = extractHash(t);
     if (receiptHash) return { stage: "receipt", hash: receiptHash };
 
@@ -1262,6 +1384,9 @@
       if (classification.stage === "receipt") {
         hashInput.value = classification.hash;
         checkReceipt(classification.hash);
+      } else if (classification.stage === "org_receipt") {
+        hashInput.value = qrText;
+        checkOrgReceipt(classification.orgReceiptId);
       } else {
         showPartialResult(classification.stage, classification);
       }
@@ -1276,6 +1401,12 @@
 
   // --- Auto-check from URL hash (e.g. View link from login page) ---
   function checkFromHash() {
+    const orgReceiptId = new URLSearchParams(location.search || "").get("org_receipt");
+    if (orgReceiptId) {
+      hashInput.value = location.href;
+      checkOrgReceipt(orgReceiptId);
+      return;
+    }
     const h = (location.hash || "").replace(/^#/, "");
     const hash = extractHash(h);
     if (hash) {

@@ -762,6 +762,100 @@
     return baseReceiptUrl() + "#receipt=" + hash;
   }
 
+  function orgApiBase(){
+    return (window.IRLID_ORG_API_BASE_URL || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
+  }
+
+  function escapeHtmlText(value){
+    return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+  }
+
+  async function fetchOrgReceipt(receiptId){
+    const resp = await fetch(orgApiBase() + "/org/receipt/" + encodeURIComponent(receiptId), { cache: "no-store" });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error((data && data.error) || "Receipt not found");
+    return data;
+  }
+
+  async function fetchOrgPublicInfo(slug){
+    const resp = await fetch(orgApiBase() + "/org/public-info/" + encodeURIComponent(slug), { cache: "no-store" });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) throw new Error((data && data.error) || "Org public info not found");
+    return data;
+  }
+
+  async function verifyOrgReceipt(receipt){
+    const copy = Object.assign({}, receipt || {});
+    const sig = copy.sig;
+    delete copy.sig;
+    const pubInfo = copy.org && copy.org.slug ? await fetchOrgPublicInfo(copy.org.slug) : null;
+    const pub = (pubInfo && pubInfo.venue_pub_jwk) || copy.venue_pub_jwk;
+    if (!sig || !pub) return false;
+    const hash = await hashPayloadToB64url(copy, 5);
+    return verifySig(hash, sig, pub);
+  }
+
+  async function loadOrgReceiptById(receiptId){
+    showDetailView();
+    checksGrid.innerHTML = "";
+    checksVerbose.innerHTML = "";
+    checkResults = [];
+    document.querySelectorAll(".receipt-hash-chip").forEach(el => el.remove());
+    rawWrap.style.display = isDebug() ? "block" : "none";
+    checksExpand.style.display = isDebug() ? "block" : "none";
+    metaTitle.textContent = "Org Check-in Receipt";
+    confirmBar.textContent = "Loading...";
+    confirmBar.style.background = "#f7f7f7";
+    confirmBar.style.color = "#888";
+    document.getElementById("topQr").innerHTML = '<div class="loading-msg">Loading receipt...</div>';
+
+    try {
+      const data = await fetchOrgReceipt(receiptId);
+      const receipt = data.receipt || (data.payload ? Object.assign({}, data.payload, { sig: data.signature }) : null);
+      if (!receipt || receipt.kind !== "org_checkin") throw new Error("Not an org receipt");
+
+      receiptQrUrl = baseReceiptUrl() + "?org_receipt=" + encodeURIComponent(receiptId);
+      if (typeof makeQR === "function") makeQR("topQr", receiptQrUrl, qrSize());
+      rawJson.textContent = JSON.stringify(receipt, null, 2);
+
+      const orgName = receipt.org && receipt.org.name ? receipt.org.name : "Organisation";
+      const attendeeName = receipt.attendee && receipt.attendee.display_name ? receipt.attendee.display_name : "Attendee";
+      selfNameEl.textContent = attendeeName;
+      guestNameEl.textContent = orgName;
+      roleAEl.textContent = "Attendee:";
+      roleBEl.textContent = "Venue:";
+      renderAvatar(selfAvatarWrap, null);
+      renderAvatar(guestAvatarWrap, null);
+
+      summarySection.style.display = "block";
+      sumTime.textContent = receipt.ts ? new Date(receipt.ts).toLocaleString() : "(unknown)";
+      sumDistance.textContent = receipt.gps ? "Venue check-in GPS present" : (receipt.gps_hash ? "GPS redacted" : "(missing)");
+      const mapUrl = receipt.gps ? makeMapsUrl(Number(receipt.gps.lat), Number(receipt.gps.lon)) : null;
+      sumMap.innerHTML = mapUrl ? '<a href="' + mapUrl + '" target="_blank" rel="noopener noreferrer">Open map</a>' : "(not available)";
+      aCoords.textContent = receipt.attendee?.pub_fp ? "Device: " + receipt.attendee.pub_fp : "Device: (missing)";
+      aTime.textContent = "Action: " + (receipt.action || "in");
+      aAcc.textContent = receipt.score != null ? "Score: " + receipt.score : "Score: (missing)";
+      bCoords.textContent = "Org: " + orgName;
+      bTime.textContent = receipt.event?.name ? "Event: " + receipt.event.name : "Event: (none)";
+      bAcc.textContent = receipt.event?.room ? "Room: " + receipt.event.room : "Room: (none)";
+      receiptHint.style.display = "block";
+      receiptHint.innerHTML = 'Verify this receipt in <a href="check.html?org_receipt=' + encodeURIComponent(receiptId) + '">check.html</a>.';
+
+      addCheck("Org receipt structure", receipt.kind === "org_checkin" && receipt.v === 5);
+      addCheck("Venue public key present", !!receipt.venue_pub_jwk);
+      const sigOk = await verifyOrgReceipt(receipt);
+      addCheck("Venue signature", sigOk);
+      addCheck("Attendee device bound", !!(receipt.attendee && receipt.attendee.pub_fp));
+      addCheck("Receipt id", !!receiptId, receiptId, receiptId.slice(0, 8));
+    } catch (e) {
+      document.getElementById("topQr").innerHTML = '<div class="panel" style="padding:20px; text-align:center;">Org receipt not found.</div>';
+      rawJson.textContent = String(e && e.message ? e.message : e);
+      addCheck("Org receipt loaded", false, String(e && e.message ? e.message : e));
+    }
+  }
+
   // =========================
   //  AVATAR HELPERS
   // =========================
@@ -1928,6 +2022,12 @@
   (async () => {
     if (typeof refreshNav === "function") await refreshNav();
 
+    const orgReceiptId = new URLSearchParams(location.search || "").get("org_receipt");
+    if (orgReceiptId) {
+      await loadOrgReceiptById(orgReceiptId);
+      return;
+    }
+
     const fromHash = await parseFromHash();
 
     // ---- DETAIL: server receipt by hash ----
@@ -1962,6 +2062,12 @@
 
   // Handle hash changes (back button, clicking items)
   window.addEventListener("hashchange", async () => {
+    const orgReceiptId = new URLSearchParams(location.search || "").get("org_receipt");
+    if (orgReceiptId) {
+      await loadOrgReceiptById(orgReceiptId);
+      return;
+    }
+
     const fromHash = await parseFromHash();
 
     if (fromHash && fromHash.kind === "server") {

@@ -3284,7 +3284,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v5.12.0d</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.0</span></div>
   </div>
 </div>
 
@@ -13832,7 +13832,8 @@ function aggregateAttendees(checkins) {
         checkout_method: row.checkout_method || null,
         status: row.status || 'checked_in',
         conflict_id: row.conflict_id || null,
-        expected_id: row.expected_id || null
+        expected_id: row.expected_id || null,
+        receipt_id: row.receipt_id || null
       });
       return;
     }
@@ -13848,9 +13849,14 @@ function aggregateAttendees(checkins) {
       existing.status = row.status || 'checked_in';
       existing.conflict_id = row.conflict_id || null;
       existing.expected_id = row.expected_id || null;
+      existing.receipt_id = row.receipt_id || existing.receipt_id || null;
     } else if (!isActive && !existing.active_checkin_id && row.checkout_method) {
       existing.checkout_method = row.checkout_method;
       existing.status = row.status || existing.status;
+    }
+    if (row.receipt_id && (!existing.receipt_id || lastSeen >= (existing.receipt_seen_at || 0))) {
+      existing.receipt_id = row.receipt_id;
+      existing.receipt_seen_at = lastSeen || firstSeen || 0;
     }
   });
   return Array.from(byAttendee.values()).sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0));
@@ -14237,26 +14243,33 @@ function buildDeleteRecordButton(row) {
   const force = row.active_checkin_id ? 'true' : 'false';
   return `<button class="btn btn-danger btn-sm record-row-delete" type="button" onclick="deleteAttendeeRecordFromAttendance('${escapeHtml(expectedId)}', ${force})" title="Delete attendee record (${escapeHtml(roleLabelFor('lead_admin'))}+)">Delete record</button>`;
 }
+function buildReceiptLink(row) {
+  const receiptId = String(row.receipt_id || '').trim();
+  if (!receiptId) return '';
+  const href = `receipt.html?org_receipt=${encodeURIComponent(receiptId)}`;
+  return `<a class="btn btn-secondary btn-sm" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="Open verifiable org receipt">&#8595; Receipt</a>`;
+}
 function buildCheckoutAction(row) {
+  const receiptLink = buildReceiptLink(row);
   if (row.status === 'conflict' && row.conflict_id) {
     const conflictId = escapeHtml(String(row.conflict_id));
-    return `<div class="conflict-actions"><button class="btn btn-primary btn-sm" type="button" onclick="resolveConflict('${conflictId}','confirmed_new_device')">Confirm new device</button><button class="btn btn-danger btn-sm" type="button" onclick="resolveConflict('${conflictId}','rejected')">Reject</button>${buildDeleteRecordButton(row)}</div>`;
+    return `<div class="conflict-actions"><button class="btn btn-primary btn-sm" type="button" onclick="resolveConflict('${conflictId}','confirmed_new_device')">Confirm new device</button><button class="btn btn-danger btn-sm" type="button" onclick="resolveConflict('${conflictId}','rejected')">Reject</button>${receiptLink}${buildDeleteRecordButton(row)}</div>`;
   }
-  if (row.status === 'invalid') return `<span class="att-action-passive" role="status" aria-label="Attendee was rejected at entry">Rejected</span>${buildDeleteRecordButton(row)}`;
+  if (row.status === 'invalid') return `<span class="att-action-passive" role="status" aria-label="Attendee was rejected at entry">Rejected</span>${receiptLink}${buildDeleteRecordButton(row)}`;
   const checkinId = row.active_checkin_id || '';
   const safeId = escapeHtml(checkinId);
   const error = checkoutErrors[checkinId] ? `<div class="checkout-error">${escapeHtml(checkoutErrors[checkinId])}</div>` : '';
-  if (!checkinId) return `<span class="att-action-passive" role="status" aria-label="Attendee has checked out">Done</span>${buildDeleteRecordButton(row)}`;
+  if (!checkinId) return `<span class="att-action-passive" role="status" aria-label="Attendee has checked out">Done</span>${receiptLink}${buildDeleteRecordButton(row)}`;
   if (effectiveRoleRank() < PROTOTYPE_ROLE_RANK.manager) {
-    return '<span class="att-action-passive" role="status" aria-label="Attendee is checked in, awaiting check-out">Awaiting check-out</span>';
+    return `<span class="att-action-passive" role="status" aria-label="Attendee is checked in, awaiting check-out">Awaiting check-out</span>${receiptLink}`;
   }
   if (checkoutConfirmId === checkinId) {
-    return `<div class="checkout-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="cancelCheckout()">Cancel</button><div class="checkout-qr-panel"><div class="checkout-qr-box" id="checkoutQr_${safeId}"></div><div class="checkout-qr-help">Attendee scans this on the same IRLid phone to sign check-out.</div></div>${error}</div>`;
+    return `<div class="checkout-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="cancelCheckout()">Cancel</button>${receiptLink}<div class="checkout-qr-panel"><div class="checkout-qr-box" id="checkoutQr_${safeId}"></div><div class="checkout-qr-help">Attendee scans this on the same IRLid phone to sign check-out.</div></div>${error}</div>`;
   }
   // v5.7.0j — also surface Delete record on active IN rows for lead_admin+.
   // Captain's call: "delete from expected table still not available" — the
   // button is now always available for lead_admin+ regardless of status.
-  return `<div class="checkout-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="requestCheckout('${safeId}')">Initiate check-out</button>${buildDeleteRecordButton(row)}${error}</div>`;
+  return `<div class="checkout-actions"><button class="btn btn-secondary btn-sm" type="button" onclick="requestCheckout('${safeId}')">Initiate check-out</button>${receiptLink}${buildDeleteRecordButton(row)}${error}</div>`;
 }
 async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   if (!canDeleteAttendeeRecord()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendee records`, true);

@@ -153,6 +153,13 @@ async function verifySig(midB64url, sigB64url, pubJwk) {
   } catch { return false; }
 }
 
+async function signCanonicalPayload(payloadObj, privateJwk) {
+  const hash = await sha256B64url(deepCanonical(payloadObj));
+  const key = await crypto.subtle.importKey("jwk", privateJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, b64urlDecode(hash));
+  return b64urlEncode(new Uint8Array(sig));
+}
+
 async function pubKeyId(pubJwk) {
   const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
   const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
@@ -2446,6 +2453,131 @@ async function orgActiveCheckin(request, env) {
   });
 }
 
+function orgSettingEnabled(settings, camelName, snakeName, defaultValue) {
+  if (settings && typeof settings[camelName] !== "undefined") return settings[camelName] === true;
+  if (settings && typeof settings[snakeName] !== "undefined") return settings[snakeName] === true;
+  return defaultValue === true;
+}
+
+function redactOrgReceiptName(displayName) {
+  const name = String(displayName || "").trim();
+  if (!name) return null;
+  const first = firstNameFromDisplayName(name);
+  const surname = surnameFromDisplayName(name);
+  if (surname) return `${first ? first.charAt(0).toUpperCase() + ". " : ""}${surname}`;
+  return first ? `${first.charAt(0).toUpperCase()}.` : null;
+}
+
+function orgReceiptUrl(request, receiptId) {
+  const url = new URL(request.url);
+  const origin = url.origin.includes("workers.dev") ? "https://irlid.co.uk" : url.origin;
+  return `${origin.replace(/\/+$/, "")}/receipt.html?org_receipt=${encodeURIComponent(receiptId)}`;
+}
+
+async function mintOrgReceipt(env, request, org, checkinRow, options) {
+  const settings = JSON.parse(org.settings_json || "{}");
+  let venuePub = org.venue_pub_jwk ? JSON.parse(org.venue_pub_jwk) : null;
+  let venuePrv = org.venue_prv_jwk ? JSON.parse(org.venue_prv_jwk) : null;
+  if (!venuePub || !venuePrv) {
+    const venueKey = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    venuePub = await crypto.subtle.exportKey("jwk", venueKey.publicKey);
+    venuePrv = await crypto.subtle.exportKey("jwk", venueKey.privateKey);
+    await env.DB.prepare("UPDATE organisations SET venue_pub_jwk=?, venue_prv_jwk=?, updated_at=? WHERE id=?")
+      .bind(JSON.stringify(venuePub), JSON.stringify(venuePrv), now(), org.id).run();
+    org.venue_pub_jwk = JSON.stringify(venuePub);
+    org.venue_prv_jwk = JSON.stringify(venuePrv);
+  }
+
+  const privacyMode = orgSettingEnabled(settings, "privacyMode", "privacy_mode", true);
+  const anonymousMode = orgSettingEnabled(settings, "anonymousMode", "anonymous_mode", false);
+  const rawName = checkinRow.name || checkinRow.attendee_label || options?.expected?.display_name || null;
+  const attendeeName = anonymousMode ? null : (privacyMode ? redactOrgReceiptName(rawName) : rawName);
+  const attendeeFp = checkinRow.device_key_fp || checkinRow.attendee_key_id || "unknown";
+  const tMs = Number(checkinRow.checkin_at || now()) * 1000;
+  const payload = {
+    v: 5,
+    kind: "org_checkin",
+    ts: new Date(tMs).toISOString(),
+    nonce: randomToken(),
+    org: {
+      id: org.id,
+      slug: org.slug,
+      name: org.name
+    },
+    event: {
+      id: options?.event_id || null,
+      name: options?.event_name || org.name || null,
+      room: options?.room || null
+    },
+    attendee: {
+      pub_fp: attendeeFp,
+      display_name: attendeeName || null,
+      anonymous: anonymousMode || !attendeeName
+    },
+    action: options?.action || "in",
+    score: Number(checkinRow.score || options?.score || 70),
+    bioVerified: !!(checkinRow.bio_verified || options?.bioVerified)
+  };
+
+  const gps = options?.gps;
+  if (gps && Number.isFinite(Number(gps.lat)) && Number.isFinite(Number(gps.lon))) {
+    const gpsObj = {
+      lat: Number(gps.lat),
+      lon: Number(gps.lon),
+      acc_m: Number.isFinite(Number(gps.acc_m ?? gps.acc ?? gps.accuracy)) ? Number(gps.acc_m ?? gps.acc ?? gps.accuracy) : null
+    };
+    if (privacyMode) {
+      payload.gps_hash = await sha256B64url(canonical(gpsObj));
+    } else {
+      payload.gps = gpsObj;
+    }
+  } else if (checkinRow.gps_hash) {
+    payload.gps_hash = checkinRow.gps_hash;
+  }
+  payload.venue_pub_jwk = venuePub;
+
+  const signature = await signCanonicalPayload(payload, venuePrv);
+  const receiptId = uuid();
+  await env.DB.prepare(
+    "INSERT INTO org_receipts (id,org_id,checkin_id,attendee_pub_fp,payload_json,signature,created_at,privacy_mode) VALUES (?,?,?,?,?,?,?,?)"
+  ).bind(receiptId, org.id, checkinRow.id, attendeeFp, JSON.stringify(payload), signature, now(), privacyMode ? 1 : 0).run();
+
+  return { receipt_id: receiptId, receipt_url: orgReceiptUrl(request, receiptId), receipt: { ...payload, sig: signature } };
+}
+
+async function orgReceiptGet(request, env, receiptId) {
+  const id = String(receiptId || "").trim();
+  if (!id) return noStore(err("receipt_id required", 400));
+  const row = await env.DB.prepare(
+    "SELECT r.id,r.payload_json,r.signature,r.created_at,o.slug,o.name,o.venue_pub_jwk FROM org_receipts r JOIN organisations o ON o.id=r.org_id WHERE r.id=? LIMIT 1"
+  ).bind(id).first();
+  if (!row) return noStore(err("org_receipt_not_found", 404));
+  let payload;
+  try { payload = JSON.parse(row.payload_json || "{}"); } catch { return noStore(err("invalid receipt payload", 500)); }
+  return noStore(json({
+    id: row.id,
+    receipt_id: row.id,
+    receipt_url: orgReceiptUrl(request, row.id),
+    created_at: row.created_at,
+    org_slug: row.slug,
+    receipt: { ...payload, sig: row.signature },
+    payload,
+    signature: row.signature
+  }));
+}
+
+async function orgPublicInfo(request, env, slugParam) {
+  const slug = String(slugParam || "").trim();
+  if (!slug) return noStore(err("slug required", 400));
+  const org = await env.DB.prepare(
+    "SELECT id,slug,name,venue_pub_jwk FROM organisations WHERE slug=? OR id=? LIMIT 1"
+  ).bind(slug, slug).first();
+  if (!org) return noStore(err("org_not_found", 404));
+  let venuePub = null;
+  try { venuePub = org.venue_pub_jwk ? JSON.parse(org.venue_pub_jwk) : null; } catch { venuePub = null; }
+  return noStore(json({ org_id: org.id, slug: org.slug, name: org.name, venue_pub_jwk: venuePub }));
+}
+
 async function orgStaffAuth(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
@@ -2913,7 +3045,39 @@ async function orgCheckin(request, env) {
       ).bind(attendeeDeviceFp, expected.id, org.id).run();
       link = { linked: true, expected_id: expected.id, expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim() };
   }
-  return json({ checkin_id: id, checkin_at: t, org_name: org.name, settings, ...link });
+  let receiptResult = null;
+  let receiptUnavailable = false;
+  try {
+    receiptResult = await mintOrgReceipt(env, request, org, {
+      id,
+      org_id: org.id,
+      mode,
+      attendee_label: label,
+      attendee_key_id: attendeeKeyId,
+      hello_hash: helloHash || null,
+      score: score || null,
+      bio_verified: bioVerified ? 1 : 0,
+      gps_hash: gpsHash,
+      checkin_at: t,
+      created_at: t,
+      name: displayName,
+      attendee_pub_jwk: attendeePubJwk,
+      device_key_fp: attendeeDeviceFp,
+      status,
+      expected_id: expectedId
+    }, { gps, expected, score, bioVerified, action: "in" });
+  } catch (e) {
+    console.warn("org receipt mint failed:", e && (e.message || e));
+    receiptUnavailable = true;
+  }
+  return json({
+    checkin_id: id,
+    checkin_at: t,
+    org_name: org.name,
+    settings,
+    ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
+    ...link
+  });
 }
 
 async function orgCheckout(request, env) {
@@ -3023,7 +3187,7 @@ async function orgAttendance(request, env) {
   // only; the dashboard always passes since explicitly.
   const since = url.searchParams.get("since") ? parseInt(url.searchParams.get("since")) : (now() - 86400);
   const rows = await env.DB.prepare(
-    "SELECT id,mode,attendee_label,attendee_key_id,hello_hash,score,bio_verified,gps_hash,checkin_at,checkout_at,duration_s,name,device_key_fp,status,expected_id,conflict_id,CASE WHEN checkout_at IS NOT NULL AND checkout_signature IS NOT NULL THEN 'signed' WHEN checkout_at IS NOT NULL THEN 'legacy_button' ELSE checkout_method END AS checkout_method,checkout_ts FROM org_checkins WHERE org_id=? AND checkin_at>=? ORDER BY checkin_at DESC LIMIT ?"
+    "SELECT c.id,c.mode,c.attendee_label,c.attendee_key_id,c.hello_hash,c.score,c.bio_verified,c.gps_hash,c.checkin_at,c.checkout_at,c.duration_s,c.name,c.device_key_fp,c.status,c.expected_id,c.conflict_id,r.id AS receipt_id,CASE WHEN c.checkout_at IS NOT NULL AND c.checkout_signature IS NOT NULL THEN 'signed' WHEN c.checkout_at IS NOT NULL THEN 'legacy_button' ELSE c.checkout_method END AS checkout_method,c.checkout_ts FROM org_checkins c LEFT JOIN org_receipts r ON r.checkin_id=c.id WHERE c.org_id=? AND c.checkin_at>=? ORDER BY c.checkin_at DESC LIMIT ?"
   ).bind(org.id, since, limit).all();
   const checkins = rows.results || [];
   const total_in = checkins.filter(r => !r.checkout_at && r.status !== "invalid").length;
@@ -4153,6 +4317,8 @@ export default {
         const mWeeklyEvent = path.match(/^\/org\/weekly-events\/([^/]+)$/);
         const mConflict = path.match(/^\/org\/conflicts\/(\d+)\/resolve$/);
         const mCheckoutToken = path.match(/^\/org\/checkout-token\/([^/]+)$/);
+        const mOrgReceipt = path.match(/^\/org\/receipt\/([^/]+)$/);
+        const mOrgPublicInfo = path.match(/^\/org\/public-info\/([^/]+)$/);
         if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
         else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, decodeURIComponent(mExpectedFull[1]));
         else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, decodeURIComponent(mExpected[1]));
@@ -4164,6 +4330,8 @@ export default {
         else if (method === "DELETE" && mWeeklyEvent) response = await orgWeeklyEventDelete(request, env, decodeURIComponent(mWeeklyEvent[1]));
         else if (method === "POST" && mConflict) response = await orgResolveConflict(request, env, Number(mConflict[1]));
         else if (method === "GET" && mCheckoutToken) response = await orgResolveCheckoutToken(request, env, decodeURIComponent(mCheckoutToken[1]));
+        else if (method === "GET" && mOrgReceipt) response = await orgReceiptGet(request, env, decodeURIComponent(mOrgReceipt[1]));
+        else if (method === "GET" && mOrgPublicInfo) response = await orgPublicInfo(request, env, decodeURIComponent(mOrgPublicInfo[1]));
         else {
           const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
           if (method === "GET" && m) response = await getReceipt(request, env, m[1]);
