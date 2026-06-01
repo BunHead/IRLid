@@ -554,6 +554,7 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
     min-height: 44px;
     min-width: 44px;
   }
+  .att-action-cell .btn,
   .att-action-cell button,
   .checkout-actions button,
   .conflict-actions button,
@@ -739,7 +740,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .att-table th:nth-child(6), .att-table td:nth-child(6) { width: 8%; text-align: center; }
 .att-table th:nth-child(7), .att-table td:nth-child(7) { width: 20%; }
 .att-table td:nth-child(7) { overflow: visible; }
-.att-action-cell { min-height: 32px; display: flex; align-items: center; gap: 8px; }
+.att-action-cell { min-height: 32px; display: flex; align-items: center; gap: 8px; row-gap: 6px; flex-wrap: wrap; min-width: 0; }
 /* v5.7.0l — Right-align every delete button in the action cell.
    v5.7.0q — Equal min-width to align left edges across rows.
    v5.7.0r — min-width wasn't winning; switching to flex-basis so the
@@ -757,6 +758,13 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
   max-width: 120px !important;
   margin-left: auto !important;
   margin-right: 18px !important;
+}
+.att-action-cell > .btn:not(.expected-row-delete):not(.record-row-delete) {
+  flex: 0 0 136px;
+  width: 136px;
+  max-width: 136px;
+  justify-content: center;
+  white-space: nowrap;
 }
 .att-action-passive { min-height: 28px; color: #8b949e; font-size: 11px; display: inline-flex; align-items: center; white-space: nowrap; }
 .role-mini { min-width: 22px; height: 22px; display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 999px; color: #dbe6ff; background: #0b1220; font-size: 10px; font-weight: 700; }
@@ -808,14 +816,27 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .status-out { color: var(--red); font-size: 10px; font-weight: 600; transition: color 220ms ease; }
 .status-conflict { color: var(--orange); font-size: 10px; font-weight: 700; }
 .status-invalid { color: var(--muted); font-size: 10px; font-weight: 600; }
-.checkout-actions { min-height: 32px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; width: 100%; }
+.checkout-actions { min-height: 32px; display: flex; align-items: center; gap: 8px; row-gap: 6px; flex-wrap: wrap; flex: 1 1 auto; width: 100%; min-width: 0; }
+.checkout-actions > .btn,
+.conflict-actions > .btn {
+  flex: 0 0 136px;
+  width: 136px;
+  max-width: 136px;
+  justify-content: center;
+  white-space: nowrap;
+}
+.checkout-actions > .record-row-delete,
+.conflict-actions > .record-row-delete {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
 /* v5.7.1g — wrappers nested inside .att-action-cell (flex container) need
    flex:1 1 auto so the Delete record button's inner margin-left:auto pushes
    against the table cell's right edge, not the wrapper's own. Without this,
    Delete sits flush against "Initiate check-out" / "Confirm new device" on
    IN rows but right-aligns on Done/Expected rows where the button is a
    direct child. Filling the wrapper width restores column alignment. */
-.conflict-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1 1 auto; width: 100%; }
+.conflict-actions { display: flex; align-items: center; gap: 8px; row-gap: 6px; flex-wrap: wrap; flex: 1 1 auto; width: 100%; min-width: 0; }
 /* v5.7.1g — Refresh button spin while loading, so Captain knows it fired. */
 @keyframes refreshSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 #refreshBtn .refresh-glyph { display: inline-block; }
@@ -3284,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.0</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.0.1</span></div>
   </div>
 </div>
 
