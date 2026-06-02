@@ -1350,11 +1350,30 @@ async function irlidV5VerifyEnvelope(payload, pubJwk, sigRawB64u, webauthnEnv, e
 //    { payload: { type, org_id, timestamp, nonce, ...fields },
 //      pub: <jwk>, sig: <b64url>, webauthn: { authData, clientData } }
 // =========================================================
+const IRLID_FORCE_CROSS_DEVICE_ACTION_AUTH_KEY = "irlid_force_cross_device_action_auth";
+const IRLID_CROSS_DEVICE_ACTION_TYPES = new Set(["irlid_invite_v5", "irlid_calendar_write_v5"]);
+
+function irlidShouldPreferCrossDeviceActionAuth(actionType) {
+  if (typeof window === "undefined" || typeof window.IRLidCrossDeviceAction !== "function") return false;
+  if (!IRLID_CROSS_DEVICE_ACTION_TYPES.has(actionType)) return false;
+  try {
+    if (localStorage.getItem(IRLID_FORCE_CROSS_DEVICE_ACTION_AUTH_KEY) === "1") return true;
+  } catch (_) {}
+  return /Windows/i.test(navigator.userAgent || "");
+}
+
+function irlidRememberCrossDeviceActionPreference() {
+  try { localStorage.setItem(IRLID_FORCE_CROSS_DEVICE_ACTION_AUTH_KEY, "1"); } catch (_) {}
+}
+
 async function signActionPayload(actionType, orgId, fields) {
   // v5.10.0 Phase 0 — per-action signing requires a v5 credential (not the
   // separate IRLID_V5_ENABLED_KEY flag, which gates receipt-side dispatch
   // and may be off even when a credential exists). If no credential, the
   // caller should be routed through enrol UX before reaching here.
+  if (irlidShouldPreferCrossDeviceActionAuth(actionType)) {
+    return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
+  }
   if (!irlidV5Enrolled()) {
     if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
       return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
@@ -1386,6 +1405,7 @@ async function signActionPayload(actionType, orgId, fields) {
   } catch (err) {
     if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
       console.warn("[signActionPayload] local v5 assertion failed; falling back to cross-device action auth", err);
+      irlidRememberCrossDeviceActionPreference();
       return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
     }
     throw err;
