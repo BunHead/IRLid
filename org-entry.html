@@ -1515,7 +1515,6 @@
       helloHash,
       attendeeLabel: cachedName,
       name: cachedName,
-      event_id: eventId || undefined,
       score: entryScore(),
       bioVerified: false
     });
@@ -1540,7 +1539,7 @@
         receipt_id: payload.receipt_id,
         receipt_url: payload.receipt_url || `receipt.html?org_receipt=${encodeURIComponent(payload.receipt_id)}`,
         checkin_id: payload.checkin_id || null,
-        event_id: payload.event_id || eventId || null,
+        event_id: payload.event_id || null,
         event_name: payload.event_name || eventName || null,
         org: orgParam || null,
         org_name: payload.org_name || null,

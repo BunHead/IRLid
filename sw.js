@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v85'; // v6.1.3 Windows cross-device action auth + stale event_id check-in tolerance.
+const CACHE_VERSION = 'irlid-shell-v86'; // v6.1.4 omit stale event_id from check-in payloads.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
