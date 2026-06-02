@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.0.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1</span></div>
   </div>
 </div>
 
@@ -17088,6 +17088,115 @@ function v511InviteStaffRoleOptions() {
   ];
 }
 let v511InviteStaffState = null;
+function v61CrossDeviceSummary(actionType, fields) {
+  if (actionType === 'irlid_invite_v5') {
+    const role = v511InviteAcceptRoleLabel(fields && fields.role);
+    const label = String((fields && fields.label) || 'new staff member').trim();
+    return 'Invite ' + label + ' as ' + role;
+  }
+  return 'Authorize ' + String(actionType || 'admin action').replace(/^irlid_/, '').replace(/_v5$/, '').replace(/_/g, ' ');
+}
+function v61EnsureCrossDeviceStyles() {
+  if (document.getElementById('v61CrossDeviceStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'v61CrossDeviceStyles';
+  style.textContent = [
+    '.v61-action-auth-backdrop{position:fixed;inset:0;z-index:10020;display:grid;place-items:center;padding:20px;background:rgba(1,4,9,.78);backdrop-filter:blur(10px);}',
+    '.v61-action-auth-card{width:min(430px,100%);background:#0d1117;border:1px solid rgba(139,148,158,.35);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.5);padding:20px;color:#e6edf3;}',
+    '.v61-action-auth-card h2{margin:0 0 8px;font-size:20px;line-height:1.2;letter-spacing:0;}',
+    '.v61-action-auth-card p{margin:0 0 14px;color:#8b949e;font-size:14px;line-height:1.45;}',
+    '.v61-action-auth-summary{margin:12px 0;padding:10px 12px;border:1px solid rgba(88,166,255,.35);border-radius:8px;background:rgba(56,139,253,.12);font-weight:700;line-height:1.35;}',
+    '.v61-action-auth-qr{width:250px;min-height:250px;margin:14px auto;display:grid;place-items:center;background:#fff;color:#24292f;border-radius:8px;padding:10px;}',
+    '.v61-action-auth-status{min-height:20px;color:#d29922;font-size:13px;font-weight:700;text-align:center;}',
+    '.v61-action-auth-actions{display:flex;justify-content:center;gap:8px;margin-top:14px;}',
+    '.v61-action-auth-actions button{min-height:36px;border-radius:8px;border:1px solid rgba(139,148,158,.45);background:#161b22;color:#e6edf3;padding:0 14px;cursor:pointer;}',
+    '@media(max-width:520px){.v61-action-auth-card{padding:16px}.v61-action-auth-qr{width:220px;min-height:220px;}}'
+  ].join('');
+  document.head.appendChild(style);
+}
+function v61ShowCrossDeviceModal(authUrl, summary, expiresAt, onCancel) {
+  v61EnsureCrossDeviceStyles();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'v61-action-auth-backdrop';
+  backdrop.innerHTML =
+    '<section class="v61-action-auth-card" role="dialog" aria-modal="true" aria-labelledby="v61ActionAuthTitle">' +
+      '<h2 id="v61ActionAuthTitle">Scan with your enrolled phone</h2>' +
+      '<p>This desktop is signed in, but it does not hold the hardware credential needed for this action.</p>' +
+      '<div class="v61-action-auth-summary"></div>' +
+      '<div class="v61-action-auth-qr" id="v61ActionAuthQr">QR loading...</div>' +
+      '<div class="v61-action-auth-status" id="v61ActionAuthStatus" role="status" aria-live="polite">Waiting for phone authorization...</div>' +
+      '<div class="v61-action-auth-actions"><button type="button" id="v61ActionAuthCancel">Cancel</button></div>' +
+    '</section>';
+  backdrop.querySelector('.v61-action-auth-summary').textContent = summary;
+  document.body.appendChild(backdrop);
+  const qr = backdrop.querySelector('#v61ActionAuthQr');
+  qr.textContent = '';
+  if (typeof QRCode !== 'undefined') {
+    new QRCode(qr, { text: authUrl, width: 230, height: 230, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } else {
+    qr.textContent = authUrl;
+  }
+  const status = backdrop.querySelector('#v61ActionAuthStatus');
+  const cancel = backdrop.querySelector('#v61ActionAuthCancel');
+  cancel.addEventListener('click', function () {
+    if (typeof onCancel === 'function') onCancel();
+    backdrop.remove();
+  });
+  return {
+    setStatus(text, cls) {
+      status.textContent = text;
+      status.style.color = cls === 'ok' ? 'var(--green,#7ee787)' : cls === 'err' ? 'var(--red,#f85149)' : '#d29922';
+    },
+    close() { backdrop.remove(); },
+    expiresAt
+  };
+}
+window.IRLidCrossDeviceAction = async function irlidCrossDeviceAction(actionType, orgId, fields) {
+  if (actionType !== 'irlid_invite_v5') {
+    throw new Error('Hardware-backed signing required on this device for this action.');
+  }
+  if (!qrLoginSession?.session_token) throw new Error('Signed-in session required for cross-device authorization.');
+  if (!window.IRLidOrgApi?.actionInit || !window.IRLidOrgApi?.actionPoll) throw new Error('Cross-device action API unavailable.');
+  const actionPayload = Object.assign({}, fields || {}, { org_id: String(orgId || '') });
+  const summary = v61CrossDeviceSummary(actionType, actionPayload);
+  const init = await window.IRLidOrgApi.actionInit(qrLoginSession.session_token, {
+    action_type: actionType,
+    action_payload: actionPayload,
+    action_summary: summary
+  });
+  let cancelled = false;
+  const modal = v61ShowCrossDeviceModal(init.auth_url, summary, init.expires_at, function () { cancelled = true; });
+  return new Promise(function (resolve, reject) {
+    const tick = async function () {
+      if (cancelled) return reject(new Error('Cross-device authorization cancelled.'));
+      try {
+        const polled = await window.IRLidOrgApi.actionPoll(init.nonce);
+        if (polled.status === 'claimed') {
+          modal.setStatus('Authorized. Continuing...', 'ok');
+          setTimeout(function () { modal.close(); }, 450);
+          return resolve({ cross_device: true, action_result: polled.action_result || null, nonce: init.nonce });
+        }
+        if (polled.status === 'rejected') {
+          modal.setStatus('Authorization rejected.', 'err');
+          return reject(new Error('Authorization rejected.'));
+        }
+        if (polled.status === 'expired') {
+          modal.setStatus('Authorization timed out. Try again.', 'err');
+          return reject(new Error('Authorization timed out.'));
+        }
+        if (Number(init.expires_at || 0) <= Date.now()) {
+          modal.setStatus('Authorization timed out. Try again.', 'err');
+          return reject(new Error('Authorization timed out.'));
+        }
+        setTimeout(tick, 1500);
+      } catch (err) {
+        modal.setStatus(err?.data?.error || err?.message || 'Could not poll authorization.', 'err');
+        reject(err);
+      }
+    };
+    setTimeout(tick, 1200);
+  });
+};
 function v511InviteStaffEncodeToken(payload) {
   if (typeof irlidEncodeJsonToB64url !== 'function') throw new Error('Invite encoder unavailable.');
   return 'I:' + irlidEncodeJsonToB64url(payload);
@@ -17636,6 +17745,18 @@ async function startV511InviteStaffOnboarding() {
       issuer_pub_fp: issuerFp,
       expiry_ts: expiryTs
     });
+    if (signed && signed.cross_device) {
+      const actionResult = signed.action_result || {};
+      const qrPayload = actionResult.invite_qr || '';
+      if (!qrPayload) throw new Error('Authorized, but invite QR was not returned.');
+      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || signed.nonce, expiry_ts: actionResult.expiry_ts || expiryTs };
+      v511InviteStaffRenderQr(qrPayload);
+      if (status) {
+        status.className = 'v511-invite-status ok';
+        status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';
+      }
+      return;
+    }
     const invitePayload = Object.assign({}, signed.payload, {
       issuer_pub_fp: issuerFp,
       sig: signed.sig,
