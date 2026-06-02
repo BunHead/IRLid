@@ -1347,6 +1347,13 @@ function irlidPrefersCrossDeviceActionAuth(actionType) {
   try { return localStorage.getItem(IRLID_ACTION_AUTH_PREF_KEY) === "phone"; } catch (_) { return false; }
 }
 
+function irlidShouldDefaultToCrossDeviceActionAuth(actionType) {
+  if (!irlidCrossDeviceActionSupported(actionType)) return false;
+  if (typeof window === "undefined" || typeof window.IRLidCrossDeviceAction !== "function") return false;
+  const ua = String((typeof navigator !== "undefined" && navigator.userAgent) || "");
+  return /Windows/i.test(ua);
+}
+
 function irlidSetCrossDeviceActionAuthPreference(usePhone) {
   try {
     if (usePhone) localStorage.setItem(IRLID_ACTION_AUTH_PREF_KEY, "phone");
@@ -1384,9 +1391,10 @@ async function signActionPayload(actionType, orgId, fields) {
   if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {
     throw new Error("signActionPayload: actionType must match /^irlid_<name>_v5$/");
   }
-  if (irlidPrefersCrossDeviceActionAuth(actionType) &&
+  if ((irlidPrefersCrossDeviceActionAuth(actionType) || irlidShouldDefaultToCrossDeviceActionAuth(actionType)) &&
       typeof window !== "undefined" &&
       typeof window.IRLidCrossDeviceAction === "function") {
+    irlidSetCrossDeviceActionAuthPreference(true);
     return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
   }
   const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
