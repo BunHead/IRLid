@@ -1380,7 +1380,16 @@ async function signActionPayload(actionType, orgId, fields) {
   // use v5 WebAuthn (the Worker's requireSignedAction expects a webauthn block).
   const payloadHashB64u = await hashPayloadToB64url(payload);
   const payloadHashBytes = b64urlDecode(payloadHashB64u);
-  const v5 = await irlidV5SignPayloadHash(payloadHashBytes);
+  let v5;
+  try {
+    v5 = await irlidV5SignPayloadHash(payloadHashBytes);
+  } catch (err) {
+    if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
+      console.warn("[signActionPayload] local v5 assertion failed; falling back to cross-device action auth", err);
+      return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
+    }
+    throw err;
+  }
   return {
     payload,
     pub: irlidV5GetPublicJwk(),

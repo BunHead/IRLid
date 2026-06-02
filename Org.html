@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.2</span></div>
   </div>
 </div>
 
@@ -12268,6 +12268,7 @@ let checkoutPollTimer = null;
 let statDisplayValues = { statIn: 0, statOut: 0, statScore: 0, statBio: 0 };
 let hasRenderedStats = false;
 let lastRefreshAt = null;
+let lastCachedAttendanceToastAt = 0;
 let expectedAttendees = [];
 let expectedLoading = false;
 let expectedError = null;
@@ -14199,7 +14200,11 @@ async function refreshAttendance() {
   } catch (err) {
     const snap = await loadCurrentOrgSnapshot();
     if (snap && applySnapshotToDashboard(snap)) {
-      showToast('Showing cached attendance snapshot');
+      const nowMs = Date.now();
+      if (nowMs - lastCachedAttendanceToastAt > 30000) {
+        lastCachedAttendanceToastAt = nowMs;
+        showToast('Showing cached attendance snapshot');
+      }
       return;
     }
     attendanceStats = null;
