@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.7</span></div>
   </div>
 </div>
 
@@ -17159,6 +17159,7 @@ function v61EnsureCrossDeviceStyles() {
     '.v61-action-auth-card p{margin:0 0 14px;color:#8b949e;font-size:14px;line-height:1.45;}',
     '.v61-action-auth-summary{margin:12px 0;padding:10px 12px;border:1px solid rgba(88,166,255,.35);border-radius:8px;background:rgba(56,139,253,.12);font-weight:700;line-height:1.35;}',
     '.v61-action-auth-qr{width:250px;min-height:250px;margin:14px auto;display:grid;place-items:center;background:#fff;color:#24292f;border-radius:8px;padding:10px;}',
+    '.v61-action-auth-qr canvas,.v61-action-auth-qr img{display:block;max-width:100%;height:auto;}',
     '.v61-action-auth-status{min-height:20px;color:#d29922;font-size:13px;font-weight:700;text-align:center;}',
     '.v61-action-auth-actions{display:flex;justify-content:center;gap:8px;margin-top:14px;}',
     '.v61-action-auth-actions button{min-height:36px;border-radius:8px;border:1px solid rgba(139,148,158,.45);background:#161b22;color:#e6edf3;padding:0 14px;cursor:pointer;}',
@@ -17246,7 +17247,13 @@ window.IRLidCrossDeviceAction = async function irlidCrossDeviceAction(actionType
         }
         setTimeout(tick, 1500);
       } catch (err) {
-        modal.setStatus(err?.data?.error || err?.message || 'Could not poll authorization.', 'err');
+        const status = Number(err && err.status);
+        const message = String((err && err.data && (err.data.error || err.data.message)) || (err && err.message) || 'Could not poll authorization.');
+        if (status === 0 || /network|fetch|timeout/i.test(message)) {
+          modal.setStatus('Still waiting for phone authorization...', '');
+          return setTimeout(tick, 1800);
+        }
+        modal.setStatus(message, 'err');
         reject(err);
       }
     };

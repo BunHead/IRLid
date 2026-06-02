@@ -104,8 +104,17 @@
         body: payload
       });
     },
-    actionPoll(nonce) {
-      return request("/org/action/poll/" + encodeURIComponent(nonce));
+    async actionPoll(nonce) {
+      const encoded = encodeURIComponent(nonce);
+      try {
+        return await request("/org/action/poll/" + encoded);
+      } catch (err) {
+        const message = String((err && err.message) || "").toLowerCase();
+        if (err && err.status === 404 && /not found|action_not_found/.test(message)) {
+          return request("/org/action/poll?nonce=" + encoded);
+        }
+        throw err;
+      }
     },
     actionClaim(payload) {
       return request("/org/action/claim", {
