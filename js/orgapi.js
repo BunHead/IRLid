@@ -97,6 +97,22 @@
         body: payload
       });
     },
+    actionInit(sessionToken, payload) {
+      return request("/org/action/init", {
+        method: "POST",
+        sessionToken,
+        body: payload
+      });
+    },
+    actionPoll(nonce) {
+      return request("/org/action/poll/" + encodeURIComponent(nonce));
+    },
+    actionClaim(payload) {
+      return request("/org/action/claim", {
+        method: "POST",
+        body: payload
+      });
+    },
     workerBaseUrl() { return publicBaseUrl(); },
 
     // PROTOCOL.md §14 — Batch C user-level endpoints, Bearer session token auth.

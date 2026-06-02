@@ -271,3 +271,27 @@ CREATE TABLE action_nonces (
 
 CREATE INDEX idx_action_nonces_expires ON action_nonces(expires_at);
 
+-- v6.1 Cross-device admin authorization. Desktop creates a pending action row,
+-- an enrolled phone signs the stored payload, and the desktop polls the row
+-- until it is claimed, rejected, or expired.
+CREATE TABLE pending_action_authorizations (
+  nonce TEXT PRIMARY KEY,
+  org_id TEXT NOT NULL REFERENCES organisations(id),
+  requestor_user_id TEXT REFERENCES portal_users(id),
+  action_type TEXT NOT NULL,
+  action_payload_json TEXT NOT NULL,
+  action_summary TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  claimed_at INTEGER,
+  signed_envelope_json TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  action_result_json TEXT,
+  fail_count INTEGER NOT NULL DEFAULT 0,
+  locked_until INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_pending_actions_org ON pending_action_authorizations(org_id, created_at DESC);
+CREATE INDEX idx_pending_actions_expires ON pending_action_authorizations(expires_at);
+CREATE INDEX idx_pending_actions_status ON pending_action_authorizations(status);
+

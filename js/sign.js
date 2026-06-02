@@ -1356,6 +1356,9 @@ async function signActionPayload(actionType, orgId, fields) {
   // and may be off even when a credential exists). If no credential, the
   // caller should be routed through enrol UX before reaching here.
   if (!irlidV5Enrolled()) {
+    if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
+      return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
+    }
     throw new Error("Hardware-backed signing required — no v5 credential on this device. Enrol via Settings.");
   }
   if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {

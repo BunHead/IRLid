@@ -1151,6 +1151,221 @@ async function orgLoginClaim(request, env) {
 }
 
 // =====================
+//  CROSS-DEVICE ACTION AUTHORIZATION - v6.1
+// =====================
+// Mirrors the QR-login shape, but stores a full per-action payload for an
+// enrolled phone to sign. The pending action nonce is also the signed action
+// nonce, binding QR, WebAuthn challenge, and replay guard into one object.
+
+const ACTION_AUTH_TTL_MS = 180000;
+const ACTION_CLAIM_FAIL_LIMIT = 3;
+const ACTION_CLAIM_COOLDOWN_MS = 300000;
+
+function publicBaseUrlFrom(request) {
+  const url = new URL(request.url);
+  return url.origin.replace(/\/+$/, "");
+}
+
+function publicSiteOriginFrom(request, env) {
+  const configured = String((env && (env.PUBLIC_SITE_ORIGIN || env.IRLID_SITE_ORIGIN)) || "").trim();
+  if (configured) return configured.replace(/\/+$/, "");
+  const worker = new URL(request.url);
+  if (/localhost|127\.0\.0\.1|\[::1\]/.test(worker.host)) return worker.origin;
+  return "https://irlid.co.uk";
+}
+
+function normalisePendingActionPayload(actionType, orgId, payload, requestorUser) {
+  const clean = Object.assign({}, payload || {});
+  delete clean.sig;
+  delete clean.pub;
+  delete clean.webauthn;
+  clean.type = actionType;
+  clean.org_id = String(orgId || clean.org_id || "");
+  if (requestorUser && actionType === "irlid_invite_v5" && !clean.issuer_pub_fp) {
+    clean.issuer_pub_fp = requestorUser.pub_fp;
+  }
+  return clean;
+}
+
+async function orgActionInit(request, env) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return ctx.error;
+
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const actionType = String(body.action_type || body.actionType || "").trim();
+  if (!/^irlid_[a-z_]+_v5$/.test(actionType)) return err("invalid_action_type");
+  if (actionType !== "irlid_invite_v5") return json({ error: "unsupported_action_type" }, 400);
+  const actionPayloadIn = body.action_payload || body.actionPayload || {};
+  const orgId = String(actionPayloadIn.org_id || body.org_id || body.orgId || "").trim();
+  if (!orgId) return err("org_id required");
+
+  const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?")
+    .bind(orgId).first();
+  if (!org) return json({ error: "org_not_found" }, 404);
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (expectedRoleRank(role) < expectedRoleRank("lead_admin")) {
+    return json({ error: "insufficient_role", required: "lead_admin", actual: role || null }, 403);
+  }
+
+  const tMs = Date.now();
+  const nonce = randomToken();
+  const actionPayload = normalisePendingActionPayload(actionType, org.id, actionPayloadIn, ctx.user);
+  actionPayload.timestamp = Number(actionPayload.timestamp || tMs);
+  actionPayload.nonce = nonce;
+  const summary = String(body.action_summary || body.actionSummary || actionType).trim().slice(0, 240);
+  const expiresAt = tMs + ACTION_AUTH_TTL_MS;
+  await env.DB.prepare(
+    "INSERT INTO pending_action_authorizations (nonce, org_id, requestor_user_id, action_type, action_payload_json, action_summary, created_at, expires_at, status, fail_count, locked_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0)"
+  ).bind(nonce, org.id, ctx.user.id, actionType, JSON.stringify(actionPayload), summary, tMs, expiresAt).run();
+
+  const authUrl = publicSiteOriginFrom(request, env) + "/org-action-auth.html?nonce=" +
+    encodeURIComponent(nonce) + "&worker=" + encodeURIComponent(publicBaseUrlFrom(request));
+  return json({ ok: true, nonce, expires_at: expiresAt, auth_url: authUrl });
+}
+
+async function orgActionPoll(request, env, pathNonce) {
+  const url = new URL(request.url);
+  const nonce = String(pathNonce || url.searchParams.get("nonce") || "").trim();
+  if (!nonce) return err("nonce required");
+  const row = await env.DB.prepare(
+    "SELECT nonce, action_type, action_payload_json, action_summary, expires_at, claimed_at, status, action_result_json FROM pending_action_authorizations WHERE nonce = ?"
+  ).bind(nonce).first();
+  if (!row) return json({ error: "action_not_found" }, 404);
+  const tMs = Date.now();
+  if (row.status === "pending" && Number(row.expires_at) <= tMs) {
+    await env.DB.prepare("UPDATE pending_action_authorizations SET status='expired' WHERE nonce=? AND status='pending'")
+      .bind(nonce).run();
+    return json({ ok: true, status: "expired", expires_at: row.expires_at });
+  }
+  if (row.status === "claimed") {
+    let actionResult = null;
+    try { actionResult = row.action_result_json ? JSON.parse(row.action_result_json) : null; } catch (_) {}
+    return json({ ok: true, status: "claimed", claimed_at: row.claimed_at, action_result: actionResult });
+  }
+  if (row.status === "rejected") return json({ ok: true, status: "rejected", expires_at: row.expires_at });
+  if (row.status === "expired") return json({ ok: true, status: "expired", expires_at: row.expires_at });
+
+  let payload = null;
+  try { payload = JSON.parse(row.action_payload_json); } catch (_) {}
+  return json({
+    ok: true,
+    status: "pending",
+    action_summary: row.action_summary,
+    action_type: row.action_type,
+    action_payload: payload,
+    expires_at: row.expires_at
+  });
+}
+
+function inviteActionPayloadSchema(p) {
+  return !!(p && p.type === "irlid_invite_v5" && p.org_id && inviteRole(p.role) &&
+    p.label && p.issuer_pub_fp && p.expiry_ts && p.nonce);
+}
+
+async function executeVerifiedPendingAction(env, action) {
+  const payload = action.payload || {};
+  if (payload.type !== "irlid_invite_v5") {
+    return { error: json({ error: "unsupported_action_type" }, 400) };
+  }
+  const role = inviteRole(payload.role);
+  if (!role) return { error: inviteJsonError("invalid_invite_role", "Invite role must be staff or manager.", 400) };
+  if (payload.issuer_pub_fp !== action.authorized_by_user.pub_fp) {
+    return { error: inviteJsonError("invalid_invite_payload", "Signed invite issuer does not match the authorising user.", 400) };
+  }
+  const tMs = Date.now();
+  const expiryTs = Math.floor(Number(payload.expiry_ts));
+  if (!Number.isFinite(expiryTs) || expiryTs <= tMs || expiryTs > tMs + 3600000) {
+    return { error: inviteJsonError("invalid_invite_payload", "Invite expiry is invalid.", 400) };
+  }
+  const invite = Object.assign({}, payload, {
+    sig: action.signed_envelope.sig,
+    pub: action.signed_envelope.pub,
+    webauthn: action.signed_envelope.webauthn
+  });
+  let verifiedIssuer = null;
+  try { verifiedIssuer = await verifyInvitePayloadSignature(env, invite); } catch (_) { verifiedIssuer = null; }
+  if (!verifiedIssuer) return { error: inviteJsonError("invite_bad_signature", "Invite signature could not be verified.", 400) };
+  if (verifiedIssuer.role !== "lead_admin" && verifiedIssuer.role !== "developer") {
+    return { error: inviteJsonError("issuer_role_revoked", "The invite issuer no longer has authority for this organisation.", 403) };
+  }
+  await env.DB.prepare(
+    "INSERT INTO org_invites (nonce,org_id,role,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,'pending',?)"
+  ).bind(payload.nonce, payload.org_id, role, payload.issuer_pub_fp, expiryTs, tMs).run();
+  return {
+    ok: true,
+    result: {
+      invite_qr: encodeInvitePayload(invite),
+      expiry_ts: expiryTs,
+      nonce: payload.nonce
+    }
+  };
+}
+
+async function orgActionClaim(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const nonce = String((body && body.nonce) || "").trim();
+  if (!nonce) return err("nonce required");
+  const row = await env.DB.prepare("SELECT * FROM pending_action_authorizations WHERE nonce = ?")
+    .bind(nonce).first();
+  if (!row) return json({ error: "action_not_found" }, 404);
+  const tMs = Date.now();
+  if (Number(row.expires_at) <= tMs && row.status === "pending") {
+    await env.DB.prepare("UPDATE pending_action_authorizations SET status='expired' WHERE nonce=? AND status='pending'")
+      .bind(nonce).run();
+    return json({ error: "action_expired" }, 410);
+  }
+  if (row.status !== "pending") {
+    return json({ error: row.status === "claimed" ? "nonce_already_used" : "action_" + row.status }, 409);
+  }
+  if (Number(row.locked_until || 0) > tMs) {
+    return json({ error: "rate_limited", retry_after: Math.ceil((Number(row.locked_until) - tMs) / 1000) }, 429);
+  }
+  if (String(body.status || "").toLowerCase() === "rejected") {
+    await env.DB.prepare("UPDATE pending_action_authorizations SET status='rejected' WHERE nonce=? AND status='pending'")
+      .bind(nonce).run();
+    return json({ ok: true, status: "rejected" });
+  }
+
+  let storedPayload;
+  try { storedPayload = JSON.parse(row.action_payload_json); } catch { return err("stored_action_corrupt", 500); }
+  const signedEnvelope = body.signed_envelope || body.signed_action || null;
+  const signedPayload = signedEnvelope && signedEnvelope.payload;
+  const storedHash = await sha256DeepB64url(storedPayload);
+  const signedHash = await sha256DeepB64url(signedPayload || {});
+  if (!signedEnvelope || storedHash !== signedHash) {
+    const fails = Number(row.fail_count || 0) + 1;
+    const lockedUntil = fails >= ACTION_CLAIM_FAIL_LIMIT ? tMs + ACTION_CLAIM_COOLDOWN_MS : 0;
+    await env.DB.prepare("UPDATE pending_action_authorizations SET fail_count=?, locked_until=? WHERE nonce=?")
+      .bind(fails, lockedUntil, nonce).run();
+    return json({ error: fails >= ACTION_CLAIM_FAIL_LIMIT ? "rate_limited" : "action_payload_mismatch" }, fails >= ACTION_CLAIM_FAIL_LIMIT ? 429 : 400);
+  }
+
+  const action = await requireSignedAction({ signed_action: signedEnvelope }, env, {
+    expectedType: row.action_type,
+    orgId: row.org_id,
+    minRole: "lead_admin",
+    payloadSchema: row.action_type === "irlid_invite_v5" ? inviteActionPayloadSchema : (() => true)
+  });
+  if (action.error) {
+    const fails = Number(row.fail_count || 0) + 1;
+    const lockedUntil = fails >= ACTION_CLAIM_FAIL_LIMIT ? tMs + ACTION_CLAIM_COOLDOWN_MS : 0;
+    await env.DB.prepare("UPDATE pending_action_authorizations SET fail_count=?, locked_until=? WHERE nonce=?")
+      .bind(fails, lockedUntil, nonce).run();
+    return fails >= ACTION_CLAIM_FAIL_LIMIT ? json({ error: "rate_limited", retry_after: ACTION_CLAIM_COOLDOWN_MS / 1000 }, 429) : action.error;
+  }
+  action.signed_envelope = signedEnvelope;
+
+  const executed = await executeVerifiedPendingAction(env, action);
+  if (executed.error) return executed.error;
+  await env.DB.prepare(
+    "UPDATE pending_action_authorizations SET status='claimed', claimed_at=?, signed_envelope_json=?, action_result_json=? WHERE nonce=? AND status='pending'"
+  ).bind(tMs, JSON.stringify(signedEnvelope), JSON.stringify(executed.result), nonce).run();
+  return json({ ok: true, action_result: executed.result });
+}
+
+// =====================
 //  USER ENDPOINTS — PROTOCOL.md §14, Batch C
 // =====================
 // Session-authenticated user-level endpoints. Auth via Authorization: Bearer <token>
@@ -4310,6 +4525,12 @@ export default {
       else if (method === "POST" && path === "/org/login/init")      response = await orgLoginInit(request, env);
       else if (method === "GET"  && path === "/org/login/poll")      response = await orgLoginPoll(request, env);
       else if (method === "POST" && path === "/org/login/claim")     response = await orgLoginClaim(request, env);
+      else if (method === "POST" && path === "/org/action/init")     response = await orgActionInit(request, env);
+      else if (method === "GET"  && path === "/org/action/poll")     response = await orgActionPoll(request, env);
+      else if (method === "GET"  && /^\/org\/action\/poll\/[^/]+$/.test(path)) {
+        response = await orgActionPoll(request, env, decodeURIComponent(path.match(/^\/org\/action\/poll\/([^/]+)$/)[1]));
+      }
+      else if (method === "POST" && path === "/org/action/claim")    response = await orgActionClaim(request, env);
       // v5.9.14 — staff-invite QR endpoints (Brief A).
       else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
       else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
