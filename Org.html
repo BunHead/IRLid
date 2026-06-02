@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.4</span></div>
   </div>
 </div>
 
@@ -13324,7 +13324,6 @@ function buildVenuePayload() {
     event: activeEvent?.name || currentOrg?.name || 'IRLid Event',
     returnAllowed: settings.returnAllowed ? '1' : '0'
   });
-  if (activeEvent?.id) qp.set('event_id', activeEvent.id);
   if (settings.welcomeMessage) qp.set('welcome', settings.welcomeMessage);
   if (settings.orgTerms) qp.set('terms', settings.orgTerms);
   if (settings.redirectUrl) qp.set('redirect', settings.redirectUrl);
@@ -15608,7 +15607,6 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     helloHash: env.hash || await hashPayloadToB64url(syntheticHelloPayload),
     attendeeLabel: expectedDisplayName(row),
     name: expectedDisplayName(row),
-    event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
     score: settings.minScore || 50,
     bioVerified: !!settings.bioRequired
   };
@@ -15651,7 +15649,6 @@ async function runDoormanCheckin(env) {
     helloHash: env.hash || await hashPayloadToB64url(env),
     attendeeLabel: '',
     name: '',
-    event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
     score: settings.minScore || 50,
     bioVerified: !!settings.bioRequired
   };
@@ -15792,7 +15789,6 @@ async function manualCheckin() {
       mode: 'doorman_scan',
       name: settings.anonymousMode ? '' : label,
       attendeeLabel: settings.anonymousMode ? '' : label,
-      event_id: (typeof window.v511GetActiveCalendarEvent === 'function' && window.v511GetActiveCalendarEvent()?.id) || undefined,
       score: settings.minScore || 50,
       bioVerified: !!settings.bioRequired
     };
