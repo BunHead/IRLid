@@ -1,5 +1,22 @@
 # Pending Work — IRLid
 
+## 2 June 2026 — afternoon (v6.1.9 LIVE; three Data PRs in flight)
+
+**State:** v6.1.9 deployed and smoked. Calendar event-create working end-to-end via cross-device QR auth (desktop → phone → Approve → event appears). Check-in/check-out clean. +Invite Staff working. Receipt bridge verified. Build pill v6.1.9, SW cache v90.
+
+**Three Data PRs running in parallel (all branches open, briefs in repo root):**
+- `v6.1.10` — Modal auto-close: Add event modal doesn't close when cross-device auth starts. 1-line fix. (`HANDOVER-ModalAutoClose-v6.1.10.md`)
+- `v6.1.11` — Pending invitees: Becky disappears on refresh because invite creates `org_invites` row not `org_memberships`. Show greyed "Pending invite" rows. (`HANDOVER-PendingInvitees-v6.1.11.md`)
+- `v6.1.12` — Current event QR: Check-in tab QR doesn't update to the running event. Per-event attendance never populates. Worker `GET /org/current-event` + 60s polling in frontend. (`HANDOVER-CurrentEventQR-v6.1.12.md`)
+
+**After all three land:** Patreon v6 announcement (`PATREON-V6-DRAFT.md` in repo root — Captain rewrites in his own voice).
+
+**Known remaining minor:** `expected_ids_not_found` warning on phone calendar approval — event saves correctly, just ugly error on phone side. Low priority.
+
+**Wrangler deploy discipline (BOOTSTRAP §6):** always `git pull` BEFORE `wrangler deploy`. Today cost 2 stale deploys before the correct one landed. Check Version ID changes between deploys.
+
+---
+
 ## 2 June 2026 — morning (~07:30, v6.0 LIVE; Calendar event-save bug + v6.1 cross-device)
 
 **State:** Receipts + Calendar (#71) merged & live. Receipt time bug was just a stale cache — resolved. Offline mode tested + working. Patreon page exists, **first member joined** — Captain wants a v6 announcement post for them (draft at midday).
