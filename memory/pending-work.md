@@ -1,5 +1,22 @@
 # Pending Work — IRLid
 
+## 2 June 2026 — morning (~07:30, v6.0 LIVE; Calendar event-save bug + v6.1 cross-device)
+
+**State:** Receipts + Calendar (#71) merged & live. Receipt time bug was just a stale cache — resolved. Offline mode tested + working. Patreon page exists, **first member joined** — Captain wants a v6 announcement post for them (draft at midday).
+
+**Calendar event-save BUG (the "last little bit"):** adding an event → `Save failed: signature_verify_failed` (POST /org/weekly-events → 401). Root cause: event-create is a `requireSignedAction` signed by the **DESKTOP's** Windows Hello, but the authorised Developer credential is on the **8 Pro** (bootstrap fp), and/or the signed payload doesn't reconstruct byte-identically on the Worker → `verifyV5Envelope` rejects. **Captain's instinct is correct: it should confirm on the PHONE, like the orange unexpected-attendee flow.**
+
+**v6.1 PR #73 (cross-device admin auth) — bash-diffed ✅ ACCEPT.** Additive +619/−6, no reverts; builds the mechanism (`pending_action_authorizations` table + endpoints + `org-action-auth.html` phone page + desktop QR modal). **BUT v6.1 only wired the +Invite Staff flow to cross-device, NOT the event-save.** So merging #73 fixes/improves +Invite but the Calendar event-save still 401s until the follow-up.
+
+**Next, in order:**
+1. **Merge PR #73** (v6.1) → run `apply_v6_1_pending_actions.ps1` (as a script) + `wrangler deploy`. Test: +Invite Staff on DESKTOP now shows a QR for the phone to sign (not desktop Hello).
+2. **Fire `v6.1.1` Data brief** (drafted in Number One's last message): route event-create (+ other desktop admin actions) through the v6.1 cross-device flow + fix the canonical-payload mismatch. THIS is what makes the Calendar event-save work, phone-confirmed.
+3. **Patreon v6 announcement** — Number One to draft substance at midday (proof-of-attendance receipts + calendar; Captain's voice, he posts).
+
+**v6.x backlog:** org-receipts-in-account bridge (KezzyBabe gap, Number One to spec); Lead Admin activation (migration+deploy+2-phone smoke); anchor system parked.
+
+---
+
 ## 1 June 2026 — evening (~17:40, PR #70/#71/#72 merged, Number One near budget cap)
 
 All three bash-diffed ✅ ACCEPT before merge: **#70** (v6.0.1 action-cell cosmetic), **#71** (v6.2 Calendar / per-event attendance — event_id threaded, receipt link preserved, idempotent migration), **#72** (receipt date/time → system locale + check-in-time fix). Captain merged all three.
