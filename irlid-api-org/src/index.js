@@ -3329,7 +3329,9 @@ async function orgCheckin(request, env) {
     eventRow = await env.DB.prepare(
       "SELECT e.id,e.name,e.room_id,r.label AS room_label FROM weekly_events e LEFT JOIN rooms r ON r.id=e.room_id AND r.org_id=e.org_id WHERE e.id=? AND e.org_id=? AND e.archived_at IS NULL LIMIT 1"
     ).bind(eventId, org.id).first();
-    if (!eventRow) return err("event_id not found for this organisation", 404);
+    if (!eventRow) {
+      console.warn("[orgCheckin] ignoring stale event_id for org", org.id, eventId);
+    }
   }
   const settings = JSON.parse(org.settings_json || "{}");
   const minScore = settings.minScore || 50;
@@ -3535,12 +3537,15 @@ async function orgAttendance(request, env) {
   const url = new URL(request.url);
   const includeExpected = url.searchParams.get("include_expected") === "1";
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
-  const eventId = cleanOptionalText(url.searchParams.get("event_id"), 90);
+  let eventId = cleanOptionalText(url.searchParams.get("event_id"), 90);
   if (eventId) {
     const eventRow = await env.DB.prepare(
       "SELECT id FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
     ).bind(eventId, org.id).first();
-    if (!eventRow) return err("event_id not found for this organisation", 404);
+    if (!eventRow) {
+      console.warn("[orgAttendance] ignoring stale event_id for org", org.id, eventId);
+      eventId = null;
+    }
   }
   // v5.11.2 - `since` is honoured if passed (client convention: local midnight today
   // as unix epoch). Fallback to 24h sliding window for legacy / unauth'd callers
