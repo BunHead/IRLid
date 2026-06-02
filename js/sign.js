@@ -1335,6 +1335,26 @@ async function irlidV5VerifyEnvelope(payload, pubJwk, sigRawB64u, webauthnEnv, e
 }
 
 // =========================================================
+const IRLID_ACTION_AUTH_PREF_KEY = "irlid_action_auth_preference";
+const IRLID_CROSS_DEVICE_ACTION_TYPES = new Set(["irlid_invite_v5", "irlid_calendar_write_v5"]);
+
+function irlidCrossDeviceActionSupported(actionType) {
+  return IRLID_CROSS_DEVICE_ACTION_TYPES.has(String(actionType || ""));
+}
+
+function irlidPrefersCrossDeviceActionAuth(actionType) {
+  if (!irlidCrossDeviceActionSupported(actionType)) return false;
+  try { return localStorage.getItem(IRLID_ACTION_AUTH_PREF_KEY) === "phone"; } catch (_) { return false; }
+}
+
+function irlidSetCrossDeviceActionAuthPreference(usePhone) {
+  try {
+    if (usePhone) localStorage.setItem(IRLID_ACTION_AUTH_PREF_KEY, "phone");
+    else localStorage.removeItem(IRLID_ACTION_AUTH_PREF_KEY);
+  } catch (_) {}
+}
+
+// =========================================================
 //  Per-action commit signing (v5.10.0 Phase 0)
 //  Used by manager commits — bind, settings save, delete, etc. — to
 //  produce a non-repudiable signed envelope per ACTION rather than
@@ -1363,6 +1383,11 @@ async function signActionPayload(actionType, orgId, fields) {
   }
   if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {
     throw new Error("signActionPayload: actionType must match /^irlid_<name>_v5$/");
+  }
+  if (irlidPrefersCrossDeviceActionAuth(actionType) &&
+      typeof window !== "undefined" &&
+      typeof window.IRLidCrossDeviceAction === "function") {
+    return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
   }
   const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
   const payload = Object.assign(

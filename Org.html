@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.6</span></div>
   </div>
 </div>
 
@@ -7256,7 +7256,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
               var data = null;
               try { data = await response.json(); } catch (_) {}
-              if (!response.ok) throw new Error((data && data.error) || ('Request failed with status ' + response.status));
+              if (!response.ok) {
+                var err = new Error((data && (data.error || data.message)) || ('Request failed with status ' + response.status));
+                err.status = response.status;
+                err.data = data;
+                throw err;
+              }
               return data || {};
             }
             function normalizeExpectedRow(row) {
@@ -7685,9 +7690,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   result = signed.action_result || {};
                 } else {
                   next.signed_action = signed;
-                  result = id
-                    ? await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'PATCH', body: next })
-                    : await liveCalendarApi('/org/weekly-events', { method: 'POST', body: next });
+                  try {
+                    result = id
+                      ? await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'PATCH', body: next })
+                      : await liveCalendarApi('/org/weekly-events', { method: 'POST', body: next });
+                  } catch (err) {
+                    if (!v61ActionShouldRetryWithPhone(err)) throw err;
+                    var phoneSigned = await v61AuthorizeActionWithPhone('irlid_calendar_write_v5', currentOrg && currentOrg.id, signedFields);
+                    result = phoneSigned.action_result || {};
+                  }
                 }
                 closeEventModal();
                 await refreshLiveCalendar({ toast: result.event?.name ? 'Saved ' + result.event.name : 'Saved event' });
@@ -7701,7 +7712,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               try {
                 var signed = await calendarSigned({ calendar_action: 'delete', event_id: id });
                 if (!(signed && signed.cross_device)) {
-                  await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'DELETE', body: { signed_action: signed } });
+                  try {
+                    await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'DELETE', body: { signed_action: signed } });
+                  } catch (err) {
+                    if (!v61ActionShouldRetryWithPhone(err)) throw err;
+                    await v61AuthorizeActionWithPhone('irlid_calendar_write_v5', currentOrg && currentOrg.id, { calendar_action: 'delete', event_id: id });
+                  }
                 }
                 closeEventModal();
                 await refreshLiveCalendar({ toast: 'Deleted event' });
@@ -17114,6 +17130,24 @@ function v61CrossDeviceSummary(actionType, fields) {
   }
   return 'Authorize ' + String(actionType || 'admin action').replace(/^irlid_/, '').replace(/_v5$/, '').replace(/_/g, ' ');
 }
+function v61ActionShouldRetryWithPhone(err) {
+  const text = String((err && err.data && (err.data.error || err.data.message)) || (err && err.message) || '').toLowerCase();
+  const status = Number(err && err.status);
+  return (status === 401 || status === 403 || status === 400) &&
+    /(signature|verify|unauthori|unauthoriz|insufficient|issuer|credential|pub_fp|role)/.test(text);
+}
+function v61RememberPhoneActionAuth() {
+  try {
+    if (typeof irlidSetCrossDeviceActionAuthPreference === 'function') {
+      irlidSetCrossDeviceActionAuthPreference(true);
+    }
+  } catch (_) {}
+}
+async function v61AuthorizeActionWithPhone(actionType, orgId, fields) {
+  if (typeof window.IRLidCrossDeviceAction !== 'function') throw new Error('Cross-device action authorization unavailable.');
+  v61RememberPhoneActionAuth();
+  return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
+}
 function v61EnsureCrossDeviceStyles() {
   if (document.getElementById('v61CrossDeviceStyles')) return;
   const style = document.createElement('style');
@@ -17179,6 +17213,7 @@ window.IRLidCrossDeviceAction = async function irlidCrossDeviceAction(actionType
   if (!qrLoginSession?.session_token) throw new Error('Signed-in session required for cross-device authorization.');
   if (!window.IRLidOrgApi?.actionInit || !window.IRLidOrgApi?.actionPoll) throw new Error('Cross-device action API unavailable.');
   const actionPayload = Object.assign({}, fields || {}, { org_id: String(orgId || '') });
+  if (actionType === 'irlid_invite_v5') delete actionPayload.issuer_pub_fp;
   const summary = v61CrossDeviceSummary(actionType, actionPayload);
   const init = await window.IRLidOrgApi.actionInit(qrLoginSession.session_token, {
     action_type: actionType,
@@ -17759,13 +17794,14 @@ async function startV511InviteStaffOnboarding() {
     const expiryTs = Date.now() + (10 * 60 * 1000);
     const issuerPub = irlidV5GetPublicJwk();
     const issuerFp = await irlidPubFp(issuerPub);
-    const signed = await signActionPayload('irlid_invite_v5', currentOrg.id, {
+    const inviteFields = {
       org_id: currentOrg.id,
       role: role.value,
       label,
       issuer_pub_fp: issuerFp,
       expiry_ts: expiryTs
-    });
+    };
+    const signed = await signActionPayload('irlid_invite_v5', currentOrg.id, inviteFields);
     if (signed && signed.cross_device) {
       const actionResult = signed.action_result || {};
       const qrPayload = actionResult.invite_qr || '';
@@ -17791,7 +17827,21 @@ async function startV511InviteStaffOnboarding() {
       label,
       invite_payload: inviteToken,
       expiry_ms: 10 * 60 * 1000
+    }).catch(async function (err) {
+      if (!v61ActionShouldRetryWithPhone(err)) throw err;
+      const phoneSigned = await v61AuthorizeActionWithPhone('irlid_invite_v5', currentOrg.id, inviteFields);
+      const actionResult = phoneSigned.action_result || {};
+      const qrPayload = actionResult.invite_qr || '';
+      if (!qrPayload) throw new Error('Authorized, but invite QR was not returned.');
+      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || phoneSigned.nonce, expiry_ts: actionResult.expiry_ts || expiryTs };
+      v511InviteStaffRenderQr(qrPayload);
+      if (status) {
+        status.className = 'v511-invite-status ok';
+        status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';
+      }
+      return null;
     });
+    if (!res) return;
     const qrPayload = res.invite_qr || inviteToken;
     v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: res.nonce || signed.payload.nonce, expiry_ts: res.expiry_ts || expiryTs };
     v511InviteStaffRenderQr(qrPayload);
