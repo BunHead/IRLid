@@ -1181,7 +1181,7 @@ function normalisePendingActionPayload(actionType, orgId, payload, requestorUser
   delete clean.webauthn;
   clean.type = actionType;
   clean.org_id = String(orgId || clean.org_id || "");
-  if (requestorUser && actionType === "irlid_invite_v5" && !clean.issuer_pub_fp) {
+  if (requestorUser && actionType === "irlid_invite_v5") {
     clean.issuer_pub_fp = requestorUser.pub_fp;
   }
   return clean;
