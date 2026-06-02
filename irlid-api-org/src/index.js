@@ -1195,7 +1195,7 @@ async function orgActionInit(request, env) {
   try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const actionType = String(body.action_type || body.actionType || "").trim();
   if (!/^irlid_[a-z_]+_v5$/.test(actionType)) return err("invalid_action_type");
-  if (actionType !== "irlid_invite_v5") return json({ error: "unsupported_action_type" }, 400);
+  if (!["irlid_invite_v5", "irlid_calendar_write_v5"].includes(actionType)) return json({ error: "unsupported_action_type" }, 400);
   const actionPayloadIn = body.action_payload || body.actionPayload || {};
   const orgId = String(actionPayloadIn.org_id || body.org_id || body.orgId || "").trim();
   if (!orgId) return err("org_id required");
@@ -1204,8 +1204,9 @@ async function orgActionInit(request, env) {
     .bind(orgId).first();
   if (!org) return json({ error: "org_not_found" }, 404);
   const role = await orgRoleForUser(env, ctx.user, org.id);
-  if (expectedRoleRank(role) < expectedRoleRank("lead_admin")) {
-    return json({ error: "insufficient_role", required: "lead_admin", actual: role || null }, 403);
+  const requiredRole = pendingActionMinRole(actionType);
+  if (expectedRoleRank(role) < expectedRoleRank(requiredRole)) {
+    return json({ error: "insufficient_role", required: requiredRole, actual: role || null }, 403);
   }
 
   const tMs = Date.now();
@@ -1263,8 +1264,30 @@ function inviteActionPayloadSchema(p) {
     p.label && p.issuer_pub_fp && p.expiry_ts && p.nonce);
 }
 
+function calendarActionPayloadSchema(p) {
+  const action = String((p && p.calendar_action) || "").trim();
+  if (!p || p.type !== "irlid_calendar_write_v5" || !p.org_id || !p.nonce) return false;
+  if (!["create", "update", "delete"].includes(action)) return false;
+  if ((action === "update" || action === "delete") && !p.event_id) return false;
+  return true;
+}
+
+function pendingActionMinRole(actionType) {
+  if (actionType === "irlid_calendar_write_v5") return "manager";
+  return "lead_admin";
+}
+
+function pendingActionPayloadSchema(actionType) {
+  if (actionType === "irlid_invite_v5") return inviteActionPayloadSchema;
+  if (actionType === "irlid_calendar_write_v5") return calendarActionPayloadSchema;
+  return () => false;
+}
+
 async function executeVerifiedPendingAction(env, action) {
   const payload = action.payload || {};
+  if (payload.type === "irlid_calendar_write_v5") {
+    return executeVerifiedCalendarAction(env, action);
+  }
   if (payload.type !== "irlid_invite_v5") {
     return { error: json({ error: "unsupported_action_type" }, 400) };
   }
@@ -1300,6 +1323,84 @@ async function executeVerifiedPendingAction(env, action) {
       nonce: payload.nonce
     }
   };
+}
+
+async function executeVerifiedCalendarAction(env, action) {
+  const body = Object.assign({}, action.payload || {});
+  const calendarAction = String(body.calendar_action || "").trim();
+  const orgId = String(body.org_id || "").trim();
+  const authorizedBy = action.authorized_by_user?.id || action.user?.id || null;
+  if (calendarAction === "create") {
+    const ev = cleanEventBody(body);
+    ev.id = ev.id || newEventId();
+    const inputError = validateEventInput(ev);
+    if (inputError) return { error: err(inputError) };
+    const expectedCheck = await ensureExpectedIdsForOrg(env, orgId, body.expected_ids || []);
+    if (!expectedCheck.ok) return { error: json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400) };
+    const t = now();
+    const statements = [
+      env.DB.prepare(
+        "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
+      ).bind(ev.id, orgId, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
+    ];
+    for (const expectedId of expectedCheck.ids) {
+      statements.push(env.DB.prepare(
+        "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
+      ).bind(ev.id, expectedId, t, authorizedBy));
+    }
+    await env.DB.batch(statements);
+    const events = await rowsForWeeklyEvents(env, orgId, {});
+    return { ok: true, result: { event_id: ev.id, event: events.find(e => e.id === ev.id) || null } };
+  }
+  if (calendarAction === "update") {
+    const id = String(body.event_id || "").trim();
+    const existing = await env.DB.prepare(
+      "SELECT * FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL"
+    ).bind(id, orgId).first();
+    if (!existing) return { error: err("Weekly event not found", 404) };
+    const ev = cleanEventBody(body, existing);
+    ev.id = id;
+    const inputError = validateEventInput(ev);
+    if (inputError) return { error: err(inputError) };
+    const expectedCheck = body.expected_ids !== undefined ? await ensureExpectedIdsForOrg(env, orgId, body.expected_ids) : null;
+    if (expectedCheck && !expectedCheck.ok) return { error: json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400) };
+    const statements = [
+      env.DB.prepare(
+        "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
+      ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, orgId)
+    ];
+    if (expectedCheck) {
+      const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
+      const current = new Set((currentRows.results || []).map(r => r.expected_id));
+      const next = new Set(expectedCheck.ids);
+      const t = now();
+      for (const expectedId of next) {
+        if (!current.has(expectedId)) {
+          statements.push(env.DB.prepare(
+            "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
+          ).bind(id, expectedId, t, authorizedBy));
+        }
+      }
+      for (const expectedId of current) {
+        if (!next.has(expectedId)) {
+          statements.push(env.DB.prepare("DELETE FROM event_expected WHERE event_id=? AND expected_id=?").bind(id, expectedId));
+        }
+      }
+    }
+    await env.DB.batch(statements);
+    const events = await rowsForWeeklyEvents(env, orgId, {});
+    return { ok: true, result: { event: events.find(e => e.id === id) || null } };
+  }
+  if (calendarAction === "delete") {
+    const id = String(body.event_id || "").trim();
+    const t = now();
+    const result = await env.DB.prepare(
+      "UPDATE weekly_events SET archived_at=COALESCE(archived_at,?) WHERE id=? AND org_id=?"
+    ).bind(t, id, orgId).run();
+    if (!(result.meta?.changes || 0)) return { error: err("Weekly event not found", 404) };
+    return { ok: true, result: { deleted: true, archived: true, id, archived_at: t } };
+  }
+  return { error: json({ error: "unsupported_calendar_action" }, 400) };
 }
 
 async function orgActionClaim(request, env) {
@@ -1345,8 +1446,8 @@ async function orgActionClaim(request, env) {
   const action = await requireSignedAction({ signed_action: signedEnvelope }, env, {
     expectedType: row.action_type,
     orgId: row.org_id,
-    minRole: "lead_admin",
-    payloadSchema: row.action_type === "irlid_invite_v5" ? inviteActionPayloadSchema : (() => true)
+    minRole: pendingActionMinRole(row.action_type),
+    payloadSchema: pendingActionPayloadSchema(row.action_type)
   });
   if (action.error) {
     const fails = Number(row.fail_count || 0) + 1;

@@ -87,6 +87,7 @@
     }
     function actionLabel(type) {
       if (type === 'irlid_invite_v5') return 'Staff Invite';
+      if (type === 'irlid_calendar_write_v5') return 'Calendar Change';
       return String(type || 'Admin action').replace(/^irlid_/, '').replace(/_v5$/, '').replace(/_/g, ' ');
     }
     async function loadAction() {
