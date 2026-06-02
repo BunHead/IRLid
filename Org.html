@@ -3305,7 +3305,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.7</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.8</span></div>
   </div>
 </div>
 
@@ -17134,7 +17134,7 @@ function v61ActionShouldRetryWithPhone(err) {
   const text = String((err && err.data && (err.data.error || err.data.message)) || (err && err.message) || '').toLowerCase();
   const status = Number(err && err.status);
   return (status === 401 || status === 403 || status === 400) &&
-    /(signature|verify|unauthori|unauthoriz|insufficient|issuer|credential|pub_fp|role)/.test(text);
+    /(signature|verify|unauthori|unauthoriz|insufficient|issuer|credential|pub_fp|role|invalid_invite_payload|invite_bad_signature|bad_signature|payload)/.test(text);
 }
 function v61RememberPhoneActionAuth() {
   try {
