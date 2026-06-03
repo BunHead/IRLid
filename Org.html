@@ -380,6 +380,9 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .v511-invite-status { min-height: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .v511-invite-status.ok { color: var(--green); }
 .v511-invite-status.revoked { color: var(--orange); }
+.staff-member-pending { opacity: 0.55; font-style: italic; grid-template-columns: 1fr 130px 140px 78px; }
+.staff-member-pending .pending-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; font-style: normal; }
+.staff-member-pending .staff-expiry { color: var(--muted); font-size: 11px; }
 @media (max-width: 720px) { .invite-staff-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .v511-invite-modal-grid { grid-template-columns: 1fr; } }
 .dashboard-scan-box { margin-top: 14px; border: 1px solid var(--line); background: rgba(13,17,23,0.58); border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
@@ -3305,7 +3308,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.12</span></div>
   </div>
 </div>
 
@@ -6620,9 +6623,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-head"><h3>Staff &amp; Rooms</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
           <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
-          <div class="v511-staff"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
-          <div class="v511-staff"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
-          <div class="v511-staff"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+          <div id="v511StaffList">
+            <div class="v511-staff staff-member-row"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+            <div class="v511-staff staff-member-row"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+            <div class="v511-staff staff-member-row"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+          </div>
 
           <div style="margin-top: 14px;"><button type="button" class="v511-btn" id="v511InviteStaffBtn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
 
@@ -7186,6 +7191,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               window.requestAnimationFrame(function () {
                 positionNowLine();
               });
+            }
+            if (target === 'roles' && typeof window.v611RenderPendingInvites === 'function') {
+              window.v611RenderPendingInvites();
             }
           }
 
@@ -12273,6 +12281,8 @@ let portalState = loadPortalState();
 let attendanceData = [];
 let attendanceStats = null;
 let venueQrPayload = null;
+let currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null };
+let currentEventQrPollId = null;
 let checkoutConfirmId = null;
 let checkoutBusyId = null;
 let checkoutErrors = {};
@@ -12496,6 +12506,7 @@ function showPanel(name, el) {
   // v5.7.1h — Audit-mode button is a Dashboard concept; only show it there.
   try { updateAuditButtonVisibility(name); } catch (_) {}
   if (name === 'checkin') {
+    startCurrentEventQrPolling();
     requestAnimationFrame(function () {
       try { applyV511BackgroundToHostStages(activeTheme); } catch (_) {}
     });
@@ -13328,18 +13339,91 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 // =================================================================== /Batch B
-function buildVenuePayload() {
+function currentEventApiBaseUrl() {
+  return window.IRLidOrgApi?.workerBaseUrl
+    ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'')
+    : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+}
+
+function normaliseCheckinEventContext(eventId, eventName) {
+  const id = String(eventId || '').trim();
+  return {
+    eventId: id || null,
+    eventName: id ? String(eventName || '').trim() : null,
+    orgKey: currentOrg?.api_key || null
+  };
+}
+
+function activeCheckinEventContext(explicitContext) {
+  if (explicitContext) return normaliseCheckinEventContext(explicitContext.eventId, explicitContext.eventName);
+  if (currentCheckinEventContext?.orgKey === currentOrg?.api_key) return currentCheckinEventContext;
+  return normaliseCheckinEventContext(null, null);
+}
+
+async function fetchCurrentCheckinEvent() {
+  if (!currentOrg?.api_key) throw new Error('No organisation loaded');
+  const token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
+  const headers = { 'X-Org-Key': currentOrg.api_key };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const response = await fetch(currentEventApiBaseUrl() + '/org/current-event', { headers });
+  let data = null;
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error((data && (data.error || data.message)) || ('Request failed with status ' + response.status));
+  return data || {};
+}
+
+function updateCurrentEventBadge(eventName) {
+  const info = document.querySelector('#panel-checkin .qr-info');
+  if (!info) return;
+  let badge = document.getElementById('currentEventQrBadge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'currentEventQrBadge';
+    badge.style.cssText = 'margin:6px 0 10px;font-size:12px;font-weight:700;color:var(--accent,#58a6ff);';
+    const title = info.querySelector('h4');
+    if (title && title.nextSibling) info.insertBefore(badge, title.nextSibling);
+    else info.insertBefore(badge, info.firstChild);
+  }
+  badge.textContent = eventName ? ('Now: ' + eventName) : 'No event running';
+}
+
+async function refreshCurrentEventQr() {
+  if (!currentOrg?.api_key) {
+    currentCheckinEventContext = normaliseCheckinEventContext(null, null);
+    updateCurrentEventBadge(null);
+    return;
+  }
+  try {
+    const res = await fetchCurrentCheckinEvent();
+    const next = normaliseCheckinEventContext(res.event?.id, res.event?.name);
+    const prev = currentCheckinEventContext || {};
+    if (next.eventId !== prev.eventId || next.eventName !== prev.eventName || next.orgKey !== prev.orgKey) {
+      currentCheckinEventContext = next;
+      generateVenueQR(next);
+    }
+    updateCurrentEventBadge(next.eventName);
+  } catch (_) {}
+}
+
+function startCurrentEventQrPolling() {
+  if (currentEventQrPollId) return refreshCurrentEventQr();
+  refreshCurrentEventQr();
+  currentEventQrPollId = setInterval(refreshCurrentEventQr, 60000);
+}
+
+function buildVenuePayload(eventContext) {
   // v5.9.0.1 — was hardcoded to test env URL. Now uses ORIGIN_BASE so the
   // generated QR points to the same origin that's serving this dashboard.
   const baseUrl = ORIGIN_BASE;
   const type = (currentMode === 'doorman_scan') ? 'doorman' : 'checkin';
-  const activeEvent = (typeof window.v511GetActiveCalendarEvent === 'function') ? window.v511GetActiveCalendarEvent() : null;
+  const checkinEvent = activeCheckinEventContext(eventContext);
   const qp = new URLSearchParams({
     type,
     org: currentOrg?.api_key || 'demo',
-    event: activeEvent?.name || currentOrg?.name || 'IRLid Event',
     returnAllowed: settings.returnAllowed ? '1' : '0'
   });
+  if (checkinEvent.eventName) qp.set('event', checkinEvent.eventName);
+  if (checkinEvent.eventId) qp.set('event_id', checkinEvent.eventId);
   if (settings.welcomeMessage) qp.set('welcome', settings.welcomeMessage);
   if (settings.orgTerms) qp.set('terms', settings.orgTerms);
   if (settings.redirectUrl) qp.set('redirect', settings.redirectUrl);
@@ -14641,8 +14725,9 @@ async function resolveConflict(conflictId, resolution) {
     showToast(err.message || 'Could not resolve conflict', true);
   }
 }
-function generateVenueQR() {
+function generateVenueQR(eventContext) {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
+  if (eventContext) currentCheckinEventContext = activeCheckinEventContext(eventContext);
   venueQrPayload = buildVenuePayload(); box.innerHTML = '';
   new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
   // v5.11.19a — also update the inline Check-in tab clone's QR slot so the
@@ -17787,7 +17872,7 @@ async function startV511InviteStaffOnboarding() {
   const role = v511InviteStaffRoleOptions().find(function (opt) { return opt.value === roleKey; }) || v511InviteStaffRoleOptions()[0];
   const label = (firstName + ' ' + surname).trim();
   const status = document.getElementById('v511InviteStaffStatus');
-  v511InviteStaffState = { firstName: firstName, surname: surname, roleKey: role.value, roleLabel: role.label, label, invite: null, revoked: false, appended: false };
+  v511InviteStaffState = { firstName: firstName, surname: surname, roleKey: role.value, roleLabel: role.label, label, invite: null, revoked: false };
   document.getElementById('v511InviteStaffForm').hidden = true;
   document.getElementById('v511InviteStaffOnboarding').hidden = false;
   document.getElementById('v511InviteStaffRevoked').hidden = true;
@@ -17867,40 +17952,86 @@ async function startV511InviteStaffOnboarding() {
     v511InviteStaffUpdateAddState();
   }
 }
-function addV511StaffRow(firstName, surname, roleKey) {
-  const inviteBtn = document.getElementById('v511InviteStaffBtn');
-  const insertBefore = inviteBtn && inviteBtn.closest('div');
-  if (!insertBefore || !insertBefore.parentNode) return;
-  const roleOptions = v511InviteStaffRoleOptions();
-  const row = document.createElement('div');
-  row.className = 'v511-staff v511-invite-staff-row';
-  const nameCell = document.createElement('div');
-  nameCell.textContent = firstName + ' ' + surname;
-  const roleCell = document.createElement('div');
-  const select = document.createElement('select');
-  roleOptions.forEach(function (opt) {
-    const option = document.createElement('option');
-    option.value = opt.value;
-    option.textContent = opt.label;
-    option.selected = opt.value === roleKey;
-    select.appendChild(option);
-  });
-  roleCell.appendChild(select);
-  const actionCell = document.createElement('div');
-  const removeBtn = document.createElement('button');
-  removeBtn.type = 'button';
-  removeBtn.className = 'v511-btn v511-btn-mini';
-  removeBtn.textContent = 'Remove';
-  removeBtn.addEventListener('click', function () { row.remove(); });
-  actionCell.appendChild(removeBtn);
-  row.append(nameCell, roleCell, actionCell);
-  insertBefore.parentNode.insertBefore(row, insertBefore);
+function v611OrgApiBase() {
+  return window.IRLidOrgApi?.workerBaseUrl ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'') : 'https://irlid-api-org.irlid-bunhead.workers.dev';
 }
-function finishV511InviteStaffReal() {
-  if (v511InviteStaffState?.invite && !v511InviteStaffState.revoked && !v511InviteStaffState.appended) {
-    addV511StaffRow(v511InviteStaffState.firstName, v511InviteStaffState.surname, v511InviteStaffState.roleKey);
-    v511InviteStaffState.appended = true;
+async function v611OrgApi(path, opts) {
+  opts = opts || {};
+  if (!currentOrg?.api_key) throw new Error('No organisation loaded');
+  const headers = Object.assign({ 'X-Org-Key': currentOrg.api_key }, opts.headers || {});
+  const token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
+  if (token) headers.Authorization = 'Bearer ' + token;
+  let body = opts.body;
+  if (body && !(body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(body);
   }
+  const response = await fetch(v611OrgApiBase() + path, { method: opts.method || 'GET', headers, body });
+  let data = null;
+  try { data = await response.json(); } catch (_) {}
+  if (!response.ok) throw new Error((data && (data.message || data.error)) || ('Request failed with status ' + response.status));
+  return data || {};
+}
+function v611PendingInviteExpiry(expiryTs) {
+  const ms = Number(expiryTs) - Date.now();
+  if (!Number.isFinite(ms)) return 'soon';
+  if (ms <= 0) return 'now';
+  const min = Math.ceil(ms / 60000);
+  if (min < 60) return 'in ' + min + ' min';
+  const hr = Math.ceil(min / 60);
+  return 'in ' + hr + ' hr';
+}
+async function v611RevokePendingInvite(nonce, row) {
+  if (!nonce || !currentOrg?.id) return;
+  try {
+    await v611OrgApi('/org/invites/' + encodeURIComponent(nonce) + '/revoke', {
+      method: 'POST',
+      body: { org_id: currentOrg.id }
+    });
+    row?.remove();
+  } catch (err) {
+    showToast('Could not revoke invite: ' + (err?.message || err), true);
+  }
+}
+async function v611RenderPendingInvites() {
+  const list = document.getElementById('v511StaffList');
+  if (!list || !currentOrg?.api_key) return;
+  list.querySelectorAll('.staff-member-pending').forEach(function (row) { row.remove(); });
+  let data;
+  try { data = await v611OrgApi('/org/invites/pending'); }
+  catch (err) { console.warn('[v6.1.11 pending invites]', err); return; }
+  (data.invites || []).forEach(function (invite) {
+    const row = document.createElement('div');
+    row.className = 'v511-staff staff-member-row staff-member-pending';
+    const name = document.createElement('span');
+    name.className = 'staff-name';
+    name.textContent = invite.label || 'Invited staff member';
+    const badge = document.createElement('span');
+    badge.className = 'pending-badge';
+    badge.textContent = 'Pending invite';
+    name.appendChild(badge);
+    const role = document.createElement('span');
+    role.className = 'staff-role';
+    role.textContent = roleLabelFor(invite.role || 'staff');
+    const expiry = document.createElement('span');
+    expiry.className = 'staff-expiry';
+    expiry.textContent = 'Expires ' + v611PendingInviteExpiry(invite.expiry_ts);
+    const revoke = document.createElement('button');
+    revoke.type = 'button';
+    revoke.className = 'v511-btn v511-btn-mini revoke-invite-btn';
+    revoke.dataset.nonce = invite.nonce || '';
+    revoke.textContent = 'Revoke';
+    revoke.addEventListener('click', function () { v611RevokePendingInvite(invite.nonce, row); });
+    row.append(name, role, expiry, revoke);
+    list.appendChild(row);
+  });
+}
+window.v611RenderPendingInvites = v611RenderPendingInvites;
+document.addEventListener('DOMContentLoaded', function () {
+  if (document.querySelector('.v511-panel[data-v511-panel="roles"].active')) v611RenderPendingInvites();
+});
+function finishV511InviteStaffReal() {
+  if (v511InviteStaffState?.invite && !v511InviteStaffState.revoked) v611RenderPendingInvites();
   closeV511InviteStaffModal();
 }
 async function revokeV511InviteStaffReal() {

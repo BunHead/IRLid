@@ -1312,9 +1312,15 @@ async function executeVerifiedPendingAction(env, action) {
   if (verifiedIssuer.role !== "lead_admin" && verifiedIssuer.role !== "developer") {
     return { error: inviteJsonError("issuer_role_revoked", "The invite issuer no longer has authority for this organisation.", 403) };
   }
-  await env.DB.prepare(
-    "INSERT INTO org_invites (nonce,org_id,role,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,'pending',?)"
-  ).bind(payload.nonce, payload.org_id, role, payload.issuer_pub_fp, expiryTs, tMs).run();
+  await insertOrgInvite(env, {
+    nonce: payload.nonce,
+    org_id: payload.org_id,
+    role,
+    label: payload.label,
+    issuer_pub_fp: payload.issuer_pub_fp,
+    expiry_ts: expiryTs,
+    created_ts: tMs
+  });
   return {
     ok: true,
     result: {
@@ -1323,6 +1329,34 @@ async function executeVerifiedPendingAction(env, action) {
       nonce: payload.nonce
     }
   };
+}
+
+async function orgInvitesHasLabelColumn(env) {
+  try {
+    const info = await env.DB.prepare("PRAGMA table_info(org_invites)").all();
+    return (info.results || []).some(c => c.name === "label");
+  } catch (_) {
+    return false;
+  }
+}
+
+async function insertOrgInvite(env, invite) {
+  if (await orgInvitesHasLabelColumn(env)) {
+    return env.DB.prepare(
+      "INSERT INTO org_invites (nonce,org_id,role,label,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,?,'pending',?)"
+    ).bind(
+      invite.nonce,
+      invite.org_id,
+      invite.role,
+      String(invite.label || "").trim().slice(0, 120),
+      invite.issuer_pub_fp,
+      invite.expiry_ts,
+      invite.created_ts
+    ).run();
+  }
+  return env.DB.prepare(
+    "INSERT INTO org_invites (nonce,org_id,role,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,'pending',?)"
+  ).bind(invite.nonce, invite.org_id, invite.role, invite.issuer_pub_fp, invite.expiry_ts, invite.created_ts).run();
 }
 
 async function executeVerifiedCalendarAction(env, action) {
@@ -1823,15 +1857,31 @@ async function orgInviteCreate(request, env) {
   catch (_) { verifiedIssuer = null; }
   if (!verifiedIssuer) return inviteJsonError("invite_bad_signature", "Invite signature could not be verified.", 400);
 
-  await env.DB.prepare(
-    "INSERT INTO org_invites (nonce,org_id,role,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,'pending',?)"
-  ).bind(unsigned.nonce, issuer.org.id, allowedRole, issuer.user.pub_fp, Math.floor(Number(unsigned.expiry_ts)), tMs).run();
+  await insertOrgInvite(env, {
+    nonce: unsigned.nonce,
+    org_id: issuer.org.id,
+    role: allowedRole,
+    label: invite.label || body.label,
+    issuer_pub_fp: issuer.user.pub_fp,
+    expiry_ts: Math.floor(Number(unsigned.expiry_ts)),
+    created_ts: tMs
+  });
 
   return json({
     invite_qr: encodeInvitePayload(invite),
     expiry_ts: Math.floor(Number(unsigned.expiry_ts)),
     nonce: unsigned.nonce
   }, 201);
+}
+
+async function orgPendingInvites(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const tMs = Date.now();
+  const hasLabel = await orgInvitesHasLabelColumn(env);
+  const rows = await env.DB.prepare(
+    "SELECT nonce, role, " + (hasLabel ? "label" : "NULL AS label") + ", expiry_ts, created_ts FROM org_invites WHERE org_id=? AND status='pending' AND expiry_ts>? ORDER BY created_ts DESC"
+  ).bind(org.id, tMs).all();
+  return json({ ok: true, invites: rows.results || [] });
 }
 
 async function orgInviteRedeem(request, env) {
@@ -2213,13 +2263,14 @@ async function orgLeadAdminAppoint(request, env) {
   });
 }
 
-async function orgInviteRevoke(request, env) {
-  let body; try { body = await request.json(); } catch { return inviteJsonError("invalid_json", "Invalid JSON.", 400); }
+async function orgInviteRevoke(request, env, nonceOverride) {
+  let body = {};
+  try { body = await request.json(); } catch (_) { body = {}; }
   const orgId = String(body.org_id || body.orgId || "").trim();
   if (!orgId) return inviteJsonError("org_id_required", "Organisation id is required.", 400);
   const issuer = await requireOrgInviteIssuer(request, env, orgId);
   if (issuer.error) return issuer.error;
-  const nonce = String(body.nonce || "").trim();
+  const nonce = String(nonceOverride || body.nonce || "").trim();
   if (!nonce) return inviteJsonError("nonce_required", "Invite nonce is required.", 400);
   const result = await env.DB.prepare(
     "UPDATE org_invites SET status='revoked' WHERE nonce = ? AND org_id = ? AND status = 'pending'"
@@ -3892,6 +3943,33 @@ async function rowsForWeeklyEvents(env, orgId, filters = {}) {
   ));
 }
 
+async function orgCurrentEvent(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const nowDate = new Date();
+  const dayOfWeek = nowDate.getUTCDay() === 0 ? 7 : nowDate.getUTCDay();
+  const timeStr = nowDate.toTimeString().slice(0, 5);
+  const row = await env.DB.prepare(
+    `SELECT id, name, room_id, start_time_local, duration_min
+     FROM weekly_events
+     WHERE org_id=?
+       AND day_of_week=?
+       AND start_time_local<=?
+       AND archived_at IS NULL
+     ORDER BY start_time_local DESC
+     LIMIT 1`
+  ).bind(org.id, dayOfWeek, timeStr).first();
+  if (!row) return json({ ok: true, event: null });
+
+  const [h, m] = String(row.start_time_local || "00:00").split(":").map(Number);
+  const [ch, cm] = timeStr.split(":").map(Number);
+  const startMin = (Number(h) || 0) * 60 + (Number(m) || 0);
+  const nowMin = ch * 60 + cm;
+  const durationMin = Number(row.duration_min || 60);
+  if (nowMin >= startMin + durationMin) return json({ ok: true, event: null });
+
+  return json({ ok: true, event: row });
+}
+
 async function orgRoomsList(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   const staff = await requireCalendarStaff(request, env, org);
@@ -4708,8 +4786,12 @@ export default {
       else if (method === "POST" && path === "/org/action/claim")    response = await orgActionClaim(request, env);
       // v5.9.14 — staff-invite QR endpoints (Brief A).
       else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
+      else if (method === "GET"  && path === "/org/invites/pending") response = await orgPendingInvites(request, env);
       else if (method === "POST" && path === "/org/invites/redeem")  response = await orgInviteRedeem(request, env);
       else if (method === "POST" && path === "/org/invites/revoke")  response = await orgInviteRevoke(request, env);
+      else if (method === "POST" && /^\/org\/invites\/[^/]+\/revoke$/.test(path)) {
+        response = await orgInviteRevoke(request, env, decodeURIComponent(path.match(/^\/org\/invites\/([^/]+)\/revoke$/)[1]));
+      }
       else if (method === "POST" && path === "/org/invite/accept-on-this-device") response = await orgInviteAcceptOnThisDevice(request, env);
       else if (method === "POST" && path === "/org/lead-admin/appoint") response = await orgLeadAdminAppoint(request, env);
       else if (method === "GET"  && path === "/org/public-meta")     response = await orgPublicMeta(request, env);
@@ -4729,6 +4811,7 @@ export default {
       else if (method === "GET"  && path === "/org/qr")              response = await orgGetQR(request, env);
       else if (method === "GET"  && path === "/org/recognize")       response = await orgRecognize(request, env);
       else if (method === "GET"  && path === "/org/active-checkin")  response = await orgActiveCheckin(request, env);
+      else if (method === "GET"  && path === "/org/current-event")   response = await orgCurrentEvent(request, env);
       else if (method === "POST" && path === "/org/staff/auth")      response = await orgStaffAuth(request, env);
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
