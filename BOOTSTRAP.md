@@ -89,6 +89,25 @@ You: read source files, draft new content, edit in place. Captain: reviews diffs
 
 ---
 
+## 3. Emergency recovery — bootstrap fingerprint
+
+**Captain's 8 Pro pub_fp (current):** `H-b2OS4e7zuhNx1r`
+
+This is the short public-key fingerprint that BOOTSTRAP_DEVELOPER_FP must contain for the 8 Pro to have Developer access to the org portal. It is NOT a secret — it's a public key hash, safe to commit here.
+
+If locked out (cleared site data, new credential, wrong fp in secret), recovery is:
+1. Go to `irlid.co.uk/v5-test.html` on the 8 Pro → Show fingerprint → confirm fp matches the above
+2. If it matches but you're locked out: the secret is wrong. Run:
+   ```powershell
+   "H-b2OS4e7zuhNx1r" | npx wrangler secret put BOOTSTRAP_DEVELOPER_FP --cwd "D:\SkyDrive\Pen Drive\WEBSITES\IRLid-repo\irlid-api-org"
+   ```
+3. If the fp has CHANGED (device credential regenerated): update the value above AND run the command with the new fp.
+4. Sign out of `irlid.co.uk/Org` and sign back in via QR scan.
+
+**NEVER clear Chrome site data on the 8 Pro** unless you're prepared to run step 2-3 immediately.
+
+---
+
 ## 3. The repos
 
 There are TWO repos for the IRLid project:

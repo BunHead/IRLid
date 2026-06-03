@@ -1,5 +1,24 @@
 # Pending Work — IRLid
 
+## 3 June 2026 — evening (closing watch, full checklist set)
+
+**Bootstrap fp banked in BOOTSTRAP.md §3:** `H-b2OS4e7zuhNx1r` — recovery procedure documented, safe to commit.
+
+**Wisdom meeting today:** Drones have 1080p cameras + basic GPS, fly at 20-150m. Humanitarian/drone delivery is v6 work, deferred to July. Key architectural note: current Haversine check is 2D only — drone altitude means a 50m-up drone directly above a recipient reads as 50m away. Drone delivery needs a separate signed-delivery mode, not the mutual phone handshake.
+
+**Full checklist established (Tasks 5-16):**
+- Tasks 5-7: D1 cleanup + SYNCING pill (immediate, Captain)
+- Task 8: Bootstrap fp in BOOTSTRAP.md ✅ DONE
+- Task 9: wrangler deploy for v6.1.11 Worker endpoint
+- Tasks 10-13: Data briefs (debug panels, check-in title, expected_ids error, modal auto-close)
+- Task 14: attendance progress bar brief (Number One to write)
+- Task 15: Patreon post (Captain's voice)
+- Task 16: Sync org receipts to consumer account history
+
+**Session note:** Long and expensive day (£9.71). Tomorrow: batch questions, use Data for implementation, keep sessions short and focused.
+
+---
+
 ## 3 June 2026 — morning (v6.1.13 LIVE; per-event attendance closed)
 
 **State:** v6.1.13 deployed. Per-event attendance end-to-end: Check-in tab shows "Now: [event name]" badge, QR contains event_id, org-entry.html passes event_id to Worker, org_checkins stores it, event Edit modal shows CHECKED IN. Full loop verified pending final scan confirmation.
