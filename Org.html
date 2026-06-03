@@ -3308,7 +3308,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.13</span></div>
   </div>
 </div>
 
@@ -7241,6 +7241,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var currentView = 'list';
             var liveRooms = [];
             var liveExpected = [];
+            var liveEvents = [];
             function orgApiBaseUrl() { return window.IRLidOrgApi?.workerBaseUrl ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'') : 'https://irlid-api-org.irlid-bunhead.workers.dev'; }
             async function calendarSigned(fields) {
               if (typeof signActionPayload !== 'function') throw new Error('Hardware-backed action signing unavailable');
@@ -7285,30 +7286,35 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               ]);
               liveRooms = (payload[0].rooms || []).map(function (r, ix) { return { id: r.id, label: r.label || ('Room ' + (ix + 1)), subname: r.subname || '', capacity: parseInt(r.capacity || '0', 10) || 0 }; });
               liveExpected = (payload[1].expected || []).map(normalizeExpectedRow).filter(function (p) { return p.id && p.name; });
-              state.events = (payload[2].events || []).map(function (ev) {
+              liveEvents = (payload[2].events || []).map(function (ev) {
                 return Object.assign({}, ev, {
                   expected_ids: Array.isArray(ev.expected_ids) ? ev.expected_ids : [],
                   color_hex: ev.color_hex || (ROOM_META[ev.room_id] && ROOM_META[ev.room_id].color) || '#1f6feb'
                 });
               });
+              state.events = liveEvents.slice();
               saveRoomsState(liveRooms);
               saveOrgExpectedState(liveExpected);
               saveWeeklyState();
               renderAll();
-              try { if (typeof generateVenueQR === 'function') generateVenueQR(); } catch (_) {}
+              try {
+                if (typeof refreshCurrentEventQr === 'function') refreshCurrentEventQr();
+                else if (typeof generateVenueQR === 'function') generateVenueQR();
+              } catch (_) {}
               if (options.toast) showGlobalSavedToast(options.toast);
             }
             window.refreshV511CalendarData = refreshLiveCalendar;
-            window.v511GetActiveCalendarEvent = function () {
-              var today = dayOfWeekForDate(new Date());
-              var mins = (new Date()).getHours() * 60 + (new Date()).getMinutes();
-              var todaysEvents = (state.events || []).filter(function (ev) { return Number(ev.day_of_week) === today; });
+            window.v511GetActiveCalendarEvent = function (now) {
+              var localNow = now || new Date();
+              var today = dayOfWeekForDate(localNow);
+              var mins = localNow.getHours() * 60 + localNow.getMinutes();
+              var events = (liveEvents && liveEvents.length) ? liveEvents : (state.events || []);
+              var todaysEvents = events.filter(function (ev) { return Number(ev.day_of_week) === today; });
               var active = todaysEvents.find(function (ev) {
                 var start = minutesFromTime(ev.start_time_local);
-                var end = start + (Number(ev.duration_min) || 0) + (Number(ev.late_grace_min) || 0);
-                return mins >= start && mins <= end;
+                var end = start + (Number(ev.duration_min) || 0);
+                return mins >= start && mins < end;
               });
-              if (!active) active = todaysEvents.filter(function (ev) { return minutesFromTime(ev.start_time_local) >= mins; }).sort(function (a, b) { return minutesFromTime(a.start_time_local) - minutesFromTime(b.start_time_local); })[0] || todaysEvents[0] || null;
               return active ? { id: active.id, name: active.name } : null;
             };
             function pad2(n) { return String(n).padStart(2, '0'); }
@@ -13339,12 +13345,6 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 // =================================================================== /Batch B
-function currentEventApiBaseUrl() {
-  return window.IRLidOrgApi?.workerBaseUrl
-    ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'')
-    : 'https://irlid-api-org.irlid-bunhead.workers.dev';
-}
-
 function normaliseCheckinEventContext(eventId, eventName) {
   const id = String(eventId || '').trim();
   return {
@@ -13358,18 +13358,6 @@ function activeCheckinEventContext(explicitContext) {
   if (explicitContext) return normaliseCheckinEventContext(explicitContext.eventId, explicitContext.eventName);
   if (currentCheckinEventContext?.orgKey === currentOrg?.api_key) return currentCheckinEventContext;
   return normaliseCheckinEventContext(null, null);
-}
-
-async function fetchCurrentCheckinEvent() {
-  if (!currentOrg?.api_key) throw new Error('No organisation loaded');
-  const token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
-  const headers = { 'X-Org-Key': currentOrg.api_key };
-  if (token) headers.Authorization = 'Bearer ' + token;
-  const response = await fetch(currentEventApiBaseUrl() + '/org/current-event', { headers });
-  let data = null;
-  try { data = await response.json(); } catch (_) {}
-  if (!response.ok) throw new Error((data && (data.error || data.message)) || ('Request failed with status ' + response.status));
-  return data || {};
 }
 
 function updateCurrentEventBadge(eventName) {
@@ -13387,22 +13375,20 @@ function updateCurrentEventBadge(eventName) {
   badge.textContent = eventName ? ('Now: ' + eventName) : 'No event running';
 }
 
-async function refreshCurrentEventQr() {
+function refreshCurrentEventQr() {
   if (!currentOrg?.api_key) {
     currentCheckinEventContext = normaliseCheckinEventContext(null, null);
     updateCurrentEventBadge(null);
     return;
   }
-  try {
-    const res = await fetchCurrentCheckinEvent();
-    const next = normaliseCheckinEventContext(res.event?.id, res.event?.name);
-    const prev = currentCheckinEventContext || {};
-    if (next.eventId !== prev.eventId || next.eventName !== prev.eventName || next.orgKey !== prev.orgKey) {
-      currentCheckinEventContext = next;
-      generateVenueQR(next);
-    }
-    updateCurrentEventBadge(next.eventName);
-  } catch (_) {}
+  const activeEvent = (typeof window.v511GetActiveCalendarEvent === 'function') ? window.v511GetActiveCalendarEvent() : null;
+  const next = normaliseCheckinEventContext(activeEvent?.id, activeEvent?.name);
+  const prev = currentCheckinEventContext || {};
+  if (next.eventId !== prev.eventId || next.eventName !== prev.eventName || next.orgKey !== prev.orgKey) {
+    currentCheckinEventContext = next;
+    generateVenueQR(next);
+  }
+  updateCurrentEventBadge(next.eventName);
 }
 
 function startCurrentEventQrPolling() {
