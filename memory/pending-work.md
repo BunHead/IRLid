@@ -1,5 +1,27 @@
 # Pending Work — IRLid
 
+## 3 June 2026 — morning (v6.1.13 LIVE; per-event attendance closed)
+
+**State:** v6.1.13 deployed. Per-event attendance end-to-end: Check-in tab shows "Now: [event name]" badge, QR contains event_id, org-entry.html passes event_id to Worker, org_checkins stores it, event Edit modal shows CHECKED IN. Full loop verified pending final scan confirmation.
+
+**Shipped this morning (all direct to origin/main):**
+- `v6.1.11+12` (combined): pending invitees + current event QR infrastructure (Worker endpoints + frontend polling)
+- `v6.1.13`: `v511GetActiveCalendarEvent()` switched to browser local time — fixed UTC/BST timezone bug
+- `v6.1.13` addendum: `event_id` added to `postOrg("/org/checkin")` POST body in `org-entry.html` — the missing link for per-event attendance
+
+**Still queued (Data briefs ready):**
+- `v6.1.10` modal auto-close — Data's changes exist only in his Codex workspace (`C:/Users/spenc/Documents/Codex/...`), never landed in real repo. Small fix when convenient.
+- `HANDOVER-AttendanceProgress-v6.1.14.md` — attendance progress bar + late arrival markers (5/10/15 min) — Number One to write brief
+- Receptionist model (single entrance QR, routes attendees to correct room) — design brief when ready
+- Patreon v6 announcement — `PATREON-V6-DRAFT.md` ready for Captain's voice
+
+**Known minor:**
+- `expected_ids_not_found` on phone calendar approval — event saves, ugly error only
+- Pending invitees (v6.1.11) needs wrangler deploy to activate Worker endpoint
+- Brand Identity section DESIGN-IN (not backed to D1 yet)
+
+---
+
 ## 2 June 2026 — afternoon (v6.1.9 LIVE; three Data PRs in flight)
 
 **State:** v6.1.9 deployed and smoked. Calendar event-create working end-to-end via cross-device QR auth (desktop → phone → Approve → event appears). Check-in/check-out clean. +Invite Staff working. Receipt bridge verified. Build pill v6.1.9, SW cache v90.
