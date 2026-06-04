@@ -1383,8 +1383,7 @@ async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
   ev.id = cleanOptionalText(ev.id, 90) || newEventId();
   const inputError = validateEventInput(ev);
   if (inputError) return { error: err(inputError) };
-  const expectedCheck = await ensureExpectedIdsForOrg(env, orgId, createBody.expected_ids || []);
-  if (!expectedCheck.ok) return { error: json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400) };
+  const expectedCheck = await calendarActionExpectedIdsForOrg(env, orgId, createBody.expected_ids || [], "create");
   const t = now();
   const statements = [
     env.DB.prepare(
@@ -1411,8 +1410,7 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
   ev.id = id;
   const inputError = validateEventInput(ev);
   if (inputError) return { error: err(inputError) };
-  const expectedCheck = body.expected_ids !== undefined ? await ensureExpectedIdsForOrg(env, orgId, body.expected_ids) : null;
-  if (expectedCheck && !expectedCheck.ok) return { error: json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400) };
+  const expectedCheck = body.expected_ids !== undefined ? await calendarActionExpectedIdsForOrg(env, orgId, body.expected_ids, "update") : null;
   const statements = [
     env.DB.prepare(
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
@@ -3898,6 +3896,16 @@ async function ensureExpectedIdsForOrg(env, orgId, ids) {
   const missing = unique.filter(id => !found.has(id));
   if (missing.length) return { ok: false, missing };
   return { ok: true, ids: unique };
+}
+
+async function calendarActionExpectedIdsForOrg(env, orgId, ids, calendarAction) {
+  const check = await ensureExpectedIdsForOrg(env, orgId, ids);
+  if (check.ok) return check;
+  const missing = new Set(check.missing || []);
+  const kept = Array.from(new Set((ids || []).map(id => String(id || "").trim()).filter(Boolean)))
+    .filter(id => !missing.has(id));
+  console.warn(`[calendarActionExpectedIdsForOrg] ${calendarAction || "write"} ignored missing expected_ids: ${Array.from(missing).join(",")}`);
+  return { ok: true, ids: kept, missing: check.missing || [] };
 }
 
 function eventResponse(row, expectedIds) {
