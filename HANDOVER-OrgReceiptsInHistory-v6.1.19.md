@@ -30,8 +30,14 @@ a later, bigger piece. Don't attempt it here.
 ```
 
 ## What to build (in `receipt.html`)
-1. Helper `getLocalOrgReceipts()` → parse `irlid_org_receipts`, return array (newest first by
-   `created_at`), dedup by `receipt_id`, tolerate missing/corrupt JSON (return `[]`).
+1. Helper `getLocalOrgReceipts()` → parse `irlid_org_receipts`, tolerate missing/corrupt JSON
+   (return `[]`), dedup by `receipt_id`, then **collapse to ONE entry per `event_id`**
+   (Captain's refinement: an attendee needs *one* receipt per event — their attendance span,
+   first check-in / last check-out — not one per scan). For each `event_id` group keep a single
+   display entry: link to the **most recent** receipt for that event (`created_at` max), but
+   label it with the event + the span (earliest `created_at` as first-in; if a check-out receipt
+   exists in the group, its time as last-out). Entries with no `event_id` (general venue
+   check-ins) stay as individual entries. Sort the resulting list newest-first.
 2. In the receipts-list load path (around `loadReceipts` / the P2P list render ~L1350-1392),
    **also render the org receipts** as their own labelled group — a small header like
    **"Your check-ins"** above the list (keep provenance clear; don't silently merge with P2P).
