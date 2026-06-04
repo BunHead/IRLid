@@ -949,6 +949,7 @@ body.audit-mode #panel-dashboard #panelDashboardIntro,
 body.audit-mode #panel-dashboard .stats-row,
 body.audit-mode #panel-dashboard #dashboardStaffScanCard,
 body.audit-mode #panel-dashboard details,
+body.audit-mode #developerDiagnosticsPanel { display: none !important; }
 body.audit-mode .main { margin-left: 0 !important; }
 body.audit-mode .content { padding: 0 !important; max-width: none !important; }
 body.audit-mode #panel-dashboard { display: block !important; padding: 0 !important; }
@@ -3325,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.18</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.22</span></div>
   </div>
 </div>
 
@@ -3495,7 +3496,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <tbody id="attendanceRows"></tbody>
           </table>
         </div>
-        <details class="dashboard-collapsible" data-min-role="developer">
+        <details class="dashboard-collapsible" id="developerDiagnosticsPanel" data-min-role="developer">
           <summary>Developer diagnostics</summary>
           <div class="debug-maintenance">
             <div>
@@ -3879,11 +3880,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-cap-text.v511-cap-high { color: #a06700; }
         :root[data-theme="light"] .v511-cap-text.v511-cap-over { color: #b62324; }
         /* T4.3.59 — Expected list modal section. */
-        .v511-row-stack { flex-direction: column; align-items: stretch; gap: 6px; }
+        .v511-row-stack { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
         .v511-row-stack > label { font-weight: 600; }
         .v511-event-day-readonly { font-weight: 600; color: var(--text); }
         .v511-expected-block { display: flex; flex-direction: column; gap: 8px; }
-        .v511-expected-suggestions { display: flex; flex-direction: column; gap: 3px; max-height: 200px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px; background: rgba(0,0,0,0.18); }
+        .v511-expected-scroll { height: 200px; max-height: 200px; overflow-y: auto; scrollbar-gutter: stable; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px; background: rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 8px; }
+        .v511-expected-suggestions { display: flex; flex-direction: column; gap: 3px; }
         .v511-expected-suggestion { display: flex; align-items: center; gap: 8px; padding: 5px 8px; background: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; text-align: left; font-family: inherit; font-size: 12px; color: var(--text); }
         .v511-expected-suggestion:hover { background: rgba(105, 168, 255, 0.1); border-color: rgba(105, 168, 255, 0.3); }
         .v511-expected-suggestion.is-selected { background: rgba(31, 111, 235, 0.18); color: #c8e0ff; border-color: rgba(31, 111, 235, 0.45); }
@@ -3903,7 +3905,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-expected-chip[data-role="manager"] { background: rgba(186, 117, 23, 0.22); color: #fac775; border-color: rgba(186, 117, 23, 0.45); }
         .v511-expected-chip-remove { background: transparent; border: 0; color: inherit; cursor: pointer; padding: 0; font-size: 14px; line-height: 1; opacity: 0.7; margin-left: 2px; }
         .v511-expected-chip-remove:hover { opacity: 1; }
-        :root[data-theme="light"] .v511-expected-suggestions { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-expected-scroll { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-attendance-log { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-expected-suggestion { color: #0a0a0a; }
         :root[data-theme="light"] .v511-expected-suggestion:hover { background: rgba(31, 111, 235, 0.1); border-color: rgba(31, 111, 235, 0.3); }
@@ -4038,7 +4040,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-week-list-head { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; background: rgba(11,18,32,0.94); position: sticky; top: 0; z-index: 2; }
         .v511-event-modal-backdrop { position: fixed; inset: 0; z-index: 100020; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,0.56); }
         .v511-event-modal-backdrop[hidden] { display: none; }
-        .v511-event-modal { width: min(520px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,0.46); padding: 16px; }
+        .v511-event-modal { width: min(880px, 100%); max-height: calc(100dvh - 36px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 24px 70px rgba(0,0,0,0.46); padding: 16px; }
+        .v511-event-modal-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr); gap: 14px; align-items: start; }
         .v511-event-day-chips { display: flex; gap: 5px; flex-wrap: wrap; }
         .v511-event-day-chips .v511-day-chip[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); color: var(--text); font-weight: 700; }
         .v511-expander { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0; margin-top: 12px; }
@@ -5677,6 +5680,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           .v511-anim-row,
           .v512-brand-grid,
           .v512-brand-grid .v511-row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+          .v511-event-modal-grid { grid-template-columns: 1fr; }
           .v511-row > label,
           .v511-anim-row > label { width: auto; }
           .v511-cel-library,
@@ -6622,15 +6626,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label for="v511EventRoom" id="v511EventRoomLabel">Room</label><select id="v511EventRoom"></select></div>
               <div class="v511-row"><label for="v511EventStart">Start time</label><input type="time" id="v511EventStart" /></div>
               <div class="v511-row"><label for="v511EventDuration">Duration (min)</label><input type="number" id="v511EventDuration" min="15" step="15" /></div>
-              <!-- T4.3.59 — Expected list (Option C): multi-select from org_expected with inline add-new. -->
-              <div class="v511-row v511-row-stack"><label>Expected <span class="v511-hint-inline" id="v511EventExpectedCount">(0 selected)</span></label>
-                <div class="v511-expected-block">
-                  <input type="text" id="v511EventExpectedSearch" placeholder="Search names or type a new one..." autocomplete="off" />
-                  <div class="v511-expected-suggestions" id="v511EventExpectedSuggestions" role="listbox" aria-label="Expected suggestions"></div>
-                  <div class="v511-expected-selected" id="v511EventExpectedSelected" role="list" aria-label="Currently selected expected"></div>
+              <div class="v511-event-modal-grid">
+                <!-- T4.3.59 — Expected list (Option C): multi-select from org_expected with inline add-new. -->
+                <div class="v511-row v511-row-stack"><label>Expected <span class="v511-hint-inline" id="v511EventExpectedCount">(0 selected)</span></label>
+                  <div class="v511-expected-block">
+                    <input type="text" id="v511EventExpectedSearch" placeholder="Search names or type a new one..." autocomplete="off" />
+                    <div class="v511-expected-scroll">
+                      <div class="v511-expected-suggestions" id="v511EventExpectedSuggestions" role="listbox" aria-label="Expected suggestions"></div>
+                      <div class="v511-expected-selected" id="v511EventExpectedSelected" role="list" aria-label="Currently selected expected"></div>
+                    </div>
+                  </div>
                 </div>
+                <div class="v511-row v511-row-stack"><label>Attendance</label><div class="v511-expected-block" id="v511EventAttendancePanel">Save the event, then check-ins for this event will appear here.</div></div>
               </div>
-              <div class="v511-row v511-row-stack"><label>Attendance</label><div class="v511-expected-block" id="v511EventAttendancePanel">Save the event, then check-ins for this event will appear here.</div></div>
               <div class="v511-save">
                 <button type="button" class="v511-btn" id="v511EventDeleteBtn">Delete</button>
                 <button type="button" class="v511-btn" id="v511EventCancelBtn">Cancel</button>
