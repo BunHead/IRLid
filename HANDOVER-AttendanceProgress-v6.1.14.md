@@ -60,6 +60,15 @@ legible and stay compact as it grows:
 - Times use **browser local time** (same rule as Fix 2).
 - EXPECTED-only rows (no check-in yet) keep showing as EXPECTED with no time.
 
+## Fix 4 — Expected attendee list also scrollable (same modal)
+
+The **Expected** attendee picker/list in the Add/Edit-event modal grows with the number of
+people added (the selected-chips area + the suggestion list). Apply the same treatment so
+the modal never blows out: wrap the selected-attendee chips area (and the suggestion
+dropdown) in a **fixed-height (~200px), vertically scrollable** container. Keep the
+"Search names or type a new one" input pinned/visible above it so adding more is always
+reachable without scrolling.
+
 ## Discovery pointers
 - `grep` for the Dashboard attendance render in `Org.html` (the function that builds the
   attendance rows / "Attendance Today" table) — that's where both the bar (header) and the
