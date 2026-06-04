@@ -106,6 +106,35 @@ If locked out (cleared site data, new credential, wrong fp in secret), recovery 
 
 **NEVER clear Chrome site data on the 8 Pro** unless you're prepared to run step 2-3 immediately.
 
+### Device-change playbook — keeping Developer access across a changing device
+
+The fingerprint is device-bound *by design* — the WebAuthn key lives in the phone's
+secure element and can never be extracted, so a new device/credential is genuinely a new
+key and a new `pub_fp`. You cannot make a new device inherit the old fingerprint. The
+durable anchor is the **`BOOTSTRAP_DEVELOPER_FP` Worker secret**, which:
+
+- Is an **allowlist** — comma-separated, multiple fps authorised at once
+  (e.g. `"H-b2OS4e7zuhNx1r,<new-fp>"`).
+- Is **rotatable from the Cloudflare account via `wrangler`, independent of any device** —
+  so total device loss is never a permanent lockout; enrol a fresh device, read its fp off
+  `v5-test.html`, `wrangler secret put` the new value.
+
+**On any new or re-enrolled device:** `v5-test.html` → Show fingerprint → **ADD** it to the
+secret (don't replace), confirm the new device works, then prune the old fp. Record each
+device's fp under §3 above.
+
+**The real root of trust is now the Cloudflare account** (`sr.austin@btinternet.com`), not
+any phone. Whoever holds that login can rotate Developer authority. Hardening status
+(4 June 2026): security-key 2FA (Windows Hello) **active**, backup codes saved. Keep those
+backup codes somewhere recoverable — they are the fallback if the desktop Hello is
+unavailable. The "after me" succession model is `LONG-TERM-SUCCESSION.md` (quorum); the
+practical near-term legacy step is ensuring a trusted person could reach the Cloudflare
+account in an emergency.
+
+**Second anchor (optional, belt-and-braces):** a `developer` row in `org_memberships` for
+your `portal_users` id grants Developer on that org independent of the secret. Check with:
+`SELECT user_id, org_id, role FROM org_memberships WHERE user_id='<your portal_users id>';`
+
 ---
 
 ## 3. The repos

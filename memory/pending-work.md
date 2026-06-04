@@ -1,5 +1,33 @@
 # Pending Work — IRLid
 
+## 4 June 2026 — morning (focused, low-cost watch on Pro)
+
+**Shipped / done:**
+- `v6.1.11` Worker **deployed** (pending-invitees endpoint live) — Version `d8e5ed25`.
+- `v6.1.15` expected_ids tolerant fix **deployed** — Version `7a33b485`. PR #85 (✅ ACCEPT, bash-diffed +12/−4 Worker-only) — Captain merging.
+- **D1 cleanup done** — 10 dud `portal_users` (5 Becky + 5 "New member") purged with their memberships/sessions, scoped by `display_name`; Developer rows untouched. Attendance/receipts left immutable.
+- **SYNCING pill** was the IRLid-offline indicator — already fixed; dropped from queue.
+- **Cloudflare hardening:** security-key 2FA (Windows Hello) **active** on `sr.austin@btinternet.com`, backup codes saved. Device-change playbook inscribed in BOOTSTRAP §3.
+- Bootstrap fp confirmed current: `H-b2OS4e7zuhNx1r` (`portal_users` id `tzY2w3bv3AtB8OKRyyHytfi6Q0`, Developer (Super-Admin)).
+
+**Mr. Data PRs in flight:**
+- **PR #86** `codex/v6.1.10-modal-auto-close-v2` — modal auto-close, mergeable, ✅ code ACCEPT. **Caveat: build pill regresses v6.1.13→v6.1.10** — one-line fix queued (bump to v6.1.14) before merge.
+- **PR #85** expected_ids — merge + `wrangler deploy`.
+
+**Briefs paste-ready (queued for Data):**
+- `HANDOVER-CheckinTitleAndDebugGate-v6.1.16.md` — (10) global debug gate default-OFF via Tools & Diagnostics toggle + (11) Check-in title "Venue — Event". Run off fresh main AFTER modal merges (both touch Org.html).
+- `HANDOVER-ExpectedIdsError-v6.1.15.md` — shipped as #85.
+- `HANDOVER-ModalAutoClose-v6.1.10.md` — shipped as #86 (v2).
+
+**Two old Developer `portal_users` rows still present** (`n4FzIhV_1jc2u_HO`, `TvklFsivZk68R67j`) — Captain's previous bootstrap fps, inert. Keep-as-history vs purge: Captain's call, undecided.
+
+**Still open from the 3 June checklist:**
+- Task 14 — attendance progress bar + late-arrival markers (5/10/15 min): Number One to write `HANDOVER-AttendanceProgress-v6.1.14.md`.
+- Task 15 — Patreon v6 post (`PATREON-V6-DRAFT.md`, Captain's voice).
+- Task 16 — org receipts → consumer account history (Number One to spec).
+
+---
+
 ## 3 June 2026 — evening (closing watch, full checklist set)
 
 **Bootstrap fp banked in BOOTSTRAP.md §3:** `H-b2OS4e7zuhNx1r` — recovery procedure documented, safe to commit.
