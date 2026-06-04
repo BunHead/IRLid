@@ -6,6 +6,25 @@
 
 ---
 
+## Anchor system — status + ease assessment (Number One, 4 June 2026)
+
+The **basic** background-image anchor (Outer/Centre/Inner depth + 9-cell position grid,
+v5.7.1w) is **shipped and works in live `Org.html`**. The **advanced** anchor system (the Rev 9
+design — drag-crosshairs → live offset sliders, Active Anchors list, per-anchor offset+direction,
+magnet-snap, inverted-Y axis) is **PARKED and not in live** — it lived in the mockup, and its
+working code was in a stash likely lost to an old `reset --hard` (per memory). So this is a
+**re-build from the locked Rev 9 design**, not a port.
+
+**Ease: medium, bounded.** No design work (Rev 9 locked). No architectural unknowns. Two genuinely
+fiddly spots: (1) **Y-axis vertical-slider CSS** — `::-webkit-slider-runnable-track` won't take
+the gradient on WebKit verticals; needs a workaround. (2) **True symmetry-mirror** — CSS can't
+flip a `background-image` per-layer, so it needs **canvas pre-processing** (the hardest sub-piece).
+The drag→offset + magnet-snap is standard fiddly UI. **Not demo-critical** (visual polish) — keep
+parked until governance work (v6.2.0/v6.3.0) + easy wins are through, then un-park as a dedicated
+session alongside Brand-Identity wiring (same neighbourhood).
+
+---
+
 ## ⚠️ READ THIS REV 9 SUPPLEMENT FIRST ⚠️
 
 The mockup has gone through Rev 2 → Rev 9 since this brief was first drafted. The original sections (Brand Identity / Colour & Background / QR Appearance / Check-in/out Experience / Post-Accept Flow) are still correct — keep them. BUT Section 4 (Check-in/out Experience) has substantial new architecture, and there are several locked design decisions that supersede earlier guidance. **Read this supplement first**, then read the original brief below for the section-level details.
