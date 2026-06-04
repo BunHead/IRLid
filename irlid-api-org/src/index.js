@@ -2702,7 +2702,7 @@ async function orgUpdateSettings(request, env) {
       "default_duration","checkout_grace","late_grace_before","late_grace_after",
       "working_hours_start","working_hours_end","breaks_count",
       "break_1_start","break_1_end","break_2_start","break_2_end","break_3_start","break_3_end",
-      "min_trust_score","privacy_mode","require_proof","week_starts_on",
+      "min_trust_score","privacy_mode","require_proof","auto_checkout","week_starts_on",
       "room_vocabulary_singular","room_vocabulary_plural"
     ];
     const out = {};
@@ -2740,6 +2740,12 @@ async function orgUpdateSettings(request, env) {
       out[key] = val;
       return null;
     }
+    function calBool(key) {
+      if (cd[key] === undefined) return null;
+      if (typeof cd[key] !== "boolean") return "calendar_defaults." + key + " must be a boolean";
+      out[key] = cd[key];
+      return null;
+    }
     for (const key of Object.keys(cd)) {
       if (!allowedCalKeys.includes(key)) return err("calendar_defaults has unknown key: " + key);
     }
@@ -2760,6 +2766,7 @@ async function orgUpdateSettings(request, env) {
       calInt("min_trust_score", 100) ||
       calEnum("privacy_mode", ["standard", "redacted_gps"]) ||
       calEnum("require_proof", ["off", "optional", "required"]) ||
+      calBool("auto_checkout") ||
       calWeekStart("week_starts_on") ||
       calText("room_vocabulary_singular") ||
       calText("room_vocabulary_plural");
@@ -3711,6 +3718,7 @@ async function orgAttendance(request, env) {
     }
   }
   if (eventId && !hasCheckinColumn("event_id")) eventId = null;
+  await autoCheckoutAfterEventGrace(env, org, checkinColumns);
   // v5.11.2 - `since` is honoured if passed (client convention: local midnight today
   // as unix epoch). Fallback to 24h sliding window for legacy / unauth'd callers
   // only; the dashboard always passes since explicitly.
@@ -3730,7 +3738,7 @@ async function orgAttendance(request, env) {
   const receiptSelect = receiptJoin ? "r.id AS receipt_id" : "NULL AS receipt_id";
   const checkoutMethodSelect =
     hasCheckinColumn("checkout_signature") && hasCheckinColumn("checkout_method")
-      ? "CASE WHEN c.checkout_at IS NOT NULL AND c.checkout_signature IS NOT NULL THEN 'signed' WHEN c.checkout_at IS NOT NULL THEN 'legacy_button' ELSE c.checkout_method END AS checkout_method"
+      ? "CASE WHEN c.checkout_at IS NOT NULL AND c.checkout_signature IS NOT NULL THEN 'signed' WHEN c.checkout_at IS NOT NULL AND c.checkout_method IS NOT NULL THEN c.checkout_method WHEN c.checkout_at IS NOT NULL THEN 'legacy_button' ELSE c.checkout_method END AS checkout_method"
       : hasCheckinColumn("checkout_method")
         ? "c.checkout_method AS checkout_method"
         : "NULL AS checkout_method";
@@ -3793,6 +3801,78 @@ async function orgAttendance(request, env) {
     expected_only: true
   }));
   return json({ checkins: checkins.concat(expectedRows), stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+}
+
+async function autoCheckoutAfterEventGrace(env, org, checkinColumns) {
+  if (!checkinColumns.has("event_id") || !checkinColumns.has("checkout_at") || !checkinColumns.has("checkout_method")) return;
+  let settings = {};
+  try { settings = JSON.parse(org.settings_json || "{}"); } catch (_) { settings = {}; }
+  const defaults = settings.calendar_defaults || {};
+  if (defaults.auto_checkout !== true) return;
+
+  const graceMin = boundedInteger(defaults.checkout_grace, 0, 1440, 60);
+  const activeRows = await env.DB.prepare(
+    `SELECT c.id,c.checkin_at,c.event_id,e.day_of_week,e.start_time_local,e.duration_min
+     FROM org_checkins c
+     JOIN weekly_events e ON e.id=c.event_id AND e.org_id=c.org_id AND e.archived_at IS NULL
+     WHERE c.org_id=?
+       AND c.checkout_at IS NULL
+       AND c.event_id IS NOT NULL
+       AND COALESCE(c.status,'checked_in') NOT IN ('invalid','conflict')`
+  ).bind(org.id).all();
+
+  const t = now();
+  const statements = [];
+  for (const row of (activeRows.results || [])) {
+    const checkoutAt = eventCheckoutGraceEpoch(row, graceMin);
+    if (!checkoutAt || t < checkoutAt) continue;
+    const duration = Math.max(0, checkoutAt - (Number(row.checkin_at) || checkoutAt));
+    if (checkinColumns.has("duration_s") && checkinColumns.has("checkout_ts")) {
+      statements.push(env.DB.prepare(
+        "UPDATE org_checkins SET checkout_at=?, duration_s=?, checkout_ts=?, checkout_method='auto' WHERE id=? AND org_id=? AND checkout_at IS NULL"
+      ).bind(checkoutAt, duration, checkoutAt, row.id, org.id));
+    } else if (checkinColumns.has("duration_s")) {
+      statements.push(env.DB.prepare(
+        "UPDATE org_checkins SET checkout_at=?, duration_s=?, checkout_method='auto' WHERE id=? AND org_id=? AND checkout_at IS NULL"
+      ).bind(checkoutAt, duration, row.id, org.id));
+    } else {
+      statements.push(env.DB.prepare(
+        "UPDATE org_checkins SET checkout_at=?, checkout_method='auto' WHERE id=? AND org_id=? AND checkout_at IS NULL"
+      ).bind(checkoutAt, row.id, org.id));
+    }
+  }
+  if (statements.length) await env.DB.batch(statements);
+}
+
+function boundedInteger(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) return fallback;
+  return n;
+}
+
+function eventCheckoutGraceEpoch(row, graceMin) {
+  const checkinAt = Number(row.checkin_at);
+  const eventDay = Number(row.day_of_week);
+  const durationMin = Number(row.duration_min);
+  if (!Number.isFinite(checkinAt) || checkinAt <= 0) return null;
+  if (!Number.isInteger(eventDay) || eventDay < 1 || eventDay > 7) return null;
+  if (!Number.isFinite(durationMin) || durationMin < 1) return null;
+  const parts = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(row.start_time_local || ""));
+  if (!parts) return null;
+
+  const anchor = new Date(checkinAt * 1000);
+  const anchorDow = anchor.getUTCDay() === 0 ? 7 : anchor.getUTCDay();
+  const dayOffset = eventDay - anchorDow;
+  const startMs = Date.UTC(
+    anchor.getUTCFullYear(),
+    anchor.getUTCMonth(),
+    anchor.getUTCDate() + dayOffset,
+    Number(parts[1]),
+    Number(parts[2]),
+    0,
+    0
+  );
+  return Math.floor(startMs / 1000) + (Math.floor(durationMin) + graceMin) * 60;
 }
 
 function attendanceReceiptIdentity(row) {
