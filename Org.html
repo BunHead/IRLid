@@ -734,6 +734,14 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
 input[type=range] { width: 100%; -webkit-appearance: none; height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--blue) 60%, var(--line) 60%); outline: none; margin-bottom: 4px; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--blue); border-radius: 50%; cursor: pointer; }
 #attendanceBody { max-height: clamp(210px, 34dvh, 430px); overflow: auto; scrollbar-gutter: stable; }
+.attendance-event-progress { margin: 0 14px 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,0.03); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.attendance-event-progress[hidden] { display: none !important; }
+.attendance-event-progress-main { display: flex; align-items: baseline; gap: 8px; min-width: 180px; }
+.attendance-event-progress-name { color: var(--text); font-size: 12px; font-weight: 700; }
+.attendance-event-progress-count { color: var(--muted); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.attendance-event-progress-track { flex: 1 1 180px; height: 8px; min-width: 140px; border-radius: 999px; background: rgba(139,148,158,0.22); overflow: hidden; }
+.attendance-event-progress-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--blue)); transition: width 220ms ease; }
+.attendance-event-progress.no-capacity .attendance-event-progress-track { display: none; }
 .att-table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; }
 .att-table th { height: 40px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); }
 .att-table td { height: 42px; padding: 8px 12px; font-size: 12px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
@@ -827,6 +835,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
 .status-out { color: var(--red); font-size: 10px; font-weight: 600; transition: color 220ms ease; }
 .status-conflict { color: var(--orange); font-size: 10px; font-weight: 700; }
 .status-invalid { color: var(--muted); font-size: 10px; font-weight: 600; }
+.late-marker { display: inline-flex; align-items: center; margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: rgba(210,153,34,0.16); color: var(--orange); border: 1px solid rgba(210,153,34,0.34); font-size: 10px; font-weight: 700; white-space: nowrap; }
 .checkout-actions { min-height: 32px; display: flex; align-items: center; gap: 8px; row-gap: 6px; flex-wrap: wrap; flex: 1 1 auto; width: 100%; min-width: 0; }
 .checkout-actions > .btn,
 .conflict-actions > .btn {
@@ -3316,7 +3325,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16d</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16e</span></div>
   </div>
 </div>
 
@@ -3461,6 +3470,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <div class="card-header">
           <div class="card-title"><span class="live-dot attendance-live-dot"></span>Attendance — Today</div>
           <div style="font-size:11px;color:#8b949e;" id="lastRefresh">Waiting for data</div>
+        </div>
+        <div class="attendance-event-progress" id="attendanceEventProgress" hidden>
+          <div class="attendance-event-progress-main">
+            <span class="attendance-event-progress-name" id="attendanceEventProgressName"></span>
+            <span class="attendance-event-progress-count" id="attendanceEventProgressCount"></span>
+          </div>
+          <div class="attendance-event-progress-track" aria-hidden="true">
+            <div class="attendance-event-progress-fill" id="attendanceEventProgressFill"></div>
+          </div>
         </div>
         <div id="attendanceBody">
           <table class="att-table">
@@ -3870,6 +3888,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-expected-suggestion:hover { background: rgba(105, 168, 255, 0.1); border-color: rgba(105, 168, 255, 0.3); }
         .v511-expected-suggestion.is-selected { background: rgba(31, 111, 235, 0.18); color: #c8e0ff; border-color: rgba(31, 111, 235, 0.45); }
         .v511-expected-role { font-size: 10px; opacity: 0.6; margin-left: auto; padding-left: 8px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .v511-attendance-summary { color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+        .v511-attendance-log { max-height: 240px; overflow-y: auto; scrollbar-gutter: stable; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 6px; background: rgba(0,0,0,0.18); display: flex; flex-direction: column; gap: 3px; }
+        .v511-attendance-log .v511-expected-suggestion { cursor: default; }
+        .v511-attendance-log .v511-expected-suggestion:hover { background: transparent; border-color: transparent; }
+        .v511-attendance-status { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+        .v511-attendance-time { color: var(--muted); font-size: 11px; margin-left: 4px; white-space: nowrap; }
         .v511-expected-add-new { display: flex; align-items: center; padding: 5px 8px; background: rgba(99, 153, 34, 0.12); border: 1px dashed rgba(99, 153, 34, 0.5); border-radius: 4px; cursor: pointer; text-align: left; font-family: inherit; font-size: 12px; color: #c0dd97; }
         .v511-expected-add-new:hover { background: rgba(99, 153, 34, 0.2); }
         .v511-expected-empty { font-style: italic; color: var(--muted); font-size: 12px; padding: 4px 0; }
@@ -3880,6 +3904,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-expected-chip-remove { background: transparent; border: 0; color: inherit; cursor: pointer; padding: 0; font-size: 14px; line-height: 1; opacity: 0.7; margin-left: 2px; }
         .v511-expected-chip-remove:hover { opacity: 1; }
         :root[data-theme="light"] .v511-expected-suggestions { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
+        :root[data-theme="light"] .v511-attendance-log { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-expected-suggestion { color: #0a0a0a; }
         :root[data-theme="light"] .v511-expected-suggestion:hover { background: rgba(31, 111, 235, 0.1); border-color: rgba(31, 111, 235, 0.3); }
         :root[data-theme="light"] .v511-expected-suggestion.is-selected { background: rgba(31, 111, 235, 0.15); color: #0a3d80; border-color: rgba(31, 111, 235, 0.5); }
@@ -7323,7 +7348,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var end = start + (Number(ev.duration_min) || 0);
                 return mins >= start && mins < end;
               });
-              return active ? { id: active.id, name: active.name } : null;
+              var activeRoom = active ? (ROOM_META[active.room_id] || null) : null;
+              return active ? {
+                id: active.id,
+                name: active.name,
+                capacity: Number(active.capacity) || (activeRoom ? (Number(activeRoom.capacity) || 0) : 0),
+                start_time_local: active.start_time_local || ''
+              } : null;
             };
             function pad2(n) { return String(n).padStart(2, '0'); }
             function htmlEscape(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'", '&#39;'); }
@@ -7681,11 +7712,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var payload = await liveCalendarApi('/org/attendance?include_expected=1&event_id=' + encodeURIComponent(eventId) + '&since=' + encodeURIComponent(since));
                 var rows = payload.checkins || [];
                 if (!rows.length) { panel.innerHTML = '<div class="v511-expected-empty">No attendees returned for this event yet.</div>'; return; }
-                panel.innerHTML = rows.slice(0, 80).map(function (row) {
+                var currentlyIn = rows.filter(function (row) {
+                  return row && !row.expected_only && !row.checkout_at && row.status !== 'conflict' && row.status !== 'invalid';
+                }).length;
+                var sortedRows = rows.slice().sort(function (a, b) {
+                  var at = Number((a && (a.checkout_at || a.checkin_at || a.created_at)) || 0);
+                  var bt = Number((b && (b.checkout_at || b.checkin_at || b.created_at)) || 0);
+                  return bt - at;
+                });
+                var logHtml = sortedRows.slice(0, 80).map(function (row) {
                   var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
-                  var status = row.expected_only ? 'expected' : (row.checkout_at ? 'checked out' : 'checked in');
-                  return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong> <span class="v511-expected-role">' + htmlEscape(status) + '</span></div>';
+                  var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? 'OUT' : 'IN');
+                  var timeValue = row.expected_only ? '' : (row.checkout_at || row.checkin_at || row.created_at);
+                  var timeHtml = timeValue ? '<span class="v511-attendance-time">&middot; ' + htmlEscape(formatLocalTime(timeValue)) + '</span>' : '';
+                  return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong><span class="v511-attendance-status">&middot; ' + htmlEscape(status) + '</span>' + timeHtml + '</div>';
                 }).join('');
+                panel.innerHTML = '<div class="v511-attendance-summary">' + currentlyIn + ' currently in</div><div class="v511-attendance-log">' + logHtml + '</div>';
               } catch (err) {
                 panel.innerHTML = '<div class="v511-expected-empty">Could not load event attendance: ' + htmlEscape(err.message || err) + '</div>';
               }
@@ -12503,6 +12545,7 @@ function applySnapshotToDashboard(snap) {
   }
   renderStats(attendanceData, attendanceStats);
   renderExpectedAttendees();
+  updateAttendanceEventProgress(attendanceData);
   renderTable(attendanceData);
   lastRefreshAt = snap.synced_at || Date.now();
   updateRelativeRefresh();
@@ -14106,6 +14149,8 @@ function aggregateAttendees(checkins) {
         scan_count: 1,
         active_checkin_id: isActive ? row.id : null,
         active_since: isActive ? firstSeen : null,
+        active_event_id: isActive ? (row.event_id || null) : null,
+        active_checkin_at: isActive ? (row.checkin_at || row.created_at || null) : null,
         checked_out: !isActive,
         checkout_method: row.checkout_method || null,
         status: row.status || 'checked_in',
@@ -14122,6 +14167,8 @@ function aggregateAttendees(checkins) {
     if (isActive && (!existing.active_since || firstSeen >= existing.active_since)) {
       existing.active_checkin_id = row.id;
       existing.active_since = firstSeen;
+      existing.active_event_id = row.event_id || null;
+      existing.active_checkin_at = row.checkin_at || row.created_at || null;
       existing.checked_out = false;
       existing.checkout_method = null;
       existing.status = row.status || 'checked_in';
@@ -14147,6 +14194,66 @@ function dateFromStoredTimestamp(ts) {
 function formatTimestamp(ts) {
   const d = dateFromStoredTimestamp(ts);
   return d ? d.toLocaleString(displayLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '—';
+}
+function timestampMs(ts) {
+  const d = dateFromStoredTimestamp(ts);
+  return d ? d.getTime() : null;
+}
+function formatLocalTime(ts) {
+  const d = dateFromStoredTimestamp(ts);
+  return d ? d.toLocaleTimeString(displayLocale(), { hour: '2-digit', minute: '2-digit' }) : '';
+}
+function activeDashboardEvent() {
+  try {
+    return (typeof window.v511GetActiveCalendarEvent === 'function') ? window.v511GetActiveCalendarEvent() : null;
+  } catch (_) {
+    return null;
+  }
+}
+function localEventStartMs(eventInfo, anchorDate) {
+  if (!eventInfo || !eventInfo.start_time_local) return null;
+  const parts = String(eventInfo.start_time_local).split(':');
+  const hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  const base = anchorDate instanceof Date ? anchorDate : new Date();
+  return new Date(base.getFullYear(), base.getMonth(), base.getDate(), hours, minutes, 0, 0).getTime();
+}
+function lateMinutesForAttendanceRow(row, eventInfo) {
+  if (!row || !eventInfo || !eventInfo.id) return 0;
+  if (!row.active_event_id || String(row.active_event_id) !== String(eventInfo.id)) return 0;
+  const checkinMs = timestampMs(row.active_checkin_at || row.active_since || row.first_seen);
+  if (checkinMs === null) return 0;
+  const startMs = localEventStartMs(eventInfo, new Date(checkinMs));
+  if (startMs === null) return 0;
+  return Math.round((checkinMs - startMs) / 60000);
+}
+function updateAttendanceEventProgress(checkins) {
+  const wrap = document.getElementById('attendanceEventProgress');
+  if (!wrap) return;
+  const eventInfo = activeDashboardEvent();
+  if (!eventInfo || !eventInfo.id) {
+    wrap.hidden = true;
+    return;
+  }
+  const rows = Array.isArray(checkins) ? checkins : [];
+  const checkedIn = rows.filter(row => {
+    if (!row || row.expected_only) return false;
+    if (row.status === 'conflict' || row.status === 'invalid') return false;
+    const isAggregate = Object.prototype.hasOwnProperty.call(row, 'active_checkin_id');
+    const isIn = isAggregate ? !!row.active_checkin_id : !row.checkout_at;
+    if (!isIn) return false;
+    return String(row.event_id || row.active_event_id || '') === String(eventInfo.id);
+  }).length;
+  const capacity = Number(eventInfo.capacity) || 0;
+  const nameEl = document.getElementById('attendanceEventProgressName');
+  const countEl = document.getElementById('attendanceEventProgressCount');
+  const fillEl = document.getElementById('attendanceEventProgressFill');
+  if (nameEl) nameEl.textContent = eventInfo.name || 'Live event';
+  if (countEl) countEl.textContent = capacity > 0 ? `${checkedIn} / ${capacity}` : `${checkedIn} currently in`;
+  if (fillEl) fillEl.style.width = capacity > 0 ? `${Math.max(0, Math.min(100, (checkedIn / capacity) * 100))}%` : '0%';
+  wrap.classList.toggle('no-capacity', capacity <= 0);
+  wrap.hidden = false;
 }
 function displayLocale() {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
@@ -14322,6 +14429,7 @@ async function refreshAttendance() {
     attendanceStats = payload.stats || null;
     attendanceData = aggregateAttendees(checkins);
     renderStats(attendanceData, attendanceStats);
+    updateAttendanceEventProgress(checkins);
     renderTable(attendanceData);
     lastRefreshAt = Date.now();
     updateRelativeRefresh();
@@ -14339,6 +14447,7 @@ async function refreshAttendance() {
     attendanceStats = null;
     attendanceData = [];
     renderStats(attendanceData, attendanceStats);
+    updateAttendanceEventProgress([]);
     renderTable(attendanceData);
     document.getElementById('lastRefresh').textContent = 'Could not load attendance';
     showToast(err.message || 'Could not load attendance', true);
@@ -14482,6 +14591,7 @@ function renderTable(rows) {
   document.getElementById('attendanceBody').innerHTML = `<table class="att-table"><thead><tr><th>Name / ID</th><th>First seen</th><th>Last seen</th><th>Scan count</th><th>Status</th><th class="att-role-col">Role</th><th>Action</th></tr></thead><tbody id="attendanceRows"></tbody></table>`;
   const liveTbody = document.getElementById('attendanceRows');
   const viewingAs = currentPrototypeRole();
+  const eventInfo = activeDashboardEvent();
   liveTbody.innerHTML = displayRows.map(r => {
     const rawLabel = r.name || '';
     const displayLabel = rawLabel ? nameForViewer(rawLabel, viewingAs) : (r.id || 'Unknown attendee');
@@ -14502,8 +14612,10 @@ function renderTable(rows) {
     // v5.7.1s — Pass IN flag so role badge inverts when attendee is
     // currently checked in (active_checkin_id + not expected/conflict/invalid).
     const isCurrentlyIn = !!checkinId && r.status !== 'expected' && r.status !== 'expected_linked' && r.status !== 'invalid' && r.status !== 'conflict';
+    const lateMinutes = isCurrentlyIn ? lateMinutesForAttendanceRow(r, eventInfo) : 0;
+    const lateHtml = lateMinutes > 0 ? `<span class="late-marker">${lateMinutes} min late</span>` : '';
     const roleHtml = expectedRoleBadge(r.prototype_role, isCurrentlyIn);
-    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}</td><td>${r.scan_count || 0}</td><td>${rowStatus}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
+    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}${lateHtml}</td><td>${r.scan_count || 0}</td><td>${rowStatus}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
   }).join('');
 }
 function expectedRoleBadge(role, isCurrentlyIn) {
