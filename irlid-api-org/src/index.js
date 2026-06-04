@@ -1200,11 +1200,11 @@ async function orgActionInit(request, env) {
   const orgId = String(actionPayloadIn.org_id || body.org_id || body.orgId || "").trim();
   if (!orgId) return err("org_id required");
 
-  const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?")
+  const org = await env.DB.prepare("SELECT id, name, slug, settings_json FROM organisations WHERE id = ?")
     .bind(orgId).first();
   if (!org) return json({ error: "org_not_found" }, 404);
   const role = await orgRoleForUser(env, ctx.user, org.id);
-  const requiredRole = pendingActionMinRole(actionType);
+  const requiredRole = await pendingActionMinRole(env, actionType, org);
   if (expectedRoleRank(role) < expectedRoleRank(requiredRole)) {
     return json({ error: "insufficient_role", required: requiredRole, actual: role || null }, 403);
   }
@@ -1272,8 +1272,28 @@ function calendarActionPayloadSchema(p) {
   return true;
 }
 
-function pendingActionMinRole(actionType) {
-  if (actionType === "irlid_calendar_write_v5") return "manager";
+function managerCalendarPermEnabledFromSettings(settingsJson) {
+  try {
+    const settings = typeof settingsJson === "string" ? JSON.parse(settingsJson || "{}") : (settingsJson || {});
+    return !!(settings && settings.manager_perms && settings.manager_perms.calendar === true);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function calendarWriteMinRoleForOrg(env, orgOrId) {
+  if (!orgOrId) return "lead_admin";
+  if (typeof orgOrId === "object" && Object.prototype.hasOwnProperty.call(orgOrId, "settings_json")) {
+    return managerCalendarPermEnabledFromSettings(orgOrId.settings_json) ? "manager" : "lead_admin";
+  }
+  const orgId = String(orgOrId || "").trim();
+  if (!orgId) return "lead_admin";
+  const row = await env.DB.prepare("SELECT settings_json FROM organisations WHERE id=? LIMIT 1").bind(orgId).first();
+  return managerCalendarPermEnabledFromSettings(row && row.settings_json) ? "manager" : "lead_admin";
+}
+
+async function pendingActionMinRole(env, actionType, orgId) {
+  if (actionType === "irlid_calendar_write_v5") return calendarWriteMinRoleForOrg(env, orgId);
   return "lead_admin";
 }
 
@@ -1492,7 +1512,7 @@ async function orgActionClaim(request, env) {
   const action = await requireSignedAction({ signed_action: signedEnvelope }, env, {
     expectedType: row.action_type,
     orgId: row.org_id,
-    minRole: pendingActionMinRole(row.action_type),
+    minRole: await pendingActionMinRole(env, row.action_type, row.org_id),
     payloadSchema: pendingActionPayloadSchema(row.action_type)
   });
   if (action.error) {
@@ -2481,6 +2501,7 @@ async function orgUpdateSettings(request, env) {
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     "calendar_defaults",
+    "manager_perms",
     // --- Theme (Batch 6.5 → 6.5f) ---
     "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageSymmetryMode, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
@@ -2662,6 +2683,17 @@ async function orgUpdateSettings(request, env) {
       if (typeof val !== "string") return err("roleLabels." + key + " must be a string");
       if (val.length === 0 || val.length > 40) return err("roleLabels." + key + " must be 1-40 chars");
     }
+  }
+  if (body.manager_perms !== undefined) {
+    const mp = body.manager_perms;
+    if (typeof mp !== "object" || mp === null || Array.isArray(mp)) return err("manager_perms must be an object");
+    const out = {};
+    for (const key of Object.keys(mp)) {
+      if (key !== "calendar") continue;
+      if (typeof mp[key] !== "boolean") return err("manager_perms." + key + " must be a boolean");
+      out[key] = mp[key];
+    }
+    body.manager_perms = out;
   }
   if (body.calendar_defaults !== undefined) {
     const cd = body.calendar_defaults;
@@ -3841,7 +3873,7 @@ async function requireCalendarSignedAction(request, env, org, body, payloadSchem
   const action = await requireSignedAction(body, env, {
     expectedType: "irlid_calendar_write_v5",
     orgId: org.id,
-    minRole: "manager",
+    minRole: await calendarWriteMinRoleForOrg(env, org),
     payloadSchema: payloadSchema || (() => true),
     request
   });

@@ -6204,6 +6204,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-info { padding: 10px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
         .v511-danger-zone { margin-top: 14px; padding: 12px; border: 1px solid rgba(226, 75, 74, 0.3); border-radius: 10px; background: rgba(226, 75, 74, 0.06); }
         .v511-danger-zone .v511-sub { color: #f09595; margin-top: 0; }
+        .v620-permissions-matrix { display: grid; gap: 8px; margin-top: 8px; }
+        .v620-permissions-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(92px, auto);
+          gap: 10px;
+          align-items: center;
+          padding: 10px 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 10px;
+          background: rgba(255,255,255,0.03);
+        }
+        .v620-permissions-row strong { display: block; font-size: 13px; margin-bottom: 2px; }
+        .v620-permissions-row .v511-hint { margin: 0; }
+        .v620-permissions-cell { display: inline-flex; align-items: center; justify-content: flex-end; gap: 7px; font-size: 12px; color: var(--muted); white-space: nowrap; }
       </style>
 
       <div class="v511-mockup">
@@ -7080,6 +7094,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <div class="v511-hint" style="margin-top: 8px;">Either button revokes server-side; other devices bounce within 30s (v5.10.5 + v5.10.7).</div>
           </div>
 
+          <div class="v511-sub" style="margin-top: 14px;">Manager permissions</div>
+          <div class="v620-permissions-matrix" id="v620ManagerPermissionsMatrix">
+            <label class="v620-permissions-row" for="v620ManagerPermCalendar">
+              <span>
+                <strong>Managers can create / edit / delete calendar events</strong>
+                <span class="v511-hint">Default off. Sign-in &amp; Auth, staff invites, and lead-admin appointment stay lead-admin/developer only.</span>
+              </span>
+              <span class="v620-permissions-cell">Manager <input type="checkbox" id="v620ManagerPermCalendar" /></span>
+            </label>
+          </div>
+
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511AuthSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511AuthSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
 
@@ -7206,6 +7231,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           });
 
           function activate(target, focusTab) {
+            var targetTab = document.querySelector('.v511-tabs button[data-v511-tab="' + target + '"]');
+            if (targetTab && targetTab.hidden) return;
             tabs.forEach(function (b) {
               var isActive = b.getAttribute('data-v511-tab') === target;
               b.classList.toggle('active', isActive);
@@ -7229,9 +7256,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               window.v611RenderPendingInvites();
             }
           }
+          window.v511ActivateSettingsTab = activate;
 
           tabs.forEach(function (btn) {
             btn.addEventListener('click', function () {
+              if (btn.hidden) return;
               activate(btn.getAttribute('data-v511-tab'), false);
             });
             btn.addEventListener('keydown', function (e) {
@@ -7243,10 +7272,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               else if (e.key === 'End') next = tabs.length - 1;
               if (next !== null) {
                 e.preventDefault();
+                var attempts = 0;
+                while (tabs[next] && tabs[next].hidden && attempts < tabs.length) {
+                  next = e.key === 'ArrowLeft' ? (next - 1 + tabs.length) % tabs.length : (next + 1) % tabs.length;
+                  attempts++;
+                }
                 activate(tabs[next].getAttribute('data-v511-tab'), true);
               }
             });
           });
+          if (typeof window.v620ApplySettingsTabPermissions === 'function') window.v620ApplySettingsTabPermissions();
 
           // v5.11 mockup — calendar view toggle (List vs Swim-lane).
           var v511WeeklyRenderAll = null;
@@ -7515,12 +7550,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               return '+ Add event' + (status === 'past' ? ' (past)' : status === 'future' ? ' (future)' : '');
             }
             function addEventButtonHtml(dow, extraClass) {
+              if (typeof canManageCalendar === 'function' && !canManageCalendar()) {
+                return '<button type="button" class="' + (extraClass || 'v511-btn v511-btn-mini') + '" disabled title="Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth">+ Add event</button>';
+              }
               var status = dateStatusForDate(dateForDow(dow));
               var label = addEventLabelForStatus(status);
               if (status === 'past') return '<button type="button" class="' + (extraClass || 'v511-btn v511-btn-mini') + '" disabled title="Cannot add events on a past day">' + label + '</button>';
               return '<button type="button" class="' + (extraClass || 'v511-btn v511-btn-mini') + '" data-add-event-day="' + dow + '">' + label + '</button>';
             }
-            function renderAll() { refreshRoomMeta(); var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderRoomSelect(); renderRoomsList(); renderDayChips(); renderList(); renderDayLanes(); renderRoomVocabularyControls(); renderEventDefaultInputs(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) { var s = loadCalSettings(); summary.textContent = state.events.length + ' weekly events across ' + Object.keys(ROOM_META).length + ' ' + roomVocabPlural().toLowerCase() + ' - working hours ' + s.working_hours_start + '-' + s.working_hours_end + ' shown brighter' + ((parseInt(s.breaks_count,10)||0) > 0 ? ', ' + s.breaks_count + ' break' + (s.breaks_count === 1 ? '' : 's') + ' marked amber' : ''); } var addBtnBottom = document.getElementById('v511AddEventBtn'); if (addBtnBottom) { var status = dateStatusForDate(dateForDow(state.selectedDay || dayOfWeekForDate(new Date()))); addBtnBottom.disabled = status === 'past'; addBtnBottom.title = status === 'past' ? 'Cannot add events on a past day' : ''; addBtnBottom.textContent = addEventLabelForStatus(status); } }
+            function renderAll() { refreshRoomMeta(); var label = document.getElementById('v511WeekLabel'); if (label) label.textContent = weekLabel(); renderRoomSelect(); renderRoomsList(); renderDayChips(); renderList(); renderDayLanes(); renderRoomVocabularyControls(); renderEventDefaultInputs(); updateWeekStartBtn(); var sub = document.getElementById('v511WeeklyEventsSub'); if (sub) sub.textContent = '(7-day cycle, across ' + roomVocabPlural().toLowerCase() + ')'; var summary = document.getElementById('v511CalendarSummary'); if (summary) { var s = loadCalSettings(); summary.textContent = state.events.length + ' weekly events across ' + Object.keys(ROOM_META).length + ' ' + roomVocabPlural().toLowerCase() + ' - working hours ' + s.working_hours_start + '-' + s.working_hours_end + ' shown brighter' + ((parseInt(s.breaks_count,10)||0) > 0 ? ', ' + s.breaks_count + ' break' + (s.breaks_count === 1 ? '' : 's') + ' marked amber' : ''); } var addBtnBottom = document.getElementById('v511AddEventBtn'); if (addBtnBottom) { var status = dateStatusForDate(dateForDow(state.selectedDay || dayOfWeekForDate(new Date()))); var canWrite = typeof canManageCalendar !== 'function' || canManageCalendar(); addBtnBottom.disabled = !canWrite || status === 'past'; addBtnBottom.title = !canWrite ? 'Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth' : (status === 'past' ? 'Cannot add events on a past day' : ''); addBtnBottom.textContent = addEventLabelForStatus(status); } }
             function renderDayChips() {
               var wrap = document.getElementById('v511WeekDayChips');
               if (!wrap) return;
@@ -7601,8 +7639,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     var startMin = minutesFromTime(ev.start_time_local);
                     var durMin = Number(ev.duration_min || 60);
                     var past = isEventPast(ev, dow);
-                    var attr = past ? 'data-view-event' : 'data-edit-event';
-                    var btnLabel = past ? 'View' : 'Edit';
+                    var canWrite = typeof canManageCalendar !== 'function' || canManageCalendar();
+                    var attr = (past || !canWrite) ? 'data-view-event' : 'data-edit-event';
+                    var btnLabel = (past || !canWrite) ? 'View' : 'Edit';
                     var timeColText = (idx === 0) ? pad2(h) + ':00' : '';
                     var cap = parseInt(room.capacity || '0', 10) || 0;
                     var expectedCount = Array.isArray(ev.expected_ids) ? ev.expected_ids.length : 0;
@@ -7663,7 +7702,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function renderDayLanes() { var wrap = document.getElementById('v511CalSwimlane'); if (!wrap) return; var dow = state.selectedDay || dayOfWeekForDate(new Date()); var date = dateForDow(dow); var dayName = DAY_NAMES[dow - 1]; var now = new Date(); var isToday = isoDate(date) === isoDate(now); var nowPercent = isToday ? (((now.getHours() * 60 + now.getMinutes()) / 1440) * 100).toFixed(2) : null; var activeRooms = roomsForFilter(); var dayEvents = filteredEvents().filter(function (ev) { return ev.day_of_week === dow && activeRooms.indexOf(ev.room_id) >= 0; });
               var addBtnSwim = addEventButtonHtml(dow);
               var header = '<div class="v511-day-lane-head"><div><strong>' + htmlEscape(dayName) + '</strong> <span>' + htmlEscape(isoDate(date)) + '</span></div>' + addBtnSwim + '</div>'; var ticks = '<div class="v511-day-ticks"><span>00:00</span><span>04:00</span><span>08:00</span><span>12:00</span><span>16:00</span><span>20:00</span><span>23:59</span></div>'; var bands = bandsHtml(); var lanes = activeRooms.map(function (roomId) { var room = ROOM_META[roomId]; if (!room) return ''; var roomEvents = dayEvents.filter(function (ev) { return ev.room_id === roomId; }); var pills = roomEvents.length ? roomEvents.map(function (ev) { return renderEventPill(ev, dow); }).join('') : ''; var emptyLabel = roomEvents.length ? '' : '<div class="v511-lane-empty">No events</div>'; return '<div class="v511-day-lane ' + room.className + '" data-room-id="' + htmlEscape(roomId) + '"><div class="v511-day-lane-label">' + htmlEscape(room.label) + '</div><div class="v511-day-lane-timeline">' + bands + pills + emptyLabel + '</div></div>'; }).join(''); var nowLine = (nowPercent !== null) ? '<div class="v511-day-now-line" style="left:' + nowPercent + '%"><span class="v511-day-now-label">Now</span></div>' : ''; var footer = '<div class="v511-day-lane-actions"><span class="v511-hint">' + dayEvents.length + ' event' + (dayEvents.length === 1 ? '' : 's') + '</span><button type="button" class="v511-btn v511-btn-mini" data-export-day="' + dow + '">Export ' + htmlEscape(dayName) + '</button></div>'; wrap.innerHTML = header + ticks + '<div class="v511-day-lanes-grid">' + nowLine + lanes + '</div>' + footer; }
-            function renderEventPill(ev, dow) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var width = Math.max(5, ((Number(ev.duration_min || 60)) / 1440) * 100); var left = Math.max(0, Math.min(100 - width, (start / 1440) * 100)); var end = start + Number(ev.duration_min || 60); var past = isEventPast(ev, dow || ev.day_of_week); return '<button type="button" class="v511-day-event-pill ' + room.className + (past ? ' is-past' : '') + '" data-edit-event="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%; z-index:' + (past ? 2 : 3) + ';"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small></button>'; }
+            function renderEventPill(ev, dow) { var room = ROOM_META[ev.room_id] || ROOM_META.studio1; var start = minutesFromTime(ev.start_time_local); var width = Math.max(5, ((Number(ev.duration_min || 60)) / 1440) * 100); var left = Math.max(0, Math.min(100 - width, (start / 1440) * 100)); var end = start + Number(ev.duration_min || 60); var past = isEventPast(ev, dow || ev.day_of_week); var canWrite = typeof canManageCalendar !== 'function' || canManageCalendar(); var attr = (past || !canWrite) ? 'data-view-event' : 'data-edit-event'; return '<button type="button" class="v511-day-event-pill ' + room.className + (past ? ' is-past' : '') + '" ' + attr + '="' + htmlEscape(ev.id) + '" style="left:' + left.toFixed(2) + '%; width:' + width.toFixed(2) + '%; z-index:' + (past ? 2 : 3) + ';"><b>' + htmlEscape(ev.name) + '</b><small>' + htmlEscape(ev.start_time_local) + '-' + htmlEscape(timeFromMinutes(end)) + '</small></button>'; }
             function renderRoomSelect() { var roomIds = Object.keys(ROOM_META); var options = roomIds.map(function (id) { return '<option value="' + htmlEscape(id) + '">' + htmlEscape(ROOM_META[id].label) + '</option>'; }).join(''); var select = document.getElementById('v511EventRoom'); if (select) select.innerHTML = options; var filter = document.getElementById('v511CalRoomFilter'); if (filter) { var current = state.roomFilter || filter.value || 'all'; filter.innerHTML = '<option value="all" id="v511CalRoomFilterAll">All ' + htmlEscape(roomVocabPlural().toLowerCase()) + '</option>' + options; filter.value = (current === 'all' || ROOM_META[current]) ? current : 'all'; state.roomFilter = filter.value; } var roomLabel = document.getElementById('v511CalRoomFilterLabel'); if (roomLabel) roomLabel.textContent = roomVocabSingular() + ':'; var modalRoomLabel = document.getElementById('v511EventRoomLabel'); if (modalRoomLabel) modalRoomLabel.textContent = roomVocabSingular(); }
             function renderRoomsList() { var list = document.getElementById('v511RoomsList'); if (!list) return; var rooms = loadRoomsState(); list.innerHTML = rooms.map(function (room) { var sub = room.subname ? ' <span class="v511-hint-inline">- ' + htmlEscape(room.subname) + '</span>' : ''; return '<div class="v511-room-row" data-room-id="' + htmlEscape(room.id) + '"><div>' + htmlEscape(room.label) + sub + '</div><div class="v511-room-cap">cap ' + (parseInt(room.capacity || '0', 10) || 0) + '</div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini" data-room-edit="' + htmlEscape(room.id) + '">Edit</button><button type="button" class="v511-btn v511-btn-mini" title="Remove" data-room-remove="' + htmlEscape(room.id) + '">&times;</button></div></div>'; }).join('') + '<div id="v511RoomDraftRows"></div>'; }
             function renderRoomEditRow(roomId) { var list = document.getElementById('v511RoomsList'); if (!list) return; var rooms = loadRoomsState(); var room = rooms.find(function (r) { return r.id === roomId; }); var row = list.querySelector('[data-room-id="' + CSS.escape(roomId) + '"]'); if (!room || !row) return; row.className = 'v511-room-row v511-room-row-draft v511-room-row-editing'; row.innerHTML = '<div class="v511-room-draft-fields"><input type="text" data-room-edit-name value="' + htmlEscape(room.label) + '"><input type="text" data-room-edit-subname value="' + htmlEscape(room.subname || '') + '" placeholder="Sub-name (optional)"><input type="number" min="1" max="999" data-room-edit-capacity value="' + (parseInt(room.capacity || '0', 10) || '') + '"></div><div class="v511-room-actions"><button type="button" class="v511-btn v511-btn-mini" data-room-save="' + htmlEscape(room.id) + '">Save</button><button type="button" class="v511-btn v511-btn-mini" data-room-cancel>Cancel</button></div>'; row.querySelector('[data-room-edit-name]')?.focus(); }
@@ -7724,7 +7763,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             function openEventModal(id, presetDow, readonly) {
               var ev = state.events.find(function (x) { return x.id === id; }) || { id: '', name: '', room_id: Object.keys(ROOM_META)[0] || 'studio1', day_of_week: presetDow || state.selectedDay || dayOfWeekForDate(new Date()), start_time_local: '09:00', duration_min: 60, expected_ids: [] };
-              var isReadonly = !!readonly;
+              var isReadonly = !!readonly || (typeof canManageCalendar === 'function' && !canManageCalendar());
               document.getElementById('v511EventModalTitle').textContent = isReadonly ? 'View event (past — locked)' : (ev.id ? 'Edit event' : 'Add event');
               document.getElementById('v511EventId').value = ev.id;
               document.getElementById('v511EventDay').value = String(ev.day_of_week);
@@ -7778,6 +7817,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             }
             async function saveEventFromModal() {
+              if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showGlobalSavedToast('Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth');
               var roomId = document.getElementById('v511EventRoom').value || 'studio1';
               var id = document.getElementById('v511EventId').value || '';
               var dayOfWeek = parseInt(document.getElementById('v511EventDay').value, 10) || (state.selectedDay || 1);
@@ -7818,6 +7858,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             }
             async function deleteEventFromModal() {
+              if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showGlobalSavedToast('Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth');
               var id = document.getElementById('v511EventId').value;
               if (!id) return closeEventModal();
               var deleteName = (document.getElementById('v511EventName').value || '').trim();   // v6.1.16d — capture name before close for the phone auth label
@@ -7932,6 +7973,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               return events;
             }
             document.getElementById('v511ImportWeekBtn')?.addEventListener('click', function () {
+              if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showGlobalSavedToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth');
               var input = document.createElement('input');
               input.type = 'file';
               input.accept = '.csv,text/csv';
@@ -8066,7 +8108,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             // T4.3.59.3 — top-level + Add event now uses the day-chip-selected day (state.selectedDay)
             // instead of always defaulting to today's day-of-week. Adding an event after navigating to
             // next week now lands the modal on the right day.
-            document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { openEventModal('', state.selectedDay || dayOfWeekForDate(new Date())); });
+            document.getElementById('v511AddEventBtn')?.addEventListener('click', function () { if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showGlobalSavedToast('Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth'); openEventModal('', state.selectedDay || dayOfWeekForDate(new Date())); });
             document.getElementById('v511WeekDayChips')?.addEventListener('click', function (e) {
               var btn = e.target.closest('[data-week-day]');
               if (!btn) return;
@@ -8087,7 +8129,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var exp = e.target.closest('[data-export-day]');
               if (view) openEventByIdSmart(view.getAttribute('data-view-event'), true);
               else if (edit) openEventByIdSmart(edit.getAttribute('data-edit-event'));
-              else if (add) openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10));
+              else if (add) { if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showGlobalSavedToast('Calendar editing requires Lead Admin, or Manager permission from Sign-in & Auth'); openEventModal('', parseInt(add.getAttribute('data-add-event-day'), 10)); }
               else if (exp) { var dow = parseInt(exp.getAttribute('data-export-day'), 10); var date = isoDate(dateForDow(dow)); downloadCsv(DAY_NAMES[dow - 1] + '-' + date + '.csv', csvFor(filteredEvents().filter(function (ev) { return ev.day_of_week === dow; }))); }
             });
             document.getElementById('v511CalWrap')?.addEventListener('click', function (e) {
@@ -11385,7 +11427,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             { id: 'v511AuthQrSignin',       type: 'checkbox' },
             { id: 'v511AuthSameDevice',     type: 'checkbox' },
             { id: 'v511AuthSessionExpiry',  type: 'value' },
-            { id: 'v511AuthApiKey',         type: 'value' }
+            { id: 'v511AuthApiKey',         type: 'value' },
+            { id: 'v620ManagerPermCalendar', type: 'checkbox' }
           ];
           function v511AuthCaptureState() {
             var state = {};
@@ -11406,11 +11449,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               else el.value = state[f.id];
             });
           }
-          function v511AuthSaveNow() {
+          async function v511AuthSaveNow() {
             try {
               localStorage.setItem(V511_AUTH_LS_KEY, JSON.stringify(v511AuthCaptureState()));
+              if (typeof saveSettings === 'function') await saveSettings();
               v511PulsePill('v511AuthSavedPulse');
             } catch (e) {
+              if (typeof showToast === 'function') showToast('Save failed: ' + (e.message || e), true);
               v511PulsePill('v511AuthSavedPulse');
             }
           }
@@ -11421,7 +11466,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             } catch (e) { /* corrupted blob — leave seeded values */ }
           }
           var v511AuthSaveBtn = document.getElementById('v511AuthSaveBtn');
-          if (v511AuthSaveBtn) v511AuthSaveBtn.addEventListener('click', v511AuthSaveNow);
+          if (v511AuthSaveBtn) v511AuthSaveBtn.addEventListener('click', function () { v511AuthSaveNow(); });
           v511AuthLoadFromStorage();
 
           // ---- Tools & diagnostics tab (click-to-save localStorage) ----
@@ -12393,6 +12438,7 @@ let settings = {
   requireProof: true,
   allowProofRecording: true,
   allowIdPhotoCapture: false,
+  manager_perms: { calendar: false },
   roleLabels: { attendee: 'Attendee', staff: 'Staff', manager: 'Manager', lead_admin: 'Lead admin', developer: 'Developer' } // v5.9.0.13.14
 };
 let portalState = loadPortalState();
@@ -12498,6 +12544,8 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.requireAdditionalProof === 'boolean') portalState.requireAdditionalProof = src.requireAdditionalProof;
   if (typeof src.allowProofRecording === 'boolean') portalState.allowProofRecording = src.allowProofRecording;
   if (typeof src.enableIdPhotoCapture === 'boolean') portalState.enableIdPhotoCapture = src.enableIdPhotoCapture;
+  settings.manager_perms = normaliseManagerPerms(src.manager_perms);
+  writeManagerPermsToUI(settings.manager_perms);
   // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
   // both portalState and settings so the dashboard helper roleLabel() picks
   // them up wherever it's called.
@@ -13340,7 +13388,8 @@ async function loadDashboardForOrg(org) {
     checkoutEnabled: true, returnAllowed: true, anonymousMode: false,
     logoUrl: '', welcomeMessage: '', redirectUrl: '',
     allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true,
-    allowProofRecording: true, allowIdPhotoCapture: false
+    allowProofRecording: true, allowIdPhotoCapture: false,
+    manager_perms: { calendar: false }
   };
   saveJson(STORAGE_KEY_PORTAL, portalState);
   saveJson(STORAGE_KEY_SETTINGS, settings);
@@ -13563,6 +13612,8 @@ function applySettingsToUI() {
     writeRoleLabelsToUI(settings.roleLabels || defaultRoleLabels());
   }
   if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
+  writeManagerPermsToUI(settings.manager_perms);
+  if (typeof window.v620ApplySettingsTabPermissions === 'function') window.v620ApplySettingsTabPermissions();
   updateChromeLogo();
   const debugToggle = document.getElementById('v511ToolsVerboseLogging');
   if (debugToggle) debugToggle.checked = !!window.irlidDebugOn?.();
@@ -13592,6 +13643,7 @@ function collectSettingsFromCanonical() {
     requireProof: !!document.getElementById('requireAdditionalProof')?.checked,
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
     allowIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
+    manager_perms: readManagerPermsFromUI(),
     roleLabels: readRoleLabelsFromUI() // v5.9.0.13.14
   };
 }
@@ -13797,6 +13849,19 @@ function roleKeyFromLabel(value) {
 }
 function applyRoleLabelsToViewingAs() { }
 window.applyRoleLabelsToViewingAs = applyRoleLabelsToViewingAs;
+function normaliseManagerPerms(value) {
+  return { calendar: !!(value && value.calendar === true) };
+}
+function readManagerPermsFromUI() {
+  return { calendar: !!document.getElementById('v620ManagerPermCalendar')?.checked };
+}
+function writeManagerPermsToUI(perms) {
+  const el = document.getElementById('v620ManagerPermCalendar');
+  if (el) el.checked = !!normaliseManagerPerms(perms).calendar;
+}
+function managerCalendarPermissionEnabled() {
+  return !!normaliseManagerPerms(settings && settings.manager_perms).calendar;
+}
 
 async function saveSettings() {
   if (typeof syncV511RoleVocabularyToTheme === 'function') syncV511RoleVocabularyToTheme();
@@ -13820,6 +13885,7 @@ async function saveSettings() {
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
     enableIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
     roleLabels: readRoleLabelsFromUI(), // v5.9.0.13.14 — role vocabulary panel
+    manager_perms: readManagerPermsFromUI(),
     calendar_defaults: (typeof window.v511CalendarDefaultsForSave === 'function') ? window.v511CalendarDefaultsForSave() : undefined,
     theme: normalizeThemeForSave(typeof activeTheme !== 'undefined' ? activeTheme : null)
   };
@@ -13893,6 +13959,11 @@ async function saveSettings() {
   if (!eq(payload.welcomeMessage, r.welcomeMessage)) lost.push('welcomeMessage');
   if (!eq(payload.orgTerms, r.orgTerms)) lost.push('orgTerms');
   if (payload.minScore !== r.minScore) lost.push('minScore');
+  if (payload.manager_perms) {
+    const sentPerms = normaliseManagerPerms(payload.manager_perms);
+    const recvPerms = normaliseManagerPerms(r.manager_perms);
+    if (sentPerms.calendar !== recvPerms.calendar) lost.push('manager_perms.calendar');
+  }
   if (payload.calendar_defaults) {
     const sentCal = payload.calendar_defaults;
     const recvCal = r.calendar_defaults || {};
@@ -13936,7 +14007,7 @@ async function saveSettings() {
   showToast('✓ Settings saved and verified');
 }
 function resetSettingsToDefaults() {
-  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false, roleLabels: defaultRoleLabels() };
+  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false, manager_perms: { calendar: false }, roleLabels: defaultRoleLabels() };
   saveJson(STORAGE_KEY_SETTINGS, settings); applySettingsToUI(); syncPortalFromLegacy(); renderPortalAll(); generateVenueQR(); showToast('Settings reset to defaults');
 }
 function renderExpectedAttendees() {
@@ -14785,6 +14856,10 @@ function canDeleteAttendeeRecord() {
 function canUseSettings() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.lead_admin;
 }
+function canManageCalendar() {
+  if (effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.lead_admin) return true;
+  return currentOrg?.role === 'manager' && managerCalendarPermissionEnabled();
+}
 function canClearTestAttendance() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.developer;
 }
@@ -14796,11 +14871,38 @@ function applyRoleGatedVisibility() {
   document.querySelectorAll('[data-min-role]').forEach(el => {
     el.hidden = rank < roleRankFor(el.dataset.minRole);
   });
-  if (!canUseSettings() && document.getElementById('panel-settings')?.classList.contains('active')) {
+  const navSettings = document.getElementById('navSettings');
+  if (navSettings) navSettings.hidden = !(canUseSettings() || canManageCalendar());
+  if (typeof window.v620ApplySettingsTabPermissions === 'function') window.v620ApplySettingsTabPermissions();
+  if (!(canUseSettings() || canManageCalendar()) && document.getElementById('panel-settings')?.classList.contains('active')) {
     showPanel('dashboard', document.getElementById('navDashboard'));
   }
   if (expectedDeleteMode && !canDeleteExpected()) setExpectedDeleteMode(false);
 }
+function v620ApplySettingsTabPermissions() {
+  const fullSettings = canUseSettings();
+  const calendarOnly = !fullSettings && canManageCalendar();
+  const tabs = Array.from(document.querySelectorAll('.v511-tabs button[data-v511-tab]'));
+  const panels = Array.from(document.querySelectorAll('.v511-panel[data-v511-panel]'));
+  tabs.forEach(tab => {
+    const key = tab.getAttribute('data-v511-tab');
+    tab.hidden = calendarOnly ? key !== 'cal' : false;
+  });
+  panels.forEach(panel => {
+    const key = panel.getAttribute('data-v511-panel');
+    if (calendarOnly && key !== 'cal') {
+      panel.classList.remove('active');
+      panel.hidden = true;
+    }
+  });
+  if (calendarOnly) {
+    if (typeof window.v511ActivateSettingsTab === 'function') window.v511ActivateSettingsTab('cal', false);
+  } else if (fullSettings) {
+    const active = document.querySelector('.v511-panel[data-v511-panel].active');
+    if (!active && typeof window.v511ActivateSettingsTab === 'function') window.v511ActivateSettingsTab('org', false);
+  }
+}
+window.v620ApplySettingsTabPermissions = v620ApplySettingsTabPermissions;
 function buildExpectedRowAction(row) {
   const id = escapeHtml(String(row.expected_id || '').trim());
   if (canDeleteExpected() && id) {
@@ -20874,7 +20976,7 @@ document.addEventListener('DOMContentLoaded', function () {
   async function refreshLiveCalendar(){ if (typeof window.refreshV511CalendarData === 'function') return window.refreshV511CalendarData(); try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
   document.addEventListener('DOMContentLoaded',function(){
     const exp=document.getElementById('v511ExportWeekBtn'); if(exp) exp.addEventListener('click',async function(e){ e.stopImmediatePropagation(); try{ const r=await api('/org/weekly-events/export-csv',{raw:true}); const blob=new Blob([await r.text()],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='week-export.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),500); }catch(err){ showToast('Export failed: '+(err.message||err), true); } }, true);
-    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
+    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
   });
 })();
 </script>
