@@ -2480,6 +2480,7 @@ async function orgUpdateSettings(request, env) {
     "logoUrl","welcomeMessage","orgTerms","redirectUrl","staffRedirectUrl","websiteUrl",
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
+    "calendar_defaults",
     // --- Theme (Batch 6.5 → 6.5f) ---
     "theme"  // { primary, accent, qrFg, palette[], bgPalette[], darkMode, bgMode, bgIntensity, bgPattern, bgImageUrl, bgImagePosition, bgImageSymmetryMode, bgImageAlphaCycle, cycleMode, bgAnimDuration, cycleAnimDuration } — validated below
   ];
@@ -2661,6 +2662,77 @@ async function orgUpdateSettings(request, env) {
       if (typeof val !== "string") return err("roleLabels." + key + " must be a string");
       if (val.length === 0 || val.length > 40) return err("roleLabels." + key + " must be 1-40 chars");
     }
+  }
+  if (body.calendar_defaults !== undefined) {
+    const cd = body.calendar_defaults;
+    if (typeof cd !== "object" || cd === null || Array.isArray(cd)) return err("calendar_defaults must be an object");
+    const allowedCalKeys = [
+      "default_duration","checkout_grace","late_grace_before","late_grace_after",
+      "working_hours_start","working_hours_end","breaks_count",
+      "break_1_start","break_1_end","break_2_start","break_2_end","break_3_start","break_3_end",
+      "min_trust_score","privacy_mode","require_proof","week_starts_on",
+      "room_vocabulary_singular","room_vocabulary_plural"
+    ];
+    const out = {};
+    function calInt(key, max) {
+      if (cd[key] === undefined) return null;
+      const n = Number(cd[key]);
+      if (!Number.isInteger(n) || n < 0 || n > max) return "calendar_defaults." + key + " must be an integer from 0 to " + max;
+      out[key] = n;
+      return null;
+    }
+    function calTime(key) {
+      if (cd[key] === undefined) return null;
+      if (typeof cd[key] !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(cd[key])) return "calendar_defaults." + key + " must be HH:MM";
+      out[key] = cd[key];
+      return null;
+    }
+    function calEnum(key, values) {
+      if (cd[key] === undefined) return null;
+      if (typeof cd[key] !== "string" || !values.includes(cd[key])) return "calendar_defaults." + key + " must be one of: " + values.join(", ");
+      out[key] = cd[key];
+      return null;
+    }
+    function calWeekStart(key) {
+      if (cd[key] === undefined) return null;
+      const n = Number(cd[key]);
+      if (n !== 1 && n !== 7) return "calendar_defaults." + key + " must be 1 or 7";
+      out[key] = n;
+      return null;
+    }
+    function calText(key) {
+      if (cd[key] === undefined) return null;
+      if (typeof cd[key] !== "string") return "calendar_defaults." + key + " must be a string";
+      const val = cd[key].trim();
+      if (!val || val.length > 40) return "calendar_defaults." + key + " must be 1-40 chars";
+      out[key] = val;
+      return null;
+    }
+    for (const key of Object.keys(cd)) {
+      if (!allowedCalKeys.includes(key)) return err("calendar_defaults has unknown key: " + key);
+    }
+    const calErr =
+      calInt("default_duration", 1440) ||
+      calInt("checkout_grace", 1440) ||
+      calInt("late_grace_before", 1440) ||
+      calInt("late_grace_after", 1440) ||
+      calTime("working_hours_start") ||
+      calTime("working_hours_end") ||
+      calInt("breaks_count", 3) ||
+      calTime("break_1_start") ||
+      calTime("break_1_end") ||
+      calTime("break_2_start") ||
+      calTime("break_2_end") ||
+      calTime("break_3_start") ||
+      calTime("break_3_end") ||
+      calInt("min_trust_score", 100) ||
+      calEnum("privacy_mode", ["standard", "redacted_gps"]) ||
+      calEnum("require_proof", ["off", "optional", "required"]) ||
+      calWeekStart("week_starts_on") ||
+      calText("room_vocabulary_singular") ||
+      calText("room_vocabulary_plural");
+    if (calErr) return err(calErr);
+    body.calendar_defaults = { ...(current.calendar_defaults || {}), ...out };
   }
   for (const k of allowed) { if (body[k] !== undefined) current[k] = body[k]; }
   await env.DB.prepare("UPDATE organisations SET settings_json=?, updated_at=? WHERE id=?")
