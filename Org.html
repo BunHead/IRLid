@@ -3316,7 +3316,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16c</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16d</span></div>
   </div>
 </div>
 
@@ -7733,15 +7733,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             async function deleteEventFromModal() {
               var id = document.getElementById('v511EventId').value;
               if (!id) return closeEventModal();
+              var deleteName = (document.getElementById('v511EventName').value || '').trim();   // v6.1.16d — capture name before close for the phone auth label
               try {
                 closeEventModal();   // v6.1.16a — close BEFORE signing so the cross-device QR is visible immediately
-                var signed = await calendarSigned({ calendar_action: 'delete', event_id: id });
+                var signed = await calendarSigned({ calendar_action: 'delete', event_id: id, name: deleteName });
                 if (!(signed && signed.cross_device)) {
                   try {
                     await liveCalendarApi('/org/weekly-events/' + encodeURIComponent(id), { method: 'DELETE', body: { signed_action: signed } });
                   } catch (err) {
                     if (!v61ActionShouldRetryWithPhone(err)) throw err;
-                    await v61AuthorizeActionWithPhone('irlid_calendar_write_v5', currentOrg && currentOrg.id, { calendar_action: 'delete', event_id: id });
+                    await v61AuthorizeActionWithPhone('irlid_calendar_write_v5', currentOrg && currentOrg.id, { calendar_action: 'delete', event_id: id, name: deleteName });
                   }
                 }
                 closeEventModal();
@@ -17240,7 +17241,7 @@ function v61CrossDeviceSummary(actionType, fields) {
   if (actionType === 'irlid_calendar_write_v5') {
     const action = String((fields && fields.calendar_action) || 'save').trim();
     const name = String((fields && fields.name) || 'calendar event').trim();
-    if (action === 'delete') return 'Delete calendar event';
+    if (action === 'delete') return 'Delete ' + name;
     if (action === 'update') return 'Update ' + name;
     return 'Create ' + name;
   }

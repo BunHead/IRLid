@@ -44,6 +44,22 @@ For each attendance row that belongs to the current (or its matched) event:
   (`{lateMinutes} min late`). Keep it compact; it sits beside the existing time/role cells.
 - Use the row's own check-in time, not "now", so the marker is stable after the fact.
 
+## Fix 3 — Per-event Attendance log (Edit-event modal)
+
+The Edit-event modal's **Attendance** section currently lists one row per check-in/out
+event with just the name — so a person who checked out then back in shows as two identical
+"Spencer Austin" rows, which *reads* like a duplicate bug. It isn't: both events are real
+(IRLid keeps every coming/going, warts-and-all). The display needs to make the timeline
+legible and stay compact as it grows:
+
+- Each row = **name · IN/OUT/EXPECTED · time** (e.g. "Spencer Austin · OUT · 10:18"),
+  **newest first**. So the two Spencer rows become a clear in-then-out timeline, not a dupe.
+- Wrap the list in a **fixed-height (~240px), vertically scrollable** container so the modal
+  never blows out no matter how many comings/goings accrue.
+- Optional one-line header above it: "{n} currently in".
+- Times use **browser local time** (same rule as Fix 2).
+- EXPECTED-only rows (no check-in yet) keep showing as EXPECTED with no time.
+
 ## Discovery pointers
 - `grep` for the Dashboard attendance render in `Org.html` (the function that builds the
   attendance rows / "Attendance Today" table) — that's where both the bar (header) and the
