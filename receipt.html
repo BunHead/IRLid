@@ -306,6 +306,15 @@
     .receipt-item-badge.verified{ background: #eaffea; border-color: #c8f2c8; color: #1a6e1a; }
     .receipt-item-badge.unverified{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
     .receipt-item-badge.local-badge{ background: #f7f7f7; border-color: #ddd; color: #555; }
+    .receipt-item-badge.org-badge{ background: #eef6ff; border-color: #cfe5ff; color: #07559d; }
+    .receipt-group-header{
+      margin: 14px 0 8px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #555;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
 
     .pagination{
       display: flex;
@@ -1343,6 +1352,130 @@
     return li;
   }
 
+  function getOrgReceiptAction(entry){
+    const action = entry && entry.receipt && entry.receipt.action;
+    return String(action || "").toLowerCase() === "out" ? "out" : "in";
+  }
+
+  function getLocalOrgReceipts(){
+    let parsed = null;
+    try {
+      parsed = JSON.parse(localStorage.getItem("irlid_org_receipts") || "[]");
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    const byReceiptId = new Map();
+    for (const item of parsed) {
+      if (!item || typeof item !== "object" || !item.receipt_id) continue;
+      const tsMs = normalizeEpochMs(item.created_at) || 0;
+      const previous = byReceiptId.get(item.receipt_id);
+      const previousTs = previous ? (normalizeEpochMs(previous.created_at) || 0) : -1;
+      if (!previous || tsMs >= previousTs) byReceiptId.set(item.receipt_id, item);
+    }
+
+    const eventGroups = new Map();
+    const singles = [];
+    for (const entry of byReceiptId.values()) {
+      const tsMs = normalizeEpochMs(entry.created_at) || 0;
+      if (!entry.event_id) {
+        singles.push(Object.assign({}, entry, {
+          display_created_at: tsMs,
+          first_in_at: tsMs,
+          last_out_at: null,
+          is_event_group: false
+        }));
+        continue;
+      }
+
+      const key = String(entry.event_id);
+      if (!eventGroups.has(key)) eventGroups.set(key, []);
+      eventGroups.get(key).push(entry);
+    }
+
+    const collapsed = [];
+    for (const group of eventGroups.values()) {
+      group.sort((a, b) => (normalizeEpochMs(a.created_at) || 0) - (normalizeEpochMs(b.created_at) || 0));
+      const newest = group[group.length - 1];
+      const firstIn = group.find(entry => getOrgReceiptAction(entry) !== "out") || group[0];
+      const lastOut = group.slice().reverse().find(entry => getOrgReceiptAction(entry) === "out");
+      collapsed.push(Object.assign({}, newest, {
+        display_created_at: normalizeEpochMs(newest.created_at) || 0,
+        first_in_at: normalizeEpochMs(firstIn && firstIn.created_at) || null,
+        last_out_at: lastOut ? normalizeEpochMs(lastOut.created_at) : null,
+        is_event_group: true
+      }));
+    }
+
+    return collapsed.concat(singles).sort((a, b) => (b.display_created_at || 0) - (a.display_created_at || 0));
+  }
+
+  function describeOrgReceipt(entry){
+    const parts = [];
+    if (entry.event_name) parts.push(entry.event_name);
+
+    const firstIn = formatTimeShort(entry.first_in_at || entry.display_created_at || normalizeEpochMs(entry.created_at));
+    if (entry.is_event_group) {
+      parts.push("First in " + firstIn);
+      if (entry.last_out_at) parts.push("Last out " + formatTimeShort(entry.last_out_at));
+    } else {
+      parts.push(firstIn);
+    }
+
+    return parts.join(" · ");
+  }
+
+  function renderOrgReceiptItem(entry){
+    const li = document.createElement("li");
+    li.className = "receipt-item";
+    li.addEventListener("click", () => {
+      const url = entry.receipt_url || (entry.receipt_id ? "receipt.html?org_receipt=" + encodeURIComponent(entry.receipt_id) : "");
+      if (url) location.href = url;
+    });
+
+    const row = document.createElement("div");
+    row.className = "receipt-item-row";
+
+    const left = document.createElement("div");
+
+    const titleDiv = document.createElement("div");
+    titleDiv.className = "receipt-item-time";
+    titleDiv.textContent = entry.org_name || entry.org || "Organisation check-in";
+    left.appendChild(titleDiv);
+
+    const subDiv = document.createElement("div");
+    subDiv.className = "receipt-item-sub";
+    subDiv.textContent = describeOrgReceipt(entry);
+    left.appendChild(subDiv);
+
+    row.appendChild(left);
+
+    const badge = document.createElement("div");
+    badge.className = "receipt-item-badge org-badge";
+    badge.textContent = "Org check-in";
+    row.appendChild(badge);
+
+    li.appendChild(row);
+    return li;
+  }
+
+  function renderOrgReceiptsGroup(){
+    const orgReceipts = getLocalOrgReceipts();
+    if (orgReceipts.length === 0) return 0;
+
+    const header = document.createElement("li");
+    header.className = "receipt-group-header";
+    header.textContent = "Your check-ins";
+    receiptListEl.appendChild(header);
+
+    for (const entry of orgReceipts) {
+      receiptListEl.appendChild(renderOrgReceiptItem(entry));
+    }
+
+    return orgReceipts.length;
+  }
+
   async function loadServerReceipts(page){
     currentPage = page || 1;
     listLoading.style.display = "block";
@@ -1362,15 +1495,18 @@
     const receipts = result.data.receipts || [];
     totalReceipts = result.data.total || 0;
     pageLimit = result.data.limit || 20;
+    const orgReceiptCount = renderOrgReceiptsGroup();
 
     if (receipts.length === 0 && currentPage === 1) {
       const localCount = getLocalReceiptList().length;
       if (localCount > 0) {
         loadLocalReceipts();
+      } else if (orgReceiptCount > 0) {
+        listFooter.style.display = "flex";
       } else {
         listEmpty.style.display = "block";
+        listFooter.style.display = "flex";
       }
-      listFooter.style.display = "flex";
       return;
     }
 
@@ -1560,7 +1696,9 @@
 
   function loadLocalReceipts(){
     listLoading.style.display = "none";
+    listEmpty.style.display = "none";
     receiptListEl.innerHTML = "";
+    const orgReceiptCount = renderOrgReceiptsGroup();
 
     const items = getLocalReceiptList();
 
@@ -1575,7 +1713,7 @@
       else if (last.type === "response") items.push(last);
     }
 
-    if (items.length === 0) {
+    if (items.length === 0 && orgReceiptCount === 0) {
       listEmpty.style.display = "block";
       listFooter.style.display = "flex";
       return;
