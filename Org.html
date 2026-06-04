@@ -7696,6 +7696,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                       : await liveCalendarApi('/org/weekly-events', { method: 'POST', body: next });
                   } catch (err) {
                     if (!v61ActionShouldRetryWithPhone(err)) throw err;
+                    closeEventModal();
                     var phoneSigned = await v61AuthorizeActionWithPhone('irlid_calendar_write_v5', currentOrg && currentOrg.id, signedFields);
                     result = phoneSigned.action_result || {};
                   }

@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v90'; // v6.1.9 Windows desktops default to phone action auth.
+const CACHE_VERSION = 'irlid-shell-v91'; // v6.1.10 Add-event modal auto-closes before phone action auth.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
