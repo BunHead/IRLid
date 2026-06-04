@@ -3325,7 +3325,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16e</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.18</span></div>
   </div>
 </div>
 
@@ -6630,10 +6630,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <details class="v511-expander">
             <summary>Event defaults <span class="v511-hint-inline">(applied to any new event unless overridden)</span> <span class="v511-saved-pulse" id="v511EventDefaultsSavedPulse" aria-live="polite">&check; Saved</span></summary>
             <div class="v511-expander-body">
-              <div class="v511-row"><label>Default duration</label><input type="text" value="60 minutes" /></div>
-              <div class="v511-row"><label>Check-out grace</label><input type="text" value="60 minutes" /></div>
-              <div class="v511-row"><label>Late check-in grace before</label><input type="text" value="15 minutes" /></div>
-              <div class="v511-row"><label>Late check-in grace after</label><input type="text" value="30 minutes" /></div>
+              <div class="v511-row"><label>Default duration</label><input type="number" id="v511DefaultDuration" value="60" min="0" max="1440" /></div>
+              <div class="v511-row"><label>Check-out grace</label><input type="number" id="v511CheckoutGrace" value="60" min="0" max="1440" /></div>
+              <div class="v511-row"><label>Late check-in grace before</label><input type="number" id="v511LateGraceBefore" value="15" min="0" max="1440" /></div>
+              <div class="v511-row"><label>Late check-in grace after</label><input type="number" id="v511LateGraceAfter" value="30" min="0" max="1440" /></div>
               <div class="v511-row"><label>Working hours start</label><input type="time" id="v511WorkingHoursStart" value="09:00" /></div>
               <div class="v511-row"><label>Working hours end</label><input type="time" id="v511WorkingHoursEnd" value="17:59" /></div>
               <div class="v511-row"><label>Number of breaks</label><select id="v511BreaksCount"><option value="0">No breaks</option><option value="1">1 break</option><option value="2">2 breaks</option><option value="3">3 breaks</option></select></div>
@@ -6641,14 +6641,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row" id="v511Break2Row" hidden><label>Break 2</label><div style="display:flex; gap:6px; align-items:center;"><input type="time" id="v511Break2Start" value="15:00" /> <span class="v511-hint-inline">to</span> <input type="time" id="v511Break2End" value="15:15" /></div></div>
               <div class="v511-row" id="v511Break3Row" hidden><label>Break 3</label><div style="display:flex; gap:6px; align-items:center;"><input type="time" id="v511Break3Start" value="18:00" /> <span class="v511-hint-inline">to</span> <input type="time" id="v511Break3End" value="18:30" /></div></div>
               <div class="v511-hint" style="padding:4px 0;">Working hours render as a brighter band on the event table; breaks render as amber bands within working hours.</div>
-              <div class="v511-row"><label>Minimum trust score</label><input type="number" value="50" min="0" max="100" /></div>
-              <div class="v511-row"><label>Privacy mode</label><select><option>Standard</option><option>Redacted GPS</option></select></div>
-              <div class="v511-row"><label>Require proof</label><select><option>Off</option><option>Optional</option><option>Required</option></select></div>
+              <div class="v511-row"><label>Minimum trust score</label><input type="number" id="v511MinTrustScore" value="50" min="0" max="100" /></div>
+              <div class="v511-row"><label>Privacy mode</label><select id="v511PrivacyMode"><option value="standard">Standard</option><option value="redacted_gps">Redacted GPS</option></select></div>
+              <div class="v511-row"><label>Require proof</label><select id="v511RequireProof"><option value="off">Off</option><option value="optional">Optional</option><option value="required">Required</option></select></div>
               <div class="v511-hint" style="margin-top: 8px; padding: 6px 0;">Post-accept behaviour (welcome message, redirects, dwell time, email/SMS) lives in <strong style="color: var(--text);">Visual theming → Post-accept behaviour</strong> — it's a visual/flow setting, not an event-data setting.</div>
             </div>
           </details>
 
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
+          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511EventDefaultsSaveBtn">Save all settings</button></div>
         </section>
 
         <!-- ===== TAB 3: ROLES &amp; STAFF ===== -->
@@ -7406,6 +7406,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function roomMetaFromRooms(rooms) { var meta = {}; rooms.forEach(function (room, ix) { var id = room.id || ('room' + ix); meta[id] = { label: room.label || 'Untitled room', subname: room.subname || '', capacity: parseInt(room.capacity || '0', 10) || 0, className: ROOM_CLASSES[ix % ROOM_CLASSES.length], color: ROOM_COLORS[ix % ROOM_COLORS.length] }; }); return meta; }
             function refreshRoomMeta() { ROOM_META = roomMetaFromRooms(loadRoomsState()); }
             var CAL_DEFAULTS = {
+              default_duration: 60,
+              checkout_grace: 60,
+              late_grace_before: 15,
+              late_grace_after: 30,
+              min_trust_score: 50,
+              privacy_mode: 'standard',
+              require_proof: 'off',
               week_starts_on: 1,
               room_vocabulary_singular: 'Room',
               room_vocabulary_plural: 'Rooms',
@@ -7427,6 +7434,37 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               }
             }
             function saveCalSettings(patch) { var current = loadCalSettings(); var next = Object.assign({}, current, patch); localStorage.setItem(V511_CAL_SETTINGS_KEY, JSON.stringify(next)); return next; }
+            function calendarDefaultsForSave() {
+              var s = loadCalSettings();
+              return {
+                default_duration: parseInt(s.default_duration, 10) || 0,
+                checkout_grace: parseInt(s.checkout_grace, 10) || 0,
+                late_grace_before: parseInt(s.late_grace_before, 10) || 0,
+                late_grace_after: parseInt(s.late_grace_after, 10) || 0,
+                working_hours_start: s.working_hours_start || '09:00',
+                working_hours_end: s.working_hours_end || '17:59',
+                breaks_count: parseInt(s.breaks_count, 10) || 0,
+                break_1_start: s.break_1_start || '12:00',
+                break_1_end: s.break_1_end || '13:00',
+                break_2_start: s.break_2_start || '15:00',
+                break_2_end: s.break_2_end || '15:15',
+                break_3_start: s.break_3_start || '18:00',
+                break_3_end: s.break_3_end || '18:30',
+                room_vocabulary_singular: s.room_vocabulary_singular || 'Room',
+                room_vocabulary_plural: s.room_vocabulary_plural || 'Rooms',
+                min_trust_score: parseInt(s.min_trust_score, 10) || 0,
+                privacy_mode: s.privacy_mode || 'standard',
+                require_proof: s.require_proof || 'off',
+                week_starts_on: parseInt(s.week_starts_on, 10) || 1
+              };
+            }
+            function hydrateCalendarDefaultsFromServer(defaults) {
+              var safeDefaults = (defaults && typeof defaults === 'object' && !Array.isArray(defaults)) ? defaults : {};
+              try { localStorage.setItem(V511_CAL_SETTINGS_KEY, JSON.stringify(Object.assign({}, CAL_DEFAULTS, safeDefaults))); } catch (_) {}
+              if (typeof renderAll === 'function') renderAll();
+            }
+            window.v511CalendarDefaultsForSave = calendarDefaultsForSave;
+            window.v511HydrateCalendarDefaultsFromServer = hydrateCalendarDefaultsFromServer;
             function weekStartsMonday() { return loadCalSettings().week_starts_on === 1; }
             function roomVocabSingular() { return loadCalSettings().room_vocabulary_singular || 'Room'; }
             function roomVocabPlural() { return loadCalSettings().room_vocabulary_plural || 'Rooms'; }
@@ -7634,11 +7672,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function renderEventDefaultInputs() {
               var s = loadCalSettings();
               var pairs = [
+                ['v511DefaultDuration', s.default_duration],
+                ['v511CheckoutGrace', s.checkout_grace],
+                ['v511LateGraceBefore', s.late_grace_before],
+                ['v511LateGraceAfter', s.late_grace_after],
                 ['v511WorkingHoursStart', s.working_hours_start],
                 ['v511WorkingHoursEnd', s.working_hours_end],
                 ['v511Break1Start', s.break_1_start], ['v511Break1End', s.break_1_end],
                 ['v511Break2Start', s.break_2_start], ['v511Break2End', s.break_2_end],
-                ['v511Break3Start', s.break_3_start], ['v511Break3End', s.break_3_end]
+                ['v511Break3Start', s.break_3_start], ['v511Break3End', s.break_3_end],
+                ['v511MinTrustScore', s.min_trust_score],
+                ['v511PrivacyMode', s.privacy_mode],
+                ['v511RequireProof', s.require_proof]
               ];
               pairs.forEach(function (p) { var el = document.getElementById(p[0]); if (el && document.activeElement !== el) el.value = p[1]; });
               var sel = document.getElementById('v511BreaksCount');
@@ -7956,7 +8001,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
             function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (p) { p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); } }
-            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; el.addEventListener('input', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); el.addEventListener('change', function () { var patch = {}; patch[key] = el.value; saveCalSettings(patch); renderAll(); flashEventDefaultsPulse(); }); }
+            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; var handler = function () { var patch = {}; patch[key] = el.type === 'number' ? (parseInt(el.value, 10) || 0) : el.value; saveCalSettings(patch); renderAll(); }; el.addEventListener('input', handler); el.addEventListener('change', handler); }
+            bindCalSetting('v511DefaultDuration', 'default_duration');
+            bindCalSetting('v511CheckoutGrace', 'checkout_grace');
+            bindCalSetting('v511LateGraceBefore', 'late_grace_before');
+            bindCalSetting('v511LateGraceAfter', 'late_grace_after');
             bindCalSetting('v511WorkingHoursStart', 'working_hours_start');
             bindCalSetting('v511WorkingHoursEnd', 'working_hours_end');
             bindCalSetting('v511Break1Start', 'break_1_start');
@@ -7965,7 +8014,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             bindCalSetting('v511Break2End', 'break_2_end');
             bindCalSetting('v511Break3Start', 'break_3_start');
             bindCalSetting('v511Break3End', 'break_3_end');
-            document.getElementById('v511BreaksCount')?.addEventListener('change', function (e) { saveCalSettings({ breaks_count: parseInt(e.target.value, 10) || 0 }); renderAll(); flashEventDefaultsPulse(); });
+            bindCalSetting('v511MinTrustScore', 'min_trust_score');
+            bindCalSetting('v511PrivacyMode', 'privacy_mode');
+            bindCalSetting('v511RequireProof', 'require_proof');
+            document.getElementById('v511BreaksCount')?.addEventListener('change', function (e) { saveCalSettings({ breaks_count: parseInt(e.target.value, 10) || 0 }); renderAll(); });
+            document.getElementById('v511EventDefaultsSaveBtn')?.addEventListener('click', async function () { if (typeof saveSettings === 'function') await saveSettings(); });
             document.getElementById('v511AddRoomBtn')?.addEventListener('click', openRoomDraft);
             document.addEventListener('click', function (e) {
               var saveDraft = e.target.closest('[data-draft-save]');
@@ -12424,6 +12477,9 @@ function snapshotOrgCode(org) {
 }
 function applyServerSettingsToLocalState(s) {
   const src = s || {};
+  if (typeof window.v511HydrateCalendarDefaultsFromServer === 'function') {
+    window.v511HydrateCalendarDefaultsFromServer(src.calendar_defaults);
+  }
   if (typeof src.minScore === 'number') portalState.minimumTrustScore = src.minScore;
   if (typeof src.bioRequired === 'boolean') portalState.biometricRequired = src.bioRequired;
   if (typeof src.privacyMode === 'boolean') portalState.privacyMode = src.privacyMode;
@@ -13764,6 +13820,7 @@ async function saveSettings() {
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
     enableIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
     roleLabels: readRoleLabelsFromUI(), // v5.9.0.13.14 — role vocabulary panel
+    calendar_defaults: (typeof window.v511CalendarDefaultsForSave === 'function') ? window.v511CalendarDefaultsForSave() : undefined,
     theme: normalizeThemeForSave(typeof activeTheme !== 'undefined' ? activeTheme : null)
   };
 
@@ -13836,6 +13893,13 @@ async function saveSettings() {
   if (!eq(payload.welcomeMessage, r.welcomeMessage)) lost.push('welcomeMessage');
   if (!eq(payload.orgTerms, r.orgTerms)) lost.push('orgTerms');
   if (payload.minScore !== r.minScore) lost.push('minScore');
+  if (payload.calendar_defaults) {
+    const sentCal = payload.calendar_defaults;
+    const recvCal = r.calendar_defaults || {};
+    Object.keys(sentCal).forEach(key => {
+      if (String(sentCal[key] ?? '') !== String(recvCal[key] ?? '')) lost.push('calendar_defaults.' + key);
+    });
+  }
   // v5.9.0.13.14 — roleLabels round-trip verifier
   if (payload.roleLabels) {
     const sentLabels = normaliseRoleLabels(payload.roleLabels);
