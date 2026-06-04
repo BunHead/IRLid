@@ -9,7 +9,10 @@
 **Briefs queued (paste-ready):**
 - `HANDOVER-OrgReceiptsInHistory-v6.1.19.md` — Task 16 easy slice (receipt.html reads irlid_org_receipts → "Your check-ins" group). receipt.html-only, no Worker. **Awaiting Captain's inline-vs-Data call.**
 - `HANDOVER-ManagerPermissions-v6.2.0.md` — per-org Manager-permissions matrix in Sign-in & Auth (Lead-Admin-set, default off; first row = managers-can-edit-calendar; Worker minRole consults `settings_json.manager_perms`).
+- `HANDOVER-LeadAdminAppointment-Build-v6.3.0.md` — **BUILD brief** (from the ratified `HANDOVER-LeadAdminCoPresence-DESIGN.md`). Two PRs (Worker+migration, then frontend ceremony). Real co-presence gate (≤12m/≤90s/≤5min), Replace (atomic), allow-fresh, immutable audit. **Deploy + smoke MUST be in person — 2 co-present phones with Captain.** Lead Admin can't be invited (governance); this is the only way to create one.
 - `HANDOVER-AttendanceProgress-v6.1.14.md` Fix 4 (Expected-list scrollable) — dropped from the merged PR; small follow-up.
+
+**Role-tier testing (Captain's current goal):** the "Viewing as" preview switcher was removed in prod (security lockdown), so testing a tier = sign in as a real user holding that role on their own device (WebAuthn is device-bound; different browsers ≠ different roles). Staff/Manager → **invite via +Invite Staff** (creates portal identity + credential; Kerry to be invited as Manager). Lead Admin → can't be invited; D1-bump a manager OR build v6.3.0. Attendees (Kerry as checked-in) have NO portal credential, so can't sign into the portal until invited.
 
 **NEW backlog (4 June afternoon, Captain-flagged):**
 1. **Auto-checkout** — after an event's grace period, still-checked-in attendees should auto-check-out (`checkout_method='auto'`). Needs a toggle (in the now-wired Event defaults: Check-out grace) + a mechanism (read-time compute vs Cloudflare scheduled worker). Connects to #2. Design + spec needed.

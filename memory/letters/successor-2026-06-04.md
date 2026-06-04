@@ -26,9 +26,15 @@ Max sitting idle — Captain may drop to Pro; see BOOTSTRAP §3 device/Cloudflar
 
 ## What's queued / open (full detail in pending-work top section)
 
-- **Briefs paste-ready:** `HANDOVER-OrgReceiptsInHistory-v6.1.19.md` (Task 16 easy slice,
-  receipt.html-only — Captain hadn't chosen inline-vs-Data), `HANDOVER-ManagerPermissions-v6.2.0.md`,
+- **Briefs paste-ready (all Data-ready):** `HANDOVER-OrgReceiptsInHistory-v6.1.19.md` (Task 16
+  easy slice, receipt.html-only — refine to first-in/last-out, one per event),
+  `HANDOVER-ManagerPermissions-v6.2.0.md`, `HANDOVER-LeadAdminAppointment-Build-v6.3.0.md`
+  (the BIG one — co-presence-gated, two PRs, **deploy + smoke IN PERSON with 2 phones**),
   Fix 4 (Expected-list scrollable, dropped from v6.1.14 merge).
+- **Role-tier testing thread is live** — Captain wants to see what each role exposes. The
+  "Viewing as" preview switcher is gone (prod lockdown), so testing = sign in as a real
+  role-holder on their device. Next concrete step: **invite Kerry as Manager** (+Invite Staff
+  works on mobile). Lead Admin needs v6.3.0 (or a D1 role-bump on a manager for now).
 - **New backlog (Captain-flagged):** auto-checkout after grace; "must check out of previous
   event to check into a new one" (likely same root as auto-checkout); attendance-on-the-right
   layout; **Lead Admin appointment build** (designed, wants it soon — needs 2 co-present phones
