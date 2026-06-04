@@ -3657,6 +3657,7 @@ async function orgAttendance(request, env) {
     " ORDER BY c.checkin_at DESC LIMIT ?"
   ).bind(...checkinBinds).all();
   const checkins = rows.results || [];
+  applyLatestReceiptPerAttendanceIdentity(checkins);
   const total_in = checkins.filter(r => !r.checkout_at && r.status !== "invalid").length;
   const total_out = checkins.filter(r => r.checkout_at && r.status !== "invalid").length;
   const avg_score = checkins.length ? Math.round(checkins.reduce((s,r) => s+(r.score||0), 0) / checkins.length) : 0;
@@ -3688,6 +3689,34 @@ async function orgAttendance(request, env) {
     expected_only: true
   }));
   return json({ checkins: checkins.concat(expectedRows), stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+}
+
+function attendanceReceiptIdentity(row) {
+  if (!row) return "";
+  if (row.status === "conflict") return `conflict:${row.conflict_id || row.id || ""}`;
+  return String(row.attendee_key_id || row.attendee_label || row.name || row.id || "");
+}
+
+function attendanceReceiptSortTs(row) {
+  return Number(row?.checkin_at || row?.created_at || 0) || 0;
+}
+
+function applyLatestReceiptPerAttendanceIdentity(checkins) {
+  const latestByIdentity = new Map();
+  for (const row of checkins || []) {
+    const identity = attendanceReceiptIdentity(row);
+    if (!identity) continue;
+    const current = latestByIdentity.get(identity);
+    const ts = attendanceReceiptSortTs(row);
+    if (!current || ts > current.ts) {
+      latestByIdentity.set(identity, { id: row.id, ts });
+    }
+  }
+  for (const row of checkins || []) {
+    const identity = attendanceReceiptIdentity(row);
+    const latest = identity ? latestByIdentity.get(identity) : null;
+    if (latest && row.id !== latest.id) row.receipt_id = null;
+  }
 }
 
 function isDebugOrg(org) {
