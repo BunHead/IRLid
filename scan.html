@@ -10,7 +10,13 @@
   <meta property="og:title" content="IRLid — Scan" />
   <meta property="og:description" content="Exchange QR codes to generate a tamper-evident co-presence receipt. Takes about 10 seconds." />
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.irlidDebugOn = function(){ try { return localStorage.getItem('irlid_debug') === '1'; } catch(_) { return false; } };
+    window.irlidDebugLog = function(){ if (window.irlidDebugOn()) console.log.apply(console, arguments); };
+    document.documentElement.classList.toggle('irlid-debug-on', window.irlidDebugOn());
+  </script>
   <style>
+    html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
     .scan-main {
       padding: 0 0 calc(var(--mobile-nav-h) + 22px);
       text-align: center;
@@ -273,7 +279,7 @@
       <select id="cameraSelect" aria-label="Camera"></select>
     </div>
     <div class="scan-status" id="status">Ready — tap Scan to scan any IRLid QR code.</div>
-    <div id="debugControls">
+    <div id="debugControls" data-debug-gated>
       <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
     </div>
   </div>
@@ -304,11 +310,7 @@
 
   // ========== Debug panel ==========
   function isDebugMode() {
-    try {
-      if (new URLSearchParams(location.search).get("debug") === "1") return true;
-      if (localStorage.getItem("irlid_debug") === "1") return true;
-    } catch(e){}
-    return false;
+    return window.irlidDebugOn();
   }
   const debugPanel = document.createElement("div");
   debugPanel.id = "debugPanel";
@@ -324,7 +326,8 @@
     debugPanel.style.display = "block";  // auto-open in debug mode
   }
   function dbg(msg) {
-    console.log("[IRLid]", msg);
+    if (!isDebugMode()) return;
+    window.irlidDebugLog("[IRLid]", msg);
     const line = document.createElement("div");
     line.textContent = new Date().toLocaleTimeString() + " " + msg;
     debugPanel.appendChild(line);
@@ -1155,7 +1158,7 @@
           } catch(e) {
             setStatus("Error: " + e.message);
             dbg("Error: " + e.message);
-            debugPanel.style.display = "block";
+            if (isDebugMode()) debugPanel.style.display = "block";
             console.error(e);
           }
           return;

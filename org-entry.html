@@ -7,6 +7,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>IRLid Entry</title>
+<script>
+  window.irlidDebugOn = function(){ try { return localStorage.getItem('irlid_debug') === '1'; } catch(_) { return false; } };
+  window.irlidDebugLog = function(){ if (window.irlidDebugOn()) console.log.apply(console, arguments); };
+  document.documentElement.classList.toggle('irlid-debug-on', window.irlidDebugOn());
+</script>
 <!-- v5.7.0s — favicon link kills the GET /favicon.ico 404 from console.
      v5.7.0t — viewport hardening + web-app-capable meta tags. user-scalable=no
      prevents accidental pinch-zoom that drifts the orange QR off-centre.
@@ -14,6 +19,7 @@
      added to home screen (proper URL-bar hide ships with v5.5.12 PWA). -->
 <link rel="icon" href="favicon.ico" type="image/x-icon">
 <style>
+  html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
   :root{
     --bg:#000000;
     --fg:#ffffff;
