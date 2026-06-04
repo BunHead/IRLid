@@ -28,9 +28,9 @@ Hide these from roles below the threshold (the Worker still rejects them; this j
   **staff+** (day-to-day staff manage the expected list; attendees must never see it)
 - **Initiate check-out** → **staff+** (leave as-is if already gated)
 
-*(Thresholds above are the sensible defaults — flag to Captain for sign-off; he may want
-deletes at manager+ vs lead_admin+. Don't guess silently — if unsure, lead_admin+ for deletes is
-the safe conservative default.)*
+*(CONFIRMED by Captain 4 June: **lead_admin+ for deletes** — "Lead Admin has near as damned the
+same privileges as Developer; can't have me popping by every time they need to delete someone."
+So Lead Admin handles day-to-day deletes; Developer is not required.)*
 
 ## Implementation notes
 - Use the existing `effectiveRoleRank()` / role-gating sweep (v5.11.11 precedent) — don't invent a
