@@ -6658,6 +6658,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Minimum trust score</label><input type="number" id="v511MinTrustScore" value="50" min="0" max="100" /></div>
               <div class="v511-row"><label>Privacy mode</label><select id="v511PrivacyMode"><option value="standard">Standard</option><option value="redacted_gps">Redacted GPS</option></select></div>
               <div class="v511-row"><label>Require proof</label><select id="v511RequireProof"><option value="off">Off</option><option value="optional">Optional</option><option value="required">Required</option></select></div>
+              <div class="v511-row"><label>Auto check-out after grace</label><div><input type="checkbox" id="v511AutoCheckout" style="vertical-align: middle;" /> <span class="v511-hint">Close still-IN event check-ins after the check-out grace period</span></div></div>
               <div class="v511-hint" style="margin-top: 8px; padding: 6px 0;">Post-accept behaviour (welcome message, redirects, dwell time, email/SMS) lives in <strong style="color: var(--text);">Visual theming → Post-accept behaviour</strong> — it's a visual/flow setting, not an event-data setting.</div>
             </div>
           </details>
@@ -7448,6 +7449,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               min_trust_score: 50,
               privacy_mode: 'standard',
               require_proof: 'off',
+              auto_checkout: false,
               week_starts_on: 1,
               room_vocabulary_singular: 'Room',
               room_vocabulary_plural: 'Rooms',
@@ -7490,6 +7492,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 min_trust_score: parseInt(s.min_trust_score, 10) || 0,
                 privacy_mode: s.privacy_mode || 'standard',
                 require_proof: s.require_proof || 'off',
+                auto_checkout: s.auto_checkout === true,
                 week_starts_on: parseInt(s.week_starts_on, 10) || 1
               };
             }
@@ -7727,6 +7730,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               pairs.forEach(function (p) { var el = document.getElementById(p[0]); if (el && document.activeElement !== el) el.value = p[1]; });
               var sel = document.getElementById('v511BreaksCount');
               if (sel && document.activeElement !== sel) sel.value = String(s.breaks_count || 0);
+              var auto = document.getElementById('v511AutoCheckout');
+              if (auto && document.activeElement !== auto) auto.checked = s.auto_checkout === true;
               var count = parseInt(s.breaks_count, 10) || 0;
               [1,2,3].forEach(function (n) { var row = document.getElementById('v511Break' + n + 'Row'); if (row) row.hidden = (n > count); });
             }
@@ -7806,7 +7811,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 });
                 var logHtml = sortedRows.slice(0, 80).map(function (row) {
                   var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
-                  var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? 'OUT' : 'IN');
+                  var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? (row.checkout_method === 'auto' ? 'OUT · auto' : 'OUT') : 'IN');
                   var timeValue = row.expected_only ? '' : (row.checkout_at || row.checkin_at || row.created_at);
                   var timeHtml = timeValue ? '<span class="v511-attendance-time">&middot; ' + htmlEscape(formatLocalTime(timeValue)) + '</span>' : '';
                   return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong><span class="v511-attendance-status">&middot; ' + htmlEscape(status) + '</span>' + timeHtml + '</div>';
@@ -8043,7 +8048,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
             function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (p) { p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); } }
-            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; var handler = function () { var patch = {}; patch[key] = el.type === 'number' ? (parseInt(el.value, 10) || 0) : el.value; saveCalSettings(patch); renderAll(); }; el.addEventListener('input', handler); el.addEventListener('change', handler); }
+            function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; var handler = function () { var patch = {}; patch[key] = el.type === 'number' ? (parseInt(el.value, 10) || 0) : (el.type === 'checkbox' ? !!el.checked : el.value); saveCalSettings(patch); renderAll(); }; el.addEventListener('input', handler); el.addEventListener('change', handler); }
             bindCalSetting('v511DefaultDuration', 'default_duration');
             bindCalSetting('v511CheckoutGrace', 'checkout_grace');
             bindCalSetting('v511LateGraceBefore', 'late_grace_before');
@@ -8059,6 +8064,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             bindCalSetting('v511MinTrustScore', 'min_trust_score');
             bindCalSetting('v511PrivacyMode', 'privacy_mode');
             bindCalSetting('v511RequireProof', 'require_proof');
+            bindCalSetting('v511AutoCheckout', 'auto_checkout');
             document.getElementById('v511BreaksCount')?.addEventListener('change', function (e) { saveCalSettings({ breaks_count: parseInt(e.target.value, 10) || 0 }); renderAll(); });
             document.getElementById('v511EventDefaultsSaveBtn')?.addEventListener('click', async function () { if (typeof saveSettings === 'function') await saveSettings(); });
             document.getElementById('v511AddRoomBtn')?.addEventListener('click', openRoomDraft);
@@ -14739,7 +14745,7 @@ function renderTable(rows) {
       ? `<span class="expected-pill ${r.status === 'expected_linked' ? 'ok' : 'warn'}">${r.status === 'expected_linked' ? 'linked expected' : 'expected'}</span>`
       : r.status === 'conflict'
       ? '<span class="status-conflict">? CONFLICT</span>'
-      : (r.status === 'invalid' ? '<span class="status-invalid">INVALID</span>' : (checkinId ? '<span class="status-in">● IN</span>' : `<span class="status-out">● OUT</span>${methodBadge}`));
+      : (r.status === 'invalid' ? '<span class="status-invalid">INVALID</span>' : (checkinId ? '<span class="status-in">● IN</span>' : `<span class="status-out">● OUT${r.checkout_method === 'auto' ? ' · auto' : ''}</span>${methodBadge}`));
     const rowClass = recentlyCheckedOutId && recentlyCheckedOutId === r.id ? ' class="checkout-row-complete"' : '';
     // v5.7.0k — Role badge moves to its own column; Action holds only the
     // verbs (Initiate check-out / Delete record / Delete expected / etc.).
