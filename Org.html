@@ -18,6 +18,13 @@
      no flash. Test env (bunhead.github.io) is unaffected. -->
 <script>
   (function () {
+    window.irlidDebugOn = function(){ try { return localStorage.getItem('irlid_debug') === '1'; } catch(_) { return false; } };
+    window.irlidDebugLog = function(){ if (window.irlidDebugOn()) console.log.apply(console, arguments); };
+    function applyDebugClass() {
+      document.documentElement.classList.toggle('irlid-debug-on', window.irlidDebugOn());
+    }
+    window.irlidApplyDebugVisibility = applyDebugClass;
+    applyDebugClass();
     if (location.hostname === 'irlid.co.uk') {
       document.documentElement.classList.add('is-live-env');
     }
@@ -63,6 +70,7 @@
 <script src="js/qr-fullscreen.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
 :root {
   --bg: #0d1117;
   --panel: #161b22;
@@ -3308,7 +3316,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16</span></div>
   </div>
 </div>
 
@@ -3550,10 +3558,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     <button class="btn btn-secondary btn-sm" onclick="loadVenueQR()">↻ Refresh QR</button>
                     <button class="btn btn-primary btn-sm" onclick="fullscreenQR()">⛶ Fullscreen</button>
                     <button class="btn btn-secondary btn-sm" onclick="copyText(venueQrPayload)">Copy URL</button>
-                    <button class="btn btn-secondary btn-sm" onclick="testInlineCheckinAnimation()" title="Fire celebration on the inline frame using the current Sample mode picker — debug-only">▶ Test anim</button>
+                    <button class="btn btn-secondary btn-sm" onclick="testInlineCheckinAnimation()" title="Fire celebration on the inline frame using the current Sample mode picker — debug-only" data-debug-gated>▶ Test anim</button>
                   </div>
-                  <div class="qr-payload-preview" id="qrPayloadPreview"></div>
-                  <div class="prototype-note" style="margin-top:14px;"><strong>Prototype:</strong> Check-in is now the public-safe branded event QR screen. No names, expected list, attendance table, debug controls, or dashboard actions should be visible here.</div>
+                  <div class="qr-payload-preview" id="qrPayloadPreview" data-debug-gated></div>
+                  <div class="prototype-note" style="margin-top:14px;" data-debug-gated><strong>Prototype:</strong> Check-in is now the public-safe branded event QR screen. No names, expected list, attendance table, debug controls, or dashboard actions should be visible here.</div>
                 </div>
 
                 <div id="doormanWrap" class="mode-inactive" aria-hidden="true">
@@ -7060,7 +7068,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <details class="v511-expander">
             <summary>Debug <span class="v511-hint-inline">(test-fire controls, console verbosity)</span></summary>
             <div class="v511-expander-body">
-              <div class="v511-row"><label for="v511ToolsVerboseLogging">Verbose logging</label><div><input type="checkbox" id="v511ToolsVerboseLogging" style="vertical-align: middle;" /> <span class="v511-hint">Console-level diagnostics for support</span></div></div>
+              <div class="v511-row"><label for="v511ToolsVerboseLogging">Show debug information</label><div><input type="checkbox" id="v511ToolsVerboseLogging" style="vertical-align: middle;" /> <span class="v511-hint">Debug panels and console diagnostics for support</span></div></div>
             </div>
           </details>
 
@@ -8112,7 +8120,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // Default is true if neither value is explicitly set
               var enabled = (liveEnabled !== null) ? liveEnabled :
                             (modeStates[mode] && 'v511PaPlaySound' in modeStates[mode]) ? storedEnabled : true;
-              console.log('[sound] outcome handler fired', { mode: mode || 'allow', action: action || 'in', soundKey: soundKey, enabled: enabled });
+              irlidDebugLog('[sound] outcome handler fired', { mode: mode || 'allow', action: action || 'in', soundKey: soundKey, enabled: enabled });
               if (!enabled) return;
             } catch (e) { /* fall through and play */ }
             // Play uploaded audio for this outcome/action if available. v5.12
@@ -9585,9 +9593,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               currentSettings = (currentResp && currentResp.settings) || {};
               themePayload = v511BuildThemePayload(currentSettings.theme || {});
               payload = Object.assign({}, currentSettings, { theme: themePayload });
-              console.log('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
+              irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
               resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
-              console.log('[v5.12 visual theme save] Worker response:', resp);
+              irlidDebugLog('[v5.12 visual theme save] Worker response:', resp);
               if (resp && resp.queued) { v511SetVisualSaveStatus('Queued offline', ''); return; }
               var readback;
               if (resp && resp.theme) {
@@ -9595,10 +9603,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 // the Worker echoes the persisted settings row after POST, avoiding
                 // an immediate GET readback race against D1 propagation.
                 readback = { settings: resp.theme };
-                console.log('[v5.12 visual theme save] Persisted POST echo:', readback);
+                irlidDebugLog('[v5.12 visual theme save] Persisted POST echo:', readback);
               } else {
                 readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
-                console.log('[v5.12 visual theme save] GET readback:', readback);
+                irlidDebugLog('[v5.12 visual theme save] GET readback:', readback);
               }
               var readbackSettings = (readback && readback.settings) || {};
               var lost = (typeof themeRoundTripMismatches === 'function') ? themeRoundTripMismatches(themePayload, readbackSettings.theme) : [];
@@ -11336,16 +11344,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             return state;
           }
           function v511ToolsApplyState(state) {
-            if (!state) return;
             V511_TOOLS_FIELDS.forEach(function (f) {
-              if (state[f.id] === undefined) return;
               var el = document.getElementById(f.id);
               if (!el) return;
-              if (f.type === 'checkbox') el.checked = !!state[f.id];
-              else el.value = state[f.id];
+              if (f.id === 'v511ToolsVerboseLogging') el.checked = !!window.irlidDebugOn?.();
+              else if (state && state[f.id] !== undefined && f.type === 'checkbox') el.checked = !!state[f.id];
+              else if (state && state[f.id] !== undefined) el.value = state[f.id];
             });
           }
           function v511ToolsSaveNow() {
+            var debugEl = document.getElementById('v511ToolsVerboseLogging');
+            if (debugEl && typeof setIrlidDebugEnabled === 'function') setIrlidDebugEnabled(!!debugEl.checked);
             try {
               localStorage.setItem(V511_TOOLS_LS_KEY, JSON.stringify(v511ToolsCaptureState()));
               v511PulsePill('v511ToolsSavedPulse');
@@ -11356,11 +11365,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function v511ToolsLoadFromStorage() {
             try {
               var raw = localStorage.getItem(V511_TOOLS_LS_KEY);
-              if (raw) v511ToolsApplyState(JSON.parse(raw));
+              v511ToolsApplyState(raw ? JSON.parse(raw) : {});
             } catch (e) { /* corrupted blob — leave seeded values */ }
           }
           var v511ToolsSaveBtn = document.getElementById('v511ToolsSaveBtn');
           if (v511ToolsSaveBtn) v511ToolsSaveBtn.addEventListener('click', v511ToolsSaveNow);
+          var v511ToolsDebugToggle = document.getElementById('v511ToolsVerboseLogging');
+          if (v511ToolsDebugToggle) v511ToolsDebugToggle.addEventListener('change', function () {
+            if (typeof setIrlidDebugEnabled === 'function') setIrlidDebugEnabled(!!v511ToolsDebugToggle.checked);
+          });
           v511ToolsLoadFromStorage();
 
           // v5.11.0a ? server-canonical Org.html keeps no mockup-state restore.
@@ -12208,7 +12221,7 @@ const STORAGE_KEY_EXPECTED = "irlid_org_local_expected_attendees";
       const oldVal = localStorage.getItem(oldKey);
       if (oldVal !== null && localStorage.getItem(newKey) === null) {
         localStorage.setItem(newKey, oldVal);
-        console.log("[migrate] copied", oldKey, "->", newKey);
+        irlidDebugLog("[migrate] copied", oldKey, "->", newKey);
       }
       // Always remove the old key (whether we copied or the new one already existed).
       if (oldVal !== null) {
@@ -12417,7 +12430,7 @@ async function saveCurrentOrgSnapshot(reason) {
   if (!orgCode) return null;
   try {
     const snap = await window.IRLidOfflineSnapshot.save(orgCode, currentSnapshotData());
-    console.log('[snapshot] saved', reason || 'sync', orgCode);
+    irlidDebugLog('[snapshot] saved', reason || 'sync', orgCode);
     return snap;
   } catch (err) {
     console.warn('[snapshot] save failed', err);
@@ -13075,7 +13088,7 @@ async function handleQrLoginSuccess(data) {
   try {
     const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
     myOrgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
-    console.log("[v5.5.5] /user/orgs returned:", myOrgs);
+    irlidDebugLog("[v5.5.5] /user/orgs returned:", myOrgs);
   } catch (err) {
     status.textContent = 'Could not load your org list: ' + (err.message || 'unknown error');
     status.style.color = '#f85149';
@@ -13129,7 +13142,7 @@ function renderOrgPicker(myOrgs, displayName, isDeveloper) {
       '</div>' +
       '<span class="org-picker-role ' + roleClass + '">' + escapeHtml(roleLabel) + '</span>';
     card.addEventListener('click', function () {
-      console.log("[v5.5.5] picker selected org:", org);
+      irlidDebugLog("[v5.5.5] picker selected org:", org);
       loadDashboardForOrg(org);
     });
     list.appendChild(card);
@@ -13159,7 +13172,7 @@ async function freshOrgFromSession(savedOrg) {
   if (!qrLoginSession?.session_token) return null;
   const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
   const orgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
-  console.log("[v5.5.5] /user/orgs returned:", orgs);
+  irlidDebugLog("[v5.5.5] /user/orgs returned:", orgs);
   if (!savedOrg) return orgs[0] || null;
   // v5.9.0.5 — Match by stable identifiers first, then fall back to orgs[0].
   // Captain's savedOrg from a prior Service-account session may lack id+slug
@@ -13214,7 +13227,7 @@ async function loadDashboardForOrg(org) {
     role: dashboardOrg.role,
     mode: 'irlid-api-test'
   };
-  console.log("[v5.5.5] currentOrg now:", currentOrg);
+  irlidDebugLog("[v5.5.5] currentOrg now:", currentOrg);
   saveJson(STORAGE_KEY_ORG, currentOrg);
 
   // Reset local UI state to defaults BEFORE applying anything org-specific.
@@ -13241,7 +13254,7 @@ async function loadDashboardForOrg(org) {
   // the org is brand new, the defaults above remain.
   try {
     if (window.IRLidOrgApi && typeof window.IRLidOrgApi.getOrgSettings === 'function') {
-      console.log("[v5.5.5] /org/settings sending key:", currentOrg && currentOrg.api_key);
+      irlidDebugLog("[v5.5.5] /org/settings sending key:", currentOrg && currentOrg.api_key);
       const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
       const s = (res && res.settings) || {};
       applyServerSettingsToLocalState(s);
@@ -13449,7 +13462,15 @@ function applySettingsToUI() {
   }
   if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   updateChromeLogo();
+  const debugToggle = document.getElementById('v511ToolsVerboseLogging');
+  if (debugToggle) debugToggle.checked = !!window.irlidDebugOn?.();
 }
+
+function setIrlidDebugEnabled(enabled) {
+  try { localStorage.setItem('irlid_debug', enabled ? '1' : '0'); } catch (_) {}
+  if (typeof window.irlidApplyDebugVisibility === 'function') window.irlidApplyDebugVisibility();
+}
+
 function collectSettingsFromCanonical() {
   return {
     minScore: normalizeScore(document.getElementById('minimumTrustScore')?.value, 50),
@@ -13720,11 +13741,11 @@ async function saveSettings() {
   }
 
   setThemeSaveStatus('Saving...', '');
-  console.log('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
+  irlidDebugLog('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
   let resp;
   try {
     resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
-    console.log('[settings save] Worker response:', resp);
+    irlidDebugLog('[settings save] Worker response:', resp);
   } catch (err) {
     console.error('[settings save] POST failed:', err);
     setThemeSaveStatus('Save failed: ' + (err.message || 'unknown'), 'err');
@@ -13743,13 +13764,13 @@ async function saveSettings() {
     // v5.11.22 - Worker POST echoes the persisted settings row, avoiding the
     // immediate readback GET race against D1 propagation.
     readback = { settings: resp.theme };
-    console.log('[settings save] Persisted POST echo:', readback);
+    irlidDebugLog('[settings save] Persisted POST echo:', readback);
   } else {
     // Defensive rollout fallback for old Workers that have not deployed the
     // v5.11.22 response shape yet.
     try {
       readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
-      console.log('[settings save] Readback:', readback);
+      irlidDebugLog('[settings save] Readback:', readback);
     } catch (rbErr) {
       console.warn('[settings save] Readback failed:', rbErr);
       setThemeSaveStatus('Saved, but readback failed.', 'err');
@@ -14208,7 +14229,7 @@ function showCheckinEventToast(name, action, opts) {
     var v511mode = 'allow';
     var v511seq = (typeof activeTheme !== 'undefined' && activeTheme && activeTheme._v511 && activeTheme._v511.celebration) ? activeTheme._v511.celebration[v511mode] : null;
     if (v511seq && Array.isArray(v511seq) && v511seq.length > 0) {
-      console.log('[checkin-toast] suppressed; v511 sequence configured for', v511mode, '(action was', action + ')');
+      irlidDebugLog('[checkin-toast] suppressed; v511 sequence configured for', v511mode, '(action was', action + ')');
       return;
     }
   } catch (_) { /* defensive — fall through to legacy toast */ }
@@ -14216,7 +14237,7 @@ function showCheckinEventToast(name, action, opts) {
   if (!banner) { console.warn('[checkin-toast] banner element missing'); return; }
   const displayName = (name || '').trim() || 'Anonymous';
   const verb = action === 'out' ? 'checked OUT' : 'checked IN';
-  console.log('[checkin-toast] firing for', displayName, action);
+  irlidDebugLog('[checkin-toast] firing for', displayName, action);
   banner.classList.remove('hidden', 'event-out');
   if (action === 'out') banner.classList.add('event-out');
   banner.innerHTML = escapeHtml(displayName) + '<span class="event-action">' + verb + '</span>';
@@ -14241,7 +14262,7 @@ async function refreshAttendance() {
   // the poll once we're back online (the 'online' event listener fires an
   // immediate catch-up refresh).
   if (!navigator.onLine) {
-    console.log('[poll] offline — skipping refresh to preserve pending_sync rows');
+    irlidDebugLog('[poll] offline — skipping refresh to preserve pending_sync rows');
     return;
   }
   try {
@@ -14269,15 +14290,15 @@ async function refreshAttendance() {
       }
       nextSnapshot.set(id, curr);
     }
-    console.log('[poll]', new Date().toISOString().slice(11,19), 'rows:', checkins.length, 'initialised:', __seenSnapshotInitialised, 'events:', events.length, events.length ? events : '');
+    irlidDebugLog('[poll]', new Date().toISOString().slice(11,19), 'rows:', checkins.length, 'initialised:', __seenSnapshotInitialised, 'events:', events.length, events.length ? events : '');
     __seenRowSnapshot = nextSnapshot;
     __seenSnapshotInitialised = true;
     if (events.length > 0) {
       const tooSoon = (Date.now() - __lastDashboardCheckinAt) < 4000;
-      console.log('[poll] events detected. tooSoon (dashboard-local fired recently):', tooSoon);
+      irlidDebugLog('[poll] events detected. tooSoon (dashboard-local fired recently):', tooSoon);
       if (!tooSoon) {
         events.forEach(function (ev) {
-          if (__lastToastEventId === ev.id) { console.log('[poll] skipping dup event for id', ev.id); return; }
+          if (__lastToastEventId === ev.id) { irlidDebugLog('[poll] skipping dup event for id', ev.id); return; }
           showCheckinEventToast(ev.name, ev.type);
           // v5.11.15 — revert v5.11.14 conditional dispatch. Captain clarified:
           // "Checkout isn't deny... in/out should be accept :)". The original
@@ -14289,7 +14310,7 @@ async function refreshAttendance() {
           // threads it through to the cel-text-overlay template.
           try {
             var soundKey = (typeof window.v512OutcomeSoundKey === 'function') ? window.v512OutcomeSoundKey('allow', ev.type) : (ev.type === 'out' ? 'allow.checkout' : 'allow.checkin');
-            console.log('[checkout-sound] attendance event handler', { event: ev.type, row_id: ev.id, name: ev.name, soundKey: soundKey });
+            irlidDebugLog('[checkout-sound] attendance event handler', { event: ev.type, row_id: ev.id, name: ev.name, soundKey: soundKey });
           } catch (_) {}
           try { if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(ev.name, ev.type); } catch (_) {}
         });
@@ -15214,7 +15235,7 @@ async function startDashboardCameraScan() {
       async (decodedText) => {
         // v5.7.0p — Log every decode callback invocation so we can see
         // in DevTools whether the library is reaching this code path.
-        console.log('[scan] camera decode callback fired', { length: decodedText?.length, preview: String(decodedText || '').slice(0, 40) });
+        irlidDebugLog('[scan] camera decode callback fired', { length: decodedText?.length, preview: String(decodedText || '').slice(0, 40) });
         // First successful decode wins. Stop the camera, populate the
         // textarea, and chain straight into Process scan so staff see the
         // escalation modal / runDoormanCheckin result immediately.
@@ -15276,7 +15297,7 @@ async function processDashboardScan() {
   if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('manager')} role required to scan attendee QRs.`, 'error');
   const text = (input?.value || '').trim();
   const hasFile = !!document.getElementById('dashboardScanImageInput')?.files?.[0];
-  console.log('[scan] processDashboardScan start', {
+  irlidDebugLog('[scan] processDashboardScan start', {
     source: text ? 'textarea' : hasFile ? 'decoded-image-required' : 'empty',
     has_textarea: !!text,
     has_file: hasFile,
@@ -15287,7 +15308,7 @@ async function processDashboardScan() {
   try {
     setDashboardScanStatus('Processing scan...');
     const env = await decodeDashboardQrPayload(text);
-    console.log('[scan] decoded payload', { type: env.type || 'hello', pub_fp: env.pub_fp || env.fp || null });
+    irlidDebugLog('[scan] decoded payload', { type: env.type || 'hello', pub_fp: env.pub_fp || env.fp || null });
     if (env.type === 'device_key') {
       const recognition = await recogniseDeviceFp(env.pub_fp);
       if (recognition) {
@@ -15373,7 +15394,7 @@ function openEscalationModal(env) {
   setTimeout(() => document.getElementById('escalationSearchInput')?.focus(), 0);
   if (!expectedAttendees.length && !expectedLoading) {
     const openedAt = doormanEscalationState.scannedAt;
-    console.log('[scan] refreshing expected list after modal open');
+    irlidDebugLog('[scan] refreshing expected list after modal open');
     refreshExpectedAttendees()
       .then(() => {
         if (doormanEscalationState?.scannedAt === openedAt) renderEscalationExpectedList();
@@ -15738,7 +15759,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     // v5.9.0.9 — fire celebration burst on recognised-device queued check-in.
     // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
     try { markDashboardCheckin(); const __nm = expectedDisplayName(row); showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
-    console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
+    irlidDebugLog('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8));
     return;
   }
   await refreshAttendance();
@@ -15747,7 +15768,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
   // v5.9.0.9 — fire celebration burst on recognised-device completed check-in.
   // v5.9.0.13.6 — also fire the big centre-screen banner with the name.
   try { markDashboardCheckin(); const __nm = expectedDisplayName(recognition.row || row); showCheckinEventToast(__nm, 'in'); if (typeof triggerAcceptCycleAnimation === 'function') triggerAcceptCycleAnimation(__nm); } catch(_) {}
-  recognition.source === 'snapshot' ? console.log('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
+  recognition.source === 'snapshot' ? irlidDebugLog('[snapshot] recognised by offline cache:', expectedDisplayName(row), 'fp:', String(env.pub_fp || '').slice(0, 8)) : showToast('Recognised attendee checked in');
 }
 async function runDoormanCheckin(env) {
   const developerBypass = developerBearerSessionIsActive();
@@ -16977,7 +16998,7 @@ function syncPrototypeRoleFromSession() {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
-      .then((reg) => console.log('[sw] registered scope:', reg.scope))
+      .then((reg) => irlidDebugLog('[sw] registered scope:', reg.scope))
       .catch((err) => console.warn('[sw] registration failed:', err));
   });
 }
@@ -17035,27 +17056,27 @@ function clearPendingStaffScan() {
   // v5.7.1d — Verbose diagnostic. We log the IIFE entry and the raw hash
   // unconditionally so we can prove the script reaches this point (and
   // see exactly what window.location.hash returns in the wild).
-  console.log('[staff_scan] IIFE entry, raw hash:', JSON.stringify(window.location.hash));
+  irlidDebugLog('[staff_scan] IIFE entry, raw hash:', JSON.stringify(window.location.hash));
   try {
     const hash = window.location.hash || '';
     const m = hash.match(/[#&]staff_scan=([^&]+)/);
-    console.log('[staff_scan] regex match result:', m ? ('captured ' + m[1].length + ' chars') : 'no match');
+    irlidDebugLog('[staff_scan] regex match result:', m ? ('captured ' + m[1].length + ' chars') : 'no match');
     if (!m) {
       const recovered = readPendingStaffScan();
       if (recovered) {
         __staffScanPending = recovered;
-        console.log('[staff_scan] recovered pending QR from localStorage, length:', recovered.length, 'starts with:', recovered.slice(0, 50));
+        irlidDebugLog('[staff_scan] recovered pending QR from localStorage, length:', recovered.length, 'starts with:', recovered.slice(0, 50));
       }
       return;
     }
     __staffScanPending = decodeURIComponent(m[1]);
     stashPendingStaffScan(__staffScanPending);
-    console.log('[staff_scan] captured pending QR from hash, length:', __staffScanPending.length, 'starts with:', __staffScanPending.slice(0, 50));
+    irlidDebugLog('[staff_scan] captured pending QR from hash, length:', __staffScanPending.length, 'starts with:', __staffScanPending.slice(0, 50));
     // Clean the hash from the URL bar so the QR data isn't visible after
     // first read. Keep any other hash params if present.
     const cleanedHash = hash.replace(/[#&]staff_scan=[^&]+/, '').replace(/^&/, '#');
     history.replaceState(null, '', window.location.pathname + window.location.search + (cleanedHash === '#' ? '' : cleanedHash));
-    console.log('[staff_scan] hash cleaned from URL bar, __staffScanPending now set');
+    irlidDebugLog('[staff_scan] hash cleaned from URL bar, __staffScanPending now set');
   } catch (err) {
     console.warn('[staff_scan] hash capture failed:', err);
   }
@@ -17086,7 +17107,7 @@ async function tryStaffScanRedirectOrPoll() {
     catch (_) { return null; }
   })();
   if (savedSession && savedSession.session_token) {
-    if (__staffScanPending) console.log('[staff_scan] active session detected, deferring to normal restore path');
+    if (__staffScanPending) irlidDebugLog('[staff_scan] active session detected, deferring to normal restore path');
     return;
   }
 
@@ -17102,11 +17123,11 @@ async function tryStaffScanRedirectOrPoll() {
     // Return path: poll the Worker once with the stored nonce.
     if (!__staffScanPending) __staffScanPending = readPendingStaffScan();
     const ctx = __staffScanPending ? '[staff_scan]' : '[staff_signin]';
-    console.log(ctx, 'returning from org-login, polling for session with nonce', pendingNonce.slice(0, 8) + '...');
+    irlidDebugLog(ctx, 'returning from org-login, polling for session with nonce', pendingNonce.slice(0, 8) + '...');
     try {
       const data = await window.IRLidOrgApi.loginPoll(pendingNonce);
       if (data && data.status === 'claimed') {
-        console.log(ctx, 'session claimed, restoring as authenticated');
+        irlidDebugLog(ctx, 'session claimed, restoring as authenticated');
         // Clear the pending markers — session is now in hand.
         try { localStorage.removeItem(STAFF_SCAN_PENDING_NONCE_KEY); } catch (_) {}
         try { localStorage.removeItem(STAFF_SCAN_PENDING_WORKER_KEY); } catch (_) {}
@@ -17154,7 +17175,7 @@ async function tryStaffScanRedirectOrPoll() {
       + '?nonce=' + encodeURIComponent(nonce)
       + '&worker=' + encodeURIComponent(workerBase)
       + '&return=' + encodeURIComponent(dashboardUrl);
-    console.log('[staff_scan] redirecting to org-login.html for direct WebAuthn sign-in');
+    irlidDebugLog('[staff_scan] redirecting to org-login.html for direct WebAuthn sign-in');
     window.location.href = orgLoginUrl;
   } catch (err) {
     console.warn('[staff_scan] could not init login for redirect:', err);
@@ -17179,7 +17200,7 @@ async function tryProcessStaffScanIfPending() {
   // Populate the textarea with the captured QR data and trigger Process scan.
   const input = document.getElementById('dashboardScanPayloadInput');
   if (input) input.value = __staffScanPending;
-  console.log('[staff_scan] auto-processing pending QR');
+  irlidDebugLog('[staff_scan] auto-processing pending QR');
   setDashboardScanStatus('Processing staff-scanned QR...');
   const captured = __staffScanPending;
   __staffScanPending = null; // consume so we don't re-fire
@@ -17492,7 +17513,7 @@ async function tryShowSingleDeviceInviteAcceptIfNeeded() {
     showToast('Invite link is unreadable', true);
     return false;
   }
-  console.log('[v5.11.25b] Rendering invite acceptance UI for token:', __staffInvitePending.slice(0, 12) + '...');
+  irlidDebugLog('[v5.11.25b] Rendering invite acceptance UI for token:', __staffInvitePending.slice(0, 12) + '...');
   v511InviteAcceptEnsureStyles();
   const meta = await v511InviteAcceptBuildMeta(invite);
   const screen = document.createElement('div');
@@ -18150,12 +18171,12 @@ window.addEventListener('online', () => {
   // any new check-ins that happened while the dashboard was offline gets
   // detected promptly. Each detected event fires its own toast banner and
   // celebration via the existing refreshAttendance event-loop.
-  console.log('[reconnect] dashboard back online — firing immediate catch-up poll');
+  irlidDebugLog('[reconnect] dashboard back online — firing immediate catch-up poll');
   updateOfflineIndicator();
   if (typeof refreshAttendance === 'function') refreshAttendance().catch(() => {});
 });
 window.addEventListener('offline', () => {
-  console.log('[reconnect] dashboard went offline');
+  irlidDebugLog('[reconnect] dashboard went offline');
   updateOfflineIndicator();
 });
 window.addEventListener('irlid:queue-changed', updateOfflineIndicator);
@@ -18233,27 +18254,27 @@ window.addEventListener('DOMContentLoaded', async () => {
     setStaffHelloDialogStatus(file ? `Selected ${file.name}. Click Decode image.` : '');
   });
   document.getElementById('dashboardScanDecodeBtn')?.addEventListener('click', () => {
-    console.log('[scan] Decode image clicked');
+    irlidDebugLog('[scan] Decode image clicked');
     decodeDashboardScanImage();
   });
   document.getElementById('dashboardScanSubmitBtn')?.addEventListener('click', () => {
     const text = (document.getElementById('dashboardScanPayloadInput')?.value || '').trim();
     const hasFile = !!document.getElementById('dashboardScanImageInput')?.files?.[0];
-    console.log('[scan] Process scan clicked', { source: text ? 'textarea' : hasFile ? 'decoded-image-required' : 'empty', has_textarea: !!text, has_file: hasFile });
+    irlidDebugLog('[scan] Process scan clicked', { source: text ? 'textarea' : hasFile ? 'decoded-image-required' : 'empty', has_textarea: !!text, has_file: hasFile });
     processDashboardScan();
   });
   // v5.7.0h — Live webcam scanner. Camera is the primary scan path; Decode
   // image and paste remain as backups.
   document.getElementById('dashboardScanCameraStartBtn')?.addEventListener('click', () => {
-    console.log('[scan] Scan with camera clicked');
+    irlidDebugLog('[scan] Scan with camera clicked');
     startDashboardCameraScan();
   });
   document.getElementById('dashboardScanCameraStopBtn')?.addEventListener('click', () => {
-    console.log('[scan] Stop camera clicked');
+    irlidDebugLog('[scan] Stop camera clicked');
     stopDashboardCameraScan();
   });
   document.getElementById('dashboardScanCameraSelect')?.addEventListener('change', () => {
-    console.log('[scan] Camera changed');
+    irlidDebugLog('[scan] Camera changed');
     changeDashboardCamera();
   });
   document.getElementById('dashboardScanImageInput')?.addEventListener('change', (event) => {
@@ -18448,7 +18469,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (await tryRedeemStaffInviteIfPending()) return;
   } catch (err) { console.warn('[staff_invite] redeem on boot failed:', err); }
 
-  console.log('[v5.11.25b] Rendering default sign-in QR UI (no session, no invite)');
+  irlidDebugLog('[v5.11.25b] Rendering default sign-in QR UI (no session, no invite)');
   setSignedInUI(false); syncLegacyFromPortal(); ensureExpectedAttendees(); renderExpectedAttendees(); renderPortalAll(); showPanel('setup', document.getElementById('navOrganisation'));
   const stored = loadJson(STORAGE_KEY_ORG, null);
   if (stored) {
@@ -19142,9 +19163,9 @@ function previewAcceptCycle() {
   const celeb = activeTheme && activeTheme.celebration;
   if (celeb) {
     const classList = buildCelebrationClassList();
-    console.log('[celebration] preview fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
+    irlidDebugLog('[celebration] preview fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
     if (classList.length === 0) {
-      console.log('[celebration] zero classes for preview — implicit Off');
+      irlidDebugLog('[celebration] zero classes for preview — implicit Off');
       return;
     }
     // Apply to overlay chip (glow/pulse/bg/pattern visuals).
@@ -19169,7 +19190,7 @@ function previewAcceptCycle() {
           void bgOverlay.offsetWidth;
           bgOverlay.classList.add('firing');
           if (celeb.bg.sweep === 'thrice') bgOverlay.classList.add('firing-thrice');
-          console.log('[celebration preview] page-bg overlay fired, classList:', bgOverlay.className);
+          irlidDebugLog('[celebration preview] page-bg overlay fired, classList:', bgOverlay.className);
           setTimeout(function () { bgOverlay.classList.remove('firing', 'firing-thrice'); }, ms);
         }
       } catch (_) {}
@@ -19378,9 +19399,9 @@ function triggerAcceptCycleAnimation(attendeeName, action) {
 
   if (celeb) {
     const classList = buildCelebrationClassList();
-    console.log('[celebration] trigger fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
+    irlidDebugLog('[celebration] trigger fired. celeb state:', JSON.parse(JSON.stringify(celeb)), 'classList:', classList);
     if (classList.length === 0) {
-      console.log('[celebration] zero classes — implicit Off, returning');
+      irlidDebugLog('[celebration] zero classes — implicit Off, returning');
       window.__irlidAcceptCycleActive = false;
       return;
     }
@@ -19402,7 +19423,7 @@ function triggerAcceptCycleAnimation(attendeeName, action) {
         void bgOverlay.offsetWidth;
         bgOverlay.classList.add('firing');
         if (celeb.bg.sweep === 'thrice') bgOverlay.classList.add('firing-thrice');
-        console.log('[celebration] page-bg overlay fired, classList:', bgOverlay.className);
+        irlidDebugLog('[celebration] page-bg overlay fired, classList:', bgOverlay.className);
         setTimeout(function () { bgOverlay.classList.remove('firing', 'firing-thrice'); }, ms);
       }
       // v5.9.0.13.13 — Text effect fires the centre-screen text overlay.
@@ -19412,7 +19433,7 @@ function triggerAcceptCycleAnimation(attendeeName, action) {
       setTimeout(function () { document.body.classList.remove('celebration-firing'); }, ms);
     } catch (_) {}
     const targets = cycleBurstTargets(true);
-    console.log('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
+    irlidDebugLog('[celebration] applying to targets:', targets.map(function (el) { return el.tagName + (el.id ? '#' + el.id : '') + '.' + el.className.split(/\s+/).join('.'); }));
     targets.forEach(function (el) {
       // Remove any previously-applied celebration classes so reentries reset.
       el.className = el.className.split(/\s+/).filter(function (c) { return !/^celebration-/.test(c); }).join(' ');
@@ -20388,7 +20409,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var t = toggle.getAttribute('data-toggle');
     var bucket = anchorBucket();
     if (!alreadyLogged && (t === 'snap' || t === 'show')) {
-      console.log('[v5.12.0b anchor toggle click]', t, {
+      irlidDebugLog('[v5.12.0b anchor toggle click]', t, {
         snapBefore: bucket.snap !== false,
         showBefore: bucket.show !== false
       });
@@ -20410,7 +20431,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var logged = t === 'snap' || t === 'show';
         if (logged) {
           var bucket = anchorBucket();
-          console.log('[v5.12.0b anchor toggle click]', t, {
+          irlidDebugLog('[v5.12.0b anchor toggle click]', t, {
             snapBefore: bucket.snap !== false,
             showBefore: bucket.show !== false
           });
