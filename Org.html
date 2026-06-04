@@ -13376,10 +13376,28 @@ function updateCurrentEventBadge(eventName) {
   badge.textContent = eventName ? ('Now: ' + eventName) : 'No event running';
 }
 
+function checkinQrTitle(eventName) {
+  const venueName = String(currentOrg?.name || portalState?.orgCode || 'Venue').trim() || 'Venue';
+  const activeName = String(eventName || '').trim();
+  return activeName ? (venueName + ' — ' + activeName) : venueName;
+}
+
+function updateCheckinQrTitle(eventName) {
+  const title = checkinQrTitle(eventName);
+  ['venueQRBanner', 'currentEventQrTitle'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = title;
+  });
+  document.querySelectorAll('#v511InlineCheckinStage .v511-theme-preview-banner, #v511FullscreenStage .v511-theme-preview-banner').forEach(function(el) {
+    el.textContent = title;
+  });
+}
+
 function refreshCurrentEventQr() {
   if (!currentOrg?.api_key) {
     currentCheckinEventContext = normaliseCheckinEventContext(null, null);
     updateCurrentEventBadge(null);
+    updateCheckinQrTitle(null);
     return;
   }
   const activeEvent = (typeof window.v511GetActiveCalendarEvent === 'function') ? window.v511GetActiveCalendarEvent() : null;
@@ -13390,6 +13408,7 @@ function refreshCurrentEventQr() {
     generateVenueQR(next);
   }
   updateCurrentEventBadge(next.eventName);
+  updateCheckinQrTitle(next.eventName);
 }
 
 function startCurrentEventQrPolling() {
@@ -14715,6 +14734,7 @@ async function resolveConflict(conflictId, resolution) {
 function generateVenueQR(eventContext) {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
   if (eventContext) currentCheckinEventContext = activeCheckinEventContext(eventContext);
+  updateCheckinQrTitle(activeCheckinEventContext().eventName);
   venueQrPayload = buildVenuePayload(); box.innerHTML = '';
   new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
   // v5.11.19a — also update the inline Check-in tab clone's QR slot so the
@@ -15988,7 +16008,7 @@ function fullscreenQR() {
   });
 
   // Update banner text to real event name (was "Test Event — Theme Demo").
-  const orgName = currentOrg?.name || portalState.orgCode || 'Venue check-in';
+  const orgName = checkinQrTitle(activeCheckinEventContext().eventName);
   const banner = clone.querySelector('.v511-theme-preview-banner');
   if (banner) banner.textContent = orgName;
 
@@ -16155,6 +16175,7 @@ function renderInlineCheckinClone(opts) {
 
   // v5.11.23a — render org logo above the banner on the inline clone.
   try { if (typeof renderLogoOnStage === 'function') renderLogoOnStage(clone); } catch (_) {}
+  try { updateCheckinQrTitle(activeCheckinEventContext().eventName); } catch (_) {}
 
   // v5.11.19a — replace the Settings-preview placeholder QR in the clone
   // with the actual venue QR (the one attendees scan). Every observer-fired
