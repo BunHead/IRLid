@@ -307,6 +307,27 @@
     .receipt-item-badge.unverified{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
     .receipt-item-badge.local-badge{ background: #f7f7f7; border-color: #ddd; color: #555; }
     .receipt-item-badge.org-badge{ background: #eef6ff; border-color: #cfe5ff; color: #07559d; }
+    .receipt-item-main{ min-width: 0; }
+    .receipt-item-title-row{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .receipt-item-logo{
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      border: 1px solid #e5e5e5;
+      background: #fff;
+      flex-shrink: 0;
+    }
+    .receipt-item-title-row .receipt-item-time{
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .receipt-group-header{
       margin: 14px 0 8px;
       font-size: 12px;
@@ -588,6 +609,7 @@
   // Cached user info
   let cachedUserInfo = null;
   let cachedDevices = null;
+  const orgPublicInfoCache = new Map();
 
   // =========================
   //  PROTOCOL VERSION DETECTION (v3 / v4 / v5)
@@ -812,6 +834,15 @@
     const data = await resp.json().catch(() => null);
     if (!resp.ok) throw new Error((data && data.error) || "Org public info not found");
     return data;
+  }
+
+  function fetchOrgPublicInfoCached(slug){
+    const key = String(slug || "").trim();
+    if (!key) return Promise.resolve(null);
+    if (!orgPublicInfoCache.has(key)) {
+      orgPublicInfoCache.set(key, fetchOrgPublicInfo(key).catch(() => null));
+    }
+    return orgPublicInfoCache.get(key);
   }
 
   async function verifyOrgReceipt(receipt){
@@ -1426,6 +1457,33 @@
     return parts.join(" · ");
   }
 
+  function orgReceiptSlug(entry){
+    return String(
+      entry.org_slug ||
+      entry.slug ||
+      entry.org ||
+      (entry.receipt && entry.receipt.org && (entry.receipt.org.slug || entry.receipt.org.id)) ||
+      ""
+    ).trim();
+  }
+
+  function siteLogoUrl(){
+    return "logo.png";
+  }
+
+  function logoUrlFromPublicInfo(info){
+    return String((info && (info.logoUrl || info.logo_url || info.logo)) || "").trim();
+  }
+
+  function hydrateOrgReceiptLogo(entry, img){
+    const slug = orgReceiptSlug(entry);
+    if (!slug || !img) return;
+    fetchOrgPublicInfoCached(slug).then(info => {
+      const logoUrl = logoUrlFromPublicInfo(info) || siteLogoUrl();
+      if (logoUrl) img.src = logoUrl;
+    });
+  }
+
   function renderOrgReceiptItem(entry){
     const li = document.createElement("li");
     li.className = "receipt-item";
@@ -1438,11 +1496,27 @@
     row.className = "receipt-item-row";
 
     const left = document.createElement("div");
+    left.className = "receipt-item-main";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "receipt-item-title-row";
+
+    const logo = document.createElement("img");
+    logo.className = "receipt-item-logo";
+    logo.alt = "";
+    logo.src = siteLogoUrl();
+    logo.addEventListener("error", () => {
+      if (logo.src.indexOf("logo.png") === -1) logo.src = siteLogoUrl();
+    });
+    titleRow.appendChild(logo);
 
     const titleDiv = document.createElement("div");
     titleDiv.className = "receipt-item-time";
     titleDiv.textContent = entry.org_name || entry.org || "Organisation check-in";
-    left.appendChild(titleDiv);
+    titleRow.appendChild(titleDiv);
+
+    left.appendChild(titleRow);
+    hydrateOrgReceiptLogo(entry, logo);
 
     const subDiv = document.createElement("div");
     subDiv.className = "receipt-item-sub";
