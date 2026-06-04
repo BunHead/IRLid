@@ -46,9 +46,20 @@ Today there is **no debug flag** — debug output (console logs, on-screen debug
 panels/blocks/URLs) is always on. We want a single master switch.
 
 ### Build
-1. **Master toggle** in the **Tools & Diagnostics** Settings tab: a checkbox
-   "Show debug information" persisted to `localStorage.setItem('irlid_debug', '1'|'0')`.
-   **Default OFF** (absent or '0' = off).
+1. **Master toggle** in the **Tools & Diagnostics** Settings tab. **There is already a
+   placeholder checkbox there** — Debug → "Verbose logging / Console-level diagnostics for
+   support". **Wire THAT one** (don't add a second). Persist to
+   `localStorage.setItem('irlid_debug', '1'|'0')`. **Default OFF.** Semantics: **ticked =
+   debug visible, unticked = debug hidden** (Captain reported the current placeholder does
+   nothing — ticking it has no effect, which is the bug). Save via the existing
+   "Save all settings" flow.
+
+   **Confirmed-live surfaces that must obey it (Captain's 4 June smoke, build v6.1.13):**
+   - The **Check-in tab "Debug QR URL: https://…" block** (currently always visible under
+     the QR) — hide unless debug on.
+   - The **"Prototype: …" banner** on the Check-in tab — treat as debug; hide unless on.
+   These are in `Org.html`'s Check-in panel specifically — make sure the sweep catches them,
+   not just console logs.
 2. **Shared helper** readable from every page:
    ```js
    window.irlidDebugOn = function(){ try { return localStorage.getItem('irlid_debug') === '1'; } catch(_) { return false; } };
