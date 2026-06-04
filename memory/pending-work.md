@@ -1,5 +1,42 @@
 # Pending Work — IRLid
 
+## 4 June 2026 — EVENING CLOSE (~20:15) — the canonical end-of-watch state
+
+**Headline wins this evening:** **v6.2.0 manager-permissions PROVEN on hardware** (toggle gates a
+real Manager's calendar access, confirmed phone + desktop); **Becky is a working Manager** (D1
+INSERT after the cleanup swept her membership — `LO2eFglIoL80fPVFfSfJHl2B76`, manager, Test Event
+`0337bf2f-e8a3-48d4-a12b-3f9426354f4f`); **v6.1.20-v2 auto-checkout** merged+deployed (the original
+v6.1.20 was DENIED — stale branch reverted v6.2.0); **v6.1.22** (Expected scroll + audit
+sidebar/diagnostics leak + modal layout) merged; **v6.1.25** (dashboard gating) merged.
+
+**Bug checklist — 15 fixed & live today.** See the late-afternoon WRAP below for the full shipped
+list; evening adds v6.1.20-v2, v6.1.22, v6.1.25, manager-perms proof, Becky membership.
+
+**Queued & briefed (serial — all touch Org.html and/or Worker; bash-diff each, watch the stale-branch trap):**
+- `HANDOVER-BrandIdentityWiring-v6.1.21.md` — logo/font save & apply
+- `HANDOVER-StaffRoomsWiring-v6.1.23.md` — real members + lead-admin-gated Remove (kills the Studio-Manager mockup)
+- `HANDOVER-SlimInviteQR-v6.1.24.md` — short-nonce QR + suppress PWA prompt (today's dense-QR/install bug)
+- `HANDOVER-EventDefaultsEnforcement-v6.1.26.md` — make require_proof + min_trust_score actually bite (Worker; deploy after)
+- `HANDOVER-ToolsAndRoomsWiring-v6.1.27.md` — wire Tools & Diag audit-log + Rooms section (diagnose-first)
+- `HANDOVER-SettingsAuthHardening-v6.2.1.md` — **SECURITY** — gate manager_perms behind lead_admin+ session (close self-escalation)
+- `HANDOVER-LeadAdminAppointment-Build-v6.3.0.md` — co-presence appointment (**in-person 2-phone smoke**)
+- `HANDOVER-AnchorSystemRebuild-v5.12.1.md` — **held** per Captain (re-build, not demo-critical)
+
+**Governance locked today:** deletes (record + expected) = **lead_admin+** ("Lead Admin ≈ Developer
+privileges; can't have me popping by to fix a misspelled name"). Add/manage expected = staff+.
+Lead Admin can't be invited (Developer-appointment only, v6.3.0).
+
+**Role-testing how-to (for next session):** Becky (Nokia) is the portal tester — cycle her D1 role
+(manager→lead_admin→staff), re-login each time, to view each tier. Kerry is attendee-only (no portal
+credential) — can't sign in until the slim-invite-QR lands. Sign-in works on Chrome/Edge; **Firefox
+quarantined**; no VPN was ever on (Firefox just advertises one).
+
+**Promo:** `PATREON-V6-DRAFT-2026-06-04.md` ready for Captain's voice.
+
+**Plan/spend:** Max plan, credits untouched at £11.23 all day. (See BOOTSTRAP §3 device/Cloudflare playbook.)
+
+---
+
 ## 4 June 2026 — late afternoon WRAP (full outstanding state + versions)
 
 **Shipped + live today:** v6.1.15, v6.1.16(+a debug gate/title), v6.1.16a–d (modal-close, unique event id, delete names event), v6.1.17 (receipt time), v6.1.14 (attendance bar/late/timeline), v6.1.19 + v6.1.19a (org receipts in attendee history + logo), v6.1.18 (event-defaults server-wiring), **v6.2.0 (manager-permissions matrix)**. Build pill ~v6.2.0. Spend never moved (Max, credits at £11.23).
