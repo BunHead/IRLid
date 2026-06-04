@@ -3316,7 +3316,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16b</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.16c</span></div>
   </div>
 </div>
 
@@ -7695,7 +7695,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var id = document.getElementById('v511EventId').value || '';
               var dayOfWeek = parseInt(document.getElementById('v511EventDay').value, 10) || (state.selectedDay || 1);
               var next = {
-                id: id || ('evt-' + String(DAY_SHORT[dayOfWeek - 1] || 'day').toLowerCase() + '-' + String(document.getElementById('v511EventStart').value || '0900').replace(/[^0-9]/g, '')),
+                id: id || ('evt-' + String(DAY_SHORT[dayOfWeek - 1] || 'day').toLowerCase() + '-' + String(document.getElementById('v511EventStart').value || '0900').replace(/[^0-9]/g, '') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)),   // v6.1.16c — unique suffix; day+time alone collided (two events in one slot reused the same id)
                 name: document.getElementById('v511EventName').value.trim() || 'Untitled event',
                 room_id: roomId,
                 day_of_week: dayOfWeek,

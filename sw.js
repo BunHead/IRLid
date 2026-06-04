@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v97'; // v6.1.16b delete-event modal also closes before cross-device QR.
+const CACHE_VERSION = 'irlid-shell-v98'; // v6.1.16c unique event id on create (day+time alone collided).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
