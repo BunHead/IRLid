@@ -1,5 +1,26 @@
 # Pending Work — IRLid
 
+## 4 June 2026 — afternoon (calendar polish marathon + new backlog)
+
+**Shipped + live today (all on `irlid.co.uk/Org`):** v6.1.15 (expected_ids tolerant), v6.1.16 (check-in title "Venue — Event" + global debug gate), v6.1.16a/b (calendar modal closes before cross-device QR — add + delete), v6.1.16c (unique event id on create — day+time slug was colliding), v6.1.16d (delete auth card names the event), v6.1.17 (receipt time — newest receipt per attendee), v6.1.14 (attendance progress bar + actual-late markers + per-event attendance timeline log). Build pill ~v6.1.16e.
+
+**In flight (Mr. Data):** v6.1.18 — Event-defaults server-wiring (calendar_defaults → settings_json via Save-all; honest pulse). Brief: `HANDOVER-EventDefaultsServerWiring-v6.1.18.md`.
+
+**Briefs queued (paste-ready):**
+- `HANDOVER-OrgReceiptsInHistory-v6.1.19.md` — Task 16 easy slice (receipt.html reads irlid_org_receipts → "Your check-ins" group). receipt.html-only, no Worker. **Awaiting Captain's inline-vs-Data call.**
+- `HANDOVER-ManagerPermissions-v6.2.0.md` — per-org Manager-permissions matrix in Sign-in & Auth (Lead-Admin-set, default off; first row = managers-can-edit-calendar; Worker minRole consults `settings_json.manager_perms`).
+- `HANDOVER-AttendanceProgress-v6.1.14.md` Fix 4 (Expected-list scrollable) — dropped from the merged PR; small follow-up.
+
+**NEW backlog (4 June afternoon, Captain-flagged):**
+1. **Auto-checkout** — after an event's grace period, still-checked-in attendees should auto-check-out (`checkout_method='auto'`). Needs a toggle (in the now-wired Event defaults: Check-out grace) + a mechanism (read-time compute vs Cloudflare scheduled worker). Connects to #2. Design + spec needed.
+2. **Check-in-into-new-event-without-checkout** — Captain: "trying to sign into an event I have to sign out of the previous one, most of the time." Per-person active check-in appears to span events; checking into event B while IN event A conflicts. Investigate: is it by-design (one active presence) or a bug? Likely resolved/eased by auto-checkout (#1).
+3. **Attendance-on-the-right layout** — Captain expected the per-event Attendance timeline on the RIGHT as a column; Data placed it below in a scroll panel. Works, but layout differs from intent. Minor follow-up.
+4. **Lead Admin appointment build** — designed (`HANDOVER-LeadAdminCoPresence-DESIGN.md`), Captain wants it "soon." Co-presence-gated, Developer-appointed, one per org. Deploy+smoke needs 2 co-present phones WITH Captain. Pairs with v6.2.0 manager-permissions (need a non-developer admin to test the matrix).
+
+**Open prize:** Patreon v6 post (`PATREON-V6-DRAFT.md`) — site is demo-ready; whenever Captain wants it, Number One drafts substance for his voice.
+
+---
+
 ## 4 June 2026 — morning (focused, low-cost watch on Pro)
 
 **Shipped / done:**
