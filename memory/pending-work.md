@@ -16,6 +16,9 @@
 2. **Check-in-into-new-event-without-checkout** — Captain: "trying to sign into an event I have to sign out of the previous one, most of the time." Per-person active check-in appears to span events; checking into event B while IN event A conflicts. Investigate: is it by-design (one active presence) or a bug? Likely resolved/eased by auto-checkout (#1).
 3. **Attendance-on-the-right layout** — Captain expected the per-event Attendance timeline on the RIGHT as a column; Data placed it below in a scroll panel. Works, but layout differs from intent. Minor follow-up.
 4. **Lead Admin appointment build** — designed (`HANDOVER-LeadAdminCoPresence-DESIGN.md`), Captain wants it "soon." Co-presence-gated, Developer-appointed, one per org. Deploy+smoke needs 2 co-present phones WITH Captain. Pairs with v6.2.0 manager-permissions (need a non-developer admin to test the matrix).
+5. **Audit view leaks sidebar + Developer diagnostics** — audit mode (the airport-board fullscreen, "Exit audit" button) should be table-only; currently the left nav AND the Developer-diagnostics panel are still visible. Small layout fix — hide sidebar + dev-diagnostics in audit mode. Captain-flagged 4 June afternoon.
+
+**v6.1.18 merged + deployed** (Event-defaults server-wiring) — bash-diffed ✅ clean (Worker validators sound, frontend sends lowercase enums matching the allow-list, save-readback reports dropped fields). Enforcement of each value (require_proof actually requiring proof, etc.) is the noted follow-up — NOT yet done.
 
 **Open prize:** Patreon v6 post (`PATREON-V6-DRAFT.md`) — site is demo-ready; whenever Captain wants it, Number One drafts substance for his voice.
 
