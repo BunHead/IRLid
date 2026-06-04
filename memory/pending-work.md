@@ -1,5 +1,41 @@
 # Pending Work — IRLid
 
+## 4 June 2026 — late afternoon WRAP (full outstanding state + versions)
+
+**Shipped + live today:** v6.1.15, v6.1.16(+a debug gate/title), v6.1.16a–d (modal-close, unique event id, delete names event), v6.1.17 (receipt time), v6.1.14 (attendance bar/late/timeline), v6.1.19 + v6.1.19a (org receipts in attendee history + logo), v6.1.18 (event-defaults server-wiring), **v6.2.0 (manager-permissions matrix)**. Build pill ~v6.2.0. Spend never moved (Max, credits at £11.23).
+
+### Spec'd + ready to fire at Data (serialise — all touch Worker+Org.html unless noted)
+| Version | Brief | What |
+|---|---|---|
+| v6.1.20 | HANDOVER-AutoCheckout-v6.1.20.md | Auto-checkout after grace (eases "check out of prev event first") |
+| v6.1.21 | HANDOVER-BrandIdentityWiring-v6.1.21.md | Brand Identity logo upload + font/styling save & apply |
+| v6.1.22 | HANDOVER-SmallWinsBatch-v6.1.22.md | Expected-list scroll + audit-view leak + Attendance-on-right (Org.html only) |
+| v6.1.23 | HANDOVER-StaffRoomsWiring-v6.1.23.md | Staff list → real members + lead-admin-gated Remove |
+| v6.2.1 | HANDOVER-SettingsAuthHardening-v6.2.1.md | **SECURITY** — gate manager_perms behind lead_admin+ session |
+| v6.3.0 | HANDOVER-LeadAdminAppointment-Build-v6.3.0.md | Lead Admin appointment (co-presence; **in-person 2-phone smoke**) |
+
+### Surfaced today, NOT yet spec'd (write next session)
+- **Slim invite QR** — today's invite QR too dense to scan + triggered a PWA install on the 4a. Fix: short server-looked-up nonce in the QR (the invite already stores an org_invites row) → tiny scannable QR; suppress PWA install prompt on the accept path. Sign-in itself WORKS (Edge proved it); Firefox is quarantined (use Chrome/Edge).
+- **Event-defaults enforcement** — v6.1.18 knobs (require_proof, min_trust_score…) SAVE but don't ENFORCE yet.
+- **Rooms section + Tools audit-log/Developer section** — quick audit, likely more mockup.
+
+### Becky role-testing — BLOCKED on one INSERT (60-sec first job next session)
+This morning's D1 cleanup swept Becky's Manager membership with the dud Becky rows. She signed in fine (Edge) but "Signed in, but no orgs available." Her current row is the re-created **"New member" `user_id=LO2eFglIoL80fPVFfSfJHl2B76`** (pub_fp `OhRcv6xmNSRDs8MV` — matches a morning-purged Becky fp). Test Event org_id = `0337bf2f-e8a3-48d4-a12b-3f9426354f4f`. To make her a Manager again (and restore her name), next session run:
+```
+npx wrangler d1 execute irlid-db-org --remote --command "UPDATE portal_users SET display_name='Becky Wetherill' WHERE id='LO2eFglIoL80fPVFfSfJHl2B76'; INSERT INTO org_memberships (user_id, org_id, role, granted_by, granted_at, created_via) VALUES ('LO2eFglIoL80fPVFfSfJHl2B76','0337bf2f-e8a3-48d4-a12b-3f9426354f4f','manager','developer',strftime('%s','now')*1000,'manual_test');"
+```
+Then Becky refreshes → sees Test Event as Manager → cycle her role (manager→lead_admin→staff) in D1 to test each tier (re-login between). **Confirm the Nokia's fp via v5-test.html first if unsure which row is hers.**
+
+### Parked by design (don't spend time yet)
+- Advanced anchor system (Rev 9) → **v5.12.0** (re-build from locked design; not demo-critical).
+- Records & ID tab → **v5.13+** (storage broker, deliberately deferred).
+- True concurrent multi-event presence → future (auto-checkout v6.1.20 covers the sequential case).
+
+### Promo
+- Patreon v6 post — **PATREON-V6-DRAFT-2026-06-04.md** ready for Captain's voice (honest framing + claim/don't-claim notes baked in).
+
+---
+
 ## 4 June 2026 — afternoon (calendar polish marathon + new backlog)
 
 **Shipped + live today (all on `irlid.co.uk/Org`):** v6.1.15 (expected_ids tolerant), v6.1.16 (check-in title "Venue — Event" + global debug gate), v6.1.16a/b (calendar modal closes before cross-device QR — add + delete), v6.1.16c (unique event id on create — day+time slug was colliding), v6.1.16d (delete auth card names the event), v6.1.17 (receipt time — newest receipt per attendee), v6.1.14 (attendance progress bar + actual-late markers + per-event attendance timeline log). Build pill ~v6.1.16e.
