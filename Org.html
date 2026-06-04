@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.22</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.25</span></div>
   </div>
 </div>
 
@@ -3496,7 +3496,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             <tbody id="attendanceRows"></tbody>
           </table>
         </div>
-        <details class="dashboard-collapsible" id="developerDiagnosticsPanel" data-min-role="developer">
+        <details class="dashboard-collapsible" id="developerDiagnosticsPanel" data-min-role="developer" data-debug-gated>
           <summary>Developer diagnostics</summary>
           <div class="debug-maintenance">
             <div>
@@ -3651,11 +3651,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <div id="expectedAttendeeList"></div>
                 </div>
 
-                <details class="dashboard-collapsible" id="expectedAttendeeManagement">
+                <details class="dashboard-collapsible" id="expectedAttendeeManagement" data-min-role="staff">
                   <summary>Expected attendee management</summary>
                 <div class="checkin-lower-grid">
                   <div class="expected-admin-panel">
-                    <h5 id="expectedAdminPanelTitle" data-role-hint=" (Staff add, Manager+ delete)">Expected attendee management</h5>
+                    <h5 id="expectedAdminPanelTitle" data-role-hint=" (Staff add, Lead Admin+ delete)">Expected attendee management</h5>
                     <div class="expected-admin-fields">
                       <div class="input-group" style="margin-bottom:0;">
                         <label for="expectedFirstName">First Name</label>
@@ -13636,6 +13636,7 @@ function applySettingsToUI() {
 function setIrlidDebugEnabled(enabled) {
   try { localStorage.setItem('irlid_debug', enabled ? '1' : '0'); } catch (_) {}
   if (typeof window.irlidApplyDebugVisibility === 'function') window.irlidApplyDebugVisibility();
+  if (typeof applyRoleGatedVisibility === 'function') applyRoleGatedVisibility();
 }
 
 function collectSettingsFromCanonical() {
@@ -14092,7 +14093,7 @@ function renderExpectedAttendeesApiState() {
     const status = r.status || 'assist';
     const pillClass = status === 'linked' ? 'ok' : 'warn';
     const meta = status === 'linked' && r.linked_at ? `linked · ${formatTimestamp(r.linked_at)}` : 'manual · added by admin';
-    const canEditName = rolesVisibleForViewer();
+    const canEditName = canManageExpected();
     const isEditing = canEditName && String(expectedEditId) === String(r.id);
     const safeId = escapeHtml(String(r.id || ''));
     const deleteButton = canDeleteExpected() && safeId
@@ -14144,6 +14145,7 @@ function setExpectedValidation(message) {
   el.textContent = message || '';
 }
 async function addExpectedAttendee() {
+  if (!canManageExpected()) return showToast(`${roleLabelFor('staff')} role required to manage expected attendees`, true);
   const firstInput = document.getElementById('expectedFirstName');
   const surnameInput = document.getElementById('expectedSurname');
   const firstName = firstInput?.value.trim() || '';
@@ -14193,7 +14195,7 @@ async function addExpectedAttendee() {
   }
 }
 function setExpectedDeleteMode(active) {
-  if (active && !canDeleteExpected()) return showToast(`${roleLabelFor('manager')} role required to delete attendees`, true);
+  if (active && !canDeleteExpected()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendees`, true);
   expectedDeleteMode = active;
   expectedDeleteTargetId = null;
   if (active) cancelExpectedEdit();
@@ -14244,7 +14246,7 @@ function handleExpectedListClick(event) {
 }
 function startExpectedEdit(id) {
   if (expectedDeleteMode) return;
-  if (!rolesVisibleForViewer()) return;
+  if (!canManageExpected()) return;
   expectedEditId = id;
   expectedEditError = '';
   renderExpectedAttendees();
@@ -14258,6 +14260,7 @@ function cancelExpectedEdit() {
 }
 async function saveExpectedEdit(id) {
   if (!currentOrg) return;
+  if (!canManageExpected()) return showToast(`${roleLabelFor('staff')} role required to manage expected attendees`, true);
   const firstName = document.getElementById('expectedEditFirst')?.value.trim() || '';
   const surname = document.getElementById('expectedEditSurname')?.value.trim() || '';
   if (!firstName || !surname) {
@@ -14803,7 +14806,7 @@ function buildCheckoutAction(row) {
   const safeId = escapeHtml(checkinId);
   const error = checkoutErrors[checkinId] ? `<div class="checkout-error">${escapeHtml(checkoutErrors[checkinId])}</div>` : '';
   if (!checkinId) return `<span class="att-action-passive" role="status" aria-label="Attendee has checked out">Done</span>${receiptLink}${buildDeleteRecordButton(row)}`;
-  if (effectiveRoleRank() < PROTOTYPE_ROLE_RANK.manager) {
+  if (effectiveRoleRank() < PROTOTYPE_ROLE_RANK.staff) {
     return `<span class="att-action-passive" role="status" aria-label="Attendee is checked in, awaiting check-out">Awaiting check-out</span>${receiptLink}`;
   }
   if (checkoutConfirmId === checkinId) {
@@ -14858,10 +14861,13 @@ function effectiveRoleRank() {
   return Number.isFinite(rank) ? rank : PROTOTYPE_ROLE_RANK.staff;
 }
 function canDeleteExpected() {
-  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.manager;
+  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.lead_admin;
+}
+function canManageExpected() {
+  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.staff;
 }
 // v5.7.0g — Cascading delete (full record + checkin history) is more
-// destructive than the regular Manager-tier "Delete expected", so it
+// destructive than the regular "Delete expected" action, so it
 // requires Lead Admin+. Active-checkin rows are blocked at the Worker
 // (must check out first) regardless of role.
 function canDeleteAttendeeRecord() {
@@ -14878,7 +14884,7 @@ function canClearTestAttendance() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.developer;
 }
 function canScanAttendeeQr() {
-  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.manager;
+  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.developer;
 }
 function applyRoleGatedVisibility() {
   const rank = effectiveRoleRank();
@@ -14892,6 +14898,7 @@ function applyRoleGatedVisibility() {
     showPanel('dashboard', document.getElementById('navDashboard'));
   }
   if (expectedDeleteMode && !canDeleteExpected()) setExpectedDeleteMode(false);
+  if (!canManageExpected() && expectedEditId) cancelExpectedEdit();
 }
 function v620ApplySettingsTabPermissions() {
   const fullSettings = canUseSettings();
@@ -14927,7 +14934,7 @@ function buildExpectedRowAction(row) {
 async function deleteExpectedFromAttendance(id) {
   const row = expectedAttendees.find(item => String(item.id) === String(id));
   if (!row) return showToast('Expected attendee not found', true);
-  if (!canDeleteExpected()) return showToast(`${roleLabelFor('manager')} role required to delete attendees`, true);
+  if (!canDeleteExpected()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendees`, true);
   showExpectedDeleteDialog(row);
 }
 function checkoutNonceFor(checkinId) {
@@ -15481,7 +15488,7 @@ async function startDashboardCameraScan() {
   // prior scanner cleanly, clear the view innerHTML, instantiate a fresh
   // Html5Qrcode against the visible target, start with the same config the
   // live site uses (fps: 15, no qrbox, BarcodeDetector preferred).
-  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('manager')} role required to scan attendee QRs.`, 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('developer')} role required to scan attendee QRs.`, 'error');
   if (typeof Html5Qrcode === 'undefined') return setDashboardScanStatus('Camera library not available.', 'error');
   const view = document.getElementById('dashboardScanCameraView');
   const startBtn = document.getElementById('dashboardScanCameraStartBtn');
@@ -15589,7 +15596,7 @@ async function changeDashboardCamera() {
 async function processDashboardScan() {
   const input = document.getElementById('dashboardScanPayloadInput');
   if (!currentOrg) return setDashboardScanStatus('Load an organisation first.', 'error');
-  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('manager')} role required to scan attendee QRs.`, 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('developer')} role required to scan attendee QRs.`, 'error');
   const text = (input?.value || '').trim();
   const hasFile = !!document.getElementById('dashboardScanImageInput')?.files?.[0];
   irlidDebugLog('[scan] processDashboardScan start', {
@@ -17221,7 +17228,8 @@ function applyCheckinPrototypeLayout() {
     const scanCard = document.createElement('details');
     scanCard.className = 'dashboard-collapsible dashboard-staff-scan-card';
     scanCard.id = 'dashboardStaffScanCard';
-    scanCard.dataset.minRole = 'manager';
+    scanCard.dataset.minRole = 'developer';
+    scanCard.setAttribute('data-debug-gated', '');
     const summary = document.createElement('summary');
     summary.textContent = 'Process attendee scan';
     scanCard.appendChild(summary);
