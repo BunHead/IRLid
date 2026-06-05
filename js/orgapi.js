@@ -387,10 +387,11 @@
     // Worker's allowlist are silently dropped; theme is validated server-side
     // (hex shape, contrast against white, palette length cap). Returns
     // { settings } with the merged current state on success.
-    updateOrgSettings(orgKey, partial) {
+    updateOrgSettings(orgKey, partial, sessionToken) {
       return request("/org/settings", {
         method: "POST",
         orgKey,
+        sessionToken,
         body: partial
       });
     }
