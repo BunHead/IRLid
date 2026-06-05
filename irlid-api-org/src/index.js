@@ -1778,6 +1778,61 @@ async function requireOrgInviteIssuer(request, env, orgId) {
   return { user: ctx.user, org, role };
 }
 
+async function requireOrgMemberAdmin(request, env) {
+  const org = await orgAuth(request, env);
+  if (org.error) return { error: org };
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (role !== "lead_admin" && role !== "developer") {
+    return { error: json({ error: "insufficient_role", message: "Only Lead Admins and Developers can manage staff members." }, 403) };
+  }
+  return { user: ctx.user, org, role };
+}
+
+async function orgMembersList(request, env) {
+  const actor = await requireOrgMemberAdmin(request, env);
+  if (actor.error) return actor.error;
+  const rows = await env.DB.prepare(
+    "SELECT m.user_id, COALESCE(u.display_name, m.user_id) AS display_name, m.role " +
+    "FROM org_memberships m LEFT JOIN portal_users u ON u.id = m.user_id " +
+    "WHERE m.org_id = ? ORDER BY CASE m.role WHEN 'developer' THEN 0 WHEN 'lead_admin' THEN 1 WHEN 'manager' THEN 2 WHEN 'staff' THEN 3 ELSE 4 END, LOWER(COALESCE(u.display_name, m.user_id))"
+  ).bind(actor.org.id).all();
+  return json({ ok: true, members: rows.results || [], actor: { user_id: actor.user.id, role: actor.role } });
+}
+
+async function orgMemberRemove(request, env, userIdParam) {
+  const actor = await requireOrgMemberAdmin(request, env);
+  if (actor.error) return actor.error;
+  const userId = String(userIdParam || "").trim();
+  if (!userId) return json({ error: "user_id_required", message: "Member user_id is required." }, 400);
+  if (userId === actor.user.id) {
+    return json({ error: "cannot_remove_self", message: "You cannot remove your own membership." }, 403);
+  }
+
+  const target = await env.DB.prepare(
+    "SELECT m.user_id, m.role, COALESCE(u.display_name, m.user_id) AS display_name " +
+    "FROM org_memberships m LEFT JOIN portal_users u ON u.id = m.user_id " +
+    "WHERE m.org_id = ? AND m.user_id = ? LIMIT 1"
+  ).bind(actor.org.id, userId).first();
+  if (!target) return json({ error: "member_not_found", message: "That member is not in this organisation." }, 404);
+  if (target.role === "developer") {
+    return json({ error: "cannot_remove_developer", message: "Developer access cannot be removed from Staff & Rooms." }, 403);
+  }
+  if (target.role === "lead_admin") {
+    const leadCount = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM org_memberships WHERE org_id = ? AND role = 'lead_admin'"
+    ).bind(actor.org.id).first();
+    if (Number(leadCount && leadCount.count || 0) <= 1) {
+      return json({ error: "cannot_remove_last_lead_admin", message: "You cannot remove the last Lead Admin." }, 403);
+    }
+  }
+
+  await env.DB.prepare("DELETE FROM org_memberships WHERE org_id = ? AND user_id = ?")
+    .bind(actor.org.id, userId).run();
+  return json({ ok: true, removed: { user_id: target.user_id, display_name: target.display_name, role: target.role } });
+}
+
 function inviteJsonError(error, message, status) {
   return json({ error, message }, status);
 }
@@ -5034,6 +5089,7 @@ export default {
       else if (method === "GET"  && path === "/org/active-checkin")  response = await orgActiveCheckin(request, env);
       else if (method === "GET"  && path === "/org/current-event")   response = await orgCurrentEvent(request, env);
       else if (method === "POST" && path === "/org/staff/auth")      response = await orgStaffAuth(request, env);
+      else if (method === "GET"  && path === "/org/members")         response = await orgMembersList(request, env);
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
@@ -5058,6 +5114,7 @@ export default {
         const mWeeklyEvent = path.match(/^\/org\/weekly-events\/([^/]+)$/);
         const mConflict = path.match(/^\/org\/conflicts\/(\d+)\/resolve$/);
         const mCheckoutToken = path.match(/^\/org\/checkout-token\/([^/]+)$/);
+        const mOrgMember = path.match(/^\/org\/members\/([^/]+)$/);
         const mOrgReceipt = path.match(/^\/org\/receipt\/([^/]+)$/);
         const mOrgPublicInfo = path.match(/^\/org\/public-info\/([^/]+)$/);
         if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
@@ -5071,6 +5128,7 @@ export default {
         else if (method === "DELETE" && mWeeklyEvent) response = await orgWeeklyEventDelete(request, env, decodeURIComponent(mWeeklyEvent[1]));
         else if (method === "POST" && mConflict) response = await orgResolveConflict(request, env, Number(mConflict[1]));
         else if (method === "GET" && mCheckoutToken) response = await orgResolveCheckoutToken(request, env, decodeURIComponent(mCheckoutToken[1]));
+        else if (method === "DELETE" && mOrgMember) response = await orgMemberRemove(request, env, decodeURIComponent(mOrgMember[1]));
         else if (method === "GET" && mOrgReceipt) response = await orgReceiptGet(request, env, decodeURIComponent(mOrgReceipt[1]));
         else if (method === "GET" && mOrgPublicInfo) response = await orgPublicInfo(request, env, decodeURIComponent(mOrgPublicInfo[1]));
         else {

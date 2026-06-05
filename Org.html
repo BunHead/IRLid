@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.25c</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.25d</span></div>
   </div>
 </div>
 
@@ -6678,11 +6678,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <section class="v511-panel" data-v511-panel="roles">
           <div class="v511-head"><h3>Staff &amp; Rooms</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
 
-          <div class="v511-sub">Staff list <span class="v511-hint-inline">(the day-to-day list — invite, change roles, remove)</span></div>
+          <div class="v511-sub">Staff list <span class="v511-hint-inline">(real members - invite, remove, re-invite to change role)</span></div>
           <div id="v511StaffList">
-            <div class="v511-staff staff-member-row"><div>Kerry Austin</div><div><select><option>Instructor</option><option>Studio Manager</option><option>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
-            <div class="v511-staff staff-member-row"><div>Spencer Austin</div><div><select><option>Instructor</option><option selected>Owner</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
-            <div class="v511-staff staff-member-row"><div>Poppy Austin</div><div><select><option selected>Instructor</option><option>Studio Manager</option></select></div><div><button type="button" class="v511-btn v511-btn-mini">Remove</button></div></div>
+            <div class="v511-hint">Open this tab with a Lead Admin or Developer session to load real staff members.</div>
           </div>
 
           <div style="margin-top: 14px;"><button type="button" class="v511-btn" id="v511InviteStaffBtn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
@@ -7261,8 +7259,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 positionNowLine();
               });
             }
-            if (target === 'roles' && typeof window.v611RenderPendingInvites === 'function') {
-              window.v611RenderPendingInvites();
+            if (target === 'roles' && typeof window.v611RenderStaffMembers === 'function') {
+              window.v611RenderStaffMembers();
             }
           }
           window.v511ActivateSettingsTab = activate;
@@ -18349,6 +18347,89 @@ async function v611OrgApi(path, opts) {
   if (!response.ok) throw new Error((data && (data.message || data.error)) || ('Request failed with status ' + response.status));
   return data || {};
 }
+function v611CanRemoveStaffMembers() {
+  const role = String((currentOrg && currentOrg.role) || '').toLowerCase();
+  return !!(qrLoginSession && qrLoginSession.session_token && (qrLoginSession.is_developer || role === 'lead_admin' || role === 'developer'));
+}
+function v611StaffMemberName(member) {
+  return String((member && (member.display_name || member.name || member.user_id)) || 'Unknown member').trim() || 'Unknown member';
+}
+function v611RenderStaffMemberRow(member, canRemove) {
+  const row = document.createElement('div');
+  row.className = 'v511-staff staff-member-row';
+  row.dataset.userId = member.user_id || '';
+
+  const name = document.createElement('div');
+  name.className = 'staff-name';
+  name.textContent = v611StaffMemberName(member);
+
+  const role = document.createElement('div');
+  role.className = 'staff-role';
+  role.textContent = roleLabelFor(member.role || 'staff');
+
+  const actions = document.createElement('div');
+  if (canRemove) {
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'v511-btn v511-btn-mini';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', function () { v611RemoveStaffMember(member); });
+    actions.appendChild(remove);
+  } else {
+    const hint = document.createElement('span');
+    hint.className = 'v511-hint';
+    hint.textContent = 'Role only';
+    actions.appendChild(hint);
+  }
+
+  row.append(name, role, actions);
+  return row;
+}
+async function v611RenderStaffMembers() {
+  const list = document.getElementById('v511StaffList');
+  if (!list) return;
+  list.innerHTML = '<div class="v511-hint">Loading staff members...</div>';
+  if (!currentOrg?.api_key || !qrLoginSession?.session_token) {
+    list.innerHTML = '<div class="v511-hint">Sign in with a Lead Admin or Developer session to load staff members.</div>';
+    return;
+  }
+  let data;
+  try {
+    data = await v611OrgApi('/org/members');
+  } catch (err) {
+    list.innerHTML = '<div class="v511-hint">Could not load staff members: ' + escapeHtml(err?.message || err) + '</div>';
+    return;
+  }
+  list.innerHTML = '';
+  const members = Array.isArray(data.members) ? data.members : [];
+  if (!members.length) {
+    list.innerHTML = '<div class="v511-hint">No staff members found. Invite someone to grant access.</div>';
+  } else {
+    const canRemove = v611CanRemoveStaffMembers();
+    members.forEach(function (member) {
+      list.appendChild(v611RenderStaffMemberRow(member, canRemove));
+    });
+  }
+  const note = document.createElement('div');
+  note.className = 'v511-hint';
+  note.style.marginTop = '8px';
+  note.textContent = 'Roles are display-only here. To change a role, remove the member and re-invite them.';
+  list.appendChild(note);
+  await v611RenderPendingInvites();
+}
+async function v611RemoveStaffMember(member) {
+  if (!member || !member.user_id) return;
+  const name = v611StaffMemberName(member);
+  if (!window.confirm("Remove " + name + "? They'll lose access; re-invite to restore.")) return;
+  try {
+    await v611OrgApi('/org/members/' + encodeURIComponent(member.user_id), { method: 'DELETE' });
+    showToast('Removed ' + name);
+    await v611RenderStaffMembers();
+  } catch (err) {
+    showToast('Could not remove member: ' + (err?.message || err), true);
+  }
+}
+window.v611RenderStaffMembers = v611RenderStaffMembers;
 function v611PendingInviteExpiry(expiryTs) {
   const ms = Number(expiryTs) - Date.now();
   if (!Number.isFinite(ms)) return 'soon';
@@ -18405,10 +18486,10 @@ async function v611RenderPendingInvites() {
 }
 window.v611RenderPendingInvites = v611RenderPendingInvites;
 document.addEventListener('DOMContentLoaded', function () {
-  if (document.querySelector('.v511-panel[data-v511-panel="roles"].active')) v611RenderPendingInvites();
+  if (document.querySelector('.v511-panel[data-v511-panel="roles"].active')) v611RenderStaffMembers();
 });
 function finishV511InviteStaffReal() {
-  if (v511InviteStaffState?.invite && !v511InviteStaffState.revoked) v611RenderPendingInvites();
+  if (v511InviteStaffState?.invite && !v511InviteStaffState.revoked) v611RenderStaffMembers();
   closeV511InviteStaffModal();
 }
 async function revokeV511InviteStaffReal() {
