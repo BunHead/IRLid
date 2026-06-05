@@ -42,8 +42,14 @@ a later, bigger piece. Don't attempt it here.
    **also render the org receipts** as their own labelled group — a small header like
    **"Your check-ins"** above the list (keep provenance clear; don't silently merge with P2P).
    Render each item (reuse `renderReceiptItem` or a close variant) showing:
+   - **org logo** (left of the title) — not in the stored receipt; fetch the org's public info
+     by slug (`entry.org`) from the existing public endpoint, fetch-once-and-cache per org; if
+     the org has no logo / it can't be resolved, **fall back to the IRLid logo** (the site's own
+     mark), not just text.
    - title: `org_name || org || "Organisation check-in"`
-   - subtitle: `event_name` (if present) + local-formatted `created_at`
+   - subtitle: `event_name` (if present) + the attendance span: **first check-in** (earliest
+     `created_at` in the event group) and **last check-out** (the group's check-out receipt time
+     if one exists, i.e. an entry whose `receipt.action === 'out'`).
    - a small **"Org check-in"** badge so it's distinguishable from P2P receipts.
    - click → navigate to the entry's `receipt_url` (i.e. `receipt.html?org_receipt=<id>`).
 3. Show the group on **both** paths: when `listReceipts()` succeeds AND on the local fallback

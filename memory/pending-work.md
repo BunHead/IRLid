@@ -21,7 +21,19 @@
 - **Briefed:** `HANDOVER-BrandIdentitySavePersistence-v6.1.30.md` (diagnosis corrected at top — CORS
   was separate/fixed; the job is now purely Parts A/B: carry `theme._v512.banner` in the Save-all
   collect + don't let readback reset it). Part C (slim QR + server-side attendee branding) is a
-  nice-to-have after A/B. **This is the next action for Data.**
+  nice-to-have after A/B.
+- **STATUS at park (5 Jun midday):** Data **built v6.1.30 locally** in his Codex workspace
+  (`mr-data-brand-identity-wiring-repo`) — 3 files +116/−59, pill→v6.1.30, sw→v108, pinned exactly the
+  diagnosed cause (Save collected font chips but not the full brand-grid; hydrate only restored banner
+  text/logo). **NOT yet pushed to origin** — no v6.1.30 branch on GitHub; main still v6.1.25d. Data
+  honestly flagged he **could not verify in-browser** (file access blocked + stale-cache localhost).
+  **Next watch:** have Data push the branch → bash-diff vs current main for stale-branch drift (must be
+  cut off v6.1.25d so it doesn't revert the #98 staff list) → merge → Captain smokes Pacifico → Save
+  all → hard refresh → font survives + shows on Check-in. Then v6.2.1 right behind it.
+- **`HANDOVER-SettingsAuthHardening-v6.2.1.md` REWRITTEN** with confirmed live findings: managers DO
+  receive the org api_key via `/user/orgs` (L1592, no role filter), and `/org/settings` is api_key-only
+  → a Manager can self-escalate `manager_perms`. Exact session-gate patch written. **Sequence AFTER
+  v6.1.30** (same save-path → collision). Ready to fire.
 
 **Brand Identity progress this session:** controls wired (v6.1.21) → frame un-disabled (v6.1.25b,
 the `pointer-events:none` glass lid Captain found in DevTools) → QR base64-logo guard (v6.1.25c) →
