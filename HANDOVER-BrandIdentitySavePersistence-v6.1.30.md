@@ -5,6 +5,23 @@
 QR fixed v6.1.25c). But **saving doesn't persist it and RESETS the choice on save**, and it
 **doesn't carry to the Check-in screen** after reload.
 
+## v6.1.30 Parts A/B implementation
+- **Pinned:** Save-all collect was the culprit. The Visual Theming save already sent
+  `theme._v512.banner` for the font chips, but the full Brand Identity payload was incomplete:
+  the brand-grid logo URL and description were not included in `theme._v512`, and readback hydrate
+  only restored banner text + logo position. A timing race could also write before the brand-grid
+  controls existed, making the restore a no-op.
+- **Fixed in `Org.html`:** added `v512ReadBrandIdentityFromUI()` / `v512WriteBrandIdentityToUI()`.
+  Save-all now carries `theme._v512.bannerText`, `logoUrl`, `description`, `logoPosition`,
+  `banner` (`customise`, `font`, `weight`, `italic`, `spacing`, `colour`, `shadow`), and
+  `globalFont`. The POST also mirrors `logoUrl` onto the existing top-level settings key so the
+  proven logo persistence path remains intact.
+- **Fixed readback:** `v511ApplyThemeToVisualMockup()` mounts the v6.1.21 brand-grid before writing
+  saved values when needed, then restores `_v512` values and reapplies the preview/check-in clone.
+- **Not touched:** Worker validation, calendar defaults, manager permissions, and Part C QR slimming.
+- **Versioning:** build pill bumped to `v6.1.30`; `sw.js` cache bumped `irlid-shell-v107` ->
+  `irlid-shell-v108`.
+
 ## What's already CONFIRMED (don't re-investigate)
 - **The Worker is fine.** `validateTheme` (irlid-api-org L2521) only validates the colour keys and
   returns null for unknown ones; `current.theme = body.theme` then keeps the whole object. So
