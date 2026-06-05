@@ -2540,6 +2540,26 @@ async function orgGetSettings(request, env) {
 async function orgUpdateSettings(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  // v6.2.1 - privilege-defining fields require a lead_admin+ session.
+  // The org api_key is intentionally returned to members for dashboard reads,
+  // so api_key-only auth must not be enough to change RBAC-sensitive settings.
+  const GOVERNANCE_FIELDS = ["manager_perms"];
+  if (GOVERNANCE_FIELDS.some(f => body[f] !== undefined)) {
+    const ctx = await requireSession(request, env);
+    if (ctx.error) {
+      return json({
+        error: "insufficient_role",
+        message: "A Lead Admin or Developer session is required to change manager_perms."
+      }, 403);
+    }
+    const callerRole = await orgRoleForUser(env, ctx.user, org.id);
+    if (callerRole !== "lead_admin" && callerRole !== "developer") {
+      return json({
+        error: "insufficient_role",
+        message: "Only Lead Admins and Developers can change manager_perms."
+      }, 403);
+    }
+  }
   // Settings allowlist. Adding new keys is purely additive — existing rows are unaffected.
   // Branding + theme keys (Batch 6.5, 3 May 2026) extend the original v6 set.
   const allowed = [

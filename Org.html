@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.30</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.1</span></div>
   </div>
 </div>
 
@@ -9792,7 +9792,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 theme: themePayload
               });
               irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
-              resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
+              resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload, qrLoginSession?.session_token);
               irlidDebugLog('[v5.12 visual theme save] Worker response:', resp);
               if (resp && resp.queued) { v511SetVisualSaveStatus('Queued offline', ''); return; }
               var readback;
@@ -12992,7 +12992,7 @@ async function extractThemeFromWebsite() {
     if (portalState.websiteUrl !== websiteUrl) {
       portalState.websiteUrl = websiteUrl;
       syncLegacyFromPortal();
-      await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, { websiteUrl });
+      await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, { websiteUrl }, qrLoginSession?.session_token);
     }
     setThemeScrapeStatus('Extracting theme...', '');
     const result = await window.IRLidOrgApi.scrapeTheme(qrLoginSession.session_token, currentOrg.id);
@@ -14011,7 +14011,7 @@ async function saveSettings() {
   irlidDebugLog('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
   let resp;
   try {
-    resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
+    resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload, qrLoginSession?.session_token);
     irlidDebugLog('[settings save] Worker response:', resp);
   } catch (err) {
     console.error('[settings save] POST failed:', err);
