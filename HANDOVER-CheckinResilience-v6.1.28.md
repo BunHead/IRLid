@@ -30,6 +30,18 @@ a co-presence that happened *physically* shouldn't be lost to a dropped packet. 
    id/nonce so a re-send is deduped server-side (or check `org_checkins` for the same
    attendee+event+timestamp before inserting). Confirm the dedupe path.
 
+## ALSO FIX — poison-item queue halt (found 5 June, live)
+`js/offline-queue.js` `replay()` (L95-127) **halts on the first non-2xx and never drops the item** —
+so one permanently-failing op blocks the ENTIRE queue forever (real check-ins can't sync behind it).
+Proven live: a stale `/org/settings` POST queued during a CORS wobble began returning **403** after
+v6.2.1's manager_perms gate shipped (the replayed request lacked a valid lead_admin+ session) and it
+jammed the SYNCING pill permanently until the IndexedDB `pending_ops` store was hand-cleared.
+- **Fix:** distinguish *retriable* failures (network error, 5xx, 429) from *terminal* ones (4xx like
+  400/401/403/410). On a terminal 4xx, **quarantine/drop the poison op** (logged reason) so the queue
+  keeps draining. Never let a bad settings/auth write block a real check-in.
+- Relatedly: settings-saves arguably shouldn't be queued at all (not co-presence data); or if queued,
+  must re-attach a *fresh* session token on replay, not the stale one captured at enqueue.
+
 ## Out of scope
 - The org dashboard's own offline mode (already exists).
 - Changing the signing/scoring of a check-in (only the transport gets resilient).
