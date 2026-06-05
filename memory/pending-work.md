@@ -1,5 +1,15 @@
 # Pending Work — IRLid
 
+## ⭐ NORTH STAR (Captain, 5 Jun eve) — read this before prioritising anything
+- **v6 destination = get the Org portal show-ready for a DEMO AT IMBUE.** Imbue is the first audience
+  and where we'd promo from. Prioritise the queue by "would this embarrass us / block us in front of
+  Imbue?" — that's the filter. (Font reverting = yes, embarrassing. Anchor rebuild = no, defer.)
+- **v6.5 = the humanitarian half working** (Wisdom / drone proof-of-delivery). Reach for it after Imbue.
+- **Design philosophy:** make IRLid **as general-purpose as possible** — cover as many check-in/out
+  scenarios/issues as we can (doorman, self-checkin, staff/manager/lead-admin tiers, calendar events,
+  per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
+- Promo only when Captain judges it "in a state to show the world" — not before.
+
 ## 5 June 2026 — EVENING CLOSE (~21:00) — the canonical end-of-watch state
 
 **Day's wins (work cancelled → full day on two benches: a 3D printer set up + running, and this):**
