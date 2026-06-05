@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.25d</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.30</span></div>
   </div>
 </div>
 
@@ -9452,6 +9452,41 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
             return normaliseV511BannerConfig(out);
           }
+          function v512ReadBrandIdentityFromUI(bannerCfg) {
+            var logoInput = document.getElementById('v512LogoUrl');
+            var canonicalLogo = document.getElementById('logoUrl');
+            var descInput = document.getElementById('v512OrgDescription');
+            var canonicalDesc = document.getElementById('v511OrgDescription');
+            return {
+              bannerText: (document.getElementById('v512BannerText') || {}).value || '',
+              logoUrl: ((logoInput && logoInput.value) || (canonicalLogo && canonicalLogo.value) || '').trim(),
+              description: ((descInput && descInput.value) || (canonicalDesc && canonicalDesc.value) || '').trim(),
+              logoPosition: (document.getElementById('v512LogoPosition') || {}).value || 'above-banner',
+              banner: normaliseV511BannerConfig(bannerCfg || v511ReadBannerSettingsFromUI()),
+              globalFont: { font: (bannerCfg || v511ReadBannerSettingsFromUI()).font }
+            };
+          }
+          function v512WriteBrandIdentityToUI(config, settingsSrc) {
+            var cfg = config && typeof config === 'object' ? config : {};
+            var logoUrl = typeof cfg.logoUrl === 'string' ? cfg.logoUrl : ((settingsSrc && settingsSrc.logoUrl) || '');
+            var description = typeof cfg.description === 'string' ? cfg.description : '';
+            var bannerText = typeof cfg.bannerText === 'string' ? cfg.bannerText : ((settingsSrc && settingsSrc.bannerText) || '{org}');
+            var logoPosition = cfg.logoPosition || (settingsSrc && settingsSrc.logoPosition) || 'above-banner';
+            var bannerTextEl = document.getElementById('v512BannerText');
+            if (bannerTextEl) bannerTextEl.value = bannerText || '{org}';
+            var logoInput = document.getElementById('v512LogoUrl');
+            if (logoInput) logoInput.value = logoUrl || '';
+            var canonicalLogo = document.getElementById('logoUrl');
+            if (canonicalLogo) canonicalLogo.value = logoUrl || '';
+            var descInput = document.getElementById('v512OrgDescription');
+            if (descInput) descInput.value = description || '';
+            var canonicalDesc = document.getElementById('v511OrgDescription');
+            if (canonicalDesc && description) canonicalDesc.value = description;
+            var logoPosEl = document.getElementById('v512LogoPosition');
+            if (logoPosEl) logoPosEl.value = ['above-banner','top-left','top-right','hidden'].indexOf(logoPosition) !== -1 ? logoPosition : 'above-banner';
+            try { if (settings) settings.logoUrl = logoUrl || ''; } catch (_) {}
+            try { if (portalState) portalState.logoUrl = logoUrl || ''; } catch (_) {}
+          }
           function v511WriteBannerSettingsToUI(config) {
             var cfg = normaliseV511BannerConfig(config);
             var toggle = document.getElementById('v511BannerCustomise');
@@ -9497,6 +9532,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           function v511MetaFromModeStates() {
             var bannerCfg = v511ReadBannerSettingsFromUI();
+            var brandCfg = v512ReadBrandIdentityFromUI(bannerCfg);
             return {
               activeMode: currentMode,
               modeStates: JSON.parse(JSON.stringify(modeStates)),
@@ -9511,10 +9547,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 anchors: window._v512AnchorState || {},
                 sound: window._v512SoundState || {},
                 textTemplate: (document.getElementById('v512OutcomeTextTemplate') || {}).value || '',
-                bannerText: (document.getElementById('v512BannerText') || {}).value || '',
-                logoPosition: (document.getElementById('v512LogoPosition') || {}).value || 'above-banner',
-                banner: bannerCfg,
-                globalFont: { font: bannerCfg.font }
+                bannerText: brandCfg.bannerText,
+                logoUrl: brandCfg.logoUrl,
+                description: brandCfg.description,
+                logoPosition: brandCfg.logoPosition,
+                banner: brandCfg.banner,
+                globalFont: brandCfg.globalFont
               }))
             };
           }
@@ -9578,6 +9616,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bannerText: v512Payload.bannerText || base.bannerText || '{org}',
               globalFont: Object.assign({}, base.globalFont || {}, { font: (meta.banner && meta.banner.font) || 'sans' }),
               logoPosition: v512Payload.logoPosition || base.logoPosition || 'above-banner',
+              logoUrl: v512Payload.logoUrl || base.logoUrl || '',
               v511ActiveMode: currentMode,
               v511ModeStates: meta.modeStates,
               v511UploadedWavs: meta.uploadedWavs,
@@ -9689,12 +9728,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               var v512SoundTarget = window._v512SoundState || (window._v512SoundState = {});
               Object.keys(v512SoundTarget).forEach(function(key) { delete v512SoundTarget[key]; });
               Object.assign(v512SoundTarget, theme._v512.sound || {});
-              var v512BannerText = document.getElementById('v512BannerText');
-              if (v512BannerText) v512BannerText.value = theme._v512.bannerText || theme.bannerText || '{org}';
               var v512TextTemplate = document.getElementById('v512OutcomeTextTemplate');
               if (v512TextTemplate) v512TextTemplate.value = theme._v512.textTemplate || '';
-              var v512LogoPosition = document.getElementById('v512LogoPosition');
-              if (v512LogoPosition) v512LogoPosition.value = theme._v512.logoPosition || theme.logoPosition || 'above-banner';
+              if (!document.getElementById('v512BannerText') && typeof window.v512RefreshVisualTheming === 'function') window.v512RefreshVisualTheming();
+              v512WriteBrandIdentityToUI(theme._v512, theme);
               if (typeof window.v512RefreshVisualTheming === 'function') window.v512RefreshVisualTheming();
             }
             if (theme.v511BgImageData) window._v511ImageData = theme.v511BgImageData;
@@ -9750,7 +9787,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
               currentSettings = (currentResp && currentResp.settings) || {};
               themePayload = v511BuildThemePayload(currentSettings.theme || {});
-              payload = Object.assign({}, currentSettings, { theme: themePayload });
+              payload = Object.assign({}, currentSettings, {
+                logoUrl: themePayload.logoUrl || currentSettings.logoUrl || '',
+                theme: themePayload
+              });
               irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
               resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload);
               irlidDebugLog('[v5.12 visual theme save] Worker response:', resp);
