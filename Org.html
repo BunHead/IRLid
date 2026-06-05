@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.25</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.1.21</span></div>
   </div>
 </div>
 
@@ -9495,6 +9495,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             };
           }
           function v511MetaFromModeStates() {
+            var bannerCfg = v511ReadBannerSettingsFromUI();
             return {
               activeMode: currentMode,
               modeStates: JSON.parse(JSON.stringify(modeStates)),
@@ -9510,7 +9511,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 sound: window._v512SoundState || {},
                 textTemplate: (document.getElementById('v512OutcomeTextTemplate') || {}).value || '',
                 bannerText: (document.getElementById('v512BannerText') || {}).value || '',
-                logoPosition: (document.getElementById('v512LogoPosition') || {}).value || 'above-banner'
+                logoPosition: (document.getElementById('v512LogoPosition') || {}).value || 'above-banner',
+                banner: bannerCfg,
+                globalFont: { font: bannerCfg.font }
               }))
             };
           }
@@ -9547,7 +9550,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               bgBounce: v511PressedDataset('.v511-chips[data-chip-group="bgBounce"] .v511-chip', 'data-bounce', 'on'),
               bgTransition: v511PressedDataset('.v511-chips[data-chip-group="bgCycleTrans"] .v511-chip', 'data-trans', 'fade')
             };
-            meta.banner = v511ReadBannerSettingsFromUI();
+            meta.banner = meta.v512.banner || v511ReadBannerSettingsFromUI();
             var v512Existing = base._v512 && typeof base._v512 === 'object' ? Object.assign({}, base._v512) : {};
             var v512Payload = Object.assign({}, v512Existing, meta.v512 || {});
             return Object.assign({}, base, {
@@ -9702,7 +9705,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (bgPattern && theme.bgPattern) bgPattern.value = theme.bgPattern;
             var bgDurEl = document.getElementById('v511BgDuration');
             if (bgDurEl && theme.bgAnimDuration) { bgDurEl.value = theme.bgAnimDuration; bgDurEl.dispatchEvent(new Event('input')); }
-            v511WriteBannerSettingsToUI(meta.banner);
+            v511WriteBannerSettingsToUI((theme._v512 && theme._v512.banner) || meta.banner);
             v511ApplyBannerSettingsFromUI();
             var imgEnable = document.getElementById('v511BgImageEnable');
             var patEnable = document.getElementById('v511BgPatternEnable');
@@ -13560,8 +13563,22 @@ function checkinQrTitle(eventName) {
   return activeName ? (venueName + ' — ' + activeName) : venueName;
 }
 
+function checkinBrandBannerText(eventName) {
+  const venueName = String(currentOrg?.name || portalState?.orgCode || 'Venue').trim() || 'Venue';
+  const activeName = String(eventName || '').trim();
+  let template = '';
+  try {
+    template = (activeTheme && activeTheme._v512 && activeTheme._v512.bannerText) || activeTheme.bannerText || '';
+  } catch (_) {}
+  if (!template) template = activeName ? '{org} - {event}' : '{org}';
+  return String(template)
+    .replace(/\{org\}/g, venueName)
+    .replace(/\{event\}/g, activeName)
+    .replace(/\{room\}/g, '');
+}
+
 function updateCheckinQrTitle(eventName) {
-  const title = checkinQrTitle(eventName);
+  const title = checkinBrandBannerText(eventName);
   ['venueQRBanner', 'currentEventQrTitle'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.textContent = title;
@@ -13613,6 +13630,28 @@ function buildVenuePayload(eventContext) {
   if (settings.redirectUrl) qp.set('redirect', settings.redirectUrl);
   if (settings.staffRedirectUrl) qp.set('staff_redirect', settings.staffRedirectUrl);
   if (settings.logoUrl) qp.set('logo', settings.logoUrl);
+  try {
+    const theme = normalizeThemeForSave(activeTheme || {});
+    const banner = theme._v512 && theme._v512.banner;
+    qp.set('brandBanner', checkinBrandBannerText(checkinEvent.eventName));
+    if (banner) {
+      qp.set('brandCustomise', banner.customise || 'off');
+      qp.set('brandFont', banner.font || 'sans');
+      qp.set('brandWeight', banner.weight || 'bold');
+      qp.set('brandItalic', banner.italic || 'off');
+      qp.set('brandSpacing', banner.spacing || 'normal');
+      qp.set('brandColour', banner.colour || 'white');
+      qp.set('brandShadow', banner.shadow || 'soft');
+    }
+    if (theme.primary) qp.set('themePrimary', theme.primary);
+    if (theme.accent) qp.set('themeAccent', theme.accent);
+    if (theme.qrFg) qp.set('themeQrFg', theme.qrFg);
+    const mode = theme.darkMode === 'auto' ? '' : (theme.darkMode ? 'dark' : 'light');
+    if (mode) qp.set('themeMode', mode);
+    (Array.isArray(theme.palette) ? theme.palette : []).slice(0, 7).forEach(function(hex, i) {
+      if (/^#[0-9A-Fa-f]{6}$/.test(hex || '')) qp.set('themePalette' + (i + 1), hex);
+    });
+  } catch (_) {}
   return `${baseUrl}/org-entry.html?${qp.toString()}`;
 }
 function applySettingsToUI() {
@@ -16331,7 +16370,7 @@ function fullscreenQR() {
   });
 
   // Update banner text to real event name (was "Test Event — Theme Demo").
-  const orgName = checkinQrTitle(activeCheckinEventContext().eventName);
+  const orgName = checkinBrandBannerText(activeCheckinEventContext().eventName);
   const banner = clone.querySelector('.v511-theme-preview-banner');
   if (banner) banner.textContent = orgName;
 
@@ -18968,7 +19007,11 @@ function normalizeThemeForSave(theme) {
   let bgImageSymmetryMode = bgCfg.bgImageSymmetryMode;
   const v511Meta = t._v511 && typeof t._v511 === 'object' ? Object.assign({}, t._v511) : {};
   const v512Meta = t._v512 && typeof t._v512 === 'object' ? Object.assign({}, t._v512) : {};
-  v511Meta.banner = normaliseV511BannerConfig(v511Meta.banner);
+  v512Meta.banner = normaliseV511BannerConfig(v512Meta.banner || v511Meta.banner);
+  v512Meta.globalFont = v512Meta.globalFont && typeof v512Meta.globalFont === 'object'
+    ? Object.assign({}, v512Meta.globalFont)
+    : { font: v512Meta.banner.font };
+  v511Meta.banner = normaliseV511BannerConfig(v511Meta.banner || v512Meta.banner);
   return {
     roleVocabulary: normaliseV511RoleVocabulary(t.roleVocabulary),
     primary: t.primary || THEME_DEFAULTS.primary,
@@ -20541,9 +20584,61 @@ document.addEventListener('DOMContentLoaded', function () {
     wrap.innerHTML =
       '<div class="v511-row"><label for="v512BannerText">Banner text</label><input type="text" id="v512BannerText" value="{org}" placeholder="{org}"></div>' +
       '<div class="v511-row"><label for="v512LogoPosition">Logo position</label><select id="v512LogoPosition"><option value="above-banner">Above banner</option><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="hidden">Hidden</option></select></div>' +
-      '<div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn v511-btn-mini" id="v512LogoUploadBtn">Upload logo</button> <span class="v511-hint">Uses the org logo field; defaults to logo.png with contrast.</span></div></div>' +
+      '<div class="v511-row"><label for="v512LogoUrl">Logo</label><div><input type="url" id="v512LogoUrl" placeholder="https://example.com/logo.png or paste image" style="min-width:min(100%,360px);"> <button type="button" class="v511-btn v511-btn-mini" id="v512LogoUploadBtn">Upload logo</button><input type="file" id="v512LogoFile" accept="image/*" hidden> <span class="v511-hint">Uses the org logo field; defaults to logo.png with contrast.</span></div></div>' +
       '<div class="v511-row"><label for="v512OrgDescription">Description</label><input type="text" id="v512OrgDescription" placeholder="Organisation tagline"></div>';
     body.insertBefore(wrap, body.firstChild);
+    function currentLogoValue() {
+      var canonical = document.getElementById('logoUrl');
+      if (canonical && canonical.value) return canonical.value.trim();
+      try { return (settings && settings.logoUrl) || (portalState && portalState.logoUrl) || ''; } catch (_) { return ''; }
+    }
+    function setBrandLogoUrl(value, message) {
+      value = String(value || '').trim();
+      var canonical = document.getElementById('logoUrl');
+      var brandInput = document.getElementById('v512LogoUrl');
+      if (canonical) canonical.value = value;
+      if (brandInput) brandInput.value = value;
+      try { if (settings) settings.logoUrl = value; } catch (_) {}
+      try { if (portalState) { portalState.logoUrl = value; if (typeof savePortalState === 'function') savePortalState(); } } catch (_) {}
+      try { if (typeof syncLegacyFromPortal === 'function') syncLegacyFromPortal(); } catch (_) {}
+      try { if (typeof updateChromeLogo === 'function') updateChromeLogo(); } catch (_) {}
+      try { if (typeof window.renderLogoOnStage === 'function') window.renderLogoOnStage(document.getElementById('v511ThemePreviewStage')); } catch (_) {}
+      try { if (typeof renderPortalAll === 'function') renderPortalAll(); } catch (_) {}
+      try { if (typeof generateVenueQR === 'function') generateVenueQR(); } catch (_) {}
+      try { if (typeof setThemeSaveStatus === 'function') setThemeSaveStatus(message || 'Logo updated. Save settings to persist.', 'ok'); } catch (_) {}
+      if (typeof window.v511SaveDebounced === 'function') window.v511SaveDebounced();
+    }
+    var logoUrlInput = document.getElementById('v512LogoUrl');
+    if (logoUrlInput) {
+      logoUrlInput.value = currentLogoValue();
+      logoUrlInput.addEventListener('input', function() { setBrandLogoUrl(logoUrlInput.value); });
+      logoUrlInput.addEventListener('paste', function(e) {
+        var items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type && items[i].type.indexOf('image/') === 0) {
+            e.preventDefault();
+            readLogoFile(items[i].getAsFile());
+            return;
+          }
+        }
+      });
+    }
+    function readLogoFile(file) {
+      if (!file) return;
+      if (!/^image\//.test(file.type || '')) {
+        try { showToast('Please choose an image file.', true); } catch (_) {}
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function() { setBrandLogoUrl(String(reader.result || ''), 'Logo image loaded. Save settings to persist.'); };
+      reader.onerror = function() { try { showToast('Could not read logo image.', true); } catch (_) {} };
+      reader.readAsDataURL(file);
+    }
+    var fileInput = document.getElementById('v512LogoFile');
+    var uploadBtn = document.getElementById('v512LogoUploadBtn');
+    if (uploadBtn && fileInput) uploadBtn.addEventListener('click', function() { fileInput.click(); });
+    if (fileInput) fileInput.addEventListener('change', function() { readLogoFile(fileInput.files && fileInput.files[0]); fileInput.value = ''; });
     $('#v512BannerText').addEventListener('input', function() {
       setStageBannerFromTemplate();
       if (typeof window.v511SaveDebounced === 'function') window.v511SaveDebounced();
