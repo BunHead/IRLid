@@ -1,5 +1,38 @@
 # Pending Work — IRLid
 
+## 5 June 2026 — FRIDAY MORNING CLOSE (~08:35, pre-work) — short watch
+
+**Headline:** **PR #98 (v6.1.23 Staff list) merged + Worker deployed; a live CORS fire put out.**
+- PR #98 had a stale-branch conflict on `Org.html`; Data re-cut off fresh `origin/main`, force-pushed
+  (`fbf9fde` → `41e4f5b`), GitHub went mergeable, brand work (v6.1.25a/b/c) preserved, pill
+  `v6.1.25c → v6.1.25d`, sw `v106 → v107`. **✅ ACCEPT**, merged, **`wrangler deploy`d** (Worker
+  Version `2d794b25-edbf-4ba5-8a2d-61d5288e2332`, CORS_ORIGIN `https://irlid.co.uk`, DB irlid-db-org).
+- **CORS fire:** all morning, theme saves threw "Visual theme save failed" + offline/"SYNCING" pills.
+  Console revealed the cause — **every `/org/*` call blocked by CORS** ("No Access-Control-Allow-Origin
+  header"). The committed Worker CORS code is correct (always sets the header), so the live Worker was
+  **stale/crashed and throwing before attaching CORS**. The fresh deploy (above) **cleared it** —
+  check-in working, console clean, save reaching the Worker again. (My base64-logo/413 theory was a
+  red herring — disregard.)
+
+**THE ONE REMAINING BUG (cleanly isolated now): Brand Identity FONT doesn't survive a save; LOGO does.**
+- So the save reaches the Worker (logo persists) but the **font/banner styling is not in the saved
+  payload, or the readback hydrate resets it.** Pre-refresh the font *does* reach check-in (in-memory);
+  post-refresh it reverts → classic persist gap.
+- **Briefed:** `HANDOVER-BrandIdentitySavePersistence-v6.1.30.md` (diagnosis corrected at top — CORS
+  was separate/fixed; the job is now purely Parts A/B: carry `theme._v512.banner` in the Save-all
+  collect + don't let readback reset it). Part C (slim QR + server-side attendee branding) is a
+  nice-to-have after A/B. **This is the next action for Data.**
+
+**Brand Identity progress this session:** controls wired (v6.1.21) → frame un-disabled (v6.1.25b,
+the `pointer-events:none` glass lid Captain found in DevTools) → QR base64-logo guard (v6.1.25c) →
+**font persistence = the last piece, briefed as v6.1.30.**
+
+**Still queued (unchanged):** v6.1.24 slim-invite-QR, v6.1.26 enforcement, v6.1.27 tools/rooms,
+v6.1.28 check-in resilience, v6.2.1 settings-auth security, v6.3.0 Lead Admin (2-phone smoke),
+v5.12.1 anchor (held). Patreon v6 draft ready. Plan: Max, credits untouched.
+
+---
+
 ## 4 June 2026 — EVENING CLOSE (~20:15) — the canonical end-of-watch state
 
 **Headline wins this evening:** **v6.2.0 manager-permissions PROVEN on hardware** (toggle gates a

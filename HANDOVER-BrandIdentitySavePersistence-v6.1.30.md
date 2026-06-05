@@ -39,7 +39,18 @@ QR fixed v6.1.25c). But **saving doesn't persist it and RESETS the choice on sav
 - **Do NOT** break other settings saves (theme colours, calendar_defaults, manager_perms) — the
   GET-overlay-POST-readback pattern must keep working for everything else.
 
-## Part C — slim the check-in QR + brand the attendee page from the SERVER (same root)
+## Diagnosis corrected (5 June) — the CORS "save failed" was a SEPARATE, now-fixed issue
+Earlier today saves threw "Visual theme save failed" + offline/"SYNCING" pills. The console showed
+the real cause: **CORS failures on all `/org/*` calls** ("No Access-Control-Allow-Origin header") —
+the live Worker was stale/crashed and throwing before it could attach CORS headers. **A fresh
+`wrangler deploy` (with PR #98) fixed it** — Worker now live, CORS clean, check-in working,
+pill `v6.1.25d`. That was NOT the base64 logo (red herring — disregard any 413 theory).
+
+**With CORS noise gone, the bug is cleanly isolated: FONT doesn't survive a save; LOGO does.**
+So the save IS reaching the Worker now (logo persists), but the **font / banner styling is not in
+the saved payload, or the readback resets it.** That's Parts A/B below — this is the whole job now.
+
+## Part C — slim the check-in QR + brand the attendee page from the SERVER (nice-to-have, after A/B)
 Captain's test confirms the symptom AND surfaced a second one: the check-in QR is now too dense
 for old cameras (the 4a) because v6.1.21 crams the brand styling params into the QR URL
 (`&brandBanner=…&brandFont=pacifico&brandWeight=…&brandColour=…` etc; v6.1.25c only removed the
