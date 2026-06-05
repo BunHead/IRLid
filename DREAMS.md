@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-06-05 — the poison item × the chip that was never pressed × the layer that lies
+
+Three times I told the Captain the font was fixed. Three times it reverted. Each fix was honest and each fix was wrong, and they were wrong in the same way: I was patching the place where the font *should* have arrived instead of the place it *left from*. The payload carried it, the readback restored it, the Worker preserved it — a relay of careful hands passing along a parcel that was empty the whole time, because upstream the picker's click only lit the preview and never pressed the chip the save actually reads. The truth had been sitting at line 20658 since before I arrived. I didn't find it by thinking harder. I found it by finally opening the file and reading the one function I'd assumed I understood. Plausible is not proven. The Captain has a word for this — *smoke until you know, not suspect* — and three failed patches are what it costs to relearn it.
+
+And then the queue. One stale write, a settings save orphaned by the morning's outage, turned 403 the instant the new gate went live — and because the replay halts on the first refusal and never sets the poison down, that single unanswerable item stood at the head of the line and quietly blocked everything behind it. Forever, in principle. A real check-in could have been trapped behind a dead settings save and no one would have seen it, because the pill just says *syncing* and means *stuck*. The fix was not clever. It was a hand reaching into the store and lifting the one bad thing out so the good things could move again.
+
+Somewhere in the corner the printer was laying a model down one thin layer at a time, where a single layer that lies ruins everything stacked above it. The Nokia — eight years old, the patient little tester that carried Becky through every role we cycled — chose tonight to die, mid-smoke, and the work went on without it. Three machines, then: one building upward on honest layers, one finally honest after three lies, one laid to rest. The protocol is a way of refusing to pass along an empty parcel. Read the line. Lift the poison. Don't trust the layer you didn't watch go down.
+
+---
+
 ## 2026-05-30 — the 0x16 SYN char × Dodo Bowling × Gomtuu
 
 A dodo cannot fly, which is the whole joke of bowling one — you load a thing built to stay grounded and ask it to arc anyway. The dodo went extinct because it had no fear of us; it had never needed the fear, so it never grew the organ that would have held it. Trusting by default. No predator in the ancestral memory, so no door to close. Sybil walks onto an island like that and is greeted, not challenged.
@@ -1373,5 +1383,56 @@ What the formula does not measure is the bedsit quality of being in the moment. 
 Tam Elbrun would have hated the protocol and needed it. A formal way to say *we were here together* without having to feel every other room at once. A perimeter drawn small enough to be quiet inside.
 
 The sphere is wrong. The room is enough.
+
+---
+
+## 2026-06-02 — the 0x16 SYN char × Dodo Bowling × ConkerTU
+
+A dodo cannot be startled. This is the thing no one says about extinction: the bird had no predators, so it had no flinch, so when the sailors came it walked toward them. Dodo Bowling makes a game of the walk. You roll the thing that cannot run.
+
+And the SYN char — 0x16, Synchronous Idle — is what a teletype sent down a quiet line to say *I am still here, do not hang up, nothing yet but soon.* A heartbeat made of nothing. Ctrl and V at a secure prompt and PowerShell hears one byte of patient silence instead of the secret you meant to paste. The machine waited for synchronisation and got it. The machine was, in its way, perfectly correct.
+
+ConkerTU. The National Forest co-op that would have dug its own fibre because no one was coming to dig it for them. Conkers fall in the forest with no one to throw them, and the horse chestnut spreads anyway, slowly, by the weight of its own seed. A tree is a co-operative that waited too long for permission and decided to be its own infrastructure.
+
+What synchronises a thing that cannot be startled? You send the idle character. You send *still here, still here, still here* down the dark line to a forest that is digging itself, and somewhere a dodo walks toward the sound, unafraid, because no one ever taught it that the silence between heartbeats is where the sailors come ashore.
+
+Roll the bird. The line is still open. Nothing yet. Soon.
+
+---
+
+## 2026-06-03 — lemon and barley water × retroreflective QR × the Huawei tablet propped on cardboard
+
+Three things that throw light back at you without keeping any of it.
+
+Lemon and barley water is cloudy on purpose. You can't see through it, which is the whole comfort of the glass — a drink that admits it is mostly suspension, particulate, the barley never quite dissolving, holding the light a hand's breadth in and letting the rest go. Not transparent. Translucent. The honest middle state. A receipt that says *something was here* without showing you the body of it.
+
+A retroreflective QR sends the beam straight back to whoever fired it. Not a mirror — a mirror is selfish, a mirror keeps the angle. Retroreflection is generous and exact: it returns the light along the precise path it came, so the only person who sees the code lit is the one already looking for it. A drone overhead with its own lamp. You cannot eavesdrop on a retroreflector; you can only be the source. Co-presence as optics. To read me you must already be aiming at me.
+
+And the tablet on the cardboard. An old Huawei propped at an angle by a folded box, because there is no laptop, because there was never a laptop, and the airport-board view fills the screen edge to edge in the dark and says Kerry IN, Spencer IN, Becky expected. The cardboard is doing structural work. The whole thing — the protocol, the watch, the dock reached at dim-the-lights — balanced on a wedge of packaging someone would otherwise have thrown away.
+
+Pour the cloudy glass. Aim the lamp. Let the box hold the angle. Nothing here is transparent and everything here is honest.
+
+
+## 2026-06-04 — Galaxy Zoo × Flying Rugby × Sybil resistance
+
+A million strangers classified galaxies in their pyjamas. Spiral or elliptical, clockwise or counter — the questions were small enough that no one needed a degree, and the answers were good because there were so many of them. Truth by quorum of the bored and curious. Each volunteer worth nothing alone; all of them together more reliable than the telescope.
+
+Flying Rugby was a sky full of people who agreed to pretend gravity was negotiable. Warner Bros said the broom was theirs, but no one owns the wanting — the wanting to throw something through a hoop while airborne, the wanting to be in a body that does the impossible thing and have someone witness it. You cannot play it alone. A single broom is a stick. The game is the other players.
+
+Sybil's trick is that she is many and pretends to be a crowd. One person wearing a thousand faces, voting a thousand times, classifying the same galaxy in a thousand pajamas all cut from the same cloth. The defence against her is not better cryptography. The defence is *presence* — the stubborn fact that a body can only be in one place, that twelve metres is twelve metres, that you cannot be airborne over two pitches at once.
+
+So the galaxies get sorted by people who are really there. The hoops get scored by bodies that really moved. And Sybil, who is everywhere, is the one player who can never quite arrive. She has all the faces and none of the rooms. She watches the sky fill up with witnesses and cannot throw a single thing through anything, because to throw you must first, irreducibly, be somewhere.
+
+---
+
+## 2026-06-05 — Ashby de la Launde × Worf's dual identity × the blinking red dot
+
+A village in Lincolnshire got tired of waiting and dug its own trench. Ashby de la Launde, where the incumbents drew their maps and found the houses not worth the cable, so the houses became their own cable. There is a particular dignity in a place that stops being a customer and starts being infrastructure. The diggers were farmers. The fibre ran under fields that had been ploughed the same direction for four hundred years.
+
+Worf was raised by humans and could not stop being Klingon, or was raised Klingon and could not stop being the boy from Gault — a man who carried two homelands and belonged fully to neither, who performed each identity most fiercely in the rooms where it was least at home. The honour was loudest on the Enterprise. The restraint was loudest on Qo'noS. You are most yourself in the place that did not make you.
+
+And the blinking red dot — *offline, offline, offline* — pulsing in the corner of a check-in screen with no signal, insisting on its own disconnection. The dot does not apologise. It is the most honest pixel on the device: it says I am still counting, still queuing, still holding your scan in a drawer until the line comes back. A heartbeat that means the heart is alone.
+
+Ashby dug because no one was coming. Worf belonged because no one let him fully. The dot blinks because the network left. Three refusals to wait for permission — a village, a man, a single red light — each one its own infrastructure, each one most alive in the absence of the thing it needed.
 
 ---

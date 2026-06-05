@@ -1,5 +1,25 @@
 # Pending Work — IRLid
 
+## 5 June 2026 — EVENING CLOSE (~21:00) — the canonical end-of-watch state
+
+**Day's wins (work cancelled → full day on two benches: a 3D printer set up + running, and this):**
+- **PR #98 (v6.1.23 Staff list) merged + Worker deployed** (morning) — cleared a stale-branch conflict via re-cut; CORS fire put out by the fresh deploy.
+- **v6.1.30 (Brand Identity save persistence) merged + live** — carries the brand-grid + globalFont through save/readback. Pill v6.1.30, sw v108. BUT the font still doesn't persist (see below) — v6.1.30 fixed the payload, not the capture.
+- **v6.2.1 (settings-auth hardening) merged + Worker-deployed + LIVE-PROVEN** — gates `manager_perms` behind a lead_admin+ session. Confirmed working: a stale queued `/org/settings` save returned **403** from the live gate (the gate doing its job). Regression-clean: Developer theme saves still work. Manager-rejection UI smoke deferred (Nokia 6.1 died mid-test; Becky-as-Manager also correctly has no Settings nav at all — UI defense already in place; Worker gate is the backstop).
+- **Offline-queue jam cleared** — a stale `/org/settings` POST queued during the morning CORS wobble began 403ing under the new v6.2.1 gate and **permanently jammed the SYNCING pill** (the queue halts on first non-2xx, never drops the poison item). Cleared by hand via `indexedDB → irlid-offline → pending_ops → clear`. **Real resilience flaw found + banked into `HANDOVER-CheckinResilience-v6.1.28.md`**: terminal 4xx items must be quarantined/dropped so they can't block real check-ins.
+
+**THE ONE REMAINING BUG: Brand Identity FONT still doesn't persist (logo + description DO).**
+- v6.1.30 carried the payload correctly, but the font never gets *into* the captured state. **Root cause traced (5 Jun eve):** `enhanceFontPicker()` (Org.html ~L20658) turns the font chips into the scrollable list but its click handler only sets `data-banner-customise='on'` — it **never sets `aria-pressed` on the clicked chip**, and `v511ReadBannerSettingsFromUI()` (~L9451) reads the font from the `aria-pressed="true"` chip. So the save reads the *default* font. Plus **two drifted copies** of the banner helpers (~L9424 and ~L18977) — save vs restore may diverge. Hydrate ordering vs enhanceFontPicker also suspect.
+- **Briefed:** `HANDOVER-FontPickerCapture-v6.1.31.md` — supersedes the font half of v6.1.30; mandates diagnose-WITH-console (the last 3 patches failed for lack of it). **This is the next thing to fire at Data.**
+
+**Ready-to-ship queue (briefs written):** v6.1.31 (font, NEXT) · v6.1.24 slim-invite-QR · v6.1.26 enforcement · v6.1.27 tools/rooms · v6.1.28 resilience (+poison-item fix) · v6.1.30 Part C (slim QR + server-side branding, nice-to-have) · v6.3.0 Lead Admin (2-phone) · v5.12.1 anchor (held).
+**Verification owed:** v6.2.1 Manager-rejection smoke (needs a working phone as Becky).
+**Wants/bigger:** Patreon v6 post (draft ready) · Receipt bridge v6.0 (briefed) · Cross-device admin auth v6.1 (briefed) · Promotion round 2 (Wisdom + gym/studio) · EAI SecureComm 2026 (Lancaster, 21-24 Jul).
+
+**Process notes banked:** (1) Data finishes work LOCALLY and reports but does NOT push until told — always end the brief/prompt with "push the branch and open a PR." Twice this session he left v6.1.30 + v6.2.1 sitting local. (2) Bash-diff each PR against current main before merge (stale-branch trap) — done for #98/#99/#100, all clean. (3) Plan: Max, credits untouched.
+
+---
+
 ## 5 June 2026 — FRIDAY MORNING CLOSE (~08:35, pre-work) — short watch
 
 **Headline:** **PR #98 (v6.1.23 Staff list) merged + Worker deployed; a live CORS fire put out.**
