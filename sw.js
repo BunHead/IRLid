@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v104'; // v6.1.25a pill fix (v6.1.21 Brand Identity landed on v6.1.25 main).
+const CACHE_VERSION = 'irlid-shell-v105'; // v6.1.25b Brand Identity frame no longer disabled (pointer-events gate killed the whole section).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
