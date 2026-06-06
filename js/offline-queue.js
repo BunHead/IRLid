@@ -88,15 +88,25 @@
     window.dispatchEvent(new CustomEvent("irlid:queue-changed"));
   }
 
-  // Replay drains the queue in insertion order. Each op is fired against
-  // the Worker; on 2xx the op is removed; on non-2xx it stays queued and
-  // replay halts (subsequent ops may depend on this one - e.g. checkin
-  // before checkout).
+  function isTerminalHttpStatus(status) {
+    return status >= 400 && status < 500 && status !== 408 && status !== 429;
+  }
+
+  async function quarantine(op, reason) {
+    console.warn("[offline-queue] dropping terminal op", reason, op && op.url, op && op.idempotency_key);
+    await remove(op.id);
+    notifyQueueChanged();
+  }
+
+  // Replay drains the queue in insertion order. 2xx removes the op. Network
+  // errors, 5xx, and 429 remain queued and halt this pass. Terminal 4xx rows
+  // are poison writes, so they are dropped to let later check-ins keep moving.
   async function replay() {
     if (replaying) return { halted: false, drained: 0 };
     replaying = true;
     let drained = 0;
     let halted = false;
+    let dropped = 0;
     try {
       const ops = await listAll();
       for (const op of ops) {
@@ -108,6 +118,11 @@
           });
           if (!response.ok) {
             console.warn("[offline-queue] replay HTTP", response.status, op.url);
+            if (isTerminalHttpStatus(response.status)) {
+              await quarantine(op, "HTTP " + response.status);
+              dropped += 1;
+              continue;
+            }
             halted = true;
             break;
           }
@@ -123,7 +138,7 @@
     } finally {
       replaying = false;
     }
-    return { halted, drained };
+    return { halted, drained, dropped };
   }
 
   window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay };

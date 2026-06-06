@@ -3556,6 +3556,29 @@ async function orgCheckin(request, env) {
   const checkinColumns = await tableColumnSet(env, "org_checkins");
   const hasEventIdColumn = checkinColumns.has("event_id");
   const eventId = hasEventIdColumn ? cleanOptionalText(body.event_id, 90) : "";
+  const clientCheckinId = cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90);
+  if (clientCheckinId) {
+    const existing = await env.DB.prepare("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=? AND org_id=? LIMIT 1")
+      .bind(clientCheckinId, org.id).first();
+    if (existing) {
+      let expectedName = null;
+      if (existing.expected_id) {
+        const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
+          .bind(existing.expected_id, org.id).first();
+        expectedName = existingExpected && (existingExpected.display_name || `${existingExpected.first_name || ""} ${existingExpected.surname || ""}`.trim()) || null;
+      }
+      return json({
+        checkin_id: existing.id,
+        checkin_at: existing.checkin_at,
+        org_name: org.name,
+        event_id: existing.event_id || null,
+        duplicate: true,
+        expected_id: existing.expected_id || null,
+        ...(expectedName ? { expected_name: expectedName } : {}),
+        ...(existing.status === "conflict" ? { conflict: true } : {})
+      });
+    }
+  }
   if (!mode || !["attendee_scan","doorman_scan"].includes(mode)) return err("mode must be attendee_scan or doorman_scan");
   if (mode === "doorman_scan") {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
@@ -3573,8 +3596,12 @@ async function orgCheckin(request, env) {
   const settings = JSON.parse(org.settings_json || "{}");
   const minScore = settings.minScore || 50;
   if (score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
-  const id = uuid();
-  const t = now();
+  const id = clientCheckinId || uuid();
+  const tNow = now();
+  const requestedCheckinTs = Number(body.checkin_ts || helloPayload?.ts || 0);
+  const t = Number.isFinite(requestedCheckinTs) && requestedCheckinTs > 0 && requestedCheckinTs <= tNow + 300
+    ? Math.floor(requestedCheckinTs)
+    : tNow;
   let gpsHash = null;
   if (gps && (settings.privacyMode !== false)) {
     gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));

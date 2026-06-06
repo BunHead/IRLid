@@ -573,6 +573,7 @@
 
 <script src="js/sign.js?v=3.1"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/offline-queue.js"></script>
 <script src="js/orgapi.js"></script>
 <script src="js/qr-fullscreen.js"></script>
 <script>
@@ -941,6 +942,7 @@
     });
     try {
       const payload = await recordVenueCheckin(options);
+      if (payload?.queued) return;
       if (payload?.conflict || payload?.expected_name) return;
       render({
         status: "allow",
@@ -1020,8 +1022,61 @@
     });
     let data = null;
     try { data = await response.json(); } catch {}
-    if (!response.ok) throw new Error(data?.error || `Request failed ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(data?.error || `Request failed ${response.status}`);
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
     return data;
+  }
+
+  function entryClientId(prefix = "entry") {
+    if (crypto && typeof crypto.randomUUID === "function") return `${prefix}_${crypto.randomUUID()}`;
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return `${prefix}_${Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  function isNetworkFailure(err) {
+    if (!err || err.status) return false;
+    return err instanceof TypeError || /failed to fetch|network|load failed/i.test(String(err.message || err));
+  }
+
+  async function postOrgCheckinResilient(body) {
+    const delays = [450, 1200, 2400];
+    let lastErr = null;
+    for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+      try {
+        return await postOrg("/org/checkin", body);
+      } catch (err) {
+        if (!isNetworkFailure(err)) throw err;
+        lastErr = err;
+        if (attempt < delays.length) await sleep(delays[attempt]);
+      }
+    }
+    if (!window.IRLidOfflineQueue) throw lastErr || new Error("Check-in could not sync and offline queue is unavailable");
+    const queued = await window.IRLidOfflineQueue.enqueue({
+      url: API_BASE + "/org/checkin",
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Org-Key": orgParam },
+      body: JSON.stringify(body),
+      idempotency_key: body.client_checkin_id,
+      kind: "org_checkin"
+    });
+    window.dispatchEvent(new CustomEvent("irlid:queue-changed"));
+    return {
+      queued: true,
+      queued_id: queued && queued.id,
+      idempotency_key: body.client_checkin_id,
+      checkin_id: body.client_checkin_id,
+      checkin_at: body.checkin_ts,
+      queued_at: queued && queued.queued_at
+    };
   }
 
   async function resolveCheckoutToken(token) {
@@ -1512,11 +1567,15 @@
   async function recordVenueCheckin(options = {}) {
     if (!isCheckinContext || !orgParam || typeof getPublicJwk !== "function") return;
     const pub = compactJwk(await getPublicJwk());
-    const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: Math.floor(Date.now() / 1000), v: 1 };
+    const scanTs = Math.floor(Date.now() / 1000);
+    const clientCheckinId = entryClientId("checkin");
+    const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: scanTs, v: 1 };
     const helloHash = await hashPayloadToB64url(helloPayload, 3);
     const cachedName = options.anonymous ? "" : await recognizedNameForDevice(pub);
-    const payload = await postOrg("/org/checkin", {
+    const payload = await postOrgCheckinResilient({
       mode: "attendee_scan",
+      client_checkin_id: clientCheckinId,
+      checkin_ts: scanTs,
       helloPayload,
       helloHash,
       attendeeLabel: cachedName,
@@ -1525,6 +1584,16 @@
       score: entryScore(),
       bioVerified: false
     });
+    if (payload?.queued) {
+      localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id || clientCheckinId);
+      render({
+        status: "allow",
+        title: "Checked in",
+        subtitle: "Syncing when back online",
+        meta: "Your check-in time is saved on this phone"
+      });
+      return payload;
+    }
     if (payload?.checkin_id) localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
     if (payload?.receipt_id) storeOrgReceipt(payload);
     if (payload?.expected_name) localStorage.setItem(`irlid_org_name_${orgParam}`, payload.expected_name);
