@@ -10,6 +10,53 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
+
+**Headline: v6 PATREON PUBLISHED + receipt verification PROVEN end-to-end + a 5-symbol regression
+cascade diagnosed and fully closed. Live build now `v6.2.5`.** Long hard watch (anniversary of Captain's
+father-in-law's death; grey weather; little sleep) that ended in a real landing. NORTH STAR promo gate
+is now OPEN — Captain judged it ready and published.
+
+**The regression cascade (v6.1.31 → v6.2.5) — central saga + load-bearing lesson:**
+- `v6.1.31` (PR #101, pill v6.2.2) fixed the font-picker CAPTURE (click now sets the chip `aria-pressed`
+  the save reads — console-traced Pacifico at click/save/load) BUT **deduped the duplicated banner
+  helpers, orphaning symbols the init-scope still referenced** → `ReferenceError` cascade that halted the
+  script → broke effects, font-apply, AND event-defaults save (everything downstream of the throw).
+  **LESSON: deduping duplicated init-scope helpers orphans every symbol that scope still references but
+  no longer defines → ReferenceError. Restore each in the scope that lost it.**
+- `v6.2.3` (PR #102) = check-in resilience (org-entry retry→queue→gentle "syncing"; offline-queue now
+  DROPS terminal 4xx poison items so one bad write can't jam real check-ins; Worker idempotency by
+  `client_checkin_id`) + folded-in fix #1: restored `V511_BANNER_DEFAULTS` to init-scope.
+- `v6.2.4` (PR #103) = fix #2: restored `V511_BANNER_OPTIONS` + `normaliseV511BannerConfig` to init-scope
+  (crash sat 4 lines upstream of the celebration-builder wiring at L10552 — exactly why it was dead).
+- `v6.2.5` (PR #104) = fullscreen QR: `qr-fullscreen.js` rendered the same long branded payload at
+  CorrectLevel.M while inline uses L; it fit at L, overflowed at M (the `qrcode.min.js` "reading '0'").
+  M→L. Fullscreen QR renders + scans (Data jsQR-decoded it). All 4 PRs bash-diffed clean before merge.
+  **Data builds LOCALLY, must be told to push every time (banked again).**
+
+**Receipt verification PROVEN (Patreon centerpiece):** Kerry's org receipt = 100% on receipt.html AND
+independently 100% on check.html (V5 HARDWARE-BACKED, **Venue signature PASS**, "✓ exists in org receipt
+table"). Audited: mint = venue private key signs canonical payload; check.html **independently fetches
+the org's published key by slug** so a forged/swapped-key receipt fails. Unforgeable + un-rewritable,
+demonstrated.
+
+**Cosmetic theming FROZEN (Captain's call):** font applies INLINE (works), NOT fullscreen (separate
+render surface); "Save all" still flaky (hydrate). Non-Imbue-blocking; banked in
+`HANDOVER-FontPickerCapture-v6.1.31.md`. Celebration builder is BACK + working; old sequence didn't
+repopulate (never saved cleanly behind the crashes) — rebuild once, persists going forward.
+
+**Made today:** `PROMO-BRIEF-v6-for-Troi.md`; the published Patreon v6 post. Receipt ideas banked: org
+logo in the receipt venue panel; "session receipt" (first-in → last-out).
+
+**EASY FIRST WIN NEXT SESSION — v6.2.1 Manager-rejection demo (deferred, Captain tired):** gate deployed,
+indirect proof already (morning's offline-queue 403 was almost certainly it). Clean demo = (1) Becky on
+Nokia → no Settings tab (UI defense); (2) desktop console `fetch` to `/org/settings` with X-Org-Key
+(api_key only) + `{manager_perms:{calendar:true}}` → expect **403 `insufficient_role`**. Exact command in
+the 6 Jun chat. 2 min, not urgent.
+
+**Queued behind: ** v6.1.26 enforcement; v6.1.27 tools/rooms; v6.3.0 Lead Admin (2-phone); cosmetic-theming
+thaw (fullscreen font + save) on a calm day; v5.12.1 anchor (held). Plan: Max, credits untouched.
+
 ## 5 June 2026 — EVENING CLOSE (~21:00) — the canonical end-of-watch state
 
 **Day's wins (work cancelled → full day on two benches: a 3D printer set up + running, and this):**

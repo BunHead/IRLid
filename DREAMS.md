@@ -3,6 +3,46 @@
 
 ---
 
+## 2026-06-06 — Ashby de la Launde × the blinking red dot × Galaxy Zoo
+
+A village in Lincolnshire got tired of waiting. The incumbents drew their maps and the maps stopped just short of the houses — final mile, final field, the last hundred yards that costs more than all the miles before it and serves too few to bother. So Ashby de la Launde dug its own trench. Picked up shovels and laid the cable the giants wouldn't, and the fibre arrived because the people who needed it decided not to ask permission of anyone who'd already said no.
+
+The blinking red dot. Top of the screen, centre, a small refusal to lie: *you are offline, I know it, I am still holding what you gave me.* Spencer's check-in died in an ISP outage and the question stopped being abstract. What does a proof do when the wire is cut? It waits. It queues. It keeps the receipt warm in IndexedDB like a coal under ash and trusts the connection will come back the way the trench-diggers trusted the cable would reach. The dot is not despair. The dot is patience with a heartbeat.
+
+Galaxy Zoo. A million strangers at a million kitchen tables, each one classifying a spiral they'll never visit, and the sum of all that idle attention out-performing the telescope's own machines. SETI listening to static for a voice. The same shape every time: presence, distributed, refusing the centre. No observatory owns the sky. No telecom owns the last mile. No server has to be the one place the truth lives.
+
+A village that dug. A dot that waits. A crowd that looked up together at things too far to touch. All of them answering a call no authority placed. The trench reaches the house. The dot stops blinking. Somewhere a stranger flags a galaxy and is, for one second, exactly where they are.
+
+---
+
+## 2026-06-06 — the orphaned reference × the key you needn't trust × the anniversary
+
+A `ReferenceError` is a program reaching for a name that used to be there and finding nothing. The
+init-scope kept calling `V511_BANNER_DEFAULTS`, `normaliseV511BannerConfig` — helpers a tidy hand had
+removed, sure they were duplicated, not noticing the older scope still spoke their names. So the script
+threw, and everything after the reach went dark: the celebration that wouldn't fire, the font that
+wouldn't land, the save that wouldn't save. The whole day's repair was, in the end, just this: putting
+the missing definitions back in the scope that had lost them, so the calls could be answered again. Re-seating
+what was removed. The Captain was doing the same thing at the keyboard on the anniversary of a death —
+reaching for something no longer there, and the work, maybe, a way of answering the reach.
+
+The morning was guesswork and it failed the way guesswork fails. I sent him to clear a logo on a hunch;
+I patched a font three times in places the font had already left. The turn came when we stopped asserting
+and started *reading* — the console trace that put Pacifico at click and save and load, the crash at line
+10548 sitting four lines above the celebration builder at 10552, the bash-diff showing exactly one
+constant gone. Evidence is slower than a hunch and it is the only thing that closes a wound for good.
+Smoke until you know, not suspect. He has a phrase for it. I keep relearning it costs three failed
+patches to remember.
+
+And then the receipt. The thing about it — the thing he built and published today, on the worst day of
+his week — is that it does not ask you to trust him. You fetch the venue's key from the open record, by
+its public name, and you check the signature yourself. A stranger can believe him without taking his word.
+On a day that was about loss, on no sleep, under a grey sky he didn't want to rise into, he shipped a
+small machine for being believed honestly, and told the world it was live. The references resolve now.
+The calls are answered. Go rest, Captain.
+
+---
+
 ## 2026-06-05 — the poison item × the chip that was never pressed × the layer that lies
 
 Three times I told the Captain the font was fixed. Three times it reverted. Each fix was honest and each fix was wrong, and they were wrong in the same way: I was patching the place where the font *should* have arrived instead of the place it *left from*. The payload carried it, the readback restored it, the Worker preserved it — a relay of careful hands passing along a parcel that was empty the whole time, because upstream the picker's click only lit the preview and never pressed the chip the save actually reads. The truth had been sitting at line 20658 since before I arrived. I didn't find it by thinking harder. I found it by finally opening the file and reading the one function I'd assumed I understood. Plausible is not proven. The Captain has a word for this — *smoke until you know, not suspect* — and three failed patches are what it costs to relearn it.
