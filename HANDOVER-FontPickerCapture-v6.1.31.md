@@ -55,4 +55,26 @@ Strip the logs before the PR.
 ## Smoke (Captain)
 Visual Theming → font Pacifico → Save all → hard refresh → Pacifico survives + shows on Check-in.
 
+---
+
+## UPDATE 6 June — v6.1.31 shipped (PR #101, pill v6.2.2) but font STILL doesn't show. Refined diagnosis:
+v6.1.31's aria-pressed fix landed and **persistence is now fixed** — the live console trace proved it:
+`[font save] payload.theme.globalFont: {font:'pacifico'}` and `[font load] theme._v512.globalFont.font: pacifico`.
+The DATA round-trips. BUT two traces show the problem only *moved*:
+- `[font click] chip aria-pressed / read font: true **null**` — a fresh click sets aria-pressed but the
+  read that the handler logs comes back **null** (capture path reads a different/empty source).
+- On screen the banner renders **sans**, not pacifico — the loaded value is **not applied** to the display.
+**Root (confirmed):** there is ONE font chip group (Org.html L7029) but the font is wired through
+**drifted duplicate scopes** — init-scope helpers (`v511PressedDataset`/`v511ReadBannerSettingsFromUI`
+~L9417-9448), a top-level set (~L18977+), and `enhanceFontPicker` (~L20664). The visible picker, the
+click-capture read, the save read, and the hydrate-apply are not all the SAME function targeting the
+SAME element. So saved≠shown.
+**Surgical fix for next watch (do NOT guess — trace all FOUR points):** consolidate to ONE read + ONE
+write + ONE apply for the banner font, all scoped to the single L7029 group; ensure the load-hydrate
+(`v512WriteBrandIdentityToUI`→`v511WriteBannerSettingsToUI`) BOTH presses the saved font's chip AND
+sets `data-banner-font` on the stage, AFTER `enhanceFontPicker` has run. Add a 4th trace line
+"applied font to stage" on load; pacifico must appear at click / save / load / **applied**.
+**Priority:** COSMETIC, not Imbue-blocking — the check-in/out core is unaffected. Parked 6 Jun (hard
+day); pick up fresh. Persistence win from v6.1.31 stays.
+
 — Number One (5 June 2026) — supersedes the font half of v6.1.30
