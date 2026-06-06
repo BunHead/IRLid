@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v111'; // v6.2.3 Check-in retry and offline queue quarantine.
+const CACHE_VERSION = 'irlid-shell-v112'; // v6.2.4 Banner helper scope hotfix.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
