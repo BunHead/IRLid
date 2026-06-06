@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.2</span></div>
   </div>
 </div>
 
@@ -9403,33 +9403,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var chip = document.querySelector('.v511-chips[data-chip-group="' + groupKey + '"] .v511-chip[aria-pressed="true"]');
             return chip ? chip.textContent.trim().toLowerCase().replace(/\s+.*$/, '') : fallback;
           }
-          var V511_BANNER_DEFAULTS = {
-            customise: 'off',
-            font: 'sans',
-            weight: 'bold',
-            italic: 'off',
-            spacing: 'normal',
-            colour: 'white',
-            shadow: 'soft'
-          };
-          var V511_BANNER_OPTIONS = {
-            customise: ['off','on'],
-            font: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'],
-            weight: ['light','regular','bold','black'],
-            italic: ['off','on'],
-            spacing: ['tight','normal','loose','wide'],
-            colour: ['white','warm','palette-1','palette-2','palette-3'],
-            shadow: ['off','soft','strong']
-          };
-          function normaliseV511BannerConfig(input) {
-            var src = input && typeof input === 'object' ? input : {};
-            var out = {};
-            Object.keys(V511_BANNER_DEFAULTS).forEach(function (key) {
-              var val = src[key];
-              out[key] = V511_BANNER_OPTIONS[key].indexOf(val) !== -1 ? val : V511_BANNER_DEFAULTS[key];
-            });
-            return out;
-          }
           function applyV511BannerConfigToStage(stage, banner) {
             if (!stage) return;
             var cfg = normaliseV511BannerConfig(banner);
@@ -9722,6 +9695,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (savedWavs && typeof savedWavs === 'object') uploadedWavs = Object.assign(uploadedWavs, savedWavs);
             if (savedWavNames && typeof savedWavNames === 'object') uploadedWavNames = Object.assign(uploadedWavNames, savedWavNames);
             if (theme._v512 && typeof theme._v512 === 'object') {
+              console.info('[v6.2.2 font load] theme._v512.globalFont.font:', theme._v512.globalFont && theme._v512.globalFont.font);
               var v512AnchorTarget = window._v512AnchorState || (window._v512AnchorState = {});
               Object.keys(v512AnchorTarget).forEach(function(key) { delete v512AnchorTarget[key]; });
               Object.assign(v512AnchorTarget, theme._v512.anchors || {});
@@ -9791,6 +9765,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 logoUrl: themePayload.logoUrl || currentSettings.logoUrl || '',
                 theme: themePayload
               });
+              console.info('[v6.2.2 font save] payload.theme.globalFont:', payload.theme && payload.theme.globalFont);
               irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
               resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload, qrLoginSession?.session_token);
               irlidDebugLog('[v5.12 visual theme save] Worker response:', resp);
@@ -20696,9 +20671,17 @@ document.addEventListener('DOMContentLoaded', function () {
       var meta = FONTS[key] || [btn.textContent.trim(), 'FONT'];
       btn.innerHTML = '<span class="v512-font-name" style="font-family:' + htmlEscape(meta[0]) + ', system-ui, sans-serif;">' + htmlEscape(meta[0]) + '</span><span class="v512-font-meta">' + htmlEscape(meta[1]) + '</span>';
       btn.addEventListener('click', function() {
+        all('.v511-chip', group).forEach(function(chip) {
+          chip.setAttribute('aria-pressed', chip === btn ? 'true' : 'false');
+        });
+        var toggle = $('#v511BannerCustomise');
+        if (toggle) toggle.checked = true;
         setTimeout(function() {
           var stage = $('#v511ThemePreviewStage');
           if (stage) stage.setAttribute('data-banner-customise', 'on');
+          if (typeof v511ApplyBannerSettingsFromUI === 'function') v511ApplyBannerSettingsFromUI();
+          var cfg = typeof v511ReadBannerSettingsFromUI === 'function' ? v511ReadBannerSettingsFromUI() : null;
+          console.info('[v6.2.2 font click] chip aria-pressed / read font:', btn.getAttribute('aria-pressed'), cfg && cfg.font);
         }, 0);
       });
     });
