@@ -117,7 +117,7 @@
       height: size,
       colorDark: resolveDark(colorDark),
       colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : undefined
+      correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.L : undefined
     });
     normalize(target);
     requestAnimationFrame(() => normalize(target));
