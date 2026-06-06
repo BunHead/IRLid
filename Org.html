@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.4</span></div>
   </div>
 </div>
 
@@ -9415,6 +9415,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             stage.setAttribute('data-banner-shadow', cfg.shadow);
           }
           var V511_BANNER_DEFAULTS = { customise: 'off', font: 'sans', weight: 'bold', italic: 'off', spacing: 'normal', colour: 'white', shadow: 'soft' };
+          var V511_BANNER_OPTIONS = {
+            customise: ['off','on'],
+            font: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'],
+            weight: ['light','regular','bold','black'],
+            italic: ['off','on'],
+            spacing: ['tight','normal','loose','wide'],
+            colour: ['white','warm','palette-1','palette-2','palette-3'],
+            shadow: ['off','soft','strong']
+          };
+          function normaliseV511BannerConfig(input) {
+            var src = input && typeof input === 'object' ? input : {};
+            var out = {};
+            Object.keys(V511_BANNER_DEFAULTS).forEach(function (key) {
+              var val = src[key];
+              out[key] = V511_BANNER_OPTIONS[key].indexOf(val) !== -1 ? val : V511_BANNER_DEFAULTS[key];
+            });
+            return out;
+          }
           function v511PressedDataset(selector, attr, fallback) {
             var el = document.querySelector(selector + '[aria-pressed="true"]');
             return el ? (el.getAttribute(attr) || fallback) : fallback;
