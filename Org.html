@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.6</span></div>
   </div>
 </div>
 
@@ -14961,7 +14961,7 @@ function canClearTestAttendance() {
   return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.developer;
 }
 function canScanAttendeeQr() {
-  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.developer;
+  return effectiveRoleRank() >= PROTOTYPE_ROLE_RANK.staff;
 }
 function applyRoleGatedVisibility() {
   const rank = effectiveRoleRank();
@@ -15467,6 +15467,14 @@ async function decodeDashboardQrPayload(raw) {
     const wrapped = url.searchParams.get('payload') || url.searchParams.get('qr') || url.searchParams.get('irlid');
     if (wrapped) {
       text = wrapped.trim();
+    } else if (url.searchParams.has('hz')) {
+      text = 'HZ:' + (url.searchParams.get('hz') || '').trim();
+    } else if (url.searchParams.has('h')) {
+      text = 'H:' + (url.searchParams.get('h') || '').trim();
+    } else if (url.searchParams.has('dz')) {
+      text = 'DZ:' + (url.searchParams.get('dz') || '').trim();
+    } else if (url.searchParams.has('d')) {
+      text = 'D:' + (url.searchParams.get('d') || '').trim();
     } else {
       const t = url.searchParams.get('type');
       if (t === 'checkin') {
@@ -15479,6 +15487,8 @@ async function decodeDashboardQrPayload(raw) {
   try {
     if (text.startsWith('HZ:')) env = await irlidDecompressFromB64url(text.slice(3));
     else if (text.startsWith('H:')) env = irlidDecodeB64urlJson(text.slice(2));
+    else if (text.startsWith('DZ:')) env = await irlidDecompressFromB64url(text.slice(3));
+    else if (text.startsWith('D:')) env = irlidDecodeB64urlJson(text.slice(2));
     else if (/^\s*\{/.test(text)) env = JSON.parse(text);
     else env = irlidDecodeB64urlJson(text);
   } catch (e) {
@@ -15565,7 +15575,7 @@ async function startDashboardCameraScan() {
   // prior scanner cleanly, clear the view innerHTML, instantiate a fresh
   // Html5Qrcode against the visible target, start with the same config the
   // live site uses (fps: 15, no qrbox, BarcodeDetector preferred).
-  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('developer')} role required to scan attendee QRs.`, 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('staff')} role required to scan attendee QRs.`, 'error');
   if (typeof Html5Qrcode === 'undefined') return setDashboardScanStatus('Camera library not available.', 'error');
   const view = document.getElementById('dashboardScanCameraView');
   const startBtn = document.getElementById('dashboardScanCameraStartBtn');
@@ -15673,7 +15683,7 @@ async function changeDashboardCamera() {
 async function processDashboardScan() {
   const input = document.getElementById('dashboardScanPayloadInput');
   if (!currentOrg) return setDashboardScanStatus('Load an organisation first.', 'error');
-  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('developer')} role required to scan attendee QRs.`, 'error');
+  if (!canScanAttendeeQr()) return setDashboardScanStatus(`${roleLabelFor('staff')} role required to scan attendee QRs.`, 'error');
   const text = (input?.value || '').trim();
   const hasFile = !!document.getElementById('dashboardScanImageInput')?.files?.[0];
   irlidDebugLog('[scan] processDashboardScan start', {
@@ -17305,8 +17315,7 @@ function applyCheckinPrototypeLayout() {
     const scanCard = document.createElement('details');
     scanCard.className = 'dashboard-collapsible dashboard-staff-scan-card';
     scanCard.id = 'dashboardStaffScanCard';
-    scanCard.dataset.minRole = 'developer';
-    scanCard.setAttribute('data-debug-gated', '');
+    scanCard.dataset.minRole = 'staff';
     const summary = document.createElement('summary');
     summary.textContent = 'Process attendee scan';
     scanCard.appendChild(summary);
@@ -17407,7 +17416,7 @@ function staffScanPayloadLooksValid(value) {
   try {
     const url = new URL(text);
     const path = (url.pathname || '').toLowerCase();
-    return (path.endsWith('/scan.html') || path.endsWith('scan.html'))
+    return (path.endsWith('/scan.html') || path.endsWith('scan.html') || path.endsWith('/scan'))
       && (url.searchParams.has('payload') || url.searchParams.has('h') || url.searchParams.has('hz') || url.searchParams.has('d') || url.searchParams.has('dz'));
   } catch (_) {
     return false;
@@ -17564,6 +17573,7 @@ async function tryStaffScanRedirectOrPoll() {
 }
 
 async function tryProcessStaffScanIfPending() {
+  if (!__staffScanPending) __staffScanPending = readPendingStaffScan();
   if (!__staffScanPending) return false;
   // Need at minimum a currentOrg with api_key to process. Bearer session
   // is required for some role-gated actions but processDashboardScan
@@ -18892,6 +18902,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         showPanel('checkin');
         generateVenueQR();
         renderPortalAll();
+        try { await tryProcessStaffScanIfPending(); } catch (_) {}
         showToast('Loaded cached organisation snapshot');
         return;
       }
