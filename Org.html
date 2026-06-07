@@ -72,6 +72,9 @@
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
+html:not(.irlid-debug-on) .v511-badge-backed,
+html:not(.irlid-debug-on) .v511-badge-pending,
+html:not(.irlid-debug-on) .v511-badge-in-design { display: none !important; }
 :root {
   --bg: #0d1117;
   --panel: #161b22;
@@ -3328,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.4</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.5</span></div>
   </div>
 </div>
 
