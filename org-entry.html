@@ -18,6 +18,9 @@
      mobile-web-app-capable lets Chrome hide its chrome when the page is
      added to home screen (proper URL-bar hide ships with v5.5.12 PWA). -->
 <link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+<link rel="stylesheet" href="https://fonts.bunny.net/css?family=bebas-neue|oswald:400,700|pacifico|caveat:400,700|permanent-marker|playfair-display:400,700,900|lobster|inter:300,400,700,900|montserrat:300,400,700,900&display=swap">
+<script src="js/brand-fonts.js"></script>
 <style>
   html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
   :root{
@@ -28,6 +31,7 @@
     --amber:#ffb300;
     --orange:#FF9500;
     --red:#ff4b4b;
+    --brand-font:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -207,6 +211,7 @@
     font-weight:800;
     letter-spacing:-0.02em;
     text-shadow:0 6px 16px rgba(0,0,0,0.12);
+    font-family:var(--brand-font, "Segoe UI", system-ui, sans-serif);
   }
 
   .subtitle{
@@ -653,6 +658,9 @@
   (function applyOrgEntryTheme() {
     try {
       var root = document.documentElement;
+      var brandFont = params.get('brandFont') || 'sans';
+      if (window.IRLID_APPLY_BRAND_FONT) window.IRLID_APPLY_BRAND_FONT(brandFont, root);
+      else root.style.setProperty('--brand-font', '"Segoe UI", system-ui, sans-serif');
       var primary = params.get('themePrimary');
       var accent  = params.get('themeAccent');
       var qrFg    = params.get('themeQrFg');

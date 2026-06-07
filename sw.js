@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v118'; // v6.2.10 DIAG banner honours the debug toggle (data-debug-gated).
+const CACHE_VERSION = 'irlid-shell-v119'; // v6.3.0 Brand font applies to live check-in surfaces.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
@@ -27,6 +27,7 @@ const SHELL_ASSETS = [
   './receipt.html',
   './check.html',
   './js/orgapi.js',
+  './js/brand-fonts.js',
   './js/offline-queue.js',
   './js/offline-snapshot.js',
   './js/qr-fullscreen.js',
@@ -84,7 +85,7 @@ self.addEventListener('fetch', (event) => {
   // scan.html, receipt.html, etc.). The SW must only intercept dashboard-
   // surface URLs; everything else passes through to the network normally.
   // This prevents the SW from catching consumer page navigations.
-  const DASHBOARD_PATHS = /^\/(Org\.html|org-action-auth\.html|org-entry\.html|receipt\.html|check\.html|js\/(orgapi|offline-queue|offline-snapshot|qr-fullscreen|sign|vendor\/jsqr\.min)\.js|manifest\.json|sw\.js)/;
+  const DASHBOARD_PATHS = /^\/(Org\.html|org-action-auth\.html|org-entry\.html|receipt\.html|check\.html|js\/(orgapi|offline-queue|offline-snapshot|qr-fullscreen|sign|brand-fonts|vendor\/jsqr\.min)\.js|manifest\.json|sw\.js)/;
   if (url.origin === self.location.origin && !DASHBOARD_PATHS.test(url.pathname)) {
     return; // pass through; no caching, no shell fallback
   }
