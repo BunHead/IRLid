@@ -65,6 +65,8 @@ const THEME_SCRAPE_TTL_MS = 24 * 60 * 60 * 1000;
 const THEME_SCRAPE_TIMEOUT_MS = 5000;
 const IMAGE_PROXY_MAX_BYTES = 2 * 1024 * 1024;
 const PUBLIC_HTTP_URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i;
+const AUTO_CHECKOUT_MIN_INTERVAL_MS = 60 * 1000;
+const autoCheckoutLastRunByOrg = new Map();
 
 function expectedMemberRole(value) {
   const role = String(value || "attendee").trim().toLowerCase();
@@ -3806,7 +3808,8 @@ async function orgAttendance(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   const url = new URL(request.url);
   const includeExpected = url.searchParams.get("include_expected") === "1";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "100"), 500);
+  const requestedLimit = parseInt(url.searchParams.get("limit") || "60", 10);
+  const limit = Math.max(1, Math.min(Number.isFinite(requestedLimit) ? requestedLimit : 60, 150));
   const checkinColumns = await tableColumnSet(env, "org_checkins");
   const hasCheckinColumn = (name) => checkinColumns.has(name);
   let eventId = cleanOptionalText(url.searchParams.get("event_id"), 90);
@@ -3820,7 +3823,7 @@ async function orgAttendance(request, env) {
     }
   }
   if (eventId && !hasCheckinColumn("event_id")) eventId = null;
-  await autoCheckoutAfterEventGrace(env, org, checkinColumns);
+  await maybeAutoCheckoutAfterEventGrace(env, org, checkinColumns);
   // v5.11.2 - `since` is honoured if passed (client convention: local midnight today
   // as unix epoch). Fallback to 24h sliding window for legacy / unauth'd callers
   // only; the dashboard always passes since explicitly.
@@ -3831,7 +3834,6 @@ async function orgAttendance(request, env) {
     checkinClauses.push("c.event_id=?");
     checkinBinds.push(eventId);
   }
-  checkinBinds.push(limit);
   const selectCheckinColumn = (name, fallback = "NULL") =>
     hasCheckinColumn(name) ? `c.${name} AS ${name}` : `${fallback} AS ${name}`;
   const receiptJoin = await tableExists(env, "org_receipts")
@@ -3869,15 +3871,32 @@ async function orgAttendance(request, env) {
     ].join(",") + " FROM org_checkins c" + receiptJoin + " WHERE " +
     checkinClauses.join(" AND ") +
     " ORDER BY c.checkin_at DESC LIMIT ?"
-  ).bind(...checkinBinds).all();
+  ).bind(...checkinBinds, limit).all();
   const checkins = rows.results || [];
   applyLatestReceiptPerAttendanceIdentity(checkins);
-  const total_in = checkins.filter(r => !r.checkout_at && r.status !== "invalid").length;
-  const total_out = checkins.filter(r => r.checkout_at && r.status !== "invalid").length;
-  const avg_score = checkins.length ? Math.round(checkins.reduce((s,r) => s+(r.score||0), 0) / checkins.length) : 0;
-  const bio_count = checkins.filter(r => r.bio_verified).length;
+
+  const statusExpr = hasCheckinColumn("status") ? "COALESCE(c.status,'checked_in')" : "'checked_in'";
+  const checkoutAtExpr = hasCheckinColumn("checkout_at") ? "c.checkout_at" : "NULL";
+  const scoreExpr = hasCheckinColumn("score") ? "c.score" : "NULL";
+  const bioVerifiedExpr = hasCheckinColumn("bio_verified") ? "c.bio_verified" : "0";
+  const statsRow = await env.DB.prepare(
+    "SELECT " + [
+      `COUNT(CASE WHEN ${checkoutAtExpr} IS NULL AND ${statusExpr}!='invalid' THEN 1 END) AS currently_in`,
+      `COUNT(CASE WHEN ${checkoutAtExpr} IS NOT NULL AND ${statusExpr}!='invalid' THEN 1 END) AS checked_out`,
+      `ROUND(AVG(${scoreExpr})) AS avg_score`,
+      `SUM(CASE WHEN ${bioVerifiedExpr} THEN 1 ELSE 0 END) AS bio_verified`,
+      "COUNT(*) AS total"
+    ].join(",") + " FROM org_checkins c WHERE " + checkinClauses.join(" AND ")
+  ).bind(...checkinBinds).first();
+  const stats = {
+    total: Number(statsRow?.total || 0),
+    currently_in: Number(statsRow?.currently_in || 0),
+    checked_out: Number(statsRow?.checked_out || 0),
+    avg_score: Number(statsRow?.avg_score || 0),
+    bio_verified: Number(statsRow?.bio_verified || 0)
+  };
   if (!includeExpected) {
-    return json({ checkins, stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+    return json({ checkins, stats });
   }
   const expectedSql = eventId && hasCheckinColumn("event_id") && hasCheckinColumn("expected_id")
     ? "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e JOIN event_expected ee ON ee.expected_id=e.id WHERE ee.event_id=? AND e.org_id=? AND e.archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.event_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC"
@@ -3902,7 +3921,17 @@ async function orgAttendance(request, env) {
     last_seen: null,
     expected_only: true
   }));
-  return json({ checkins: checkins.concat(expectedRows), stats: { total: checkins.length, currently_in: total_in, checked_out: total_out, avg_score, bio_verified: bio_count } });
+  return json({ checkins: checkins.concat(expectedRows), stats });
+}
+
+async function maybeAutoCheckoutAfterEventGrace(env, org, checkinColumns) {
+  const orgId = String(org?.id || "");
+  if (!orgId) return;
+  const t = Date.now();
+  const lastRun = autoCheckoutLastRunByOrg.get(orgId) || 0;
+  if (t - lastRun < AUTO_CHECKOUT_MIN_INTERVAL_MS) return;
+  autoCheckoutLastRunByOrg.set(orgId, t);
+  await autoCheckoutAfterEventGrace(env, org, checkinColumns);
 }
 
 async function autoCheckoutAfterEventGrace(env, org, checkinColumns) {
