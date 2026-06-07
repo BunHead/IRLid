@@ -1,0 +1,43 @@
+# Auto-deploy the irlid-api-org Cloudflare Worker whenever its code lands on main.
+# This removes the manual `wrangler deploy` step — merge a Worker PR and it ships itself.
+#
+# ONE-TIME SETUP (Captain, in the GitHub repo):
+#   Settings → Secrets and variables → Actions → New repository secret
+#     Name:  CLOUDFLARE_API_TOKEN
+#     Value: a Cloudflare token (dash.cloudflare.com → My Profile → API Tokens →
+#            Create Token → "Edit Cloudflare Workers" template, scoped to the account
+#            that owns irlid-api-org). Number One never touches the token value.
+#   If a deploy ever fails with an "account ambiguous" error, add a second secret
+#     CLOUDFLARE_ACCOUNT_ID (the irlid account id) and uncomment the line below.
+#
+# SAFETY: only fires on changes under irlid-api-org/** (frontend-only PRs don't trigger it),
+# only on main (so a merge is still the human gate), and never touches wrangler secrets
+# like BOOTSTRAP_DEVELOPER_FP — those persist across deploys untouched.
+
+name: Deploy Worker (irlid-api-org)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'irlid-api-org/**'
+  workflow_dispatch: {}   # manual "Run workflow" button in the Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy Worker
+        working-directory: irlid-api-org
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # uncomment only if needed
+        run: npx --yes wrangler@latest deploy
