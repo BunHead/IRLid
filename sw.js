@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v116'; // v6.2.8 Staff-scan waits for restored Bearer/currentOrg.
+const CACHE_VERSION = 'irlid-shell-v117'; // v6.2.9 Staff-scan survives empty outcome QR renders.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
