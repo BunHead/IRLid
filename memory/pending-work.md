@@ -28,6 +28,15 @@
 - **Lessons banked:** GitHub matches secrets by EXACT name; current wrangler requires Node ≥22 in CI.
 - **Housekeeping still open:** gitignore `.wrangler/`; commit `DREAMS.md` + `PATREON-V6-DRAFT.md` +
   `PROMOTION-V6-COPY-2026-06-06.md` when convenient.
+- **🎯 NEXT PRIORITY (Imbue-blocker) — `HANDOVER-DoormanStaffScanHandoff-v6.2.6.md`:** live demo
+  rehearsal (Number One watching dashboard via browser-pairing while Captain drove 4 phones) found the
+  **doorman staff-scan handoff is broken** — 8 Pro scans an unrecognised attendee's orange device_key
+  QR → "Open in staff dashboard" → lands on the plain Check-in tab, **no escalation modal**. Orange
+  trust-gate fires correctly; the *completion* is dead. `scan.html` L1088 builds the
+  `/Org.html?dev=0#staff_scan=` redirect fine, so the bug is the hash being dropped on the `/Org.html→
+  /Org` resolution OR `tryProcessStaffScanIfPending()` (Org.html L13505) no-op'ing on device_key.
+  Needs 8 Pro console to pin. **This is the one thing between the demo and Imbue-ready** — the rest
+  (clean check-in, dashboard, receipts both-ways, celebrations, security gate) is all proven.
 
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
