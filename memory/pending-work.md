@@ -28,7 +28,8 @@
 - **Lessons banked:** GitHub matches secrets by EXACT name; current wrangler requires Node ≥22 in CI.
 - **Housekeeping still open:** gitignore `.wrangler/`; commit `DREAMS.md` + `PATREON-V6-DRAFT.md` +
   `PROMOTION-V6-COPY-2026-06-06.md` when convenient.
-- **🎯 NEXT PRIORITY (Imbue-blocker) — `HANDOVER-DoormanStaffScanHandoff-v6.2.6.md`:** live demo
+- **✅ CLOSED 7 Jun — this WAS the Imbue-blocker; now resolved end-to-end (see DOORMAN SAGA + v6.2.9
+  below). Original report kept for context:** `HANDOVER-DoormanStaffScanHandoff-v6.2.6.md` — live demo
   rehearsal (Number One watching dashboard via browser-pairing while Captain drove 4 phones) found the
   **doorman staff-scan handoff is broken** — 8 Pro scans an unrecognised attendee's orange device_key
   QR → "Open in staff dashboard" → lands on the plain Check-in tab, **no escalation modal**. Orange
@@ -67,7 +68,18 @@ refs → Captain "go" → Number One merges via browser → Pages/CI deploys).
   `loadDashboardForOrg` + the DOMContentLoaded cached-snapshot path so a render hiccup can never again
   block the staff-scan/invite handlers; (3) CLEANUP — relax `staffScanSessionReady()` to `currentOrg
   .api_key` only (restored sessions auth via api_key, not a fresh `qrLoginSession`; the extra condition
-  could never become true on a restored session). KEEP DIAG. **Awaiting diff → merge → 8 Pro re-test.**
+  could never become true on a restored session). KEEP DIAG. **✅ MERGED (PR #108) + PROVEN END-TO-END
+  ON REAL HARDWARE (7 Jun, ~14:02):** incognito Pixel 4a (fresh/unrecognised device) → scanned venue QR
+  → orange device_key screen → 8 Pro scanned it → **escalation modal opened** → "Add at the door" →
+  bound as "Yet Another" → checked IN on the dashboard. The 8 Pro DIAG banner read
+  `hashPresent=y stashed=n handlerRan=y payloadType=device_key bearerReady=y escalationOpened=y err=-`
+  — every flag green. **The phone-only doorman handoff is ALIVE end-to-end, no laptop.** First-fix
+  confirmation that the render-crash root cause was correct: the desktop Dashboard also now renders fully
+  (it was face-planting on the undefined outcome QR before v6.2.9).
+  **UX note for a future round (not urgent):** adding a fresh attendee at the door took TWO WebAuthn
+  prompts (one to add the expected record, one to bind the device key). That's the per-action signing
+  model working correctly (each signed action = non-repudiation), but add+bind could be collapsed into a
+  single prompt for demo smoothness.
 - **LESSON banked:** when a DIAG breadcrumb says "handler never ran", read the call-site's *upstream*
   siblings for an uncaught throw before theorising about the handler's own gates. An unwrapped render
   call sitting in front of your handler is a silent abort.
