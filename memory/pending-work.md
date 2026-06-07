@@ -110,8 +110,36 @@ refs → Captain "go" → Number One merges via browser → Pages/CI deploys).
   picked Lobster). So "fullscreen wrong font" == this same save-capture bug; fullscreen just renders the
   bad saved value. NOT a separate fullscreen bug. Real fix = make `v511SaveVisualTheme` /
   `v511BuildThemePayload` capture the LIVE picked font (single source of truth) before POST.
-- **Panel 4 (Check-in/out Experience) opening expanded** = SEPARATE, already fixed by v6.3.2
-  (`experience.open = false`), pending merge.
+- **Panel 4 (Check-in/out Experience) opening expanded** = SEPARATE, fixed + MERGED in v6.3.2 (PR #111,
+  `experience.open = false`).
+
+### KNOWN BUG — DEFERRED (logged 7 Jun eve, post-v6.3.2 deploy) — Settings nav disappears on refresh
+- Symptom (Captain): after the v6.3.2 deploy, on refresh the **Settings nav item disappears** + a
+  "Showing cached attendance snapshot" toast appears. Full sign-out + sign-in restores it; the next
+  refresh loses it again.
+- Diagnosed LIVE: Worker is UP (`GET /org/public-info/imbue-ventures` → **200**), `navigator.onLine` true,
+  build v6.3.2. **INTERMITTENT** — one Number One reload had `currentOrg` unset + Settings hidden; the
+  very next reload had Settings shown (`settingsShown=true`) with `window.currentOrg` still reading unset.
+  So the dashboard is intermittently taking the **offline-cached-snapshot fallback** path instead of the
+  live restore; in that path the role-gated Settings nav (`data-min-role="lead_admin"`) hides because the
+  role/`currentOrg` isn't set.
+- Also firing every load: the **caught** outcome-QR render crash (`[portal] render failed during
+  dashboard load: Cannot read properties of undefined (reading '0')` at `renderPortalOutcomeQr` →
+  `renderQr` → qrcodejs). Non-fatal (v6.2.9 try/catch) but recurring; same outcome-QR bug — `renderQr`
+  receives a non-falsy-but-invalid value (likely a URL object, or `buildOutcomeUrl`/`OUTCOME_BASES[mode]`
+  with an undefined `portalState.activeMode` on the cached path), so the `if(!text)` guard passes it
+  through to `QRCode.makeCode` which dies on `reading '0'`.
+- LIKELY trigger: the v6.3.2 SW cache bump (v120→v121) — classic SW-activation-lag window (old SW serves
+  stale cache while v121 installs; live restore races/loses to the cached-snapshot path). Pattern matches
+  the long-standing SW lag (esp. 8 Pro).
+- WORKAROUND: fully close ALL irlid.co.uk tabs + reopen (forces v121 to activate); a plain refresh can
+  leave the old SW in charge.
+- FIX (next watch): (1) make the live session-restore authoritative over the cached-snapshot fallback —
+  don't let the offline path hide the role/Settings when online + Worker reachable; (2) kill the
+  outcome-QR crash at source — guard `renderQr` against non-string `text` and `buildOutcomeUrl` /
+  `renderPortalOutcomeQr` against undefined `activeMode`/URL.
+
+## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
