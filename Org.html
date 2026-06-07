@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.9</span></div>
   </div>
 </div>
 
@@ -13495,7 +13495,7 @@ async function loadDashboardForOrg(org) {
   // when they're ready to do role-gated work.
   showPanel('checkin');
   generateVenueQR();
-  renderPortalAll();
+  try { renderPortalAll(); } catch (err) { console.warn('[portal] render failed during dashboard load:', err); }
   setPortalFieldValues();
   showToast('Signed in to ' + currentOrg.name + ' as ' + (currentOrg.role || 'member'));
   // v5.7.1b — If we arrived from scan.html with #staff_scan=… the QR data
@@ -17116,6 +17116,7 @@ function buildOutcomeUrl(mode) {
 function renderQr(targetId, text, size, colorLight='#ffffff', correctLevel=null) {
   const target = document.getElementById(targetId); if (!target) return; target.innerHTML = '';
   if (typeof QRCode === 'undefined') { target.textContent = 'QR unavailable'; return; }
+  if (!text) { target.textContent = ''; return; }
   new QRCode(target, { text, width: size, height: size, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight, correctLevel: correctLevel || QRCode.CorrectLevel.M });
   target.dataset.qrFullscreenPayload = text;
   target.dataset.qrFullscreenTitle = targetId === 'scanQr' ? 'Scanner QR' : 'Outcome QR';
@@ -17409,7 +17410,7 @@ const STAFF_SCAN_PENDING_NONCE_KEY = 'irlid_pending_login_nonce';
 const STAFF_SCAN_PENDING_WORKER_KEY = 'irlid_pending_login_worker';
 const ORG_LOGIN_URL_BASE = 'https://irlid.co.uk/org-login.html';
 
-// DIAG (retained in v6.2.8): visible phone-side breadcrumbs for the doorman
+// DIAG (retained in v6.2.9): visible phone-side breadcrumbs for the doorman
 // staff-scan handoff, gated behind the Tools & Diagnostics debug toggle.
 const STAFF_SCAN_DIAG_DEFAULTS = {
   hashPresent: 'n',
@@ -17482,7 +17483,7 @@ function renderStaffScanDiag() {
   }
 }
 function staffScanSessionReady() {
-  return !!(currentOrg?.api_key && qrLoginSession?.session_token);
+  return !!currentOrg?.api_key;
 }
 function updateStaffScanDiag(patch = {}) {
   __staffScanDiagState = { ...__staffScanDiagState, ...patch };
@@ -19022,7 +19023,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('existingKeyInput').value = currentOrg.api_key || '';
     document.getElementById('apiKeyDisplay').textContent = currentOrg.api_key || '';
     document.getElementById('setupForm').style.display = 'none'; document.getElementById('setupResult').style.display = 'block';
-    setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); showPanel('checkin'); generateVenueQR(); renderPortalAll();
+    setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); showPanel('checkin'); generateVenueQR(); try { renderPortalAll(); } catch (err) { console.warn('[portal] render failed during cached snapshot restore:', err); }
     return;
   }
   // Batch C polish 4 — restore QR-login session on refresh. handleQrLoginSuccess
