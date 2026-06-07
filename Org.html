@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.7</span></div>
   </div>
 </div>
 
@@ -13502,7 +13502,7 @@ async function loadDashboardForOrg(org) {
   // was captured at page load. Now that the dashboard is fully loaded
   // and we have a Bearer + currentOrg, auto-process it. No-op if the
   // hash didn't include a staff_scan param.
-  try { await tryProcessStaffScanIfPending(); } catch (_) {}
+  try { await tryProcessStaffScanIfPending(); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
   // v5.9.14 — Sibling: redeem any pending staff invite once we have a
   // valid session. Brief A. No-op if no pending invite.
   try { await tryRedeemStaffInviteIfPending(); } catch (err) { console.warn('[staff_invite] redeem failed:', err); }
@@ -17409,6 +17409,83 @@ const STAFF_SCAN_PENDING_NONCE_KEY = 'irlid_pending_login_nonce';
 const STAFF_SCAN_PENDING_WORKER_KEY = 'irlid_pending_login_worker';
 const ORG_LOGIN_URL_BASE = 'https://irlid.co.uk/org-login.html';
 
+// TEMPORARY DIAG (v6.2.7): visible phone-side breadcrumbs for the doorman
+// staff-scan handoff. Remove after the v6.2.6 follow-up is verified live.
+const STAFF_SCAN_DIAG_DEFAULTS = {
+  hashPresent: 'n',
+  stashed: 'n',
+  handlerRan: 'n',
+  payloadType: 'none',
+  bearerReady: 'n',
+  escalationOpened: 'n',
+  err: ''
+};
+let __staffScanDiagState = { ...STAFF_SCAN_DIAG_DEFAULTS };
+let __staffScanDiagDismissed = false;
+function staffScanDiagBool(value) {
+  return value ? 'y' : 'n';
+}
+function inferStaffScanPayloadType(value) {
+  const text = String(value || '').trim();
+  if (!text) return 'none';
+  try {
+    const url = new URL(text);
+    const type = String(url.searchParams.get('type') || '').trim().toLowerCase();
+    if (type === 'device_key') return 'device_key';
+    const wrapped = url.searchParams.get('payload') || url.searchParams.get('qr') || url.searchParams.get('irlid') || url.searchParams.get('h') || url.searchParams.get('hz') || url.searchParams.get('d') || url.searchParams.get('dz');
+    return inferStaffScanPayloadType(wrapped || '');
+  } catch (_) {
+    // not a URL
+  }
+  if (/^\s*\{/.test(text)) {
+    try {
+      const parsed = JSON.parse(text);
+      return parsed?.type === 'device_key' ? 'device_key' : 'hello';
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+  if (/^(H|HZ|D|DZ):/.test(text) || /^[A-Za-z0-9_-]{20,}$/.test(text)) return 'encoded';
+  return 'unknown';
+}
+function renderStaffScanDiag() {
+  if (__staffScanDiagDismissed || typeof document === 'undefined' || !document.body) return;
+  let banner = document.getElementById('staffScanDiagBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'staffScanDiagBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#3b2400;color:#ffd37a;border-bottom:2px solid #f97316;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:8px 38px 8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.35);white-space:normal;word-break:break-word;';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'Dismiss staff-scan diagnostic banner');
+    close.style.cssText = 'position:absolute;right:8px;top:4px;border:1px solid #f97316;background:#1f1300;color:#ffd37a;border-radius:4px;font:16px/1 sans-serif;padding:2px 7px;';
+    close.addEventListener('click', () => {
+      __staffScanDiagDismissed = true;
+      banner.remove();
+    });
+    banner.appendChild(close);
+    const text = document.createElement('span');
+    text.id = 'staffScanDiagText';
+    banner.appendChild(text);
+    document.body.prepend(banner);
+  }
+  const text = document.getElementById('staffScanDiagText');
+  if (text) {
+    const d = __staffScanDiagState;
+    text.textContent = `DIAG staff_scan: hashPresent=${d.hashPresent} stashed=${d.stashed} handlerRan=${d.handlerRan} payloadType=${d.payloadType} bearerReady=${d.bearerReady} escalationOpened=${d.escalationOpened} err=${d.err || '-'}`;
+  }
+}
+function updateStaffScanDiag(patch = {}) {
+  __staffScanDiagState = { ...__staffScanDiagState, ...patch };
+  try { __staffScanDiagState.stashed = staffScanDiagBool(!!readPendingStaffScan()); } catch (_) {}
+  try { __staffScanDiagState.bearerReady = staffScanDiagBool(!!currentOrg?.api_key); } catch (_) {}
+  if (!__staffScanDiagState.payloadType || __staffScanDiagState.payloadType === 'none') {
+    try { __staffScanDiagState.payloadType = inferStaffScanPayloadType(__staffScanPending || readPendingStaffScan()); } catch (_) {}
+  }
+  renderStaffScanDiag();
+}
+
 function staffScanPayloadLooksValid(value) {
   const text = String(value || '').trim();
   if (!text) return false;
@@ -17449,17 +17526,22 @@ function clearPendingStaffScan() {
   try {
     const hash = window.location.hash || '';
     const m = hash.match(/[#&]staff_scan=([^&]+)/);
+    updateStaffScanDiag({ hashPresent: staffScanDiagBool(!!m), err: '' });
     irlidDebugLog('[staff_scan] regex match result:', m ? ('captured ' + m[1].length + ' chars') : 'no match');
     if (!m) {
       const recovered = readPendingStaffScan();
       if (recovered) {
         __staffScanPending = recovered;
+        updateStaffScanDiag({ payloadType: inferStaffScanPayloadType(recovered), stashed: 'y' });
         irlidDebugLog('[staff_scan] recovered pending QR from localStorage, length:', recovered.length, 'starts with:', recovered.slice(0, 50));
+      } else {
+        updateStaffScanDiag({ payloadType: 'none', stashed: 'n' });
       }
       return;
     }
     __staffScanPending = decodeURIComponent(m[1]);
     stashPendingStaffScan(__staffScanPending);
+    updateStaffScanDiag({ payloadType: inferStaffScanPayloadType(__staffScanPending), stashed: 'y' });
     irlidDebugLog('[staff_scan] captured pending QR from hash, length:', __staffScanPending.length, 'starts with:', __staffScanPending.slice(0, 50));
     // Clean the hash from the URL bar so the QR data isn't visible after
     // first read. Keep any other hash params if present.
@@ -17467,6 +17549,7 @@ function clearPendingStaffScan() {
     history.replaceState(null, '', window.location.pathname + window.location.search + (cleanedHash === '#' ? '' : cleanedHash));
     irlidDebugLog('[staff_scan] hash cleaned from URL bar, __staffScanPending now set');
   } catch (err) {
+    updateStaffScanDiag({ err: err?.message || String(err) });
     console.warn('[staff_scan] hash capture failed:', err);
   }
 })();
@@ -17573,39 +17656,88 @@ async function tryStaffScanRedirectOrPoll() {
 }
 
 async function tryProcessStaffScanIfPending() {
+  updateStaffScanDiag({ handlerRan: 'y', err: '', escalationOpened: 'n' });
   if (!__staffScanPending) __staffScanPending = readPendingStaffScan();
-  if (!__staffScanPending) return false;
-  // Need at minimum a currentOrg with api_key to process. Bearer session
-  // is required for some role-gated actions but processDashboardScan
-  // surfaces a clear error if so. Stash and bail if no org yet — the
-  // user is probably mid-sign-in.
-  if (!currentOrg?.api_key) return false;
+  updateStaffScanDiag({
+    stashed: staffScanDiagBool(!!readPendingStaffScan()),
+    payloadType: inferStaffScanPayloadType(__staffScanPending || readPendingStaffScan())
+  });
+  if (!__staffScanPending) {
+    updateStaffScanDiag({ payloadType: 'none', err: 'no pending staff_scan payload' });
+    return false;
+  }
+  // Need at minimum a currentOrg with api_key to process. Stash and bail if
+  // no org yet — the user is probably mid-sign-in.
+  if (!currentOrg?.api_key) {
+    updateStaffScanDiag({ bearerReady: 'n', err: 'currentOrg/api_key not ready' });
+    return false;
+  }
+  updateStaffScanDiag({ bearerReady: 'y' });
+  if (!canScanAttendeeQr()) {
+    const msg = `${roleLabelFor('staff')} role required to scan attendee QRs.`;
+    updateStaffScanDiag({ err: msg });
+    setDashboardScanStatus(msg, 'error');
+    return false;
+  }
   // Make sure the dashboard panel is visible so the user sees the result.
   if (typeof showPanel === 'function') {
-    try { showPanel('dashboard', document.getElementById('navDashboard')); } catch (_) {}
+    try { showPanel('dashboard', document.getElementById('navDashboard')); } catch (err) { updateStaffScanDiag({ err: 'showPanel: ' + (err?.message || err) }); }
   }
   // Open the Process attendee scan expander so the user sees what's happening.
   const scanCard = document.getElementById('dashboardStaffScanCard');
   if (scanCard && !scanCard.open) scanCard.open = true;
-  // Populate the textarea with the captured QR data and trigger Process scan.
+  // Populate the textarea with the captured QR data for manual retry/visibility.
   const input = document.getElementById('dashboardScanPayloadInput');
   if (input) input.value = __staffScanPending;
   irlidDebugLog('[staff_scan] auto-processing pending QR');
   setDashboardScanStatus('Processing staff-scanned QR...');
   const captured = __staffScanPending;
-  __staffScanPending = null; // consume so we don't re-fire
-  try { await processDashboardScan(); } catch (err) {
+
+  try {
+    const env = await decodeDashboardQrPayload(captured);
+    const payloadType = env?.type === 'device_key' ? 'device_key' : 'hello';
+    updateStaffScanDiag({ payloadType, err: '' });
+
+    if (env?.type === 'device_key') {
+      // v6.2.7 — Handle staff-scan device_key payloads directly instead of
+      // routing through processDashboardScan(), whose internal catch converts
+      // decode/open failures into status text and lets this handoff clear the
+      // pending payload silently. Recognised devices keep the normal check-in
+      // behaviour; unrecognised orange device_key QRs open the escalation
+      // picker/Add-device modal reliably.
+      const recognition = await recogniseDeviceFp(env.pub_fp);
+      if (recognition) {
+        await runRecognisedDeviceKeyCheckin(env, recognition);
+        setDashboardScanStatus(`Recognised ${expectedDisplayName(recognition.row)} (${recognition.source}).`, 'ok');
+        updateStaffScanDiag({ escalationOpened: 'n', err: 'recognised device check-in' });
+      } else {
+        openEscalationModal(env);
+        const opened = !document.getElementById('doormanEscalationDialog')?.classList.contains('hidden');
+        updateStaffScanDiag({ escalationOpened: staffScanDiagBool(opened), err: opened ? '' : 'modal remained hidden' });
+        setDashboardScanStatus('Device-key QR opened escalation.', opened ? 'ok' : 'error');
+        if (!opened) throw new Error('Escalation modal did not open.');
+      }
+    } else {
+      // HELLO staff_scan remains on the established dashboard scan path.
+      await runDoormanCheckin(env);
+      setDashboardScanStatus('HELLO scan processed.', 'ok');
+    }
+  } catch (err) {
     console.warn('[staff_scan] auto-process failed:', err);
-    setDashboardScanStatus('Could not auto-process the staff scan: ' + (err?.message || err), 'error');
+    const msg = err?.message || String(err);
+    updateStaffScanDiag({ err: msg });
+    setDashboardScanStatus('Could not auto-process the staff scan: ' + msg, 'error');
     // Restore so user can retry manually.
     __staffScanPending = captured;
     stashPendingStaffScan(captured);
     return true;
   }
+
+  __staffScanPending = null; // consume only after successful processing/open
   clearPendingStaffScan();
+  updateStaffScanDiag({ stashed: 'n' });
   return true;
 }
-
 // v5.5.12 - Offline indicator state machine.
 // §16.5 directive: blinking red dot when offline; numeric badge if
 // pending_ops is non-empty; brief green check on full drain; hide otherwise.
@@ -18902,7 +19034,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         showPanel('checkin');
         generateVenueQR();
         renderPortalAll();
-        try { await tryProcessStaffScanIfPending(); } catch (_) {}
+        try { await tryProcessStaffScanIfPending(); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
         showToast('Loaded cached organisation snapshot');
         return;
       }
