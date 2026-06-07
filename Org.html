@@ -3328,7 +3328,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.3</span></div>
   </div>
 </div>
 
@@ -7218,8 +7218,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <p style="margin: 0;">Holding identity documents creates legal weight (GDPR, retention obligations, breach reporting). IRLid stays out of that pipeline by design &mdash; we never see the document body, only a hash that lets us prove a record was captured if you need to attest to it later. The org owns the data; IRLid owns the proof-of-capture.</p>
             </div>
           </details>
-
-          <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn">Save all settings</button></div>
         </section>
 
       </div>
@@ -19470,12 +19468,6 @@ function brandFontTokenFromTheme(theme) {
   return window.IRLID_BRAND_FONT_TOKEN ? window.IRLID_BRAND_FONT_TOKEN(raw) : (raw || 'sans');
 }
 
-function applyBrandFontToStage(stage, token) {
-  if (!stage) return;
-  const key = window.IRLID_BRAND_FONT_TOKEN ? window.IRLID_BRAND_FONT_TOKEN(token) : (token || 'sans');
-  if (window.IRLID_APPLY_BRAND_FONT) window.IRLID_APPLY_BRAND_FONT(key, stage);
-  else stage.style.setProperty('--brand-font', '"Segoe UI", system-ui, sans-serif');
-}
 
 function applyV511BannerConfigToStage(stage, banner) {
   if (!stage) return;
