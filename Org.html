@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.7</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.8</span></div>
   </div>
 </div>
 
@@ -13502,7 +13502,7 @@ async function loadDashboardForOrg(org) {
   // was captured at page load. Now that the dashboard is fully loaded
   // and we have a Bearer + currentOrg, auto-process it. No-op if the
   // hash didn't include a staff_scan param.
-  try { await tryProcessStaffScanIfPending(); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
+  try { await processStaffScanAfterSessionReady('dashboard loaded'); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
   // v5.9.14 — Sibling: redeem any pending staff invite once we have a
   // valid session. Brief A. No-op if no pending invite.
   try { await tryRedeemStaffInviteIfPending(); } catch (err) { console.warn('[staff_invite] redeem failed:', err); }
@@ -17409,8 +17409,8 @@ const STAFF_SCAN_PENDING_NONCE_KEY = 'irlid_pending_login_nonce';
 const STAFF_SCAN_PENDING_WORKER_KEY = 'irlid_pending_login_worker';
 const ORG_LOGIN_URL_BASE = 'https://irlid.co.uk/org-login.html';
 
-// TEMPORARY DIAG (v6.2.7): visible phone-side breadcrumbs for the doorman
-// staff-scan handoff. Remove after the v6.2.6 follow-up is verified live.
+// DIAG (retained in v6.2.8): visible phone-side breadcrumbs for the doorman
+// staff-scan handoff, gated behind the Tools & Diagnostics debug toggle.
 const STAFF_SCAN_DIAG_DEFAULTS = {
   hashPresent: 'n',
   stashed: 'n',
@@ -17422,6 +17422,11 @@ const STAFF_SCAN_DIAG_DEFAULTS = {
 };
 let __staffScanDiagState = { ...STAFF_SCAN_DIAG_DEFAULTS };
 let __staffScanDiagDismissed = false;
+let __staffScanProcessInFlight = false;
+let __staffScanReadyRetryTimer = null;
+let __staffScanReadyRetryUntil = 0;
+const STAFF_SCAN_READY_RETRY_MS = 250;
+const STAFF_SCAN_READY_RETRY_WINDOW_MS = 12000;
 function staffScanDiagBool(value) {
   return value ? 'y' : 'n';
 }
@@ -17476,10 +17481,13 @@ function renderStaffScanDiag() {
     text.textContent = `DIAG staff_scan: hashPresent=${d.hashPresent} stashed=${d.stashed} handlerRan=${d.handlerRan} payloadType=${d.payloadType} bearerReady=${d.bearerReady} escalationOpened=${d.escalationOpened} err=${d.err || '-'}`;
   }
 }
+function staffScanSessionReady() {
+  return !!(currentOrg?.api_key && qrLoginSession?.session_token);
+}
 function updateStaffScanDiag(patch = {}) {
   __staffScanDiagState = { ...__staffScanDiagState, ...patch };
   try { __staffScanDiagState.stashed = staffScanDiagBool(!!readPendingStaffScan()); } catch (_) {}
-  try { __staffScanDiagState.bearerReady = staffScanDiagBool(!!currentOrg?.api_key); } catch (_) {}
+  try { __staffScanDiagState.bearerReady = staffScanDiagBool(staffScanSessionReady()); } catch (_) {}
   if (!__staffScanDiagState.payloadType || __staffScanDiagState.payloadType === 'none') {
     try { __staffScanDiagState.payloadType = inferStaffScanPayloadType(__staffScanPending || readPendingStaffScan()); } catch (_) {}
   }
@@ -17516,6 +17524,52 @@ function readPendingStaffScan() {
 
 function clearPendingStaffScan() {
   try { localStorage.removeItem(STAFF_SCAN_PENDING_PAYLOAD_KEY); } catch (_) {}
+}
+
+function hasPendingStaffScan() {
+  return !!(__staffScanPending || readPendingStaffScan());
+}
+
+function scheduleStaffScanReadyRetry(reason) {
+  if (!hasPendingStaffScan()) return;
+  if (!__staffScanReadyRetryUntil || Date.now() > __staffScanReadyRetryUntil) {
+    __staffScanReadyRetryUntil = Date.now() + STAFF_SCAN_READY_RETRY_WINDOW_MS;
+  }
+  if (__staffScanReadyRetryTimer) return;
+  irlidDebugLog('[staff_scan] pending payload waiting for session/currentOrg:', reason || 'not ready');
+  __staffScanReadyRetryTimer = setTimeout(async function retryPendingStaffScanWhenReady() {
+    __staffScanReadyRetryTimer = null;
+    if (!hasPendingStaffScan()) {
+      __staffScanReadyRetryUntil = 0;
+      return;
+    }
+    if (staffScanSessionReady()) {
+      try {
+        await tryProcessStaffScanIfPending();
+      } catch (err) {
+        updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) });
+      }
+      return;
+    }
+    updateStaffScanDiag({ bearerReady: 'n', err: reason || 'waiting for session/currentOrg' });
+    if (Date.now() < __staffScanReadyRetryUntil) {
+      scheduleStaffScanReadyRetry(reason);
+    }
+  }, STAFF_SCAN_READY_RETRY_MS);
+}
+
+async function processStaffScanAfterSessionReady(reason) {
+  if (!hasPendingStaffScan()) return false;
+  if (!staffScanSessionReady()) {
+    scheduleStaffScanReadyRetry(reason || 'session/currentOrg not ready');
+    return false;
+  }
+  try {
+    return await tryProcessStaffScanIfPending();
+  } catch (err) {
+    updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) });
+    return false;
+  }
 }
 
 (function captureStaffScanFromHash() {
@@ -17656,6 +17710,7 @@ async function tryStaffScanRedirectOrPoll() {
 }
 
 async function tryProcessStaffScanIfPending() {
+  if (__staffScanProcessInFlight) return false;
   updateStaffScanDiag({ handlerRan: 'y', err: '', escalationOpened: 'n' });
   if (!__staffScanPending) __staffScanPending = readPendingStaffScan();
   updateStaffScanDiag({
@@ -17666,10 +17721,14 @@ async function tryProcessStaffScanIfPending() {
     updateStaffScanDiag({ payloadType: 'none', err: 'no pending staff_scan payload' });
     return false;
   }
-  // Need at minimum a currentOrg with api_key to process. Stash and bail if
-  // no org yet — the user is probably mid-sign-in.
-  if (!currentOrg?.api_key) {
-    updateStaffScanDiag({ bearerReady: 'n', err: 'currentOrg/api_key not ready' });
+  // Need both the restored Bearer session and currentOrg/api_key before we
+  // process. The hash capture runs before async session restore, so signed-in
+  // phones can legitimately hit this branch first; keep the payload stashed
+  // and re-check shortly until the session lands.
+  if (!staffScanSessionReady()) {
+    const reason = currentOrg?.api_key ? 'Bearer session not ready' : 'currentOrg/api_key not ready';
+    updateStaffScanDiag({ bearerReady: 'n', err: reason });
+    scheduleStaffScanReadyRetry(reason);
     return false;
   }
   updateStaffScanDiag({ bearerReady: 'y' });
@@ -17692,6 +17751,7 @@ async function tryProcessStaffScanIfPending() {
   irlidDebugLog('[staff_scan] auto-processing pending QR');
   setDashboardScanStatus('Processing staff-scanned QR...');
   const captured = __staffScanPending;
+  __staffScanProcessInFlight = true;
 
   try {
     const env = await decodeDashboardQrPayload(captured);
@@ -17730,9 +17790,11 @@ async function tryProcessStaffScanIfPending() {
     // Restore so user can retry manually.
     __staffScanPending = captured;
     stashPendingStaffScan(captured);
+    __staffScanProcessInFlight = false;
     return true;
   }
 
+  __staffScanProcessInFlight = false;
   __staffScanPending = null; // consume only after successful processing/open
   clearPendingStaffScan();
   updateStaffScanDiag({ stashed: 'n' });
@@ -18996,6 +19058,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const myOrgs = (r && r.orgs) || [];
       if (myOrgs.length) {
         await loadDashboardForOrg(myOrgs[0]);
+        await processStaffScanAfterSessionReady('session restored without cached org');
         return; // signed in as the invited member; skip sign-in UI fallthrough
       }
       // Session valid but no memberships resolved — clear and fall through.
@@ -19021,6 +19084,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const freshOrg = await freshOrgFromSession(savedOrg);
       if (!freshOrg) throw new Error('Saved org is no longer available in /user/orgs');
       await loadDashboardForOrg(freshOrg);
+      await processStaffScanAfterSessionReady('saved session restored');
       return; // skip sign-in UI fallthrough below
     } catch (err) {
       // Dashboard load failed — clear stale session and fall through to sign-in.
@@ -19034,7 +19098,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         showPanel('checkin');
         generateVenueQR();
         renderPortalAll();
-        try { await tryProcessStaffScanIfPending(); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
+        try { await processStaffScanAfterSessionReady('cached snapshot loaded'); } catch (err) { updateStaffScanDiag({ handlerRan: 'y', err: err?.message || String(err) }); }
         showToast('Loaded cached organisation snapshot');
         return;
       }
