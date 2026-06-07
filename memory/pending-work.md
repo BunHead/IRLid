@@ -10,6 +10,29 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ END-OF-DAY CLOSE (7 Jun, ~20:40) — a marathon, ~12 versions shipped to production
+All live + verified on production today:
+- **Doorman staff-scan handoff CLOSED** — proven phone-to-phone on real hardware (the last Imbue-demo
+  blocker). Root cause: an unwrapped `renderPortalAll()` QR crash aborting the load before the handler
+  (rounds 1→4, v6.2.6→v6.2.9).
+- **Brand font applies to live surfaces** — dashboard banner + fullscreen + attendee page (v6.3.0 +
+  v6.3.1 inheritance fix). Set+save persists across reloads.
+- **Legacy saveSettings wipe fixed** (v6.3.2) — GET-overlay preserves theme + welcome/redirect; no more
+  blanking. + Check-in/out anchor expander now collapses by default.
+- **Dead-code tidy** — v6.3.3 (orphan `applyBrandFontToStage` + dead Records Save button) + v6.3.4
+  (15 verified-orphan functions, −95 lines, + `renderQr` try/catch hardening so a QR failure can't
+  cascade). v6.3.5 — debug-gated the BACKED/DESIGN-IN/IN-DESIGN status pills.
+- **CI/CD Worker auto-deploy live + browser-control (Claude-in-Chrome) unlocked.** Number One ran the
+  full autonomous loop (brief → bash-diff → merge → cold-test) on v6.3.3/4/5 with Captain granting merge
+  authority ("you have the Conn… merge them and test, always").
+- **Anchor diagnosed via live test (NOT fixed):** moving the anchor does NOT move the Stream effect.
+  Narrowed to "the anchor value isn't reaching the live Stream emit"; the exact link (render ignoring the
+  offset vs. the anchor→item.settings mapping only running on Save, not Sample) needs a DevTools-breakpoint
+  trace — black-box poking can't settle it. **Next-session headline.**
+**Queued for a fresh session:** anchor (breakpoint trace) · font-save instability (two-font-source sync) ·
+Worker recurring-503 root (`wrangler tail` mid-crash) · outcome-QR real fix (URL too long for qrcodejs) ·
+settings-refresh wobble (offline-cache race). Worker dropped 2-3× today; redeploy is the band-aid.
+
 ## 7 June 2026 (Sunday) — CI/CD AUTO-DEPLOY LIVE + browser-control unlocked
 
 **Headline: the Worker now deploys itself, and Number One can drive the browser.**
