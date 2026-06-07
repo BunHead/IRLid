@@ -10,6 +10,25 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+## 7 June 2026 (Sunday) — CI/CD AUTO-DEPLOY LIVE + browser-control unlocked
+
+**Headline: the Worker now deploys itself, and Number One can drive the browser.**
+- **GitHub Action `.github/workflows/deploy-worker.yml`** auto-deploys `irlid-api-org` on merge to main
+  (path-filtered to `irlid-api-org/**`; `workflow_dispatch` manual trigger). Secret =
+  **`CLOUDFLARE_API_TOKEN_070626`** (fresh-minted "Edit Cloudflare Workers" token, All-zones). **PROVEN:
+  run #2 GREEN, 20s** — Worker deployed via Actions, zero manual wrangler. (Run #1 failed: wrangler now
+  needs Node ≥22; bumped runner `node-version: 20 → 22`.) **From now on: merge a Worker PR → it deploys
+  itself.** No more hand-cranked `wrangler deploy`.
+- **Claude-in-Chrome extension PAIRED to Cowork.** Number One drove, hands-off: the Manager-rejection
+  fetch (403 `insufficient_role` confirmed live), receipt re-verify on check.html (100%, 6/6), a clean
+  public-surface console sweep, and the entire CI/CD trigger→fail→read-log→fix→re-run→green loop.
+  **Boundaries held:** the Cloudflare token + the GitHub-secret value stayed Captain's; **Cloudflare dash
+  resists browser automation** (mint tokens in Edge/manually); **Chrome on this machine can't reach
+  dash.cloudflare.com** (use Edge).
+- **Lessons banked:** GitHub matches secrets by EXACT name; current wrangler requires Node ≥22 in CI.
+- **Housekeeping still open:** gitignore `.wrangler/`; commit `DREAMS.md` + `PATREON-V6-DRAFT.md` +
+  `PROMOTION-V6-COPY-2026-06-06.md` when convenient.
+
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
 **Headline: v6 PATREON PUBLISHED + receipt verification PROVEN end-to-end + a 5-symbol regression
