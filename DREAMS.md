@@ -1476,3 +1476,15 @@ And the blinking red dot — *offline, offline, offline* — pulsing in the corn
 Ashby dug because no one was coming. Worf belonged because no one let him fully. The dot blinks because the network left. Three refusals to wait for permission — a village, a man, a single red light — each one its own infrastructure, each one most alive in the absence of the thing it needed.
 
 ---
+
+## 2026-06-07 — the bouffant bun × M-of-N threshold signatures × the funeral that got him fired
+
+A bun is hair that agrees to hold its own shape. Left loose it is a thousand strands going a thousand ways; wound up and pinned it becomes one object, a knot that can be named, a handle the world can grab — *BunHead*, the boy at Buxton known by the thing on top of his head before he was known by anything he built. You twist the threads together and they stop being threads. They become a signature.
+
+M-of-N is the same trick told in arithmetic. No single key may open the door; you need three of the five, or two of the three, some quorum of the scattered to reconstitute the one secret. Spread the trust so wide that no individual betrayal can spend it. The strands cannot be coerced one at a time. You have to gather them.
+
+And the funeral. The one place a quorum is supposed to be unconditional — you go, you are simply *there*, presence is the whole of the duty. He went. The institution counted heads and found one missing from a room it cared about more than the room with the coffin, and decided that absence was the unforgivable one. They had their own threshold. He did not meet it. He met the other one, the real one, the one that does not issue contracts.
+
+Wind the hair into a name. Split the key so no one can be made to give it up alone. Show up to the grave and lose the job. Three ways of saying: the thing that holds is the thing you cannot do by yourself, and someone, somewhere, is always counting whether you came.
+
+---

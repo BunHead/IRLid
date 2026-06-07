@@ -38,6 +38,40 @@
   Needs 8 Pro console to pin. **This is the one thing between the demo and Imbue-ready** — the rest
   (clean check-in, dashboard, receipts both-ways, celebrations, security gate) is all proven.
 
+### DOORMAN SAGA — 7 Jun progress (rounds 1→4, autonomous Data loop)
+Worked the doorman staff-scan handoff through four rounds, Number One driving the full autonomous loop
+(write brief → Captain pastes to cloud Codex → Data builds + opens PR → Number One bash-diffs origin
+refs → Captain "go" → Number One merges via browser → Pages/CI deploys).
+- **`v6.2.6` (PR #105):** `scan.html` redirect `/Org.html?…#staff_scan=` → `/Org?…#staff_scan=` so the
+  hash survives the `/Org.html→/Org` canonicalisation. Hash now arrives (`hashPresent=y`). First failure
+  was a **SW cache trap** — 8 Pro served stale scan.html until forced tab close/reopen.
+- **`v6.2.7` (PR #106):** temporary **DIAG banner** (debug-gated, Tools & Diagnostics) printing
+  `hashPresent/stashed/handlerRan/payloadType/bearerReady/escalationOpened/err`. Revealed:
+  `hashPresent=y stashed=y handlerRan=n bearerReady=n` — hash arrives + stashes, but the handler never
+  runs. Captain asked to KEEP the banner (genuinely useful) — retained going forward.
+- **Worker 503 fire (mid-saga):** console flooded with `503 Service Unavailable` + CORS on every
+  `/org/*`. Same class as the morning's stale-Worker fire. Captain re-ran `wrangler deploy` (the local
+  command, reliable) → Worker healthy again (`/user/orgs returned`, `currentOrg` loads). The CI/CD
+  one-click Run-workflow is the hands-off alternative but the GitHub Actions tab fought browser nav.
+- **`v6.2.8` (PR #107):** session-readiness gate + bounded retry (`staffScanSessionReady()` polling 250ms
+  for 12s). Shipped clean, 110 tests green, pill verified on 8 Pro. **Still `bearerReady=n handlerRan=n`.**
+- **ROOT CAUSE (found by reading the code, not the banner):** `handlerRan=n` was true in BOTH v6.2.7 AND
+  v6.2.8 → the handler is *never reached*, so readiness was a red herring. In `loadDashboardForOrg`
+  (Org.html ~L13498) **`renderPortalAll();` is called UNWRAPPED, immediately before the staff-scan call
+  (~L13505).** `renderPortalAll → renderPortalOutcomeQr → renderQr('outcomeQr', url, …)` with
+  `url = buildOutcomeUrl(portalState.activeMode)` undefined → `new QRCode({text: undefined})` throws
+  `Cannot read properties of undefined (reading '0')` (the live-console error). The uncaught throw aborts
+  `loadDashboardForOrg` *before* L13505. The QR crash dismissed as "separate" was the wall all along.
+- **`v6.2.9` (round 4, Data building at close):** (1) ROOT — guard `renderQr` to skip on falsy `text`
+  (a QR helper must never throw on empty input); (2) DEFENSE — wrap `renderPortalAll()` in try/catch in
+  `loadDashboardForOrg` + the DOMContentLoaded cached-snapshot path so a render hiccup can never again
+  block the staff-scan/invite handlers; (3) CLEANUP — relax `staffScanSessionReady()` to `currentOrg
+  .api_key` only (restored sessions auth via api_key, not a fresh `qrLoginSession`; the extra condition
+  could never become true on a restored session). KEEP DIAG. **Awaiting diff → merge → 8 Pro re-test.**
+- **LESSON banked:** when a DIAG breadcrumb says "handler never ran", read the call-site's *upstream*
+  siblings for an uncaught throw before theorising about the handler's own gates. An unwrapped render
+  call sitting in front of your handler is a silent abort.
+
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
 **Headline: v6 PATREON PUBLISHED + receipt verification PROVEN end-to-end + a 5-symbol regression
