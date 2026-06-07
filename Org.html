@@ -3326,7 +3326,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.10</span></div>
   </div>
 </div>
 
@@ -17460,6 +17460,7 @@ function renderStaffScanDiag() {
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'staffScanDiagBanner';
+    banner.setAttribute('data-debug-gated', ''); // v6.2.10 — honour the Tools & Diagnostics debug toggle (hidden via the html:not(.irlid-debug-on) [data-debug-gated] rule)
     banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#3b2400;color:#ffd37a;border-bottom:2px solid #f97316;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:8px 38px 8px 10px;box-shadow:0 2px 10px rgba(0,0,0,.35);white-space:normal;word-break:break-word;';
     const close = document.createElement('button');
     close.type = 'button';
