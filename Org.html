@@ -3328,7 +3328,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.4</span></div>
   </div>
 </div>
 
@@ -7694,9 +7694,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // button scrolls (via jumpToNow + scrollToCalendar). Switching tabs no longer moves the page.
             }
             // T4.3.59.5 — past-day check (selected day in past week, OR current week + earlier dow than today).
-            function isSelectedDayPast() {
-              return dateStatusForDate(dateForDow(state.selectedDay || dayOfWeekForDate(new Date()))) === 'past';
-            }
             function eventEndMin(ev) { return minutesFromTime(ev.start_time_local) + Number(ev.duration_min || 60); }
             function isEventPast(ev, dow) {
               var now = new Date();
@@ -8063,7 +8060,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             document.querySelectorAll('[data-room-vocab-preset]').forEach(function (btn) { btn.addEventListener('click', function () { var parts = String(btn.getAttribute('data-room-vocab-preset') || 'Room|Rooms').split('|'); var newSingular = parts[0] || 'Room'; var newPlural = parts[1] || 'Rooms'; saveCalSettings({ room_vocabulary_singular: newSingular, room_vocabulary_plural: newPlural }); renameDefaultRoomsForNewVocab(newSingular); renderAll(); flashRoomVocabPulse(); }); });
             ['v511RoomVocabSingular','v511RoomVocabPlural'].forEach(function (id) { var input = document.getElementById(id); if (!input) return; input.addEventListener('input', function () { var singular = document.getElementById('v511RoomVocabSingular')?.value.trim() || 'Room'; var plural = document.getElementById('v511RoomVocabPlural')?.value.trim() || 'Rooms'; saveCalSettings({ room_vocabulary_singular: singular, room_vocabulary_plural: plural }); renderAll(); flashRoomVocabPulse(); }); });
             // Bug V + Feature Y: Working hours + breaks settings (Event defaults expander)
-            function flashEventDefaultsPulse() { var p = document.getElementById('v511EventDefaultsSavedPulse'); if (p) { p.classList.add('is-pulsing'); clearTimeout(flashEventDefaultsPulse._t); flashEventDefaultsPulse._t = setTimeout(function () { p.classList.remove('is-pulsing'); }, 1500); } }
             function bindCalSetting(id, key) { var el = document.getElementById(id); if (!el) return; var handler = function () { var patch = {}; patch[key] = el.type === 'number' ? (parseInt(el.value, 10) || 0) : (el.type === 'checkbox' ? !!el.checked : el.value); saveCalSettings(patch); renderAll(); }; el.addEventListener('input', handler); el.addEventListener('change', handler); }
             bindCalSetting('v511DefaultDuration', 'default_duration');
             bindCalSetting('v511CheckoutGrace', 'checkout_grace');
@@ -11583,7 +11579,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           // v5.11.0a ? server-canonical Org.html keeps no mockup-state restore.
           // V511_CAL_SETTINGS_KEY remains above for user calendar preferences only.
-          function v511SaveNow() {}
           function v511SaveDebounced() {}
         })();
       </script>
@@ -13602,11 +13597,6 @@ function updateCurrentEventBadge(eventName) {
   badge.textContent = eventName ? ('Now: ' + eventName) : 'No event running';
 }
 
-function checkinQrTitle(eventName) {
-  const venueName = String(currentOrg?.name || portalState?.orgCode || 'Venue').trim() || 'Venue';
-  const activeName = String(eventName || '').trim();
-  return activeName ? (venueName + ' — ' + activeName) : venueName;
-}
 
 function checkinBrandBannerText(eventName) {
   const venueName = String(currentOrg?.name || portalState?.orgCode || 'Venue').trim() || 'Venue';
@@ -14115,10 +14105,6 @@ async function saveSettings() {
   setThemeSaveStatus('Saved and verified.', 'ok');
   setTimeout(function () { setThemeSaveStatus('', ''); }, 3000);
   showToast('✓ Settings saved and verified');
-}
-function resetSettingsToDefaults() {
-  settings = { minScore: 50, bioRequired: false, privacyMode: true, checkoutEnabled: true, returnAllowed: true, anonymousMode: false, logoUrl: '', websiteUrl: '', welcomeMessage: 'Welcome. Please review and confirm your check-in.', orgTerms: '', redirectUrl: '', allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true, allowProofRecording: true, allowIdPhotoCapture: false, manager_perms: { calendar: false }, roleLabels: defaultRoleLabels() };
-  saveJson(STORAGE_KEY_SETTINGS, settings); applySettingsToUI(); syncPortalFromLegacy(); renderPortalAll(); generateVenueQR(); showToast('Settings reset to defaults');
 }
 function renderExpectedAttendees() {
   const root = document.getElementById('expectedAttendeeList'); if (!root) return;
@@ -14941,9 +14927,6 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
 function currentPrototypeRole() {
   return currentOrg?.role || (qrLoginSession?.is_developer ? 'developer' : 'staff');
 }
-function prototypeRoleRank() {
-  return realSessionRoleRank();
-}
 function roleRankFor(role) {
   return PROTOTYPE_ROLE_RANK[String(role || '').trim().toLowerCase()] || 0;
 }
@@ -15031,14 +15014,6 @@ async function deleteExpectedFromAttendance(id) {
   if (!row) return showToast('Expected attendee not found', true);
   if (!canDeleteExpected()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendees`, true);
   showExpectedDeleteDialog(row);
-}
-function checkoutNonceFor(checkinId) {
-  if (!checkoutNonces[checkinId]) {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    checkoutNonces[checkinId] = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
-  }
-  return checkoutNonces[checkinId];
 }
 function buildShortCheckoutUrl(token) {
   const url = new URL('org-entry.html', window.location.href);
@@ -16368,32 +16343,12 @@ async function manualCheckin() {
   }
 }
 function loadVenueQR() { generateVenueQR(); showToast('Debug QR refreshed'); }
-function getQrScanDomain() {
-  try { return new URL(venueQrPayload || buildVenuePayload()).hostname; }
-  // v5.9.0.7 — was hardcoded fallback to 'bunhead.github.io' (test env). Now falls back
-  // to current hostname so live serves live, test env serves test env. Sixth file-copy
-  // hardcoded-URL fix this watch series; BOOTSTRAP §6 sweep guidance applies.
-  catch { return window.location.hostname; }
-}
-function getOrgFingerprint() {
-  const key = currentOrg?.api_key || '';
-  if (!key) return 'Org key not loaded';
-  if (key.length <= 14) return key;
-  return `${key.slice(0, 10)}...${key.slice(-6)}`;
-}
 function getFullscreenLogoUrl() {
   const logo = (settings.logoUrl || portalState.logoUrl || '').trim();
   return logo || 'logo.png';
 }
 function fullscreenRefreshStamp() {
   return new Date().toLocaleTimeString(displayLocale(), { minute: '2-digit', second: '2-digit' });
-}
-function refreshVenueQrPayloadForFullscreen() {
-  generateVenueQR();
-  return {
-    payload: venueQrPayload,
-    lastRefreshedText: `Last Refreshed: ${fullscreenRefreshStamp()}`
-  };
 }
 function fullscreenQR() {
   // v5.11.5 — Architectural rewrite per Captain's directive after hours of
@@ -16805,33 +16760,7 @@ function compareBySurnameThenFirst(a, b) {
   if (surname) return surname;
   return aName.first.localeCompare(bName.first, displayLocale(), { sensitivity: 'base' });
 }
-function exportCSV() {
-  if (!attendanceData.length) return showToast('No data to export', true);
-  const headers = ['Name or ID','First seen','Last seen','Scan count','Role'];
-  const filter = csvRoleFilterValue();
-  const viewingAs = currentPrototypeRole();
-  const exportRows = attendanceData
-    .filter(r => csvRoleFilterAllows(r, filter))
-    .slice()
-    .sort(compareBySurnameThenFirst);
-  if (!exportRows.length) return showToast('No rows match that CSV filter', true);
-  const rows = exportRows.map(r => [
-    r.name ? nameForViewer(r.name, viewingAs) : (r.id || ''),
-    dateFromStoredTimestamp(r.first_seen)?.toISOString() || '',
-    dateFromStoredTimestamp(r.last_seen)?.toISOString() || '',
-    r.scan_count || 0,
-    window.roleLabel(attendanceRoleKey(r))
-  ].map(csvEscape).join(','));
-  const csv = [headers.map(csvEscape).join(','), ...rows].join('\n');
-  const a = document.createElement('a'); a.href = 'data:text/csv,' + encodeURIComponent(csv); a.download = `irlid-attendance-${new Date().toISOString().slice(0,10)}.csv`; a.click();
-}
 
-function triggerCsvUpload() {
-  const input = document.getElementById('csvFileInput');
-  if (!input) return;
-  input.value = '';
-  input.click();
-}
 function parseDelimitedLine(line, delimiter) {
   const out = [];
   let cur = '';
@@ -17135,7 +17064,13 @@ function renderQr(targetId, text, size, colorLight='#ffffff', correctLevel=null)
   const target = document.getElementById(targetId); if (!target) return; target.innerHTML = '';
   if (typeof QRCode === 'undefined') { target.textContent = 'QR unavailable'; return; }
   if (!text) { target.textContent = ''; return; }
-  new QRCode(target, { text, width: size, height: size, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight, correctLevel: correctLevel || QRCode.CorrectLevel.M });
+  try {
+    new QRCode(target, { text, width: size, height: size, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight, correctLevel: correctLevel || QRCode.CorrectLevel.M });
+  } catch (err) {
+    console.warn('[renderQr] QR generation failed:', err);
+    target.textContent = '';
+    return;
+  }
   target.dataset.qrFullscreenPayload = text;
   target.dataset.qrFullscreenTitle = targetId === 'scanQr' ? 'Scanner QR' : 'Outcome QR';
   target.dataset.qrFullscreenSubtitle = 'Double-tap any QR to view fullscreen';
@@ -17367,18 +17302,6 @@ const PROTOTYPE_ROLE_DETAILS = {
   developer: 'Developer can do everything Lead Admin can, plus prototype-only diagnostics while the real Lead Admin role stays clean.'
 };
 const PROTOTYPE_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, developer: 4 };
-function prototypeRoleDetailFor(role) {
-  const label = roleLabelFor(role);
-  const staff = roleLabelFor('staff');
-  const lead = roleLabelFor('lead_admin');
-  return {
-    attendee: `${label} view has no ${staff} dashboard powers.`,
-    staff: `${label} can add attendees and assist review cases. Delete, clear, settings, and staff-role actions stay locked.`,
-    manager: `${label} can add, edit, and delete attendees, plus resolve routine review cases.`,
-    lead_admin: `${label} can do everything in this prototype: attendee management, clear test/event data, event settings, and staff roles.`,
-    developer: `${label} can do everything ${lead} can, plus prototype-only diagnostics while the real ${lead} role stays clean.`
-  }[role] || PROTOTYPE_ROLE_DETAILS.attendee;
-}
 function roleLabelFor(role) {
   const key = String(role || 'attendee').trim().toLowerCase();
   return (typeof window.roleLabel === 'function' ? window.roleLabel(key) : null) || ROLE_VOCAB_PRESETS.default[key] || ROLE_VOCAB_PRESETS.default.attendee;
@@ -20049,21 +19972,6 @@ function v511ActiveCelebrationStage() {
   return document.getElementById('venueQRWrap') || (fullscreenOverlay && fullscreenOverlay.querySelector('.irlid-qr-fullscreen-holder'));
 }
 
-function triggerConfiguredCheckinSequence(mode, attendeeName, action) {
-  const seq = v511ConfiguredCelebrationSequence(activeTheme, mode || 'allow');
-  if (!seq || !seq.length || typeof window.fireConfiguredSequence !== 'function') return false;
-  try {
-    window.fireConfiguredSequence(seq, mode || 'allow', v511ActiveCelebrationStage(), {
-      theme: activeTheme,
-      attendeeName: attendeeName,
-      action: action || 'in'
-    });
-    return true;
-  } catch (err) {
-    console.warn('[v511 celebration] configured sequence failed; falling back to canonical celebration', err);
-    return false;
-  }
-}
 
 function triggerAcceptCycleAnimation(attendeeName, action) {
   // v5.11.22a — accept an action parameter ('in' or 'out') so the
@@ -20250,9 +20158,6 @@ async function loadThemeFromServer() {
   }
 }
 
-async function saveThemeToServer() {
-  return saveSettings();
-}
 
 function writeThemeToUI() {
   const setVal = function (id, v) { const el = document.getElementById(id); if (el) el.value = v; };
