@@ -102,6 +102,16 @@ refs → Captain "go" → Number One merges via browser → Pages/CI deploys).
   so far — needs tracing (downstream `renderPortalAll`/`showPanel`, or a save-success redirect).
 - NOT blocking: a font set+saved DOES persist+apply correctly across reloads (proven v6.3.0/v6.3.1). This
   is a same-session pick-then-save UX revert + an unwanted panel jump. Fix in a focused post-demo session.
+- **Also manifests in FULLSCREEN (7 Jun eve, Captain-reported "fullscreen QR not correct"):** diagnosed
+  LIVE — `fullscreenQR()` clones `#v511ThemePreviewStage` and the clone correctly inherits root
+  `--brand-font` (v6.3.1's rule covers `#v511FullscreenStage` too; `data-banner-customise=off` on the
+  clone, banner computes the root var). The "wrong font" is because **root `--brand-font` had drifted to
+  `Georgia`/serif** — i.e. the SERVER has the wrong font persisted (the save captured serif, not the
+  picked Lobster). So "fullscreen wrong font" == this same save-capture bug; fullscreen just renders the
+  bad saved value. NOT a separate fullscreen bug. Real fix = make `v511SaveVisualTheme` /
+  `v511BuildThemePayload` capture the LIVE picked font (single source of truth) before POST.
+- **Panel 4 (Check-in/out Experience) opening expanded** = SEPARATE, already fixed by v6.3.2
+  (`experience.open = false`), pending merge.
 
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
