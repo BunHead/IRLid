@@ -38,6 +38,6 @@ jobs:
       - name: Deploy Worker
         working-directory: irlid-api-org
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
           # CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # uncomment only if needed
         run: npx --yes wrangler@latest deploy
