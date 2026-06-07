@@ -59,6 +59,7 @@
 <meta name="apple-mobile-web-app-title" content="IRLid Org">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
+<script src="js/brand-fonts.js"></script>
 <script src="js/sign.js"></script>
 <script src="js/offline-queue.js"></script>
 <script src="js/offline-snapshot.js"></script>
@@ -88,6 +89,7 @@ html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
   --review-pad: #fff0b8;
   --deny-pad: #ffd6d6;
   --scan-pad: #e6eef9;
+  --brand-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
 }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; min-height: 100dvh; height: 100vh; height: 100dvh; overflow: hidden; }
 .sidebar { width: 220px; max-height: 100dvh; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
@@ -3326,7 +3328,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.2.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.0</span></div>
   </div>
 </div>
 
@@ -4674,6 +4676,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="lobster"]    .v511-theme-preview-banner { font-family: "Lobster", "Brush Script MT", cursive; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="inter"]      .v511-theme-preview-banner { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-font="montserrat"] .v511-theme-preview-banner { font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif; }
+
+        /* v6.3.0 — Brand Identity Font is a live-surface token, not just a Settings-preview control.
+           Restrict this var-driven override to customer-facing runtime clones so the existing
+           data-banner-* Settings preview behaviour above remains unchanged. */
+        :is(#v511InlineCheckinStage.v511-checkin-tab-stage, #v511FullscreenStage.v511-runtime-stage) .v511-theme-preview-banner {
+          font-family: var(--brand-font, "Segoe UI", system-ui, sans-serif);
+        }
+        :is(#v511InlineCheckinStage.v511-checkin-tab-stage, #v511FullscreenStage.v511-runtime-stage)[data-brand-font="display"] .v511-theme-preview-banner { font-stretch: condensed; }
+        :is(#v511InlineCheckinStage.v511-checkin-tab-stage, #v511FullscreenStage.v511-runtime-stage)[data-brand-font="bebas"] .v511-theme-preview-banner { letter-spacing: 0.02em; }
+
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="light"]   .v511-theme-preview-banner { font-weight: 300; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="regular"] .v511-theme-preview-banner { font-weight: 400; }
         :is(.v511-theme-preview-stage, .v511-runtime-stage)[data-banner-customise="on"][data-banner-weight="bold"]    .v511-theme-preview-banner { font-weight: 800; }
@@ -13674,7 +13686,7 @@ function buildVenuePayload(eventContext) {
     qp.set('brandBanner', checkinBrandBannerText(checkinEvent.eventName));
     if (banner) {
       qp.set('brandCustomise', banner.customise || 'off');
-      qp.set('brandFont', banner.font || 'sans');
+      qp.set('brandFont', brandFontTokenFromTheme(theme));
       qp.set('brandWeight', banner.weight || 'bold');
       qp.set('brandItalic', banner.italic || 'off');
       qp.set('brandSpacing', banner.spacing || 'normal');
@@ -16403,6 +16415,7 @@ function fullscreenQR() {
   const clone = sourceStage.cloneNode(true);
   clone.id = 'v511FullscreenStage';
   clone.classList.add('v511-runtime-stage');
+  applyBrandFontToStage(clone, brandFontTokenFromTheme(activeTheme));
   clone.removeAttribute('title');
 
   // Strip Sample-only configurator elements — these are affordances for the
@@ -16541,6 +16554,7 @@ function renderInlineCheckinClone(opts) {
   const clone = sourceStage.cloneNode(true);
   clone.id = 'v511InlineCheckinStage';
   clone.classList.add('v511-runtime-stage', 'v511-checkin-tab-stage');
+  applyBrandFontToStage(clone, brandFontTokenFromTheme(activeTheme));
 
   // v5.11.19 — strip the ACTIVE MODE badge from the inline clone only.
   // Settings preview keeps it (it's a configurator affordance there);
@@ -19441,6 +19455,22 @@ function syncBgImageMirrorLayers(theme) {
   // v5.11.5 — clone-based fullscreen stage also receives bg-image mirrors.
   renderBgImageMirrors(document.getElementById('v511FullscreenStage'), specs);
 }
+function brandFontTokenFromTheme(theme) {
+  const t = theme || {};
+  const v512 = t._v512 && typeof t._v512 === 'object' ? t._v512 : {};
+  const globalFont = v512.globalFont || t.globalFont || {};
+  const banner = v512.banner || (t._v511 && t._v511.banner) || {};
+  const raw = globalFont.font || banner.font || 'sans';
+  return window.IRLID_BRAND_FONT_TOKEN ? window.IRLID_BRAND_FONT_TOKEN(raw) : (raw || 'sans');
+}
+
+function applyBrandFontToStage(stage, token) {
+  if (!stage) return;
+  const key = window.IRLID_BRAND_FONT_TOKEN ? window.IRLID_BRAND_FONT_TOKEN(token) : (token || 'sans');
+  if (window.IRLID_APPLY_BRAND_FONT) window.IRLID_APPLY_BRAND_FONT(key, stage);
+  else stage.style.setProperty('--brand-font', '"Segoe UI", system-ui, sans-serif');
+}
+
 function applyV511BannerConfigToStage(stage, banner) {
   if (!stage) return;
   const cfg = normaliseV511BannerConfig(banner);
@@ -19451,6 +19481,7 @@ function applyV511BannerConfigToStage(stage, banner) {
   stage.setAttribute('data-banner-spacing', cfg.spacing);
   stage.setAttribute('data-banner-colour', cfg.colour);
   stage.setAttribute('data-banner-shadow', cfg.shadow);
+  applyBrandFontToStage(stage, brandFontTokenFromTheme(activeTheme || { _v512: { banner: cfg } }));
 }
 
 function applyV511BackgroundToHostStages(theme) {
@@ -19531,6 +19562,7 @@ function applyV511BackgroundToHostStages(theme) {
     if (cfg.bgImageUrl) stage.style.setProperty('--bg-image-url', 'url("' + cfg.bgImageUrl + '")');
     else stage.style.removeProperty('--bg-image-url');
     applyV511BannerConfigToStage(stage, cfg._v511 && cfg._v511.banner);
+    applyBrandFontToStage(stage, brandFontTokenFromTheme(cfg));
   });
   syncBgImageMirrorLayers(cfg);
 
@@ -19604,6 +19636,9 @@ function applyThemeVars(theme) {
   // Batch 6.5d — expose qrFg globally so qr.js + qr-fullscreen.js can read it
   // without having to import this scope. Default '#000000' is preserved.
   window.IRLID_THEME_QR_FG = theme.qrFg || '#000000';
+  const brandFontToken = brandFontTokenFromTheme(theme);
+  if (window.IRLID_APPLY_BRAND_FONT) window.IRLID_APPLY_BRAND_FONT(brandFontToken, root);
+  else root.style.setProperty('--brand-font', '"Segoe UI", system-ui, sans-serif');
   // v5.9.0.13.13 — Wrap palette around if shorter than 7. Without this, a
   // 1-colour palette would only set cycle-1; cycle-2..7 keep their CSS root
   // defaults (red/orange/yellow/green/blue/purple/pink) and bleed through
@@ -20721,12 +20756,16 @@ document.addEventListener('DOMContentLoaded', function () {
     qr:     { label: 'QR',     x: 50, y: 58, tip: 'The centre of the QR code' }
   };
   var DIRS = [['tl','NW'], ['t','N'], ['tr','NE'], ['l','W'], ['c','O'], ['r','E'], ['bl','SW'], ['b','S'], ['br','SE']];
-  var FONTS = {
+  var FONT_META = {
     sans: ['Inter', 'SANS'], serif: ['Georgia', 'SERIF'], mono: ['SF Mono', 'MONO'], display: ['Impact', 'DISPLAY'],
     bebas: ['Bebas Neue', 'DISPLAY'], oswald: ['Oswald', 'SANS'], pacifico: ['Pacifico', 'SCRIPT'],
     caveat: ['Caveat', 'SCRIPT'], marker: ['Permanent Marker', 'DISPLAY'], playfair: ['Playfair Display', 'SERIF'],
     lobster: ['Lobster', 'SCRIPT'], inter: ['Inter', 'SANS'], montserrat: ['Montserrat', 'SANS']
   };
+  var FONTS = Object.keys(window.IRLID_BRAND_FONT_STACKS || FONT_META).reduce(function(map, key) {
+    map[key] = FONT_META[key] || [key, 'FONT'];
+    return map;
+  }, {});
   var state = window._v512AnchorState || (window._v512AnchorState = {});
   var soundState = window._v512SoundState || (window._v512SoundState = {});
   var selectedAnchorId = 'centre';
@@ -20897,7 +20936,7 @@ document.addEventListener('DOMContentLoaded', function () {
     all('.v511-chip', group).forEach(function(btn) {
       var key = btn.getAttribute('data-banner-value') || btn.textContent.trim();
       var meta = FONTS[key] || [btn.textContent.trim(), 'FONT'];
-      btn.innerHTML = '<span class="v512-font-name" style="font-family:' + htmlEscape(meta[0]) + ', system-ui, sans-serif;">' + htmlEscape(meta[0]) + '</span><span class="v512-font-meta">' + htmlEscape(meta[1]) + '</span>';
+      btn.innerHTML = '<span class="v512-font-name" style="font-family:' + htmlEscape((window.IRLID_BRAND_FONT_STACK && window.IRLID_BRAND_FONT_STACK(key)) || (meta[0] + ', system-ui, sans-serif')) + ';">' + htmlEscape(meta[0]) + '</span><span class="v512-font-meta">' + htmlEscape(meta[1]) + '</span>';
       btn.addEventListener('click', function() {
         all('.v511-chip', group).forEach(function(chip) {
           chip.setAttribute('aria-pressed', chip === btn ? 'true' : 'false');
