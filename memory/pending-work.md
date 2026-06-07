@@ -84,6 +84,25 @@ refs → Captain "go" → Number One merges via browser → Pages/CI deploys).
   siblings for an uncaught throw before theorising about the handler's own gates. An unwrapped render
   call sitting in front of your handler is a silent abort.
 
+### KNOWN BUG — DEFERRED (logged 7 Jun, Captain: "log it and move on")
+**Visual Theming "Save all settings" — font reverts + jumps to Check-in (seen on v6.3.1).**
+- Symptom (Captain, on his hardware): in Settings → Visual Theming, clicking "Save all settings"
+  (1) the banner **font changes** (appears to revert a just-picked font), and (2) the UI **navigates
+  away to the Check-in tab**.
+- Number One partial repro (v6.3.1, browser, JS-click of `v511VisualSaveBtn`): clicking Save WITHOUT
+  first changing the font KEPT the font (Lobster) and STAYED on `panel-settings`. So the symptoms need a
+  same-session font **change** first (the save doesn't capture the new pick → reverts on readback),
+  and/or the panel-jump is intermittent / path-specific.
+- Likely cause: **two font sources** — the Brand Identity "Font" card-list (drives `globalFont` →
+  `--brand-font`) and the banner-customise chips (`data-banner-value` → `data-banner-font`).
+  `v511SaveVisualTheme` builds its payload via `v511BuildThemePayload(currentSettings.theme)` then
+  RE-APPLIES the readback theme (`writeThemeToUI`/`applyThemeVars`). If the picker updates one source but
+  `v511BuildThemePayload` reads the other (or a stale snapshot), the save captures the old font and the
+  readback re-applies it → revert. The navigate-to-Check-in is NOT in the `v511SaveVisualTheme` body read
+  so far — needs tracing (downstream `renderPortalAll`/`showPanel`, or a save-success redirect).
+- NOT blocking: a font set+saved DOES persist+apply correctly across reloads (proven v6.3.0/v6.3.1). This
+  is a same-session pick-then-save UX revert + an unwanted panel jump. Fix in a focused post-demo session.
+
 ## 6 June 2026 — SATURDAY EVENING CLOSE (end of a marathon) — canonical state
 
 **Headline: v6 PATREON PUBLISHED + receipt verification PROVEN end-to-end + a 5-symbol regression
