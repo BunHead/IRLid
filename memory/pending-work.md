@@ -48,11 +48,12 @@ repopulate (never saved cleanly behind the crashes) — rebuild once, persists g
 **Made today:** `PROMO-BRIEF-v6-for-Troi.md`; the published Patreon v6 post. Receipt ideas banked: org
 logo in the receipt venue panel; "session receipt" (first-in → last-out).
 
-**EASY FIRST WIN NEXT SESSION — v6.2.1 Manager-rejection demo (deferred, Captain tired):** gate deployed,
-indirect proof already (morning's offline-queue 403 was almost certainly it). Clean demo = (1) Becky on
-Nokia → no Settings tab (UI defense); (2) desktop console `fetch` to `/org/settings` with X-Org-Key
-(api_key only) + `{manager_perms:{calendar:true}}` → expect **403 `insufficient_role`**. Exact command in
-the 6 Jun chat. 2 min, not urgent.
+**✅ v6.2.1 Manager-rejection PROVEN LIVE (6 Jun, console demo):** raw `fetch` to `/org/settings` with
+X-Org-Key (api_key only — what a Manager holds) + `{manager_perms:{calendar:true}}` returned
+**`403 {error:"insufficient_role", message:"A Lead Admin or Developer session is required to change
+manager_perms."}`** on production. The self-escalation hole is demonstrably shut, not just deployed.
+**Both v6 security claims now proven:** receipts verify both ways (receipt.html + check.html) AND the
+permission gate bites. The "trust between people" story holds end-to-end.
 
 **Queued behind: ** v6.1.26 enforcement; v6.1.27 tools/rooms; v6.3.0 Lead Admin (2-phone); cosmetic-theming
 thaw (fullscreen font + save) on a calm day; v5.12.1 anchor (held). Plan: Max, credits untouched.
