@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.11</span></div>
   </div>
 </div>
 
@@ -3762,6 +3762,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-btn-primary:hover { background: rgba(105, 168, 255, 0.3); }
         .v511-btn-mini { padding: 3px 9px; font-size: 11px; }
         .v511-save { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+        .v511-panel[data-v511-panel="org"] { position: relative; padding-bottom: 64px; }
+        .v511-panel[data-v511-panel="org"] .v511-save { position: absolute; right: 18px; bottom: 18px; margin-top: 0; padding-top: 0; border-top: 0; }
         .v511-cal-wrap { max-height: 420px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(0,0,0,0.18); }
         .v511-cal-header { display: grid; grid-template-columns: 70px 70px 1fr 60px 70px; gap: 0 8px; padding: 0 10px; background: rgba(11,18,32,0.94); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
         .v511-cal-header .h { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; padding: 9px 0; }
@@ -4282,7 +4284,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-theme-preview-controls-strip > label { color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-anim-row > label { color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-anim-row select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
-        :root[data-theme="light"] .v511-masthead { background: linear-gradient(135deg, rgba(105,168,255,0.16) 0%, rgba(105,168,255,0.05) 100%); border-color: rgba(105,168,255,0.32); }
+        :root[data-theme="light"] .v511-masthead { background: linear-gradient(135deg, rgba(105,168,255,0.16) 0%, rgba(105,168,255,0.05) 100%); background: linear-gradient(135deg, color-mix(in srgb, var(--bg-pal-1, #69a8ff) 16%, transparent) 0%, color-mix(in srgb, var(--bg-pal-3, #69a8ff) 5%, transparent) 100%); border-color: color-mix(in srgb, var(--bg-pal-1, #69a8ff) 32%, transparent); }
         :root[data-theme="light"] .v511-masthead-name { color: var(--text); }
         :root[data-theme="light"] .v511-masthead-slug { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.6); }
         :root[data-theme="light"] .v511-masthead-tagline { color: rgba(0,0,0,0.65); }
@@ -4428,7 +4430,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-qr { width: 24cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
         .v511-theme-preview-caption { margin-top: 2.5cqi; color: rgba(255,255,255,0.9); font-size: 1.4cqi; text-align: center; }
         /* v5.11 Org tab masthead */
-        .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); border: 1px solid rgba(105,168,255,0.22); border-radius: 14px; }
+        .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); background: linear-gradient(135deg, color-mix(in srgb, var(--bg-pal-1, #69a8ff) 8%, transparent) 0%, color-mix(in srgb, var(--bg-pal-3, #69a8ff) 2%, transparent) 100%); border: 1px solid rgba(105,168,255,0.22); border-color: color-mix(in srgb, var(--bg-pal-1, #69a8ff) 22%, transparent); border-radius: 14px; }
         .v511-masthead-name { font-size: 22px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.2; }
         .v511-masthead-slug { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 8px; background: rgba(255,255,255,0.06); color: var(--muted); border-radius: 5px; }
         .v511-masthead-tagline { margin-top: 8px; font-size: 13px; color: var(--muted); font-style: italic; }
@@ -19652,6 +19654,7 @@ function applyThemeVars(theme) {
     const c = bgPal[i] || bgPal[0] || theme.primary;
     const ratio = (theme.bgIntensity === 'vibrant') ? PAGE_VIBRANT_RATIO : PAGE_MUTED_RATIO;
     root.style.setProperty('--theme-page-bg-' + (i+1), _mixHex(c, PAGE_CYCLE_BASE, ratio));
+    root.style.setProperty('--bg-pal-' + (i+1), c);
   }
   // Pattern colour vars — pattern primary uses bgPalette[0] at low alpha; secondary lower.
   // Editing the Background palette auto-restyles the pattern.
