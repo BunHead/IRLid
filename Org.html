@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.6</span></div>
   </div>
 </div>
 
@@ -9424,9 +9424,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             stage.setAttribute('data-banner-shadow', cfg.shadow);
           }
           var V511_BANNER_DEFAULTS = { customise: 'off', font: 'sans', weight: 'bold', italic: 'off', spacing: 'normal', colour: 'white', shadow: 'soft' };
+          // v6.3.6 — one in-panel font list shared by Brand Identity and Text Overlay.
+          var V511_BRAND_FONT_OPTIONS = ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'];
           var V511_BANNER_OPTIONS = {
             customise: ['off','on'],
-            font: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'],
+            font: V511_BRAND_FONT_OPTIONS.slice(),
             weight: ['light','regular','bold','black'],
             italic: ['off','on'],
             spacing: ['tight','normal','loose','wide'],
@@ -9629,6 +9631,12 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511BgTransition: meta.background.bgTransition
             });
           }
+          // v6.3.6 — expose canonical Visual Theming readers/builders so the
+          // global Save all settings path and late font enhancer use the same live
+          // Banner/Brand Identity source of truth as the Visual panel save.
+          window.v511ReadBannerSettingsFromUI = v511ReadBannerSettingsFromUI;
+          window.v511BuildThemePayload = v511BuildThemePayload;
+
           function v511ApplyPaletteToRow(selector, colors) {
             if (!Array.isArray(colors) || !colors.length) return;
             var row = document.querySelector(selector);
@@ -10894,13 +10902,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'glitch':       [ SETTING_INTENSITY, { key: 'glitchKind', label: 'Style', options: ['hue','displace','both'], default: 'both' } ],
             'bg':           [ SETTING_COUNT(3), SETTING_DIR9 ],
             'pattern':      [ { key: 'pattern', label: 'Pattern', options: ['dots','hex','diag','checker','grid','weave','chevron','iso'], default: 'dots' }, SETTING_DENSITY ],
-            // T4.3.48 — Text effect typography expansion. 3 → 10 settings,
-            // triggers grid layout. System fonts only (no external CDN).
+            // T4.3.48/v6.3.6 — Text effect typography expansion. 3 → 10 settings,
+            // with the Font picker kept in parity with Brand Identity's 13 fonts.
+            // System fonts only (no external CDN).
             'text':         [
               { key: 'template',     label: 'Template',       options: ['name','name + action','welcome'], default: 'name' },
               { key: 'position',     label: 'Position',       options: ['top','centre','bottom'], default: 'centre' },
               { key: 'size',         label: 'Size',           options: ['small','medium','large'], default: 'medium' },
-              { key: 'fontFamily',   label: 'Font',           options: ['sans','serif','mono','display','bebas','oswald','pacifico','caveat','marker','playfair','lobster','inter','montserrat'], default: 'sans' },
+              { key: 'fontFamily',   label: 'Font',           options: V511_BRAND_FONT_OPTIONS.slice(), default: 'sans' },
               { key: 'fontWeight',   label: 'Weight',         options: ['light','regular','bold','black'], default: 'bold' },
               { key: 'fontItalic',   label: 'Italic',         options: ['off','on'], default: 'off' },
               { key: 'letterSpacing',label: 'Letter spacing', options: ['tight','normal','loose','wide'], default: 'normal' },
@@ -14016,6 +14025,15 @@ async function saveSettings() {
     }
   } else {
     console.warn('[settings save] getOrgSettings missing; POSTing DOM-only merge payload without theme/welcome/redirect fields');
+  }
+  // v6.3.6 — carry live Visual Theming theme so the global save persists
+  // Brand Identity font/theme edits instead of re-applying the stale GET theme.
+  if (typeof window.v511BuildThemePayload === 'function') {
+    try {
+      payload.theme = window.v511BuildThemePayload((payload && payload.theme) || activeTheme || {});
+    } catch (themeErr) {
+      console.warn('[settings save] theme build failed; preserving existing theme', themeErr);
+    }
   }
   irlidDebugLog('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
   let resp;
@@ -20851,7 +20869,7 @@ document.addEventListener('DOMContentLoaded', function () {
           var stage = $('#v511ThemePreviewStage');
           if (stage) stage.setAttribute('data-banner-customise', 'on');
           if (typeof v511ApplyBannerSettingsFromUI === 'function') v511ApplyBannerSettingsFromUI();
-          var cfg = typeof v511ReadBannerSettingsFromUI === 'function' ? v511ReadBannerSettingsFromUI() : null;
+          var cfg = typeof window.v511ReadBannerSettingsFromUI === 'function' ? window.v511ReadBannerSettingsFromUI() : null;
           console.info('[v6.2.2 font click] chip aria-pressed / read font:', btn.getAttribute('aria-pressed'), cfg && cfg.font);
         }, 0);
       });
