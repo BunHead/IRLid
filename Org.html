@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.10</span></div>
   </div>
 </div>
 
@@ -6268,7 +6268,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-row"><label for="v511OrgName">Display name</label><input type="text" id="v511OrgName" value="Test Event" /></div>
           <div class="v511-row"><label for="v511OrgWebsite">Website</label><input type="url" id="v511OrgWebsite" value="https://example.com" /></div>
-          <div class="v511-row"><label>Logo</label><div><button type="button" class="v511-btn">Upload logo</button> <span class="v511-hint">PNG / SVG / JPEG, &le; 200 KB</span></div></div>
           <div class="v511-row"><label for="v511OrgDescription">Description</label><input type="text" id="v511OrgDescription" value="Co-presence verification for events" /></div>
           <div class="v511-row"><label for="v511OrgTerms">Org terms / disclaimer</label><textarea id="v511OrgTerms" placeholder="Optional informational text shown at check-in."></textarea></div>
           <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" value="hello@example.com" /></div>
@@ -13050,6 +13049,12 @@ function setSignedInUI(isSignedIn) {
   document.getElementById('signOutBtn').disabled = !isSignedIn;
   if (isSignedIn && currentOrg) {
     document.getElementById('sidebarOrgName').textContent = currentOrg.name;
+    // v6.3.10 — keep the Org-tab Display name + masthead consistent with the real org name
+    // (the field is design-in / mockup-localStorage; the real name lives in currentOrg).
+    const mastheadName = document.querySelector('.v511-masthead-name');
+    if (mastheadName) mastheadName.textContent = currentOrg.name;
+    const orgNameInput = document.getElementById('v511OrgName');
+    if (orgNameInput) orgNameInput.value = currentOrg.name;
     // v5.7.1g — Reflect ACTUAL auth state, not the DEV_AUTO_LOGIN constant.
     // qrLoginSession truthy → real Org Portal session active (with user identity).
     // qrLoginSession null + DEV_AUTO_LOGIN → fallback DEV path is what got us in.
