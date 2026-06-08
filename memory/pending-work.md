@@ -33,6 +33,18 @@ All live + verified on production today:
 Worker recurring-503 root (`wrangler tail` mid-crash) · outcome-QR real fix (URL too long for qrcodejs) ·
 settings-refresh wobble (offline-cache race). Worker dropped 2-3× today; redeploy is the band-aid.
 
+## 8 June 2026 (Monday morning) — font-save + anchor root causes NAILED (both spec'd for Data)
+
+**Worker health:** confirmed green on watch-open. `/org/attendance` heavy aggregate three-sample smoke: 200 / 165-208ms / no 503 / no CPU-limit. v6.4.0 CPU fix held overnight. Public `/org/public-info` path also clean.
+
+**Font-save bug (v6.3.6 brief written: `HANDOVER-FontSaveAndTextOverlayFonts-v6.3.6.md`).** Captain: picking a brand font in Visual Theming → Save → font reverts + inline preview snaps back. Root cause = TWO stacked defects, both `Org.html`:
+- **Duplicate / drifted banner-read helpers across scopes.** Closure copy (`v511ReadBannerSettingsFromUI` ~L9449, works) vs a global copy the font-chip click handler (~L20851) calls, which returns `cfg.font === null`. Live console proof: `[v6.2.2 font click] chip aria-pressed / read font: true null`.
+- **Global `saveSettings()` (~L13961) omits the theme.** `domPayload` (L13967-85) has no theme/font; it GET-overlays last-saved settings (L14010-12) so the POST always carries the OLD font; then re-applies the readback theme (L14097-14100 `applyThemeVars`) → visible revert. The per-tab Visual save (`v511SaveVisualTheme` ~L9770) carries theme correctly and works in isolation. `saveSettings` can't reach the closure `v511BuildThemePayload` (different closure) — fix exposes it on window + includes `payload.theme`, and stops the save jumping to `panel-checkin`. Captain's stated preference = "just remove the global Save-all button" (noted as fallback). Also bundled: **Text Overlay font parity** — rendering already supports all 13 (`data-cel-text-font` CSS L4620-4634); only the picker UI is short → fill it.
+
+**Anchor bug ROOT CAUSE FOUND (the long-deferred headline) — v6.3.7 brief written: `HANDOVER-AnchorStreamOffset-v6.3.7.md`.** One-line booby-trap: `v511GetStreamOffsets(stage, s)` at **L8706** does `if (s && s.v512Anchors) return { x: 0, y: 0 };`. But `persistAnchorBucket` (L20767) sets `item.settings.v512Anchors` (L20772) on EVERY stream anchor change AND writes the correct `streamOffsetX_img/Y_img` (L20777-78). So the guard always fires → the offset the user set is computed, stored, then discarded → particles always emit from base position. Half-finished `v512Anchors` migration; the emit (L8765→L8791-94→`v511EmitStreamBurst`) was never wired to read `v512Anchors`. **Fix = delete L8706** so it falls through to the already-correct `streamOffsetX_img/Y_img`. Safe (no double-apply: particles use computed `pos`, not `--v512-anchor-x/y` CSS vars which only drive the crosshair). Apply AFTER the font PR (both touch `Org.html`, keep serial). Live-confirmed: `_v512AnchorState.allow.default.anchors.centre = {x:12,y:54}` exists but never reaches particles.
+
+**Watch state:** font PR with Data (cloud Codex) as of ~08:10. Anchor brief paste-ready for next. Saved brand font left on Lobster during testing (was Pacifico AM) — restore or let Data's smoke cycle it.
+
 ## 7 June 2026 (Sunday) — CI/CD AUTO-DEPLOY LIVE + browser-control unlocked
 
 **Headline: the Worker now deploys itself, and Number One can drive the browser.**
