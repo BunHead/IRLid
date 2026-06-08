@@ -10,6 +10,37 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 8 JUN (Monday) — polish marathon: v6.3.6 → v6.3.10 shipped via autonomous loop
+All live + verified on production, each bash-diffed before merge + smoked after:
+- **v6.3.6** — brand-font save fix (global `saveSettings` now carries the live theme via exposed
+  `window.v511BuildThemePayload`; font-chip read points at canonical reader — kills `read font: null`)
+  + Text Overlay font parity (shared `V511_BRAND_FONT_OPTIONS` 13-font list). **Residual:** Captain's
+  hardware still showed a per-tab Visual-save revert — "improved not closed," Captain said LEAVE IT.
+- **v6.3.7** — anchor offset reaches Stream particles (deleted the `if (s && s.v512Anchors) return {0,0}`
+  guard at L8706) + QR slimming (outcome QR 7,557→488 via data:-logo guard; venue QR 458→370 by omitting
+  default brand params; both already level-L).
+- **v6.3.8** — hid the half-wired Anchor System panel (`.v512-anchor-system { display:none }`); the
+  per-effect Offset X/Y controls (which work) stay.
+- **v6.3.9** — masthead logo bug fixed (`updateOrgMastheadLogo` wires `.v511-masthead-logo img` to the
+  org logo, un-inverted, via `updateChromeLogo`) + Org-tab declutter (dropped hardcoded tagline, tucked
+  read-only Slug into the Brand-polish expander).
+- **v6.3.10** — Display name + masthead synced to real `currentOrg.name` in `setSignedInUI` (killed the
+  "Venue" vs "Test Event" mismatch — the field was a design-in localStorage mockup) + removed the
+  duplicate Org-tab Logo row (upload lives in Brand ID now).
+- **Worker CPU** smoke green AM (`/org/attendance` 200 / 165-208ms, no 503 — v6.4.0 fix held overnight).
+- **Branch prune:** merged `codex/fix-cpu-time-limit` + `codex/fix-brand-font` deleted from origin.
+
+**Queue (Captain: "do them all in turn"):**
+- **v6.3.11 — settings-nav-vanishing-on-refresh: BRIEF WRITTEN, ready to fire** (`HANDOVER-SettingsNavRefresh-v6.3.11.md`).
+  Root cause: `#navSettings` is lead_admin-gated; `effectiveRoleRank()` falls back to staff when the session
+  hasn't restored; `applyRoleGatedVisibility()` never re-runs after restore. Fix = call it at the end of
+  `setSignedInUI` (+ `loadDashboardForOrg`).
+- **v6.3.12 — Text Overlay font picker as a named visual list** (like Brand ID). To spec. Cosmetic, low priority.
+
+**Deferred / banked:** residual font-save (Captain: leave alone) · anchor TARGET retargeting (Logo/QR/Multi —
+`v512AnchorsForStage` + `persistAnchorBucket` collapse all targets to image/centre; un-hide panel when done) ·
+real org rename (Display name → `currentOrg.name` via Worker endpoint — design-in v5.12).
+
 ### ⭐ END-OF-DAY CLOSE (7 Jun, ~20:40) — a marathon, ~12 versions shipped to production
 All live + verified on production today:
 - **Doorman staff-scan handoff CLOSED** — proven phone-to-phone on real hardware (the last Imbue-demo
