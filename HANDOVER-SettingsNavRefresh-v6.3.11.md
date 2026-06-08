@@ -5,7 +5,7 @@
 **Verdict gate:** Number One bash-diffs against `origin/main` before merge. Captain hardware-smokes after deploy (this one needs a real refresh on his signed-in session).
 **Lead the PR description with the A/R/D verdict marker.**
 
-Bump build pill `v6.3.10 → v6.3.11` and `sw.js CACHE_VERSION` `v129 → v130`.
+Bump build pill `v6.3.12 → v6.3.13` and `sw.js CACHE_VERSION` `v131 → v132`. (Renumbered: v6.3.11 = masthead-bg/save-button; v6.3.12 = masthead full-gradient.)
 
 ---
 

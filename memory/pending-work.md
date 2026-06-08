@@ -10,7 +10,7 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
-### ⭐ 8 JUN (Monday) — polish marathon: v6.3.6 → v6.3.10 shipped via autonomous loop
+### ⭐ 8 JUN (Monday) — polish marathon: v6.3.6 → v6.3.12 shipped + AUTONOMOUS-PUSH MILESTONE + site sweep
 All live + verified on production, each bash-diffed before merge + smoked after:
 - **v6.3.6** — brand-font save fix (global `saveSettings` now carries the live theme via exposed
   `window.v511BuildThemePayload`; font-chip read points at canonical reader — kills `read font: null`)
@@ -27,15 +27,36 @@ All live + verified on production, each bash-diffed before merge + smoked after:
 - **v6.3.10** — Display name + masthead synced to real `currentOrg.name` in `setSignedInUI` (killed the
   "Venue" vs "Test Event" mismatch — the field was a design-in localStorage mockup) + removed the
   duplicate Org-tab Logo row (upload lives in Brand ID now).
+- **v6.3.11** — Org masthead picks up the brand bg palette (`--bg-pal-*` now exposed on root in `applyThemeVars`)
+  + Save-all button pinned to the org panel's bottom-right corner (org-scoped; other tabs untouched).
+- **v6.3.12** — Org masthead = FULL brand gradient (matches the Visual Theming preview), gradient-only (no
+  dragons, Captain's call), white text + shadow for legibility on the vivid bg.
 - **Worker CPU** smoke green AM (`/org/attendance` 200 / 165-208ms, no 503 — v6.4.0 fix held overnight).
 - **Branch prune:** merged `codex/fix-cpu-time-limit` + `codex/fix-brand-font` deleted from origin.
+- **🤖 AUTONOMOUS-PUSH MILESTONE:** Number One launched a Codex task end-to-end hands-off — empty composer →
+  synthetic-paste-inject the brief ONCE → click Submit → Data builds. ProseMirror rejects programmatic
+  CLEAR/select (each paste APPENDS), so the recipe is: **empty composer, inject once, verify, submit — never
+  re-paste to fix.** Closes the last gap to a fully autonomous frontend loop (diagnose → spec → launch →
+  bash-diff → browser-merge → Pages-deploy → live-test). Caveats: local-file edits still need Captain's push
+  (sandbox 403); Worker deploys ride CI; real-hardware testing is Captain's.
+- **Site sweep + roadmap accuracy** (Captain asked): **roadmap.html Surface 2** corrected TEST-ENV→LIVE with
+  accurate current capabilities; **CLAUDE.md** "Current Version: v4" header → "Consumer v5 + Org v6.3.12 LIVE".
+  Code health clean (4 TODO/FIXME repo-wide, no orphan pages). **Top tidy: 55 HANDOVER briefs at repo root →
+  archive/** (Move-Item command given; keep the 2 pending). Big flag: `Org.html` = 21,421 lines — modularise
+  post-demo, NOT before.
 
-**Queue (Captain: "do them all in turn"):**
-- **v6.3.11 — settings-nav-vanishing-on-refresh: BRIEF WRITTEN, ready to fire** (`HANDOVER-SettingsNavRefresh-v6.3.11.md`).
-  Root cause: `#navSettings` is lead_admin-gated; `effectiveRoleRank()` falls back to staff when the session
-  hasn't restored; `applyRoleGatedVisibility()` never re-runs after restore. Fix = call it at the end of
-  `setSignedInUI` (+ `loadDashboardForOrg`).
-- **v6.3.12 — Text Overlay font picker as a named visual list** (like Brand ID). To spec. Cosmetic, low priority.
+**IN FLIGHT at close:** **v6.3.13 — Save-all button flush in EVERY settings tab's corner** (general
+`.v511-mockup .v511-panel .v511-save` absolute pin at right:12px bottom:12px, replacing the v6.3.11 org-only
+rule). Launched via the autonomous push; Data building at watch close. Next watch: create PR → bash-diff →
+merge → smoke (button flush in all tabs + no field overlap).
+
+**Queue (briefs written, ready to paste):**
+- **Settings-nav-vanishing-on-refresh** (`HANDOVER-SettingsNavRefresh-v6.3.11.md`, content bumped to v6.3.13+).
+  `#navSettings` lead_admin-gated; `effectiveRoleRank()` falls back to staff before the session restores;
+  `applyRoleGatedVisibility()` never re-runs. Fix = call it at end of `setSignedInUI` (+ `loadDashboardForOrg`).
+- **Text Overlay font picker as a named visual list** (`HANDOVER-TextOverlayFontList-v6.3.13.md`). Reuse
+  `enhanceFontPicker`'s visual transform on the 'text' effect's fontFamily group — VISUAL-ONLY, don't touch
+  the effect-settings click wiring. Cosmetic, low priority.
 
 **Deferred / banked:** residual font-save (Captain: leave alone) · anchor TARGET retargeting (Logo/QR/Multi —
 `v512AnchorsForStage` + `persistAnchorBucket` collapse all targets to image/centre; un-hide panel when done) ·
