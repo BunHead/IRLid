@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.12</span></div>
   </div>
 </div>
 
@@ -4284,9 +4284,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :root[data-theme="light"] .v511-theme-preview-controls-strip > label { color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-anim-row > label { color: rgba(0,0,0,0.55); }
         :root[data-theme="light"] .v511-anim-row select { background: #fff; color: var(--text); border-color: rgba(0,0,0,0.18); }
-        :root[data-theme="light"] .v511-masthead { background: linear-gradient(135deg, rgba(105,168,255,0.16) 0%, rgba(105,168,255,0.05) 100%); background: linear-gradient(135deg, color-mix(in srgb, var(--bg-pal-1, #69a8ff) 16%, transparent) 0%, color-mix(in srgb, var(--bg-pal-3, #69a8ff) 5%, transparent) 100%); border-color: color-mix(in srgb, var(--bg-pal-1, #69a8ff) 32%, transparent); }
-        :root[data-theme="light"] .v511-masthead-name { color: var(--text); }
-        :root[data-theme="light"] .v511-masthead-slug { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.6); }
+        :root[data-theme="light"] .v511-masthead { background: linear-gradient(135deg, var(--bg-pal-1, #69a8ff) 0%, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)) 25%, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))) 50%, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)))) 75%, var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))))) 100%); border-color: color-mix(in srgb, var(--bg-pal-1, #69a8ff) 40%, transparent); }
+        :root[data-theme="light"] .v511-masthead-name { color: #fff; }
+        :root[data-theme="light"] .v511-masthead-slug { background: rgba(0,0,0,0.28); color: #fff; }
         :root[data-theme="light"] .v511-masthead-tagline { color: rgba(0,0,0,0.65); }
         :root[data-theme="light"] .v511-cal-swimlane-view .v511-swimlane-grid { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
         :root[data-theme="light"] .v511-cal-swimlane-view .v511-swim-header { background: #f3f5f8; }
@@ -4430,9 +4430,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-theme-preview-qr { width: 24cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
         .v511-theme-preview-caption { margin-top: 2.5cqi; color: rgba(255,255,255,0.9); font-size: 1.4cqi; text-align: center; }
         /* v5.11 Org tab masthead */
-        .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(105,168,255,0.08) 0%, rgba(105,168,255,0.02) 100%); background: linear-gradient(135deg, color-mix(in srgb, var(--bg-pal-1, #69a8ff) 8%, transparent) 0%, color-mix(in srgb, var(--bg-pal-3, #69a8ff) 2%, transparent) 100%); border: 1px solid rgba(105,168,255,0.22); border-color: color-mix(in srgb, var(--bg-pal-1, #69a8ff) 22%, transparent); border-radius: 14px; }
-        .v511-masthead-name { font-size: 22px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.2; }
-        .v511-masthead-slug { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 8px; background: rgba(255,255,255,0.06); color: var(--muted); border-radius: 5px; }
+        .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, var(--bg-pal-1, #69a8ff) 0%, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)) 25%, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))) 50%, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)))) 75%, var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))))) 100%); border: 1px solid color-mix(in srgb, var(--bg-pal-1, #69a8ff) 40%, transparent); border-radius: 14px; }
+        .v511-masthead-name { font-size: 22px; font-weight: 600; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.45); margin: 0; line-height: 1.2; }
+        .v511-masthead-slug { display: inline-block; margin-top: 8px; font-size: 11px; font-family: var(--font-mono, monospace); padding: 2px 8px; background: rgba(0,0,0,0.28); color: #fff; border-radius: 5px; }
         .v511-masthead-tagline { margin-top: 8px; font-size: 13px; color: var(--muted); font-style: italic; }
         .v511-masthead-logo { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; max-height: 110px; padding: 10px; border-radius: 12px; }
         .v511-masthead-logo img { max-width: 100%; max-height: 100%; object-fit: contain; filter: var(--irlid-logo-filter, invert(1)); }
