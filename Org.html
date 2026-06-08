@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.7</span></div>
   </div>
 </div>
 
@@ -8703,7 +8703,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // Sequences saved with older approaches continue to work, interpreted
           // as their original (stage-%) units.
           function v511GetStreamOffsets(stage, s) {
-            if (s && s.v512Anchors) return { x: 0, y: 0 };
             // 1. T4.3.43 image-relative — the canonical path.
             var oxImg = parseFloat(s.streamOffsetX_img);
             var oyImg = parseFloat(s.streamOffsetY_img);
@@ -13685,13 +13684,25 @@ function buildVenuePayload(eventContext) {
     const banner = theme._v512 && theme._v512.banner;
     qp.set('brandBanner', checkinBrandBannerText(checkinEvent.eventName));
     if (banner) {
-      qp.set('brandCustomise', banner.customise || 'off');
-      qp.set('brandFont', brandFontTokenFromTheme(theme));
-      qp.set('brandWeight', banner.weight || 'bold');
-      qp.set('brandItalic', banner.italic || 'off');
-      qp.set('brandSpacing', banner.spacing || 'normal');
-      qp.set('brandColour', banner.colour || 'white');
-      qp.set('brandShadow', banner.shadow || 'soft');
+      const brandDefaults = {
+        brandCustomise: 'off',
+        brandFont: 'sans',
+        brandWeight: 'bold',
+        brandItalic: 'off',
+        brandSpacing: 'normal',
+        brandColour: 'white',
+        brandShadow: 'soft'
+      };
+      const setIfBrandNonDefault = function(key, value) {
+        if (value !== brandDefaults[key]) qp.set(key, value);
+      };
+      setIfBrandNonDefault('brandCustomise', banner.customise || brandDefaults.brandCustomise);
+      setIfBrandNonDefault('brandFont', brandFontTokenFromTheme(theme));
+      setIfBrandNonDefault('brandWeight', banner.weight || brandDefaults.brandWeight);
+      setIfBrandNonDefault('brandItalic', banner.italic || brandDefaults.brandItalic);
+      setIfBrandNonDefault('brandSpacing', banner.spacing || brandDefaults.brandSpacing);
+      setIfBrandNonDefault('brandColour', banner.colour || brandDefaults.brandColour);
+      setIfBrandNonDefault('brandShadow', banner.shadow || brandDefaults.brandShadow);
     }
     if (theme.primary) qp.set('themePrimary', theme.primary);
     if (theme.accent) qp.set('themeAccent', theme.accent);
@@ -17078,7 +17089,11 @@ function buildOutcomeUrl(mode) {
   appendOptional(url, 'welcome', (portalState.welcomeMessage || '').trim());
   appendOptional(url, 'terms', (portalState.orgTerms || '').trim());
   if (mode === 'allow') appendOptional(url, 'redirect', (portalState.redirectUrl || '').trim());
-  appendOptional(url, 'logo', (portalState.logoUrl || '').trim());
+  const logoUrl = (portalState.logoUrl || '').trim();
+  // Only inline a short http(s) logo; a data: URI (base64 image) blows the QR past capacity.
+  if (logoUrl && /^https?:\/\//i.test(logoUrl) && !/^data:/i.test(logoUrl) && logoUrl.length <= 300) {
+    appendOptional(url, 'logo', logoUrl);
+  }
   return url.toString();
 }
 function renderQr(targetId, text, size, colorLight='#ffffff', correctLevel=null) {
