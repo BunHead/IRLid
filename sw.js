@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v129'; // v6.3.10 Org display-name sync and Logo row removal.
+const CACHE_VERSION = 'irlid-shell-v130'; // v6.3.11 Org masthead brand frame and Org save corner pin.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
