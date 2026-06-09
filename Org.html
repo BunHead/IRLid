@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.14</span></div>
   </div>
 </div>
 
@@ -4398,6 +4398,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-saved-pulse.is-error { opacity: 1; transform: translateY(0); background: rgba(226, 75, 74, 0.16); color: #f09595; border-color: rgba(226, 75, 74, 0.42); }
         :root[data-theme="light"] .v511-saved-pulse { background: rgba(99, 153, 34, 0.18); color: #2f5d10; border-color: rgba(99, 153, 34, 0.55); }
         :root[data-theme="light"] .v511-saved-pulse.is-error { background: rgba(207, 34, 46, 0.12); color: #a40e26; border-color: rgba(207, 34, 46, 0.35); }
+        .v511-mockup .v511-panel .v511-save .v511-saved-pulse { order: -1; }
         /* v5.11 theme preview at top of Visual theming tab */
         /* v5.11.0t — animation duration reduced from 1.4s → 300ms. The 1.4s
            duration meant the inset-shadow tint (allow=pale-green, review=
@@ -11077,6 +11078,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 row.appendChild(chips);
               }
               v511CelSettingsBody.appendChild(row);
+              if (item.effect === 'text' && setting.key === 'fontFamily' && window.v512PaintFontListVisuals) {
+                window.v512PaintFontListVisuals(row.querySelector('[data-setting-chips="fontFamily"]'));
+              }
             });
             if (item.effect === 'text') {
               var textTemplateRow = document.createElement('div');
@@ -20885,15 +20889,29 @@ document.addEventListener('DOMContentLoaded', function () {
       bar.appendChild(undo);
     }
   }
-  function enhanceFontPicker() {
-    var group = $('.v511-chips[data-banner-setting="font"]');
+  function paintFontListVisuals(group) {
     if (!group || group.dataset.v512Fonts) return;
     group.dataset.v512Fonts = '1';
     group.classList.add('v512-font-list');
     all('.v511-chip', group).forEach(function(btn) {
-      var key = btn.getAttribute('data-banner-value') || btn.textContent.trim();
+      var key = btn.getAttribute('data-banner-value') || btn.getAttribute('data-opt') || btn.textContent.trim();
       var meta = FONTS[key] || [btn.textContent.trim(), 'FONT'];
       btn.innerHTML = '<span class="v512-font-name" style="font-family:' + htmlEscape((window.IRLID_BRAND_FONT_STACK && window.IRLID_BRAND_FONT_STACK(key)) || (meta[0] + ', system-ui, sans-serif')) + ';">' + htmlEscape(meta[0]) + '</span><span class="v512-font-meta">' + htmlEscape(meta[1]) + '</span>';
+    });
+  }
+  window.v512PaintFontListVisuals = paintFontListVisuals;
+  function enhanceTextOverlayFontPicker() {
+    all('.v511-cel-setting-row[data-setting-key="fontFamily"] [data-setting-chips="fontFamily"]').forEach(function(group) {
+      paintFontListVisuals(group);
+    });
+  }
+  function enhanceFontPicker() {
+    var group = $('.v511-chips[data-banner-setting="font"]');
+    if (!group) return;
+    paintFontListVisuals(group);
+    if (group.dataset.v512FontClick) return;
+    group.dataset.v512FontClick = '1';
+    all('.v511-chip', group).forEach(function(btn) {
       btn.addEventListener('click', function() {
         all('.v511-chip', group).forEach(function(chip) {
           chip.setAttribute('aria-pressed', chip === btn ? 'true' : 'false');
@@ -21376,6 +21394,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function refreshAll() {
     enhanceActiveBar();
     enhanceFontPicker();
+    enhanceTextOverlayFontPicker();
     splitVisualSections();
     setStageBannerFromTemplate();
     wireAnchorToggleButtons();
