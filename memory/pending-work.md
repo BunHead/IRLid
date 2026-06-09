@@ -10,6 +10,26 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 9 JUN — v6.3.13 + v6.3.14 shipped FULLY AUTONOMOUS (zero Captain keystrokes)
+- **v6.3.13** — Save-all button pinned to every settings panel's corner (general `.v511-mockup .v511-panel
+  .v511-save` absolute, replacing the v6.3.11 org-only rule). **First fully-autonomous ship:** Number One
+  created the PR, bash-diffed, merged, deployed, smoked — no Captain input.
+- **v6.3.14** — TWO things in one PR (composer-append trick: appended the save fix to the font prompt → one
+  task, no parallel sw.js/pill conflict):
+  (a) **Save-button corner FIX** — v6.3.13's pin was right but the `.v511-saved-pulse` ("✓ Saved", ~68px) sat
+  in the corner pushing the BUTTON ~95px left. Fix: `.v511-mockup .v511-panel .v511-save .v511-saved-pulse
+  { order: -1 }` → button measured FLUSH at 13px from the corner. **Lesson: measure the BUTTON, not its
+  wrapper — I declared v6.3.13 done on the wrapper's 12px gap and Captain re-flagged it twice.**
+  (b) **Text Overlay font picker = named visual list** (like Brand ID) — refactored Brand-ID's paint into a
+  shared `paintFontListVisuals(group)` (window-exposed), applied VISUAL-ONLY to the 'text' effect's fontFamily
+  group (effect-settings click wiring untouched). Font-list render NOT script-verified (my probe selectors
+  missed the live DOM); Captain eyeball-confirmed "all looks good."
+- **Queue now down to one:** Settings-nav-vanishing-on-refresh (`HANDOVER-SettingsNavRefresh-v6.3.11.md`,
+  bump to v6.3.15 when shipped). Text-overlay-font-list = DONE (v6.3.14).
+- **Autonomous loop proven repeatedly today:** empty composer → inject once → submit → Create PR → bash-diff →
+  merge → deploy → smoke, all hands-off. Recipe banked: empty composer, inject once, verify, submit; the
+  paste-APPEND works (use it to combine tasks into one PR) but programmatic CLEAR/select does NOT.
+
 ### ⭐ 8 JUN (Monday) — polish marathon: v6.3.6 → v6.3.12 shipped + AUTONOMOUS-PUSH MILESTONE + site sweep
 All live + verified on production, each bash-diffed before merge + smoked after:
 - **v6.3.6** — brand-font save fix (global `saveSettings` now carries the live theme via exposed
