@@ -9456,7 +9456,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function applyV511BannerConfigToStage(stage, banner) {
             if (!stage) return;
             var cfg = normaliseV511BannerConfig(banner);
-            stage.setAttribute('data-banner-customise', cfg.customise);
+            // v6.3.17 — gate forced open; customise toggle retired (see global twin).
+            stage.setAttribute('data-banner-customise', 'on');
             stage.setAttribute('data-banner-font', cfg.font);
             stage.setAttribute('data-banner-weight', cfg.weight);
             stage.setAttribute('data-banner-italic', cfg.italic);
@@ -19520,7 +19521,12 @@ function brandFontTokenFromTheme(theme) {
 function applyV511BannerConfigToStage(stage, banner) {
   if (!stage) return;
   const cfg = normaliseV511BannerConfig(banner);
-  stage.setAttribute('data-banner-customise', cfg.customise);
+  // v6.3.17 — the customise checkbox was retired in the v512 rebuild; the gate
+  // every [data-banner-font] CSS rule sits behind must therefore ALWAYS be open,
+  // or the banner snaps to the system font on load. Forcing 'on' here self-heals
+  // every org whose D1 row still carries the stale customise:'off' from before
+  // the reader fix, with no save required first.
+  stage.setAttribute('data-banner-customise', 'on');
   stage.setAttribute('data-banner-font', cfg.font);
   stage.setAttribute('data-banner-weight', cfg.weight);
   stage.setAttribute('data-banner-italic', cfg.italic);
