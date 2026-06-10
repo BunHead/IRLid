@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v133'; // v6.3.14 Text overlay font list + save pulse order.
+const CACHE_VERSION = 'irlid-shell-v134'; // v6.3.15 Emit-crosshair setup-aid toggle (Visual Theming).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.14</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15</span></div>
   </div>
 </div>
 
@@ -5773,6 +5773,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            Safari + older Chrome/Edge. */
         :fullscreen .v511-anchor-crosshairs,
         :-webkit-full-screen .v511-anchor-crosshairs { display: none !important; }
+        /* v6.3.15 — keep the emit crosshair visible in fullscreen when the toggle is ON
+           (the clone carries .emit-crosshair-on; preview aspect matches screen so the
+           marker %s line up). */
+        :fullscreen.emit-crosshair-on .v511-anchor-crosshairs.is-visible,
+        :fullscreen .emit-crosshair-on .v511-anchor-crosshairs.is-visible,
+        :-webkit-full-screen.emit-crosshair-on .v511-anchor-crosshairs.is-visible,
+        :-webkit-full-screen .emit-crosshair-on .v511-anchor-crosshairs.is-visible { display: block !important; }
         .v511-anchor-crosshair-marker { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
         /* T4.3.35 — Crosshair contrast via mix-blend-mode: difference + white
            ink. Inverts whatever's underneath, so it's visible on any palette
@@ -6797,6 +6804,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <option value="deny">× Deny</option>
               </select>
               <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">▶ Sample</button>
+              <label class="v511-emit-crosshair-toggle" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;" title="Setup aid: show a crosshair on the preview marking where the Stream effect emits from. Not shown on the live check-in."><input type="checkbox" id="v511EmitCrosshairToggle" style="margin:0;">Emit crosshair</label>
               <span class="v511-hint">Settings below apply to the active mode. Switch mode to edit a different outcome's celebration + sound.</span>
             </div>
             <!-- Tier 4.1.7 — Screen-dims row removed; resolution now lives in the
@@ -8256,6 +8264,27 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             samplePicker.addEventListener('change', function () { applyActiveMode(samplePicker.value); });
           }
 
+          // v6.3.15 — Emit-crosshair toggle (Visual Theming setup aid). Persisted in
+          // localStorage; window.v511EmitCrosshairOn drives v511UpdateAnchorCrosshairs() so
+          // the Stream emit crosshair shows on the inline preview (and, via fullscreenQR, the
+          // fullscreen preview) WITHOUT needing a Stream row selected. Never on the live check-in.
+          var emitCrosshairToggle = document.getElementById('v511EmitCrosshairToggle');
+          function applyEmitCrosshairState() {
+            var on = !!window.v511EmitCrosshairOn;
+            if (emitCrosshairToggle) emitCrosshairToggle.checked = on;
+            if (sampleStage) sampleStage.classList.toggle('emit-crosshair-on', on);
+            if (typeof v511UpdateAnchorCrosshairs === 'function') v511UpdateAnchorCrosshairs();
+          }
+          try { window.v511EmitCrosshairOn = (localStorage.getItem('irlid_show_emit_crosshair') === '1'); } catch (e) { window.v511EmitCrosshairOn = false; }
+          if (emitCrosshairToggle) {
+            emitCrosshairToggle.addEventListener('change', function () {
+              window.v511EmitCrosshairOn = !!emitCrosshairToggle.checked;
+              try { localStorage.setItem('irlid_show_emit_crosshair', window.v511EmitCrosshairOn ? '1' : '0'); } catch (e) {}
+              applyEmitCrosshairState();
+            });
+          }
+          applyEmitCrosshairState();
+
           // ---- Audio: uploaded WAV preferred, Web Audio synth as fallback ----
           // Uploaded WAVs are stored per-mode as data URLs so each outcome
           // (Allow/Review/Deny) can have its own custom sound. Replace button
@@ -9078,15 +9107,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var container = document.getElementById('v511AnchorCrosshairs');
             if (!container || !sampleStage) return;
             var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
-            if (v511SelectedSeqIdx < 0 || v511SelectedSeqIdx >= seq.length) {
-              container.classList.remove('is-visible');
-              container.innerHTML = '';
-              return;
+            // v6.3.15 — emit-crosshair toggle: when ON, show the FIRST Stream effect's
+            // crosshair even with no Stream row selected (a Visual-Theming setup aid).
+            // When OFF, keep the original "only while a Stream row is selected" behaviour.
+            var item = null;
+            if (v511SelectedSeqIdx >= 0 && v511SelectedSeqIdx < seq.length && seq[v511SelectedSeqIdx].effect === 'stream') {
+              item = seq[v511SelectedSeqIdx];
+            } else if (window.v511EmitCrosshairOn) {
+              for (var _csi = 0; _csi < seq.length; _csi++) { if (seq[_csi].effect === 'stream') { item = seq[_csi]; break; } }
             }
-            var item = seq[v511SelectedSeqIdx];
-            // Only Stream effect has an anchor concept for now. Future: extend
-            // to Flame and any other future emit-from-a-point effects.
-            if (item.effect !== 'stream') {
+            if (!item) {
               container.classList.remove('is-visible');
               container.innerHTML = '';
               return;
@@ -16436,7 +16466,9 @@ function fullscreenQR() {
   // Strip Sample-only configurator elements — these are affordances for the
   // Settings editor, not customer-facing fullscreen.
   clone.querySelector('.v511-theme-preview-caption')?.remove();
-  clone.querySelector('.v511-anchor-crosshairs')?.remove();
+  // v6.3.15 — keep the emit crosshair in the fullscreen clone when the setup-aid
+  // toggle is ON (preview aspect matches screen, so inline marker %s line up).
+  if (!window.v511EmitCrosshairOn) clone.querySelector('.v511-anchor-crosshairs')?.remove();
   clone.querySelector('.v511-theme-preview-mode-label')?.remove();
 
   // Avoid duplicate IDs in the DOM — rename any IDs in the clone.
