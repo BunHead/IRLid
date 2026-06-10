@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15c</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15d</span></div>
   </div>
 </div>
 
@@ -16474,9 +16474,16 @@ function fullscreenQR() {
   // Strip Sample-only configurator elements — these are affordances for the
   // Settings editor, not customer-facing fullscreen.
   clone.querySelector('.v511-theme-preview-caption')?.remove();
-  // v6.3.15 — keep the emit crosshair in the fullscreen clone when the setup-aid
-  // toggle is ON (preview aspect matches screen, so inline marker %s line up).
-  if (!window.v511EmitCrosshairOn) clone.querySelector('.v511-anchor-crosshairs')?.remove();
+  // v6.3.15d — keep the emit crosshair in fullscreen ONLY when this fullscreen is
+  // launched from the visible Visual Theming editor (the preview stage is on-screen,
+  // offsetParent !== null). A real Check-in fullscreen clones the SAME source stage
+  // while it's hidden behind the Check-in nav page, so offsetParent is null there and
+  // the crosshair is stripped — it can never reach an attendee display.
+  var emitInSetup = window.v511EmitCrosshairOn && sourceStage.offsetParent !== null;
+  if (!emitInSetup) {
+    clone.querySelector('.v511-anchor-crosshairs')?.remove();
+    clone.classList.remove('emit-crosshair-on');
+  }
   clone.querySelector('.v511-theme-preview-mode-label')?.remove();
 
   // Avoid duplicate IDs in the DOM — rename any IDs in the clone.
@@ -16616,6 +16623,12 @@ function renderInlineCheckinClone(opts) {
   // expose the editor's mode label. Captain: "remove ... the Active Mode:
   // Allow from check-in only."
   clone.querySelector('.v511-theme-preview-mode-label')?.remove();
+
+  // v6.3.15d — the emit crosshair is a Visual-Theming setup aid ONLY. The
+  // Check-in tab is the public-facing branded surface, so strip the crosshair
+  // container + the .emit-crosshair-on class from this clone unconditionally.
+  clone.querySelector('.v511-anchor-crosshairs')?.remove();
+  clone.classList.remove('emit-crosshair-on');
 
   // Rename inner IDs to avoid duplicates (mirrors the fullscreenQR pattern).
   Array.from(clone.querySelectorAll('[id]')).forEach(function(el) {
