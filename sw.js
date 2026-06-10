@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v147'; // v6.3.24 Check-in QR no longer clips: bound by min(24cqi,26vh) so it fits the height-capped stage (banner+logo+QR no longer overflow).
+const CACHE_VERSION = 'irlid-shell-v148'; // v6.4.0 Anchor system stage 1: the emit crosshair on the live preview is now DRAGGABLE - drag the marker on the example image to move where the effect emits from (writes streamOffsetX/Y_img, the field particles already read). Additive; cross + sliders unchanged.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

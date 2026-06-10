@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.24</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.0</span></div>
   </div>
 </div>
 
@@ -9179,6 +9179,54 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // T4.3.34 — Anchor crosshair overlay. Visualises where Stream particles
           // will emit from while a Stream sequence row is selected. Updates on
           // selection change, slider input, chip click, symmetry chip change.
+          // v6.4.0 stage-1 — make the emit crosshair DRAGGABLE on the live preview.
+          // Inverts the exact forward math in v511GetStreamOffsets:
+          //   offset_stage = (offset_img/100) × image_size_stage_pct
+          // so dragging the marker on the image writes back the image-% offset the
+          // particles (and the cross) already read. Reversible/additive — the cross
+          // and sliders still work; this just adds drag-on-the-example.
+          function v511PointToStreamOffsetImg(stage, anchor, pxPct, pyPct) {
+            var rect = stage.getBoundingClientRect();
+            var cs = getComputedStyle(stage);
+            var bgSize = parseFloat(cs.getPropertyValue('--bg-image-size')) || 15;
+            var bgAspect = parseFloat(cs.getPropertyValue('--bg-image-aspect')) || 1;
+            var imgWpct = bgSize;
+            var imgHpct = bgSize * ((rect.width || 1) / (rect.height || 1)) * bgAspect;
+            var fx = (anchor.axisFlip && anchor.axisFlip.x) || 1;
+            var fy = (anchor.axisFlip && anchor.axisFlip.y) || 1;
+            var offStageX = (pxPct - anchor.pos.x) / fx;
+            var offStageY = (pyPct - anchor.pos.y) / fy;
+            var clamp = function (n) { return Math.max(-100, Math.min(100, Math.round(n))); };
+            return {
+              x: clamp(imgWpct ? offStageX / imgWpct * 100 : 0),
+              y: clamp(imgHpct ? offStageY / imgHpct * 100 : 0)
+            };
+          }
+          var v511CrosshairDrag = null;
+          function v511BeginCrosshairDrag(e, stage, item, anchor) {
+            if (!stage || !item) return;
+            e.preventDefault();
+            v511CrosshairDrag = { stage: stage, item: item, anchor: anchor };
+            document.addEventListener('pointermove', v511CrosshairDragMove);
+            document.addEventListener('pointerup', v511CrosshairDragEnd, { once: true });
+          }
+          function v511CrosshairDragMove(e) {
+            var d = v511CrosshairDrag;
+            if (!d) return;
+            var rect = d.stage.getBoundingClientRect();
+            var px = (e.clientX - rect.left) / (rect.width || 1) * 100;
+            var py = (e.clientY - rect.top) / (rect.height || 1) * 100;
+            var off = v511PointToStreamOffsetImg(d.stage, d.anchor, px, py);
+            if (!d.item.settings) d.item.settings = {};
+            d.item.settings.streamOffsetX_img = off.x;
+            d.item.settings.streamOffsetY_img = off.y;
+            v511UpdateAnchorCrosshairs();
+          }
+          function v511CrosshairDragEnd() {
+            document.removeEventListener('pointermove', v511CrosshairDragMove);
+            v511CrosshairDrag = null;
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          }
           function v511UpdateAnchorCrosshairs() {
             var container = document.getElementById('v511AnchorCrosshairs');
             if (!container || !sampleStage) return;
@@ -9217,6 +9265,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 marker.className = 'v511-anchor-crosshair-marker';
                 marker.style.left = px + '%';
                 marker.style.top = py + '%';
+                // v6.4.0 stage-1 — marker is a drag handle for the emission point.
+                marker.style.pointerEvents = 'auto';
+                marker.style.cursor = 'grab';
+                marker.style.touchAction = 'none';
+                marker.title = 'Drag to move where the effect emits from';
+                marker.addEventListener('pointerdown', function (e) {
+                  marker.style.cursor = 'grabbing';
+                  v511BeginCrosshairDrag(e, sampleStage, item, a);
+                });
                 var dot = document.createElement('div');
                 dot.className = 'v511-anchor-crosshair-dot';
                 marker.appendChild(dot);
