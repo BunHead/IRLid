@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.3</span></div>
   </div>
 </div>
 
@@ -4434,12 +4434,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            QR is 28% of stage width with aspect-ratio 1; banner is 3.2cqi,
            caption 1.4cqi. Scale identically in preview and fullscreen. */
         .v511-theme-preview-banner { color: #fff; font-size: 3.2cqi; font-weight: 600; margin-bottom: 2.5cqi; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
-        /* v6.3.24 — bound the QR by HEIGHT as well as width. On the wide Check-in
-           layout the stage is height-capped (max-height:48vh) but 24cqi sized the QR
-           by width, so banner+logo+QR overflowed and the QR clipped at the bottom.
-           min(24cqi, 26vh) shrinks it only when it would overflow; the narrower
-           Settings preview keeps 24cqi unchanged. */
-        .v511-theme-preview-qr { width: min(24cqi, 26vh); aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
+        /* v6.4.3 — reverted the v6.3.24 26vh cap (it shrank the fullscreen QR and
+           didn't bound the Check-in QR, which is sized by its own checkin-tab rules).
+           The Check-in clip is fixed by letting that stage GROW to contain the QR. */
+        .v511-theme-preview-qr { width: 24cqi; aspect-ratio: 1 / 1; height: auto; background: #fff; border-radius: 1cqi; display: flex; align-items: center; justify-content: center; color: #000; line-height: 1; box-shadow: 0 4px 16px rgba(0,0,0,0.35); }
         .v511-theme-preview-caption { margin-top: 2.5cqi; color: rgba(255,255,255,0.9); font-size: 1.4cqi; text-align: center; }
         /* v5.11 Org tab masthead */
         .v511-masthead { display: grid; grid-template-columns: 1fr 180px; gap: 18px; align-items: center; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, var(--bg-pal-1, #69a8ff) 0%, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)) 25%, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))) 50%, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff)))) 75%, var(--bg-pal-5, var(--bg-pal-4, var(--bg-pal-3, var(--bg-pal-2, var(--bg-pal-1, #69a8ff))))) 100%); border: 1px solid color-mix(in srgb, var(--bg-pal-1, #69a8ff) 40%, transparent); border-radius: 14px; }
@@ -6089,6 +6087,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           min-height: 60vh;
           padding: clamp(12px, 2vmin, 24px);
           gap: clamp(8px, 1.5vmin, 16px);
+          /* v6.4.3 — the base .v511-theme-preview-stage forces aspect-ratio:16/9 +
+             max-height:48vh, which kept this stage SHORT so the QR overflowed and
+             clipped. On the Check-in tab let the stage grow to its content (banner +
+             QR) instead, so the whole QR is always visible. */
+          aspect-ratio: auto !important;
+          max-height: none !important;
+        }
+        /* v6.4.3 — the VISIBLE Check-in QR is the inline clone stage, not the hidden
+           #venueQRWrap source; apply the same grow-to-fit so it doesn't clip there. */
+        #v511InlineCheckinStage.v511-checkin-tab-stage {
+          aspect-ratio: auto !important;
+          max-height: none !important;
+          min-height: 60vh;
         }
         .prototype-checkin #panel-checkin #venueQRWrap.v511-checkin-tab-stage .qr-box {
           /* Reset grid sizing from L3161 — let v511-theme-preview-qr rules + flex layout size it */
