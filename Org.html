@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15d</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.16</span></div>
   </div>
 </div>
 
@@ -13125,6 +13125,10 @@ function setSignedInUI(isSignedIn) {
   } else {
     try { stopRemoteCheckinPoll(); } catch (_) {}
   }
+  // v6.3.16 — re-apply role-gated nav visibility now the session/role is resolved.
+  // #navSettings (lead_admin+) is hidden by the cold-load default, and the role gate
+  // never re-ran after the session restored, so the Settings nav vanished on refresh.
+  if (isSignedIn) { try { applyRoleGatedVisibility(); } catch (_) {} }
 }
 async function registerOrg() {
   const name = document.getElementById('orgNameInput').value.trim();
@@ -20976,6 +20980,14 @@ document.addEventListener('DOMContentLoaded', function () {
           if (stage) stage.setAttribute('data-banner-customise', 'on');
           if (typeof v511ApplyBannerSettingsFromUI === 'function') v511ApplyBannerSettingsFromUI();
           var cfg = typeof window.v511ReadBannerSettingsFromUI === 'function' ? window.v511ReadBannerSettingsFromUI() : null;
+          // v6.3.16 — live-apply the picked brand font to the preview immediately.
+          // Previously data-brand-font only updated after a save-readback round-trip, so
+          // selecting a font looked like it did nothing / reverted (the long-standing
+          // "brand font won't change" bug). IRLID_APPLY_BRAND_FONT sets --brand-font +
+          // data-brand-font on the root, which the banner + preview/check-in stages read.
+          if (cfg && cfg.font && typeof window.IRLID_APPLY_BRAND_FONT === 'function') {
+            window.IRLID_APPLY_BRAND_FONT(cfg.font, document.documentElement);
+          }
           console.info('[v6.2.2 font click] chip aria-pressed / read font:', btn.getAttribute('aria-pressed'), cfg && cfg.font);
         }, 0);
       });
