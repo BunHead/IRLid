@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v143'; // v6.3.20 a11y + layout tidy: topbar title is now an <h1> (page heading) + Logo field masks the base64 blob behind a thumbnail chip with clear button.
+const CACHE_VERSION = 'irlid-shell-v144'; // v6.3.21 WCAG 2.2 AA Phase 1: skip link + visible keyboard focus + keyboard-operable sidebar nav + role=main landmark on Org; org-entry zoom unblocked; shared css/js gain skip-link/focus-visible/sr-only for consumer pages.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

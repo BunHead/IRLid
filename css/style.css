@@ -1,5 +1,5 @@
 /* css/style.css */
-/* Deploy 61 */
+/* Deploy 62 — v6.3.21 WCAG 2.2 AA utilities (focus-visible ring, skip-link, sr-only) */
 :root{
   --black:#000;
   --white:#fff;
@@ -421,4 +421,58 @@ a.maplink{ color: #111; text-decoration: underline; }
   .site-footer{
     padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0) + 18px);
   }
+}
+
+/* ============================================================
+   WCAG 2.2 AA — shared accessibility utilities (v6.3.21)
+   Added site-wide via the shared stylesheet so every consumer
+   page gains them at once.
+   ============================================================ */
+
+/* 2.4.7 Focus Visible — a clear keyboard focus ring on every
+   interactive element. Only shows for keyboard users (:focus-visible),
+   so mouse clicks don't get a ring. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid #58a6ff;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* 2.4.1 Bypass Blocks — "Skip to main content" link, hidden until
+   focused, then pinned top-left. Injected by js/nav.js. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100000;
+  padding: 8px 14px;
+  background: #58a6ff;
+  color: #04101f;
+  font-weight: 700;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0;
+  outline: 3px solid #04101f;
+  outline-offset: 2px;
+}
+
+/* Visually-hidden but available to screen readers (for sr-only headings). */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

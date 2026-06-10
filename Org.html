@@ -138,6 +138,11 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .topbar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .topbar-title { font-size: 16px; font-weight: 600; margin: 0; line-height: inherit; }
+/* WCAG 2.2 AA (v6.3.21) — skip link (2.4.1) + visible keyboard focus (2.4.7).
+   Org has its own stylesheet, so these mirror css/style.css for the portal. */
+.skip-link { position: absolute; left: 8px; top: -48px; z-index: 100000; padding: 8px 14px; background: #58a6ff; color: #04101f; font-weight: 700; border-radius: 0 0 8px 8px; text-decoration: none; transition: top .15s ease; }
+.skip-link:focus { top: 0; outline: 3px solid #04101f; outline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible, [role="button"]:focus-visible { outline: 3px solid #58a6ff; outline-offset: 2px; border-radius: 3px; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 /* v5.5.12.1 — Indicator moved from top-right (collided with topbar
    Refresh/Audit/CSV/Sign out controls) to bottom-left of sidebar,
@@ -3301,6 +3306,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 </style>
 </head>
 <body class="prototype-checkin">
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="sidebar">
   <!-- v5.9 — Sidebar IRLid/org logo wraps the consumer-home link. Captain UX
        call: clicking the logo from inside the dashboard returns to
@@ -3331,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.20</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.21</span></div>
   </div>
 </div>
 
@@ -3354,7 +3360,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     </div>
   </div>
 
-  <div class="content">
+  <div class="content" id="main-content" role="main" tabindex="-1">
     <div class="panel" id="panel-setup">
       <!-- Batch C polish 7 — Organisation tab signed-in summary. When the user is
            already signed in and clicks Organisation, this card replaces the sign-in
@@ -21661,6 +21667,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
   });
 })();
+</script>
+<script>
+/* WCAG 2.2 AA (v6.3.21) — make the sidebar nav keyboard-operable. The nav items
+   are <div onclick>, which mouse-clicks fire but keyboards can't reach. Give each
+   a button role + tab stop, and fire its click on Enter/Space. Delegated keydown
+   covers items shown later (Check-in / Dashboard reveal after sign-in). */
+(function () {
+  function tagNavItems() {
+    document.querySelectorAll('.nav-item').forEach(function (el) {
+      el.setAttribute('role', 'button');
+      if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+    });
+  }
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if ((e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') &&
+        t && t.classList && t.classList.contains('nav-item')) {
+      e.preventDefault();
+      t.click();
+    }
+  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tagNavItems);
+  else tagNavItems();
+}());
 </script>
 </body>
 </html>

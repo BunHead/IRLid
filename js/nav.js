@@ -98,7 +98,25 @@
     }
   }
 
+  // WCAG 2.2 AA — 2.4.1 Bypass Blocks. Inject a "Skip to main content" link as
+  // the first focusable element, targeting the page's <main> landmark. Hidden
+  // until focused (see .skip-link in css/style.css). Centralised here so every
+  // page that loads nav.js gets it without per-page markup.
+  function injectSkipLink() {
+    if (document.querySelector(".skip-link")) return;
+    var main = document.querySelector("main");
+    if (!main) return;
+    if (!main.id) main.id = "main-content";
+    if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+    var link = document.createElement("a");
+    link.className = "skip-link";
+    link.href = "#" + main.id;
+    link.textContent = "Skip to main content";
+    document.body.insertBefore(link, document.body.firstChild);
+  }
+
   function initNav() {
+    injectSkipLink();
     renderAccountNav(isLoggedIn());
     wireDropdownCloseBehavior();
   }
