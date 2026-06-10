@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v140'; // v6.3.17 Font-revert-on-save ROOT CAUSE fix: retired v511BannerCustomise checkbox made every save persist banner.customise:'off', shutting the CSS gate on readback. Reader now defaults 'on' when toggle absent.
+const CACHE_VERSION = 'irlid-shell-v141'; // v6.3.18 Offset X/Y sliders colour-coded to axis convention: X infills red, Y infills green, bidirectional from zero with centre tick - intuitive +/- axis cue.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

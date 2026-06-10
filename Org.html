@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.17</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.18</span></div>
   </div>
 </div>
 
@@ -10491,15 +10491,28 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var range = max - min;
             if (range <= 0) return;
             if (min < 0) {
-              // Bidirectional: fill between centre and current value
+              // Bidirectional fill between centre (zero) and the current value.
+              // v6.3.18 — colour-code the offset sliders to the axis convention
+              // already set by .v512-offset-cross + the --axis-* tokens: Offset X
+              // infills RED, Offset Y infills GREEN, so the pair reads as the
+              // plus-sign cross and it's obvious which axis you're nudging. A faint
+              // centre tick marks zero. Any other min<0 slider keeps accent.
               var centerPct = (-min / range) * 100;
               var valPct = ((val - min) / range) * 100;
               var lo = Math.min(centerPct, valPct);
               var hi = Math.max(centerPct, valPct);
+              var css = getComputedStyle(document.documentElement);
+              var sliderKey = (input.getAttribute('data-setting-slider') || input.id || '').toLowerCase();
+              var axisFill = accent;
+              if (/offsety/.test(sliderKey))      axisFill = (css.getPropertyValue('--axis-green').trim() || '#22c55e');
+              else if (/offsetx/.test(sliderKey)) axisFill = (css.getPropertyValue('--axis-red').trim()   || '#f85149');
+              var markLo = Math.max(0, centerPct - 0.7), markHi = Math.min(100, centerPct + 0.7);
+              var mark = isLight ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.7)';
               input.style.background =
+                'linear-gradient(to right, transparent ' + markLo + '%, ' + mark + ' ' + markLo + '%, ' + mark + ' ' + markHi + '%, transparent ' + markHi + '%), ' +
                 'linear-gradient(to right, ' +
                 track + ' 0%, ' + track + ' ' + lo + '%, ' +
-                accent + ' ' + lo + '%, ' + accent + ' ' + hi + '%, ' +
+                axisFill + ' ' + lo + '%, ' + axisFill + ' ' + hi + '%, ' +
                 track + ' ' + hi + '%, ' + track + ' 100%)';
             } else {
               var pct = ((val - min) / range) * 100;
