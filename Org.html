@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.22</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.23</span></div>
   </div>
 </div>
 
@@ -5660,6 +5660,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v512-offset-cross input[type=range]:active { z-index: 6; }
         .v512-cel-setting-row--offset-cross { align-items: center; }
         .v512-cel-setting-row--offset-cross label { align-self: start; }
+        /* v6.3.23 — Direction grid + Offset cross side-by-side. */
+        .v512-dir-offset-pair { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; grid-column: 1 / -1; }
+        .v512-dir-offset-pair > .v511-cel-setting-row { margin: 0; }
         .v512-offset-cross .axis-x,
         .v512-offset-cross .axis-y,
         .v512-offset-readout {
@@ -11180,11 +11183,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 crossLabel.textContent = 'Offset (drag the cross)';
                 crossRow.appendChild(crossLabel);
                 crossRow.appendChild(v511BuildOffsetCross(item, setting.key, yPair && yPair.key, setting.min, setting.max));
-                // v6.3.22 — place the cross immediately to the right of the Direction
-                // grid (above Mirror on symmetry) rather than down in the offset slot.
+                // v6.3.23 — pin the cross beside the Direction grid in a guaranteed
+                // flex pair (the auto-flow grid placed it elsewhere in v6.3.22). Both
+                // sit side-by-side regardless of the parent grid; Mirror flows after.
                 var dirRow = v511CelSettingsBody.querySelector('.v511-cel-setting-row[data-setting-key="direction9"]');
-                if (dirRow) dirRow.insertAdjacentElement('afterend', crossRow);
-                else v511CelSettingsBody.appendChild(crossRow);
+                if (dirRow) {
+                  var pair = document.createElement('div');
+                  pair.className = 'v512-dir-offset-pair';
+                  dirRow.parentNode.insertBefore(pair, dirRow);
+                  pair.appendChild(dirRow);
+                  pair.appendChild(crossRow);
+                } else {
+                  v511CelSettingsBody.appendChild(crossRow);
+                }
                 return;
               }
               if (/offsety/i.test(setting.key)) return; // handled by the cross above
@@ -14904,6 +14915,10 @@ async function refreshAttendance() {
   } catch (err) {
     const snap = await loadCurrentOrgSnapshot();
     if (snap && applySnapshotToDashboard(snap)) {
+      // v6.3.23 — the cached-snapshot path bypasses setSignedInUI/loadDashboardForOrg,
+      // so the lead_admin-gated Settings nav was never re-evaluated here. Once the
+      // session/role has resolved this re-shows it (fixes "Settings vanishes on refresh").
+      try { applyRoleGatedVisibility(); } catch (_) {}
       const nowMs = Date.now();
       if (nowMs - lastCachedAttendanceToastAt > 30000) {
         lastCachedAttendanceToastAt = nowMs;
@@ -17283,8 +17298,13 @@ function normalizeScore(value, fallback = PORTAL_DEFAULTS.minimumTrustScore) {
 function displayValue(value) { return value ? String(value) : '(none)'; }
 function appendOptional(url, key, value) { if (!value) return; url.searchParams.set(key, value); }
 function buildOutcomeUrl(mode) {
-  const url = new URL(OUTCOME_BASES[mode]);
-  url.searchParams.set('mode', mode);
+  // v6.3.23 — on the offline-cached-snapshot load path portalState.activeMode can
+  // be undefined, making OUTCOME_BASES[mode] undefined and `new URL(undefined)`
+  // throw — the recurring "[portal] render failed … reading '0'" crash. Default to
+  // 'allow' so the outcome QR always builds a valid URL.
+  const safeMode = OUTCOME_BASES[mode] ? mode : 'allow';
+  const url = new URL(OUTCOME_BASES[safeMode]);
+  url.searchParams.set('mode', safeMode);
   url.searchParams.set('ctx', 'doorman');
   url.searchParams.set('attendee', 'Sample Attendee');
   url.searchParams.set('score', String(normalizeScore(portalState.minimumTrustScore)));
@@ -17431,7 +17451,11 @@ function renderPortalScanQr() {
   renderQr('scanQr', SCAN_URL, 118, '#eef4ff');
 }
 function renderPortalOutcomeQr() {
-  const url = buildOutcomeUrl(portalState.activeMode);
+  // v6.3.23 — belt-and-braces: never hand renderQr an empty/invalid value.
+  let url;
+  try { url = buildOutcomeUrl(portalState && portalState.activeMode); }
+  catch (e) { console.warn('[portal] outcome URL build failed', e); return; }
+  if (!url) return;
   const outcomeLine = document.getElementById('outcomeUrlLine');
   if (outcomeLine) { outcomeLine.value = url; outcomeLine.title = url; }
   const lightMap = { allow: '#f2fff6', review: '#fff8dc', deny: '#fff1f1' };
