@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.18</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.19</span></div>
   </div>
 </div>
 
@@ -5551,6 +5551,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           align-items: start;
           margin-top: 14px;
         }
+        /* v6.3.19 — Brand Identity font controls in two columns: Font list left,
+           Weight/Italic/Spacing/Colour/Shadow stacked right. Stops the panel
+           running too tall now the Font picker is a visual list. */
+        .v511-banner-style-grid {
+          display: grid;
+          grid-template-columns: minmax(190px, 1fr) minmax(220px, 1.15fr);
+          gap: 14px 22px;
+          align-items: start;
+        }
+        .v511-banner-style-right { display: grid; gap: 10px; align-content: start; }
+        @media (max-width: 680px) { .v511-banner-style-grid { grid-template-columns: 1fr; } }
         .v512-offset-cross {
           position: relative;
           width: 180px;
@@ -5606,6 +5617,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           background: #58a6ff;
           border: 2px solid #fff;
         }
+        /* v6.3.19 — axis-coded thumbs. The X (red) thumb is a HORIZONTAL pill and
+           the Y (green) thumb a horizontal pill on the rotated track (so it shows
+           VERTICAL). Colour + shape together mean the two handles are tellable
+           apart even stacked dead-centre — you grab X by its left/right reach and
+           Y by its up/down reach, and the colour confirms which is which. */
+        .v512-offset-cross .slider-h::-webkit-slider-thumb { -webkit-appearance: none; background: var(--axis-red) !important;   width: 30px; height: 14px; border-radius: 7px; margin-top: -4px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .v512-offset-cross .slider-v::-webkit-slider-thumb { -webkit-appearance: none; background: var(--axis-green) !important; width: 30px; height: 14px; border-radius: 7px; margin-top: -4px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .v512-offset-cross .slider-h::-moz-range-thumb { background: var(--axis-red);   width: 30px; height: 14px; border-radius: 7px; border: 2px solid #fff; }
+        .v512-offset-cross .slider-v::-moz-range-thumb { background: var(--axis-green); width: 30px; height: 14px; border-radius: 7px; border: 2px solid #fff; }
+        .v512-offset-cross input[type=range]:focus  { z-index: 5; }
+        .v512-offset-cross input[type=range]:active { z-index: 6; }
+        .v512-cel-setting-row--offset-cross { align-items: center; }
+        .v512-cel-setting-row--offset-cross label { align-self: start; }
         .v512-offset-cross .axis-x,
         .v512-offset-cross .axis-y,
         .v512-offset-readout {
@@ -5623,13 +5647,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           position: absolute;
           left: 50%;
           top: 50%;
-          width: 8px;
-          height: 8px;
+          width: 6px;
+          height: 6px;
           transform: translate(-50%, -50%);
           border-radius: 50%;
-          background: rgba(255,255,255,0.62);
+          background: rgba(255,255,255,0.5);
           pointer-events: none;
-          z-index: 3;
+          /* v6.3.19 — sit BEHIND the thumbs so the red/green handles are never
+             occluded at dead-centre (the exact "can't tell which to click" case). */
+          z-index: 0;
         }
         .v512-dir-grid {
           display: grid;
@@ -7057,12 +7083,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               Banner styling <span class="v511-hint-inline">(optional font styling for the banner above the QR)</span>
             </summary>
             <div class="v511-expander-body" id="v511BannerStylingBody">
+             <div class="v511-banner-style-grid">
+              <div class="v511-banner-style-left">
               <div class="v511-anim-row"><label>Font</label><div class="v511-chips v511-chips-wrap" data-banner-setting="font"><button type="button" class="v511-chip" data-banner-value="sans" aria-pressed="true">sans</button><button type="button" class="v511-chip" data-banner-value="serif" aria-pressed="false">serif</button><button type="button" class="v511-chip" data-banner-value="mono" aria-pressed="false">mono</button><button type="button" class="v511-chip" data-banner-value="display" aria-pressed="false">display</button><button type="button" class="v511-chip" data-banner-value="bebas" aria-pressed="false">bebas</button><button type="button" class="v511-chip" data-banner-value="oswald" aria-pressed="false">oswald</button><button type="button" class="v511-chip" data-banner-value="pacifico" aria-pressed="false">pacifico</button><button type="button" class="v511-chip" data-banner-value="caveat" aria-pressed="false">caveat</button><button type="button" class="v511-chip" data-banner-value="marker" aria-pressed="false">marker</button><button type="button" class="v511-chip" data-banner-value="playfair" aria-pressed="false">playfair</button><button type="button" class="v511-chip" data-banner-value="lobster" aria-pressed="false">lobster</button><button type="button" class="v511-chip" data-banner-value="inter" aria-pressed="false">inter</button><button type="button" class="v511-chip" data-banner-value="montserrat" aria-pressed="false">montserrat</button></div></div>
+              </div><!-- /v511-banner-style-left -->
+              <div class="v511-banner-style-right">
               <div class="v511-anim-row"><label>Weight</label><div class="v511-chips" data-banner-setting="weight"><button type="button" class="v511-chip" data-banner-value="light" aria-pressed="false">light</button><button type="button" class="v511-chip" data-banner-value="regular" aria-pressed="false">regular</button><button type="button" class="v511-chip" data-banner-value="bold" aria-pressed="true">bold</button><button type="button" class="v511-chip" data-banner-value="black" aria-pressed="false">black</button></div></div>
               <div class="v511-anim-row"><label>Italic</label><div class="v511-chips" data-banner-setting="italic"><button type="button" class="v511-chip" data-banner-value="off" aria-pressed="true">off</button><button type="button" class="v511-chip" data-banner-value="on" aria-pressed="false">on</button></div></div>
               <div class="v511-anim-row"><label>Spacing</label><div class="v511-chips" data-banner-setting="spacing"><button type="button" class="v511-chip" data-banner-value="tight" aria-pressed="false">tight</button><button type="button" class="v511-chip" data-banner-value="normal" aria-pressed="true">normal</button><button type="button" class="v511-chip" data-banner-value="loose" aria-pressed="false">loose</button><button type="button" class="v511-chip" data-banner-value="wide" aria-pressed="false">wide</button></div></div>
               <div class="v511-anim-row"><label>Colour</label><div class="v511-chips" data-banner-setting="colour"><button type="button" class="v511-chip" data-banner-value="white" aria-pressed="true">white</button><button type="button" class="v511-chip" data-banner-value="warm" aria-pressed="false">warm</button><button type="button" class="v511-chip" data-banner-value="palette-1" aria-pressed="false">palette-1</button><button type="button" class="v511-chip" data-banner-value="palette-2" aria-pressed="false">palette-2</button><button type="button" class="v511-chip" data-banner-value="palette-3" aria-pressed="false">palette-3</button></div></div>
               <div class="v511-anim-row"><label>Shadow</label><div class="v511-chips" data-banner-setting="shadow"><button type="button" class="v511-chip" data-banner-value="off" aria-pressed="false">off</button><button type="button" class="v511-chip" data-banner-value="soft" aria-pressed="true">soft</button><button type="button" class="v511-chip" data-banner-value="strong" aria-pressed="false">strong</button></div></div>
+              </div><!-- /v511-banner-style-right -->
+             </div><!-- /v511-banner-style-grid -->
             </div>
           </details>
 
@@ -10533,6 +10565,36 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             });
           }
 
+          // v6.3.19 — Offset X/Y rendered as the Rev 9 plus-sign cross (reusing the
+          // .v512-offset-cross widget the Anchor panel already styles). One square
+          // control: X = red horizontal axis, Y = green vertical axis, live readout.
+          function v511OffsetCrossFmt(n) { n = Math.round(parseFloat(n) || 0); return (n >= 0 ? '+' : '') + n + '%'; }
+          function v511OffsetCrossCommit() {
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+            try { v511UpdateAnchorCrosshairs(); } catch (e) {}
+          }
+          function v511BuildOffsetCross(item, xKey, yKey, min, max) {
+            if (!item.settings) item.settings = {};
+            var lo = (min !== undefined ? min : -100), hi = (max !== undefined ? max : 100);
+            var wrap = document.createElement('div');
+            wrap.className = 'v512-offset-cross';
+            wrap.innerHTML =
+              '<input type="range" min="' + lo + '" max="' + hi + '" class="slider-h" aria-label="Offset X (red, horizontal axis)">' +
+              '<input type="range" min="' + lo + '" max="' + hi + '" class="slider-v" aria-label="Offset Y (green, vertical axis)">' +
+              '<span class="axis-x">X</span><span class="axis-y">Y</span>' +
+              '<span class="v512-cross-centre-dot"></span>' +
+              '<span class="v512-offset-readout"></span>';
+            var sx = wrap.querySelector('.slider-h'), sy = wrap.querySelector('.slider-v');
+            var readout = wrap.querySelector('.v512-offset-readout');
+            function gv(k) { var v = parseFloat(item.settings[k]); return isFinite(v) ? v : 0; }
+            sx.value = gv(xKey); sy.value = yKey ? gv(yKey) : 0;
+            function paint() { readout.textContent = 'X ' + v511OffsetCrossFmt(sx.value) + ' / Y ' + v511OffsetCrossFmt(sy.value); }
+            paint();
+            sx.addEventListener('input', function () { item.settings[xKey] = parseFloat(sx.value); paint(); v511OffsetCrossCommit(); });
+            if (yKey) sy.addEventListener('input', function () { item.settings[yKey] = parseFloat(sy.value); paint(); v511OffsetCrossCommit(); });
+            return wrap;
+          }
+
           // Image scale slider live-updates the bg-image-size and label
           var bgScaleSlider = document.getElementById('v511BgImageScale');
           var bgScaleLabel = document.getElementById('v511BgImageScaleLabel');
@@ -11074,6 +11136,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             v511SetSettingsLayout(schema.length >= V511_SETTINGS_GRID_THRESHOLD);
             v511CelSettingsBody.innerHTML = '';
             schema.forEach(function (setting) {
+              // v6.3.19 — render the Offset X/Y pair as ONE plus-sign cross widget
+              // (Rev 9) instead of two long horizontal slider rows. Intercept the X
+              // setting, build the cross bound to both keys, and skip the Y row.
+              if (/offsetx/i.test(setting.key)) {
+                var yPair = schema.filter(function (s) { return /offsety/i.test(s.key); })[0];
+                var crossRow = document.createElement('div');
+                crossRow.className = 'v511-cel-setting-row v512-cel-setting-row--offset-cross';
+                crossRow.setAttribute('data-setting-key', setting.key);
+                var crossLabel = document.createElement('label');
+                crossLabel.textContent = 'Offset (drag the cross)';
+                crossRow.appendChild(crossLabel);
+                crossRow.appendChild(v511BuildOffsetCross(item, setting.key, yPair && yPair.key, setting.min, setting.max));
+                v511CelSettingsBody.appendChild(crossRow);
+                return;
+              }
+              if (/offsety/i.test(setting.key)) return; // handled by the cross above
               var row = document.createElement('div');
               row.className = 'v511-cel-setting-row';
               row.setAttribute('data-setting-key', setting.key);
