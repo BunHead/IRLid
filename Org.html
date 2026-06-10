@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.21</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.22</span></div>
   </div>
 </div>
 
@@ -5618,7 +5618,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           transform: translate(-50%, -50%);
         }
         .v512-offset-cross .slider-v {
-          transform: translate(-50%, -50%) rotate(-90deg);
+          /* v6.3.22 — rotate +90 (was -90) so dragging the green thumb UP moves the
+             crosshair UP. The previous -90 made the Y axis travel the opposite way. */
+          transform: translate(-50%, -50%) rotate(90deg);
         }
         .v512-offset-cross .slider-h::-webkit-slider-runnable-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
         .v512-offset-cross .slider-h::-moz-range-track { background: var(--axis-red); height: 6px; border-radius: 3px; }
@@ -5646,10 +5648,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            VERTICAL). Colour + shape together mean the two handles are tellable
            apart even stacked dead-centre — you grab X by its left/right reach and
            Y by its up/down reach, and the colour confirms which is which. */
-        .v512-offset-cross .slider-h::-webkit-slider-thumb { -webkit-appearance: none; background: var(--axis-red) !important;   width: 30px; height: 14px; border-radius: 7px; margin-top: -4px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-        .v512-offset-cross .slider-v::-webkit-slider-thumb { -webkit-appearance: none; background: var(--axis-green) !important; width: 30px; height: 14px; border-radius: 7px; margin-top: -4px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-        .v512-offset-cross .slider-h::-moz-range-thumb { background: var(--axis-red);   width: 30px; height: 14px; border-radius: 7px; border: 2px solid #fff; }
-        .v512-offset-cross .slider-v::-moz-range-thumb { background: var(--axis-green); width: 30px; height: 14px; border-radius: 7px; border: 2px solid #fff; }
+        /* v6.3.22 — selectors include input[type=range] so they out-rank the generic
+           ".v512-offset-cross input[type=range]::thumb" rule (which was winning on
+           specificity and keeping the thumbs plain blue circles). !important on every
+           property as belt-and-braces. X = red horizontal pill, Y = green vertical pill. */
+        .v512-offset-cross input.slider-h[type=range]::-webkit-slider-thumb { -webkit-appearance: none !important; background: var(--axis-red) !important;   width: 30px !important; height: 14px !important; border-radius: 7px !important; margin-top: -4px !important; border: 2px solid #fff !important; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .v512-offset-cross input.slider-v[type=range]::-webkit-slider-thumb { -webkit-appearance: none !important; background: var(--axis-green) !important; width: 30px !important; height: 14px !important; border-radius: 7px !important; margin-top: -4px !important; border: 2px solid #fff !important; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+        .v512-offset-cross input.slider-h[type=range]::-moz-range-thumb { background: var(--axis-red) !important;   width: 30px !important; height: 14px !important; border-radius: 7px !important; border: 2px solid #fff !important; }
+        .v512-offset-cross input.slider-v[type=range]::-moz-range-thumb { background: var(--axis-green) !important; width: 30px !important; height: 14px !important; border-radius: 7px !important; border: 2px solid #fff !important; }
         .v512-offset-cross input[type=range]:focus  { z-index: 5; }
         .v512-offset-cross input[type=range]:active { z-index: 6; }
         .v512-cel-setting-row--offset-cross { align-items: center; }
@@ -5894,8 +5900,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         .v511-cel-setting-row .v511-chips { flex-wrap: wrap; }
         .v511-cel-seq-item.v511-cel-seq-item--selected { background: rgba(105,168,255,0.16); border-color: rgba(105,168,255,0.55); }
         /* Tier 4.3 — Mini 9-cell direction grid for settings (smaller than the cycle-direction one) */
-        .v511-cel-dir9 { display: grid; grid-template-columns: repeat(3, 36px); grid-template-rows: repeat(3, 36px); gap: 3px; }
-        .v511-cel-dir9-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.55); font-family: inherit; padding: 0; }
+        /* v6.3.22 — Direction grid enlarged (36->54px cells) so it visually matches
+           the 180px Offset cross sitting beside it. */
+        .v511-cel-dir9 { display: grid; grid-template-columns: repeat(3, 54px); grid-template-rows: repeat(3, 54px); gap: 4px; }
+        .v511-cel-dir9-cell { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: rgba(255,255,255,0.55); font-family: inherit; padding: 0; }
         .v511-cel-dir9-cell:hover { background: rgba(105,168,255,0.10); border-color: rgba(105,168,255,0.30); }
         .v511-cel-dir9-cell[aria-pressed="true"] { background: rgba(105,168,255,0.22); border-color: rgba(105,168,255,0.55); color: #fff; }
         :root[data-theme="light"] .v511-cel-settings { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.08); }
@@ -11172,7 +11180,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 crossLabel.textContent = 'Offset (drag the cross)';
                 crossRow.appendChild(crossLabel);
                 crossRow.appendChild(v511BuildOffsetCross(item, setting.key, yPair && yPair.key, setting.min, setting.max));
-                v511CelSettingsBody.appendChild(crossRow);
+                // v6.3.22 — place the cross immediately to the right of the Direction
+                // grid (above Mirror on symmetry) rather than down in the offset slot.
+                var dirRow = v511CelSettingsBody.querySelector('.v511-cel-setting-row[data-setting-key="direction9"]');
+                if (dirRow) dirRow.insertAdjacentElement('afterend', crossRow);
+                else v511CelSettingsBody.appendChild(crossRow);
                 return;
               }
               if (/offsety/i.test(setting.key)) return; // handled by the cross above

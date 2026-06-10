@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v144'; // v6.3.21 WCAG 2.2 AA Phase 1: skip link + visible keyboard focus + keyboard-operable sidebar nav + role=main landmark on Org; org-entry zoom unblocked; shared css/js gain skip-link/focus-visible/sr-only for consumer pages.
+const CACHE_VERSION = 'irlid-shell-v145'; // v6.3.22 Offset cross fixes: red/green thumbs now render (specificity fix beats generic thumb rule); Y axis un-inverted (rotate +90); cross moved beside the enlarged Direction grid, above Mirror on symmetry.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
