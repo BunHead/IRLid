@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15b</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15c</span></div>
   </div>
 </div>
 
@@ -4485,7 +4485,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           animation: v511BgPageCycle var(--bg-cycle-dur, 30s) ease-in-out infinite;
         }
         .v511-theme-preview-stage::after { z-index: 2; opacity: 0; }
-        .v511-theme-preview-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay):not(.v511-stream-particle):not(.v511-sparkle-particle):not(.v511-confetti-particle) { position: relative; z-index: 4; }
+        .v511-theme-preview-stage > *:not(.v511-cel-fx-layer):not(.v511-cel-bg-overlay):not(.v511-cel-text-overlay):not(.v511-stream-particle):not(.v511-sparkle-particle):not(.v511-confetti-particle):not(.v511-anchor-crosshairs) { position: relative; z-index: 4; }
         @keyframes v511BgPageCycle { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         /* Tier 4.1.9 — 9-direction grid. Each cell maps to a starting edge/corner
            the palette cycle flows OUT FROM. Linear gradients for the 8 perimeter
@@ -5780,18 +5780,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         :fullscreen .emit-crosshair-on .v511-anchor-crosshairs.is-visible,
         :-webkit-full-screen.emit-crosshair-on .v511-anchor-crosshairs.is-visible,
         :-webkit-full-screen .emit-crosshair-on .v511-anchor-crosshairs.is-visible { display: block !important; }
-        .v511-anchor-crosshair-marker { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
+        .v511-anchor-crosshair-marker { position: absolute; width: 40px; height: 40px; transform: translate(-50%, -50%); pointer-events: none; animation: v511AnchorPulse 1.8s ease-in-out infinite; }
         /* T4.3.35 — Crosshair contrast via mix-blend-mode: difference + white
            ink. Inverts whatever's underneath, so it's visible on any palette
            including yellow/orange (where the old #ffd84a tint disappeared). */
+        /* v6.3.15c — bolder, always-visible crosshair (setup aid only): white plus
+           with a dark outline + red centre dot ringed white/dark, so it reads on the
+           bright gradient AND the white dragon art. Replaces the too-faint 2px
+           difference-blend lines. */
         .v511-anchor-crosshair-marker::before,
         .v511-anchor-crosshair-marker::after {
           content: ''; position: absolute; background: #ffffff;
-          mix-blend-mode: difference;
+          box-shadow: 0 0 0 1px rgba(0,0,0,0.85);
         }
-        .v511-anchor-crosshair-marker::before { top: 50%; left: 0; right: 0; height: 2px; transform: translateY(-50%); }
-        .v511-anchor-crosshair-marker::after  { left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); }
-        .v511-anchor-crosshair-dot { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #ffffff; mix-blend-mode: difference; }
+        .v511-anchor-crosshair-marker::before { top: 50%; left: 0; right: 0; height: 3px; transform: translateY(-50%); }
+        .v511-anchor-crosshair-marker::after  { left: 50%; top: 0; bottom: 0; width: 3px; transform: translateX(-50%); }
+        .v511-anchor-crosshair-dot { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; transform: translate(-50%, -50%); border-radius: 50%; background: #ff3b3b; box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px rgba(0,0,0,0.85); }
         @keyframes v511AnchorPulse {
           0%, 100% { opacity: 0.75; transform: translate(-50%, -50%) scale(1); }
           50% { opacity: 1; transform: translate(-50%, -50%) scale(1.18); }
