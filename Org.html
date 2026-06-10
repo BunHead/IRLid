@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.15a</span></div>
   </div>
 </div>
 
@@ -9106,6 +9106,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function v511UpdateAnchorCrosshairs() {
             var container = document.getElementById('v511AnchorCrosshairs');
             if (!container || !sampleStage) return;
+            // v6.3.15 — guard: this can fire from applyEmitCrosshairState() during init,
+            // before modeStates is built. Bail safely instead of throwing (the throw was
+            // aborting init and leaving saved settings unapplied).
+            if (!modeStates) return;
             var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
             // v6.3.15 — emit-crosshair toggle: when ON, show the FIRST Stream effect's
             // crosshair even with no Stream row selected (a Visual-Theming setup aid).
