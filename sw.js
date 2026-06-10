@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v149'; // v6.4.1 Anchor stage 2: live edit-pulse - particles stream from the point in real time while you drag the crosshair (throttled light burst, capped DOM, self-cleans on release).
+const CACHE_VERSION = 'irlid-shell-v150'; // v6.4.2 Anchor stage 3: target expansion (Rev 9) - effects can anchor to Image / Logo / QR / Centre via a selector by the preview; each resolves to that object's live position and shows a draggable crosshair.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.2</span></div>
   </div>
 </div>
 
@@ -6875,6 +6875,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </select>
               <button type="button" class="v511-btn v511-btn-primary" id="v511SampleBtn">▶ Sample</button>
               <label class="v511-emit-crosshair-toggle" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;" title="Setup aid: show a crosshair on the preview marking where the Stream effect emits from. Not shown on the live check-in."><input type="checkbox" id="v511EmitCrosshairToggle" style="margin:0;">Emit crosshair</label>
+              <!-- v6.4.2 — anchor target selector (Rev 9): pick which object the
+                   selected Stream effect emits from; its crosshair shows on the preview. -->
+              <span class="v511-anchor-target-selector" id="v511AnchorTargetSelector" style="display:none;align-items:center;gap:5px;font-size:12px;color:var(--muted);white-space:nowrap;">
+                <span>Emit from:</span>
+                <button type="button" class="v511-chip v511-anchor-target-chip" data-anchor-target="image-anchor" aria-pressed="true">Image</button>
+                <button type="button" class="v511-chip v511-anchor-target-chip" data-anchor-target="logo" aria-pressed="false">Logo</button>
+                <button type="button" class="v511-chip v511-anchor-target-chip" data-anchor-target="qr" aria-pressed="false">QR</button>
+                <button type="button" class="v511-chip v511-anchor-target-chip" data-anchor-target="centre" aria-pressed="false">Centre</button>
+              </span>
               <span class="v511-hint">Settings below apply to the active mode. Switch mode to edit a different outcome's celebration + sound.</span>
             </div>
             <!-- Tier 4.1.7 — Screen-dims row removed; resolution now lives in the
@@ -8697,6 +8706,17 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // particle direction should be mirrored across X/Y from the base
           // direction (used so that the right-side dragon blows LEFT when the
           // left-side dragon blows RIGHT). axisFlip values are ±1.
+          // v6.4.2 — centre of any stage object (logo / QR) as % of the stage,
+          // so effects can anchor to objects, not just the background image (Rev 9).
+          function v511ElementCenterPct(stage, selector) {
+            try {
+              var el = stage.querySelector(selector);
+              if (!el) return null;
+              var sr = stage.getBoundingClientRect(), er = el.getBoundingClientRect();
+              if (!sr.width || !sr.height) return null;
+              return { x: (er.left + er.width / 2 - sr.left) / sr.width * 100, y: (er.top + er.height / 2 - sr.top) / sr.height * 100 };
+            } catch (e) { return null; }
+          }
           function v511GetStreamAnchors(stage, item) {
             var s = (item && item.settings) || {};
             if (window.v512AnchorsForStage) {
@@ -8704,6 +8724,14 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var v512Anchors = window.v512AnchorsForStage(stage, item);
                 if (Array.isArray(v512Anchors) && v512Anchors.length) return v512Anchors;
               } catch (_) {}
+            }
+            // v6.4.2 — anchor to the Logo or the QR object (Rev 9 target expansion).
+            if (s.streamAnchor === 'qr' || s.streamAnchor === 'logo') {
+              var _sel = s.streamAnchor === 'qr'
+                ? '.v511-theme-preview-qr, #venueQrBox, .qr-box'
+                : '.v511-masthead-logo img, .v511-masthead-logo, .v511-theme-preview-logo';
+              var _ctr = v511ElementCenterPct(stage, _sel);
+              return [{ pos: _ctr || { x: 50, y: (s.streamAnchor === 'logo' ? 16 : 50) }, axisFlip: { x: 1, y: 1 } }];
             }
             if (s.streamAnchor !== 'image-anchor') return [{ pos: { x: 50, y: 50 }, axisFlip: { x: 1, y: 1 } }];
             if (stage && stage.classList && stage.classList.contains('v511-theme-preview-stage') && !stage.classList.contains('bg-mode-image')) {
@@ -9267,7 +9295,44 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               if (parts.length > 90) { for (var i = 0; i < parts.length - 90; i++) parts[i].remove(); }
             } catch (e) {}
           }
+          // v6.4.2 — which Stream item the crosshair / target selector edits:
+          // the selected sequence row if it's a Stream, else (when the Emit
+          // crosshair toggle is on) the first Stream in the active mode.
+          function v511CurrentStreamItem() {
+            if (!modeStates) return null;
+            var seq = (modeStates[currentMode] && modeStates[currentMode].sequence) || [];
+            if (v511SelectedSeqIdx >= 0 && v511SelectedSeqIdx < seq.length && seq[v511SelectedSeqIdx].effect === 'stream') return seq[v511SelectedSeqIdx];
+            if (window.v511EmitCrosshairOn) { for (var i = 0; i < seq.length; i++) { if (seq[i].effect === 'stream') return seq[i]; } }
+            return null;
+          }
+          function v511SyncAnchorTargetSelector() {
+            var sel = document.getElementById('v511AnchorTargetSelector');
+            if (!sel) return;
+            var item = v511CurrentStreamItem();
+            if (!item) { sel.style.display = 'none'; return; }
+            sel.style.display = 'inline-flex';
+            var cur = (item.settings && item.settings.streamAnchor) || 'image-anchor';
+            sel.querySelectorAll('.v511-anchor-target-chip').forEach(function (c) {
+              c.setAttribute('aria-pressed', c.getAttribute('data-anchor-target') === cur ? 'true' : 'false');
+            });
+          }
+          document.addEventListener('click', function (e) {
+            var chip = e.target.closest && e.target.closest('.v511-anchor-target-chip');
+            if (!chip) return;
+            var item = v511CurrentStreamItem();
+            if (!item) return;
+            if (!item.settings) item.settings = {};
+            item.settings.streamAnchor = chip.getAttribute('data-anchor-target');
+            // make sure the crosshair is shown so the user sees the chosen point
+            window.v511EmitCrosshairOn = true;
+            var t = document.getElementById('v511EmitCrosshairToggle'); if (t) t.checked = true;
+            if (sampleStage) sampleStage.classList.add('emit-crosshair-on');
+            v511SyncAnchorTargetSelector();
+            try { v511UpdateAnchorCrosshairs(); } catch (_) {}
+            if (typeof v511SaveDebounced === 'function') v511SaveDebounced();
+          });
           function v511UpdateAnchorCrosshairs() {
+            try { v511SyncAnchorTargetSelector(); } catch (_) {}
             var container = document.getElementById('v511AnchorCrosshairs');
             if (!container || !sampleStage) return;
             // v6.3.15 — guard: this can fire from applyEmitCrosshairState() during init,
@@ -11145,7 +11210,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             'flame':        [ SETTING_INTENSITY, { key: 'direction9', label: 'Anchor', options: ['centre','image-anchor'], default: 'centre' }, { key: 'colourSource', label: 'Colour source', options: ['warm','cycle palette'], default: 'warm' } ],
             'stream':       [
               SETTING_INTENSITY,
-              { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor'], default: 'image-anchor' },
+              { key: 'streamAnchor', label: 'Anchor', options: ['centre','image-anchor','logo','qr'], default: 'image-anchor' },
               { key: 'direction9', label: 'Direction', type: 'dir9', default: 'l' },
               { key: 'streamCount', label: 'Particle count', type: 'slider', min: 5, max: 120, step: 1, default: 30 },
               { key: 'streamSpread', label: 'Stream width (°)', type: 'slider', min: 5, max: 360, step: 5, default: 60 },
