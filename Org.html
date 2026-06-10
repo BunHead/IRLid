@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.16</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.17</span></div>
   </div>
 </div>
 
@@ -9490,7 +9490,16 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             return el ? (el.getAttribute(attr) || fallback) : fallback;
           }
           function v511ReadBannerSettingsFromUI() {
-            var out = { customise: (document.getElementById('v511BannerCustomise') || {}).checked ? 'on' : 'off' };
+            // v6.3.17 — the #v511BannerCustomise checkbox was retired in the v512
+            // Brand Identity rebuild, so the old read here always returned 'off',
+            // persisting banner.customise:'off' on EVERY save. The post-save readback
+            // then re-applied data-banner-customise="off" to the stage, shutting the
+            // CSS gate every [data-banner-font] rule sits behind. The font VALUE
+            // round-tripped fine the whole time; the gate FIELD was the casualty —
+            // this was the long-standing "font reverts on Save" bug. Toggle gone
+            // from the DOM = customise is always on.
+            var customiseToggle = document.getElementById('v511BannerCustomise');
+            var out = { customise: customiseToggle ? (customiseToggle.checked ? 'on' : 'off') : 'on' };
             ['font','weight','italic','spacing','colour','shadow'].forEach(function (key) {
               out[key] = v511PressedDataset('.v511-chips[data-banner-setting="' + key + '"] .v511-chip', 'data-banner-value', V511_BANNER_DEFAULTS[key]);
             });
