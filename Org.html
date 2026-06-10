@@ -137,7 +137,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
 .sidebar-footer { padding: 8px 16px 12px; font-size: 9px; color: #6e7681; line-height: 1.4; }
 .main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .topbar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.topbar-title { font-size: 16px; font-weight: 600; }
+.topbar-title { font-size: 16px; font-weight: 600; margin: 0; line-height: inherit; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 /* v5.5.12.1 — Indicator moved from top-right (collided with topbar
    Refresh/Audit/CSV/Sign out controls) to bottom-left of sidebar,
@@ -3331,7 +3331,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.19</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.3.20</span></div>
   </div>
 </div>
 
@@ -3342,7 +3342,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <span class="badge" id="offlineQueueBadge" hidden>0</span>
   </div>
   <div class="topbar">
-    <div class="topbar-title" id="topbarTitle">Organisation</div>
+    <h1 class="topbar-title" id="topbarTitle">Organisation</h1>
     <div class="topbar-actions">
       <button class="btn btn-secondary btn-sm" id="refreshBtn" onclick="refreshAttendanceFromUI()" title="Refresh attendance + expected list"><span class="refresh-glyph" aria-hidden="true">↻</span> Refresh</button>
       <button class="btn btn-secondary btn-sm topbar-action-audit" id="auditModeBtn" onclick="enterAuditMode()" title="Audit mode — full-screen attendance board (best in landscape)" style="display:none;"><span aria-hidden="true">⛶</span> Audit</button>
@@ -5562,6 +5562,24 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         .v511-banner-style-right { display: grid; gap: 10px; align-content: start; }
         @media (max-width: 680px) { .v511-banner-style-grid { grid-template-columns: 1fr; } }
+        /* v6.3.19 — friendly chip masking the base64 logo blob in the Logo field. */
+        .v512-logo-chip {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 4px 6px 4px 4px; border-radius: 8px;
+          background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.4);
+          vertical-align: middle;
+        }
+        .v512-logo-chip-thumb {
+          width: 26px; height: 26px; border-radius: 5px; object-fit: cover;
+          background: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.25);
+        }
+        .v512-logo-chip-label { font-size: 12px; font-weight: 600; color: var(--text, #c9d1d9); }
+        .v512-logo-chip-clear {
+          appearance: none; border: none; cursor: pointer; line-height: 1;
+          width: 20px; height: 20px; border-radius: 50%; font-size: 12px;
+          background: rgba(255,255,255,0.12); color: var(--text, #c9d1d9);
+        }
+        .v512-logo-chip-clear:hover { background: rgba(248,81,73,0.85); color: #fff; }
         .v512-offset-cross {
           position: relative;
           width: 180px;
@@ -21107,7 +21125,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wrap.innerHTML =
       '<div class="v511-row"><label for="v512BannerText">Banner text</label><input type="text" id="v512BannerText" value="{org}" placeholder="{org}"></div>' +
       '<div class="v511-row"><label for="v512LogoPosition">Logo position</label><select id="v512LogoPosition"><option value="above-banner">Above banner</option><option value="top-left">Top left</option><option value="top-right">Top right</option><option value="hidden">Hidden</option></select></div>' +
-      '<div class="v511-row"><label for="v512LogoUrl">Logo</label><div><input type="url" id="v512LogoUrl" placeholder="https://example.com/logo.png or paste image" style="min-width:min(100%,360px);"> <button type="button" class="v511-btn v511-btn-mini" id="v512LogoUploadBtn">Upload logo</button><input type="file" id="v512LogoFile" accept="image/*" hidden> <span class="v511-hint">Uses the org logo field; defaults to logo.png with contrast.</span></div></div>' +
+      '<div class="v511-row"><label for="v512LogoUrl">Logo</label><div><input type="url" id="v512LogoUrl" placeholder="https://example.com/logo.png or paste image" style="min-width:min(100%,360px);"><span class="v512-logo-chip" id="v512LogoChip" hidden><img class="v512-logo-chip-thumb" id="v512LogoChipThumb" alt="Uploaded logo preview"><span class="v512-logo-chip-label">Image uploaded</span><button type="button" class="v512-logo-chip-clear" id="v512LogoChipClear" title="Remove logo" aria-label="Remove logo">✕</button></span> <button type="button" class="v511-btn v511-btn-mini" id="v512LogoUploadBtn">Upload logo</button><input type="file" id="v512LogoFile" accept="image/*" hidden> <span class="v511-hint">Uses the org logo field; defaults to logo.png with contrast.</span></div></div>' +
       '<div class="v511-row"><label for="v512OrgDescription">Description</label><input type="text" id="v512OrgDescription" placeholder="Organisation tagline"></div>';
     body.insertBefore(wrap, body.firstChild);
     function currentLogoValue() {
@@ -21115,12 +21133,32 @@ document.addEventListener('DOMContentLoaded', function () {
       if (canonical && canonical.value) return canonical.value.trim();
       try { return (settings && settings.logoUrl) || (portalState && portalState.logoUrl) || ''; } catch (_) { return ''; }
     }
+    // v6.3.19 — mask the giant data:image base64 blob behind a friendly chip
+    // (thumbnail + "Image uploaded" + ✕). The <input> keeps the real value for
+    // save; we just hide it when it holds a data: URI so the field isn't a wall
+    // of base64. A short https:// URL shows normally.
+    function v512SyncLogoFieldMask() {
+      var inp = document.getElementById('v512LogoUrl');
+      var chip = document.getElementById('v512LogoChip');
+      var thumb = document.getElementById('v512LogoChipThumb');
+      if (!inp || !chip) return;
+      var isData = /^data:image\//i.test(inp.value || '');
+      if (isData) {
+        if (thumb) thumb.src = inp.value;
+        chip.hidden = false;
+        inp.style.display = 'none';
+      } else {
+        chip.hidden = true;
+        inp.style.display = '';
+      }
+    }
     function setBrandLogoUrl(value, message) {
       value = String(value || '').trim();
       var canonical = document.getElementById('logoUrl');
       var brandInput = document.getElementById('v512LogoUrl');
       if (canonical) canonical.value = value;
       if (brandInput) brandInput.value = value;
+      v512SyncLogoFieldMask();
       try { if (settings) settings.logoUrl = value; } catch (_) {}
       try { if (portalState) { portalState.logoUrl = value; if (typeof savePortalState === 'function') savePortalState(); } } catch (_) {}
       try { if (typeof syncLegacyFromPortal === 'function') syncLegacyFromPortal(); } catch (_) {}
@@ -21131,9 +21169,12 @@ document.addEventListener('DOMContentLoaded', function () {
       try { if (typeof setThemeSaveStatus === 'function') setThemeSaveStatus(message || 'Logo updated. Save settings to persist.', 'ok'); } catch (_) {}
       if (typeof window.v511SaveDebounced === 'function') window.v511SaveDebounced();
     }
+    var logoChipClear = document.getElementById('v512LogoChipClear');
+    if (logoChipClear) logoChipClear.addEventListener('click', function() { setBrandLogoUrl(''); var inp = document.getElementById('v512LogoUrl'); if (inp) inp.focus(); });
     var logoUrlInput = document.getElementById('v512LogoUrl');
     if (logoUrlInput) {
       logoUrlInput.value = currentLogoValue();
+      v512SyncLogoFieldMask();
       logoUrlInput.addEventListener('input', function() { setBrandLogoUrl(logoUrlInput.value); });
       logoUrlInput.addEventListener('paste', function(e) {
         var items = e.clipboardData && e.clipboardData.items;

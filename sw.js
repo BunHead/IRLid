@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v142'; // v6.3.19 Offset X/Y = full Rev9 plus-cross (X red horizontal / Y green vertical, shaped+coloured thumbs distinguishable at centre) + Brand Identity font controls in two columns (Font left, Weight/Italic/etc right) to shorten the frame.
+const CACHE_VERSION = 'irlid-shell-v143'; // v6.3.20 a11y + layout tidy: topbar title is now an <h1> (page heading) + Logo field masks the base64 blob behind a thumbnail chip with clear button.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
