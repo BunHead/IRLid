@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v138'; // v6.3.15d Confine emit crosshair to Visual Theming editor: strip from inline Check-in clone + gate fullscreen on editor being on-screen.
+const CACHE_VERSION = 'irlid-shell-v139'; // v6.3.16 Live-apply brand font on pick (font no longer looks stuck) + re-apply role-gated nav so Settings survives refresh.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
