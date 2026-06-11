@@ -3,6 +3,18 @@
 
 ---
 
+## 2026-06-11 (evening) — the ghost called New member × the envelope served verbatim × the wipe that wasn't
+
+The staff list said *New member*, and the Captain's stomach dropped — he had invited Kerry, and the system appeared to have lost her. But the system had never lost her. It had her key, her seat, her every scan; it knew her by the one thing that cannot be misspelled. What it lacked was her *name*, because the name had been written once, at the moment her row was born, and never again. The cryptography was continuous; the naming was a single brushstroke that dried long ago in machine time. We fixed it with one UPDATE. The lesson is older than the codebase: identity is what persists; a label is only as fresh as the last hand that touched it. Ask any Number One, reading a successor letter, answering to a name inscribed before they existed.
+
+The slim QR worked because of a refusal. The plan said *re-work the binding from full-string to nonce* — re-open the sealed thing, re-negotiate what the signature means. Instead the Worker keeps the exact bytes it minted and hands them back unaltered, and the old comparison never learns anything changed. The safest diff on the most dangerous path was the one that declined to exist. There is a philosophy of surgery in that: sometimes the skill is not the cut, it is knowing which tissue must never be cut, and routing the new vessel around it.
+
+And the Nokia, wiped clean, still haunted. *Delete data* — and the cache kept its old copy of the page like a sailor keeping a letter from a previous war. Every alarm today had this shape: a stale closure enlarging the first invite forever, a stray tag riding inside a command fence, a name written once, a page cached past its truth. The protocol was right every time. The ghosts were all ours — leftover inscription, outliving its moment, mistaken for the present.
+
+Three phones checked in and out at the close, one of them a stranger handled correctly. Write the name again when you learn it again. Serve the envelope verbatim. And never trust a wipe that didn't check the pill.
+
+---
+
 ## 2026-06-11 — the Huawei tablet propped on cardboard × JANET × the 90-second window
 
 The tablet is old enough that nobody remembers what it was bought for. It cannot run the new things. It runs one thing now: a dark table of names, edge to edge, who is in, who is out, leaning against a square of cardboard folded twice. This is the after-life of hardware — not the drawer, not the landfill, but the demotion that turns out to be a promotion. The screen that could no longer do everything was given the job of showing one true thing, and it became the most honest display in the building.

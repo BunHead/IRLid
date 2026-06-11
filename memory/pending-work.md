@@ -33,6 +33,45 @@
 - **Still queued:** PR-5 EC sweep (login/cross-device/escalation M→L) · inline check-in QR bottom-clip
   cosmetic · roadmap/website refresh · v6.5 humanitarian groundwork (WFP draft with Wisdom).
 
+#### ⭐ WATCH CLOSE (~15:30) — 3-device cycle GREEN on slim plumbing + two open items
+- **Check-out/in cycle green on 8 Pro + 4a + Nokia**, including the unknown-device auth path
+  functioning as expected — all on the post-PR-4 slim venue plumbing, same day it shipped.
+  Dashboard: 4 IN / 15 checked-out / Spencer scan_count 12 / Kerry 5.
+- **Two Beckys in attendance — EXPECTED, not corruption:** the Nokia wipe minted a fresh credential,
+  so post-wipe Becky checked in as a new identity (15:26 row) alongside the morning row bound to the
+  old key (08:34). Cleanup: Delete record on the stale row whenever convenient. (Also remember: Becky
+  was REMOVED from the staff list this afternoon to free the Nokia — re-invite when wanted.)
+- **🐛 OPEN BUG (new): anchor selection missing from top of Visual Theming.** Captain noticed at watch
+  close. Possibly related to v6.3.8's deliberate `.v512-anchor-system` hiding or the section-4
+  "Check-in/out Experience (… anchors …)" reorg — NOT diagnosed, needs a DevTools look next watch.
+  Don't guess; trace.
+- **Pill note:** desktop tab showed Build v6.4.10 (not 10a) in these screenshots — SW-cached HTML,
+  harmless (10a was Worker-side), but verify pill on any device before concluding hardware results.
+- **Fresh-device welcome-screen test still outstanding** — see banked steps below (Nokia cache purge
+  first). The "Someone Else" invite from 15:1x is expired; mint fresh.
+
+#### BANKED MID-TEST (Captain's wife home ~15:20) — fresh-device smoke, resume here
+- **State:** Kerry restored (D1 repair, shows "Kerry Austin — Owner"); Becky REMOVED from staff (freed
+  the Nokia for testing — note: remove deletes membership, NOT the device enrolment or portal_users row);
+  pending invite "Someone Else" (Manager) will be expired by evening — mint fresh.
+- **Fresh-device welcome screen failed TWICE on the Nokia, but server proven innocent:** Number One
+  fetched the live slim invite via `GET /org/invites/<nonce>/envelope` from the desktop pairing —
+  **200, ok:true, 1,200-char envelope served**. Prime suspect = STALE Org.html on the Nokia: "Delete
+  site data" clears storage but NOT HTTP cache → pre-v6.4.10 code has no resolver → slim nonce hits
+  `v511InviteAcceptDecodeToken` → "Invite link is unreadable" toast → default sign-in card. Exactly the
+  30 May lesson: hardware failure on an UNVERIFIED BUILD is a cache problem until the pill proves
+  otherwise — Nokia's pill was never checked.
+- **Resume steps:** (1) Nokia: check sidebar Build pill; if ≠ v6.4.10a → Clear browsing data → Cached
+  images and files → reload → confirm pill. (2) Mint fresh invite on 8 Pro. (3) Scan on Nokia →
+  welcome screen → Accept & enrol → fingerprint → dashboard. (4) Remaining board: re-invite role-change
+  + name-stays test (v6.4.10a proof through protocol); revoked-QR toast test; second-invite fullscreen test.
+- **Mid-test observation also banked:** first Nokia attempt (pre-wipe) surfaced "Authorize this action"
+  — stale cross-device-auth nonce in localStorage hijacking boot. Wipe cleared it.
+- **Two new brief candidates from this session:** (a) re-hire gap — enrolled device whose member was
+  removed dead-ends at sign-in when scanning an invite (same shape as v5.11.25, one ring out);
+  (b) "Show QR again" button on pending-invite rows — trivial post-PR-4 since the envelope (and nonce)
+  are server-side; closing the modal currently orphans the invite until expiry.
+
 ### ⭐ 11 JUN (midday) — LEAD ADMIN CEREMONY LIVE + scan reticle + funding doc
 - **Lead Admin appointment PROVEN end-to-end on production hardware** — "co-presence verified
   (4.6m apart, 24s)", Kerry seated as lead_admin (shows as "Owner" via role vocab). The chain of
