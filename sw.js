@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v158'; // v6.4.9 scan reticle: crisp pulsing aim-target on both camera scan windows (dashboard Process scan + Lead Admin HELLO) so users know where to hold the QR. Pure CSS, pointer-events:none, scanning-only. v157 was the org Worker recursive canonical() fix.
+const CACHE_VERSION = 'irlid-shell-v159'; // v6.4.10 QR-SLIMMING PR-4: staff invite token-by-reference. Slim invite QR carries only the nonce (~60 chars vs ~1,560); accepting device fetches the stored signed envelope via GET /org/invites/:nonce/envelope and runs the unchanged accept path. v158 was the scan reticle.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

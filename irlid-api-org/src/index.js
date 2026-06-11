@@ -1345,23 +1345,40 @@ async function executeVerifiedPendingAction(env, action) {
   if (verifiedIssuer.role !== "lead_admin" && verifiedIssuer.role !== "developer") {
     return { error: inviteJsonError("issuer_role_revoked", "The invite issuer no longer has authority for this organisation.", 403) };
   }
-  await insertOrgInvite(env, {
+  const encodedInvite = encodeInvitePayload(invite);
+  const inserted = await insertOrgInvite(env, {
     nonce: payload.nonce,
     org_id: payload.org_id,
     role,
     label: payload.label,
     issuer_pub_fp: payload.issuer_pub_fp,
     expiry_ts: expiryTs,
-    created_ts: tMs
+    created_ts: tMs,
+    envelope: encodedInvite
   });
   return {
     ok: true,
     result: {
-      invite_qr: encodeInvitePayload(invite),
+      invite_qr: encodedInvite,
       expiry_ts: expiryTs,
-      nonce: payload.nonce
+      nonce: payload.nonce,
+      // v6.4.10 — present ONLY when the envelope was stored server-side, so the
+      // client knows a slim nonce-reference QR can be resolved at accept time.
+      ...(inserted.envelopeStored ? { invite_token_ref: payload.nonce } : {})
     }
   };
+}
+
+// v6.4.10 (PR-4 QR diet) — does org_invites carry the envelope column?
+// Same defensive pattern as orgInvitesHasLabelColumn: the column arrives via
+// migration 2026-06-11-v6.4.10-invite-envelope.sql, and the Worker must work
+// correctly on a database that has not been migrated yet (falls back to the
+// fat-QR behaviour: no stored envelope, no invite_token_ref in the response).
+async function orgInvitesHasEnvelopeColumn(env) {
+  try {
+    const info = await env.DB.prepare("PRAGMA table_info(org_invites)").all();
+    return (info.results || []).some(c => c.name === "envelope");
+  } catch (_) { return false; }
 }
 
 async function orgInvitesHasLabelColumn(env) {
@@ -1374,22 +1391,27 @@ async function orgInvitesHasLabelColumn(env) {
 }
 
 async function insertOrgInvite(env, invite) {
+  // v6.4.10 — columns built dynamically so the Worker tolerates databases at
+  // any migration stage (base / +label / +envelope). The envelope column stores
+  // the EXACT encoded "I:" string handed to the issuer, so the slim-QR fetch
+  // path can return it verbatim and the accept-time byte-for-byte binding
+  // (acceptPayload.invite_token === inviteToken) keeps holding unchanged.
+  const cols = ["nonce", "org_id", "role", "issuer_pub_fp", "expiry_ts", "status", "created_ts"];
+  const vals = [invite.nonce, invite.org_id, invite.role, invite.issuer_pub_fp, invite.expiry_ts, "pending", invite.created_ts];
   if (await orgInvitesHasLabelColumn(env)) {
-    return env.DB.prepare(
-      "INSERT INTO org_invites (nonce,org_id,role,label,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,?,'pending',?)"
-    ).bind(
-      invite.nonce,
-      invite.org_id,
-      invite.role,
-      String(invite.label || "").trim().slice(0, 120),
-      invite.issuer_pub_fp,
-      invite.expiry_ts,
-      invite.created_ts
-    ).run();
+    cols.splice(3, 0, "label");
+    vals.splice(3, 0, String(invite.label || "").trim().slice(0, 120));
   }
-  return env.DB.prepare(
-    "INSERT INTO org_invites (nonce,org_id,role,issuer_pub_fp,expiry_ts,status,created_ts) VALUES (?,?,?,?,?,'pending',?)"
-  ).bind(invite.nonce, invite.org_id, invite.role, invite.issuer_pub_fp, invite.expiry_ts, invite.created_ts).run();
+  let envelopeStored = false;
+  if (invite.envelope && await orgInvitesHasEnvelopeColumn(env)) {
+    cols.push("envelope");
+    vals.push(String(invite.envelope));
+    envelopeStored = true;
+  }
+  await env.DB.prepare(
+    "INSERT INTO org_invites (" + cols.join(",") + ") VALUES (" + cols.map(() => "?").join(",") + ")"
+  ).bind(...vals).run();
+  return { envelopeStored };
 }
 
 async function executeVerifiedCalendarAction(env, action) {
@@ -1943,20 +1965,25 @@ async function orgInviteCreate(request, env) {
   catch (_) { verifiedIssuer = null; }
   if (!verifiedIssuer) return inviteJsonError("invite_bad_signature", "Invite signature could not be verified.", 400);
 
-  await insertOrgInvite(env, {
+  const encodedInvite = encodeInvitePayload(invite);
+  const inserted = await insertOrgInvite(env, {
     nonce: unsigned.nonce,
     org_id: issuer.org.id,
     role: allowedRole,
     label: invite.label || body.label,
     issuer_pub_fp: issuer.user.pub_fp,
     expiry_ts: Math.floor(Number(unsigned.expiry_ts)),
-    created_ts: tMs
+    created_ts: tMs,
+    envelope: encodedInvite
   });
 
   return json({
-    invite_qr: encodeInvitePayload(invite),
+    invite_qr: encodedInvite,
     expiry_ts: Math.floor(Number(unsigned.expiry_ts)),
-    nonce: unsigned.nonce
+    nonce: unsigned.nonce,
+    // v6.4.10 — present ONLY when the envelope was stored server-side, so the
+    // client knows a slim nonce-reference QR can be resolved at accept time.
+    ...(inserted.envelopeStored ? { invite_token_ref: unsigned.nonce } : {})
   }, 201);
 }
 
@@ -2129,6 +2156,41 @@ async function orgInviteAcceptOnThisDevice(request, env) {
     user: { id: userId, display_name: displayName, pub_fp: pubFp },
     membership: { user_id: userId, org_id: invite.org_id, role }
   });
+}
+
+// v6.4.10 (PR-4 QR diet) — staff-invite envelope by reference.
+// The slim invite QR carries only the nonce (~144 bits of entropy, ≥24 chars
+// b64url — not enumerable). The accepting device exchanges it here for the
+// exact "I:" envelope string the issuer minted, then proceeds through the
+// UNCHANGED redeem/accept paths. Security is equivalent to the fat QR: token
+// possession = invite possession, exactly as before; verification still
+// happens at the Worker on acceptance. Strictly better post-claim: the
+// envelope stops being served the moment the invite leaves 'pending', whereas
+// a photographed fat QR held the envelope forever.
+async function orgInviteEnvelope(request, env, nonce) {
+  const ref = String(nonce || "").trim();
+  if (!ref || ref.length < 24) return inviteJsonError("invite_unknown", "Invite was not found.", 404);
+  if (!(await orgInvitesHasEnvelopeColumn(env))) {
+    return noStore(inviteJsonError("invite_envelope_unavailable", "Invite must be scanned as a full QR.", 410));
+  }
+  const row = await env.DB.prepare(
+    "SELECT nonce, role, expiry_ts, status, envelope FROM org_invites WHERE nonce = ? LIMIT 1"
+  ).bind(ref).first();
+  if (!row) return noStore(inviteJsonError("invite_unknown", "Invite was not found.", 404));
+  if (row.status === "claimed" || row.status === "redeemed") {
+    return noStore(inviteJsonError("invite_already_claimed", "Invite has already been claimed.", 409));
+  }
+  if (row.status === "revoked") return noStore(inviteJsonError("invite_revoked", "Invite has been revoked.", 410));
+  if (row.status !== "pending") return noStore(inviteJsonError("invite_not_pending", "Invite is no longer pending.", 409));
+  const tMs = Date.now();
+  if (Number(row.expiry_ts) <= tMs) {
+    await env.DB.prepare("UPDATE org_invites SET status='expired' WHERE nonce=? AND status='pending'").bind(ref).run();
+    return noStore(inviteJsonError("invite_expired", "Invite has expired.", 410));
+  }
+  if (!row.envelope) {
+    return noStore(inviteJsonError("invite_envelope_unavailable", "Invite must be scanned as a full QR.", 410));
+  }
+  return noStore(json({ ok: true, invite_qr: row.envelope, expiry_ts: Number(row.expiry_ts) }));
 }
 
 function leadAdminJsonError(error, message, status) {
@@ -5304,6 +5366,10 @@ export default {
         response = await orgInviteRevoke(request, env, decodeURIComponent(path.match(/^\/org\/invites\/([^/]+)\/revoke$/)[1]));
       }
       else if (method === "POST" && path === "/org/invite/accept-on-this-device") response = await orgInviteAcceptOnThisDevice(request, env);
+      // v6.4.10 (PR-4 QR diet) — slim invite QR resolves nonce → stored envelope.
+      else if (method === "GET" && /^\/org\/invites\/[^/]+\/envelope$/.test(path)) {
+        response = await orgInviteEnvelope(request, env, decodeURIComponent(path.match(/^\/org\/invites\/([^/]+)\/envelope$/)[1]));
+      }
       else if (method === "POST" && path === "/org/lead-admin/appoint") response = await orgLeadAdminAppoint(request, env);
       else if (method === "GET"  && path === "/org/public-meta")     response = await orgPublicMeta(request, env);
       // User-level endpoints (PROTOCOL.md §14, Batch C) — Bearer session token auth.

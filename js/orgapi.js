@@ -163,6 +163,11 @@
         body: payload
       });
     },
+    // v6.4.10 (PR-4 QR diet) — resolve a slim nonce-reference invite QR back
+    // to the full signed "I:" envelope string the issuer minted.
+    inviteEnvelope(nonce) {
+      return request("/org/invites/" + encodeURIComponent(nonce) + "/envelope");
+    },
     appointLeadAdmin(sessionToken, payload) {
       return request("/org/lead-admin/appoint", {
         method: "POST",

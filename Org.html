@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.9</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.10</span></div>
   </div>
 </div>
 
@@ -17358,6 +17358,39 @@ function readPendingStaffInvite() {
 function clearPendingStaffInvite() {
   try { localStorage.removeItem(STAFF_INVITE_PENDING_TOKEN_KEY); } catch (_) {}
 }
+// v6.4.10 (PR-4 QR diet) — slim invite QRs carry only the nonce reference.
+// Resolve the pending token to the full signed "I:" envelope string before any
+// decode/redeem/accept work. Full envelopes contain a colon (the "I:" prefix);
+// a nonce is pure b64url and short, so the discriminator is unambiguous.
+// On definitive failure (expired / claimed / revoked / unknown) the pending
+// token is cleared; on transient failure (offline) it is kept for retry.
+async function resolvePendingStaffInviteEnvelope() {
+  const token = String(__staffInvitePending || '').trim();
+  if (!token) return null;
+  if (token.indexOf(':') !== -1 || token.length > 100) return token; // already a full envelope
+  try {
+    const res = await window.IRLidOrgApi.inviteEnvelope(token);
+    const full = res && res.invite_qr ? String(res.invite_qr) : '';
+    if (!full) throw new Error('Invite could not be resolved.');
+    __staffInvitePending = full;
+    window.__irlidPendingStaffInvite = full;
+    stashPendingStaffInvite(full);
+    return full;
+  } catch (err) {
+    const code = err?.data?.error || '';
+    const definitive = ['invite_unknown', 'invite_already_claimed', 'invite_revoked', 'invite_expired', 'invite_not_pending', 'invite_envelope_unavailable'];
+    if (definitive.indexOf(code) !== -1) {
+      __staffInvitePending = null;
+      window.__irlidPendingStaffInvite = null;
+      clearPendingStaffInvite();
+      showToast(err?.data?.message || 'Invite is no longer valid', true);
+      return null;
+    }
+    console.warn('[staff_invite] envelope resolution failed (transient?):', err);
+    showToast('Could not reach the server to load the invite. Check your connection and reload.', true);
+    return null;
+  }
+}
 function openInviteStaffDialog() {
   if (!canUseSettings()) return showToast('Lead Admin role required to invite staff', true);
   const dialog = document.getElementById('inviteStaffDialog');
@@ -17478,7 +17511,9 @@ async function tryStaffInviteRedirectIfNeeded() {
 async function tryRedeemStaffInviteIfPending() {
   if (!__staffInvitePending) __staffInvitePending = readPendingStaffInvite();
   if (!__staffInvitePending || !qrLoginSession?.session_token) return false;
-  const token = __staffInvitePending;
+  // v6.4.10 — slim nonce-reference tokens resolve to the full envelope first.
+  const token = await resolvePendingStaffInviteEnvelope();
+  if (!token) return false;
   try {
     if (typeof irlidV5GetPublicJwk !== 'function' || typeof irlidPubFp !== 'function') {
       throw new Error('Hardware-backed v5 credential required to redeem invite');
@@ -18533,6 +18568,9 @@ async function tryShowSingleDeviceInviteAcceptIfNeeded() {
     catch (_) { return null; }
   })();
   if (pendingNonce) return false;
+  // v6.4.10 — slim nonce-reference tokens resolve to the full envelope first.
+  // The resolver clears the pending token + toasts on definitive failure.
+  if (!(await resolvePendingStaffInviteEnvelope())) return false;
   let invite;
   try { invite = v511InviteAcceptDecodeToken(__staffInvitePending); }
   catch (err) {
@@ -18581,7 +18619,7 @@ function v511InviteStaffSetBusy(isBusy) {
     if (el) el.disabled = !!isBusy;
   });
 }
-function v511InviteStaffRenderQr(payload) {
+function v511InviteStaffRenderQr(payload, refNonce) {
   const box = document.getElementById('v511InviteStaffQrBox');
   const line = document.getElementById('v511InviteStaffPayloadLine');
   // v5.11.24a — wrap the bare envelope token in a full URL so the recipient
@@ -18590,8 +18628,15 @@ function v511InviteStaffRenderQr(payload) {
   // not navigation — Captain's 4a hit this on first scan). The URL form lands
   // on Org.html with the #staff_invite= hash which captureStaffInviteFromHash
   // picks up and routes through the redemption flow.
-  const qrText = (payload && payload.length)
-    ? (window.location.origin + '/Org#staff_invite=' + encodeURIComponent(payload))
+  // v6.4.10 (PR-4 QR diet) — when the Worker confirms it stored the signed
+  // envelope (invite_token_ref in the create response), the QR carries only
+  // the nonce reference (~60 chars vs ~1,560). The accepting device exchanges
+  // it for the full envelope via GET /org/invites/:nonce/envelope and then
+  // runs the unchanged accept path. A nonce is b64url (no colon), so the
+  // accept side can always tell it apart from a full "I:" envelope token.
+  const qrToken = (refNonce && String(refNonce).length >= 24) ? String(refNonce) : payload;
+  const qrText = (qrToken && qrToken.length)
+    ? (window.location.origin + '/Org#staff_invite=' + encodeURIComponent(qrToken))
     : '';
   if (line) line.textContent = qrText || '';
   if (!box) return;
@@ -18621,6 +18666,10 @@ function v511InviteStaffRenderQr(payload) {
     // Check-in QR but with a simpler overlay (no theme decoration needed).
     box.style.cursor = 'pointer';
     box.title = 'Tap to enlarge for scanning';
+    // v6.4.10 — stash the current QR text on the element so the once-attached
+    // fullscreen handler always enlarges the CURRENT invite, not the first
+    // one's stale closure value.
+    box.dataset.v511QrText = qrText;
     if (!box.__v511FullscreenHandlerAttached) {
       box.__v511FullscreenHandlerAttached = true;
       box.addEventListener('click', function() {
@@ -18632,11 +18681,13 @@ function v511InviteStaffRenderQr(payload) {
         var inner = document.createElement('div');
         inner.style.cssText = 'background:#fff;padding:24px;border-radius:12px;max-width:90vw;max-height:90vh;width:min(90vw,90vh);aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;';
         overlay.appendChild(inner);
-        if (typeof QRCode !== 'undefined' && qrText) {
+        var currentQrText = box.dataset.v511QrText || '';
+        if (typeof QRCode !== 'undefined' && currentQrText) {
           try {
-            // v5.11.24a — encode the URL form (qrText), not the bare token, so
+            // v5.11.24a — encode the URL form, not the bare token, so
             // recipient camera apps recognise it as navigable.
-            new QRCode(inner, { text: qrText, width: 720, height: 720, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+            // v6.4.10 — read from dataset (current invite), not the closure.
+            new QRCode(inner, { text: currentQrText, width: 720, height: 720, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
             // Force the rendered canvas/img to fit the inner box responsively
             requestAnimationFrame(function() {
               inner.querySelectorAll('canvas, img').forEach(function(el) {
@@ -18970,8 +19021,8 @@ async function startV511InviteStaffOnboarding() {
       const actionResult = signed.action_result || {};
       const qrPayload = actionResult.invite_qr || '';
       if (!qrPayload) throw new Error('Authorized, but invite QR was not returned.');
-      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || signed.nonce, expiry_ts: actionResult.expiry_ts || expiryTs };
-      v511InviteStaffRenderQr(qrPayload);
+      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || signed.nonce, expiry_ts: actionResult.expiry_ts || expiryTs, token_ref: actionResult.invite_token_ref || null };
+      v511InviteStaffRenderQr(qrPayload, actionResult.invite_token_ref);
       if (status) {
         status.className = 'v511-invite-status ok';
         status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';
@@ -18997,8 +19048,8 @@ async function startV511InviteStaffOnboarding() {
       const actionResult = phoneSigned.action_result || {};
       const qrPayload = actionResult.invite_qr || '';
       if (!qrPayload) throw new Error('Authorized, but invite QR was not returned.');
-      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || phoneSigned.nonce, expiry_ts: actionResult.expiry_ts || expiryTs };
-      v511InviteStaffRenderQr(qrPayload);
+      v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: actionResult.nonce || phoneSigned.nonce, expiry_ts: actionResult.expiry_ts || expiryTs, token_ref: actionResult.invite_token_ref || null };
+      v511InviteStaffRenderQr(qrPayload, actionResult.invite_token_ref);
       if (status) {
         status.className = 'v511-invite-status ok';
         status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';
@@ -19007,8 +19058,8 @@ async function startV511InviteStaffOnboarding() {
     });
     if (!res) return;
     const qrPayload = res.invite_qr || inviteToken;
-    v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: res.nonce || signed.payload.nonce, expiry_ts: res.expiry_ts || expiryTs };
-    v511InviteStaffRenderQr(qrPayload);
+    v511InviteStaffState.invite = { qr_payload: qrPayload, nonce: res.nonce || signed.payload.nonce, expiry_ts: res.expiry_ts || expiryTs, token_ref: res.invite_token_ref || null };
+    v511InviteStaffRenderQr(qrPayload, res.invite_token_ref);
     if (status) {
       status.className = 'v511-invite-status ok';
       status.textContent = 'Invite created for ' + label + ' — role: ' + role.label + '. Waiting for them to scan...';

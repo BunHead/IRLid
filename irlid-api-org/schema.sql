@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS org_invites (
   created_ts INTEGER NOT NULL,
   redeemed_by_fp TEXT,
   redeemed_ts INTEGER,
+  envelope TEXT, -- v6.4.10 PR-4: exact encoded "I:" envelope, served by reference for slim invite QRs
   FOREIGN KEY (org_id) REFERENCES organisations(id)
 );
 CREATE INDEX idx_invites_org ON org_invites(org_id, status);
