@@ -3778,7 +3778,14 @@ async function orgCheckin(request, env) {
 }
 
 async function orgCheckout(request, env) {
-  const org = await orgAuth(request, env); if (org.error) return org;
+  // v6.4.4a — QR diet follow-up: check-out is the same attendee surface as
+  // check-in (org-entry.html sends orgParam, which is now a slug on slim QRs).
+  // Caught on Captain's first hardware smoke: "Check-out rejected / Invalid
+  // API key". The security boundary here is the ECDSA signature over
+  // checkout_payload verified against the checked-in device key below — the
+  // api_key never gated anything an attendee didn't already hold.
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const url = new URL(request.url);
   const legacyCheckout = url.searchParams.get("checkout_method") === "legacy";
@@ -4471,9 +4478,36 @@ async function orgDebugClearAttendance(request, env) {
 }
 
 async function orgExpectedList(request, env) {
-  const org = await orgAuth(request, env); if (org.error) return org;
+  // v6.4.4a — QR diet follow-up. Slim venue QRs hand the attendee phone a slug,
+  // not the api_key, so the "I'm not on the list" picker can no longer present
+  // the service-account key. Resolution widened to orgFromRequest; FULL rows
+  // (email/phone hints, notes, raw device fp) stay gated behind the service
+  // account or a staff session exactly as before. Slug-tier callers get a
+  // REDACTED picker list — id, display name, initials, role, linked flag —
+  // and only while the org's allowSelfSelection setting permits. Net privacy
+  // vs the fat-QR era is BETTER: a photo of the old QR yielded the api_key and
+  // with it the full hint columns.
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
   const staff = await requireCalendarStaff(request, env, org);
-  if (staff.error) return staff.error;
+  if (staff.error) {
+    let settings = {};
+    try { settings = JSON.parse(org.settings_json || "{}") || {}; } catch { settings = {}; }
+    if (settings.allowSelfSelection === false) return staff.error;
+    const rows = await env.DB.prepare(
+      "SELECT id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,device_pub_fp FROM org_expected WHERE org_id=? AND archived_at IS NULL ORDER BY LOWER(display_name) ASC, id ASC"
+    ).bind(org.id).all();
+    const redacted = (rows.results || []).map(r => ({
+      id: r.id,
+      display_name: r.display_name,
+      initials: r.initials,
+      role_key: r.role_key,
+      // Truthy "linked" flag only — the picker renders "Already linked" off
+      // this; the raw fingerprint never leaves the staff-tier response.
+      device_key_fp: !!r.device_pub_fp
+    }));
+    return noStore(json({ expected: redacted, redacted: true }));
+  }
   const rows = await env.DB.prepare(
     `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL ORDER BY LOWER(display_name) ASC, id ASC`
   ).bind(org.id).all();
@@ -5099,7 +5133,26 @@ async function orgExpectedRebind(request, env, id) {
 }
 
 async function orgExpectedClaim(request, env, id) {
-  const org = await orgAuth(request, env); if (org.error) return org;
+  // v6.4.4a — QR diet follow-up: self-claim is the attendee surface behind the
+  // "I'm not on the list" picker; slim QRs present the slug, not the api_key.
+  // Claim stays possible (any api_key holder could already do this via the old
+  // fat QR), gated on allowSelfSelection for slug-tier callers, and the row in
+  // the response is redacted for them — hint columns stay staff-tier only.
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
+  const isServiceTier = requestHasOrgServiceAccount(request, org);
+  if (!isServiceTier) {
+    let settings = {};
+    try { settings = JSON.parse(org.settings_json || "{}") || {}; } catch { settings = {}; }
+    if (settings.allowSelfSelection === false) return authErr("self_selection_disabled", 403);
+  }
+  const shapeRow = (row) => (isServiceTier || !row) ? row : ({
+    id: row.id,
+    display_name: row.display_name,
+    initials: row.initials,
+    role_key: row.role_key,
+    device_key_fp: !!row.device_pub_fp
+  });
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const devicePubFp = (body.device_pub_fp || "").trim();
   if (!devicePubFp) return err("device_pub_fp required");
@@ -5114,13 +5167,13 @@ async function orgExpectedClaim(request, env, id) {
   }
 
   if (expected.device_pub_fp === devicePubFp) {
-    return json({ ok: true, expected });
+    return json({ ok: true, expected: shapeRow(expected) });
   }
 
   const row = await env.DB.prepare(
     `UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=? RETURNING ${EXPECTED_SELECT}`
   ).bind(devicePubFp, id, org.id).first();
-  return json({ ok: true, expected: row });
+  return json({ ok: true, expected: shapeRow(row) });
 }
 
 async function orgResolveConflict(request, env, id) {
