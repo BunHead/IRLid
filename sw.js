@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v151'; // v6.4.3 Check-in QR sizing: reverted the v6.3.24 26vh cap (shrank fullscreen) + let the Check-in stage(s) grow to contain the QR so it no longer clips. (Bundles v6.4.2 anchor target selector.)
+const CACHE_VERSION = 'irlid-shell-v152'; // v6.4.4 QR diet PR-1..3: venue QR carries slug+event_id+type only (~95 chars); org-entry hydrates branding from /org/entry-info/:slug; api_key out of every venue QR. Old fat QRs keep working (inline param > fetched > default).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

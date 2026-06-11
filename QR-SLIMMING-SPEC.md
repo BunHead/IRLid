@@ -1,7 +1,11 @@
 # QR Slimming Spec — carry by reference, not by value (v6.4.x candidate)
 
 **Author:** Number One, 10 June 2026.
-**Status:** Proposal awaiting Captain's ratification. No code changed by this document.
+**Status:** Ratified by Captain 11 June 2026 ("ready to go on a QR diet"). PR-1/PR-2/PR-3
+implemented same morning as **v6.4.4** (Worker `orgEntryInfo` + route; org-entry.html
+hydration with inline > fetched > default precedence; slim `buildVenuePayload`; `orgCheckin`
+widened from orgAuth to orgFromRequest so slugs check in). PR-4 (invite tokenise) and PR-5
+(EC sweep + outcome QR) remain queued.
 
 ## The principle
 

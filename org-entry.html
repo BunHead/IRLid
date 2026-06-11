@@ -595,15 +595,17 @@
   const denyReason = (params.get("reason") || "Not on list").trim();
   let eventName = (params.get("event") || "IRLid Event").trim();
   const eventId = (params.get("event_id") || "").trim();
-  const welcomeMessage = (params.get("welcome") || "").trim();
-  const orgTerms = (params.get("terms") || "").trim();
-  const redirectUrl = (params.get("redirect") || "").trim();
+  // v6.4.4 — QR diet PR-2: welcome/terms/redirects/returnAllowed/logo are `let`
+  // so hydrateEntryInfo() can fill them by reference when the slim QR omits them.
+  let welcomeMessage = (params.get("welcome") || "").trim();
+  let orgTerms = (params.get("terms") || "").trim();
+  let redirectUrl = (params.get("redirect") || "").trim();
   // v5.7.0v — Optional staff-specific post-accept redirect. Set in
   // OrgCheckin.html settings ("Staff post-accept redirect URL"). Used at
   // the orange→linked transition when the resolved Expected entry has a
   // role of staff/manager/lead_admin/developer; falls back to the
   // standard redirectUrl otherwise.
-  const staffRedirectUrl = (params.get("staff_redirect") || "").trim();
+  let staffRedirectUrl = (params.get("staff_redirect") || "").trim();
   // Holds the resolved role from lookupExpectedByFingerprint so
   // returnTargetFor / continueVenueWalkin can pick the right redirect.
   let resolvedRole = "attendee";
@@ -655,31 +657,36 @@
   //  generating Check-in QRs) and applies them to CSS custom properties.
   //  Also applies light/dark mode if explicitly specified.
   // ============================================================
-  (function applyOrgEntryTheme() {
+  // v6.4.4 — QR diet PR-2: refactored from a params-only IIFE to a getter-driven
+  // function so it can run twice — once at load from URL params (old fat QRs),
+  // and again after hydrateEntryInfo() with fetched values filling the gaps.
+  // Inline param always wins (the getter encodes that precedence).
+  function applyOrgEntryTheme(get) {
     try {
       var root = document.documentElement;
-      var brandFont = params.get('brandFont') || 'sans';
+      var brandFont = get('brandFont') || 'sans';
       if (window.IRLID_APPLY_BRAND_FONT) window.IRLID_APPLY_BRAND_FONT(brandFont, root);
       else root.style.setProperty('--brand-font', '"Segoe UI", system-ui, sans-serif');
-      var primary = params.get('themePrimary');
-      var accent  = params.get('themeAccent');
-      var qrFg    = params.get('themeQrFg');
+      var primary = get('themePrimary');
+      var accent  = get('themeAccent');
+      var qrFg    = get('themeQrFg');
       var hex6 = /^#[0-9A-Fa-f]{6}$/;
       if (primary && hex6.test(primary)) root.style.setProperty('--theme-primary', primary);
       if (accent  && hex6.test(accent))  root.style.setProperty('--theme-accent',  accent);
       if (qrFg    && hex6.test(qrFg))    root.style.setProperty('--theme-qr-fg',   qrFg);
-      var mode = params.get('themeMode');
+      var mode = get('themeMode');
       if (mode === 'light') root.setAttribute('data-theme', 'light');
       else if (mode === 'dark') root.setAttribute('data-theme', 'dark');
       // Palette params for accept-cycle animation: themePalette1..themePalette7
       for (var i = 1; i <= 7; i++) {
-        var c = params.get('themePalette' + i);
+        var c = get('themePalette' + i);
         if (c && hex6.test(c)) root.style.setProperty('--theme-cycle-' + i, c);
       }
     } catch (err) {
       console.warn('Theme application failed', err);
     }
-  })();
+  }
+  applyOrgEntryTheme(function (k) { return params.get(k); });
 
   // ============================================================
   //  FIRST-SCAN PLACEHOLDER HOOKS — Batch 6.5, 3 May 2026
@@ -711,7 +718,7 @@
   // old 2800ms as too short; 7000ms gives enough time to read the message
   // before the page leaves. Override via ?timeout= URL param if needed.
   const timeoutMs = Math.max(1200, parseInt(params.get("timeout") || "7000", 10) || 7000);
-  const returnAllowed = !["0", "false", "no", "off"].includes((params.get("returnAllowed") || "1").trim().toLowerCase());
+  let returnAllowed = !["0", "false", "no", "off"].includes((params.get("returnAllowed") || "1").trim().toLowerCase());
   const context = (params.get("ctx") || params.get("from") || "").trim().toLowerCase();
   const isDoormanContext = type === "doorman" && context === "doorman";
   const isCheckinContext = type === "venue" || type === "checkin";
@@ -1821,20 +1828,76 @@
   });
 }
 
-if (type === "checkout") {
-    renderCheckout();
-  } else if (isCheckinContext) {
-    renderVenue();
-  } else if (type === "doorman") {
-    renderDoormanMock();
-  } else {
-    render({
-      status: "deny",
-      title: "Not allowed",
-      subtitle: "Missing entry type",
-      meta: "Configuration required"
-    });
+// ============================================================
+//  ENTRY-INFO HYDRATION — v6.4.4, QR diet PR-2 (QR-SLIMMING-SPEC.md)
+//  Slim venue QRs carry only identity + intent (?org=<slug>&event_id=&type=).
+//  Branding (welcome / terms / redirects / logo / theme / event name) is
+//  fetched from the Worker's public /org/entry-info/:slug endpoint.
+//  Precedence: inline URL param > fetched value > default — every old fat QR
+//  in the wild renders exactly as it always did. Fetch failure or timeout
+//  degrades to the unbranded default look; check-in is never blocked on
+//  branding (the POST itself would have failed offline anyway).
+// ============================================================
+  let entryInfo = null;
+  async function hydrateEntryInfo() {
+    // Old-style QRs carry the org api_key (org_ prefix) AND full inline
+    // branding — nothing to fetch. Slugs never start with org_.
+    if (!orgParam || /^org_/i.test(orgParam)) return;
+    if (!(isCheckinContext || type === "doorman" || type === "checkout")) return;
+    try {
+      const url = API_BASE + "/org/entry-info/" + encodeURIComponent(orgParam)
+        + (eventId ? ("?event_id=" + encodeURIComponent(eventId)) : "");
+      const resp = await Promise.race([
+        fetch(url),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("entry-info timeout")), 2500))
+      ]);
+      if (!resp || !resp.ok) return;
+      const info = await resp.json();
+      if (!info || typeof info !== "object") return;
+      entryInfo = info;
+      // Inline param wins; fetched value fills the gaps.
+      if (!params.get("event") && info.event && info.event.name) eventName = String(info.event.name).trim() || eventName;
+      if (!params.get("welcome") && info.welcomeMessage) welcomeMessage = String(info.welcomeMessage).trim();
+      if (!params.get("terms") && info.orgTerms) orgTerms = String(info.orgTerms).trim();
+      if (!params.get("redirect") && info.redirectUrl) redirectUrl = String(info.redirectUrl).trim();
+      if (!params.get("staff_redirect") && info.staffRedirectUrl) staffRedirectUrl = String(info.staffRedirectUrl).trim();
+      if (!params.get("logo") && info.logoUrl) logoUrl = String(info.logoUrl).trim();
+      if (params.get("returnAllowed") === null && typeof info.returnAllowed === "boolean") returnAllowed = info.returnAllowed;
+      const ft = (info.theme && typeof info.theme === "object") ? info.theme : {};
+      applyOrgEntryTheme(function (k) {
+        const inline = params.get(k);
+        if (inline) return inline;
+        if (k === "brandFont") return ft.brandFont || "";
+        if (k === "themePrimary") return ft.primary || "";
+        if (k === "themeAccent") return ft.accent || "";
+        if (k === "themeQrFg") return ft.qrFg || "";
+        if (k === "themeMode") return ft.darkMode || "";
+        const m = /^themePalette([1-7])$/.exec(k);
+        if (m && Array.isArray(ft.palette)) return ft.palette[Number(m[1]) - 1] || "";
+        return "";
+      });
+    } catch (e) {
+      console.warn("entry-info hydrate skipped", e);
+    }
   }
+
+  (async function bootEntryPage() {
+    await hydrateEntryInfo();
+    if (type === "checkout") {
+      renderCheckout();
+    } else if (isCheckinContext) {
+      renderVenue();
+    } else if (type === "doorman") {
+      renderDoormanMock();
+    } else {
+      render({
+        status: "deny",
+        title: "Not allowed",
+        subtitle: "Missing entry type",
+        meta: "Configuration required"
+      });
+    }
+  })();
 </script>
 </body>
 </html>

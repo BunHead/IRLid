@@ -3158,6 +3158,68 @@ async function orgPublicInfo(request, env, slugParam) {
   return noStore(json({ org_id: org.id, slug: org.slug, name: org.name, venue_pub_jwk: venuePub }));
 }
 
+// v6.4.4 — QR diet PR-1 (QR-SLIMMING-SPEC.md). Public display-only entry info
+// for the attendee page: carries by reference what venue QRs used to carry by
+// value (welcome / terms / redirects / logo / theme). Identity + intent stay in
+// the QR; everything fetchable lives here. No secrets — api_key, private keys,
+// members, and attendance are NOT exposed. This is strictly the branding every
+// attendee's browser was already handed via URL params by the old fat QRs.
+async function orgEntryInfo(request, env, slugParam) {
+  const slug = String(slugParam || "").trim();
+  if (!slug) return noStore(err("slug required", 400));
+  const org = await env.DB.prepare(
+    "SELECT id,slug,name,settings_json FROM organisations WHERE slug=? OR id=? LIMIT 1"
+  ).bind(slug, slug).first();
+  if (!org) return noStore(err("org_not_found", 404));
+  let settings = {};
+  try { settings = JSON.parse(org.settings_json || "{}") || {}; } catch { settings = {}; }
+  const t = (settings.theme && typeof settings.theme === "object") ? settings.theme : {};
+  const isHex = (v) => typeof v === "string" && /^#[0-9A-Fa-f]{6}$/.test(v);
+  const str = (v, cap) => (typeof v === "string" ? v.slice(0, cap) : "");
+  const v512 = (t._v512 && typeof t._v512 === "object") ? t._v512 : {};
+  const v511 = (t._v511 && typeof t._v511 === "object") ? t._v511 : {};
+  // Mirrors Org.html brandFontTokenFromTheme() resolution order. Raw string is
+  // fine: the client's IRLID_BRAND_FONT_TOKEN normalises unknown values to 'sans'.
+  const fontRaw = (v512.globalFont && v512.globalFont.font)
+    || (t.globalFont && t.globalFont.font)
+    || (v512.banner && v512.banner.font)
+    || (v511.banner && v511.banner.font)
+    || "";
+  const theme = {
+    primary: isHex(t.primary) ? t.primary : null,
+    accent: isHex(t.accent) ? t.accent : null,
+    qrFg: isHex(t.qrFg) ? t.qrFg : null,
+    darkMode: t.darkMode === true ? "dark" : (t.darkMode === false ? "light" : null),
+    palette: (Array.isArray(t.palette) ? t.palette : []).filter(isHex).slice(0, 7),
+    brandFont: str(fontRaw, 40) || null
+  };
+  // Optional event context: ?event_id= resolves the display name server-side
+  // so the slim QR doesn't need to carry it.
+  let event = null;
+  const eventId = String(new URL(request.url).searchParams.get("event_id") || "").trim();
+  if (eventId) {
+    const ev = await env.DB.prepare(
+      "SELECT id,name FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
+    ).bind(eventId, org.id).first();
+    if (ev) event = { id: ev.id, name: ev.name };
+  }
+  return noStore(json({
+    slug: org.slug,
+    name: org.name,
+    welcomeMessage: str(settings.welcomeMessage, 2000),
+    orgTerms: str(settings.orgTerms, 8000),
+    redirectUrl: str(settings.redirectUrl, 500),
+    staffRedirectUrl: str(settings.staffRedirectUrl, 500),
+    // Unlike the QR param path (which had to skip data: URIs for capacity),
+    // fetch can carry the full logo — this is the "proper fix" the v6.1.25c
+    // comment in Org.html promised.
+    logoUrl: str(settings.logoUrl, 200000),
+    returnAllowed: !!settings.returnAllowed,
+    theme,
+    event
+  }));
+}
+
 async function orgStaffAuth(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
@@ -3552,7 +3614,15 @@ async function requireFreshStaffProof(request, env, org) {
 }
 
 async function orgCheckin(request, env) {
-  const org = await orgAuth(request, env); if (org.error) return org;
+  // v6.4.4 — QR diet PR-3 (QR-SLIMMING-SPEC.md): the attendee check-in path
+  // accepts org slug (or id) as well as api_key, so slim venue QRs never carry
+  // the api_key. Security-neutral here — every attendee already held the key
+  // via the old fat QR — and security-positive everywhere else orgAuth gates.
+  // recognize / active-checkin already resolve via orgFromRequest; this brings
+  // check-in in line. The doorman_scan path inside still demands a valid
+  // staff_session, unchanged.
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const { mode, helloPayload, helloHash, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
   const checkinColumns = await tableColumnSet(env, "org_checkins");
@@ -5193,6 +5263,7 @@ export default {
         const mOrgMember = path.match(/^\/org\/members\/([^/]+)$/);
         const mOrgReceipt = path.match(/^\/org\/receipt\/([^/]+)$/);
         const mOrgPublicInfo = path.match(/^\/org\/public-info\/([^/]+)$/);
+        const mOrgEntryInfo = path.match(/^\/org\/entry-info\/([^/]+)$/);
         if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
         else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, decodeURIComponent(mExpectedFull[1]));
         else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, decodeURIComponent(mExpected[1]));
@@ -5207,6 +5278,7 @@ export default {
         else if (method === "DELETE" && mOrgMember) response = await orgMemberRemove(request, env, decodeURIComponent(mOrgMember[1]));
         else if (method === "GET" && mOrgReceipt) response = await orgReceiptGet(request, env, decodeURIComponent(mOrgReceipt[1]));
         else if (method === "GET" && mOrgPublicInfo) response = await orgPublicInfo(request, env, decodeURIComponent(mOrgPublicInfo[1]));
+        else if (method === "GET" && mOrgEntryInfo) response = await orgEntryInfo(request, env, decodeURIComponent(mOrgEntryInfo[1]));
         else {
           const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
           if (method === "GET" && m) response = await getReceipt(request, env, m[1]);
