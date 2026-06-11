@@ -34,11 +34,22 @@ async function inflateRawB64urlJson(str) {
   return JSON.parse(await new Response(stream).text());
 }
 
-function canonical(obj) {
-  const keys = Object.keys(obj).sort();
-  const o = {};
-  for (const k of keys) o[k] = obj[k];
-  return JSON.stringify(o);
+// v6.4.8 — FULLY RECURSIVE canonical, byte-identical to the client's canonical()
+// in js/sign.js. The previous version sorted ONLY top-level keys then
+// JSON.stringify'd, leaving nested objects in insertion order. Every signature
+// in the system is computed over the client's recursive form, so any nested
+// payload (the HELLO carries offer / offer.payload / pub) hashed differently
+// on the Worker → accept_not_bound_to_hello in the Lead Admin co-presence
+// check (Captain hit this 11 Jun). This is the same non-recursive-canonical
+// trap the CONSUMER Worker was fixed for on 1 May 2026; the org Worker never
+// got the upgrade because no org flow hashed a nested structure until the
+// Lead Admin ceremony. Strictly corrective: flat payloads (per-action grants,
+// gps {lat,lon}) produce identical output either way, so no path regresses.
+function canonical(val) {
+  if (val === null || typeof val !== "object") return JSON.stringify(val);
+  if (Array.isArray(val)) return "[" + val.map(canonical).join(",") + "]";
+  const keys = Object.keys(val).sort();
+  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonical(val[k])).join(",") + "}";
 }
 
 function json(data, status = 200) {
