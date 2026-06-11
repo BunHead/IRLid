@@ -10,6 +10,41 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 11 JUN (midday) — LEAD ADMIN CEREMONY LIVE + scan reticle + funding doc
+- **Lead Admin appointment PROVEN end-to-end on production hardware** — "co-presence verified
+  (4.6m apart, 24s)", Kerry seated as lead_admin (shows as "Owner" via role vocab). The chain of
+  fixes that got there, all shipped: **v6.4.5** surfaced the Appoint button (was trapped in the
+  legacy display:none settings-shell); **v6.4.6** Lead Admin HELLO paste accepts the consumer
+  `accept.html#HZ=/#HELLO=` hash-fragment URL (was atob-failing on the full https:// string);
+  **v6.4.7** mobile dialog scroll + status moved above the action buttons (feedback was off-screen
+  on a phone); **v6.4.8** org Worker `canonical()` made FULLY RECURSIVE — was top-level-only, so
+  nested HELLO (offer/offer.payload/pub) hashed differently than the client → `accept_not_bound_to_hello`
+  (same trap the consumer Worker was fixed for 1 May; org Worker never got it); **D1 migration**
+  `2026-05-31-v5.12.1-lead-admin-copresence.sql` applied to irlid-db-org (table existed in repo,
+  never stamped on prod → `no such table: lead_admin_appointment_audit`).
+- **v6.4.9 scan reticle** — crisp pulsing aim-target on both camera scan windows (dashboard Process
+  scan + Lead Admin HELLO), pure CSS, shared `.dashboard-scan-camera-view`. Captain's twice-asked
+  "track widget on the scan window".
+- **`FUNDING-ROUTES.md` written** — honest triage. Headline: grants are slow/low-hit (mission money,
+  not now-money); near-term = one paying Org-portal pilot + Patreon + maybe Start Up Loan (£25k);
+  best humanitarian fit = **WFP Innovation Accelerator** (track & trace = proof-of-delivery, apply
+  WITH Wisdom, rolling). UNICEF Venture Fund = ineligible (blockchain-only + UK not a programme
+  country + deadline passed). R&D tax credits = only once incorporated (Ltd/Corp Tax).
+
+**QUEUED — PR-4 invite-QR tokenise (do in a FRESH session, NOT rushed):** the ~1,560-char staff-invite
+QR (defeats the 4a camera) → token-by-reference. **Bigger than the spec assumed:** the QR carries the
+issuer's SIGNATURE, and `orgInviteAcceptOnThisDevice` (irlid-api-org L2034+) verifies it via
+`verifyInvitePayloadSignature` AND binds the accept envelope to the full token string
+(`acceptPayload.invite_token === inviteToken`). `org_invites` stores only fields (nonce/role/label/
+issuer_pub_fp/expiry), NOT the signed envelope. So tokenising requires: (1) store full signed envelope
+at issue, (2) `GET /org/invite/:nonce` to return it, (3) accept-side fetch, (4) re-work the accept
+envelope binding from full-string to nonce. Security-critical path — careful smoke required, don't
+rush at end of a watch. **Also queued:** PR-5 EC-level sweep (login/cross-device/escalation QRs M→L —
+mostly one-word-per-site); display-name-on-existing-portal_users fix (Lead Admin showed "New member"
+not "Kerry Austin" because the 4a's pub_fp already had a portal_users row and appoint only writes
+display_name on create — add an UPDATE); roadmap.html / website visual refresh (promo-facing, fresh
+session); v6.5 humanitarian (Wisdom + hardware gated — spec groundwork + WFP draft are the doable runway).
+
 ### ⭐ 11 JUN (morning) — QR DIET SHIPPED + SMOKED GREEN (v6.4.4 / v6.4.4a / v6.4.4b)
 - **The diet:** venue QR now carries `?type=&org=<slug>&event_id=` only (~70 chars, was 417+).
   Worker `GET /org/entry-info/:slug` serves branding by reference (incl. full data-URI logo);
