@@ -359,7 +359,7 @@ body.is-offline .irlid-qr-fullscreen.active::after {
 .expected-confirm p { color: var(--text); font-size: 14px; line-height: 1.5; margin-bottom: 16px; }
 .expected-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .staff-hello-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(1,4,9,0.68); }
-.staff-hello-modal { width: min(560px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; box-shadow: 0 18px 42px rgba(0,0,0,0.38); }
+.staff-hello-modal { width: min(560px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; box-shadow: 0 18px 42px rgba(0,0,0,0.38); }
 .staff-hello-modal h3 { font-size: 16px; margin-bottom: 6px; color: var(--text); }
 .staff-hello-modal p { color: var(--muted); font-size: 12px; line-height: 1.5; margin-bottom: 14px; }
 .staff-hello-grid { display: grid; gap: 12px; }
@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.7</span></div>
   </div>
 </div>
 
@@ -12673,13 +12673,19 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <select id="leadAdminScanCameraSelect" class="dashboard-scan-camera-select" aria-label="Select camera"></select>
         </div>
       </div>
+      <!-- v6.4.7 — status moved ABOVE the actions so feedback (errors, "Touch
+           credential...", co-presence distance) is visible the instant the
+           button is tapped. On a phone the old below-the-button position ran
+           off the bottom of the screen with no scroll (Captain hit this 11 Jun
+           — tapped Sign and appoint, "nothing happened", couldn't scroll to see
+           why). Paired with the .staff-hello-modal max-height/overflow fix. -->
+      <div class="staff-hello-status" id="leadAdminAppointStatus" role="status" aria-live="polite"></div>
       <div class="staff-hello-actions">
         <button type="button" class="btn btn-secondary btn-sm" id="leadAdminScanStartBtn">Scan HELLO</button>
         <button type="button" class="btn btn-secondary btn-sm" id="leadAdminScanStopBtn" disabled>Stop camera</button>
         <button type="button" class="btn btn-secondary btn-sm" id="leadAdminDecodeImageBtn">Decode image</button>
         <button type="button" class="btn btn-primary btn-sm" id="leadAdminAppointSubmitBtn">Sign and appoint</button>
       </div>
-      <div class="staff-hello-status" id="leadAdminAppointStatus" role="status" aria-live="polite"></div>
     </div>
   </div>
 </div>

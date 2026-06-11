@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v155'; // v6.4.6 Lead Admin HELLO paste accepts the consumer accept.html URL form (#HZ=/#HELLO= hash fragment) — was atob-failing on the full https:// string. v154 surfaced the Appoint button in the live Staff & Rooms tab.
+const CACHE_VERSION = 'irlid-shell-v156'; // v6.4.7 Lead Admin dialog mobile fix: modal scrolls (max-height/overflow) + status line moved above the action buttons so feedback/errors are visible on a phone (were off-screen below the button, no scroll). v155 was the #HZ=/#HELLO= HELLO paste fix.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
