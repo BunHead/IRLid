@@ -10,6 +10,25 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 11 JUN (morning) — QR DIET SHIPPED + SMOKED GREEN (v6.4.4 / v6.4.4a / v6.4.4b)
+- **The diet:** venue QR now carries `?type=&org=<slug>&event_id=` only (~70 chars, was 417+).
+  Worker `GET /org/entry-info/:slug` serves branding by reference (incl. full data-URI logo);
+  org-entry hydrates with inline > fetched > default precedence (old fat QRs render identically).
+  **api_key is out of every venue QR** — the spec's security finding closed. api_key ROTATED.
+- **v6.4.4a hotfix:** checkout/expected-list/claim widened to slug resolution (first smoke caught
+  "Check-out rejected / Invalid API key"); slug-tier responses redacted + allowSelfSelection-gated.
+- **v6.4.4b:** org_receipts FK (v6.0 bridge) aborted Delete-record + clear-attendance — receipts
+  deleted before checkins now; event_expected orphans tidied in cascade.
+- **Smoke board all green on hardware:** 150px inline scan, in/out cycle stress, fat-QR precedence
+  ("INLINE PARAM WINS"), doorman orange→green on slim plumbing (Nokia→Becky escalation→green).
+- **Two new BOOTSTRAP §6 pitfalls inscribed:** PS 5.1 `RandomNumberGenerator::Fill` MethodNotFound
+  → all-zeros secret (0x16's cousin; use `Create().GetBytes()` + echo a key fragment); org_receipts
+  FK means every `DELETE FROM org_checkins` must clear receipts first.
+- **QUEUED NEXT:** Lead Admin two-phone ceremony smoke (machinery built: Worker
+  `/org/lead-admin/appoint` + Org.html dialog; needs Captain + 2 co-present phones) ·
+  QR-SLIMMING PR-4 invite tokenise (~1,560→~55 chars) · PR-5 EC sweep + outcome QR ·
+  inline check-in QR bottom-clip cosmetic (v6.4.3 leftover, less severe post-diet).
+
 ### ⭐ 9 JUN — v6.3.13 + v6.3.14 shipped FULLY AUTONOMOUS (zero Captain keystrokes)
 - **v6.3.13** — Save-all button pinned to every settings panel's corner (general `.v511-mockup .v511-panel
   .v511-save` absolute, replacing the v6.3.11 org-only rule). **First fully-autonomous ship:** Number One
