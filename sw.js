@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v159'; // v6.4.10 QR-SLIMMING PR-4: staff invite token-by-reference. Slim invite QR carries only the nonce (~60 chars vs ~1,560); accepting device fetches the stored signed envelope via GET /org/invites/:nonce/envelope and runs the unchanged accept path. v158 was the scan reticle.
+const CACHE_VERSION = 'irlid-shell-v160'; // v6.4.10a display-name ghost fix: invite redeem + Lead Admin appoint now UPDATE display_name on EXISTING portal_users rows (was create-only, leaving "New member" ghosts — bit twice on 11 Jun). v159 was QR-SLIMMING PR-4 (slim invite QR, token-by-reference).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

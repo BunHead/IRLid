@@ -10,6 +10,29 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 11 JUN (afternoon) — PR-4 INVITE TOKENISE SHIPPED + PROVEN LIVE (v6.4.10 / v6.4.10a)
+- **QR-SLIMMING PR-4 closed.** Slim invite QR = `irlid.co.uk/Org#staff_invite=<43-char-nonce>` (~80
+  chars vs ~1,560). Design win over the queued sketch: the Worker stores the EXACT encoded `I:`
+  envelope string (`org_invites.envelope` column, migration `2026-06-11-v6.4.10-invite-envelope.sql`,
+  APPLIED to prod) and serves it verbatim via public `GET /org/invites/:nonce/envelope` (pending +
+  unexpired only, no-store) — so the accept-time byte-for-byte binding held UNCHANGED and the
+  security-critical accept endpoint has ZERO diff. Client resolves slim tokens before decode in both
+  accept paths (`resolvePendingStaffInviteEnvelope`); discriminator = b64url can't contain ':'.
+  Defensive column check = safe in every deploy order. Old fat QRs still work. Bonus: fixed stale
+  tap-to-fullscreen closure (second invite in a session used to enlarge the first one's QR).
+- **PROVEN LIVE first try:** Captain issued for Kerry (Manager) on 8 Pro; her phone scanned + redeemed
+  end-to-end. Verified via Worker queries through the browser pairing: pending=[], membership written.
+- **The "didn't work" scare was two known ghosts:** (1) Kerry's row showed "New member" — the queued
+  display-name bug (redeem/appoint only wrote names on CREATE). **FIXED as v6.4.10a** — both paths now
+  UPDATE display_name on existing rows from the issuer-signed label / ceremony-typed name. (2) The
+  Manager invite REPLACED Kerry's lead_admin membership (re-invite = role change, by design per 28 May
+  governance) → **org currently has NO Lead Admin/Owner.** Captain to choose: re-run ceremony (audited;
+  post-v6.4.10a it also fixes her name) or one-line D1 repair. Commands in session log.
+- **Verify-don't-trust note:** bash mount truncation artifact hit again (Worker file showed 5450/5472
+  lines, phantom syntax error) — resolved by native-Read tail splice + node --check on assembled copy.
+- **Still queued:** PR-5 EC sweep (login/cross-device/escalation M→L) · inline check-in QR bottom-clip
+  cosmetic · roadmap/website refresh · v6.5 humanitarian groundwork (WFP draft with Wisdom).
+
 ### ⭐ 11 JUN (midday) — LEAD ADMIN CEREMONY LIVE + scan reticle + funding doc
 - **Lead Admin appointment PROVEN end-to-end on production hardware** — "co-presence verified
   (4.6m apart, 24s)", Kerry seated as lead_admin (shows as "Owner" via role vocab). The chain of

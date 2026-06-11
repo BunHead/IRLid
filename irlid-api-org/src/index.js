@@ -2034,14 +2034,25 @@ async function orgInviteRedeem(request, env) {
   const computedFp = await deviceKeyFp(pubJwk);
   if (computedFp !== pubFp) return inviteJsonError("device_fp_mismatch", "Device fingerprint does not match the public key.", 400);
 
+  // v6.4.10a — the invite label is who the issuer says this person is, and it
+  // sits inside the issuer-SIGNED payload (verified above). Use it both when
+  // creating the row AND to update an existing row whose name predates this
+  // invite — closes the "New member" ghost (existing portal_users rows from
+  // earlier login/ceremony cycles never got a real display name; bit twice on
+  // 11 Jun: Lead Admin ceremony + Kerry's re-invite).
+  const inviteLabel = String(invite.label || "").trim().slice(0, 120);
   let user = await env.DB.prepare("SELECT id, pub_fp FROM portal_users WHERE pub_fp = ?").bind(pubFp).first();
   if (!user) {
     const userId = randomToken().slice(0, 26);
     const t = now();
     await env.DB.prepare(
       "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
-    ).bind(userId, JSON.stringify(pubJwk), pubFp, "Guest staff member", t, t).run();
+    ).bind(userId, JSON.stringify(pubJwk), pubFp, inviteLabel || "Guest staff member", t, t).run();
     user = { id: userId, pub_fp: pubFp };
+  } else if (inviteLabel) {
+    await env.DB.prepare(
+      "UPDATE portal_users SET display_name = ?, updated_at = ? WHERE id = ?"
+    ).bind(inviteLabel, now(), user.id).run();
   }
 
   const t = now();
@@ -2372,6 +2383,13 @@ async function orgLeadAdminAppoint(request, env) {
     statements.push(env.DB.prepare(
       "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
     ).bind(appointee.id, JSON.stringify(appointeePubJwk), appointeePubFp, displayName, t, t));
+  } else if (body.appointee_display_name) {
+    // v6.4.10a — Developer typed the appointee's name during the ceremony;
+    // update an existing row too (was create-only, leaving prior rows as
+    // "New member" — the 11 Jun midday ceremony hit exactly this).
+    statements.push(env.DB.prepare(
+      "UPDATE portal_users SET display_name = ?, updated_at = ? WHERE id = ?"
+    ).bind(displayName, t, appointee.id));
   }
   statements.push(env.DB.prepare(
     "UPDATE org_memberships SET role='manager', granted_by=?, granted_at=?, created_via=? WHERE org_id=? AND role='lead_admin' AND user_id<>?"
