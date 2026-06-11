@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.6</span></div>
   </div>
 </div>
 
@@ -18705,8 +18705,22 @@ async function leadAdminParseHelloInput(raw) {
   if (!text) throw new Error('Scan or paste the appointee HELLO first.');
   let url = null;
   try { url = new URL(text); } catch (_) {}
-  if (url) text = (url.searchParams.get('payload') || url.searchParams.get('qr') || url.searchParams.get('irlid') || text).trim();
-  if (text.startsWith('HZ:')) return irlidDecompressFromB64url(text.slice(3));
+  if (url) {
+    // v6.4.6 — the consumer HELLO QR is an accept.html URL carrying the payload
+    // in the HASH FRAGMENT (#HZ=<compressed> or #HELLO=<b64url>), per accept.html
+    // getHelloFromHash() (accept.html:114-118). The earlier code only checked
+    // query params + colon-prefixes, so the whole https:// string fell through to
+    // irlidDecodeB64urlJson → atob() → "not correctly encoded" (Captain hit this
+    // 11 Jun during the Lead Admin smoke). Read the fragment first.
+    const hash = (url.hash || '').replace(/^#/, '');
+    let m;
+    if ((m = hash.match(/^HZ=([\s\S]+)/)))    return irlidDecompressFromB64url(m[1]);
+    if ((m = hash.match(/^HELLO=([\s\S]+)/)))  return irlidDecodeB64urlJson(m[1]);
+    if ((m = hash.match(/^H=([\s\S]+)/)))      return irlidDecodeB64urlJson(m[1]);
+    text = (url.searchParams.get('payload') || url.searchParams.get('qr') || url.searchParams.get('irlid') || text).trim();
+  }
+  if (text.startsWith('HZ:') || text.startsWith('HZ=')) return irlidDecompressFromB64url(text.slice(3));
+  if (text.startsWith('HELLO=')) return irlidDecodeB64urlJson(text.slice(6));
   if (text.startsWith('H:')) return irlidDecodeB64urlJson(text.slice(2));
   if (/^\s*\{/.test(text)) return JSON.parse(text);
   return irlidDecodeB64urlJson(text);
