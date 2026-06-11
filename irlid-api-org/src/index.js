@@ -4444,6 +4444,12 @@ async function orgDebugClearAttendance(request, env) {
   let body; try { body = await request.json(); } catch { body = {}; }
   const includeExpected = !!body.include_expected;
 
+  // v6.4.4b — org_receipts.checkin_id carries an FK to org_checkins(id)
+  // (v6.0 receipt bridge), so receipts must go before the check-ins they
+  // reference or the whole clear aborts with SQLITE_CONSTRAINT_FOREIGNKEY.
+  if (await tableExists(env, "org_receipts")) {
+    await env.DB.prepare("DELETE FROM org_receipts WHERE org_id=?").bind(org.id).run();
+  }
   const checkins = await env.DB.prepare("DELETE FROM org_checkins WHERE org_id=?").bind(org.id).run();
   const conflicts = await env.DB.prepare("DELETE FROM attendee_conflicts WHERE org_code=?").bind(org.id).run();
   let checkoutTokensCleared = 0;
@@ -5032,9 +5038,28 @@ async function orgExpectedDeleteFull(request, env, id) {
   // Each step is independent; partial failure leaves the database in a
   // legible state (older rows persist, the org_expected row goes last so
   // the cascade is idempotent on retry).
+  // v6.4.4b — org_receipts.checkin_id has an FK to org_checkins(id) (v6.0
+  // receipt bridge). The org's copies of this person's receipts must go
+  // BEFORE their check-ins or the cascade aborts with
+  // SQLITE_CONSTRAINT_FOREIGNKEY (Captain hit this deleting Becky's record,
+  // 11 Jun). Delete-record is the explicit erasure path: the attendee's own
+  // downloaded receipts remain theirs and still verify — only the org's
+  // stored copies are erased, consistent with the cascade's intent.
+  if (await tableExists(env, "org_receipts")) {
+    await env.DB.prepare(
+      "DELETE FROM org_receipts WHERE org_id=? AND checkin_id IN (SELECT id FROM org_checkins WHERE org_id=? AND expected_id=?)"
+    ).bind(org.id, org.id, id).run();
+  }
   const checkinsResult = await env.DB.prepare(
     "DELETE FROM org_checkins WHERE org_id=? AND expected_id=?"
   ).bind(org.id, id).run();
+  // v6.4.4b — also clear per-event Expected list rows (no FK, but orphans
+  // would linger in every event roster this person was added to).
+  if (await tableExists(env, "event_expected")) {
+    await env.DB.prepare(
+      "DELETE FROM event_expected WHERE expected_id=?"
+    ).bind(id).run();
+  }
   await env.DB.prepare(
     "DELETE FROM rebind_history WHERE org_code=? AND expected_id=?"
   ).bind(org.id, id).run();
