@@ -3337,7 +3337,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.4a</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.5</span></div>
   </div>
 </div>
 
@@ -6791,6 +6791,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </div>
 
           <div style="margin-top: 14px;"><button type="button" class="v511-btn" id="v511InviteStaffBtn">+ Invite staff</button> <span class="v511-hint" style="margin-left: 10px;">Generates a single-use QR invite</span></div>
+
+          <div style="margin-top: 10px;" data-min-role="developer" data-developer-only="true"><button type="button" class="v511-btn" id="v511LeadAdminAppointBtn">+ Appoint Lead Admin</button> <span class="v511-hint" style="margin-left: 10px;">Developer-only in-person ceremony — GPS + time co-presence proof</span></div>
 
           <details class="v511-expander">
             <summary>Role vocabulary <span class="v511-hint-inline">(rename what each role is called in YOUR org)</span> <span class="v511-saved-pulse" id="v511RoleVocabSavedPulse" aria-live="polite">&check; Saved</span></summary>
@@ -19179,6 +19181,9 @@ function bindV511InviteStaffReal() {
     if (event.target && event.target.id === 'v511InviteStaffDialog') closeV511InviteStaffModal();
   });
   document.getElementById('leadAdminAppointBtn')?.addEventListener('click', openLeadAdminAppointDialog);
+  // v6.4.5 — the live Staff & Rooms tab's Appoint row (the legacy settings-shell
+  // copy at #leadAdminAppointBtn is display:none). Same dialog, same handler.
+  document.getElementById('v511LeadAdminAppointBtn')?.addEventListener('click', openLeadAdminAppointDialog);
   document.getElementById('leadAdminAppointCloseBtn')?.addEventListener('click', closeLeadAdminAppointDialog);
   document.getElementById('leadAdminDecodeImageBtn')?.addEventListener('click', decodeLeadAdminHelloImage);
   document.getElementById('leadAdminScanStartBtn')?.addEventListener('click', startLeadAdminCameraScan);

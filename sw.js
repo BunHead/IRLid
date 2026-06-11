@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v153'; // v6.4.4a QR diet hotfix: checkout + expected-list + claim widened to slug resolution (checkout was rejecting slim-QR phones with "Invalid API key"); slug-tier expected list/claim responses redacted (no hint columns, no raw fps) + gated on allowSelfSelection. v152 was venue QR carries slug+event_id+type only (~95 chars); org-entry hydrates branding from /org/entry-info/:slug; api_key out of every venue QR. Old fat QRs keep working (inline param > fetched > default).
+const CACHE_VERSION = 'irlid-shell-v154'; // v6.4.5 surface the Appoint Lead Admin button in the LIVE Staff & Rooms tab (Developer-only) — the wired button was trapped in the legacy display:none settings-shell. Same dialog/handler. v153 was v6.4.4a QR diet hotfix (checkout/expected-list/claim slug resolution + redacted slug-tier responses).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
