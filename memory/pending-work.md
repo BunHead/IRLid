@@ -33,6 +33,13 @@
 - **Still queued:** PR-5 EC sweep (login/cross-device/escalation M→L) · inline check-in QR bottom-clip
   cosmetic · roadmap/website refresh · v6.5 humanitarian groundwork (WFP draft with Wisdom).
 
+#### 🤝 PROMO ASSET BANKED (11 Jun eve, Captain in conversation): **Wisdom (ASE Tech) gave clearance
+TODAY to mention "working with him" in promo material.** First external partner name we're allowed to
+use publicly. Feeds: Patreon v6 draft, WFP application (apply WITH Wisdom per FUNDING-ROUTES.md),
+roadmap/website refresh, gym/studio pitches. Promo timing still Captain-gated per North Star — but the
+clearance is in hand. Also from the same conversation: Captain's dream "first door" image for IRLid is
+a CINEMA (loves films/games, anything with a good story) — worth remembering when pitching verticals.
+
 #### ⭐ WATCH CLOSE (~15:30) — 3-device cycle GREEN on slim plumbing + two open items
 - **Check-out/in cycle green on 8 Pro + 4a + Nokia**, including the unknown-device auth path
   functioning as expected — all on the post-PR-4 slim venue plumbing, same day it shipped.
