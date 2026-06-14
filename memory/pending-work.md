@@ -10,6 +10,24 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 14 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel PROTOTYPE (localhost, NOT shipped)
+- **Live still v6.4.10a, untouched.** All of today is a **localhost prototype, uncommitted on `Org.html`**
+  (+232 lines). `sw.js` untouched, no pill/SW bump. Full spec + remaining ship steps in
+  **`HANDOVER-AnchorFloatPanel-v6.4.11.md`**; arc in `memory/sessions/2026-06-14-01.md`.
+- **What it is:** Visual Theming → Stream step → the Anchor/Direction/Offset controls lift into a **draggable,
+  translucent floating panel** beside the preview; live X/Y both ways; **orange Multi** (emit from several anchor
+  points, shared offset); offset range widened ±100→±300 (crosshair ~edge-to-edge). Captain delighted ("Excellent").
+- **STALE-NOTE TRAP (resolved):** the 11 Jun "🐛 anchor selection missing from top of Visual Theming" note pointed
+  at the PARKED `.v512-anchor-system`. I wrongly built v6.4.11 to un-hide it, then reverted unshipped when Captain
+  flagged the design had moved on (parked per line ~714; superseded by main-frame "Emit from" + emit-crosshair
+  v6.3.15, see `sessions/2026-06-10-crosshair-verify.md`). **Lesson: grep recent session logs for supersession
+  before acting on an older hedged note.** That 🐛 note is now CLOSED (working-as-intended: panel parked; don't un-hide).
+- **Remaining before ship:** (1) fullscreen-preview support (float must mount into the fullscreen element — Fullscreen
+  API hides body-level fixed); (2) build-pill + SW bump; (3) Captain hardware verify; (4) Multi inline-vs-float scope.
+- **Design banked (Captain):** keep offset image-relative (not frame-relative); multi-DIRECTION = add more Stream
+  steps + "Play with previous"; Multi (one step) = same direction, multiple POINTS; per-anchor offsets = later tier.
+- Prototype left on working tree (Captain's "wrap up, wife home" close); next watch finishes + ships with his yes.
+
 ### ⭐ 11 JUN (afternoon) — PR-4 INVITE TOKENISE SHIPPED + PROVEN LIVE (v6.4.10 / v6.4.10a)
 - **QR-SLIMMING PR-4 closed.** Slim invite QR = `irlid.co.uk/Org#staff_invite=<43-char-nonce>` (~80
   chars vs ~1,560). Design win over the queued sketch: the Worker stores the EXACT encoded `I:`
