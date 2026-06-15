@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v160'; // v6.4.10a display-name ghost fix: invite redeem + Lead Admin appoint now UPDATE display_name on EXISTING portal_users rows (was create-only, leaving "New member" ghosts — bit twice on 11 Jun). v159 was QR-SLIMMING PR-4 (slim invite QR, token-by-reference).
+const CACHE_VERSION = 'irlid-shell-v161'; // v6.4.11 movable "Offset & anchor" floating panel in Visual Theming (Stream): drag-relocatable, translucent, live X/Y crosshair sync, orange Multi (emit from several anchors), ±300 offset reach, X/Y axis-colour fix. Fullscreen-over-preview support is a fast-follow. v160 was the v6.4.10a display-name ghost fix.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

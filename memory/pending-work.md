@@ -10,7 +10,12 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
-### ⭐ 15 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel PROTOTYPE (localhost, NOT shipped)
+### ⭐ 15 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel — SHIPPED v6.4.11 (non-fullscreen)
+- **✅ SHIPPED to live as v6.4.11.** Localhost-tested + Captain-approved, branch `no1/anchor-float-prototype`
+  merged to main + deployed. Build pill v6.4.11, SW v161. **One remaining fast-follow: fullscreen-over-preview
+  support** (float must mount into the `.irlid-qr-fullscreen` overlay + keep delegated chip/dir handlers alive
+  + re-target the crosshair onto the fullscreen clone — needs hardware verify; see HANDOVER). Text below
+  describes the now-shipped prototype.
 - **Live still v6.4.10a, untouched.** All of today is a **localhost prototype, uncommitted on `Org.html`**
   (+232 lines). `sw.js` untouched, no pill/SW bump. Full spec + remaining ship steps in
   **`HANDOVER-AnchorFloatPanel-v6.4.11.md`**; arc in `memory/sessions/2026-06-14-01.md`.
