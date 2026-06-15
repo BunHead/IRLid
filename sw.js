@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v161'; // v6.4.11 movable "Offset & anchor" floating panel in Visual Theming (Stream): drag-relocatable, translucent, live X/Y crosshair sync, orange Multi (emit from several anchors), ±300 offset reach, X/Y axis-colour fix. Fullscreen-over-preview support is a fast-follow. v160 was the v6.4.10a display-name ghost fix.
+const CACHE_VERSION = 'irlid-shell-v162'; // v6.4.12 check-in QR no longer slides off-screen after the celebration: .v511-stage-logo given a DEFINITE height (was max-height) so the async logo load/swap can't reflow the stacked logo->title->QR layout. v161 was the v6.4.11 movable Offset & anchor panel.
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
