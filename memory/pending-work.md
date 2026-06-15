@@ -10,7 +10,7 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
-### ⭐ 14 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel PROTOTYPE (localhost, NOT shipped)
+### ⭐ 15 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel PROTOTYPE (localhost, NOT shipped)
 - **Live still v6.4.10a, untouched.** All of today is a **localhost prototype, uncommitted on `Org.html`**
   (+232 lines). `sw.js` untouched, no pill/SW bump. Full spec + remaining ship steps in
   **`HANDOVER-AnchorFloatPanel-v6.4.11.md`**; arc in `memory/sessions/2026-06-14-01.md`.

@@ -5622,6 +5622,13 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           border: 1px dashed rgba(255,255,255,0.16);
           border-radius: 8px;
           background: rgba(0,0,0,0.16);
+          /* v6.4.11 — axis colours were only defined on .v512-anchor-system (the
+             parked Anchor panel). The effect-settings pane reuses this widget
+             outside that scope (v6.3.19), so var(--axis-red/green) resolved to
+             nothing and the X/Y sliders rendered grey. Define them on the widget
+             itself so the colours travel wherever .v512-offset-cross is used. */
+          --axis-red: #f85149;
+          --axis-green: #22c55e;
         }
         .v512-offset-cross input[type=range] {
           -webkit-appearance: none;
@@ -8758,6 +8765,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           function v511GetStreamAnchors(stage, item) {
             var s = (item && item.settings) || {};
+            // v6.4.11 (prototype) — Multi anchors: when the orange Multi toggle is on,
+            // emit from EVERY selected target at once (the shared offset applies to
+            // each). The emit + crosshair loops already handle multi-element arrays.
+            if (s.streamMulti && Array.isArray(s.streamAnchorsMulti) && s.streamAnchorsMulti.length) {
+              return s.streamAnchorsMulti.map(function (k) {
+                var pos = { x: 50, y: 50 };
+                if (k === 'qr') pos = v511ElementCenterPct(stage, '.v511-theme-preview-qr, #venueQrBox, .qr-box') || { x: 50, y: 50 };
+                else if (k === 'logo') pos = v511ElementCenterPct(stage, '.v511-stage-logo, .v511-masthead-logo img, .v511-masthead-logo, .v511-theme-preview-logo') || { x: 50, y: 16 };
+                else if (k === 'image-anchor') pos = v511ParsePctPos(getComputedStyle(stage).getPropertyValue('--bg-image-pos').trim(), { x: 50, y: 50 });
+                return { pos: pos, axisFlip: { x: 1, y: 1 } };
+              });
+            }
             if (window.v512AnchorsForStage) {
               try {
                 var v512Anchors = window.v512AnchorsForStage(stage, item);
@@ -9263,7 +9282,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var fy = (anchor.axisFlip && anchor.axisFlip.y) || 1;
             var offStageX = (pxPct - anchor.pos.x) / fx;
             var offStageY = (pyPct - anchor.pos.y) / fy;
-            var clamp = function (n) { return Math.max(-100, Math.min(100, Math.round(n))); };
+            // v6.4.11 (prototype) — range widened -100..100 -> -300..300 so the
+            // crosshair can travel ~edge-to-edge of the frame (image-relative offset
+            // only reaches ~image-width per 100, and the image is ~15% of the frame).
+            var clamp = function (n) { return Math.max(-300, Math.min(300, Math.round(n))); };
             return {
               x: clamp(imgWpct ? offStageX / imgWpct * 100 : 0),
               y: clamp(imgHpct ? offStageY / imgHpct * 100 : 0)
@@ -9287,6 +9309,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             if (!d.item.settings) d.item.settings = {};
             d.item.settings.streamOffsetX_img = off.x;
             d.item.settings.streamOffsetY_img = off.y;
+            // v6.4.11 (prototype) — mirror the preview-crosshair drag back into the
+            // Offset-cross sliders + readout (floating panel or inline) so X/Y track
+            // the drag live, not just panel -> preview.
+            try {
+              var _oc = document.querySelector('#v511CelSettingsBody .v512-offset-cross');
+              if (_oc) {
+                var _sh = _oc.querySelector('.slider-h'), _sv = _oc.querySelector('.slider-v'), _ro = _oc.querySelector('.v512-offset-readout');
+                if (_sh) _sh.value = off.x;
+                if (_sv) _sv.value = off.y;
+                if (_ro) _ro.textContent = 'X ' + v511OffsetCrossFmt(off.x) + ' / Y ' + v511OffsetCrossFmt(off.y);
+              }
+            } catch (_) {}
             v511UpdateAnchorCrosshairs();
             // v6.4.1 — live edit-pulse: stream a light burst from the point while
             // dragging, throttled, so it follows the finger in real time.
@@ -11260,8 +11294,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               // 4-slider per-mode workaround. Legacy keys (streamOffsetX/Y,
               // streamOffsetX_normal etc.) still read as stage-% fallback for
               // any sequences saved with the older approach.
-              { key: 'streamOffsetX_img', label: 'Offset X (% of image)', type: 'slider', min: -100, max: 100, step: 1, default: 0 },
-              { key: 'streamOffsetY_img', label: 'Offset Y (% of image)', type: 'slider', min: -100, max: 100, step: 1, default: 0 },
+              { key: 'streamOffsetX_img', label: 'Offset X (% of image)', type: 'slider', min: -300, max: 300, step: 1, default: 0 },
+              { key: 'streamOffsetY_img', label: 'Offset Y (% of image)', type: 'slider', min: -300, max: 300, step: 1, default: 0 },
               { key: 'streamMirror', label: 'Mirror on symmetry', options: ['on','off'], default: 'on' },
               { key: 'colourSource', label: 'Colour source', options: ['fire','cycle palette'], default: 'fire' },
               { key: 'gravity', label: 'Gravity', options: ['off','on'], default: 'off' }
@@ -11515,7 +11549,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               v511CelSettingsBody.appendChild(textTemplateRow);
               v511RefreshTextTemplatePreview(textTemplateRow, textInput.value);
             }
+            // v6.4.11 (prototype) — let the movable Offset & anchor panel reparent
+            // the spatial controls out of this pane after each render.
+            try { if (window.v512MountAnchorFloat) window.v512MountAnchorFloat(); } catch (_) {}
           }
+          // v6.4.11 (prototype) — expose a re-render so the float's Dock / Pop-out
+          // toggle can rebuild the current effect's settings inline-vs-floating.
+          window.v511RerenderCurrentEffectSettings = function () { try { v511RenderSettingsForItem(v511SelectedSeqIdx); } catch (_) {} };
+          // v6.4.11 (prototype) — handles the floating Offset/anchor panel's Multi
+          // feature needs: read the selected effect, repaint crosshairs, persist.
+          window.v511GetSelectedItem = function () { try { return ((modeStates[currentMode] && modeStates[currentMode].sequence) || [])[v511SelectedSeqIdx] || null; } catch (_) { return null; } };
+          window.v511RefreshCrosshairs = function () { try { v511UpdateAnchorCrosshairs(); } catch (_) {} };
+          window.v511SaveSettingsNow = function () { try { if (typeof v511SaveDebounced === 'function') v511SaveDebounced(); } catch (_) {} };
 
           // Selection + click handling for sequence rows. Clicking the row body
           // (not the drag handle, duration field, or × button) selects the item.
@@ -22020,6 +22065,190 @@ document.addEventListener('DOMContentLoaded', function () {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tagNavItems);
   else tagNavItems();
 }());
+</script>
+<script>
+/* v6.4.11 (localhost prototype) — Movable "Offset & anchor" floating panel.
+   Reparents the per-effect spatial controls (Anchor chips + Direction grid +
+   Offset cross) out of the buried Effect-settings pane into a draggable panel
+   you can park beside the preview, so dragging the offset moves the preview
+   crosshair live while you watch it. The panel is a position:fixed CHILD of
+   #v511CelSettingsBody so the delegated chip/direction handlers keep firing.
+   Prototype: desktop float; narrow screens fall back to inline. NOT shipped. */
+(function () {
+  var DOCK_KEY = 'v512_anchor_float_docked';   // '1' = inline (docked)
+  var POS_KEY  = 'v512_anchor_float_pos';       // JSON {left, top}
+  var STYLE_ID = 'v512AnchorFloatStyle';
+
+  function injectStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    var s = document.createElement('style');
+    s.id = STYLE_ID;
+    s.textContent =
+      '.v512-anchor-float{position:fixed;z-index:100050;width:340px;max-width:94vw;' +
+        'background:rgba(13,17,23,0.58);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);' +
+        'border:1px solid rgba(88,166,255,0.55);border-radius:10px;box-shadow:0 10px 34px rgba(0,0,0,0.5);' +
+        'display:flex;flex-direction:column;overflow:hidden;}' +
+      ':root[data-theme="light"] .v512-anchor-float{background:rgba(255,255,255,0.62);border-color:rgba(24,95,165,0.45);}' +
+      '.v512-anchor-float-head{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:move;' +
+        'background:rgba(88,166,255,0.16);font:700 12px/1 system-ui,sans-serif;color:var(--text);' +
+        'user-select:none;touch-action:none;}' +
+      '.v512-anchor-float-title{flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}' +
+      '.v512-anchor-float-dock{flex:0 0 auto;border:1px solid rgba(255,255,255,0.20);background:rgba(255,255,255,0.07);' +
+        'color:var(--text);border-radius:6px;font:600 11px/1 system-ui;padding:4px 8px;cursor:pointer;}' +
+      '.v512-anchor-float-multi{flex:0 0 auto;border:1px solid rgba(210,153,34,0.5);background:rgba(210,153,34,0.10);' +
+        'color:#d29922;border-radius:6px;font:600 11px/1 system-ui;padding:4px 8px;cursor:pointer;}' +
+      '.v512-anchor-float-multi.is-on{background:rgba(210,153,34,0.24);border-color:#d29922;}' +
+      '.v512-anchor-float .v511-chip.v512-multi-chip-on{border-color:#d29922 !important;color:#d29922 !important;background:rgba(210,153,34,0.18) !important;}' +
+      '.v512-anchor-float-body{padding:12px;max-height:86vh;overflow-x:hidden;overflow-y:auto;}' +
+      // fit everything inside the panel: stack each title ABOVE its control
+      // (column), full width, so the 170px direction grid + 160px cross + chips
+      // each get the whole panel width and nothing needs a scrollbar.
+      '.v512-anchor-float .v512-dir-offset-pair{display:flex;flex-direction:column;gap:12px;align-items:center;width:100%;}' +
+      '.v512-anchor-float-body{display:flex;flex-direction:column;align-items:center;}' +
+      '.v512-anchor-float .v511-cel-setting-row{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;padding:0;}' +
+      '.v512-anchor-float .v511-cel-setting-row > label{width:auto;flex-shrink:0;}' +
+      '.v512-anchor-float .v512-offset-cross{width:300px;height:170px;max-width:100%;}' +
+      '.v512-anchor-float .v511-chips,.v512-anchor-float .v511-chips-wrap{flex-wrap:wrap;}' +
+      '.v512-anchor-float-redock{margin:6px 0 12px;border:1px dashed rgba(88,166,255,0.5);background:rgba(88,166,255,0.08);' +
+        'color:var(--text);border-radius:7px;font:600 12px/1 system-ui;padding:8px 10px;cursor:pointer;width:100%;}' +
+      '@media (max-width:820px){.v512-anchor-float{position:static !important;width:auto;max-width:none;box-shadow:none;left:auto !important;top:auto !important;}' +
+        '.v512-anchor-float-head{cursor:default;}}';
+    document.head.appendChild(s);
+  }
+
+  function isDocked() { try { return localStorage.getItem(DOCK_KEY) === '1'; } catch (_) { return false; } }
+  function setDocked(v) { try { localStorage.setItem(DOCK_KEY, v ? '1' : '0'); } catch (_) {} }
+  function savePos(l, t) { try { localStorage.setItem(POS_KEY, JSON.stringify({ left: l, top: t })); } catch (_) {} }
+  function loadPos() { try { return JSON.parse(localStorage.getItem(POS_KEY) || 'null'); } catch (_) { return null; } }
+  function rerender() { if (typeof window.v511RerenderCurrentEffectSettings === 'function') window.v511RerenderCurrentEffectSettings(); }
+
+  // The "offset stuff": Direction + Offset cross live in .v512-dir-offset-pair;
+  // the Anchor chip row is the setting row whose <label> reads "Anchor".
+  function collectSpatial(body) {
+    var nodes = [], anchorRow = null;
+    body.querySelectorAll(':scope > .v511-cel-setting-row').forEach(function (row) {
+      var lab = row.querySelector(':scope > label');
+      if (lab && /^anchor$/i.test((lab.textContent || '').trim())) anchorRow = row;
+    });
+    if (anchorRow) nodes.push(anchorRow);
+    var pair = body.querySelector(':scope > .v512-dir-offset-pair');
+    if (pair) nodes.push(pair);
+    return { nodes: nodes, hasOffset: !!pair };
+  }
+
+  function mount() {
+    injectStyle();
+    var body = document.getElementById('v511CelSettingsBody');
+    if (!body) return;
+    var old = body.querySelector(':scope > .v512-anchor-float');
+    if (old) old.remove();
+    var stale = body.querySelector(':scope > .v512-anchor-float-redock');
+    if (stale) stale.remove();
+    var spatial = collectSpatial(body);
+    if (!spatial.hasOffset) return;            // only effects with an offset cross float
+    if (isDocked()) {                          // inline mode — offer a pop-out button
+      var reb = document.createElement('button');
+      reb.type = 'button';
+      reb.className = 'v512-anchor-float-redock';
+      reb.textContent = '⤢ Pop out offset & anchor panel';
+      reb.addEventListener('click', function () { setDocked(false); rerender(); });
+      body.insertBefore(reb, spatial.nodes[0]);
+      return;
+    }
+    var titleEl = document.getElementById('v511CelSettingsTarget');
+    var titleTxt = 'Offset & anchor ' + (titleEl ? (titleEl.textContent || '').replace(/^—\s*/, '') : '');
+    var float = document.createElement('div');
+    float.className = 'v512-anchor-float';
+    var head = document.createElement('div');
+    head.className = 'v512-anchor-float-head';
+    head.innerHTML = '<span class="v512-anchor-float-title"></span><button type="button" class="v512-anchor-float-dock">⤓ Dock</button>';
+    head.querySelector('.v512-anchor-float-title').textContent = titleTxt.trim();
+    var fbody = document.createElement('div');
+    fbody.className = 'v512-anchor-float-body';
+    float.appendChild(head);
+    float.appendChild(fbody);
+    body.appendChild(float);
+    spatial.nodes.forEach(function (n) { fbody.appendChild(n); });
+    // v6.4.11 (prototype) — orange Multi: emit from several anchor targets at once,
+    // one shared offset/direction. (Per-anchor offsets = the fuller Rev 9 tier.)
+    try {
+      var mItem = (typeof window.v511GetSelectedItem === 'function') ? window.v511GetSelectedItem() : null;
+      var chipGroup = fbody.querySelector('[data-setting-chips="streamAnchor"]');
+      if (mItem && chipGroup) {
+        mItem.settings = mItem.settings || {};
+        var multiBtn = document.createElement('button');
+        multiBtn.type = 'button';
+        multiBtn.className = 'v512-anchor-float-multi';
+        var isMulti = function () { return !!mItem.settings.streamMulti; };
+        var multiList = function () { if (!Array.isArray(mItem.settings.streamAnchorsMulti)) mItem.settings.streamAnchorsMulti = []; return mItem.settings.streamAnchorsMulti; };
+        var paintChips = function () {
+          var on = isMulti();
+          multiBtn.classList.toggle('is-on', on);
+          multiBtn.textContent = on ? 'Multi: on' : 'Multi';
+          chipGroup.querySelectorAll('.v511-chip').forEach(function (c) {
+            var opt = c.getAttribute('data-opt');
+            if (on) { var sel = multiList().indexOf(opt) >= 0; c.setAttribute('aria-pressed', sel ? 'true' : 'false'); c.classList.toggle('v512-multi-chip-on', sel); }
+            else { c.classList.remove('v512-multi-chip-on'); c.setAttribute('aria-pressed', opt === mItem.settings.streamAnchor ? 'true' : 'false'); }
+          });
+        };
+        var refresh = function () { if (window.v511RefreshCrosshairs) window.v511RefreshCrosshairs(); if (window.v511SaveSettingsNow) window.v511SaveSettingsNow(); };
+        multiBtn.addEventListener('click', function () {
+          var turningOn = !isMulti();
+          mItem.settings.streamMulti = turningOn;
+          if (turningOn && !multiList().length) multiList().push(mItem.settings.streamAnchor || 'image-anchor');
+          paintChips(); refresh();
+        });
+        head.appendChild(multiBtn);
+        chipGroup.addEventListener('click', function (e) {
+          if (!isMulti()) return;                 // single-select handled normally
+          var chip = e.target.closest('.v511-chip'); if (!chip) return;
+          e.stopPropagation(); e.preventDefault();  // beat the delegated single-select
+          var opt = chip.getAttribute('data-opt'); var l = multiList(); var i = l.indexOf(opt);
+          if (i >= 0) { if (l.length > 1) l.splice(i, 1); } else { l.push(opt); }
+          paintChips(); refresh();
+        }, true);                                  // capture phase
+        paintChips();
+      }
+    } catch (_) {}
+    var pos = loadPos();
+    if (!pos) {
+      var stage = document.getElementById('v511ThemePreviewStage');
+      if (stage) {
+        var r = stage.getBoundingClientRect();
+        pos = { left: Math.max(8, Math.min(window.innerWidth - 312, r.right - 308)), top: Math.max(8, r.top + 10) };
+      } else {
+        pos = { left: Math.max(8, window.innerWidth - 320), top: 90 };
+      }
+    }
+    float.style.left = pos.left + 'px';
+    float.style.top = pos.top + 'px';
+    head.querySelector('.v512-anchor-float-dock').addEventListener('click', function () { setDocked(true); rerender(); });
+    var dragging = false, sx = 0, sy = 0, ol = 0, ot = 0;
+    head.addEventListener('pointerdown', function (e) {
+      if (e.target.closest('button')) return;   // header buttons (Dock / Multi) must click, not drag
+      dragging = true; sx = e.clientX; sy = e.clientY;
+      var rr = float.getBoundingClientRect(); ol = rr.left; ot = rr.top;
+      try { head.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+    });
+    head.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      var l = Math.max(0, Math.min(window.innerWidth - 40, ol + (e.clientX - sx)));
+      var t = Math.max(0, Math.min(window.innerHeight - 30, ot + (e.clientY - sy)));
+      float.style.left = l + 'px'; float.style.top = t + 'px';
+    });
+    function end(e) {
+      if (!dragging) return;
+      dragging = false;
+      var rr = float.getBoundingClientRect(); savePos(rr.left, rr.top);
+      try { head.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  }
+
+  window.v512MountAnchorFloat = mount;
+})();
 </script>
 </body>
 </html>

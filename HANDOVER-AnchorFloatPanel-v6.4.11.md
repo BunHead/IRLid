@@ -1,7 +1,7 @@
 # HANDOVER — Movable "Offset & anchor" floating panel (v6.4.11 prototype)
 
 **Status:** PROTOTYPE, **localhost-only, UNCOMMITTED on the working tree (`Org.html`).**
-Nothing shipped. Live `irlid.co.uk/Org` is untouched at **v6.4.10a**. Built 14 Jun (first
+Nothing shipped. Live `irlid.co.uk/Org` is untouched at **v6.4.10a**. Built 15 Jun (first
 Claude Code watch) in a tight build-on-localhost → Captain-reacts loop. Captain delighted with
 the feel ("Excellent", "Much better"); closed mid-iteration when his wife was due home.
 
