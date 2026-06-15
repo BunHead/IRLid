@@ -109,10 +109,10 @@ Browser-based proof-of-co-presence tool. Two people meet IRL, scan each other's 
 - GPS Haversine distance check (12m tolerance), 90s timestamp window
 - HELLO → ACCEPT → COMBINED RECEIPT flow
 
-## Current State: Consumer protocol v5 + Org portal v6.3.12 (both LIVE)
+## Current State: Consumer protocol v5 + Org portal v6.4.11 (both LIVE)
 
 - **Consumer co-presence app** — protocol **v5** (hardware-backed Passkey / Secure-Enclave signing via WebAuthn) LIVE since May 2026; closes the localStorage-extraction criticism. PROTOCOL.md §13 is canonical.
-- **Org portal** — application Surface 2, **v6.3.12** LIVE on `irlid.co.uk/Org`: QR-scan WebAuthn sign-in, per-action hardware signing on privileged saves, five-tier roles (attendee/staff/manager/lead-admin/developer), calendar + per-event Expected lists + per-event attendance, the phone-only doorman escalation flow, cryptographic identity loop, identity rebind/recovery, offline-capable operation. Built out across the v5.9 → v6.3.x series — see Milestones.
+- **Org portal** — application Surface 2, **v6.4.11** LIVE on `irlid.co.uk/Org`: QR-scan WebAuthn sign-in, per-action hardware signing on privileged saves, five-tier roles (attendee/staff/manager/lead-admin/developer), calendar + per-event Expected lists + per-event attendance, the phone-only doorman escalation flow, slim QR codes, token-by-reference staff invites, co-presence Lead Admin appointment, independently-verifiable check-in receipts (receipt bridge), visual theming + celebration animation (incl. the movable Offset & anchor panel), cryptographic identity loop, identity rebind/recovery, offline-capable operation. Built out across the v5.9 → v6.4.x series — see Milestones.
 
 Key **v4** additions (the trust-history / bio-metric milestone — historical record; all optional, off by default, Settings-gated):
 - **Trust history** — localStorage receipt log; depth (0–2pts), location diversity (0–2pts), device consistency (0–2pts)

@@ -12,13 +12,11 @@
 
 ### ⭐ 15 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel — SHIPPED v6.4.11 (non-fullscreen)
 - **✅ SHIPPED to live as v6.4.11.** Localhost-tested + Captain-approved, branch `no1/anchor-float-prototype`
-  merged to main + deployed. Build pill v6.4.11, SW v161. **One remaining fast-follow: fullscreen-over-preview
-  support** (float must mount into the `.irlid-qr-fullscreen` overlay + keep delegated chip/dir handlers alive
-  + re-target the crosshair onto the fullscreen clone — needs hardware verify; see HANDOVER). Text below
-  describes the now-shipped prototype.
-- **Live still v6.4.10a, untouched.** All of today is a **localhost prototype, uncommitted on `Org.html`**
-  (+232 lines). `sw.js` untouched, no pill/SW bump. Full spec + remaining ship steps in
-  **`HANDOVER-AnchorFloatPanel-v6.4.11.md`**; arc in `memory/sessions/2026-06-14-01.md`.
+  merged to main + deployed. Build pill v6.4.11, SW v161. **Fullscreen-over-preview support: Captain's call
+  15 Jun — NOT needed** (anchor setup happens in the normal view, not fullscreen), so the feature is COMPLETE.
+- **✅ LIVE as v6.4.11** — merged + deployed + verified on the live site (pill v6.4.11, SW v161). Full spec +
+  historical detail in **`HANDOVER-AnchorFloatPanel-v6.4.11.md`**; watch arc in `memory/sessions/2026-06-15-01.md`.
+  (The narrative below was written during the prototype phase — now shipped.)
 - **What it is:** Visual Theming → Stream step → the Anchor/Direction/Offset controls lift into a **draggable,
   translucent floating panel** beside the preview; live X/Y both ways; **orange Multi** (emit from several anchor
   points, shared offset); offset range widened ±100→±300 (crosshair ~edge-to-edge). Captain delighted ("Excellent").

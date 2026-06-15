@@ -1,7 +1,7 @@
 # HANDOVER — Movable "Offset & anchor" floating panel (v6.4.11 prototype)
 
-**Status:** ✅ **SHIPPED to live as v6.4.11 (non-fullscreen), 15 Jun** — localhost-tested, Captain-approved, merged + deployed. This brief is now the **fullscreen fast-follow** spec (see "Remaining before it can ship to live" → item 1).
-Nothing shipped. Live `irlid.co.uk/Org` is untouched at **v6.4.10a**. Built 15 Jun (first
+**Status:** ✅ **SHIPPED to live as v6.4.11, 15 Jun** — localhost-tested, Captain-approved, merged + deployed + verified live. **Fullscreen-over-preview support: Captain's call 15 Jun — NOT needed** (anchor setup happens in the normal view, not fullscreen), so the feature is COMPLETE; this brief is retained as a historical record of what shipped.
+Built 15 Jun (first
 Claude Code watch) in a tight build-on-localhost → Captain-reacts loop. Captain delighted with
 the feel ("Excellent", "Much better"); closed mid-iteration when his wife was due home.
 
