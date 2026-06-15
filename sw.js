@@ -17,7 +17,7 @@
 // runtime action (stored on stage._v511Action by v511EnsureRuntimeStage at
 // L8424 from opts.action) and pluralises "checked in" / "checked out"
 // correctly. Bumped from v59 to v60.
-const CACHE_VERSION = 'irlid-shell-v162'; // v6.4.12 check-in QR no longer slides off-screen after the celebration: .v511-stage-logo given a DEFINITE height (was max-height) so the async logo load/swap can't reflow the stacked logo->title->QR layout. v161 was the v6.4.11 movable Offset & anchor panel.
+const CACHE_VERSION = 'irlid-shell-v163'; // v6.4.13 ROOT-CAUSE of the check-in QR sliding off-screen after the celebration: v511EnsureRuntimeStage resolved the QR via ':scope > img' fallback, which matched the stage LOGO (a direct-child <img>) on the inline+fullscreen clones (their QR is a .v511-theme-preview-qr div, not a .qr-box). The logo got tagged .v511-theme-preview-qr, so it inherited the white QR-slot background (Captain's "logo goes white-box"), took the QR-motion transforms, AND made --qr-cx/cy compute from the logo (top of stage) so radial/pivot effects flung the QR off-screen. Fix: exclude the logo from QR resolution + strip the stray class. Verified on localhost: logo no longer tagged, bg transparent, --qr-cy tracks real QR (68.3%) not logo (2.1%). v162 was the v6.4.12 logo definite-height (kept; harmless).
 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [

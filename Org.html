@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.12</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.13</span></div>
   </div>
 </div>
 
@@ -9613,7 +9613,20 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 stage.insertBefore(el, stage.firstChild);
               }
             });
-            var qr = stage.querySelector('.qr-box, .qr-box-large, .qr-box-small') || stage.querySelector(':scope > canvas, :scope > img');
+            // v6.4.13 — A stage logo is a direct-child <img>, so the old
+            // ':scope > img' fallback below matched the LOGO as the QR whenever
+            // the real QR slot wasn't a '.qr-box*' — which is true on the inline
+            // check-in clone AND the fullscreen clone, where the QR lives in a
+            // '.v511-theme-preview-qr' div. The logo then acquired the
+            // 'v511-theme-preview-qr' class, so QR-motion transforms AND the white
+            // QR-slot background hit the LOGO, and --qr-cx/cy was computed from the
+            // logo's box — exactly Captain's "logo grows / goes white-box, and the
+            // check-in QR slides off-screen after the celebration". Strip the stray
+            // class off any logo first, then resolve the QR while excluding the logo.
+            Array.prototype.forEach.call(stage.querySelectorAll('.v511-stage-logo.v511-theme-preview-qr'), function (l) { l.classList.remove('v511-theme-preview-qr'); });
+            var qr = stage.querySelector('.qr-box, .qr-box-large, .qr-box-small')
+              || stage.querySelector('.v511-theme-preview-qr:not(.v511-stage-logo)')
+              || stage.querySelector(':scope > canvas, :scope > img:not(.v511-stage-logo)');
             if (qr) {
               qr.classList.add('v511-theme-preview-qr');
               // v5.11.0v — anchor QR-centric celebration effects (QR Glow,
