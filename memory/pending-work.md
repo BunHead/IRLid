@@ -10,6 +10,14 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 15 JUN (cont.) — ✅ CLOSED: check-in QR slides off-screen after the celebration (v6.4.13 LIVE, Captain-confirmed)
+- **The bug that had bitten "a couple of times" is dead.** After a check-in/out celebration the QR repositioned partly off-screen (worst in Fullscreen). THREE prior patches blamed the LOGO (v6.4.12 gave `.v511-stage-logo` a definite height) — but the logo was a **victim of mistaken identity**.
+- **Root cause — `Org.html` `v511EnsureRuntimeStage` (~L9616):** the QR resolver's `:scope > img` fallback matched the stage LOGO (a direct-child `<img>`) on the inline + fullscreen clones (their QR is a `.v511-theme-preview-qr` div, not a `.qr-box`). The logo got tagged `.v511-theme-preview-qr` → inherited the white QR-slot `background:#fff;border-radius` (the "logo goes white-box"), took the QR-motion transforms, and made `--qr-cx/cy` compute from the logo (top of stage) so radial/pivot effects flung the real QR off-screen.
+- **Fix (v6.4.13, commit `c2e5933`, pushed to main):** exclude `.v511-stage-logo` from QR resolution + strip the stray class. SW cache v162→v163, pill v6.4.13.
+- **Verified on the localhost Chrome-MCP sandbox BEFORE shipping** (no blind deploy, per the fix-#1 lesson): logo no longer tagged, bg transparent, only 1 element wears the QR class, `--qr-cy` tracks the real QR (68.3%) not the logo (2.1%). Captain hardware-confirmed live: *"that got it."*
+- **Methods banked:** Chrome MCP can eval/inspect the running localhost tab for mechanism-level verification without touching live; `fireConfiguredSequence([], …)` runs the celebration STAGE-SETUP (logo/QR resolution) WITHOUT the freeze-prone animation. Full arc in `sessions/2026-06-15-02.md`.
+- **Lesson:** patched the same visible symptom twice → the element you're patching is probably innocent; find what's *impersonating* the thing you actually care about.
+
 ### ⭐ 15 JUN — FIRST CLAUDE CODE WATCH: movable Offset & anchor panel — SHIPPED v6.4.11 (non-fullscreen)
 - **✅ SHIPPED to live as v6.4.11.** Localhost-tested + Captain-approved, branch `no1/anchor-float-prototype`
   merged to main + deployed. Build pill v6.4.11, SW v161. **Fullscreen-over-preview support: Captain's call
