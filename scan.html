@@ -244,6 +244,7 @@
       <div class="dropdown-menu" role="menu" aria-label="Info menu">
         <a href="check.html">Check</a>
         <a href="about.html">About</a>
+        <a href="forums.html">Community</a>
         <a href="features.html">Features</a>
         <a href="contact.html">Contact</a>
       </div>
@@ -601,14 +602,6 @@
 
   // Expanding ring particles on QR detection
   let detectionRings = [];  // { cx, cy, birth, radius }
-
-  function drawNeonCorner(ctx, x, y, lenX, lenY, dpr) {
-    ctx.beginPath();
-    ctx.moveTo(x + lenX, y);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x, y + lenY);
-    ctx.stroke();
-  }
 
   function drawTrackingFrame() {
     const video = scannerEl.querySelector("video");

@@ -971,20 +971,6 @@ function irlidV5RpId() {
   return host;
 }
 
-// Compute the expected RP origin for verification of a v5 envelope produced at this deployment.
-// Verifiers receiving cross-origin receipts use the issuer's published origin allowlist instead.
-function irlidV5ExpectedOrigin() {
-  if (typeof window !== "undefined" && window.IRLID_RP_ORIGIN) return String(window.IRLID_RP_ORIGIN);
-  const host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "localhost";
-  if (host === "irlid.co.uk" || host.endsWith(".irlid.co.uk")) return "https://irlid.co.uk";
-  if (host === "bunhead.github.io" || host.endsWith(".bunhead.github.io")) return "https://bunhead.github.io";
-  if (host === "localhost" || host === "127.0.0.1") {
-    const port = (location.port && location.port !== "80" && location.port !== "443") ? (":" + location.port) : "";
-    return location.protocol + "//" + host + port;
-  }
-  return location.protocol + "//" + host;
-}
-
 // Allowed origins for cross-origin verification.
 // A receipt signed at irlid.co.uk and verified at bunhead.github.io is legitimate;
 // the verifier checks the receipt's claimed origin against this list, not against location.origin.
@@ -1469,10 +1455,6 @@ async function irlidSignPayload(payloadObj) {
   };
 }
 
-function irlidCanonicalize(obj) {
-  return canonical(obj);
-}
-
 async function irlidPubFp(pubJwk) {
   if (!pubJwk) return null;
   const h = await sha256Bytes(canonical(compactJwk(pubJwk)));
@@ -1481,32 +1463,4 @@ async function irlidPubFp(pubJwk) {
 
 async function irlidSign(obj) {
   return irlidSignPayload(obj);
-}
-
-async function irlidCreateSignedInvitePayload(payload) {
-  const clean = Object.assign({}, payload || {});
-  delete clean.sig;
-  delete clean.pub;
-  delete clean.webauthn;
-  let signed;
-  if (typeof irlidV5Enrolled === "function" && irlidV5Enrolled()) {
-    const payloadHashB64u = await hashPayloadToB64url(clean);
-    const v5 = await irlidV5SignPayloadHash(b64urlDecode(payloadHashB64u));
-    signed = {
-      sig: b64urlEncode(v5.sigRaw),
-      pub: irlidV5GetPublicJwk(),
-      webauthn: {
-        authData: b64urlEncode(v5.authData),
-        clientData: b64urlEncode(v5.clientData)
-      }
-    };
-  } else {
-    signed = await irlidSign(clean);
-  }
-  const out = Object.assign({}, clean, {
-    sig: signed.sig,
-    pub: signed.pub
-  });
-  if (signed.webauthn) out.webauthn = signed.webauthn;
-  return out;
 }

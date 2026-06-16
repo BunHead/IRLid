@@ -1,16 +1,17 @@
 <!-- forums.html -->
 <!DOCTYPE html>
-<!-- Deploy: v5.9 forums coming-soon placeholder.
-     v6+ will replace this with the actual community forums surface
-     (likely Discourse-hosted or similar). For now, signals to visitors
-     that the feature is on the roadmap and gives them a way to subscribe
-     for updates via the existing contact channel. -->
+<!-- v6.4 — Community hub. Replaces the v5.9 "coming soon" placeholder.
+     Points at the real, live community channels: GitHub Discussions (the
+     forum), the open-source repo + Issues, Patreon, and support email.
+     GitHub Discussions must be enabled on the repo (Settings -> Features ->
+     Discussions) for that link to resolve; it 404s gracefully until then. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IRLid — Forums (coming soon)</title>
+  <title>IRLid — Community</title>
+  <meta name="description" content="Join the IRLid community: ask questions and talk protocol on GitHub Discussions, contribute on GitHub, support the project on Patreon, or email support directly." />
   <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -31,7 +32,7 @@
         <div class="dropdown-menu" role="menu" aria-label="Info menu">
         <a href="check.html">Check</a>
         <a href="about.html">About</a>
-        <a href="forums.html">Forums</a>
+        <a href="forums.html">Community</a>
         <a href="features.html">Features</a>
         <a href="contact.html">Contact</a>
       </div>
@@ -42,26 +43,52 @@
   </header>
 
   <main class="page-main page-content">
-    <h2>Forums &mdash; coming soon</h2>
-    <p>A community space for IRLid users, venue operators, and curious technologists is on the roadmap. Until it ships, the best places to discuss the protocol and share questions are:</p>
+    <h2>Community</h2>
+    <p>
+      IRLid is built in the open. Whether you're using it, running check-ins at a venue, poking holes
+      in the protocol, or just curious — here's where to talk to us and to each other.
+    </p>
 
-    <h3 style="margin-top:1.4rem;">For now</h3>
+    <h3 style="margin-top:1.6rem;">&#128172; Discussion forum</h3>
+    <p>
+      Questions, ideas, deployment patterns, and protocol design happen in the open on
+      <strong>GitHub Discussions</strong> — our community forum. If you have a GitHub login, you're in;
+      no separate account to set up.
+    </p>
     <ul style="line-height:1.9;">
-      <li>Email <a href="mailto:support@irlid.co.uk">support@irlid.co.uk</a> for questions, bug reports, or feature ideas.</li>
-      <li>See the <a href="about.html">About</a> page for the protocol design and rationale.</li>
-      <li>See <a href="features.html">Features</a> for a current capabilities overview.</li>
+      <li><a href="https://github.com/BunHead/IRLid/discussions" target="_blank" rel="noopener">Open the Discussions forum &rarr;</a></li>
     </ul>
 
-    <h3 style="margin-top:1.4rem;">What's planned</h3>
-    <p>The forums will give:</p>
+    <h3 style="margin-top:1.8rem;">&#128027; Code &amp; bug reports</h3>
+    <p>IRLid is open source. Read the code, star the repo, or file a bug or feature request as a GitHub Issue.</p>
     <ul style="line-height:1.9;">
-      <li>Public threads on protocol design, deployment patterns, and trust-network ideas.</li>
-      <li>A space for venue operators to share check-in flows and lessons learned.</li>
-      <li>Member-tier discussions for ongoing supporters of the project.</li>
+      <li><a href="https://github.com/BunHead/IRLid" target="_blank" rel="noopener">The IRLid repository</a></li>
+      <li><a href="https://github.com/BunHead/IRLid/issues" target="_blank" rel="noopener">Report a bug or request a feature</a></li>
     </ul>
 
-    <p style="margin-top:1.6rem; color:#888; font-size:0.92rem;">If you'd like to be notified when forums launch, drop a one-line email to <a href="mailto:support@irlid.co.uk" style="color:#888;">support@irlid.co.uk</a> with the subject line "forums".</p>
+    <h3 style="margin-top:1.8rem;">&#10084;&#65039; Support the project</h3>
+    <p>
+      IRLid is built by one developer. If it's useful to you, backing it on <strong>Patreon</strong>
+      keeps the project moving and gets you updates as new features ship.
+    </p>
+    <ul style="line-height:1.9;">
+      <li><a href="https://www.patreon.com/c/IRLid" target="_blank" rel="noopener">Support IRLid on Patreon &rarr;</a></li>
+    </ul>
+
+    <h3 style="margin-top:1.8rem;">&#9993;&#65039; Direct contact</h3>
+    <p>
+      Prefer email? Reach us at <a href="mailto:support@irlid.co.uk">support@irlid.co.uk</a> for
+      questions, bug reports, or partnership enquiries.
+    </p>
   </main>
+
+  <footer class="site-footer">
+    &copy; 2026 Spencer Austin. All rights reserved.
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/BunHead/IRLid/blob/main/LICENSE">Licence</a>
+    &nbsp;&middot;&nbsp;
+    IRLid&trade;
+  </footer>
 
   <script src="js/auth.js"></script>
   <script src="js/backend.js"></script>

@@ -440,6 +440,7 @@
       <div class="dropdown-menu" role="menu" aria-label="Info menu">
         <a href="check.html">Check</a>
         <a href="about.html">About</a>
+        <a href="forums.html">Community</a>
         <a href="features.html">Features</a>
         <a href="contact.html">Contact</a>
       </div>
@@ -696,12 +697,6 @@
     try { return JSON.parse(raw); } catch { return null; }
   }
 
-  function safeParseAny(raw){
-    if (!raw) return null;
-    if (typeof raw !== "string") return raw;
-    try { return JSON.parse(raw); } catch { return null; }
-  }
-
   function haversineMeters(lat1, lon1, lat2, lon2){
     const R = 6371000;
     const toRad = (d) => d * Math.PI / 180;
@@ -814,12 +809,6 @@
 
   function orgApiBase(){
     return (window.IRLID_ORG_API_BASE_URL || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
-  }
-
-  function escapeHtmlText(value){
-    return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[ch]));
   }
 
   async function fetchOrgReceipt(receiptId){

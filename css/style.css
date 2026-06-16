@@ -207,12 +207,6 @@ body{
 }
 
 /* Scanner container */
-#responseArea{
-  display:none;
-  margin: 12px auto 14px;
-  max-width: 480px;
-}
-
 #scanner{
   width: 340px;
   max-width: 92vw;
@@ -286,11 +280,6 @@ body{
   text-align: left;
 }
 
-.page-title-center{
-  text-align: center;
-  margin-top: 6px;
-}
-
 .responsive{
   width: 100%;
   max-width: 980px;
@@ -325,7 +314,6 @@ body{
 }
 
 .mt0{ margin-top: 0; }
-.mb0{ margin-bottom: 0; }
 
 /* Receipt page */
 .receipt-wrap{
@@ -344,24 +332,12 @@ body{
 
 .receipt-qr{ margin: 10px 0 6px; }
 
-.people-grid{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-@media (min-width: 760px){
-  .people-grid{ grid-template-columns: 1fr 1fr; }
-}
-
 .person-panel{
   border: 1px solid #e5e5e5;
   background: #fff;
   padding: 12px 12px;
 }
 
-.person-title{ font-weight: 700; margin-bottom: 6px; }
 .person-row{ margin: 2px 0; }
 .person-note{ font-size: 12px; opacity: .85; margin-top: 6px; }
 
@@ -401,8 +377,6 @@ pre{
   padding: 12px 12px;
   font-size: 12px;
 }
-
-a.maplink{ color: #111; text-decoration: underline; }
 
 /* Site footer */
 .site-footer{
