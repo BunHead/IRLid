@@ -2109,7 +2109,15 @@ async function orgInviteAcceptOnThisDevice(request, env) {
   if (computedFp !== pubFp) return inviteJsonError("device_fp_mismatch", "Device fingerprint does not match the public key.", 400);
 
   const existingUser = await env.DB.prepare("SELECT id FROM portal_users WHERE pub_fp = ? LIMIT 1").bind(pubFp).first();
-  if (existingUser) return inviteJsonError("device_already_enrolled", "This device is already enrolled.", 409);
+  // v6.4.14 — re-hire / re-invite support. This used to hard-reject a known
+  // pub_fp ("device_already_enrolled"), which dead-ended any member who was
+  // removed and then re-invited on the SAME phone (it still carried its old
+  // credential). That guard was a fresh-device-only assumption, NOT a security
+  // boundary: the acceptance envelope is still device-key-signed (verified
+  // below) and the invite is still issuer-signed (verified above). So instead of
+  // rejecting, re-home the existing user — reuse their portal_users row and
+  // (re)create the membership for this org (also covers re-invite-to-change-role).
+  const isReturningUser = !!existingUser;
 
   const envelope = body.signed_envelope || {};
   const acceptPayload = envelope.payload || {};
@@ -2132,7 +2140,7 @@ async function orgInviteAcceptOnThisDevice(request, env) {
     return inviteJsonError("accept_bad_signature", "Acceptance signature could not be verified.", 400);
   }
 
-  const userId = randomToken().slice(0, 26);
+  const userId = isReturningUser ? existingUser.id : randomToken().slice(0, 26);
   const sessionToken = randomToken();
   const t = now();
   const displayName = String(invite.label || "Invited staff member").trim().slice(0, 120) || "Invited staff member";
@@ -2141,24 +2149,42 @@ async function orgInviteAcceptOnThisDevice(request, env) {
 
   let results;
   try {
-    results = await env.DB.batch([
-      env.DB.prepare(
+    const stmts = [];
+    // New device → create the portal_users row. Returning device (re-hire /
+    // re-invite) → refresh its display_name from the issuer-signed invite label
+    // (matches the v6.4.10a "names update on redeem" behaviour). Both are guarded
+    // on the invite still being 'pending' so the whole batch claims atomically.
+    if (isReturningUser) {
+      stmts.push(env.DB.prepare(
+        "UPDATE portal_users SET display_name=?, updated_at=? WHERE id=? AND EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+      ).bind(displayName, t, userId, invite.nonce, invite.org_id));
+    } else {
+      stmts.push(env.DB.prepare(
         "INSERT INTO portal_users (id, pub_jwk, pub_fp, display_name, created_at, updated_at) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
-      ).bind(userId, JSON.stringify(pubJwk), pubFp, displayName, t, t, invite.nonce, invite.org_id),
-      env.DB.prepare(
-        "INSERT INTO org_memberships (user_id,org_id,role,granted_by,granted_at,created_via) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
-      ).bind(userId, invite.org_id, role, issuer.id, t, "invite:" + invite.nonce, invite.nonce, invite.org_id),
-      env.DB.prepare(
-        "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
-      ).bind(sessionToken, userId, t, t + LOGIN_SESSION_TTL_S, ipHash, ua, invite.nonce, invite.org_id),
-      env.DB.prepare(
-        "UPDATE org_invites SET status='claimed', redeemed_by_fp=?, redeemed_ts=? WHERE nonce=? AND org_id=? AND status='pending'"
-      ).bind(pubFp, tMs, invite.nonce, invite.org_id)
-    ]);
+      ).bind(userId, JSON.stringify(pubJwk), pubFp, displayName, t, t, invite.nonce, invite.org_id));
+    }
+    // Replace any prior membership for this (user, org) so re-invite-to-change-
+    // role lands the new role cleanly (re-hire just inserts fresh). Guarded on
+    // 'pending' so a replay can't delete a membership without re-creating it.
+    stmts.push(env.DB.prepare(
+      "DELETE FROM org_memberships WHERE user_id=? AND org_id=? AND EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+    ).bind(userId, invite.org_id, invite.nonce, invite.org_id));
+    stmts.push(env.DB.prepare(
+      "INSERT INTO org_memberships (user_id,org_id,role,granted_by,granted_at,created_via) SELECT ?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+    ).bind(userId, invite.org_id, role, issuer.id, t, "invite:" + invite.nonce, invite.nonce, invite.org_id));
+    stmts.push(env.DB.prepare(
+      "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM org_invites WHERE nonce=? AND org_id=? AND status='pending')"
+    ).bind(sessionToken, userId, t, t + LOGIN_SESSION_TTL_S, ipHash, ua, invite.nonce, invite.org_id));
+    stmts.push(env.DB.prepare(
+      "UPDATE org_invites SET status='claimed', redeemed_by_fp=?, redeemed_ts=? WHERE nonce=? AND org_id=? AND status='pending'"
+    ).bind(pubFp, tMs, invite.nonce, invite.org_id));
+    results = await env.DB.batch(stmts);
   } catch (_) {
     return inviteJsonError("invite_accept_failed", "Invite acceptance could not be completed.", 409);
   }
-  const claimed = (results && results[3] && results[3].meta && results[3].meta.changes) || 0;
+  // The invite UPDATE is the LAST statement; its row-change count confirms the claim.
+  const claimMeta = results && results[results.length - 1] && results[results.length - 1].meta;
+  const claimed = (claimMeta && claimMeta.changes) || 0;
   if (claimed < 1) return inviteJsonError("invite_already_claimed", "Invite has already been claimed.", 409);
 
   return json({

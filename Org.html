@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.13</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.14</span></div>
   </div>
 </div>
 
@@ -17530,6 +17530,11 @@ function captureStaffInviteFromHash() {
     if (!m) return;
     __staffInvitePending = decodeURIComponent(m[1]);
     window.__irlidPendingStaffInvite = __staffInvitePending;
+    // v6.4.14 — mark this invite as FRESHLY scanned (it came from the URL hash
+    // on this load). The boot path + accept gate use this to let a re-hire
+    // (already-enrolled / still-sessioned device) reach the accept screen, while
+    // a stale STORED token still can't interrupt a normal signed-in user on boot.
+    window.__irlidStaffInviteFromHash = true;
     stashPendingStaffInvite(__staffInvitePending);
     const cleanedHash = hash.replace(/[#&]staff_invite=[^&]+/, '').replace(/^&/, '#');
     history.replaceState(null, '', window.location.pathname + window.location.search + (cleanedHash || ''));
@@ -18624,8 +18629,17 @@ async function v511InviteAcceptAccept(token, invite, els) {
 async function tryShowSingleDeviceInviteAcceptIfNeeded() {
   if (!__staffInvitePending) __staffInvitePending = window.__irlidPendingStaffInvite || readPendingStaffInvite();
   if (__staffInvitePending) window.__irlidPendingStaffInvite = __staffInvitePending;
-  if (!__staffInvitePending || v511InviteAcceptHasSession()) return false;
-  if (typeof irlidV5Enrolled === 'function' && irlidV5Enrolled()) return false;
+  if (!__staffInvitePending) return false;
+  // v6.4.14 (Client B) — a FRESHLY-scanned invite (from the URL hash this load)
+  // shows the accept screen even on an already-enrolled / still-sessioned device:
+  // that is the re-hire case (member removed, but the phone still carries its old
+  // credential + session). The accept handler below already reuses the existing
+  // credential (it only enrols when not already enrolled), and the Worker re-homes
+  // a known device. For a NON-fresh (stale, stored) token we keep the original
+  // guards so a normal signed-in user isn't interrupted on boot by a leftover.
+  const __inviteFresh = !!window.__irlidStaffInviteFromHash;
+  if (!__inviteFresh && v511InviteAcceptHasSession()) return false;
+  if (!__inviteFresh && typeof irlidV5Enrolled === 'function' && irlidV5Enrolled()) return false;
   const pendingNonce = (() => {
     try { return localStorage.getItem(STAFF_SCAN_PENDING_NONCE_KEY); }
     catch (_) { return null; }
@@ -19601,6 +19615,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); showPanel('checkin'); generateVenueQR(); try { renderPortalAll(); } catch (err) { console.warn('[portal] render failed during cached snapshot restore:', err); }
     return;
   }
+
+  // v6.4.14 (Client A) — a freshly-scanned staff invite takes precedence over
+  // session-restore. A re-hire (enrolled device whose membership was removed)
+  // still carries a valid-looking session AND a cached org snapshot, so the
+  // restore blocks below would load the STALE snapshot and `return` before the
+  // invite-accept code at the bottom of boot ever runs (Captain's Nokia: a
+  // re-invite scanned cleanly but landed on a stale Check-in, invite ignored).
+  // If a fresh invite is pending, render the accept screen now and stop boot.
+  try { if (await tryShowSingleDeviceInviteAcceptIfNeeded()) return; } catch (err) { console.warn('[staff_invite] early invite accept failed:', err); }
+
   // Batch C polish 4 — restore QR-login session on refresh. handleQrLoginSuccess
   // saves `irlid_login_session` (Bearer token + display_name + is_developer flag)
   // alongside `currentOrg` (api_key for X-Org-Key dashboard ops). On a hard refresh
