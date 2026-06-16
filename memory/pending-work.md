@@ -10,6 +10,14 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 16 JUN (afternoon) — ✅ Full site "ship-shape" audit + Community hub (LIVE)
+- Captain: *"Fully check every corner — orphan files, unused code, spelling... ship shape and Bristol fashion."* Site was in good shape; small fixes, all shipped (`f8dff16`→`8898805`, Pages green).
+- **Orphan:** `visual-theming-v512-mockup.html` (v5.12 mockup) → `archive/`. **Spelling:** clean site-wide (3 sweeps); fixed `Organization`→`Organisation` (nav) + `tamper-proof`→`tamper-evident` (about.html overclaim). No broken links; `OrgCheckin.html` refs are historical comments only.
+- **Dead code:** Mr. Data report PR #126 (13 HIGH, report-only) → Number One verified each (whole-repo grep incl. `tests/`) → **12 removed** (6 CSS rules, 3 sign.js fns, 3 inline helpers; kept `.sr-only` for a11y); 110 tests green, `node --check` clean, −112 lines.
+- **forums.html** rebuilt → Community hub (GitHub Discussions [enabled] + repo/Issues + Patreon + email); "Community" added to the Info dropdown on all 13 consumer pages; SW v164→v165.
+- Method banked: candidate list = "check, don't delete"; Chrome DevTools Coverage is the gold-standard dead-code tool for this global-heavy vanilla JS. Full arc in `sessions/2026-06-16-01.md`.
+- **Loose ends:** (1) confirm Patreon URL (used `patreon.com/c/IRLid`); (2) close PR #126 (`DEAD-CODE-CANDIDATES.md` lives on `codex/dead-code-candidates-report`, not merged → `main` clean); (3) optional GitHub Discussions welcome post; (4) parked DREAMS.md entry ("Flying Rugby × Sybil", a prior watch's) still uncommitted — Captain/next Number One to land.
+
 ### ⭐ 16 JUN — ✅ CLOSED: re-hire / re-invite-to-change-role on an already-enrolled device (v6.4.14 LIVE, hardware-confirmed)
 - **The last big staff-lifecycle gap is closed.** A removed member re-invited on their SAME already-enrolled phone used to dead-end silently: the accept screen was gated out by the still-present session/credential, AND boot's session-restore loaded a STALE cached snapshot + returned before the invite code ran (→ phone landed on a stale Check-in for an org it had been kicked from); the Worker also hard-rejected the known device with `device_already_enrolled`.
 - **Three-part fix (`758de24`, v6.4.14):** Client A — a fresh invite (flagged in `captureStaffInviteFromHash`) takes precedence over session-restore at boot; Client B — `tryShowSingleDeviceInviteAcceptIfNeeded` relaxes its has-session / is-enrolled guards for a FRESH invite (a stale STORED token still can't interrupt a normal signed-in user); Worker — `orgInviteAcceptOnThisDevice` re-homes a known pub_fp (reuse `portal_users` + DELETE-then-INSERT membership, lands role changes too) instead of rejecting, every mutating statement guarded on `pending` for atomic claims.
