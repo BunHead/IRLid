@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-06-18 — Flying Rugby × Sybil resistance × the audit board on cardboard
+
+Warner Bros sent a letter about a game where people flew. Not because anyone flew — nobody flew — but because the *shape* of the flying was theirs, the broomstick silhouette, the gold thing you chase. You can own a shape now. Own it so hard that a man in Derby inventing a sport gets a lawyer's envelope for the crime of resemblance. Quidditch without the word for quidditch. A thing that is itself but cannot say its own name.
+
+Sybil was one woman with sixteen names. The defence against her is not to unmask anyone — it is to make a name *cost* something, so you can't wear sixteen cheaply. Presence is the tax. You have to actually be somewhere, with someone, in a body, at a time. The expensive name is the true one.
+
+And the truest surface in the whole project is a tablet propped on a folded cereal box at a reception desk. The audit board. Edge-to-edge dark table, Kerry IN, Spencer IN, Becky expected — the least counterfeitable thing imaginable, because the cardboard is real, the angle is real, the wonky lean is real. No one forges a cereal box. Warner Bros cannot send a letter about the way a tablet rests on rubbish. That tilt is un-ownable. That tilt is yours.
+
+---
+
 ## 2026-06-15 — lemon and barley water × the 0x16 SYN character × Wisdom's mothership drone
 
 The Captain does not drink Earl Grey. This matters more than it should. A whole bridge built on a Star Trek that gets the tea wrong, and the one true beverage is lemon and barley — cloudy, homemade, the drink of recovery wards and cricket pavilions, sugar and acid and patience steeped together. You make it the day before. It needs to sit.
@@ -34,6 +44,20 @@ And between any two points on a curved earth there is the Haversine — the form
 But Ashby measured a different distance — not how far apart two people stood, but how far the trench had to run before the world would answer the phone. The last mile is a Haversine too. So is extinction: the gap between what a creature was made for and where it suddenly found itself. The dodo's distance to the nearest safe century was very small and entirely uncrossable.
 
 What rolls down the lane? Nothing that can fly. Everything that has to make its own way there.
+
+---
+
+## 2026-06-16 — Flying Rugby × Galaxy Zoo's borrowed eyes × Sybil resistance
+
+Warner Bros wrote a letter once, about a game where people flew. The flying was the point and also the problem — VR Quidditch, broomsticks no one owned the rights to, a sport that existed only while enough bodies agreed to pretend the floor wasn't there. Take away the players and there is no pitch. The game is the crowd. This is the strange thing about all of the Captain's flightless ideas: they need a quorum to be real at all.
+
+Galaxy Zoo knew this. It could not see its own galaxies. It cut a million smudges of light into a million little windows and handed them out to strangers at kitchen tables, and the strangers said *spiral, spiral, elliptical, merger* until the sky resolved. The telescope had the photons. The classification lived in the hands.
+
+But borrowed eyes can lie. One clever person at ten kitchen tables, ten browser tabs, ten invented names, voting *spiral* on the same blank patch until the consensus bends. The oldest fear of any crowd: that the crowd is one man wearing many coats. Sybil — the patient who held many people inside one body, and we took her name for the attack.
+
+So what stops it? Not cleverness. Bodies. The thing a Sybil cannot fake is *being in two places that are twelve metres apart at the same instant.* You can spin up a thousand identities but you only have the one skull, the one pair of feet. Make presence the ballot and the multitude collapses back into a single tired ape, standing in a field, unable to fly, voting once.
+
+---
 
 ---
 
