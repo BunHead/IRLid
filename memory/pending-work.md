@@ -10,6 +10,34 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 22 JUN (close) — demo-polish day done; tomorrow's plan + receipts state
+- **Shipped today (all live):** audit log (v6.4.15/15a — real, hardware-verified), session-expiry bounce
+  (v6.4.16), dead-button sweep (v6.4.17 — design-in placeholders disabled, sign-out wired, Patreon unified to
+  `/c/IRLid`), Delete-expected gate fix (v6.4.18 Worker — was over-gated to a signature the UI never sends),
+  audit-board ROLE column fix (v6.4.19 — inverted-attendee letter was var(--muted) = same as fill → invisible
+  "A" on all checked-in rows; now dark var(--bg), verified sameColour:false). LiDAR banked (PROTOCOL §10.3).
+- **Receipts state (Captain asked):** Receipt Bridge IS live. Org check-in mints a signed receipt; dashboard
+  "↓ Receipt" link (buildReceiptLink, Org.html ~15538) → `receipt.html?org_receipt=<id>` (renders) + check.html
+  (verifies). `org_receipt` handled in receipt.html + check.html + org-entry.html. **Gap:** no "browse all
+  receipts" history view — per-record via URL only. A receipts-history page is a small build if wanted.
+- **TOMORROW'S AGENDA (Captain has the full day; demo at Imbue is the North Star):**
+  1. **Full demo dress-rehearsal on hardware** — doorman orange→green, check-in/out cycle, audit board,
+     celebration, receipt link. (Highest value: today's bugs all surfaced from real use; a deliberate run
+     catches the rest before Imbue.) RECOMMENDED FIRST.
+  2. **Receipts polish** (Captain-flagged + demo-facing) — make the receipt presentation clean; decide whether
+     a browsable receipts-history view is worth building for the demo.
+  3. **Offline-queue silent-drop fix** (real bug found today) — exclude signed/non-replayable mutations from
+     QUEUE_ELIGIBLE_PATHS, or surface dropped ops to the user instead of silent quarantine. Brief for Mr. Data
+     or Number-One-inline.
+  4. **Records & ID inert-inputs tidy** — finish the dead-control sweep (disable the design-in dropdown/inputs
+     to match the disabled buttons). Quick consistency pass.
+  5. **Promo prep (NO posting — Captain-gated):** Patreon v6 update draft + Wisdom one-pager (cleared 11 Jun to
+     name him publicly); gym/studio pitch (calendar + per-event Expected is now a concrete sell).
+  6. **Quick wins:** GitHub Discussions welcome post; land the parked DREAMS.md entry.
+- **After demo / v6.5:** humanitarian half — WFP Innovation Accelerator draft (apply WITH Wisdom), LiDAR/drone
+  receipt schema sketch; conference CFPs (EAI SecureComm Lancaster July — multi-lineage-AI-witnesses paper
+  outline exists in recovered/; 44CON).
+
 ### ⭐ 22 JUN — LiDAR banked into the drone / humanitarian forward plan (v6.5 / v8)
 - **Captain's call (at Wisdom's, 22 Jun): "incorporate LiDAR into future plans."** NOT confirmed on every
   airframe — ASE Tech's public site (asetech.co.uk) lists Badger (VTOL) + Mantis (quad) + S.W.A.R.M. swarm
@@ -77,9 +105,10 @@
   the offline-queued copy hit the same 400). Meanwhile the inverse op `orgExpectedCreate` uses
   `requireCalendarStaff` (staff/dev Bearer, no signature) and works fine. **Fix:** swapped `orgExpectedDelete`
   to `requireCalendarStaff` — add + remove on the expected list now share one gate. `node --check` clean.
-  Worker-only change (no pill/Pages); deploy via push to `irlid-api-org/**` (CI deploy-worker.yml). After
-  deploy, Delete expected works for the Captain (developer) + any staff+; then clear Becky/Poppy/Someone
-  Else/Yet Another. This SUPERSEDES the "re-click works" workaround above (it didn't — the gate was the bug).
+  Worker-only change (no pill/Pages); deploy via push to `irlid-api-org/**` (CI deploy-worker.yml).
+  **✅ CONFIRMED LIVE + WORKING 22 Jun** — Captain pushed, "Expected attendee removed" toast, Becky gone,
+  Delete expected works first-click. This SUPERSEDES the "re-click works" workaround above (it didn't — the
+  gate was the bug). Audit fullscreen board verified clean on hardware (Poppy/Kerry/Spencer IN, 3/30).
   The offline-queue-silently-drops finding still stands as a separate post-demo brief.
 - **Still open / tidying:** (c) stale Becky attendance row (cosmetic Delete record). (d) GitHub Discussions
   welcome post not written yet. (e) `.claude/launch.json` added locally for the preview server (static `npx
