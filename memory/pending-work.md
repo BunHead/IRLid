@@ -59,6 +59,28 @@
   IN-DESIGN disabled pattern; **wired the Sign-in & Auth sign-out buttons** (this device → signOutOrg; all
   devices → IRLidOrgApi.signOutAllDevices — which had NO other UI entry point). All verified on localhost
   (buttons disabled:true, sign-out fires signOutOrg). Pill v6.4.16→v6.4.17, SW v167→v168.
+- **🐛 BUG FOUND (22 Jun, via the SYNCING-1 scare) — offline queue silently DROPS signed-action mutations.**
+  Captain's "Delete expected" on Becky hit a transient network blip → `orgapi.request` enqueued the DELETE
+  (`/org/expected/:id` is in `QUEUE_ELIGIBLE_PATHS`). On replay (`js/offline-queue.js`) the network had
+  recovered but the Worker returned **HTTP 400** — `orgExpectedDelete` → `requireCalendarSignedAction` needs a
+  signed `irlid_calendar_write_v5` envelope in the body, which the queued bodyless DELETE can't carry. 400 is a
+  terminal 4xx → `quarantine()` DROPS it. Net: badge clears, user thinks it synced, **the action vanished**.
+  Diagnosed live via Chrome-MCP on the shared IndexedDB queue (listAll → DELETE p_becky-wetherill_…, empty
+  body, then replay → drained:0 dropped:1, console "replay HTTP 400"). Same class as the signed-action 120s/
+  nonce non-replayability. **Fix candidates (brief for Mr. Data, post-demo):** (1) exclude signed-action
+  endpoints (expected delete/create-and-bind, calendar writes, binds) from QUEUE_ELIGIBLE_PATHS — they need a
+  fresh signature, queueing is wrong; OR (2) surface dropped/terminal ops to the user ("this change didn't
+  sync — retry") instead of silent quarantine. NOT demo-blocking (fresh deletes with live network work fine).
+- **➡️ ROOT FIX (v6.4.18, Worker):** the fresh re-click ALSO failed — visibly, `signed_action_required`. Cause:
+  `orgExpectedDelete` was gated with `requireCalendarSignedAction` (needs a per-action WebAuthn envelope in the
+  body) while the frontend `deleteExpected` sends none — so "Delete expected" was UNUSABLE for everyone (and
+  the offline-queued copy hit the same 400). Meanwhile the inverse op `orgExpectedCreate` uses
+  `requireCalendarStaff` (staff/dev Bearer, no signature) and works fine. **Fix:** swapped `orgExpectedDelete`
+  to `requireCalendarStaff` — add + remove on the expected list now share one gate. `node --check` clean.
+  Worker-only change (no pill/Pages); deploy via push to `irlid-api-org/**` (CI deploy-worker.yml). After
+  deploy, Delete expected works for the Captain (developer) + any staff+; then clear Becky/Poppy/Someone
+  Else/Yet Another. This SUPERSEDES the "re-click works" workaround above (it didn't — the gate was the bug).
+  The offline-queue-silently-drops finding still stands as a separate post-demo brief.
 - **Still open / tidying:** (c) stale Becky attendance row (cosmetic Delete record). (d) GitHub Discussions
   welcome post not written yet. (e) `.claude/launch.json` added locally for the preview server (static `npx
   serve`) — harmless, confirm it's gitignored before any commit. (f) optional further consistency: the

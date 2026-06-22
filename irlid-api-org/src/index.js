@@ -5345,8 +5345,14 @@ async function orgExpectedDelete(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body = {};
   try { body = await request.json(); } catch {}
-  const action = await requireCalendarSignedAction(request, env, org, body, p => !p.expected_id || String(p.expected_id) === String(id));
-  if (action.error) return action.error;
+  // v6.4.18 — gate to MATCH orgExpectedCreate (requireCalendarStaff). This was
+  // requireCalendarSignedAction, which demands a per-action WebAuthn signature
+  // the "Delete expected" button never sends → every delete failed with
+  // signed_action_required (and offline-queued ones got dropped). Adding and
+  // removing an expected attendee are now gated identically (staff+ / developer
+  // via Bearer). Delete-record (orgExpectedDeleteFull) is already lighter still.
+  const staff = await requireCalendarStaff(request, env, org, body);
+  if (staff.error) return staff.error;
   const t = now();
   const result = await env.DB.prepare(
     "UPDATE org_expected SET archived_at=COALESCE(archived_at,?) WHERE id=? AND org_id=?"
