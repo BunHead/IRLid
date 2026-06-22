@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.14</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.15</span></div>
   </div>
 </div>
 
@@ -7280,10 +7280,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
         <!-- ===== TAB 6: TOOLS &amp; DIAGNOSTICS ===== -->
         <section class="v511-panel" data-v511-panel="tools">
-          <div class="v511-head"><h3>Tools &amp; Diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span><span class="v511-badge v511-badge-pending">design-in &mdash; v5.12</span></div>
+          <div class="v511-head"><h3>Tools &amp; Diagnostics</h3><span class="v511-badge v511-badge-backed">backed</span></div>
 
-          <div class="v511-sub">Audit log <span class="v511-hint-inline">(the daily launcher — see what changed and when)</span></div>
-          <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn">Open log &rarr;</button> <span class="v511-hint">Invites, settings saves, role changes (v5.10.4)</span></div></div>
+          <div class="v511-sub">Audit log <span class="v511-hint-inline">(who authorised what, and when)</span></div>
+          <div class="v511-row"><label>Admin actions log</label><div><button type="button" class="v511-btn" id="v511AuditLogOpenBtn">Open log &rarr;</button> <span class="v511-hint">Invites, role changes, settings saves &amp; device binds — Lead Admin / Developer</span></div></div>
 
           <details class="v511-expander">
             <summary>Debug <span class="v511-hint-inline">(test-fire controls, console verbosity)</span></summary>
@@ -12053,6 +12053,113 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           // v5.11.0a ? server-canonical Org.html keeps no mockup-state restore.
           // V511_CAL_SETTINGS_KEY remains above for user calendar preferences only.
           function v511SaveDebounced() {}
+
+          // ===== v6.4.15 Admin actions (authorization) audit log =====
+          // The "Open log →" button lives in this tab; the dialog is resolved
+          // lazily at click time (it is parsed later in the document than this
+          // inline script). Reuses the dashboard's X-Org-Key + Bearer auth.
+          (function wireAuditLog() {
+            var openBtn = document.getElementById('v511AuditLogOpenBtn');
+            if (!openBtn) return;
+            var ACTION_LABELS = {
+              'irlid_bind_v5': 'Bind device',
+              'irlid_create_bind_v5': 'Add at door',
+              'irlid_calendar_write_v5': 'Calendar change',
+              'lead_admin_appoint': 'Appoint Lead Admin',
+              'invite_create': 'Issue invite',
+              'invite_accept': 'Accept invite',
+              'member_remove': 'Remove member',
+              'settings_save': 'Save settings'
+            };
+            function esc(s) {
+              return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+              });
+            }
+            function fmtWhen(sec) {
+              var n = Number(sec);
+              if (!isFinite(n) || n <= 0) return '—';
+              try { return new Date(n * 1000).toLocaleString('en-GB'); }
+              catch (_) { return new Date(n * 1000).toISOString(); }
+            }
+            function actionLabel(a) { return ACTION_LABELS[a] || String(a || 'action'); }
+            function auditBaseUrl() {
+              return (window.IRLidOrgApi && window.IRLidOrgApi.workerBaseUrl)
+                ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/, '')
+                : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+            }
+            async function fetchEntries() {
+              var org = (typeof currentOrg !== 'undefined' && currentOrg) ? currentOrg : null;
+              if (!org || !org.api_key) throw new Error('Sign in to an organisation first.');
+              var sess = (typeof qrLoginSession !== 'undefined') ? qrLoginSession : null;
+              var headers = { 'X-Org-Key': org.api_key };
+              var token = (sess && sess.session_token) || org.api_key;
+              if (token) headers.Authorization = 'Bearer ' + token;
+              var resp = await fetch(auditBaseUrl() + '/org/audit-log?limit=200', { headers: headers });
+              var data = null; try { data = await resp.json(); } catch (_) {}
+              if (!resp.ok) {
+                var e = new Error((data && (data.error || data.message)) || ('Request failed (' + resp.status + ')'));
+                e.status = resp.status; throw e;
+              }
+              return (data && data.entries) || [];
+            }
+            function renderTable(entries) {
+              if (!entries.length) {
+                return '<div class="v511-hint" style="padding: 18px 4px;">No authorisations recorded yet. Privileged actions (invites, role changes, settings saves, device binds) will appear here as they happen.</div>';
+              }
+              var rows = entries.map(function (e) {
+                var denied = (e.outcome === 'denied');
+                var oColor = denied ? '#ff6b6b' : '#3fb950';
+                var oText = denied ? 'DENIED' : 'allowed';
+                var rolePill = e.actor_role ? ('<span style="opacity:0.6; font-size:0.82em;"> · ' + esc(e.actor_role) + '</span>') : '';
+                var detail = e.detail ? ('<div style="opacity:0.55; font-size:0.82em;">' + esc(e.detail) + '</div>') : '';
+                return '<tr style="border-top:1px solid rgba(127,127,127,0.18);">' +
+                  '<td style="padding:7px 8px; white-space:nowrap; font-variant-numeric:tabular-nums; opacity:0.85;">' + esc(fmtWhen(e.created_at)) + '</td>' +
+                  '<td style="padding:7px 8px;">' + esc(e.actor_name || '—') + rolePill + '</td>' +
+                  '<td style="padding:7px 8px;">' + esc(actionLabel(e.action)) + '</td>' +
+                  '<td style="padding:7px 8px;">' + esc(e.target || '') + detail + '</td>' +
+                  '<td style="padding:7px 8px; color:' + oColor + '; font-weight:600; white-space:nowrap;">' + oText + '</td>' +
+                  '</tr>';
+              }).join('');
+              return '<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">' +
+                '<thead><tr style="text-align:left; opacity:0.6; font-size:0.8em; text-transform:uppercase; letter-spacing:0.03em;">' +
+                '<th style="padding:6px 8px;">When</th><th style="padding:6px 8px;">Authorised by</th><th style="padding:6px 8px;">Action</th><th style="padding:6px 8px;">Target</th><th style="padding:6px 8px;">Outcome</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table>';
+            }
+            var dialog, statusEl, wrapEl;
+            async function load() {
+              if (statusEl) statusEl.textContent = 'Loading…';
+              if (wrapEl) wrapEl.innerHTML = '';
+              try {
+                var entries = await fetchEntries();
+                if (wrapEl) wrapEl.innerHTML = renderTable(entries);
+                if (statusEl) statusEl.textContent = entries.length + ' entr' + (entries.length === 1 ? 'y' : 'ies') + ' (newest first, last 200).';
+              } catch (err) {
+                if (wrapEl) wrapEl.innerHTML = '';
+                if (statusEl) {
+                  statusEl.textContent = (err && err.status === 403)
+                    ? 'You need Lead Admin or Developer access to view the audit log.'
+                    : ('Could not load the log: ' + (err && err.message || 'unknown error'));
+                }
+              }
+            }
+            function open() {
+              dialog = document.getElementById('auditLogDialog');
+              statusEl = document.getElementById('auditLogStatus');
+              wrapEl = document.getElementById('auditLogTableWrap');
+              if (!dialog) return;
+              dialog.classList.remove('hidden');
+              load();
+            }
+            function close() { if (dialog) dialog.classList.add('hidden'); }
+            openBtn.addEventListener('click', open);
+            document.addEventListener('click', function (ev) {
+              var t = ev.target;
+              if (!t || !t.id) return;
+              if (t.id === 'auditLogCloseBtn' || t.id === 'auditLogDoneBtn' || t.id === 'auditLogDialog') close();
+              else if (t.id === 'auditLogRefreshBtn') load();
+            });
+          })();
         })();
       </script>
       <!-- ================ /v5.11 MOCKUP — legacy settings-shell below is preserved (hidden) ================ -->
@@ -12734,6 +12841,23 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         <button type="button" class="v511-btn v511-btn-primary" id="v511InviteStaffRevokedDoneBtn">Done</button>
         <button type="button" class="v511-btn" disabled>Revoke</button>
       </div>
+    </div>
+  </div>
+</div>
+<div class="staff-hello-backdrop hidden" id="auditLogDialog" role="dialog" aria-modal="true" aria-labelledby="auditLogTitle">
+  <div class="staff-hello-modal" style="max-width: 780px; width: 94vw;">
+    <div class="v511-invite-modal-head">
+      <div>
+        <h3 id="auditLogTitle">Admin actions log</h3>
+        <p>Every privileged authorisation — who, when, and whether it was allowed. Append-only.</p>
+      </div>
+      <button type="button" class="v511-invite-modal-close" id="auditLogCloseBtn" aria-label="Close audit log">&times;</button>
+    </div>
+    <div id="auditLogStatus" class="v511-hint" style="padding: 6px 2px;" aria-live="polite">Loading…</div>
+    <div id="auditLogTableWrap" style="max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 6px;"></div>
+    <div class="v511-invite-modal-actions">
+      <button type="button" class="v511-btn" id="auditLogRefreshBtn">Refresh</button>
+      <button type="button" class="v511-btn v511-btn-primary" id="auditLogDoneBtn">Done</button>
     </div>
   </div>
 </div>

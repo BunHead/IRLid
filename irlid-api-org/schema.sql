@@ -132,6 +132,37 @@ BEGIN
   SELECT RAISE(ABORT, 'lead_admin_appointment_audit is immutable');
 END;
 
+-- v6.4.15 — append-only authorization audit log (who authorised what, when,
+-- allowed/denied). created_at is UNIX SECONDS. Immutable, same posture as
+-- lead_admin_appointment_audit. See migrations/2026-06-22-v6.4.15-org-audit-log.sql.
+CREATE TABLE IF NOT EXISTS org_audit_log (
+  id                 TEXT PRIMARY KEY,
+  org_id             TEXT NOT NULL,
+  actor_user_id      TEXT,
+  actor_pub_fp       TEXT,
+  actor_display_name TEXT,
+  actor_role         TEXT,
+  action             TEXT NOT NULL,
+  target             TEXT,
+  target_ref         TEXT,
+  outcome            TEXT NOT NULL DEFAULT 'allowed',
+  detail             TEXT,
+  nonce              TEXT,
+  created_at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_org_audit_log_org_created ON org_audit_log(org_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_org_audit_log_actor ON org_audit_log(actor_pub_fp);
+CREATE TRIGGER IF NOT EXISTS org_audit_log_no_update
+BEFORE UPDATE ON org_audit_log
+BEGIN
+  SELECT RAISE(ABORT, 'org_audit_log is immutable');
+END;
+CREATE TRIGGER IF NOT EXISTS org_audit_log_no_delete
+BEFORE DELETE ON org_audit_log
+BEGIN
+  SELECT RAISE(ABORT, 'org_audit_log is immutable');
+END;
+
 CREATE TABLE org_staff_sessions (
   id                 TEXT PRIMARY KEY,
   org_id             TEXT NOT NULL REFERENCES organisations(id),

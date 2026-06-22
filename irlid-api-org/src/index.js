@@ -1865,11 +1865,45 @@ async function orgMemberRemove(request, env, userIdParam) {
 
   await env.DB.prepare("DELETE FROM org_memberships WHERE org_id = ? AND user_id = ?")
     .bind(actor.org.id, userId).run();
+  await recordAudit(env, {
+    orgId: actor.org.id,
+    actorUserId: actor.user.id,
+    actorPubFp: actor.user.pub_fp,
+    actorName: actor.user.display_name,
+    actorRole: actor.role,
+    action: "member_remove",
+    target: (target.display_name || target.user_id) + " (" + target.role + ")",
+    targetRef: target.user_id,
+    outcome: "allowed"
+  });
   return json({ ok: true, removed: { user_id: target.user_id, display_name: target.display_name, role: target.role } });
 }
 
 function inviteJsonError(error, message, status) {
   return json({ error, message }, status);
+}
+
+// v6.4.15 — read the org authorization audit log. Lead Admin / Developer only
+// (reuses the same gate as the members list — this is an oversight surface).
+async function orgAuditLog(request, env) {
+  const actor = await requireOrgMemberAdmin(request, env);
+  if (actor.error) return actor.error;
+  let limit = parseInt(new URL(request.url).searchParams.get("limit") || "200", 10);
+  if (!Number.isFinite(limit) || limit < 1) limit = 200;
+  if (limit > 500) limit = 500;
+  let rows;
+  try {
+    rows = await env.DB.prepare(
+      "SELECT a.id, a.created_at, a.action, a.target, a.outcome, a.detail, a.actor_pub_fp, a.actor_role, " +
+      "COALESCE(a.actor_display_name, u.display_name, a.actor_pub_fp) AS actor_name " +
+      "FROM org_audit_log a LEFT JOIN portal_users u ON u.id = a.actor_user_id " +
+      "WHERE a.org_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT ?"
+    ).bind(actor.org.id, limit).all();
+  } catch (e) {
+    // Table not migrated yet (deploy-order safe) — degrade to empty, not 500.
+    return noStore(json({ ok: true, entries: [], note: "audit_log_unavailable" }));
+  }
+  return noStore(json({ ok: true, entries: rows.results || [] }));
 }
 
 function decodeInvitePayload(value) {
@@ -1977,6 +2011,19 @@ async function orgInviteCreate(request, env) {
     envelope: encodedInvite
   });
 
+  await recordAudit(env, {
+    orgId: issuer.org.id,
+    actorUserId: issuer.user.id,
+    actorPubFp: issuer.user.pub_fp,
+    actorName: issuer.user.display_name,
+    actorRole: issuer.role,
+    action: "invite_create",
+    target: (String(invite.label || body.label || "staff member").trim() || "staff member") + " as " + allowedRole,
+    targetRef: unsigned.nonce,
+    outcome: "allowed",
+    nonce: unsigned.nonce
+  });
+
   return json({
     invite_qr: encodedInvite,
     expiry_ts: Math.floor(Number(unsigned.expiry_ts)),
@@ -2064,6 +2111,19 @@ async function orgInviteRedeem(request, env) {
       "UPDATE org_invites SET status='redeemed', redeemed_by_fp=?, redeemed_ts=? WHERE nonce=? AND status='pending'"
     ).bind(pubFp, tMs, invite.nonce)
   ]);
+  await recordAudit(env, {
+    orgId: invite.org_id,
+    actorUserId: user.id,
+    actorPubFp: pubFp,
+    actorName: inviteLabel || null,
+    actorRole: invite.role,
+    action: "invite_accept",
+    target: "joined as " + invite.role,
+    targetRef: invite.nonce,
+    outcome: "allowed",
+    detail: "two-device redeem",
+    nonce: invite.nonce
+  });
   return json({ ok: true, org_id: invite.org_id, role: invite.role, member_id: user.id });
 }
 
@@ -2186,6 +2246,20 @@ async function orgInviteAcceptOnThisDevice(request, env) {
   const claimMeta = results && results[results.length - 1] && results[results.length - 1].meta;
   const claimed = (claimMeta && claimMeta.changes) || 0;
   if (claimed < 1) return inviteJsonError("invite_already_claimed", "Invite has already been claimed.", 409);
+
+  await recordAudit(env, {
+    orgId: invite.org_id,
+    actorUserId: userId,
+    actorPubFp: pubFp,
+    actorName: displayName,
+    actorRole: role,
+    action: "invite_accept",
+    target: "joined as " + role,
+    targetRef: invite.nonce,
+    outcome: "allowed",
+    detail: isReturningUser ? "re-hire / re-invite (single device)" : "single-device enrol",
+    nonce: invite.nonce
+  });
 
   return json({
     ok: true,
@@ -2434,6 +2508,20 @@ async function orgLeadAdminAppoint(request, env) {
   statements.push(env.DB.prepare(
     "INSERT INTO action_nonces (nonce, used_at, expires_at) VALUES (?, ?, ?)"
   ).bind(nonce, t, t + 600));
+  // v6.4.15 — audit the appointment atomically with it.
+  statements.push(auditStatement(env, {
+    orgId: orgId,
+    actorUserId: issuer.id,
+    actorPubFp: issuerPubFp,
+    actorName: "Developer (Super-Admin)",
+    actorRole: "developer",
+    action: "lead_admin_appoint",
+    target: (displayName || appointeePubFp) + " as Lead Admin",
+    targetRef: appointeePubFp,
+    outcome: "allowed",
+    detail: "co-presence " + copresence.distance_m + "m / " + copresence.time_delta_s + "s",
+    nonce: nonce
+  }));
 
   try {
     await env.DB.batch(statements);
@@ -2976,6 +3064,23 @@ async function orgUpdateSettings(request, env) {
     .bind(org.id).first();
   let persistedTheme = null;
   try { persistedTheme = persisted?.settings_json ? JSON.parse(persisted.settings_json) : null; } catch (_) { persistedTheme = null; }
+  // v6.4.15 — audit the settings change. Best-effort actor: the dashboard saves
+  // with a Bearer session, so we can usually name who saved; api_key-only saves
+  // (service accounts) are recorded without a name.
+  let settingsActor = null;
+  try { const sctx = await requireSession(request, env); if (!sctx.error) settingsActor = sctx.user; } catch (_) {}
+  const changedKeys = Object.keys(body || {}).filter(k => allowed.indexOf(k) !== -1);
+  await recordAudit(env, {
+    orgId: org.id,
+    actorUserId: settingsActor ? settingsActor.id : null,
+    actorPubFp: settingsActor ? settingsActor.pub_fp : null,
+    actorName: settingsActor ? settingsActor.display_name : null,
+    actorRole: settingsActor ? await orgRoleForUser(env, settingsActor, org.id) : null,
+    action: "settings_save",
+    target: changedKeys.length ? changedKeys.slice(0, 8).join(", ") : "settings",
+    outcome: "allowed",
+    detail: settingsActor ? null : "via org api key"
+  });
   return json({ ok: true, theme: persistedTheme });
 }
 
@@ -3515,6 +3620,59 @@ async function roleForStaffPubFp(env, org, staffPubFp) {
 //   orgId          — org context the action must match
 //   minRole        — minimum role required (e.g. "staff")
 //   payloadSchema  — optional fn(payload)=>bool for action-specific fields
+// ---- v6.4.15 Authorization audit log -------------------------------------
+// Append-only ledger of every privileged authorization: who, when, what, on
+// whom/what, allowed/denied. Writes are BEST-EFFORT — a failure to record an
+// audit row must NEVER break the underlying action (the table may not be
+// migrated yet, or D1 may hiccup). See migrations/2026-06-22-v6.4.15-*.sql.
+
+// Best-effort, human-readable summary of what an action targeted, derived from
+// the signed payload. Defensive: returns null when nothing meaningful is found.
+function auditTargetSummary(actionType, payload) {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload;
+  const name = p.label || p.display_name || p.appointee_display_name || p.name || null;
+  const roleSuffix = p.role ? (" as " + p.role) : "";
+  switch (String(actionType || "")) {
+    case "irlid_calendar_write_v5": return p.event_title || p.title || p.event_id || "calendar event";
+    case "irlid_bind_v5":           return (name || p.expected_id || "device") + " (bind device)";
+    case "irlid_create_bind_v5":    return (name || "new attendee") + " (add at door)";
+    default: return name ? (name + roleSuffix) : null;
+  }
+}
+
+// Returns a prepared INSERT statement so callers can either run() it directly
+// (recordAudit) or push it into an existing env.DB.batch() for atomicity.
+function auditStatement(env, f) {
+  return env.DB.prepare(
+    "INSERT INTO org_audit_log (id, org_id, actor_user_id, actor_pub_fp, actor_display_name, actor_role, action, target, target_ref, outcome, detail, nonce, created_at) " +
+    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)"
+  ).bind(
+    randomToken().slice(0, 26),
+    String(f.orgId || ""),
+    f.actorUserId || null,
+    f.actorPubFp || null,
+    f.actorName || null,
+    f.actorRole || null,
+    String(f.action || "unknown"),
+    f.target || null,
+    f.targetRef || null,
+    f.outcome || "allowed",
+    f.detail || null,
+    f.nonce || null,
+    now()
+  );
+}
+
+async function recordAudit(env, f) {
+  try {
+    if (!f || !f.orgId) return; // org-scoped log; skip rows with no org context
+    await auditStatement(env, f).run();
+  } catch (e) {
+    console.log("[audit] write failed: " + String(e && e.message || e).slice(0, 160));
+  }
+}
+
 async function requireSignedAction(body, env, opts) {
   // v5.10.0.4 — body is now passed in pre-parsed by the caller. Previous
   // versions took `request` and tried request.clone().json() here, but
@@ -3653,6 +3811,20 @@ async function requireSignedAction(body, env, opts) {
       const sessionRank = sessionRole ? expectedRoleRank(sessionRole) : -1;
       if (sessionRank < requiredRank) {
         console.log("[requireSignedAction] FAIL insufficient_role signing=" + role + " session=" + sessionRole + " required=" + minRole);
+        // Audit the denied attempt — the actor is cryptographically verified
+        // here (signature checked at step 6), only the authority was lacking.
+        await recordAudit(env, {
+          orgId: orgId,
+          actorUserId: user.id,
+          actorPubFp: fp,
+          actorName: user.display_name,
+          actorRole: role || null,
+          action: payload.type,
+          target: auditTargetSummary(payload.type, payload),
+          outcome: "denied",
+          detail: "insufficient_role (required " + minRole + ")",
+          nonce: nonce
+        });
         return { error: json({
           error: "insufficient_role",
           required: minRole,
@@ -3678,6 +3850,22 @@ async function requireSignedAction(body, env, opts) {
   try {
     await env.DB.prepare("DELETE FROM action_nonces WHERE expires_at < ?").bind(t).run();
   } catch (_) {}
+
+  // Audit the authorized action. Best-effort; never blocks the action.
+  await recordAudit(env, {
+    orgId: orgId,
+    actorUserId: user.id,
+    actorPubFp: fp,
+    actorName: user.display_name,
+    actorRole: effectiveRole,
+    action: payload.type,
+    target: auditTargetSummary(payload.type, payload),
+    outcome: "allowed",
+    detail: (authorityPath === "bearer_delegated" && sessionUser)
+      ? ("authorised by " + (sessionUser.display_name || sessionUser.id))
+      : null,
+    nonce: nonce
+  });
 
   return {
     ok: true,
@@ -5435,6 +5623,7 @@ export default {
       else if (method === "GET"  && path === "/org/current-event")   response = await orgCurrentEvent(request, env);
       else if (method === "POST" && path === "/org/staff/auth")      response = await orgStaffAuth(request, env);
       else if (method === "GET"  && path === "/org/members")         response = await orgMembersList(request, env);
+      else if (method === "GET"  && path === "/org/audit-log")        response = await orgAuditLog(request, env);
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
