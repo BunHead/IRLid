@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.15</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.16</span></div>
   </div>
 </div>
 
@@ -7505,6 +7505,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var err = new Error((data && (data.error || data.message)) || ('Request failed with status ' + response.status));
                 err.status = response.status;
                 err.data = data;
+                // v6.4.16 — session expiry bounces to re-login (see handleSessionExpired).
+                if (response.status === 401 && data && /^session_(invalid|expired|required|user_missing)$/.test(String(data.error || ''))) {
+                  try { window.dispatchEvent(new CustomEvent('irlid:session-expired', { detail: { error: data.error } })); } catch (_) {}
+                }
                 throw err;
               }
               return data || {};
@@ -19688,6 +19692,34 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
   document.getElementById('clearAttendanceBtn')?.addEventListener('click', clearTestAttendanceDataset);
   setInterval(updateRelativeRefresh, 30000);
+
+  // v6.4.16 — Session-expiry bounce. When a login session lapses (24h sliding
+  // TTL), authed calls return 401 session_invalid. Without this, the dashboard
+  // just throws confusing errors on every action (the 22 Jun scare). Now any
+  // session-error 401 — surfaced by orgapi.js / liveCalendarApi via the
+  // irlid:session-expired event, or caught proactively by the heartbeat — signs
+  // out cleanly and prompts a fresh sign-in. Debounced so a burst of failing
+  // calls fires it once.
+  let __sessionExpiredHandling = false;
+  function handleSessionExpired() {
+    if (__sessionExpiredHandling) return;
+    if (!qrLoginSession && !currentOrg) return; // already signed out — nothing to bounce
+    __sessionExpiredHandling = true;
+    try { showToast('Your session has expired — please sign in again.', true); } catch (_) {}
+    try { signOutOrg(); } catch (_) {}
+    setTimeout(function () { __sessionExpiredHandling = false; }, 5000);
+  }
+  window.addEventListener('irlid:session-expired', handleSessionExpired);
+  // Heartbeat: catch idle expiry within ~30s even if the user isn't clicking.
+  // A 401 on this lightweight call is itself surfaced as irlid:session-expired
+  // by orgapi.js; the explicit catch is belt-and-braces.
+  setInterval(function () {
+    var tok = (qrLoginSession && qrLoginSession.session_token) ? qrLoginSession.session_token : null;
+    if (!tok || !window.IRLidOrgApi) return;
+    window.IRLidOrgApi.listMyOrgs(tok).catch(function (err) {
+      if (err && err.status === 401) handleSessionExpired();
+    });
+  }, 30000);
   document.getElementById('expectedAddBtn')?.addEventListener('click', addExpectedAttendee);
   document.getElementById('expectedAttendeeList')?.addEventListener('click', handleExpectedListClick);
   document.getElementById('expectedCancelDeleteBtn')?.addEventListener('click', (event) => {

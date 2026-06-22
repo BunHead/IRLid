@@ -69,6 +69,12 @@
 
     if (!response.ok) {
       const message = data && data.error ? data.error : `Request failed with status ${response.status}`;
+      // v6.4.16 — surface login-session expiry centrally so the dashboard can
+      // bounce to a fresh sign-in instead of scattering session_invalid errors
+      // across every action. The dashboard listens for irlid:session-expired.
+      if (response.status === 401 && data && /^session_(invalid|expired|required|user_missing)$/.test(String(data.error || ""))) {
+        try { window.dispatchEvent(new CustomEvent("irlid:session-expired", { detail: { error: data.error } })); } catch (_) {}
+      }
       const error = new Error(message);
       error.status = response.status;
       error.data = data;
