@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.16</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.17</span></div>
   </div>
 </div>
 
@@ -7259,8 +7259,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
           <div class="v511-danger-zone">
             <div class="v511-sub">Sign-out</div>
-            <button type="button" class="v511-btn">Sign out (this device)</button>
-            <button type="button" class="v511-btn" style="margin-left: 6px;">Sign out of all devices</button>
+            <button type="button" class="v511-btn" id="v511SignOutThisBtn">Sign out (this device)</button>
+            <button type="button" class="v511-btn" id="v511SignOutAllBtn" style="margin-left: 6px;">Sign out of all devices</button>
             <div class="v511-hint" style="margin-top: 8px;">Either button revokes server-side; other devices bounce within 30s (v5.10.5 + v5.10.7).</div>
           </div>
 
@@ -7332,7 +7332,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <option>Custom webhook URL</option>
               </select></div>
               <div class="v511-row"><label>Folder path</label><input type="text" placeholder="/IRLid/enrolment-records/" /></div>
-              <div style="margin-top: 10px;"><button type="button" class="v511-btn">Connect storage &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">OAuth opens in a new window; credential-based connectors prompt inline.</span></div>
+              <div style="margin-top: 10px;"><button type="button" class="v511-btn" disabled>Connect storage &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">OAuth opens in a new window; credential-based connectors prompt inline.</span></div>
             </div>
           </details>
 
@@ -7345,7 +7345,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Emergency contact</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Name + phone &mdash; common for kids' classes, gyms, outdoor activities.</span></div></div>
               <div class="v511-row"><label>Medical / dietary</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">Allergies, conditions, dietary requirements. Handled per your org's privacy policy.</span></div></div>
               <div class="v511-row"><label>Signed waiver</label><div><input type="checkbox" style="vertical-align: middle;" /> <span class="v511-hint">PDF or signature image, generated at first check-in.</span></div></div>
-              <div class="v511-row"><label>Custom fields</label><div><button type="button" class="v511-btn v511-btn-mini">+ Add custom field</button> <span class="v511-hint" style="margin-left: 8px;">For org-specific data (membership number, year group, etc.)</span></div></div>
+              <div class="v511-row"><label>Custom fields</label><div><button type="button" class="v511-btn v511-btn-mini" disabled>+ Add custom field</button> <span class="v511-hint" style="margin-left: 8px;">For org-specific data (membership number, year group, etc.)</span></div></div>
             </div>
           </details>
 
@@ -7359,7 +7359,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               </select></div>
               <div class="v511-row"><label>Encryption in transit</label><div><span class="v511-hint">Always on &mdash; TLS 1.3 to your storage destination.</span></div></div>
               <div class="v511-row"><label>Encryption at rest</label><div><span class="v511-hint">Your storage destination's responsibility. IRLid doesn't hold copies to encrypt.</span></div></div>
-              <div class="v511-row"><label>Right to be forgotten</label><div><button type="button" class="v511-btn v511-btn-mini">Open RTBF helper &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">Removes IRLid's hash + reference. You delete the original from your storage.</span></div></div>
+              <div class="v511-row"><label>Right to be forgotten</label><div><button type="button" class="v511-btn v511-btn-mini" disabled>Open RTBF helper &rarr;</button> <span class="v511-hint" style="margin-left: 8px;">Removes IRLid's hash + reference. You delete the original from your storage.</span></div></div>
             </div>
           </details>
 
@@ -19720,6 +19720,15 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (err && err.status === 401) handleSessionExpired();
     });
   }, 30000);
+  // v6.4.17 — wire the Sign-in & Auth tab's sign-out buttons (were dead). The
+  // functionality already exists (signOutOrg + IRLidOrgApi.signOutAllDevices,
+  // v5.10.5); "Sign out of all devices" had no other UI entry point.
+  document.getElementById('v511SignOutThisBtn')?.addEventListener('click', signOutOrg);
+  document.getElementById('v511SignOutAllBtn')?.addEventListener('click', async function () {
+    var tok = (qrLoginSession && qrLoginSession.session_token) ? qrLoginSession.session_token : null;
+    if (tok && window.IRLidOrgApi) { try { await window.IRLidOrgApi.signOutAllDevices(tok); } catch (_) {} }
+    signOutOrg();
+  });
   document.getElementById('expectedAddBtn')?.addEventListener('click', addExpectedAttendee);
   document.getElementById('expectedAttendeeList')?.addEventListener('click', handleExpectedListClick);
   document.getElementById('expectedCancelDeleteBtn')?.addEventListener('click', (event) => {

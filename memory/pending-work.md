@@ -10,6 +10,88 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 22 JUN — LiDAR banked into the drone / humanitarian forward plan (v6.5 / v8)
+- **Captain's call (at Wisdom's, 22 Jun): "incorporate LiDAR into future plans."** NOT confirmed on every
+  airframe — ASE Tech's public site (asetech.co.uk) lists Badger (VTOL) + Mantis (quad) + S.W.A.R.M. swarm
+  + "onboard processing," but NO published sensor loadout. So this is forward design, gated on confirming
+  with Wisdom which airframes actually carry depth sensing.
+- **Why it matters:** LiDAR turns the location claim from *asserted* (GPS — spoofable, the honest hole in
+  the consumer proof) into *measured* (a point cloud is a real time-of-flight reading; a photo of a marker
+  is flat in a depth map → anti-spoofs the landing/delivery claim). Attests **geometry not identity**, so it
+  *complements* IRLid's cryptographic who/when, doesn't replace it; trust then rests on sensor integrity
+  (hardware attestation) = the v8 mothership tier. Pairs with the retroreflective-marker / IR-beacon landing
+  idea already sketched for Wisdom.
+- **Banked in:** PROTOCOL.md §10.3 as a new `anchors[]` type `lidar-geometry` (v8.0 drone tier, row + design
+  note). **Next:** raise with Wisdom directly (could reshape the drone-surface receipt schema); keep OUT of
+  outward promo material until the airframe sensor loadout is confirmed.
+
+### ⭐ 22 JUN — Org audit log LIVE + HARDWARE-VERIFIED (v6.4.15 → v6.4.15a); session-expiry bounce added (v6.4.16)
+- **DONE.** Audit log live + proven on Captain's hardware: the "Open log" dialog showed a real row —
+  "Developer (Super-Admin) · developer | Calendar change | evt-… | allowed" with timestamp — after he created
+  an event. Pill bumped twice this watch (now v6.4.16).
+- **v6.4.15a fix (commit `9498cd3`):** first live smoke gave `session_invalid` then 403 on the audit fetch.
+  Root cause: I gated it with strict `requireSession`, but the dashboard developer authenticates via the
+  bootstrap-developer **api_key Bearer** path. Fix: `orgAuditLog` now accepts `bootstrapDeveloperFromBearer`
+  (same path `requireDevOrStaffSession` took in v5.9.0.13.25) OR a real lead_admin+ session. ALSO: the
+  `--file` migration hit a **wrangler-OAuth-token D1-scope wall** (`Authentication error 10000` — token only
+  has workers/workers_kv write, NO d1) → the Worker now **self-creates the table** via `ensureAuditTable(env)`
+  (its D1 binding has write access regardless of the local token). Migration file kept as schema doc, no longer
+  required. **Lesson:** when a migration can't run on token scope, create the table from the Worker binding —
+  idempotent, deploy-order-safe, dodges the "migration never stamped on prod" trap (bit lead-admin 11 Jun).
+- **🐛 SESSION-EXPIRY SCARE → v6.4.16 bounce (the real lesson this watch):** right after the audit deploy,
+  event-save, invite, theme-save AND the staff list all failed with `session_invalid`. It LOOKED like the
+  deploy broke the site — it hadn't. The Captain's 24h login session had **expired**; every session-gated
+  endpoint rejects a stale Bearer. **Diagnosed via live Chrome-MCP probe with his own creds:** `/org/members`
+  → 401 session_invalid, api_key fine, build live, Worker deploys green. **Fix = re-login** (restored
+  everything instantly — confirmed NOT the audit code). **Root UX gap:** the v5.10.7 session heartbeat never
+  got ported into capital `Org.html` during the v5.11.0 port, so expiry threw a wall of errors instead of
+  bouncing. **v6.4.16 (built + localhost-verified, NOT yet deployed at time of writing):** `orgapi.js` +
+  inline `liveCalendarApi` dispatch `irlid:session-expired` on any 401 `session_*`; `Org.html`
+  `handleSessionExpired()` (debounced) signs out + toasts "session expired, please sign in again" + a 30s
+  heartbeat catches idle expiry. Localhost: dispatching the event bounced cleanly to the sign-in card, no
+  errors. SW cache v166→v167. **Deploy:** push Org.html + js/orgapi.js + sw.js (Pages auto-deploys; no Worker
+  change).
+- **✅ DONE this watch (v6.4.17):** (a) **Patreon URL unified** to `patreon.com/c/IRLid` (Captain confirmed via
+  his creator dashboard) — fixed login.html + contact.html (forums.html was already correct). (b) **Dead-button
+  sweep** across the dashboard: 486 `<button>`s audited via source analysis — only ONE id'd button wired to
+  nothing (`signInHereBtn`, but it's `hidden` = not a dead click; left in place, noted). Disabled the 3
+  design-in **Records & ID** placeholders (Connect storage / Add custom field / Open RTBF helper) to match the
+  IN-DESIGN disabled pattern; **wired the Sign-in & Auth sign-out buttons** (this device → signOutOrg; all
+  devices → IRLidOrgApi.signOutAllDevices — which had NO other UI entry point). All verified on localhost
+  (buttons disabled:true, sign-out fires signOutOrg). Pill v6.4.16→v6.4.17, SW v167→v168.
+- **Still open / tidying:** (c) stale Becky attendance row (cosmetic Delete record). (d) GitHub Discussions
+  welcome post not written yet. (e) `.claude/launch.json` added locally for the preview server (static `npx
+  serve`) — harmless, confirm it's gitignored before any commit. (f) optional further consistency: the
+  Records & ID connector dropdown + folder input + capture checkboxes are still interactive-but-inert in that
+  design-in tab (buttons now disabled; inputs left — lesser papercut, the tab has a clear design-in alert).
+
+#### (build detail — original v6.4.15 entry)
+### ⭐ 22 JUN — Org admin actions audit log built (v6.4.15)
+- **The "Open log →" button in Settings → Tools & Diagnostics is now a real append-only authorization log**
+  (who authorised what, when, allowed/denied). Closes the last dead click in that tab; "design-in v5.12"
+  badge removed (tab is fully backed now).
+- **Worker (`irlid-api-org/src/index.js`):** new immutable `org_audit_log` table (migration
+  `2026-06-22-v6.4.15-org-audit-log.sql` + schema.sql; no-update/no-delete triggers, same posture as
+  `lead_admin_appointment_audit`); `GET /org/audit-log` (lead_admin+/developer via `requireOrgMemberAdmin`);
+  best-effort `recordAudit()` hooks on `requireSignedAction` (allowed + insufficient_role DENIALS),
+  lead-admin appoint (batched/atomic), invite create + accept + redeem, member remove, settings save. Writes
+  are try/catch best-effort — can NEVER break the underlying action; endpoint degrades to empty if table absent
+  (deploy-order safe). `node --check` clean.
+- **Frontend (Org.html):** dialog `#auditLogDialog` reuses dashboard X-Org-Key + Bearer; viewer table
+  (When / Authorised by / Action / Target / Outcome, denials in red); button id `v511AuditLogOpenBtn`;
+  wired in the tools-tab IIFE, dialog resolved lazily at click-time (parse-order safe). Build pill
+  v6.4.14→v6.4.15, SW cache v165→v166.
+- **Localhost smoke (Claude Preview, static serve):** page loads as Build v6.4.15, no JS errors from the
+  audit code (only pre-existing geolocation denials), button click OPENS the dialog and renders gracefully.
+  The fetch correctly reached the LIVE Worker and got 404 "Not found" — because the route isn't deployed yet
+  (clean confirmation the client path works end-to-end; deploy makes it live).
+- **NOT DEPLOYED — awaiting Captain's go + hardware smoke** (live/outward-facing; he was on his phone, can't
+  smoke). Deploy = (1) `wrangler d1 execute irlid-db-org --remote --file migrations/2026-06-22-...sql` from
+  `irlid-api-org/`, then (2) `git pull ; git add <5 files> ; commit ; push` (Worker CI + Pages auto-deploy).
+  Smoke: 8 Pro signed-in dev → do an invite/settings-save/add-at-door → Settings → Tools → Open log → rows
+  with name + timestamps. **Watch for:** settings-saves are chatty (every theme tweak logs a row) — coarsen
+  if it buries the signal. Files: Org.html, sw.js, irlid-api-org/src/index.js, schema.sql, the migration.
+
 ### ⭐ 16 JUN (afternoon) — ✅ Full site "ship-shape" audit + Community hub (LIVE)
 - Captain: *"Fully check every corner — orphan files, unused code, spelling... ship shape and Bristol fashion."* Site was in good shape; small fixes, all shipped (`f8dff16`→`8898805`, Pages green).
 - **Orphan:** `visual-theming-v512-mockup.html` (v5.12 mockup) → `archive/`. **Spelling:** clean site-wide (3 sweeps); fixed `Organization`→`Organisation` (nav) + `tamper-proof`→`tamper-evident` (about.html overclaim). No broken links; `OrgCheckin.html` refs are historical comments only.
