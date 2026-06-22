@@ -1886,11 +1886,31 @@ function inviteJsonError(error, message, status) {
 // v6.4.15 — read the org authorization audit log. Lead Admin / Developer only
 // (reuses the same gate as the members list — this is an oversight surface).
 async function orgAuditLog(request, env) {
-  const actor = await requireOrgMemberAdmin(request, env);
-  if (actor.error) return actor.error;
+  const org = await orgAuth(request, env);
+  if (org.error) return org;
+  // Lead Admin / Developer only. Accept either a real lead_admin+ login session
+  // OR the bootstrap-developer api_key Bearer the dashboard uses (same path as
+  // requireDevOrStaffSession, v5.9.0.13.25). A restored session whose
+  // qrLoginSession.session_token is unavailable sends the api_key as the Bearer,
+  // which requireSession alone rejects with session_invalid — the exact failure
+  // the first live smoke hit. orgAuth has already validated the X-Org-Key.
+  let allowed = false;
+  const dev = await bootstrapDeveloperFromBearer(request, env);
+  if (dev) {
+    allowed = true;
+  } else {
+    const ctx = await requireSession(request, env);
+    if (!ctx.error && ctx.user) {
+      const role = await orgRoleForUser(env, ctx.user, org.id);
+      if (role === "lead_admin" || role === "developer") allowed = true;
+    }
+  }
+  if (!allowed) return json({ error: "insufficient_role", message: "Lead Admin or Developer access required." }, 403);
+
   let limit = parseInt(new URL(request.url).searchParams.get("limit") || "200", 10);
   if (!Number.isFinite(limit) || limit < 1) limit = 200;
   if (limit > 500) limit = 500;
+  await ensureAuditTable(env);
   let rows;
   try {
     rows = await env.DB.prepare(
@@ -1898,9 +1918,9 @@ async function orgAuditLog(request, env) {
       "COALESCE(a.actor_display_name, u.display_name, a.actor_pub_fp) AS actor_name " +
       "FROM org_audit_log a LEFT JOIN portal_users u ON u.id = a.actor_user_id " +
       "WHERE a.org_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT ?"
-    ).bind(actor.org.id, limit).all();
+    ).bind(org.id, limit).all();
   } catch (e) {
-    // Table not migrated yet (deploy-order safe) — degrade to empty, not 500.
+    // Defensive: degrade to empty rather than 500 if the table is somehow absent.
     return noStore(json({ ok: true, entries: [], note: "audit_log_unavailable" }));
   }
   return noStore(json({ ok: true, entries: rows.results || [] }));
@@ -2472,6 +2492,11 @@ async function orgLeadAdminAppoint(request, env) {
     developer: copresence.developer_gps,
     appointee: copresence.appointee_gps
   });
+
+  // Ensure the audit table exists BEFORE the batch — the appointment's audit
+  // INSERT is batched atomically with it, so a missing table would otherwise
+  // fail the whole appointment. ensureAuditTable is idempotent + cached.
+  await ensureAuditTable(env);
 
   const statements = [];
   if (issuer.create) {
@@ -3664,9 +3689,34 @@ function auditStatement(env, f) {
   );
 }
 
+// The audit table is created lazily by the Worker itself — its D1 binding has
+// write access regardless of the local wrangler token, so the feature is
+// self-bootstrapping (no separate migration step required) and idempotent.
+// v6.4.15: the `--file` migration hit a wrangler-token D1-scope wall; this
+// removes that dependency and also future-proofs against "migration never
+// stamped on prod" (which bit the lead-admin table on 11 Jun).
+let auditTableEnsured = false;
+async function ensureAuditTable(env) {
+  if (auditTableEnsured) return;
+  const ddl = [
+    "CREATE TABLE IF NOT EXISTS org_audit_log (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, actor_user_id TEXT, actor_pub_fp TEXT, actor_display_name TEXT, actor_role TEXT, action TEXT NOT NULL, target TEXT, target_ref TEXT, outcome TEXT NOT NULL DEFAULT 'allowed', detail TEXT, nonce TEXT, created_at INTEGER NOT NULL)",
+    "CREATE INDEX IF NOT EXISTS idx_org_audit_log_org_created ON org_audit_log(org_id, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_org_audit_log_actor ON org_audit_log(actor_pub_fp)",
+    "CREATE TRIGGER IF NOT EXISTS org_audit_log_no_update BEFORE UPDATE ON org_audit_log BEGIN SELECT RAISE(ABORT, 'org_audit_log is immutable'); END",
+    "CREATE TRIGGER IF NOT EXISTS org_audit_log_no_delete BEFORE DELETE ON org_audit_log BEGIN SELECT RAISE(ABORT, 'org_audit_log is immutable'); END"
+  ];
+  try {
+    for (const stmt of ddl) { await env.DB.prepare(stmt).run(); }
+    auditTableEnsured = true;
+  } catch (e) {
+    console.log("[audit] ensureAuditTable failed: " + String(e && e.message || e).slice(0, 160));
+  }
+}
+
 async function recordAudit(env, f) {
   try {
     if (!f || !f.orgId) return; // org-scoped log; skip rows with no org context
+    await ensureAuditTable(env);
     await auditStatement(env, f).run();
   } catch (e) {
     console.log("[audit] write failed: " + String(e && e.message || e).slice(0, 160));
