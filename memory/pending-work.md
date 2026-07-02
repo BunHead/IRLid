@@ -10,6 +10,35 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL — air-tight watch: v6.4.20 LIVE (offline-queue silent-drop fix) + housekeeping swept + promotion pivot
+- **Context:** Imbue demo still hasn't happened (Captain doing days there but hasn't run into Donald).
+  Captain's call: stop waiting — promote it ourselves. Strategy delivered in-chat + condensed in PROMOTION.md.
+- **✅ v6.4.20 LIVE + verified serving:** offline queue no longer queues signed-action endpoints
+  (create-and-bind, bind-additional-key, rebind, PATCH /org/expected/:id — their WebAuthn nonce/freshness
+  envelopes can never replay; they now fail loudly at click time). `quarantine()` dispatches
+  `irlid:queue-dropped`; Org.html toasts "could not sync … please redo it" instead of the drop looking like
+  a successful sync. `isQueueEligible` exposed on IRLidOrgApi for diagnostics. Localhost-verified end-to-end:
+  18/18 eligibility cases, full enqueue→replay→404→quarantine→toast chain green, console clean, 110/110
+  tests. Pill v6.4.19→v6.4.20, SW v169→v170. Closes the 22 Jun SYNCING-1 finding.
+- **✅ Housekeeping:** parked DREAMS entries (28 Jun–2 Jul) + PROTOCOL §10.3 lidar-geometry rows committed
+  (`547d224` — they'd sat uncommitted 10 days); `.claude/` gitignored (was untracked, settings.local.json
+  exposure); PRs #126 + #84 closed with comments (both superseded — #84's closeEventModal() already on main
+  ~L8022; v6.1.20 auto-checkout branch verified reimplemented on main).
+- **⏳ CAPTAIN ACTION — branch sweep (verified safe, permission classifier blocked my mass-delete):**
+  11 codex/* branches are all merged/superseded (8 at ahead:0; dead-code-report + v6.1.10 + v6.1.20 verified
+  in-main or preserved on closed PRs). Keep `recovered/assistqr-protocol`. One-liner in chat.
+- **🔥 TIME-SENSITIVE — EAI SecureComm 2026 late track:** posters/demos page shows a late track with
+  "10th July" deadline (year typo'd as 2024 on their page — conference is 22–24 Jul 2026, Lancaster, hybrid).
+  4-page Springer LNICST format → proceedings annex. EMAIL ORGANISERS to confirm deadline, then decide:
+  IRLid protocol poster/demo. ~8 days out.
+- **Promotion spearhead (agreed direction):** (1) Show HN with honest-threat-model framing; (2) SecureComm
+  late-track submission; (3) grant-compliance vertical (volunteer orgs — "attendance your funders can
+  independently verify"); (4) Patreon v6 update + Wisdom one-pager (already cleared to name him).
+  Landscape receipts: Zoom×World partnership Apr 2026; deepfakes ~11% of global fraud; Encointer criticised
+  for fixed ceremonies/blockchain — IRLid is the no-biometric/no-chain/no-app corner of the same anxiety.
+- **Still open from 22 Jun:** stale Becky attendance row (cosmetic); Records & ID inert inputs;
+  GitHub Discussions welcome post; receipts-history browse view (small build, now promo-relevant).
+
 ### ⭐ 22 JUN (close) — demo-polish day done; tomorrow's plan + receipts state
 - **Shipped today (all live):** audit log (v6.4.15/15a — real, hardware-verified), session-expiry bounce
   (v6.4.16), dead-button sweep (v6.4.17 — design-in placeholders disabled, sign-out wired, Patreon unified to

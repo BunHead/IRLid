@@ -961,3 +961,38 @@ Open source. Free. One developer, UK, spare time.
 **Topics:** Developer Tools, Security, Privacy, Open Source
 
 **Links:** irlid.co.uk | github.com/BunHead/IRLid
+
+---
+
+## Promotion Round 3 — July 2026 ("stop waiting for Donald")
+
+**Context (2 Jul 2026):** Imbue demo stalled (Donald unreachable). Captain's call: promote directly.
+Landscape check run 2 Jul: Zoom partnered with World (Altman's Orb) Apr 2026 to verify humans in
+meetings; deepfakes ~11% of global fraud; Gartner's "face biometrics unreliable in isolation" now
+consensus; Encointer (nearest protocol cousin) criticised for fixed-time/fixed-place ceremonies +
+blockchain dependency. Proof-of-personhood is the hot category — IRLid is the no-biometric,
+no-blockchain, no-app corner of it: proof-of-co-presence.
+
+**Master framing (the "fixed idea"):**
+> The internet can fake a face, a voice, a meeting, a person. IRLid proves the one thing it can't
+> fake: that two people actually stood together. No app. No iris scan. No blockchain. Two phones,
+> 90 seconds, a signed receipt anyone can verify.
+
+Honest-limits rider (always attach): GPS is asserted not measured (mock-location apps exist — see
+THREAT-MODEL.md); IRLid proves co-presence of two DEVICES + hardware-backed keys, good-faith humans
+strengthen it via the optional layers. The honesty IS the differentiator vs the category.
+
+**Spearhead (3 concentrated shots, not 10 scattered posts):**
+1. **Show HN** — "Show HN: IRLid – cryptographic proof that two people met, using just their phones".
+   Lead with protocol + threat model + live demo; solo-dev honest-threat-model posts are HN's
+   sweet spot (r/netsec already proved the audience: 28K views). Be present all day to answer.
+2. **EAI SecureComm 2026 late track (Lancaster, 22-24 Jul, hybrid)** — posters/demos, 4pp Springer
+   LNICST, proceedings annex. Late-track deadline shown as "10th July" (year typo'd on their page —
+   EMAIL ORGANISERS FIRST to confirm it stands for 2026). Natural submission: the v5 protocol
+   (hardware-backed co-presence receipts) + threat model.
+3. **Grant-compliance vertical (org portal's killer economic story):** funders require nonprofits to
+   PROVE volunteer hours happened; every incumbent (OneTap, VolunteerHub, ...) records assertions —
+   IRLid mints independently-verifiable signed receipts. Pitch: "Attendance your funders can verify
+   without trusting you." One-pager + receipts-history/export view to complete the story.
+4. **Patreon v6 update + Wisdom one-pager** (cleared 11 Jun to name him) — already queued.
+5. Product Hunt relaunch as the Org portal — AFTER Show HN, as a second wave.
