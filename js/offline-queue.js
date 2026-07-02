@@ -96,6 +96,20 @@
     console.warn("[offline-queue] dropping terminal op", reason, op && op.url, op && op.idempotency_key);
     await remove(op.id);
     notifyQueueChanged();
+    // v6.4.20 — surface the drop instead of vanishing it. Before this, a
+    // terminal replay failure cleared the queue badge and looked exactly
+    // like a successful sync (22 Jun finding). Dashboards listen for this
+    // event and tell the user to redo the action.
+    try {
+      window.dispatchEvent(new CustomEvent("irlid:queue-dropped", {
+        detail: {
+          url: op && op.url,
+          method: op && op.method,
+          reason: reason,
+          queued_at: op && op.queued_at
+        }
+      }));
+    } catch (_) {}
   }
 
   // Replay drains the queue in insertion order. 2xx removes the op. Network

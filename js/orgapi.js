@@ -10,14 +10,28 @@
     "/org/checkin",
     "/org/checkout",
     "/org/checkout-token",
-    "/org/expected/create-and-bind",
     "/org/expected",
     "/org/conflicts",
     "/org/settings"
   ];
 
+  // v6.4.20 — signed-action endpoints must NEVER be offline-queued. Their
+  // WebAuthn envelopes bind a nonce + freshness window, so a replayed copy
+  // can only fail (HTTP 400) and the replay pass then drops it after the
+  // user has walked away believing it synced (the 22 Jun silent-drop
+  // finding). Excluded, the call fails loudly at click time and the user
+  // re-signs when back online. PATCH /org/expected/:id is signed-gated
+  // server-side (requireCalendarSignedAction), so PATCH is excluded too.
+  const QUEUE_EXCLUDED_PATTERNS = [
+    /^\/org\/expected\/create-and-bind([/?]|$)/,             // requireFreshStaffProof + requireSignedAction
+    /^\/org\/expected\/[^/?]+\/bind-additional-key([/?]|$)/, // requireSignedAction
+    /^\/org\/expected\/[^/?]+\/rebind([/?]|$)/               // admin_signature verification
+  ];
+
   function isQueueEligible(path, method) {
-    if (String(method || "GET").toUpperCase() === "GET") return false;
+    const m = String(method || "GET").toUpperCase();
+    if (m === "GET" || m === "PATCH") return false;
+    if (QUEUE_EXCLUDED_PATTERNS.some(p => p.test(path))) return false;
     return QUEUE_ELIGIBLE_PATHS.some(p => path === p || path.startsWith(p + "/") || path.startsWith(p + "?"));
   }
 
@@ -129,6 +143,9 @@
       });
     },
     workerBaseUrl() { return publicBaseUrl(); },
+    // v6.4.20 — exposed for diagnostics only (localhost smoke + Chrome-MCP
+    // probes can verify queue-eligibility rules without faking an outage).
+    isQueueEligible,
 
     // PROTOCOL.md §14 — Batch C user-level endpoints, Bearer session token auth.
     listMyOrgs(sessionToken) {
