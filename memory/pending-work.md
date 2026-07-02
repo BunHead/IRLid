@@ -22,6 +22,12 @@
   Verified.** Cross-device avatar = §14.18 linkage (v6.5), same root as unified history.
 - **Trap receipted:** `npx serve` cleanUrls redirect strips BOTH `.html` AND the query string —
   localhost-test receipt URLs must use `/receipt?org_receipt=...` (no .html) or the org branch never runs.
+- **Deploy saga postscript (BOOTSTRAP §6 candidate):** v6.4.22/23 sat undeployed ~1hr behind a GitHub
+  Pages INCIDENT (githubstatus.com: "slow and failing Pages deployments"; our runs showed build:success +
+  deploy:"Timeout reached, aborting!"). Lesson: build-green + deploy-timeout = check githubstatus.com FIRST,
+  don't suspect content; Captain's empty-commit redeploy landed once their service eased. ALSO: anonymous
+  GitHub API polling exhausts the 60/hr limit fast — poll the LIVE SITE pill instead, or authenticate via
+  the git-credential token.
 - **NOT STARTED: Phase 1 unified account home (login.html)** — next watch's first build. Captain smoke of
   v6.4.22 panel + v6.4.23 (logo on receipt from his phone = avatar should ALSO show there if signed in)
   still pending. Pill now v6.4.23, SW v175.
