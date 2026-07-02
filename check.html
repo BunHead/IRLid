@@ -776,6 +776,16 @@
     document.getElementById("nameB").textContent = receipt.org?.name || "Organisation";
     renderAvatar(document.getElementById("avatarA"), null);
     renderAvatar(document.getElementById("avatarB"), null);
+    // v6.4.23 — venue logo on the verifier page (public org branding).
+    (async () => {
+      try {
+        if (receipt.org && receipt.org.slug) {
+          const resp = await fetch(orgApiBase() + "/org/entry-info/" + encodeURIComponent(receipt.org.slug), { cache: "no-store" });
+          const info = resp.ok ? await resp.json() : null;
+          if (info && info.logoUrl) renderAvatar(document.getElementById("avatarB"), info.logoUrl);
+        }
+      } catch {}
+    })();
     document.getElementById("locA").textContent = receipt.gps ? "Location: " + receipt.gps.lat + ", " + receipt.gps.lon : (receipt.gps_hash ? "Location: GPS redacted" : "Location: not present");
     document.getElementById("timeA").textContent = "Time: " + formatOrgReceiptTime(receipt.ts);
     document.getElementById("accA").textContent = receipt.score != null ? "Score: " + receipt.score : "Score: unknown";

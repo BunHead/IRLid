@@ -876,6 +876,32 @@
       roleBEl.textContent = "Venue:";
       renderAvatar(selfAvatarWrap, null);
       renderAvatar(guestAvatarWrap, null);
+      // v6.4.23 — venue logo (public org branding via /org/entry-info) and
+      // same-device attendee avatar. The avatar renders ONLY when this
+      // device's key fingerprint matches the receipt's attendee fp — a
+      // receipt is a public artefact, so the viewer's face must never be
+      // painted onto the attendee slot without proof this is the check-in
+      // device. Cross-device avatars need account<->fp linkage (§14.18, v6.5).
+      (async () => {
+        try {
+          if (receipt.org && receipt.org.slug) {
+            const resp = await fetch(orgApiBase() + "/org/entry-info/" + encodeURIComponent(receipt.org.slug), { cache: "no-store" });
+            const info = resp.ok ? await resp.json() : null;
+            if (info && info.logoUrl) renderAvatar(guestAvatarWrap, info.logoUrl);
+          }
+        } catch {}
+        try {
+          if (receipt.attendee && receipt.attendee.pub_fp && typeof getPublicJwk === "function") {
+            const pub = compactJwk(await getPublicJwk());
+            const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(pub)));
+            const localFp = btoa(String.fromCharCode(...new Uint8Array(hashBuf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").slice(0, 16);
+            if (localFp === receipt.attendee.pub_fp) {
+              const u = await fetchUserInfo();
+              if (u && u.google_picture) renderAvatar(selfAvatarWrap, u.google_picture);
+            }
+          }
+        } catch {}
+      })();
 
       summarySection.style.display = "block";
       sumTime.textContent = formatReceiptTime(getOrgReceiptCheckinTsMs(receipt));
