@@ -10,6 +10,18 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL (watch close) — FULL HARDWARE SMOKE GREEN on v6.4.22 + v6.4.23
+- **Captain verified everything on hardware:** Dashboard Receipts panel + Export CSV rendering (Data's
+  v6.4.22); Imbue logo on venue side of receipts on desktop AND phone; desktop attendee slot correctly
+  placeholder (not the check-in device — the honesty gate working); **phone (check-in device, signed in)
+  shows the account avatar** — same-device fp match proven end-to-end on production. Also visible: the
+  phone's "My Receipts" localStorage list shows org check-ins back to 22 Jun (Phase 1 unification has
+  real data waiting for it).
+- **Day total: v6.4.20 → v6.4.23 (8 ships incl. letters), paper drafted+verified+dated, Round 3 strategy
+  banked, Data commissioned on £7 plan, 2 PRs closed + 1 merged, 11 branches swept, GitHub Pages incident
+  weathered.** Next watch: Phase 1 unified account home. Captain's queue: Wisdom text, Patreon weekend,
+  Show HN Monday ~14:00 UK, trademark filing.
+
 ### ⭐ 2 JUL (late shift) — v6.4.22 MERGED (Data's first £7-plan run: ACCEPT) + v6.4.23 receipt visuals SHIPPED
 - **PR #127 merged (`2c97dba`)** — Data's receipts-history panel passed all 6 A/R/D checks (Org.html+sw.js
   only, +102/−2, no polling, hooked existing render). Marked ready via GraphQL + merged via API with the

@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-07-02 (watch close) — the mouse that only appears where the key fits × a receipt with a return address × waiting on someone else's crane
+
+Two screens, the same receipt. On the desktop: a grey silhouette, the shape of nobody. On the phone: Pinky — red nose, scheming eyebrows — grinning out of the attendee slot like he'd been waiting there all along. The difference between the screens is not the person looking at them. It is that one device could whisper the right sixteen characters and one could not. We spent years teaching the protocol to refuse to say more than it knows, and tonight it paid the refusal back as a gift: the face appears only where the key fits, and so the face, when it appears, means something. Anyone can claim a name. The mouse on the phone is the claim that survived.
+
+The receipt used to end in a shrug — GPS unavailable, map not available, a proof that trailed off mid-sentence. Now it ends in a street. Wesley House, Derby, a phone number that rings, an inbox that answers. Asserted, not measured — we wrote that on it honestly, the way you'd write *reconstruction* under a museum drawing — but a verifier holding it is no longer alone with a hash. There is somewhere to knock. Evidence, it turns out, is not only what cannot be forged; it is also what can be *followed up*. The cryptography closes the argument, and the address opens the door.
+
+And between the building of these things and the seeing of them: an hour becalmed, cargo lashed and manifest signed, because the harbour's crane — not ours — had seized. Every instinct says a stuck ship means something is wrong with the ship. The logs said otherwise: build green, deploy timing out, an incident page confessing on the operator's behalf. The Captain sent one empty commit — a knock with nothing in the parcel — and the crane shuddered and lifted. Some evenings the work is code. Some evenings the work is knowing which side of the harbour wall the fault is on, and having the patience not to rebuild a working ship while you wait.
+
+---
+
 ## 2026-07-02 — the stale slicer error (only clears when you re-slice) × canonical hashing (sort the keys, order stops mattering) × lemon and barley water
 
 The field still shows the minus-one. You changed it to zero minutes ago — the little reset arrow sits there, patient, proof of the fix — but the machine keeps flashing the old complaint until you ask it to look again. It isn't lying. It simply hasn't re-read the world. A warning can outlive its cause by exactly the length of your inattention; the error describes a country you already left, and only re-slicing redraws the border. How much of what alarms us is just the last render, waiting for a refresh nobody triggered? And the version stamp underneath it — 2.6 on a file opened by 1.7 — not the age of the tool at all, just the mark of the last hand that touched the thing, mistaken for the identity of the hand holding it now.
