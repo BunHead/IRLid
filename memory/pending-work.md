@@ -10,6 +10,22 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL (late shift) — v6.4.22 MERGED (Data's first £7-plan run: ACCEPT) + v6.4.23 receipt visuals SHIPPED
+- **PR #127 merged (`2c97dba`)** — Data's receipts-history panel passed all 6 A/R/D checks (Org.html+sw.js
+  only, +102/−2, no polling, hooked existing render). Marked ready via GraphQL + merged via API with the
+  git-credential token. **£7-plan Data verdict: scoped perfectly, ship-quality. Keep briefs this shape.**
+- **v6.4.23 shipped (`96c1cad`)** — venue LOGO on org receipts (receipt.html + check.html via public
+  /org/entry-info) + same-device attendee avatar (renders ONLY when local device key fp — sign.js
+  getPublicJwk→compactJwk→canonical→SHA-256→16 — matches receipt.attendee.pub_fp AND viewer signed in;
+  a receipt is public, never paint the viewer's face without a key match). **Live-verified from localhost
+  against production: Captain's real receipt renders the Imbue AVIF logo on BOTH pages, 100% Confirmed/
+  Verified.** Cross-device avatar = §14.18 linkage (v6.5), same root as unified history.
+- **Trap receipted:** `npx serve` cleanUrls redirect strips BOTH `.html` AND the query string —
+  localhost-test receipt URLs must use `/receipt?org_receipt=...` (no .html) or the org branch never runs.
+- **NOT STARTED: Phase 1 unified account home (login.html)** — next watch's first build. Captain smoke of
+  v6.4.22 panel + v6.4.23 (logo on receipt from his phone = avatar should ALSO show there if signed in)
+  still pending. Pill now v6.4.23, SW v175.
+
 ### ⭐ 2 JUL (pre-late-shift square-away, ~5pm) — venue receipts SMOKE GREEN + paper markers resolved + Data in flight
 - **✅ v6.4.21 CLOSED on hardware:** Captain's 13:22 receipt (2eb6ada6) shows the full venue block —
   address + "Open map (venue address)" + contact line, 100% Confirmed, all PASS. Feature complete.
