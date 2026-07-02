@@ -2805,6 +2805,11 @@ async function orgUpdateSettings(request, env) {
     // shown to attendees on org-entry.html (allow/orange/review states). Display-only,
     // no accept gate. Captain's directive 11 May morning.
     "logoUrl","welcomeMessage","orgTerms","redirectUrl","staffRedirectUrl","websiteUrl",
+    // v6.4.21 — org-attested venue contact details. Embedded into signed org
+    // receipts at mint time so a verifier holding a receipt with no GPS gets
+    // the venue's own address/contact instead of a dead end. Asserted by the
+    // org, not measured — receipt.html labels them "provided by organisation".
+    "contactEmail","contactPhone","venueAddress",
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     "calendar_defaults",
@@ -2979,6 +2984,10 @@ async function orgUpdateSettings(request, env) {
   if (body.orgTerms !== undefined && typeof body.orgTerms !== "string") return err("orgTerms must be a string");
   if (body.orgTerms !== undefined && typeof body.orgTerms === "string" && body.orgTerms.length > 8000) return err("orgTerms too long (max 8000 chars)");
   if (body.redirectUrl !== undefined && typeof body.redirectUrl !== "string") return err("redirectUrl must be a string");
+  // v6.4.21 — venue contact fields: plain strings with tight caps.
+  if (body.contactEmail !== undefined && (typeof body.contactEmail !== "string" || body.contactEmail.length > 200)) return err("contactEmail must be a string (max 200 chars)");
+  if (body.contactPhone !== undefined && (typeof body.contactPhone !== "string" || body.contactPhone.length > 50)) return err("contactPhone must be a string (max 50 chars)");
+  if (body.venueAddress !== undefined && (typeof body.venueAddress !== "string" || body.venueAddress.length > 300)) return err("venueAddress must be a string (max 300 chars)");
   // v5.9.0.13.14 — Role vocabulary: per-org custom labels for the role chain.
   if (body.roleLabels !== undefined) {
     const rl = body.roleLabels;
@@ -3361,6 +3370,23 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
   } else if (checkinRow.gps_hash) {
     payload.gps_hash = checkinRow.gps_hash;
   }
+
+  // v6.4.21 — org-attested venue details (Captain's 2 Jul call). A receipt
+  // with no GPS used to give the verifier a dead end; now it carries the
+  // venue's own address/contact so there is always someone to ask. These are
+  // PROVIDED BY THE ORGANISATION (opt-in Settings fields) — asserted, not
+  // measured — and are part of the signed payload from mint time onward.
+  // Old receipts are untouched (immutable, warts and all).
+  const venueAddress = typeof settings.venueAddress === "string" ? settings.venueAddress.trim().slice(0, 300) : "";
+  const venueEmail = typeof settings.contactEmail === "string" ? settings.contactEmail.trim().slice(0, 200) : "";
+  const venuePhone = typeof settings.contactPhone === "string" ? settings.contactPhone.trim().slice(0, 50) : "";
+  if (venueAddress || venueEmail || venuePhone) {
+    payload.venue = {};
+    if (venueAddress) payload.venue.address = venueAddress;
+    if (venueEmail) payload.venue.email = venueEmail;
+    if (venuePhone) payload.venue.phone = venuePhone;
+  }
+
   payload.venue_pub_jwk = venuePub;
 
   const signature = await signCanonicalPayload(payload, venuePrv);

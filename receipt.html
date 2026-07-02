@@ -882,6 +882,14 @@
       sumDistance.textContent = receipt.gps ? "Venue check-in GPS present" : (receipt.gps_hash ? "GPS redacted" : "(missing)");
       const mapUrl = receipt.gps ? makeMapsUrl(Number(receipt.gps.lat), Number(receipt.gps.lon)) : null;
       sumMap.innerHTML = mapUrl ? '<a href="' + mapUrl + '" target="_blank" rel="noopener noreferrer">Open map</a>' : "(not available)";
+      // v6.4.21 — org-attested venue details embedded in the signed payload.
+      // Asserted by the organisation, not measured — label them so. Address
+      // goes through textContent / encodeURIComponent (org-controlled string).
+      const venue = receipt.venue || {};
+      if (venue.address && !receipt.gps) {
+        sumDistance.textContent = "Venue address (provided by organisation): " + venue.address;
+        sumMap.innerHTML = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(venue.address) + '" target="_blank" rel="noopener noreferrer">Open map (venue address)</a>';
+      }
       aCoords.textContent = receipt.attendee?.pub_fp ? "Device: " + receipt.attendee.pub_fp : "Device: (missing)";
       aTime.textContent = "Action: " + (receipt.action || "in");
       aAcc.textContent = receipt.score != null ? "Score: " + receipt.score : "Score: (missing)";
@@ -890,6 +898,13 @@
       bAcc.textContent = receipt.event?.room ? "Room: " + receipt.event.room : "Room: (none)";
       receiptHint.style.display = "block";
       receiptHint.innerHTML = 'Verify this receipt in <a href="check.html?org_receipt=' + encodeURIComponent(receiptId) + '">check.html</a>.';
+      if (venue.email || venue.phone) {
+        // Text nodes only — venue strings are org-controlled, never innerHTML.
+        receiptHint.appendChild(document.createElement("br"));
+        receiptHint.appendChild(document.createTextNode(
+          "Venue contact (provided by organisation): " + [venue.email, venue.phone].filter(Boolean).join(" · ")
+        ));
+      }
 
       addCheck("Org receipt structure", receipt.kind === "org_checkin" && receipt.v === 5);
       addCheck("Venue public key present", !!receipt.venue_pub_jwk);

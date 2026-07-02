@@ -3363,7 +3363,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.20</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.21</span></div>
   </div>
 </div>
 
@@ -6399,7 +6399,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label for="v511OrgWebsite">Website</label><input type="url" id="v511OrgWebsite" value="https://example.com" /></div>
           <div class="v511-row"><label for="v511OrgDescription">Description</label><input type="text" id="v511OrgDescription" value="Co-presence verification for events" /></div>
           <div class="v511-row"><label for="v511OrgTerms">Org terms / disclaimer</label><textarea id="v511OrgTerms" placeholder="Optional informational text shown at check-in."></textarea></div>
-          <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" value="hello@example.com" /></div>
+          <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" placeholder="hello@your-org.com — optional, shown on receipts" /></div>
+          <div class="v511-row"><label for="v511OrgContactPhone">Contact phone</label><input type="text" id="v511OrgContactPhone" placeholder="Optional — shown on receipts" /></div>
+          <div class="v511-row"><label for="v511OrgVenueAddress">Venue address</label><input type="text" id="v511OrgVenueAddress" placeholder="Optional — shown on receipts so verifiers can reach the venue" /></div>
 
           <details class="v511-expander">
             <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
@@ -11912,7 +11914,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // ---- Org tab ----
           var V511_ORG_LS_KEY = 'v511_mockup_org_v1';
-          var V511_ORG_FIELDS = ['v511OrgName','v511OrgWebsite','v511OrgDescription','v511OrgTerms','v511OrgContactEmail'];
+          var V511_ORG_FIELDS = ['v511OrgName','v511OrgWebsite','v511OrgDescription','v511OrgTerms','v511OrgContactEmail','v511OrgContactPhone','v511OrgVenueAddress'];
           function v511OrgCaptureState() {
             var state = {};
             V511_ORG_FIELDS.forEach(function (id) {
@@ -13201,6 +13203,11 @@ function applyServerSettingsToLocalState(s) {
   else if (typeof src.website_url === 'string') portalState.websiteUrl = src.website_url;
   if (typeof src.welcomeMessage === 'string') portalState.welcomeMessage = src.welcomeMessage;
   if (typeof src.orgTerms === 'string') portalState.orgTerms = src.orgTerms;
+  // v6.4.21 — venue contact fields round-trip into the visible v511 inputs so
+  // a later Save All can never clobber server values with blanks.
+  if (typeof src.contactEmail === 'string') { portalState.contactEmail = src.contactEmail; const ce = document.getElementById('v511OrgContactEmail'); if (ce) ce.value = src.contactEmail; }
+  if (typeof src.contactPhone === 'string') { portalState.contactPhone = src.contactPhone; const cp = document.getElementById('v511OrgContactPhone'); if (cp) cp.value = src.contactPhone; }
+  if (typeof src.venueAddress === 'string') { portalState.venueAddress = src.venueAddress; const va = document.getElementById('v511OrgVenueAddress'); if (va) va.value = src.venueAddress; }
   if (typeof src.redirectUrl === 'string') portalState.redirectUrl = src.redirectUrl;
   if (typeof src.staffRedirectUrl === 'string') portalState.staffRedirectUrl = src.staffRedirectUrl;
   if (typeof src.allowSelfSelection === 'boolean') portalState.allowSelfSelection = src.allowSelfSelection;
@@ -14629,6 +14636,12 @@ async function saveSettings() {
     allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
     enableIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
     roleLabels: readRoleLabelsFromUI(), // v5.9.0.13.14 — role vocabulary panel
+    // v6.4.21 — org-attested venue contact details, embedded into signed
+    // receipts at mint time. The old seeded placeholder 'hello@example.com'
+    // may survive in v511_mockup_org_v1 localStorage blobs — never persist it.
+    contactEmail: (function () { const v = (document.getElementById('v511OrgContactEmail')?.value || '').trim(); return v === 'hello@example.com' ? '' : v; })(),
+    contactPhone: (document.getElementById('v511OrgContactPhone')?.value || '').trim(),
+    venueAddress: (document.getElementById('v511OrgVenueAddress')?.value || '').trim(),
     manager_perms: readManagerPermsFromUI(),
     calendar_defaults: (typeof window.v511CalendarDefaultsForSave === 'function') ? window.v511CalendarDefaultsForSave() : undefined
   };
