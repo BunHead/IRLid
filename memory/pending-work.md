@@ -10,6 +10,22 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL (post-reset) — arXiv paper draft DONE + v6.4.21b (check.html venue block)
+- **`PAPERS/irlid-protocol-paper-DRAFT.md` written and verified** — full multi-agent pass (3 extractors
+  over PROTOCOL.md/THREAT-MODEL.md/deployment history → draft → overclaim hunter + accuracy checker →
+  all 36 findings applied). Title deliberately says **Evidence** not Proof. 4,673 words, references are
+  [ref] placeholders, TWO **[CAPTAIN DECIDE]** markers inside (contact email: spencer@ vs support@;
+  design-duration claim). Pre-submission: resolve markers → fill refs → pandoc to PDF → arXiv cs.CR
+  (first submission may need endorsement). This replaces the $589 SecureComm poster at £0.
+- **v6.4.21b** — check.html (the verifier page) mirrors the receipt.html venue block. Pill v6.4.21b, SW v173.
+- **Notable finds from the verify pass worth carrying into site copy someday:** `bioVerified` field name
+  itself overclaims (records WebAuthn UV = biometric OR passcode) — flagged in-paper as historical name;
+  "no passwords anywhere" needs the api_key caveat; DB immutability is policy-not-cryptography until
+  §11 anchoring lands (receipts exported to participants are the real witnesses).
+- **Still awaiting Captain:** v6.4.21a re-smoke (Save → GREEN toast → fresh check-in → venue block on new
+  receipt — screenshots earlier showed fields filled + saved, receipt from BEFORE the fix correctly lacks
+  venue). Then: fire Data's brief, Wisdom text, Patreon weekend, Show HN Monday.
+
 ### ⭐ 2 JUL (afternoon) — v6.4.21 + v6.4.21a LIVE: org-attested venue details on receipts
 - **Captain's idea, shipped same day:** receipts with no GPS now carry the venue's own address/contact
   instead of a dead end. Settings → Organisation gains LIVE Contact email / Contact phone / Venue address
