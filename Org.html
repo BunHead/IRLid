@@ -434,6 +434,8 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
   display: flex; align-items: center; gap: 8px;
 }
 .dashboard-collapsible > summary::-webkit-details-marker { display: none; }
+.dashboard-summary-title { flex: 1 1 auto; min-width: 0; }
+.dashboard-summary-action { margin-left: auto; }
 .dashboard-collapsible > summary::before {
   content: "▸"; color: var(--muted);
   font-size: 11px; line-height: 1;
@@ -1021,6 +1023,9 @@ body.audit-mode #attendanceBody { overflow-x: hidden; }
 .btn-confirm { background: #da3633; color: #fff; }
 .btn-confirm:hover { background: var(--red); }
 .bio-tag { color: #bc8cff; font-size: 10px; }
+.receipts-history-wrap { overflow-x: auto; }
+.receipts-history-table { width: 100%; min-width: 560px; }
+.receipts-history-empty { padding: 24px 12px; }
 .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
 .btn { padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
 .btn-primary { background: #238636; color: #fff; }
@@ -3363,7 +3368,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.21b</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.22</span></div>
   </div>
 </div>
 
@@ -3720,6 +3725,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                     </div>
                   </div>
                 </div>
+                </details>
+
+                <details class="dashboard-collapsible" id="receiptsHistoryPanel" data-min-role="staff">
+                  <summary><span class="dashboard-summary-title">Receipts</span><button class="btn btn-secondary btn-sm dashboard-summary-action" type="button" id="receiptsExportCsvBtn" onclick="event.preventDefault(); event.stopPropagation(); exportReceiptsHistoryCsv();">Export CSV</button></summary>
+                  <div class="card-body">
+                    <div class="receipts-history-wrap" id="receiptsHistoryBody">
+                      <div class="empty-state receipts-history-empty">No receipts yet today &mdash; receipts are minted at check-in.</div>
+                    </div>
+                  </div>
                 </details>
               </div>
 
@@ -13117,6 +13131,7 @@ let settings = {
 };
 let portalState = loadPortalState();
 let attendanceData = [];
+let receiptsHistoryRows = [];
 let attendanceStats = null;
 let venueQrPayload = null;
 let currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null };
@@ -13244,6 +13259,7 @@ function currentSnapshotData() {
   return {
     expected: expectedAttendees || [],
     attendance: attendanceData || [],
+    receipts_history: receiptsHistoryRows || [],
     attendance_stats: attendanceStats || null,
     settings: savedSettings || settings || null,
     theme: typeof activeTheme !== 'undefined' && typeof normalizeThemeForSave === 'function'
@@ -13314,6 +13330,7 @@ function applySnapshotToDashboard(snap) {
   if (!snap) return false;
   expectedAttendees = Array.isArray(snap.expected) ? snap.expected : [];
   attendanceData = Array.isArray(snap.attendance) ? snap.attendance : [];
+  receiptsHistoryRows = Array.isArray(snap.receipts_history) ? snap.receipts_history : attendanceData;
   attendanceStats = snap.attendance_stats || null;
   if (snap.settings) {
     applyServerSettingsToLocalState(snap.settings);
@@ -15175,6 +15192,86 @@ function displayLocale() {
   if (/^Europe\/(London|Guernsey|Jersey|Isle_of_Man)$/i.test(tz)) return 'en-GB';
   return navigator.languages?.[0] || navigator.language || undefined;
 }
+function receiptHistoryTimeValue(row) {
+  return row?.checkin_at || row?.created_at || row?.active_checkin_at || row?.active_since || row?.last_seen || row?.first_seen || null;
+}
+function formatReceiptHistoryTime(ts) {
+  const d = dateFromStoredTimestamp(ts);
+  if (!d) return '-';
+  return d.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(',', '');
+}
+function receiptHistoryAction(row) {
+  if (Object.prototype.hasOwnProperty.call(row || {}, 'active_checkin_id')) {
+    return row?.active_checkin_id ? 'in' : 'out';
+  }
+  return row?.checkout_at ? 'out' : 'in';
+}
+function receiptHistoryUrl(receiptId, page) {
+  return `https://irlid.co.uk/${page}.html?org_receipt=${encodeURIComponent(receiptId)}`;
+}
+function receiptHistoryRowsWithReceipts() {
+  return (receiptsHistoryRows || [])
+    .filter(row => String(row?.receipt_id || '').trim())
+    .slice()
+    .sort((a, b) => (timestampMs(receiptHistoryTimeValue(b)) || 0) - (timestampMs(receiptHistoryTimeValue(a)) || 0));
+}
+function renderReceiptsHistory() {
+  const body = document.getElementById('receiptsHistoryBody');
+  const exportBtn = document.getElementById('receiptsExportCsvBtn');
+  if (!body) return;
+  const rows = receiptHistoryRowsWithReceipts();
+  if (exportBtn) exportBtn.disabled = !rows.length;
+  if (!rows.length) {
+    body.innerHTML = '<div class="empty-state receipts-history-empty">No receipts yet today &mdash; receipts are minted at check-in.</div>';
+    return;
+  }
+  body.innerHTML = `<table class="att-table receipts-history-table"><thead><tr><th>Name</th><th>Time</th><th>Action</th><th>Receipt</th><th>Verify</th></tr></thead><tbody>${rows.map(row => {
+    const receiptId = String(row.receipt_id || '').trim();
+    const receiptUrl = receiptHistoryUrl(receiptId, 'receipt');
+    const verifyUrl = receiptHistoryUrl(receiptId, 'check');
+    return `<tr><td>${escapeHtml(rowDisplayName(row) || 'Unknown attendee')}</td><td>${escapeHtml(formatReceiptHistoryTime(receiptHistoryTimeValue(row)))}</td><td>${escapeHtml(receiptHistoryAction(row))}</td><td><a class="btn btn-secondary btn-sm" href="${escapeHtml(receiptUrl)}" target="_blank" rel="noopener noreferrer">Open</a></td><td><a class="btn btn-secondary btn-sm" href="${escapeHtml(verifyUrl)}" target="_blank" rel="noopener noreferrer">Verify</a></td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+function localIsoDateForFilename(date) {
+  const d = date instanceof Date ? date : new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+function exportReceiptsHistoryCsv() {
+  const rows = receiptHistoryRowsWithReceipts();
+  if (!rows.length) return showToast('No receipts to export yet', true);
+  const header = ['name', 'time_iso', 'action', 'receipt_id', 'receipt_url', 'verify_url'];
+  const lines = rows.map(row => {
+    const receiptId = String(row.receipt_id || '').trim();
+    const d = dateFromStoredTimestamp(receiptHistoryTimeValue(row));
+    return [
+      rowDisplayName(row) || '',
+      d ? d.toISOString() : '',
+      receiptHistoryAction(row),
+      receiptId,
+      receiptHistoryUrl(receiptId, 'receipt'),
+      receiptHistoryUrl(receiptId, 'check')
+    ].map(csvEscape).join(',');
+  });
+  const blob = new Blob([[header.join(',')].concat(lines).join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `irlid-receipts-${localIsoDateForFilename(new Date())}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
 function prefersReducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -15342,6 +15439,7 @@ async function refreshAttendance() {
       }
     }
     attendanceStats = payload.stats || null;
+    receiptsHistoryRows = checkins;
     attendanceData = aggregateAttendees(checkins);
     renderStats(attendanceData, attendanceStats);
     updateAttendanceEventProgress(checkins);
@@ -15365,6 +15463,7 @@ async function refreshAttendance() {
     }
     attendanceStats = null;
     attendanceData = [];
+    receiptsHistoryRows = [];
     renderStats(attendanceData, attendanceStats);
     updateAttendanceEventProgress([]);
     renderTable(attendanceData);
@@ -15490,6 +15589,7 @@ function renderTable(rows) {
     const exp = r.expected_id != null ? expectedById.get(String(r.expected_id)) : null;
     return exp ? Object.assign({}, r, { prototype_role: exp.prototype_role || 'attendee' }) : r;
   });
+  renderReceiptsHistory();
   const attendanceNames = new Set(enrichedRows.map(r => String(r.name || '').trim().toLowerCase()).filter(Boolean));
   const expectedRows = expectedAttendees
     .filter(row => !attendanceNames.has(expectedDisplayName(row).toLowerCase()))
