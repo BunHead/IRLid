@@ -787,6 +787,20 @@
     document.getElementById("accB").textContent = "Room: " + (receipt.event?.room || "none");
     document.getElementById("metaTime").textContent = formatOrgReceiptTime(receipt.ts);
     document.getElementById("metaDist").textContent = receipt.gps ? "Org check-in GPS present" : (receipt.gps_hash ? "GPS redacted" : "not present");
+    // v6.4.21b — org-attested venue details (mirrors receipt.html v6.4.21):
+    // asserted by the organisation, not measured. Text nodes only — venue
+    // strings are org-controlled and must never hit innerHTML.
+    const venueInfo = receipt.venue || {};
+    if (venueInfo.address && !receipt.gps) {
+      document.getElementById("metaDist").textContent = "Venue address (provided by organisation): " + venueInfo.address;
+    }
+    if (venueInfo.address || venueInfo.email || venueInfo.phone) {
+      const locBEl = document.getElementById("locB");
+      locBEl.appendChild(document.createElement("br"));
+      locBEl.appendChild(document.createTextNode(
+        "Venue (provided by organisation): " + [venueInfo.address, venueInfo.email, venueInfo.phone].filter(Boolean).join(" · ")
+      ));
+    }
     document.getElementById("metaHash").textContent = receiptId;
     dbStatus.innerHTML = '<span class="db-found">&#10004; This org receipt exists in the IRLid org receipt table.</span>';
 
