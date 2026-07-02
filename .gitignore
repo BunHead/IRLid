@@ -1,6 +1,9 @@
 # Cowork sandbox artefacts
 .write_probe
 
+# Claude Code local config (machine-local settings + preview launch config)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -385,12 +385,15 @@ These anchors are **independently verifiable from public reference data** — no
 | Phase | What | Score band | Hardware |
 |-------|------|------------|----------|
 | **v5.3** | `orient` field populated from `DeviceOrientationEvent`; orientation cone in verifier | richness, not security | Phone (already exposes API) |
+| **v8.0** | `anchors` with `lidar-geometry` type — hash of the depth / point-cloud signature measured at the meeting or delivery point | 70→85/100 | Drone / mothership with LiDAR or depth sensor |
 | **v8.1** | `anchors` array with `star-tracker` type — hash of observed star pattern | 70→80/100 | Mothership / drone with optical sensor |
 | **v8.2** | `anchors` with `pulsar-xnav` type — pulsar timing-offset signature | 80→90/100 | Hardware tier with radio / X-ray receiver |
 | **v8.3** | Full hardware-attested 6DOF pose (combined star + pulsar + ephemeris) | 90+/100 | Mothership tier |
 | **v9+** | Cross-body 6DOF — Mars2000, lunar PCRF, frame translation via published ephemeris | 95+/100 | Multi-body deployment |
 
 **Honest limitation at the phone tier:** `DeviceOrientationEvent` is just as spoofable as `Date.now()`. Phone-tier 6DOF adds *use-case richness* (AR, doorman, drone-recipient pairing) but does **not** strengthen the threat model. Threat-model strengthening lives in the hardware tier.
+
+**LiDAR / depth sensing — measured, not asserted (drone tier).** The biggest honest weakness in the consumer proof is that GPS location is *claimed*, not *measured* — mock-location apps spoof it with no skill (see `THREAT-MODEL.md`). A LiDAR / depth sensor changes that for the hardware tier: a point cloud is a time-of-flight **measurement** of the real scene, not a coordinate the device asserts. A printed photo of a landing marker fools a camera but is flat in a depth map — so a `lidar-geometry` anchor gives an anti-spoofing primitive for the *location / landing* claim that GPS alone cannot. Crucially it attests **geometry, not identity** ("something the right shape was here at this distance"), so it *complements* IRLid's cryptographic *who / when* rather than replacing it; the trust then rests on the sensor's own integrity (hardware attestation / signed firmware), which is the v8 mothership-tier design. **Status: forward design, gated on Wisdom (ASE Tech).** Their public site lists the Badger (VTOL) and Mantis (quad) airframes plus the S.W.A.R.M. swarm-coordination layer and "onboard processing and real-time data analysis," but publishes no sensor loadout — confirm which airframes actually carry depth sensing before this row firms up. Pairs naturally with the retroreflective-marker / IR-beacon landing concept already sketched for the Wisdom partnership.
 
 ---
 
