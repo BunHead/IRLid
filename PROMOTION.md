@@ -996,3 +996,60 @@ strengthen it via the optional layers. The honesty IS the differentiator vs the 
    without trusting you." One-pager + receipts-history/export view to complete the story.
 4. **Patreon v6 update + Wisdom one-pager** (cleared 11 Jun to name him) — already queued.
 5. Product Hunt relaunch as the Org portal — AFTER Show HN, as a second wave.
+
+## Round 3 draft pack (2 Jul 2026 - Number One drafts, Captain rewrites in his voice)
+
+### Show HN (post Mon 6 Jul ~14:00 UK / morning US East; be present ALL day)
+TITLE OPTIONS (pick one):
+A) Show HN: IRLid - cryptographic proof that two people met, using just their phones
+B) Show HN: Proof two humans met IRL - no app, no biometrics, no blockchain
+C) Show HN: I built a protocol for proving physical co-presence (open source, live)
+
+BODY DRAFT:
+Two people meet, scan each other's QR codes in the browser, and both get an ECDSA-signed
+receipt proving they were within ~12m at the same moment. No app install, no account, no
+biometric harvesting, no chain. Keys can live in the phone's secure hardware (WebAuthn),
+so a receipt is bound to a physical device, not a copyable file.
+
+Honest limits up front: GPS is asserted, not measured - a mock-location app defeats the
+location claim, and two colluding people can lie about context. The threat model doc on
+the site covers what it does and doesn't prove. It's proof-of-co-presence, not
+proof-of-personhood: strong evidence, not certainty.
+
+There's also an organisation portal (venue check-in with hardware-signed staff actions,
+per-event attendance, offline queue, and receipts any third party can verify without
+trusting the org). Everything is a static site + one Cloudflare Worker.
+
+Built solo, UK, spare time, over a year of evenings. Live: https://irlid.co.uk -
+protocol spec + threat model on the repo. I'll be around all day for questions.
+
+FIRST-COMMENT CRIB (expect these):
+- "GPS spoofing?" -> Yes, acknowledged in THREAT-MODEL.md; location is the asserted layer,
+  the crypto binds who/when/devices. Roadmap: hardware-measured location (LiDAR/depth on
+  the drone tier).
+- "Relay attack / remote scan?" -> 90s window + 12m Haversine + both sides sign the same
+  nonce chain; relay needs live co-operation both ends inside the window - covered in
+  threat model, not claimed impossible.
+- "Why not NFC/BLE?" -> Browser reach. No app is the whole point; QR works on every phone
+  camera. BLE proximity is a roadmap richness layer, not a gate.
+- "Why not ZK?" -> v7. Haversine in circuits + P-256 non-native arithmetic = not yet;
+  redacted receipts (GPS hash) ship today.
+- "Business model?" -> Protocol free/open. Org portal hosting for venues later. Patreon now.
+
+### Patreon v6 update (post this weekend)
+Title: v6.4 - the Org portal grew up (and IRLid receipts got a home address)
+Beats: audit log + offline hardening + venue details on receipts this week; the portal now
+does calendar events, per-event attendance, five role tiers, offline check-in, and mints
+receipts anyone can verify at check.html; what's next = receipts history + going public
+(HN) Monday; thank supporters - this stretch was funded by you.
+
+### Wisdom written-clearance line (WhatsApp, send any time)
+"Before I name you and ASE Tech on the IRLid site and pitch material - you're happy with
+that, yes? One-word yes is plenty."
+
+### arXiv note (replaces SecureComm - GBP 0)
+4-page poster budget goes to a proper preprint instead: the IRLid protocol paper (v5
+hardware-backed co-presence receipts + threat model). cs.CR, free, citable forever, no
+deadline. Skeleton exists: PAPERS/multi-lineage-ai-witnesses-OUTLINE.md (recovered/ branch)
+for paper 2. Endorsement may be needed for first cs.CR submission - solvable, ask on the
+HN thread if stuck.
