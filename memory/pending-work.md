@@ -10,6 +10,27 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL (afternoon) — v6.4.21 + v6.4.21a LIVE: org-attested venue details on receipts
+- **Captain's idea, shipped same day:** receipts with no GPS now carry the venue's own address/contact
+  instead of a dead end. Settings → Organisation gains LIVE Contact email / Contact phone / Venue address
+  fields (three-layer landing: v511 inputs → saveSettings domPayload → Worker whitelist + validation →
+  settings_json); mint embeds `payload.venue {address,email,phone}` into the SIGNED payload;
+  receipt.html renders "Venue address (provided by organisation)" + maps-search link when GPS absent +
+  venue contact under the verify hint. Asserted-not-measured labelling throughout; old receipts immutable.
+  Hostile-address escaping verified (textContent/encodeURIComponent only).
+- **v6.4.21a — the trap that bit the smoke:** Captain's first receipt had NO venue block. Root cause: the
+  Organisation tab's "Save all settings" button was **T4.3.47 localStorage-mockup only** — pulsed ✓ Saved,
+  never POSTed; values looked persistent (localStorage restore) but D1 never had them. Same class as the
+  v5.5.5 two-save-buttons trap. Fix: v511OrgSaveNow also fires real saveSettings() (v5.5.10 rule: every
+  visible Save saves everything). Localhost proof: click reached the live Worker (Invalid API key with the
+  preview's stale key = full chain executing). Pills → v6.4.21a, SW → v172. **Awaiting Captain's re-smoke:
+  hard refresh → Save all settings (expect GREEN toast not just pulse) → fresh check-in → new receipt.**
+- **⚠️ Audit candidates for next watch:** the other v511 per-tab mockup saves (T4.3.50 Auth tab etc.) may
+  have the same localStorage-only trap — sweep every Save button for a real POST path.
+- **Also banked:** HANDOVER-ReceiptsHistory-v6.4.22.md (Mr. Data £7-plan test run, frontend-only) +
+  Round 3 draft pack in PROMOTION.md (Show HN Mon 6 Jul + crib sheet, Patreon weekend, Wisdom clearance
+  line, arXiv-replaces-SecureComm at £0 — poster reg was $589, killed by Captain).
+
 ### ⭐ 2 JUL — air-tight watch: v6.4.20 LIVE (offline-queue silent-drop fix) + housekeeping swept + promotion pivot
 - **Context:** Imbue demo still hasn't happened (Captain doing days there but hasn't run into Donald).
   Captain's call: stop waiting — promote it ourselves. Strategy delivered in-chat + condensed in PROMOTION.md.

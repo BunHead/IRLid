@@ -171,6 +171,7 @@ node --test tests/sign.test.js
 
 | Date | Milestone |
 |------|-----------|
+| 2 July 2026 | **v6.4.20 + v6.4.21/a LIVE — air-tight day + promotion pivot.** Offline-queue silent-drop fix (signed-action endpoints excluded from queue; drops now toast the user). Org-attested venue details on receipts (Captain's idea, same-day: opt-in Contact email/phone + Venue address → signed receipt payload → receipt.html renders venue block when GPS absent). v6.4.21a killed the T4.3.47 mockup-save trap (Org-tab Save was localStorage-only; now fires real saveSettings — v5.5.10 rule; swept all other tabs clean). Housekeeping: PRs #126/#84 closed, 11 stale codex branches deleted, `.claude/` gitignored, 10 days of parked DREAMS/PROTOCOL commits landed. **Promotion Round 3 launched:** Imbue demo stalled → self-promotion; SecureComm poster killed at $589; plan = Show HN (Mon 6 Jul) + Patreon + Wisdom one-pager + arXiv preprint at £0 total; draft pack in PROMOTION.md; Mr. Data £7-plan test-run brief HANDOVER-ReceiptsHistory-v6.4.22.md queued. |
 | 17 April 2026 | v4 shipped — bio-metric, trust history, privacy mode, novelty scoring |
 | 18 April 2026 | Redacted receipt shipped |
 | 19 April 2026 | 76-test suite — all passing |
