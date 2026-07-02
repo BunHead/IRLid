@@ -10,6 +10,21 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 2 JUL (pre-late-shift square-away, ~5pm) — venue receipts SMOKE GREEN + paper markers resolved + Data in flight
+- **✅ v6.4.21 CLOSED on hardware:** Captain's 13:22 receipt (2eb6ada6) shows the full venue block —
+  address + "Open map (venue address)" + contact line, 100% Confirmed, all PASS. Feature complete.
+- **✅ Paper markers RESOLVED per Captain:** spencer@ doesn't exist → support@irlid.co.uk stays (marker
+  removed); dating claim → **repo created 11 Mar 2024, first commit "IRLidAlpha1.0" same day** — abstract
+  now says "over two years of iterative development (public repository history since March 2024)".
+  Paper is submission-ready except [ref] placeholders + pandoc-to-PDF + cs.CR endorsement check.
+- **Mr. Data IN FLIGHT on v6.4.22 receipts-history** (Codex 5.5-Medium; screenshot showed clean clone,
+  correct baseline v6.4.21b/v173, reading render path). Expect PR — bash-diff + A/R/D before merge.
+- **LATE SHIFT (7pm) QUEUE:** ① review/merge Data's v6.4.22 PR; ② build Phase 1 unified account home —
+  login.html becomes single account page (fold receipt.html "My Receipts" list in + org check-ins section
+  + devices). **Phase 2 approved by Captain** ("well spotted, on device") — org-receipt account aggregation
+  via §14.18 fp-linkage = v6.5 design slate, NOT this week.
+- **Captain's weekend/Monday queue unchanged:** Wisdom text, Patreon post, Show HN Monday ~14:00 UK.
+
 ### ⭐ 2 JUL (post-reset) — arXiv paper draft DONE + v6.4.21b (check.html venue block)
 - **`PAPERS/irlid-protocol-paper-DRAFT.md` written and verified** — full multi-agent pass (3 extractors
   over PROTOCOL.md/THREAT-MODEL.md/deployment history → draft → overclaim hunter + accuracy checker →
