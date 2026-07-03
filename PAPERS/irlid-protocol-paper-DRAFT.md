@@ -174,7 +174,7 @@ IRLid demonstrates that useful, verifiable evidence of physical co-presence can 
 - W3C, "Web Authentication: An API for Accessing Public Key Credentials," Level 2/3.
 - FIDO Alliance, passkey specifications and platform authenticator documentation.
 - IETF RFC 3161, "Time-Stamp Protocol (TSP)."
-- [ref to select] Press/regulatory reporting on the February 2024 Hong Kong deepfake video-conference fraud against Arup (~US$25M) — supports §1 motivating claim.
-- [ref to select] Europol Innovation Lab / NIST reporting on voice-cloning and synthetic-voice fraud against telephone verification — supports §1 motivating claim.
-- [ref to select] Apple anonymous attestation documentation and WebAuthn attestation-conveyance ("none") platform defaults — supports §4.4 enrolment claim.
+- K. Magramo, "British engineering giant Arup revealed as $25 million deepfake video-conference scam victim," CNN Business, 16 May 2024. Hong Kong police reported the incident (15 transfers totalling ~HK$200M / US$25.6M, executed in a single day) in February 2024. — supports §1 motivating claim.
+- Europol Innovation Lab, "Facing Reality? Law Enforcement and the Challenge of Deepfakes," 2022; and subsequent Europol advisories on AI-generated media and voice cloning bypassing smartphone biometric and voice-authentication workflows (out-of-band verification recommended as the strongest control). — supports §1 motivating claim.
+- [ref to confirm] Apple Platform Security / WebAuthn documentation on anonymous ("none") attestation defaults for platform authenticators — supports §4.4 enrolment claim (Captain to confirm exact title/URL before submission).
 - IRLid protocol specification (`PROTOCOL.md`), threat model (`THREAT-MODEL.md`), and reference implementation, https://github.com/BunHead/IRLid, 2026.
