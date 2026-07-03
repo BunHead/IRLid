@@ -162,12 +162,16 @@ IRLid demonstrates that useful, verifiable evidence of physical co-presence can 
 
 ---
 
-## References *(to be completed for submission)*
+## References
+
+*~90% complete: every in-text citation now has an entry below. Remaining for LaTeX conversion — number the list and convert inline `[ref]`/`[refs]` markers to `[N]`, and confirm the one `[ref to confirm]` Apple URL.*
 
 - M. Borge et al., "Proof-of-Personhood: Redemocratizing Permissionless Cryptocurrencies," IEEE EuroS&PW, 2017.
 - Worldcoin Foundation, "World ID: Proof of Human" (whitepaper), 2023–2025.
-- A. Brenzikofer et al., "Encointer: Local Community Cryptocurrencies with Universal Basic Income" / pseudonym ceremony documentation.
-- S. Brands and D. Chaum, "Distance-Bounding Protocols," EUROCRYPT, 1993.
+- A. Brenzikofer et al., "Encointer: Local Community Cryptocurrencies with Universal Basic Income," Encointer Association; pseudonym-ceremony protocol documentation, https://encointer.org
+- BrightID, "A Decentralized Identity Network — Establishing Unique Identities via Social-Graph Analysis," project documentation, https://brightid.org — supports §2 (social-graph personhood).
+- Idena, "Proof-of-Person Blockchain: Simultaneous Turing-Test (FLIP) Ceremonies," project documentation, https://idena.io — supports §2 (simultaneous-Turing-test personhood).
+- S. Brands and D. Chaum, "Distance-Bounding Protocols," EUROCRYPT '93, LNCS 765, 1994.
 - A. Varshavsky et al., "Amigo: Proximity-Based Authentication of Mobile Devices," UbiComp, 2007.
 - H. T. T. Truong et al., "Comparing and Fusing Different Sensor Modalities for Relay Attack Resistance in Zero-Interaction Authentication," IEEE PerCom, 2014.
 - T. Halevi et al., "Secure Proximity Detection for NFC Devices Based on Ambient Sensor Data," ESORICS, 2012.
