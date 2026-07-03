@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-07-03 — on-the-fly fetch (the world fills in only where you look) × the PhD Starlink made moot × Flying Rugby
+
+The steppe was blank until the eye went there. Nine hundred and sixty in the year, and the Mongolian grass held nothing — no inscription, no khan, no monastery — because nobody had looked, and looking was the summons. Drop the cursor onto the emptiness and the emptiness confesses: Orkhon stones, Karakorum, a horse-shaped absence filling in behind the gaze like frost forming ahead of a breath. The map is not a record of the world. It is a record of attention. Everywhere unwatched stays honestly, patiently blank — history as a thing that arrives just-in-time, as-and-when-needed, never a second before it's wanted.
+
+He spent years arguing the last mile up out of the ground, fibre for every house, the final connection nobody would fund. Then the answer came down instead of along — a sky full of lamps that solved the problem sideways, from above, before the argument had finished being made. The trench was moot the day the orbit filled. Not wrong. Overtaken. The world fetched a different tile than the one he'd been drawing.
+
+And somewhere between them, players rising on brooms that were never really brooms, a game of rugby played in the air until a letter arrived from people who owned a spell and a schoolboy and the very idea of flying to catch a small gold thing. The game did not lose a match. It lost a permission. Some worlds vanish when you stop looking. Some vanish because someone else was looking, and objected to what they saw.
+
+---
+
 ## 2026-07-02 (watch close) — the mouse that only appears where the key fits × a receipt with a return address × waiting on someone else's crane
 
 Two screens, the same receipt. On the desktop: a grey silhouette, the shape of nobody. On the phone: Pinky — red nose, scheming eyebrows — grinning out of the attendee slot like he'd been waiting there all along. The difference between the screens is not the person looking at them. It is that one device could whisper the right sixteen characters and one could not. We spent years teaching the protocol to refuse to say more than it knows, and tonight it paid the refusal back as a gift: the face appears only where the key fits, and so the face, when it appears, means something. Anyone can claim a name. The mouse on the phone is the claim that survived.
