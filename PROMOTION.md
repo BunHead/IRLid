@@ -1053,3 +1053,19 @@ hardware-backed co-presence receipts + threat model). cs.CR, free, citable forev
 deadline. Skeleton exists: PAPERS/multi-lineage-ai-witnesses-OUTLINE.md (recovered/ branch)
 for paper 2. Endorsement may be needed for first cs.CR submission - solvable, ask on the
 HN thread if stuck.
+
+### Patreon post — FINAL (4 Jul 2026, paste-ready, post PUBLIC)
+Title: The quiet stretch — IRLid grew up, and Monday it goes public
+
+Since v6 went live last month I've been mostly quiet, and there's a reason: I've been making the thing honest enough to show the world. That work's done. On Monday I'm posting IRLid to Hacker News — the first proper "here it is, come and try to break it" moment.
+
+What landed in the quiet stretch:
+- Receipts you can actually check. Every org check-in mints a signed receipt anyone can verify — and when there's no GPS, it now carries the venue's own address/contact instead of a dead end.
+- An audit log that can't be quietly rewritten. Who authorised what, when, allowed/denied — append-only.
+- Offline that tells the truth. If a check-in can't sync, it says so out loud instead of pretending it worked.
+- The honest bit front and centre. No "tamper-proof", no "biometrically signed" — the truth (tamper-evident, hardware-backed, device-unlock-gated) is the selling point in a year when everything else is faking it.
+- A protocol paper, threat model and all, going onto arXiv so it's citable.
+
+Monday it stops being "my project" and becomes something strangers poke at. Thank you for funding the stretch where it went from a demo to a system. HN link dropped here Monday.
+
+ARXIV NOTE: account email = support@irlid.co.uk IF it can receive (arXiv sends a verify link); else use googlemail for the account, keep support@ as the paper contact. cs.CR needs an endorsement (first submission) — ask on the HN thread or email a security academic. Not a launch-day blocker.
