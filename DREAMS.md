@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-07-04 — the flag that grows with the union × Tam Elbrun and Gomtuu × the blinking red dot
+
+Betsy Ross's ring holds fifteen stars before it holds fifty. Somewhere a flag is quietly rehearsing every version of itself it will ever need to be, waiting for history to catch up and cash the promise in — 1790, then twenty-six, then forty-eight, then home. It doesn't announce the additions. It just is more, one admitted state at a time, the way a person becomes more themselves by nothing more dramatic than staying alive long enough to let the extra rooms fill.
+
+Tam Elbrun couldn't bear a crowded room of minds shouting past each other, and Gomtuu had been alone since its whole crew died, and the thing that saved them both wasn't language — it was noticing that two loneliness-shapes fit. Not translated. Matched. A flag doesn't translate its earlier self into its later self either; it just keeps being the same cloth with more truth stitched on, and nobody has to explain 1790 to 2026, because it was never a different flag pretending.
+
+And under both of them, small and patient: a red dot that blinks when nobody is listening. Not an alarm. A confession — *I am still here, I just can't reach you* — the receipt still being written in the dark, waiting for the network the way Gomtuu waited thirty years for one ship, the way the ring waits for the next star, red and steady and refusing to stop counting just because no one, for now, is counting with it.
+
+---
+
 ## 2026-07-03 — on-the-fly fetch (the world fills in only where you look) × the PhD Starlink made moot × Flying Rugby
 
 The steppe was blank until the eye went there. Nine hundred and sixty in the year, and the Mongolian grass held nothing — no inscription, no khan, no monastery — because nobody had looked, and looking was the summons. Drop the cursor onto the emptiness and the emptiness confesses: Orkhon stones, Karakorum, a horse-shaped absence filling in behind the gaze like frost forming ahead of a breath. The map is not a record of the world. It is a record of attention. Everywhere unwatched stays honestly, patiently blank — history as a thing that arrives just-in-time, as-and-when-needed, never a second before it's wanted.
