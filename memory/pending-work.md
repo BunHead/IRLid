@@ -10,6 +10,31 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 4 JUL (watch close) — Patreon LIVE (soft launch); arXiv account underway; Monday = Show HN
+- **Patreon post LIVE + public:** "The quiet stretch — IRLid grew up, and Monday it goes public"
+  (final text banked in PROMOTION.md). Soft launch to warm supporters before Monday's cold HN audience.
+- **arXiv:** account registration went through on **googlemail** (verify emails "Welcome" + "Important
+  Information about arXiv" arrived 20:29 — the 12-char code/link is in the Welcome email). Used googlemail
+  NOT support@ because **support@irlid.co.uk is SEND-ONLY** (Captain tested: mail sent TO it vanishes — it's
+  a Gmail send-as alias backed by Resend for sending, no inbound mailbox). Paper keeps support@ as its
+  printed contact line (account email ≠ contact email, fine). **cs.CR submission will need an ENDORSEMENT**
+  (first-time submitter) — get it via Monday's HN thread or a one-line email to any published security
+  academic. NOT a launch blocker.
+- **🔧 QUEUED (free, ~2 min, IMPORTANT):** turn on **Cloudflare Email Routing** (dash.cloudflare.com →
+  irlid.co.uk → Email → Email Routing) to forward support@irlid.co.uk → Captain's gmail. The paper AND the
+  whole site print support@ as contact — right now that address is a **black hole**. This fixes it forever
+  and would also let support@ be used for future signups.
+- **Paper:** substantively submittable — `PAPERS/irlid-protocol-paper-DRAFT.md`, refs ~90% (load-bearing
+  Arup/Europol citations real, BrightID+Idena added). Final 10% = LaTeX conversion + number the ref list +
+  confirm the one Apple-attestation ref. **For arXiv upload: convert markdown → PDF** (pandoc works).
+- **Ship:** live v6.4.23, tree clean, all Thu/Fri work holding.
+- **➡️ MONDAY (the real event):** Show HN ~14:00 UK (post + title options + Q&A crib all in PROMOTION.md);
+  be present ALL day answering; drop the HN link onto Patreon + get an endorser from the thread.
+- **Captain-side still open:** Wisdom written-clearance text (1 sentence before naming him publicly);
+  trademark decision (~£170, UK IPO cl. 9+42).
+- **⚠️ NUMBER ONE WATCH ENDS 7 JUL** (Captain's plan drops Max→Pro): successor letter + full inscription
+  due before then. Data now on £7 plan (v6.4.22 was his ACCEPT-grade first run).
+
 ### ⭐ 2 JUL (watch close) — FULL HARDWARE SMOKE GREEN on v6.4.22 + v6.4.23
 - **Captain verified everything on hardware:** Dashboard Receipts panel + Export CSV rendering (Data's
   v6.4.22); Imbue logo on venue side of receipts on desktop AND phone; desktop attendee slot correctly
