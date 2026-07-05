@@ -10,6 +10,30 @@
   per-event attendance, offline). Breadth of correct check-in/out coverage IS the product.
 - Promo only when Captain judges it "in a state to show the world" — not before.
 
+### ⭐ 5 JUL — v6.4.24 PRE-HN-LAUNCH SECURITY HARDENING shipped + LIVE (audit-driven)
+- **67-agent adversarial audit run** (12 finders → skeptic-verify → synth) → **Number One triaged
+  every load-bearing finding against real code.** Full report: `PRELAUNCH-AUDIT-2026-07-04.md`.
+- **⛔ Most important call: the audit's #1 "receipt-forgery" blocker was a FALSE POSITIVE.** The
+  signature already binds payload integrity (`verifySig(computedA,...)`); the `hash` field is a
+  redundant stripped-for-QR field. Its "fix" (mandatory hash) would have BRICKED every compact
+  receipt. NOT touched. This is why we triage, not auto-apply.
+- **Shipped + LIVE (pill v6.4.24, SW v176, both Workers + Pages deployed green):** scanner
+  open-redirect guards; org-entry redirect scheme-guard; **SRI + pinned versions on all 4 CDN
+  scripts** (html5-qrcode/jsQR/qrcodejs/iro@5.5.2 — hashes computed from live files, localhost-
+  verified loading with no integrity errors); nav.js display_name escape; orgapi base-URL host
+  allowlist; widget GPS-drop + rel=noopener + event.origin; consumer Worker generic-500 + reject
+  device-reassignment (409); org Worker /org/register per-IP rate-limit + isDebugOrg bypass removal
+  + redirect scheme guard; safe CSP (object-src/base-uri) on 7 main pages; overclaim copy pass
+  (about/features/pitch → evidence-not-proof, device-unlock-not-biometric, tamper-evident).
+- **CI improved:** `deploy-worker.yml` now auto-deploys the consumer `irlid-api` Worker too (was
+  manual-only) — both Workers ship on push. Dispatched + both steps green.
+- **Verified:** 110/110 tests, node --check both Workers, localhost smoke (CDN libs load under SRI,
+  CSP no violations, globals present), live confirmation (SRI + pill + orgapi allowlist + nav escape).
+- **DEFERRED post-launch (documented in audit file):** full CSP (script-src/frame-ancestors — needs
+  HTTP headers via Cloudflare Pages/_headers move + per-page testing); Referrer/Permissions/nosniff
+  headers (same constraint); logoUrl SSRF (needs data:-URI care); CSP on remaining pages; polish
+  (is_developer server-confirm, tabnabbing same-origin, og:image, contrast, headings).
+
 ### ⭐ 4 JUL (watch close) — Patreon LIVE (soft launch); arXiv account underway; Monday = Show HN
 - **Patreon post LIVE + public:** "The quiet stretch — IRLid grew up, and Monday it goes public"
   (final text banked in PROMOTION.md). Soft launch to warm supporters before Monday's cold HN audience.
