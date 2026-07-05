@@ -21,6 +21,7 @@ on:
     branches: [main]
     paths:
       - 'irlid-api-org/**'
+      - 'irlid-api/**'
   workflow_dispatch: {}   # manual "Run workflow" button in the Actions tab
 
 jobs:
@@ -35,9 +36,17 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Deploy Worker
+      - name: Deploy org Worker (irlid-api-org)
         working-directory: irlid-api-org
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
           # CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # uncomment only if needed
+        run: npx --yes wrangler@latest deploy
+
+      # v6.4.24 — also auto-deploy the consumer Worker (same Cloudflare account).
+      # Both Workers redeploy on any push touching either dir; redeploy is idempotent.
+      - name: Deploy consumer Worker (irlid-api)
+        working-directory: irlid-api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
         run: npx --yes wrangler@latest deploy
