@@ -290,8 +290,8 @@
 <script src="js/backend.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js?v=5.0"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" integrity="sha384-9Q0jWoineiIq95JeIyBsNV90KKLfDsbkj29k/YFxf76a2JwkHDYkMuSbNGN6XJfV" crossorigin="anonymous"></script>
 <script src="js/qr.js?v=63"></script>
 
 <script>
@@ -1165,6 +1165,10 @@
         // 10 May raised-eyebrow fix.
         if (c.kind === "ORG_ENTRY") {
           setStatus("Event Check-in QR detected. Opening…");
+          // v6.4.24 — only follow same-origin IRLid URLs. A crafted QR encoding
+          // https://evil.com/org-entry.html would otherwise redirect the scanner
+          // to a phishing page (classify() checks only the pathname).
+          try { if (new URL(c.v, location.href).origin !== location.origin) { setStatus("Blocked: this QR points off-site."); return; } } catch (_) { setStatus("Blocked: invalid QR URL."); return; }
           location.href = c.v;
           return;
         }
@@ -1173,6 +1177,9 @@
         // and POSTs the signed envelope to the worker.
         if (c.kind === "ORG_LOGIN") {
           setStatus("Org sign-in QR detected. Opening…");
+          // v6.4.24 — same-origin guard (see ORG_ENTRY above): never follow an
+          // off-site URL smuggled into an org-login QR.
+          try { if (new URL(c.v, location.href).origin !== location.origin) { setStatus("Blocked: this QR points off-site."); return; } } catch (_) { setStatus("Blocked: invalid QR URL."); return; }
           location.href = c.v;
           return;
         }

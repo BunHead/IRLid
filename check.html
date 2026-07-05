@@ -9,6 +9,7 @@
   <meta name="description" content="Verify an IRLid cryptographic receipt. Paste a receipt hash or JSON to confirm two people were co-located at the same time — no account needed." />
   <meta property="og:title" content="IRLid — Check Receipt" />
   <meta property="og:description" content="Verify a cryptographic proof-of-co-presence receipt. No account required." />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .check-main {
@@ -382,7 +383,7 @@
 <script src="js/backend.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js?v=5.0"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
 <script>
 (function(){
   const hashInput = document.getElementById("hashInput");

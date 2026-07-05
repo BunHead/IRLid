@@ -2741,9 +2741,35 @@ async function utilImageProxy(request, env) {
 //  ORGANISATION PORTAL
 // =====================
 
+// v6.4.24 — lightweight per-IP rate limit (self-creating table, fail-open).
+// Guards abuse-prone unauthenticated endpoints without blocking legitimate use.
+async function ipRateLimited(env, request, action, maxPerWindow, windowSec) {
+  try {
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    const bucket = Math.floor(now() / windowSec);
+    await env.DB.prepare(
+      "CREATE TABLE IF NOT EXISTS ip_rate_limits (k TEXT PRIMARY KEY, count INTEGER NOT NULL, created_at INTEGER NOT NULL)"
+    ).run();
+    const k = `${action}|${ip}|${bucket}`;
+    const row = await env.DB.prepare("SELECT count FROM ip_rate_limits WHERE k=?").bind(k).first();
+    if (row && row.count >= maxPerWindow) return true;
+    await env.DB.prepare(
+      "INSERT INTO ip_rate_limits (k, count, created_at) VALUES (?,1,?) ON CONFLICT(k) DO UPDATE SET count=count+1"
+    ).bind(k, now()).run();
+    return false;
+  } catch (_) {
+    return false; // fail-open — never block legit users because of a limiter error
+  }
+}
+
 async function orgRegister(request, env) {
   let body;
   try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  // v6.4.24 — this endpoint is unauthenticated (legacy service-account setup).
+  // Rate-limit per IP so it can't be scripted to flood the org DB on launch day.
+  if (await ipRateLimited(env, request, "org_register", 5, 3600)) {
+    return err("Too many organisations created from this network. Please try again later.", 429);
+  }
   const { name } = body;
   if (!name || name.trim().length < 2) return err("name required (min 2 chars)");
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -2984,6 +3010,15 @@ async function orgUpdateSettings(request, env) {
   if (body.orgTerms !== undefined && typeof body.orgTerms !== "string") return err("orgTerms must be a string");
   if (body.orgTerms !== undefined && typeof body.orgTerms === "string" && body.orgTerms.length > 8000) return err("orgTerms too long (max 8000 chars)");
   if (body.redirectUrl !== undefined && typeof body.redirectUrl !== "string") return err("redirectUrl must be a string");
+  // v6.4.24 — belt-and-braces: reject script/data schemes in post-accept redirects
+  // (the client sink in org-entry.html already blocks them, this stops them being
+  // persisted in the first place).
+  for (const f of ["redirectUrl", "staffRedirectUrl"]) {
+    const v = body[f];
+    if (typeof v === "string" && /^\s*(javascript|data|vbscript):/i.test(v)) {
+      return err(f + " must not use a script or data scheme");
+    }
+  }
   // v6.4.21 — venue contact fields: plain strings with tight caps.
   if (body.contactEmail !== undefined && (typeof body.contactEmail !== "string" || body.contactEmail.length > 200)) return err("contactEmail must be a string (max 200 chars)");
   if (body.contactPhone !== undefined && (typeof body.contactPhone !== "string" || body.contactPhone.length > 50)) return err("contactPhone must be a string (max 50 chars)");
@@ -4798,7 +4833,11 @@ async function orgDebugClearAttendance(request, env) {
   // remains as a third allow path so existing DEV orgs keep working without
   // requiring a session token. If a Bearer session is present, validate it and
   // check for Developer or org-scoped lead_admin membership.
-  let allowed = isDebugOrg(org);
+  // v6.4.24 — removed the isDebugOrg no-session bypass. Real orgs were already
+  // protected by the api_key requirement (orgAuth above); the bypass only exposed
+  // the publicly-known test org. Clear-attendance now ALWAYS requires a
+  // Developer / Lead-Admin Bearer session.
+  let allowed = false;
   if (!allowed) {
     const auth = request.headers.get("Authorization") || "";
     const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());

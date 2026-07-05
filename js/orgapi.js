@@ -1,9 +1,23 @@
 // IRLid organisation portal API client for the live Org Worker.
 (function () {
   const DEFAULT_BASE_URL = "https://irlid-api-org.irlid-bunhead.workers.dev";
+  // v6.4.24 — only these hosts may serve the org API. An injected override to a
+  // hostile host would otherwise exfiltrate the Bearer token + X-Org-Key on every
+  // request. Reject any override that isn't https + an allowlisted host.
+  const ALLOWED_API_HOSTS = ["irlid-api-org.irlid-bunhead.workers.dev", "localhost"];
 
   function getBaseUrl() {
-    return (window.IRLID_ORG_API_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
+    const override = window.IRLID_ORG_API_BASE_URL;
+    if (override) {
+      try {
+        const u = new URL(override);
+        const okScheme = u.protocol === "https:" || u.hostname === "localhost";
+        if (okScheme && ALLOWED_API_HOSTS.includes(u.hostname)) {
+          return String(override).replace(/\/+$/, "");
+        }
+      } catch (_) { /* invalid URL — fall through to default */ }
+    }
+    return DEFAULT_BASE_URL.replace(/\/+$/, "");
   }
 
   const QUEUE_ELIGIBLE_PATHS = [

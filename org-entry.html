@@ -577,7 +577,7 @@
   </div>
 
 <script src="js/sign.js?v=3.1"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
 <script src="js/offline-queue.js"></script>
 <script src="js/orgapi.js"></script>
 <script src="js/qr-fullscreen.js"></script>
@@ -766,8 +766,20 @@
     return redirectUrl || defaultReturnTarget();
   }
 
+  function isSafeRedirect(target) {
+    if (!target) return false;
+    try {
+      const u = new URL(target, window.location.href);
+      return u.protocol === "https:" || u.protocol === "http:";
+    } catch (_) { return false; }
+  }
   function goNext(target) {
     clearTimeout(returnTimer);
+    // v6.4.24 — only navigate to http(s) targets; a hostile redirect/staff_redirect
+    // QR param must not be able to run javascript:/data: at the post-check-in trust
+    // moment. External https redirects stay allowed (orgs legitimately send
+    // attendees to their own site); anything else falls back to the safe default.
+    if (!isSafeRedirect(target)) { target = defaultReturnTarget(); }
     window.location.href = target;
   }
 

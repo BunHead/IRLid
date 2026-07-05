@@ -11,6 +11,7 @@
   <meta property="og:title" content="IRLid — Features" />
   <meta property="og:description" content="No app, no biometrics. Browser-based cryptographic proof of real-world presence — embeddable in any website." />
   <meta property="og:url" content="https://irlid.co.uk/features.html" />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .features-hero {
@@ -359,7 +360,7 @@
         </li>
         <li>
           <div class="check-icon pass">✓</div>
-          <div><strong>Distance</strong> — The GPS coordinates from both devices are within 12 metres of each other, confirming physical co-presence.</div>
+          <div><strong>Distance</strong> — The GPS coordinates reported by both devices are within 12 metres of each other. This confirms the two devices <em>agreed</em> on location — not the accuracy of the GPS source, which is self-reported.</div>
         </li>
       </ul>
     </div>
@@ -407,7 +408,7 @@
         <div class="icon-row">🔒</div>
         <h3 id="f3-7">Hardware-Backed Signing</h3>
         <p>Three optional trust enhancements layered on the base protocol — all off by default, user-enabled in Settings, never prompted during a scan:</p>
-        <p style="margin-top:8px;"><strong>Device-unlock gate (v4, LIVE since April 2026).</strong> WebAuthn requires a live device unlock — Face ID, Touch ID, fingerprint, or passcode — at each handshake. The verified flag is committed inside the ECDSA-signed payload, proving the receipt was signed <em>on this device by someone who could unlock it at that moment</em> — not copied, automated, or replayed. It deliberately doesn't claim which person or which unlock method; identifying the person is a separate layer (co-presence and trust history). No biometric data leaves the device.</p>
+        <p style="margin-top:8px;"><strong>Device-unlock gate (v4, LIVE since April 2026).</strong> WebAuthn requires a live device unlock — Face ID, Touch ID, fingerprint, or passcode — at each handshake. The verified flag is committed inside the ECDSA-signed payload — evidence that the receipt was signed <em>on this device by someone who could unlock it at that moment</em>, not copied, automated, or replayed. It deliberately doesn't claim which person or which unlock method; identifying the person is a separate layer (co-presence and trust history). No biometric data leaves the device.</p>
         <p style="margin-top:8px;"><strong>Hardware-backed signing (v5, LIVE since May 2026).</strong> Signing keys live in the device's Secure Enclave (Apple), TEE (Android), or Windows Hello TPM. Non-extractable even on rooted devices. Score band 70/100. Closes the strongest honest criticism of v3/v4 (localStorage extraction).</p>
         <p style="margin-top:8px;"><strong>Mutual face capture (v5.x, planned).</strong> At each scan step the camera optionally captures the other party's face alongside their QR. A witnesses B's face; B witnesses A's face. Only the photo hash travels in the receipt — the photo stays on device.</p>
       </div>

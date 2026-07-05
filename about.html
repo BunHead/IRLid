@@ -11,6 +11,7 @@
   <meta property="og:title" content="IRLid — Proof of Personhood Without Biometrics" />
   <meta property="og:description" content="Two phones, two scans, one cryptographic receipt. IRLid proves real-world presence without biometrics or centralised identity." />
   <meta property="og:url" content="https://irlid.co.uk/about.html" />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">
   <link rel="stylesheet" href="css/style.css">
   <style>
     .about-section {
@@ -181,7 +182,7 @@
       </p>
       <p>
         Existing solutions often rely on biometric scans, centralised identity providers, or trust in a single company — approaches that can work, but come with trade-offs around privacy, accessibility, and vendor lock-in.
-        IRLid starts from a different angle: instead of asking <em>who</em> you are, it lets two people create a tamper-evident, cryptographically signed record <em>that</em> they were physically present together at a specific time and place.
+        IRLid starts from a different angle: instead of asking <em>who</em> you are, it lets two devices create a tamper-evident, cryptographically signed record <em>that</em> they reported the same location (within 12 metres) at the same time (within 90 seconds), attested by both parties' signatures.
       </p>
     </div>
 
@@ -310,7 +311,7 @@
         </li>
         <li>
           <strong>Compliance &amp; Audit</strong>
-          Some jobs require proof that someone was physically present — site inspections, home visits, witness verification, field audits. IRLid provides a digital record that's independently verifiable and can't be backdated or forged, without needing a centralised system or special hardware.
+          Some jobs require evidence that someone was present — site inspections, home visits, witness verification, field audits. IRLid provides a digital record that's independently verifiable and tamper-evident (any change after signing is detectable), without needing a centralised system or special hardware.
         </li>
       </ul>
     </div>

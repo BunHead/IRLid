@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">
   <title>IRLid Verification Widget</title>
   <meta name="description" content="IRLid embeddable verification widget — drop a single iframe into any site to gate access behind a real-world meeting. No SDK, no account." />
   <meta property="og:title" content="IRLid Verification Widget" />
@@ -83,7 +84,7 @@
 
   <div id="result"></div>
 
-  <div class="powered">Powered by <a href="https://irlid.co.uk" target="_blank">IRLid</a></div>
+  <div class="powered">Powered by <a href="https://irlid.co.uk" target="_blank" rel="noopener noreferrer">IRLid</a></div>
 
   <script>
     const WORKER = "https://irlid-api.irlid-bunhead.workers.dev";
@@ -199,15 +200,16 @@
           `<strong>✓ Cryptographically verified — ${score}%</strong><br>` +
           `<strong>Time:</strong> ${ts}<br>` +
           `<strong>Location:</strong> ${locationStr}<br>` +
-          `<a href="https://irlid.co.uk/check.html#receipt=${hash}" target="_blank" style="color:#155724;">Full report →</a>`;
+          `<a href="https://irlid.co.uk/check.html#receipt=${hash}" target="_blank" rel="noopener noreferrer" style="color:#155724;">Full report →</a>`;
 
         // Notify parent page with verified data
+        // v6.4.24 — do NOT broadcast GPS coordinates to the (arbitrary) parent
+        // page. The embedding site only needs pass/fail + hash to gate access;
+        // leaking the user's precise location to every embedder is unnecessary.
         window.parent.postMessage({
           type: "irlid-verified",
           hash: hash,
-          timestamp: payloadA.ts ? new Date(payloadA.ts * 1000).toISOString() : null,
-          lat: payloadA.lat || null,
-          lon: payloadA.lon || null
+          timestamp: payloadA.ts ? new Date(payloadA.ts * 1000).toISOString() : null
         }, "*");
 
       } catch (e) {

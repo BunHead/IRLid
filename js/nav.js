@@ -57,6 +57,10 @@
     }
 
     var displayName = getDisplayName() || "Account";
+    // Escape — display_name is user-controlled; never interpolate raw into innerHTML.
+    var safeName = String(displayName).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
 
     // v5.9 — Organisation link (3rd position) for users with org dashboard access.
     // Currently shown to all logged-in users; v6 will gate this on a Patreon /
@@ -69,7 +73,7 @@
     // to Org.html (canonical v5.11 dashboard).
     slot.innerHTML =
       '<details class="nav-dropdown" id="accountDropdown">' +
-        '<summary class="nav-btn">' + displayName + ' ▼</summary>' +
+        '<summary class="nav-btn">' + safeName + ' ▼</summary>' +
         '<div class="dropdown-menu" role="menu" aria-label="Account menu">' +
           '<a href="receipt.html">Receipts</a>' +
           '<a href="account.html">Account</a>' +

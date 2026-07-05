@@ -482,9 +482,11 @@ async function googleAuth(request, env) {
       } else {
         // Device was registered to a different user â€” reassign to current user.
         // This happens when a new person logs in on a device previously used by someone else.
-        deviceId = existingDevice.id;
-        await env.DB.prepare("UPDATE devices SET user_id = ? WHERE id = ?")
-          .bind(userId, deviceId).run();
+        // v6.4.24 — SECURITY: do NOT silently reassign a device already bound to
+        // another account. A pub_jwk is public (it appears in receipts), so silent
+        // reassignment let anyone with a Google token claim a victim's device
+        // record. Reject; a genuine hand-over needs an explicit consented transfer.
+        return err("This device is already registered to another account.", 409);
       }
     } else {
       deviceId = uuid();
@@ -880,8 +882,10 @@ export default {
         }
       }
     } catch (e) {
+      // v6.4.24 — do NOT leak raw exception text on the public verify path; it
+      // can echo user-controlled/internal detail (e.g. allowlisted origin names).
       console.error("Unhandled:", e);
-      response = err("Internal error: " + (e.message || e), 500);
+      response = err("Internal server error", 500);
     }
 
     return addCors(response, env, request);

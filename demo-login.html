@@ -264,6 +264,9 @@
   }
 
   window.addEventListener("message", function(event) {
+    // Only trust messages from our own same-origin widget iframe — a hostile
+    // frame could otherwise spoof "verified" and unlock the gate.
+    if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== "irlid-verified") return;
 
     verified = true;

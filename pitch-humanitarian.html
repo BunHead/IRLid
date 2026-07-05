@@ -68,7 +68,7 @@
     <span>irlid.co.uk · Open source · Free to use</span>
   </div>
 
-  <h1>Cryptographic Proof That Aid Reached a Real Person</h1>
+  <h1>Tamper-Evident Cryptographic Receipts of Aid Delivery</h1>
   <p class="tagline">IRLid creates tamper-evident delivery receipts using ECDSA signatures — no app, no central server, no biometrics required.</p>
 
   <div class="problem-box">
@@ -97,13 +97,13 @@
   </div>
 
   <div class="proof">
-    <h3>What the Receipt Cryptographically Proves</h3>
+    <h3>What the Receipt Cryptographically Attests</h3>
     <ul>
-      <li>Two distinct devices were present and signed</li>
+      <li>Two distinct devices reported the same location and signed</li>
       <li>Both devices reported the same GPS location (within 12 metres)</li>
       <li>The exchange happened within a 90-second window</li>
       <li>Neither signature can be forged without the private key</li>
-      <li>The receipt cannot be backdated or modified after creation</li>
+      <li>The receipt cannot be modified after creation without detection</li>
       <li>Verification requires no trust in any central authority</li>
       <li>Optional device-unlock gate (Face ID / fingerprint / passcode) — result committed into the signed payload</li>
     </ul>

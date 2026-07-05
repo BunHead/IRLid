@@ -52,13 +52,14 @@
      the web fonts load (FOUT not FOIT). preconnect hint speeds first-byte. -->
 <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.bunny.net/css?family=bebas-neue|oswald:400,700|pacifico|caveat:400,700|permanent-marker|playfair-display:400,700,900|lobster|inter:300,400,700,900|montserrat:300,400,700,900&display=swap">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'">
 <meta name="theme-color" content="#0d1117">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="IRLid Org">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js" integrity="sha384-oZxUObEswsFY+jlvIkPj4iWF3WW1I6vMNyzoakb3v99l1DtAoF/VyBTrNKtSCVoa" crossorigin="anonymous"></script>
 <script src="js/brand-fonts.js"></script>
 <script src="js/sign.js"></script>
 <script src="js/offline-queue.js"></script>
@@ -66,7 +67,7 @@
 <script src="js/vendor/jsqr.min.js"></script>
 <!-- v5.7.0h — html5-qrcode for live webcam scanning in the Process attendee scan
      widget. Same library used by live repo scan.html for receipt scanning. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
 <script src="js/orgapi.js"></script>
 <script src="js/qr-fullscreen.js"></script>
 <style>
@@ -3368,7 +3369,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.23</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.24</span></div>
   </div>
 </div>
 
