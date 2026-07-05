@@ -7,6 +7,7 @@
 # OS
 .DS_Store
 Thumbs.db
+NUL
 
 desktop.ini
 
@@ -16,3 +17,29 @@ irlid-api-org/.wrangler/
 irlid-api/.wrangler/
 irlid-api-org/migrations/.wrangler/
 irlid-api/migrations/.wrangler/
+
+# ─────────────────────────────────────────────────────────────────────────
+# INTERNAL WORKING DOCS — NOT for the public GitHub Pages site.
+# These stay on disk (Number One reads them) but must never be served at
+# irlid.co.uk/<file> or browsable on the public repo. Scrubbed 5 Jul 2026
+# pre-Show-HN. Public-by-design docs kept tracked: PROTOCOL.md, THREAT-MODEL.md,
+# WIDGET.md. Note: git HISTORY still holds prior copies — history purge deferred
+# to post-launch week.
+CLAUDE.md
+DREAMS.md
+BOOTSTRAP.md
+memory/
+archive/
+PAPERS/
+HANDOVER-*.md
+*-SPEC*.md
+PROTOCOL-Records-Broker.md
+PROMOTION*.md
+PROMO-*.md
+PATREON-*.md
+PRELAUNCH-AUDIT-*.md
+FUNDING-ROUTES.md
+FORUM-WELCOME-DRAFT.md
+IRL-TEST-GUIDE.md
+LONG-TERM-SUCCESSION.md
+WCAG-AUDIT.md

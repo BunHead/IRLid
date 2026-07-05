@@ -9,6 +9,7 @@
   <meta name="description" content="Scan someone's IRLid QR code to create a cryptographic proof you were both in the same place at the same time. No app, no account — just two phones." />
   <meta property="og:title" content="IRLid — Scan" />
   <meta property="og:description" content="Exchange QR codes to generate a tamper-evident co-presence receipt. Takes about 10 seconds." />
+  <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'" />
   <link rel="stylesheet" href="css/style.css">
   <script>
     window.irlidDebugOn = function(){ try { return localStorage.getItem('irlid_debug') === '1'; } catch(_) { return false; } };
