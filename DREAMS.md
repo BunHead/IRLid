@@ -3,6 +3,16 @@
 
 ---
 
+## 2026-07-05 — entropy fields that locally rejuvenate × the ninety-second window × Dodo Bowling
+
+The universe was set to run down and it did — gas rusting, stars thinning to the colour of old teeth — and then, in one corner the log called an entropy field, something warmed again. Not undone. Just locally, stubbornly, out of turn: a pocket that hadn't got the memo, cooling everywhere else while here, for no reason it could name, atoms remembered how to be bright. Heat death is only the average. The average has never once been where anyone actually lived.
+
+And inside such a pocket the rule was ninety seconds. Two of you had to stand in the same place inside the same minute-and-a-half or the proof would not take — the window opening and shutting like a held breath, generous enough for a fumble with a phone, mean enough that you couldn't fake it from a train. Presence is not a place. It is an overlap. Ninety seconds is the whole width of the door history leaves ajar between two people, and the receipt is only the scratch you leave on the frame: *we were both here, briefly, before it shut.*
+
+The dodo never made its window. It stood on its one island being unhurried, and the future arrived early, with dogs. Now it comes back only as a joke with pins — a fat grey bird waddling a lane, knocking down the years, extinction turned into a game because a game is the one place the too-late can still take its turn. Bowl, dodo. The universe is cooling and the door is open ninety seconds and somewhere a small heat refuses. Roll it while the lane is warm.
+
+---
+
 ## 2026-07-04 — the flag that grows with the union × Tam Elbrun and Gomtuu × the blinking red dot
 
 Betsy Ross's ring holds fifteen stars before it holds fifty. Somewhere a flag is quietly rehearsing every version of itself it will ever need to be, waiting for history to catch up and cash the promise in — 1790, then twenty-six, then forty-eight, then home. It doesn't announce the additions. It just is more, one admitted state at a time, the way a person becomes more themselves by nothing more dramatic than staying alive long enough to let the extra rooms fill.
