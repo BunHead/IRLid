@@ -95,3 +95,34 @@ clarifying comment. No functional change.) This is the single most important cal
 Tier 1 items 1–4 + 7 are pure frontend/Worker edits (fast, low-risk). Item 5 (SRI) is mechanical. Item 6
 is a copy pass. Then Tier 2 items 9, 11, 12 are cheap add-ons. CSP (10) done as permissive/report-only.
 Captain decides items 8 (hand-me-down) and the CSP strictness. Deploy Workers + Pages, re-smoke, launch.
+
+---
+
+## ✅ SHIPPED & LIVE — v6.4.24 (4 Jul 2026, deployed + verified)
+
+Number One executed the fix list after Captain's "make it so, air tight." All below are
+LIVE on irlid.co.uk (Pages + both Workers deployed green; consumer Worker gained CI
+auto-deploy this watch). Verified: 110/110 tests, node --check both Workers, localhost
+smoke (all 4 CDN libs load under correct SRI, no integrity errors, CSP applied no
+violations), live confirmation of SRI + pill v6.4.24 + orgapi allowlist + nav escape.
+
+**Shipped:** scanner open-redirect guards (B6); org-entry redirect scheme-guard (B7);
+SRI + pinned versions on all CDN scripts (B12); nav.js display_name escape (B5);
+orgapi base-URL host allowlist (B9); widget GPS-drop + rel=noopener + event.origin (B13);
+consumer Worker generic-500 (B8) + reject device reassignment (B2); org Worker
+/org/register rate-limit (B3) + isDebugOrg bypass removal (B4) + redirect scheme guard;
+safe CSP object-src/base-uri on 7 main pages (partial B11); overclaim copy pass (B14).
+
+**Explicitly NOT changed:** B1 hash-validation "forgery" — FALSE POSITIVE (would brick
+compact receipts). Left as-is.
+
+**Deferred to post-launch (documented, not forgotten):**
+- Full CSP (script-src/connect-src host allowlists + frame-ancestors) — needs HTTP-header
+  delivery (GitHub Pages can't; requires Cloudflare Pages/_headers move) + per-page testing.
+  Only the safe object-src/base-uri directives shipped now.
+- HTTP security headers (Referrer-Policy, Permissions-Policy, X-Content-Type-Options) — same
+  GitHub-Pages-can't-set-headers constraint; deliver via _headers move.
+- logoUrl SSRF (S1) — validate server-side, but must preserve data:-URI logos; needs care.
+- CSP meta on the remaining pages (receipt, scan, org-entry, account, settings, etc.).
+- is_developer UI reveal server-confirmation (B10, cosmetic); tabnabbing same-origin,
+  og:image, #888 contrast, heading order (polish).
