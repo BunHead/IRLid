@@ -78,6 +78,7 @@ const IMAGE_PROXY_MAX_BYTES = 2 * 1024 * 1024;
 const PUBLIC_HTTP_URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i;
 const AUTO_CHECKOUT_MIN_INTERVAL_MS = 60 * 1000;
 const autoCheckoutLastRunByOrg = new Map();
+let checkinNonceStorageReady = false;
 
 function expectedMemberRole(value) {
   const role = String(value || "attendee").trim().toLowerCase();
@@ -4244,6 +4245,7 @@ async function orgCheckin(request, env) {
 }
 
 async function ensureOrgCheckinNonceStorage(env) {
+  if (checkinNonceStorageReady) return;
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
@@ -4255,6 +4257,7 @@ async function ensureOrgCheckinNonceStorage(env) {
       if (!/duplicate column/i.test(String(e?.message || e))) throw e;
     }
   }
+  checkinNonceStorageReady = true;
 }
 
 async function orgCreateCheckinNonce(request, env) {
