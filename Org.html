@@ -3373,7 +3373,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.26</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.5.0</span></div>
   </div>
 </div>
 
@@ -13145,6 +13145,8 @@ let attendanceStats = null;
 let venueQrPayload = null;
 let currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null };
 let currentEventQrPollId = null;
+let venueQrNoncePollId = null;
+let venueQrNonceRequestId = 0;
 let checkoutConfirmId = null;
 let checkoutBusyId = null;
 let checkoutErrors = {};
@@ -13382,10 +13384,11 @@ function showPanel(name, el) {
   try { updateAuditButtonVisibility(name); } catch (_) {}
   if (name === 'checkin') {
     startCurrentEventQrPolling();
+    startVenueQrNoncePolling();
     requestAnimationFrame(function () {
       try { applyV511BackgroundToHostStages(activeTheme); } catch (_) {}
     });
-  }
+  } else stopVenueQrNoncePolling();
 }
 
 // Batch C polish 7 — toggles between the signed-in summary card and the
@@ -15920,11 +15923,9 @@ async function resolveConflict(conflictId, resolution) {
     showToast(err.message || 'Could not resolve conflict', true);
   }
 }
-function generateVenueQR(eventContext) {
+function renderVenueQR(payload) {
   const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
-  if (eventContext) currentCheckinEventContext = activeCheckinEventContext(eventContext);
-  updateCheckinQrTitle(activeCheckinEventContext().eventName);
-  venueQrPayload = buildVenuePayload(); box.innerHTML = '';
+  venueQrPayload = payload; box.innerHTML = '';
   new QRCode(box, { text: venueQrPayload, width: 150, height: 150, colorDark: (window.IRLID_THEME_QR_FG || '#000000'), colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
   // v5.11.19a — also update the inline Check-in tab clone's QR slot so the
   // Refresh QR button refreshes the visible QR (the hidden #venueQrBox above
@@ -15950,6 +15951,47 @@ function generateVenueQR(eventContext) {
   delete box.dataset.qrFullscreenShowTitle;
   delete box.dataset.qrFullscreenLastRefreshed;
   document.getElementById('qrPayloadPreview').textContent = 'Debug QR URL:\n' + venueQrPayload;
+}
+
+async function generateVenueQR(eventContext) {
+  const box = document.getElementById('venueQrBox'); if (!box || !window.QRCode) return;
+  if (eventContext) currentCheckinEventContext = activeCheckinEventContext(eventContext);
+  const checkinEvent = activeCheckinEventContext();
+  updateCheckinQrTitle(checkinEvent.eventName);
+  const basePayload = buildVenuePayload(checkinEvent);
+  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.api_key) {
+    renderVenueQR(basePayload);
+    return;
+  }
+  const requestId = ++venueQrNonceRequestId;
+  try {
+    const issued = await window.IRLidOrgApi.createCheckinNonce(currentOrg.api_key, checkinEvent.eventId);
+    if (requestId !== venueQrNonceRequestId || document.body.dataset.activePanel !== 'checkin') return;
+    const payloadUrl = new URL(basePayload, location.href);
+    payloadUrl.searchParams.set('n', issued.nonce);
+    renderVenueQR(payloadUrl.toString());
+  } catch (err) {
+    if (requestId !== venueQrNonceRequestId || document.body.dataset.activePanel !== 'checkin') return;
+    venueQrPayload = null;
+    box.innerHTML = '<span class="muted">Live QR unavailable</span>';
+    const preview = document.getElementById('qrPayloadPreview');
+    if (preview) preview.textContent = 'Could not issue a live check-in QR. Retry when connected.';
+    showToast(err.message || 'Could not refresh live check-in QR', true);
+  }
+}
+
+function startVenueQrNoncePolling() {
+  stopVenueQrNoncePolling();
+  generateVenueQR();
+  venueQrNoncePollId = setInterval(function () {
+    if (document.body.dataset.activePanel === 'checkin') generateVenueQR();
+  }, 45000);
+}
+
+function stopVenueQrNoncePolling() {
+  clearInterval(venueQrNoncePollId);
+  venueQrNoncePollId = null;
+  venueQrNonceRequestId += 1;
 }
 function staffAuthKey() {
   return `${STAFF_AUTH_STORAGE_KEY}:${currentOrg?.api_key || 'none'}`;
