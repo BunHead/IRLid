@@ -592,6 +592,7 @@
   const checkinId = (params.get("checkin") || "").trim();
   const checkoutNonce = (params.get("nonce") || "").trim();
   const checkoutToken = (params.get("t") || "").trim();
+  const checkinNonce = (params.get("n") || "").trim();
   const attendeeName = (params.get("attendee") || params.get("name") || "Alice Smith").trim();
   const scoreLabel = (params.get("score") || "").trim();
   const denyReason = (params.get("reason") || "Not on list").trim();
@@ -980,11 +981,12 @@
         meta
       });
     } catch (err) {
+      const rescanLiveQr = checkinNonce && [404, 409, 410].includes(Number(err.status));
       render({
         status: "deny",
         title: "Check-in rejected",
-        subtitle: err.message || "Could not record check-in",
-        meta: "Please ask staff for help"
+        subtitle: rescanLiveQr ? "Please scan the live QR on screen again" : (err.message || "Could not record check-in"),
+        meta: rescanLiveQr ? "This QR has expired or was already used" : "Please ask staff for help"
       });
     }
   }
@@ -1087,6 +1089,11 @@
         lastErr = err;
         if (attempt < delays.length) await sleep(delays[attempt]);
       }
+    }
+    if (body.nonce) {
+      const error = new Error("Could not verify the live check-in QR. Please scan the live QR on screen again.");
+      error.cause = lastErr;
+      throw error;
     }
     if (!window.IRLidOfflineQueue) throw lastErr || new Error("Check-in could not sync and offline queue is unavailable");
     const queued = await window.IRLidOfflineQueue.enqueue({
@@ -1610,6 +1617,7 @@
       attendeeLabel: cachedName,
       name: cachedName,
       event_id: eventId || null,
+      nonce: checkinNonce || null,
       score: entryScore(),
       bioVerified: false
     });
