@@ -3287,7 +3287,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 @media (max-width: 1180px) {
   .prototype-checkin #panel-checkin #venueQRWrap { grid-template-columns: 1fr; }
   .prototype-checkin #panel-checkin .qr-box { grid-column: 1; width: clamp(180px, min(70dvh, calc(100dvh - 280px), calc(100vw - 150px), 100%), 680px); height: clamp(180px, min(70dvh, calc(100dvh - 280px), calc(100vw - 150px), 100%), 680px); min-width: 0; min-height: 0; }
-  .prototype-checkin #panel-checkin .qr-info { display: none; }
+  /* v6.4.26: `.qr-info { display:none }` removed here — it was a vestige of the
+     old absolutely-positioned layout and was hiding the Fullscreen button on
+     every tablet/phone (<1180px). qr-info now flows statically below the stage
+     at all widths (rules further down), so it's safe to show. */
 }
 @media (max-height: 760px) {
   .prototype-checkin #panel-checkin #venueQRWrap { height: clamp(220px, calc(100dvh - 250px), 520px); }
@@ -3370,7 +3373,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.25</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.4.26</span></div>
   </div>
 </div>
 
@@ -6083,11 +6086,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         body[data-bg-mode="image"] #venueQRWrap.v511-checkin-tab-stage {
           background-image: none !important;
         }
-        #venueQRWrap.v511-checkin-tab-stage {
+        #venueQRWrap.v511-checkin-tab-stage,
+        #v511InlineCheckinStage.v511-checkin-tab-stage {
           max-height: none;
           min-height: 60vh;
           margin-bottom: 16px;
           cursor: zoom-in;
+          /* v6.4.26 — kill the double-tap-zoom gesture so double-tap-to-fullscreen
+             works on touch devices (and lets modern Chrome fire dblclick from taps). */
+          touch-action: manipulation;
         }
         #venueQRWrap.v511-checkin-tab-stage .v511-cel-text-overlay {
           opacity: 0;
@@ -7709,7 +7716,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function orderedDays() { return weekStartsMonday() ? [1,2,3,4,5,6,7] : [7,1,2,3,4,5,6]; }
             function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (weekStartsMonday() ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
             function dayOfWeekForDate(d) { var js = d.getDay(); return js === 0 ? 7 : js; }
-            function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString(undefined, { month: 'short' }); }
+            function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString('en-GB', { month: 'short' }); }
             function workerEventsFallback() {
               return [
                 { id: 'evt-mon-0900', name: 'Beginners pilates',   room_id: 'studio1', day_of_week: 1, start_time_local: '09:00', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_kerry', 'p_john', 'p_jane'] },
@@ -15190,9 +15197,10 @@ function updateAttendanceEventProgress(checkins) {
   wrap.hidden = false;
 }
 function displayLocale() {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-  if (/^Europe\/(London|Guernsey|Jersey|Isle_of_Man)$/i.test(tz)) return 'en-GB';
-  return navigator.languages?.[0] || navigator.language || undefined;
+  // IRLid is a UK product — always render dates DD/MM/YYYY. Previously this
+  // fell back to the device locale for non-UK timezones, which surfaced US
+  // MM/DD stamps on en-US-default test phones (6 Jul 2026 hardware finding).
+  return 'en-GB';
 }
 function receiptHistoryTimeValue(row) {
   return row?.checkin_at || row?.created_at || row?.active_checkin_at || row?.active_since || row?.last_seen || row?.first_seen || null;
@@ -17255,6 +17263,9 @@ function fullscreenQR() {
   // the inline-styled clone still covers the viewport as a fallback overlay.
   if (clone.requestFullscreen) {
     clone.requestFullscreen().catch(function(){ /* fallback: clone is already full-viewport-styled */ });
+  } else if (clone.webkitRequestFullscreen) {
+    // v6.4.26 — older Huawei/Android browsers expose only the webkit-prefixed API.
+    try { clone.webkitRequestFullscreen(); } catch (_) { /* clone is already full-viewport-styled */ }
   }
 }
 
@@ -17367,6 +17378,24 @@ function renderInlineCheckinClone(opts) {
   // with the actual venue QR (the one attendees scan). Every observer-fired
   // re-clone calls this so the real QR survives theme edits.
   try { renderRealVenueQrIntoInlineClone(); } catch (err) { console.warn('[v5.11.19a] real QR render failed:', err); }
+
+  // v6.4.26 — touch-friendly double-tap → fullscreen. The clone inherits an
+  // `ondblclick="fullscreenQR()"` from the source stage, but Android browsers
+  // (notably older Huawei/tablet WebViews) don't reliably synthesise `dblclick`
+  // from a double-tap, so on tablets the QR had NO route into fullscreen
+  // (6 Jul 2026 hardware finding). Add a manual two-tap detector on pointerup;
+  // mouse users keep the native dblclick. `touch-action: manipulation` (added in
+  // CSS) stops the browser's double-tap-zoom gesture swallowing the taps.
+  if (!clone.dataset.tapFsBound) {
+    clone.dataset.tapFsBound = '1';
+    var lastStageTap = 0;
+    clone.addEventListener('pointerup', function (e) {
+      if (e.pointerType === 'mouse') return; // mouse keeps native dblclick
+      var now = Date.now();
+      if (now - lastStageTap < 360) { e.preventDefault(); lastStageTap = 0; try { fullscreenQR(); } catch (_) {} }
+      else { lastStageTap = now; }
+    });
+  }
 
   return clone;
 }

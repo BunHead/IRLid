@@ -630,7 +630,7 @@
 
     // DB status
     dbStatus.innerHTML = '<span class="db-found">\u2714 This receipt exists in the IRLid database' +
-      (data.created_at ? ' and was stored on ' + new Date(typeof data.created_at === "string" ? data.created_at : data.created_at * 1000).toLocaleDateString() : '') + '.</span>';
+      (data.created_at ? ' and was stored on ' + new Date(typeof data.created_at === "string" ? data.created_at : data.created_at * 1000).toLocaleDateString("en-GB") : '') + '.</span>';
 
     // --- Cryptographic verification ---
     let passCount = 0;

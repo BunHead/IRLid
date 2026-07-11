@@ -186,7 +186,7 @@
         }
 
         // Step 4: Show real data with score
-        const ts = payloadA.ts ? new Date(payloadA.ts * 1000).toLocaleString() : "Unknown";
+        const ts = payloadA.ts ? new Date(payloadA.ts * 1000).toLocaleString("en-GB") : "Unknown";
         const lat = payloadA.lat != null ? payloadA.lat.toFixed(5) : null;
         const lon = payloadA.lon != null ? payloadA.lon.toFixed(5) : null;
         const locationStr = (lat && lon) ? `${lat}°, ${lon}°` : "Location not available";

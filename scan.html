@@ -332,7 +332,7 @@
     if (!isDebugMode()) return;
     window.irlidDebugLog("[IRLid]", msg);
     const line = document.createElement("div");
-    line.textContent = new Date().toLocaleTimeString() + " " + msg;
+    line.textContent = new Date().toLocaleTimeString("en-GB") + " " + msg;
     debugPanel.appendChild(line);
     debugPanel.scrollTop = debugPanel.scrollHeight;
   }

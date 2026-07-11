@@ -715,7 +715,7 @@
 
   function formatTimeNoTs(tsMs){
     if (!tsMs) return null;
-    try { return new Date(tsMs).toLocaleString(); } catch { return null; }
+    try { return new Date(tsMs).toLocaleString("en-GB"); } catch { return null; }
   }
 
   function formatReceiptTime(tsMs){
@@ -735,8 +735,8 @@
     if (!tsMs) return "Unknown time";
     try {
       const d = new Date(tsMs);
-      return d.toLocaleDateString(undefined, { year:"numeric", month:"short", day:"numeric" }) +
-             " " + d.toLocaleTimeString(undefined, { hour:"2-digit", minute:"2-digit" });
+      return d.toLocaleDateString("en-GB", { year:"numeric", month:"short", day:"numeric" }) +
+             " " + d.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
     } catch { return "Unknown time"; }
   }
 
@@ -774,6 +774,24 @@
     if (!receipt || !receipt.ts) return null;
     const parsed = Date.parse(receipt.ts);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  // v6.4.26 — unified comparable timestamp (ms) for merging the two receipt
+  // kinds into ONE date-sorted list. Previously org check-ins were pinned in a
+  // block above all 1-to-1 receipts and never interleaved by date.
+  function receiptSortTsMs(kind, item){
+    if (kind === "org") {
+      return getOrgReceiptCheckinTsMs(item.receipt)
+          || item.display_created_at
+          || normalizeEpochMs(item.created_at) || 0;
+    }
+    if (kind === "server") {
+      return normalizeEpochMs(item.ts_a) || normalizeEpochMs(item.ts_b)
+          || normalizeEpochMs(item.created_at) || 0;
+    }
+    // local P2P
+    return normalizeEpochMs(item.ts)
+        || (item.combined ? Math.max(getTsMs(item.combined.a) || 0, getTsMs(item.combined.b) || 0) : 0);
   }
 
   function makeMapsUrl(lat, lon){
@@ -1257,11 +1275,11 @@
       const lo = new Date(Math.min(tsA, tsB));
       const hi = new Date(Math.max(tsA, tsB));
       const deltaS = Math.round(Math.abs(tsA - tsB) / 1000);
-      timeLine = lo.toLocaleString() + " \u2014 " + hi.toLocaleTimeString() + " (\u0394 " + deltaS + "s)";
+      timeLine = lo.toLocaleString("en-GB") + " \u2014 " + hi.toLocaleTimeString("en-GB") + " (\u0394 " + deltaS + "s)";
     } else if (tsA) {
-      timeLine = new Date(tsA).toLocaleString() + " (self)";
+      timeLine = new Date(tsA).toLocaleString("en-GB") + " (self)";
     } else if (tsB) {
-      timeLine = new Date(tsB).toLocaleString() + " (guest)";
+      timeLine = new Date(tsB).toLocaleString("en-GB") + " (guest)";
     }
     sumTime.textContent = timeLine;
 
@@ -1601,13 +1619,17 @@
     const receipts = result.data.receipts || [];
     totalReceipts = result.data.total || 0;
     pageLimit = result.data.limit || 20;
-    const orgReceiptCount = renderOrgReceiptsGroup();
+    // v6.4.26 — merge org check-ins with P2P receipts into one date-sorted
+    // list. Org receipts only merge on page 1 (server pagination doesn't know
+    // about them; they're recent, so page 1 is the right home).
+    const orgReceipts = currentPage === 1 ? getLocalOrgReceipts() : [];
 
     if (receipts.length === 0 && currentPage === 1) {
       const localCount = getLocalReceiptList().length;
       if (localCount > 0) {
         loadLocalReceipts();
-      } else if (orgReceiptCount > 0) {
+      } else if (orgReceipts.length > 0) {
+        for (const entry of orgReceipts) receiptListEl.appendChild(renderOrgReceiptItem(entry));
         listFooter.style.display = "flex";
       } else {
         listEmpty.style.display = "block";
@@ -1616,11 +1638,18 @@
       return;
     }
 
-    for (const r of receipts) {
-      const li = renderReceiptItem(r, () => {
-        location.hash = "receipt=" + r.receipt_hash;
-      });
-      receiptListEl.appendChild(li);
+    const merged = [
+      ...orgReceipts.map(e => ({ kind: "org",    ts: receiptSortTsMs("org", e),    data: e })),
+      ...receipts.map(r    => ({ kind: "server", ts: receiptSortTsMs("server", r), data: r }))
+    ];
+    merged.sort((a, b) => b.ts - a.ts);
+    for (const m of merged) {
+      if (m.kind === "org") {
+        receiptListEl.appendChild(renderOrgReceiptItem(m.data));
+      } else {
+        const r = m.data;
+        receiptListEl.appendChild(renderReceiptItem(r, () => { location.hash = "receipt=" + r.receipt_hash; }));
+      }
     }
 
     const totalPages = Math.ceil(totalReceipts / pageLimit);
@@ -1804,8 +1833,9 @@
     listLoading.style.display = "none";
     listEmpty.style.display = "none";
     receiptListEl.innerHTML = "";
-    const orgReceiptCount = renderOrgReceiptsGroup();
-
+    // v6.4.26 — merge org check-ins with local P2P receipts, date-sorted
+    // (was: org block pinned above the P2P items, no interleave).
+    const orgReceipts = getLocalOrgReceipts();
     const items = getLocalReceiptList();
 
     const last = readJson(KEY_LAST);
@@ -1819,15 +1849,21 @@
       else if (last.type === "response") items.push(last);
     }
 
-    if (items.length === 0 && orgReceiptCount === 0) {
+    if (items.length === 0 && orgReceipts.length === 0) {
       listEmpty.style.display = "block";
       listFooter.style.display = "flex";
       return;
     }
 
-    for (let i = 0; i < items.length; i++) {
-      const li = renderLocalReceiptItem(items[i], i);
-      receiptListEl.appendChild(li);
+    const merged = [
+      ...orgReceipts.map(e => ({ kind: "org",   ts: receiptSortTsMs("org", e),   data: e })),
+      ...items.map((it, i) => ({ kind: "local", ts: receiptSortTsMs("local", it), data: it, idx: i }))
+    ];
+    merged.sort((a, b) => b.ts - a.ts);
+    for (const m of merged) {
+      receiptListEl.appendChild(
+        m.kind === "org" ? renderOrgReceiptItem(m.data) : renderLocalReceiptItem(m.data, m.idx)
+      );
     }
 
     listFooter.style.display = "flex";
