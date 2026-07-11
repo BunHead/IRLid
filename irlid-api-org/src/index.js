@@ -78,6 +78,7 @@ const IMAGE_PROXY_MAX_BYTES = 2 * 1024 * 1024;
 const PUBLIC_HTTP_URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i;
 const AUTO_CHECKOUT_MIN_INTERVAL_MS = 60 * 1000;
 const autoCheckoutLastRunByOrg = new Map();
+let checkinNonceStorageReady = false;
 
 function expectedMemberRole(value) {
   const role = String(value || "attendee").trim().toLowerCase();
@@ -3386,6 +3387,7 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
       anonymous: anonymousMode || !attendeeName
     },
     action: options?.action || "in",
+    assurance: checkinRow.assurance || null,
     score: Number(checkinRow.score || options?.score || 70),
     bioVerified: !!(checkinRow.bio_verified || options?.bioVerified)
   };
@@ -4041,36 +4043,32 @@ async function orgCheckin(request, env) {
   if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const { mode, helloPayload, helloHash, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
+  await ensureOrgCheckinNonceStorage(env);
   const checkinColumns = await tableColumnSet(env, "org_checkins");
   const hasEventIdColumn = checkinColumns.has("event_id");
   const eventId = hasEventIdColumn ? cleanOptionalText(body.event_id, 90) : "";
   const clientCheckinId = cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90);
-  if (clientCheckinId) {
-    const existing = await env.DB.prepare("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=? AND org_id=? LIMIT 1")
-      .bind(clientCheckinId, org.id).first();
-    if (existing) {
-      let expectedName = null;
-      if (existing.expected_id) {
-        const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
-          .bind(existing.expected_id, org.id).first();
-        expectedName = existingExpected && (existingExpected.display_name || `${existingExpected.first_name || ""} ${existingExpected.surname || ""}`.trim()) || null;
-      }
-      return json({
-        checkin_id: existing.id,
-        checkin_at: existing.checkin_at,
-        org_name: org.name,
-        event_id: existing.event_id || null,
-        duplicate: true,
-        expected_id: existing.expected_id || null,
-        ...(expectedName ? { expected_name: expectedName } : {}),
-        ...(existing.status === "conflict" ? { conflict: true } : {})
-      });
-    }
-  }
   if (!mode || !["attendee_scan","doorman_scan"].includes(mode)) return err("mode must be attendee_scan or doorman_scan");
   if (mode === "doorman_scan") {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
     if (staffError) return staffError;
+  }
+  const nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
+  const nonceNow = now();
+  let assurance = null;
+  if (mode === "attendee_scan" && nonce) {
+    const nonceRow = await env.DB.prepare(
+      "SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
+    ).bind(nonce).first();
+    if (!nonceRow || nonceRow.org_api_key !== org.api_key) return err("Check-in nonce not found", 404);
+    if (String(nonceRow.event_id || "") !== String(eventId || "")) return err("Check-in nonce not found", 404);
+    if (nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined) return err("Check-in nonce already used", 409);
+    if (Number(nonceRow.expires_at) <= nonceNow) return err("Check-in nonce expired", 410);
+    const consumed = await env.DB.prepare(
+      "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
+    ).bind(nonceNow, nonce).run();
+    if (Number(consumed.meta?.changes || 0) !== 1) return err("Check-in nonce already used", 409);
+    assurance = "fresh";
   }
   let eventRow = null;
   if (eventId) {
@@ -4098,6 +4096,53 @@ async function orgCheckin(request, env) {
   const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
   const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
   const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
+  if (mode === "attendee_scan" && !nonce) {
+    if (settings.requireFreshCheckin === true) {
+      return err("This venue requires scanning the live check-in QR", 409);
+    }
+    assurance = "soft";
+    if (attendeeDeviceFp) {
+      const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
+      const duplicate = await env.DB.prepare(
+        `SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkin_at>=? ORDER BY checkin_at DESC LIMIT 1`
+      ).bind(...(eventRow?.id
+        ? [org.id, attendeeDeviceFp, eventRow.id, nonceNow - 60]
+        : [org.id, attendeeDeviceFp, nonceNow - 60])).first();
+      if (duplicate) {
+        return json({
+          checkin_id: duplicate.id,
+          checkin_at: duplicate.checkin_at,
+          org_name: org.name,
+          event_id: duplicate.event_id || null,
+          duplicate: true,
+          assurance: "soft"
+        });
+      }
+    }
+  }
+  if (clientCheckinId) {
+    const existing = await env.DB.prepare("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=? AND org_id=? LIMIT 1")
+      .bind(clientCheckinId, org.id).first();
+    if (existing) {
+      let expectedName = null;
+      if (existing.expected_id) {
+        const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
+          .bind(existing.expected_id, org.id).first();
+        expectedName = existingExpected && (existingExpected.display_name || `${existingExpected.first_name || ""} ${existingExpected.surname || ""}`.trim()) || null;
+      }
+      return json({
+        checkin_id: existing.id,
+        checkin_at: existing.checkin_at,
+        org_name: org.name,
+        event_id: existing.event_id || null,
+        duplicate: true,
+        expected_id: existing.expected_id || null,
+        ...(assurance ? { assurance } : {}),
+        ...(expectedName ? { expected_name: expectedName } : {}),
+        ...(existing.status === "conflict" ? { conflict: true } : {})
+      });
+    }
+  }
   const label = settings.anonymousMode ? null : (attendeeLabel || null);
   const displayName = settings.anonymousMode ? null : ((name || attendeeLabel || "").trim() || null);
   // Batch C polish 5 — defence in depth against ghost-row creation. When the
@@ -4140,6 +4185,10 @@ async function orgCheckin(request, env) {
     insertColumns.push("event_id");
     insertValues.push(eventRow?.id || null);
   }
+  if (checkinColumns.has("assurance")) {
+    insertColumns.push("assurance");
+    insertValues.push(assurance);
+  }
   await env.DB.prepare(
     `INSERT INTO org_checkins (${insertColumns.join(",")}) VALUES (${insertColumns.map(() => "?").join(",")})`
   ).bind(...insertValues).run();
@@ -4175,7 +4224,8 @@ async function orgCheckin(request, env) {
       attendee_pub_jwk: attendeePubJwk,
       device_key_fp: attendeeDeviceFp,
       status,
-      expected_id: expectedId
+      expected_id: expectedId,
+      assurance
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
@@ -4188,9 +4238,46 @@ async function orgCheckin(request, env) {
     event_id: eventRow?.id || null,
     event_name: eventRow?.name || null,
     settings,
+    ...(assurance ? { assurance } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
   });
+}
+
+async function ensureOrgCheckinNonceStorage(env) {
+  if (checkinNonceStorageReady) return;
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
+  ).run();
+  const columns = await tableColumnSet(env, "org_checkins");
+  if (!columns.has("assurance")) {
+    try {
+      await env.DB.prepare("ALTER TABLE org_checkins ADD COLUMN assurance TEXT").run();
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e?.message || e))) throw e;
+    }
+  }
+  checkinNonceStorageReady = true;
+}
+
+async function orgCreateCheckinNonce(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  await ensureOrgCheckinNonceStorage(env);
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const eventId = cleanOptionalText(body.event_id, 90);
+  if (eventId) {
+    const event = await env.DB.prepare(
+      "SELECT id FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
+    ).bind(eventId, org.id).first();
+    if (!event) return err("Event not found", 404);
+  }
+  const nonce = "cin_" + randomToken();
+  const t = now();
+  const expiresAt = t + 90;
+  await env.DB.prepare(
+    "INSERT INTO org_checkin_nonces (nonce,org_api_key,event_id,created_at,expires_at,consumed_at) VALUES (?,?,?,?,?,NULL)"
+  ).bind(nonce, org.api_key, eventId || null, t, expiresAt).run();
+  return json({ nonce, expires_at: expiresAt });
 }
 
 async function orgCheckout(request, env) {
@@ -4877,6 +4964,8 @@ async function orgDebugClearAttendance(request, env) {
     const tokens = await env.DB.prepare("DELETE FROM org_checkout_tokens WHERE org_api_key=?").bind(org.api_key).run();
     checkoutTokensCleared = tokens.meta?.changes || 0;
   }
+  await ensureOrgCheckinNonceStorage(env);
+  const checkinNonces = await env.DB.prepare("DELETE FROM org_checkin_nonces WHERE org_api_key=?").bind(org.api_key).run();
 
   let expectedCleared = 0;
   if (includeExpected) {
@@ -4893,6 +4982,7 @@ async function orgDebugClearAttendance(request, env) {
 
   return json({
     ok: true,
+    checkin_nonces_cleared: checkinNonces.meta?.changes || 0,
     org_key: org.api_key,
     cleared: {
       checkins: checkins.meta?.changes || 0,
@@ -5747,6 +5837,7 @@ export default {
       else if (method === "GET"  && path === "/org/audit-log")        response = await orgAuditLog(request, env);
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
+      else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
       else if (method === "POST" && path === "/org/debug/clear-attendance") response = await orgDebugClearAttendance(request, env);

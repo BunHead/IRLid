@@ -70,9 +70,11 @@ CREATE TABLE org_checkins (
   checkout_at     INTEGER,             -- NULL until checkout
   duration_s      INTEGER,             -- populated on checkout
   created_at      INTEGER NOT NULL
-, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT);
+, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT);
 
 CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NULL, org_api_key TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
+
+CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
 
 CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_code TEXT NOT NULL, first_name TEXT NOT NULL, surname TEXT NOT NULL, status TEXT DEFAULT 'assist', created_at INTEGER NOT NULL, linked_at INTEGER, device_key_fp TEXT, prototype_role TEXT DEFAULT 'attendee');
 

@@ -157,6 +157,13 @@
       });
     },
     workerBaseUrl() { return publicBaseUrl(); },
+    createCheckinNonce(orgKey, eventId) {
+      return request("/org/checkin-nonce", {
+        method: "POST",
+        orgKey,
+        body: { event_id: eventId || null }
+      });
+    },
     // v6.4.20 — exposed for diagnostics only (localhost smoke + Chrome-MCP
     // probes can verify queue-eligibility rules without faking an outage).
     isQueueEligible,
