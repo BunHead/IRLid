@@ -5,6 +5,14 @@
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 // Deploy 116: Gmail allowlist gating on googleAuth(), GPS strip on getReceipt()
 
+import {
+  CHECKIN_MODES,
+  ensureCrowdStorage,
+  eventCheckinMode,
+  currentCrowdCode,
+  closeCrowdDisplay
+} from "./crowd.js";
+
 // =====================
 //  HELPERS
 // =====================
@@ -1446,6 +1454,8 @@ async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, orgId, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const createModeStatement = await checkinModeStatement(env, ev, orgId);
+  if (createModeStatement) statements.push(createModeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -1472,6 +1482,8 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, orgId)
   ];
+  const updateModeStatement = await checkinModeStatement(env, ev, orgId);
+  if (updateModeStatement) statements.push(updateModeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
@@ -4077,6 +4089,10 @@ async function orgCheckin(request, env) {
     ).bind(eventId, org.id).first();
     if (!eventRow) {
       console.warn("[orgCheckin] ignoring stale event_id for org", org.id, eventId);
+    } else if (await eventCheckinMode(env, org.id, eventRow.id) === "crowd") {
+      // Crowd events never store names or long-lived fingerprints, so they
+      // must not fall through to this path.
+      return json({ error: "crowd_checkin_required" }, 409);
     }
   }
   const settings = JSON.parse(org.settings_json || "{}");
@@ -4266,10 +4282,9 @@ async function orgCreateCheckinNonce(request, env) {
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const eventId = cleanOptionalText(body.event_id, 90);
   if (eventId) {
-    const event = await env.DB.prepare(
-      "SELECT id FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
-    ).bind(eventId, org.id).first();
-    if (!event) return err("Event not found", 404);
+    const mode = await eventCheckinMode(env, org.id, eventId);
+    if (!mode) return err("Event not found", 404);
+    if (mode === "crowd") return json({ error: "event_uses_crowd_codes" }, 409);
   }
   const nonce = "cin_" + randomToken();
   const t = now();
@@ -4278,6 +4293,92 @@ async function orgCreateCheckinNonce(request, env) {
     "INSERT INTO org_checkin_nonces (nonce,org_api_key,event_id,created_at,expires_at,consumed_at) VALUES (?,?,?,?,?,NULL)"
   ).bind(nonce, org.api_key, eventId || null, t, expiresAt).run();
   return json({ nonce, expires_at: expiresAt });
+}
+
+// ---- Crowd check-in displays (docs/design-crowd-checkin.md, D2/D3) ---------
+// A display is opened by a signed-in staff member (login session, never the
+// org master key) and polls for its own stream of rotating codes. Codes are
+// tied to that member's login session: "Sign out all devices" ends the
+// session, and with it every display that member opened.
+
+async function requireCrowdStaff(request, env, org) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (expectedRoleRank(role) < expectedRoleRank("staff")) {
+    return { error: json({ error: "insufficient_role" }, 403) };
+  }
+  return { user: ctx.user, role };
+}
+
+function crowdDisplayResponse(display) {
+  return { id: display.id, label: display.label, event_id: display.event_id, opened_at: Number(display.opened_at) };
+}
+
+function cleanCoordinate(value, limit) {
+  const n = Number(value);
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(n) && Math.abs(n) <= limit ? n : null;
+}
+
+async function orgCrowdDisplayOpen(request, env) {
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
+  const staff = await requireCrowdStaff(request, env, org);
+  if (staff.error) return staff.error;
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const eventId = cleanOptionalText(body.event_id, 90);
+  if (!eventId) return err("event_id required");
+  const mode = await eventCheckinMode(env, org.id, eventId);
+  if (!mode) return err("Event not found", 404);
+  if (mode !== "crowd") return json({ error: "event_not_crowd_mode" }, 409);
+  const lat = cleanCoordinate(body.lat, 90);
+  const lon = cleanCoordinate(body.lon, 180);
+  const display = {
+    id: "dsp_" + randomToken().slice(0, 22),
+    org_id: org.id,
+    event_id: eventId,
+    label: cleanText(body.label, 40) || "Display",
+    opened_by_user_id: staff.user.id,
+    opened_at: now()
+  };
+  await env.DB.prepare(
+    "INSERT INTO org_checkin_displays (id,org_id,event_id,label,opened_by_user_id,opened_at,closed_at,lat,lon) VALUES (?,?,?,?,?,?,NULL,?,?)"
+  ).bind(display.id, display.org_id, display.event_id, display.label, display.opened_by_user_id, display.opened_at,
+    lat !== null && lon !== null ? lat : null, lat !== null && lon !== null ? lon : null).run();
+  const code = await currentCrowdCode(env, display, display.opened_at);
+  return noStore(json({ display: crowdDisplayResponse(display), ...code }, 201));
+}
+
+async function loadOwnCrowdDisplay(request, env, displayId) {
+  const org = await orgFromRequest(request, env);
+  if (!org) return { error: authErr("Invalid org key or slug", 401) };
+  const staff = await requireCrowdStaff(request, env, org);
+  if (staff.error) return { error: staff.error };
+  await ensureCrowdStorage(env);
+  const display = await env.DB.prepare(
+    "SELECT id,org_id,event_id,label,opened_by_user_id,opened_at,closed_at FROM org_checkin_displays WHERE id=? AND org_id=? LIMIT 1"
+  ).bind(displayId, org.id).first();
+  // Only the member who opened a display can drive it; anyone else sees 404.
+  if (!display || display.opened_by_user_id !== staff.user.id) return { error: err("Display not found", 404) };
+  return { display };
+}
+
+async function orgCrowdDisplayCode(request, env, displayId) {
+  const loaded = await loadOwnCrowdDisplay(request, env, displayId);
+  if (loaded.error) return loaded.error;
+  if (loaded.display.closed_at) return json({ error: "display_closed" }, 410);
+  if (await eventCheckinMode(env, loaded.display.org_id, loaded.display.event_id) !== "crowd") {
+    return json({ error: "event_not_crowd_mode" }, 409);
+  }
+  const code = await currentCrowdCode(env, loaded.display, now());
+  return noStore(json({ display: crowdDisplayResponse(loaded.display), ...code }));
+}
+
+async function orgCrowdDisplayClose(request, env, displayId) {
+  const loaded = await loadOwnCrowdDisplay(request, env, displayId);
+  if (loaded.error) return loaded.error;
+  await closeCrowdDisplay(env, loaded.display, now());
+  return json({ ok: true });
 }
 
 async function orgCheckout(request, env) {
@@ -4846,6 +4947,7 @@ function eventResponse(row, expectedIds) {
     notes: row.notes || "",
     require_proof: Number(row.require_proof || 0),
     late_grace_min: Number(row.late_grace_min || 0),
+    checkin_mode: CHECKIN_MODES.has(row.checkin_mode) ? row.checkin_mode : "standard",
     created_at: Number(row.created_at),
     archived_at: row.archived_at || null,
     expected_ids: expectedIds || []
@@ -5099,8 +5201,17 @@ function cleanEventBody(body, existing = {}) {
     color_hex: body.color_hex !== undefined ? cleanOptionalText(body.color_hex, 16) : (existing.color_hex || null),
     notes: body.notes !== undefined ? cleanOptionalText(body.notes, 2000) : (existing.notes || null),
     require_proof: requireProof ? 1 : 0,
-    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0
+    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0,
+    // undefined = leave as is; written separately by checkinModeStatement().
+    checkin_mode: body.checkin_mode !== undefined ? String(body.checkin_mode || "").trim().toLowerCase() : undefined
   };
+}
+
+async function checkinModeStatement(env, ev, orgId) {
+  if (ev.checkin_mode === undefined) return null;
+  await ensureCrowdStorage(env);
+  return env.DB.prepare("UPDATE weekly_events SET checkin_mode=? WHERE id=? AND org_id=?")
+    .bind(ev.checkin_mode, ev.id, orgId);
 }
 
 function validateEventInput(ev) {
@@ -5110,6 +5221,7 @@ function validateEventInput(ev) {
   if (!Number.isFinite(Number(ev.duration_min)) || Number(ev.duration_min) < 1) return "duration_min must be >= 1";
   if (ev.capacity !== null && (!Number.isFinite(Number(ev.capacity)) || Number(ev.capacity) < 0)) return "capacity must be >= 0 or null";
   if (ev.color_hex && !/^#[0-9a-f]{6}$/i.test(ev.color_hex)) return "color_hex must be #RRGGBB";
+  if (ev.checkin_mode !== undefined && !CHECKIN_MODES.has(ev.checkin_mode)) return "checkin_mode must be standard or crowd";
   return null;
 }
 
@@ -5132,6 +5244,8 @@ async function orgWeeklyEventCreate(request, env) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, org.id, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const createModeStatement = await checkinModeStatement(env, ev, org.id);
+  if (createModeStatement) statements.push(createModeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -5164,6 +5278,8 @@ async function orgWeeklyEventUpdate(request, env, id) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, org.id)
   ];
+  const updateModeStatement = await checkinModeStatement(env, ev, org.id);
+  if (updateModeStatement) statements.push(updateModeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
@@ -5838,6 +5954,7 @@ export default {
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
+      else if (method === "POST" && path === "/org/crowd/displays")  response = await orgCrowdDisplayOpen(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
       else if (method === "POST" && path === "/org/debug/clear-attendance") response = await orgDebugClearAttendance(request, env);
@@ -5864,6 +5981,8 @@ export default {
         const mOrgReceipt = path.match(/^\/org\/receipt\/([^/]+)$/);
         const mOrgPublicInfo = path.match(/^\/org\/public-info\/([^/]+)$/);
         const mOrgEntryInfo = path.match(/^\/org\/entry-info\/([^/]+)$/);
+        const mCrowdDisplayCode = path.match(/^\/org\/crowd\/displays\/([^/]+)\/code$/);
+        const mCrowdDisplayClose = path.match(/^\/org\/crowd\/displays\/([^/]+)\/close$/);
         if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
         else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, decodeURIComponent(mExpectedFull[1]));
         else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, decodeURIComponent(mExpected[1]));
@@ -5879,6 +5998,8 @@ export default {
         else if (method === "GET" && mOrgReceipt) response = await orgReceiptGet(request, env, decodeURIComponent(mOrgReceipt[1]));
         else if (method === "GET" && mOrgPublicInfo) response = await orgPublicInfo(request, env, decodeURIComponent(mOrgPublicInfo[1]));
         else if (method === "GET" && mOrgEntryInfo) response = await orgEntryInfo(request, env, decodeURIComponent(mOrgEntryInfo[1]));
+        else if (method === "GET" && mCrowdDisplayCode) response = await orgCrowdDisplayCode(request, env, decodeURIComponent(mCrowdDisplayCode[1]));
+        else if (method === "POST" && mCrowdDisplayClose) response = await orgCrowdDisplayClose(request, env, decodeURIComponent(mCrowdDisplayClose[1]));
         else {
           const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
           if (method === "GET" && m) response = await getReceipt(request, env, m[1]);
