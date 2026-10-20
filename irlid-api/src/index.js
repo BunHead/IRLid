@@ -384,10 +384,16 @@ async function register(request, env) {
   const pkId = await pubKeyId(pub_jwk);
   const existing = await env.DB.prepare("SELECT d.id as device_id, d.user_id FROM devices d WHERE d.pub_key_id = ?").bind(pkId).first();
 
+  // SECURITY (ported from IRLid-TestEnvironment 5e7ff79) — registration is not
+  // authentication. pubKeyId() comes only from PUBLIC JWK fields, and public keys
+  // are readable from public receipts, so minting a session here allowed
+  //   public receipt -> public JWK -> pub_key_id -> 30-day session -> account takeover.
+  // An already-registered device signs in via Google, never by re-presenting its key.
   if (existing) {
-    const token = randomToken(); const ts = now();
-    await env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, existing.user_id, existing.device_id, ts, ts + 30 * 86400).run();
-    return json({ user_id: existing.user_id, device_id: existing.device_id, pub_key_id: pkId, session_token: token, existing: true });
+    return json({
+      error: "This device is already registered. Please sign in instead.",
+      code: "already_registered"
+    }, 409);
   }
 
   const userId = uuid(); const deviceId = uuid(); const ts = now(); const token = randomToken();
@@ -436,8 +442,9 @@ async function googleAuth(request, env) {
   let existing = !!user;
 
   if (!user) {
-    // Check if there's a user with matching email (link Google to existing email-based account)
-    if (gUser.email) {
+    // Check if there's a user with matching email (link Google to existing email-based account).
+    // SECURITY: only when Google has verified the email — an unverified address proves nothing.
+    if (gUser.email && gUser.email_verified) {
       user = await env.DB.prepare("SELECT id, display_name FROM users WHERE email = ?").bind(gUser.email).first();
     }
   }
@@ -514,18 +521,10 @@ async function googleAuth(request, env) {
 //  OTHER AUTH
 // =====================
 
-async function login(request, env) {
-  let body;
-  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
-  const { pub_key_id } = body;
-  if (!pub_key_id) return err("pub_key_id required");
-  const device = await env.DB.prepare("SELECT id, user_id, revoked_at FROM devices WHERE pub_key_id = ?").bind(pub_key_id).first();
-  if (!device) return err("Device not found.", 404);
-  if (device.revoked_at) return err("Device key revoked.", 403);
-  const token = randomToken(); const ts = now();
-  await env.DB.prepare("INSERT INTO sessions (id, user_id, device_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)").bind(token, device.user_id, device.id, ts, ts + 30 * 86400).run();
-  return json({ session_token: token, user_id: device.user_id, device_id: device.id });
-}
+// /auth/login REMOVED (ported from IRLid-TestEnvironment 5e7ff79): it granted a
+// 30-day session from a bare pub_key_id — a PUBLIC value derivable from any public
+// receipt — with no proof of private-key possession. No client code called it.
+// A public value must never authenticate anyone.
 
 async function logout(request, env) {
   const session = await getSession(request, env);
@@ -856,7 +855,6 @@ export default {
       if (path === "/" || path === "/health") response = json({ status: "ok", service: "irlid-api", version: 7 });
 
       else if (method === "POST" && path === "/auth/register")       response = await register(request, env);
-      else if (method === "POST" && path === "/auth/login")          response = await login(request, env);
       else if (method === "POST" && path === "/auth/logout")         response = await logout(request, env);
       else if (method === "GET"  && path === "/auth/me")              response = await me(request, env);
       else if (method === "POST" && path === "/auth/profile")        response = await updateProfile(request, env);
