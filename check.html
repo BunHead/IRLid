@@ -791,6 +791,12 @@
     document.getElementById("locA").textContent = receipt.gps ? "Location: " + receipt.gps.lat + ", " + receipt.gps.lon : (receipt.gps_hash ? "Location: GPS redacted" : "Location: not present");
     document.getElementById("timeA").textContent = "Time: " + formatOrgReceiptTime(receipt.ts);
     document.getElementById("accA").textContent = receipt.score != null ? "Score: " + receipt.score : "Score: unknown";
+    // Offline-first: nonce-less check-ins are accepted but never presented as
+    // live-verified ("soft" is the pre-v6.5.2 name for the same thing).
+    const offlineCheckin = receipt.assurance === "offline" || receipt.assurance === "soft";
+    if (offlineCheckin || receipt.assurance === "fresh") {
+      document.getElementById("accA").textContent += offlineCheckin ? " · offline / unverified" : " · live QR";
+    }
     const orgSlug = receipt.org?.slug || "";
     document.getElementById("locB").innerHTML = orgSlug
       ? 'Org: <a href="' + orgApiBase() + '/org/public-info/' + encodeURIComponent(orgSlug) + '" target="_blank" rel="noopener noreferrer">' + orgSlug.replace(/[&<>"']/g, "") + '</a>'
@@ -815,6 +821,12 @@
     }
     document.getElementById("metaHash").textContent = receiptId;
     dbStatus.innerHTML = '<span class="db-found">&#10004; This org receipt exists in the IRLid org receipt table.</span>';
+    if (offlineCheckin) {
+      const note = document.createElement("div");
+      note.style.cssText = "color:#b45309; font-weight:600; margin-top:4px;";
+      note.textContent = "Offline / unverified check-in: made without the live venue QR (backup QR, or saved offline and synced later). Freshness and time were not verified by the venue.";
+      dbStatus.appendChild(note);
+    }
 
     let passCount = 0;
     let totalCount = 0;

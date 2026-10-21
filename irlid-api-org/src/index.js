@@ -4097,10 +4097,14 @@ async function orgCheckin(request, env) {
   const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
   const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
   if (mode === "attendee_scan" && !nonce) {
-    if (settings.requireFreshCheckin === true) {
-      return err("This venue requires scanning the live check-in QR", 409);
-    }
-    assurance = "soft";
+    // Offline-first (docs/requirements/offline-first.md): a check-in without a
+    // live QR nonce is ALWAYS accepted - static/backup QR, a phone that queued
+    // it during an outage, or a replay hours later. It is recorded as
+    // "offline" (unverified freshness) and labelled as such on receipts, the
+    // dashboard and check.html. Refusing it here would make the offline queue
+    // drop it as a terminal 4xx, so there is deliberately no "require live QR"
+    // refusal. Older rows may still carry the pre-v6.5.2 name "soft".
+    assurance = "offline";
     if (attendeeDeviceFp) {
       const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
       const duplicate = await env.DB.prepare(
@@ -4115,7 +4119,7 @@ async function orgCheckin(request, env) {
           org_name: org.name,
           event_id: duplicate.event_id || null,
           duplicate: true,
-          assurance: "soft"
+          assurance: "offline"
         });
       }
     }
@@ -4278,6 +4282,28 @@ async function orgCreateCheckinNonce(request, env) {
     "INSERT INTO org_checkin_nonces (nonce,org_api_key,event_id,created_at,expires_at,consumed_at) VALUES (?,?,?,?,?,NULL)"
   ).bind(nonce, org.api_key, eventId || null, t, expiresAt).run();
   return json({ nonce, expires_at: expiresAt });
+}
+
+// v6.5.2 - the Check-in panel polls this about every 2 s so the venue QR can
+// change as soon as someone has scanned it. Read-only: it never consumes or
+// extends a nonce. Unknown nonces and nonces issued to another org both read
+// as 404, so the poll cannot be used to probe other orgs' nonces.
+async function orgCheckinNonceStatus(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  await ensureOrgCheckinNonceStorage(env);
+  const nonce = cleanOptionalText(new URL(request.url).searchParams.get("nonce"), 64);
+  if (!nonce) return err("nonce required");
+  const row = await env.DB.prepare(
+    "SELECT expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=? AND org_api_key=? LIMIT 1"
+  ).bind(nonce, org.api_key).first();
+  if (!row) return noStore(err("Check-in nonce not found", 404));
+  const used = row.consumed_at !== null && row.consumed_at !== undefined;
+  return noStore(json({
+    nonce,
+    used,
+    expired: Number(row.expires_at) <= now(),
+    expires_at: Number(row.expires_at)
+  }));
 }
 
 async function orgCheckout(request, env) {
@@ -4445,6 +4471,7 @@ async function orgAttendance(request, env) {
       selectCheckinColumn("expected_id"),
       selectCheckinColumn("conflict_id"),
       selectCheckinColumn("event_id"),
+      selectCheckinColumn("assurance"),
       receiptSelect,
       checkoutMethodSelect,
       selectCheckinColumn("checkout_ts")
@@ -5838,6 +5865,7 @@ export default {
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
+      else if (method === "GET"  && path === "/org/checkin-nonce/status") response = await orgCheckinNonceStatus(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
       else if (method === "POST" && path === "/org/debug/clear-attendance") response = await orgDebugClearAttendance(request, env);
