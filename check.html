@@ -386,6 +386,16 @@
 <script src="js/sign.js?v=5.0"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
 <script>
+
+// Venue GPS band label (server-computed flag; never a refusal). Empty when the
+// org has no venue location set.
+function venueGpsBandLabel(band, distanceKm) {
+  if (band === "near") return "near venue";
+  if (band === "far") return Number.isFinite(Number(distanceKm)) && distanceKm !== null ? "far from venue (~" + Number(distanceKm) + " km)" : "far from venue";
+  if (band === "none") return "no phone GPS";
+  return "";
+}
+
 (function(){
   const hashInput = document.getElementById("hashInput");
   const checkBtn = document.getElementById("checkBtn");
@@ -797,6 +807,9 @@
     if (offlineCheckin || receipt.assurance === "fresh") {
       document.getElementById("accA").textContent += offlineCheckin ? " · offline / unverified" : " · live QR";
     }
+    // Venue GPS band: server-computed flag (phone GPS vs the venue location).
+    const gpsBandText = venueGpsBandLabel(receipt.gps_band, receipt.gps_distance_km);
+    if (gpsBandText) document.getElementById("accA").textContent += " · " + gpsBandText;
     const orgSlug = receipt.org?.slug || "";
     document.getElementById("locB").innerHTML = orgSlug
       ? 'Org: <a href="' + orgApiBase() + '/org/public-info/' + encodeURIComponent(orgSlug) + '" target="_blank" rel="noopener noreferrer">' + orgSlug.replace(/[&<>"']/g, "") + '</a>'
@@ -812,6 +825,7 @@
     if (venueInfo.address && !receipt.gps) {
       document.getElementById("metaDist").textContent = "Venue address (provided by organisation): " + venueInfo.address;
     }
+    if (!receipt.gps && gpsBandText) document.getElementById("metaDist").textContent += " · " + gpsBandText;
     if (venueInfo.address || venueInfo.email || venueInfo.phone) {
       const locBEl = document.getElementById("locB");
       locBEl.appendChild(document.createElement("br"));

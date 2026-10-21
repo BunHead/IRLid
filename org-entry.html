@@ -254,6 +254,7 @@
     text-align:center;
     border-top:1px solid rgba(255,255,255,0.15);
   }
+  .org-terms-location{ margin-top:6px; opacity:.8; }
   body.status-allow .org-terms-footer,
   body.status-orange .org-terms-footer,
   body.status-review .org-terms-footer{ display:block; }
@@ -872,7 +873,14 @@
     // v5.9.0.9 — Populate org-terms footer (display only, no accept gate).
     // CSS handles visibility per status — shows on allow/orange/review, hidden on deny.
     const orgTermsEl = document.getElementById("orgTermsFooter");
-    if (orgTermsEl) orgTermsEl.textContent = orgTerms;
+    if (orgTermsEl) {
+      orgTermsEl.textContent = orgTerms;
+      // Location notice (venue GPS flag): always shown with the terms.
+      const locNote = document.createElement("div");
+      locNote.className = "org-terms-location";
+      locNote.textContent = "Location: if you allow it, this phone shares its GPS once at check-in. IRLid only keeps whether you were near the venue (or roughly how far), never your exact position. Saying no doesn't stop you checking in.";
+      orgTermsEl.appendChild(locNote);
+    }
     if (choiceActions) {
       choiceActions.classList.remove("show");
       choiceActions.innerHTML = "";
@@ -1599,14 +1607,38 @@
     }
   }
 
+  // Best-effort phone GPS for the venue near/far flag. Optional: resolves
+  // null if location is refused, unavailable or slow (4 s), and works offline
+  // (GPS needs no data). The server only keeps a near/far/none band.
+  function bestEffortGps(timeoutMs = 4000) {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      const timer = setTimeout(() => finish(null), timeoutMs + 250);
+      try {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          clearTimeout(timer);
+          const c = pos && pos.coords;
+          finish(c && Number.isFinite(c.latitude) && Number.isFinite(c.longitude)
+            ? { lat: c.latitude, lon: c.longitude, acc_m: Number.isFinite(c.accuracy) ? Math.round(c.accuracy) : null }
+            : null);
+        }, () => { clearTimeout(timer); finish(null); },
+        { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 120000 });
+      } catch { clearTimeout(timer); finish(null); }
+    });
+  }
+
   async function recordVenueCheckin(options = {}) {
     if (!isCheckinContext || !orgParam || typeof getPublicJwk !== "function") return;
+    const gpsPromise = bestEffortGps();
     const pub = compactJwk(await getPublicJwk());
     const scanTs = Math.floor(Date.now() / 1000);
     const clientCheckinId = entryClientId("checkin");
     const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: scanTs, v: 1 };
     const helloHash = await hashPayloadToB64url(helloPayload, 3);
     const cachedName = options.anonymous ? "" : await recognizedNameForDevice(pub);
+    const gps = await gpsPromise;
     const payload = await postOrgCheckinResilient({
       mode: "attendee_scan",
       client_checkin_id: clientCheckinId,
@@ -1618,7 +1650,8 @@
       event_id: eventId || null,
       nonce: checkinNonce || null,
       score: entryScore(),
-      bioVerified: false
+      bioVerified: false,
+      ...(gps ? { gps } : {})
     });
     if (payload?.queued) {
       localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id || clientCheckinId);
