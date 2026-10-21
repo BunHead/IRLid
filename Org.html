@@ -7717,7 +7717,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             function weekStartFor(date) { var d = new Date(date.getFullYear(), date.getMonth(), date.getDate()); var day = d.getDay(); d.setDate(d.getDate() + (weekStartsMonday() ? (day === 0 ? -6 : 1 - day) : -day)); return d; }
             function dayOfWeekForDate(d) { var js = d.getDay(); return js === 0 ? 7 : js; }
             function displayDate(d) { return DAY_SHORT[dayOfWeekForDate(d) - 1] + ' ' + d.getDate() + ' ' + d.toLocaleString('en-GB', { month: 'short' }); }
-            function workerEventsFallback() {
+            // Demo events are only ever shown in explicit demo mode (?demo=calendar).
+            // A real org starts with an empty week; its events come from /org/weekly-events.
+            function v511CalendarDemoMode() { try { return new URLSearchParams(location.search || '').get('demo') === 'calendar'; } catch (_) { return false; } }
+            function workerEventsFallback() { return v511CalendarDemoMode() ? workerDemoEvents() : []; }
+            // Old builds seeded these into localStorage for every browser. Match on id AND name,
+            // because user-created events can share the evt-<day>-<time> id pattern.
+            function isStaleDemoEvent(ev) { if (!ev || !ev.id) return false; return workerDemoEvents().some(function (d) { return d.id === ev.id && d.name === ev.name; }); }
+            function stripStaleDemoEvents(events) { return v511CalendarDemoMode() ? events : events.filter(function (ev) { return !isStaleDemoEvent(ev); }); }
+            function workerDemoEvents() {
               return [
                 { id: 'evt-mon-0900', name: 'Beginners pilates',   room_id: 'studio1', day_of_week: 1, start_time_local: '09:00', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_kerry', 'p_john', 'p_jane'] },
                 { id: 'evt-mon-1815', name: 'Evening pilates',     room_id: 'studio1', day_of_week: 1, start_time_local: '18:15', duration_min: 60, color_hex: '#1f6feb', expected_ids: ['p_spencer', 'p_sarah', 'p_tom'] },
@@ -7731,7 +7739,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 { id: 'evt-sun-1900', name: 'Late-night meditation',room_id: 'studio3', day_of_week: 7, start_time_local: '19:00', duration_min: 60, color_hex: '#9a6b00', expected_ids: ['p_kerry'] }
               ];
             }
-            function loadWeeklyState() { var fallback = { weekStartIso: isoDate(weekStartFor(new Date())), events: workerEventsFallback() }; try { var raw = JSON.parse(localStorage.getItem('v511_removed_events_key') || 'null'); if (Array.isArray(raw)) return { weekStartIso: fallback.weekStartIso, events: raw }; if (raw && Array.isArray(raw.events)) return { weekStartIso: raw.weekStartIso || fallback.weekStartIso, events: raw.events }; } catch (_) {} try { localStorage.setItem('v511_removed_events_key', JSON.stringify(fallback)); } catch (_) {} return fallback; }
+            function loadWeeklyState() { var fallback = { weekStartIso: isoDate(weekStartFor(new Date())), events: workerEventsFallback() }; try { var raw = JSON.parse(localStorage.getItem('v511_removed_events_key') || 'null'); if (Array.isArray(raw)) return { weekStartIso: fallback.weekStartIso, events: stripStaleDemoEvents(raw) }; if (raw && Array.isArray(raw.events)) return { weekStartIso: raw.weekStartIso || fallback.weekStartIso, events: stripStaleDemoEvents(raw.events) }; } catch (_) {} try { localStorage.setItem('v511_removed_events_key', JSON.stringify(fallback)); } catch (_) {} return fallback; }
             function saveWeeklyState() { try { localStorage.setItem('v511_removed_events_key', JSON.stringify({ weekStartIso: state.weekStartIso, events: state.events })); } catch (_) {} }
             function setView(view) { currentView = view; document.querySelectorAll('.v511-cal-view-toggle button[data-cal-view]').forEach(function (b) { var active = b.getAttribute('data-cal-view') === view; b.classList.toggle('active', active); b.setAttribute('aria-selected', active ? 'true' : 'false'); }); document.getElementById('v511CalWrap').hidden = view !== 'list'; document.getElementById('v511CalSwimlane').hidden = view !== 'swimlane'; }
             function weekLabel() { var start = new Date(state.weekStartIso + 'T00:00:00'); var end = addDays(start, 6); return displayDate(start) + ' – ' + displayDate(end) + ' ' + end.getFullYear(); }
