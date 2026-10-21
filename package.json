@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test tests/sign.test.js",
     "test:watch": "node --test --watch tests/sign.test.js",
-    "test:org-worker": "node --test irlid-api-org/tests/*.test.mjs"
+    "test:org-worker": "node --test irlid-api-org/tests/*.test.mjs",
+    "test:api": "node --test irlid-api/tests/*.test.mjs"
   },
   "author": "Spencer Austin",
   "license": "Apache-2.0"
