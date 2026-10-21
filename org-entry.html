@@ -1090,17 +1090,16 @@
         if (attempt < delays.length) await sleep(delays[attempt]);
       }
     }
-    if (body.nonce) {
-      const error = new Error("Could not verify the live check-in QR. Please scan the live QR on screen again.");
-      error.cause = lastErr;
-      throw error;
-    }
     if (!window.IRLidOfflineQueue) throw lastErr || new Error("Check-in could not sync and offline queue is unavailable");
+    // Live-QR scans during an outage queue too (offline-first requirement):
+    // the stale nonce is kept only as evidence and the check-in syncs later
+    // as "offline / unverified" instead of failing at the door.
+    const queuedBody = window.IRLidOfflineQueue.toOfflineCheckin(body);
     const queued = await window.IRLidOfflineQueue.enqueue({
       url: API_BASE + "/org/checkin",
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Org-Key": orgParam },
-      body: JSON.stringify(body),
+      body: JSON.stringify(queuedBody),
       idempotency_key: body.client_checkin_id,
       kind: "org_checkin"
     });
@@ -1627,7 +1626,7 @@
         status: "allow",
         title: "Checked in",
         subtitle: "Syncing when back online",
-        meta: "Your check-in time is saved on this phone"
+        meta: "Saved on this phone as an offline check-in"
       });
       return payload;
     }

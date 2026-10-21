@@ -164,6 +164,11 @@
         body: { event_id: eventId || null }
       });
     },
+    // v6.5.2 — the Check-in panel's ~2 s "has this QR been scanned yet?"
+    // poll. GET, so never offline-queued; a network error just throws.
+    checkinNonceStatus(orgKey, nonce) {
+      return request("/org/checkin-nonce/status?nonce=" + encodeURIComponent(nonce), { orgKey });
+    },
     // v6.4.20 — exposed for diagnostics only (localhost smoke + Chrome-MCP
     // probes can verify queue-eligibility rules without faking an outage).
     isQueueEligible,

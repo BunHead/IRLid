@@ -109,12 +109,15 @@ test("nonce issued for another org returns 404", async () => {
   assert.equal((await checkin(db, attendee({ nonce }))).response.status, 404);
 });
 
-test("missing nonce is rejected when fresh check-in is required", async () => {
+test("missing nonce is still accepted (offline-first) and marked offline", async () => {
   const db = new FakeDB({ settings: { anonymousMode: true, requireFreshCheckin: true } });
-  assert.equal((await checkin(db, attendee())).response.status, 409);
+  const result = await checkin(db, attendee());
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.assurance, "offline");
+  assert.ok(db.checkins[0].args.includes("offline"));
 });
 
-test("soft check-in repeated on the same device within 60 seconds is a no-op", async () => {
+test("offline check-in repeated on the same device within 60 seconds is a no-op", async () => {
   const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
   const pub = await crypto.subtle.exportKey("jwk", keys.publicKey);
   const duplicate = { id: "existing", checkin_at: Math.floor(Date.now() / 1000), event_id: null, status: "checked_in", expected_id: null };
@@ -122,7 +125,7 @@ test("soft check-in repeated on the same device within 60 seconds is a no-op", a
   const result = await checkin(db, attendee({ helloPayload: { pub } }));
   assert.equal(result.response.status, 200);
   assert.equal(result.body.duplicate, true);
-  assert.equal(result.body.assurance, "soft");
+  assert.equal(result.body.assurance, "offline");
   assert.equal(db.checkins.length, 0);
 });
 

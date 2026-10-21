@@ -92,8 +92,42 @@
     return status >= 400 && status < 500 && status !== 408 && status !== 429;
   }
 
+  // Offline-first (docs/requirements/offline-first.md): a live-QR check-in
+  // that has to be queued is sent later as a nonce-less (offline) check-in.
+  // By replay time the live nonce is stale or superseded and the Worker would
+  // refuse it with a terminal 404/409/410, so it is kept only as evidence.
+  function toOfflineCheckin(body) {
+    const queuedBody = Object.assign({}, body);
+    if (queuedBody.nonce) queuedBody.offline_seen_nonce = queuedBody.nonce;
+    delete queuedBody.nonce;
+    queuedBody.offline_queued = true;
+    return queuedBody;
+  }
+
+  const DROPPED_KEY = "irlid_offline_dropped";
+
+  // A dropped check-in is the only record that the person was there, so keep
+  // a local copy (last 20) instead of losing it with the queue row.
+  function keepDroppedCopy(op, reason) {
+    if (!op || op.kind !== "org_checkin") return;
+    try {
+      const existing = JSON.parse(localStorage.getItem(DROPPED_KEY) || "[]");
+      const list = Array.isArray(existing) ? existing : [];
+      list.unshift({
+        url: op.url,
+        body: op.body,
+        idempotency_key: op.idempotency_key,
+        queued_at: op.queued_at,
+        dropped_at: Date.now(),
+        reason: reason
+      });
+      localStorage.setItem(DROPPED_KEY, JSON.stringify(list.slice(0, 20)));
+    } catch (_) {}
+  }
+
   async function quarantine(op, reason) {
     console.warn("[offline-queue] dropping terminal op", reason, op && op.url, op && op.idempotency_key);
+    keepDroppedCopy(op, reason);
     await remove(op.id);
     notifyQueueChanged();
     // v6.4.20 — surface the drop instead of vanishing it. Before this, a
@@ -155,7 +189,7 @@
     return { halted, drained, dropped };
   }
 
-  window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay };
+  window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay, toOfflineCheckin, isTerminalHttpStatus };
 
   // Replay opportunistically when connectivity returns or page becomes
   // visible. Background Sync API is a later Tier 2 extension; this covers

@@ -1015,6 +1015,8 @@ body.audit-mode #attendanceBody { overflow-x: hidden; }
 .checkout-error { flex-basis: 100%; color: var(--red); font-size: 11px; margin-top: 3px; }
 .checkout-signed-badge { color: var(--green); font-size: 10px; font-weight: 600; margin-left: 4px; }
 .checkout-legacy-badge { color: var(--orange); font-size: 10px; font-weight: 600; margin-left: 4px; }
+.venue-qr-offline-badge { margin: 6px auto 0; padding: 3px 10px; width: fit-content; border-radius: 999px; background: var(--orange); color: #000; font-size: 11px; font-weight: 700; text-align: center; }
+.assurance-offline-badge { color: var(--orange); font-size: 10px; font-weight: 600; margin-left: 4px; white-space: nowrap; }
 .checkout-qr-panel { flex-basis: 100%; width: 172px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #0b1220; display: grid; gap: 8px; }
 .checkout-qr-box { width: 132px; height: 132px; display: grid; place-items: center; padding: 6px; background: #fff; border-radius: 6px; }
 .checkout-qr-box canvas, .checkout-qr-box img { width: 120px !important; height: 120px !important; max-width: 120px !important; max-height: 120px !important; image-rendering: pixelated; }
@@ -3373,7 +3375,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.5.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.5.2</span></div>
   </div>
 </div>
 
@@ -8013,6 +8015,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 var logHtml = sortedRows.slice(0, 80).map(function (row) {
                   var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
                   var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? (row.checkout_method === 'auto' ? 'OUT · auto' : 'OUT') : 'IN');
+                  if (!row.expected_only && (row.assurance === 'offline' || row.assurance === 'soft')) status += ' · offline / unverified';
                   var timeValue = row.expected_only ? '' : (row.checkout_at || row.checkin_at || row.created_at);
                   var timeHtml = timeValue ? '<span class="v511-attendance-time">&middot; ' + htmlEscape(formatLocalTime(timeValue)) + '</span>' : '';
                   return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong><span class="v511-attendance-status">&middot; ' + htmlEscape(status) + '</span>' + timeHtml + '</div>';
@@ -13155,6 +13158,10 @@ let currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null 
 let currentEventQrPollId = null;
 let venueQrNoncePollId = null;
 let venueQrNonceRequestId = 0;
+let venueQrUsedPollId = null;
+let venueQrUsedPollBusy = false;
+let venueQrLiveNonce = null;
+let venueQrOffline = false;
 let checkoutConfirmId = null;
 let checkoutBusyId = null;
 let checkoutErrors = {};
@@ -15108,7 +15115,8 @@ function aggregateAttendees(checkins) {
         status: row.status || 'checked_in',
         conflict_id: row.conflict_id || null,
         expected_id: row.expected_id || null,
-        receipt_id: row.receipt_id || null
+        receipt_id: row.receipt_id || null,
+        assurance: row.assurance || null
       });
       return;
     }
@@ -15127,6 +15135,7 @@ function aggregateAttendees(checkins) {
       existing.conflict_id = row.conflict_id || null;
       existing.expected_id = row.expected_id || null;
       existing.receipt_id = row.receipt_id || existing.receipt_id || null;
+      existing.assurance = row.assurance || null;
     } else if (!isActive && !existing.active_checkin_id && row.checkout_method) {
       existing.checkout_method = row.checkout_method;
       existing.status = row.status || existing.status;
@@ -15645,6 +15654,9 @@ function renderTable(rows) {
       : r.status === 'conflict'
       ? '<span class="status-conflict">? CONFLICT</span>'
       : (r.status === 'invalid' ? '<span class="status-invalid">INVALID</span>' : (checkinId ? '<span class="status-in">● IN</span>' : `<span class="status-out">● OUT${r.checkout_method === 'auto' ? ' · auto' : ''}</span>${methodBadge}`));
+    const assuranceHtml = !r.expected_only && isOfflineAssurance(r.assurance)
+      ? '<span class="assurance-offline-badge" title="Checked in without a live QR (static/backup QR or synced from offline). Freshness not verified.">offline / unverified</span>'
+      : '';
     const rowClass = recentlyCheckedOutId && recentlyCheckedOutId === r.id ? ' class="checkout-row-complete"' : '';
     // v5.7.0k — Role badge moves to its own column; Action holds only the
     // verbs (Initiate check-out / Delete record / Delete expected / etc.).
@@ -15655,8 +15667,13 @@ function renderTable(rows) {
     const lateMinutes = isCurrentlyIn ? lateMinutesForAttendanceRow(r, eventInfo) : 0;
     const lateHtml = lateMinutes > 0 ? `<span class="late-marker">${lateMinutes} min late</span>` : '';
     const roleHtml = expectedRoleBadge(r.prototype_role, isCurrentlyIn);
-    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}${lateHtml}</td><td>${r.scan_count || 0}</td><td>${rowStatus}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
+    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}${lateHtml}</td><td>${r.scan_count || 0}</td><td>${rowStatus}${assuranceHtml}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
   }).join('');
+}
+// Nonce-less check-ins are accepted (offline-first) but never shown as live-
+// verified. "soft" is the pre-v6.5.2 name for the same thing.
+function isOfflineAssurance(assurance) {
+  return assurance === 'offline' || assurance === 'soft';
 }
 function expectedRoleBadge(role, isCurrentlyIn) {
   const normalized = String(role || 'attendee').trim().toLowerCase();
@@ -15968,23 +15985,84 @@ async function generateVenueQR(eventContext) {
   updateCheckinQrTitle(checkinEvent.eventName);
   const basePayload = buildVenuePayload(checkinEvent);
   if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.api_key) {
+    venueQrLiveNonce = null;
     renderVenueQR(basePayload);
+    setVenueQrOfflineMode(false);
     return;
   }
   const requestId = ++venueQrNonceRequestId;
   try {
+    // Offline-first (docs/requirements/offline-first.md): with no network,
+    // skip the round-trip and show the static backup QR straight away.
+    if (navigator.onLine === false) throw new Error('offline');
     const issued = await window.IRLidOrgApi.createCheckinNonce(currentOrg.api_key, checkinEvent.eventId);
     if (requestId !== venueQrNonceRequestId || document.body.dataset.activePanel !== 'checkin') return;
     const payloadUrl = new URL(basePayload, location.href);
     payloadUrl.searchParams.set('n', issued.nonce);
+    venueQrLiveNonce = issued.nonce;
     renderVenueQR(payloadUrl.toString());
+    setVenueQrOfflineMode(false);
   } catch (err) {
     if (requestId !== venueQrNonceRequestId || document.body.dataset.activePanel !== 'checkin') return;
-    venueQrPayload = null;
-    box.innerHTML = '<span class="muted">Live QR unavailable</span>';
+    // Never leave the door without a QR. The static base QR (no n=) is always
+    // accepted; those check-ins are recorded as "offline / unverified".
+    venueQrLiveNonce = null;
+    renderVenueQR(basePayload);
+    const wasOffline = venueQrOffline;
+    setVenueQrOfflineMode(true);
     const preview = document.getElementById('qrPayloadPreview');
-    if (preview) preview.textContent = 'Could not issue a live check-in QR. Retry when connected.';
-    showToast(err.message || 'Could not refresh live check-in QR', true);
+    if (preview) preview.textContent = 'Offline mode: showing the static backup QR. Check-ins are saved as offline / unverified until the live QR is back.\n' + basePayload;
+    if (!wasOffline) showToast('Offline: showing the backup check-in QR', true);
+  }
+}
+
+// Visible marker so staff know the door is on the backup QR. It sits beside
+// (not inside) the QR slots, which are cleared on every re-render.
+function setVenueQrOfflineMode(offline) {
+  venueQrOffline = !!offline;
+  document.body.dataset.venueQrMode = venueQrOffline ? 'offline' : 'live';
+  ['venueQrBox', 'v511InlineCheckinStage'].forEach(function (id) {
+    const host = document.getElementById(id);
+    const slot = id === 'venueQrBox' ? host : host && host.querySelector('.v511-theme-preview-qr');
+    const parent = slot && slot.parentNode;
+    if (!parent) return;
+    let badge = parent.querySelector(':scope > .venue-qr-offline-badge');
+    if (!venueQrOffline) { if (badge) badge.remove(); return; }
+    if (!badge) {
+      badge = document.createElement('div');
+      badge.className = 'venue-qr-offline-badge';
+      badge.textContent = 'Offline mode · backup QR';
+      slot.insertAdjacentElement('afterend', badge);
+    }
+  });
+}
+
+// v6.5.2 — rotate the venue QR as soon as it has been scanned: ask the
+// Worker about every 2 s whether the nonce on screen has been used. The 45 s
+// refresh below stays as the backup. While on the backup QR, the same tick
+// retries issuing a live one so the door returns to live mode by itself.
+async function checkVenueQrNonceUsed() {
+  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.api_key) return;
+  if (venueQrUsedPollBusy) return;
+  const nonce = venueQrLiveNonce;
+  venueQrUsedPollBusy = true;
+  try {
+    if (!nonce) {
+      if (venueQrOffline && navigator.onLine !== false) await generateVenueQR();
+      return;
+    }
+    let replace = false;
+    try {
+      const status = await window.IRLidOrgApi.checkinNonceStatus(currentOrg.api_key, nonce);
+      replace = !!(status && (status.used || status.expired));
+    } catch (err) {
+      // 404 = unknown/retired nonce; no status = network down, which falls
+      // back to the static backup QR inside generateVenueQR.
+      replace = err.status === 404 || !err.status;
+    }
+    if (replace && nonce === venueQrLiveNonce) await generateVenueQR();
+  } finally {
+    venueQrUsedPollBusy = false;
   }
 }
 
@@ -15994,11 +16072,14 @@ function startVenueQrNoncePolling() {
   venueQrNoncePollId = setInterval(function () {
     if (document.body.dataset.activePanel === 'checkin') generateVenueQR();
   }, 45000);
+  venueQrUsedPollId = setInterval(checkVenueQrNonceUsed, 2000);
 }
 
 function stopVenueQrNoncePolling() {
   clearInterval(venueQrNoncePollId);
   venueQrNoncePollId = null;
+  clearInterval(venueQrUsedPollId);
+  venueQrUsedPollId = null;
   venueQrNonceRequestId += 1;
 }
 function staffAuthKey() {

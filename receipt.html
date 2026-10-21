@@ -937,7 +937,11 @@
         sumMap.innerHTML = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(venue.address) + '" target="_blank" rel="noopener noreferrer">Open map (venue address)</a>';
       }
       aCoords.textContent = receipt.attendee?.pub_fp ? "Device: " + receipt.attendee.pub_fp : "Device: (missing)";
-      aTime.textContent = "Action: " + (receipt.action || "in");
+      // Offline-first: a check-in without a live QR nonce is valid but its
+      // freshness is unverified ("soft" is the pre-v6.5.2 name).
+      const offlineCheckin = receipt.assurance === "offline" || receipt.assurance === "soft";
+      aTime.textContent = "Action: " + (receipt.action || "in") +
+        (offlineCheckin ? " · offline / unverified" : (receipt.assurance === "fresh" ? " · live QR" : ""));
       aAcc.textContent = receipt.score != null ? "Score: " + receipt.score : "Score: (missing)";
       bCoords.textContent = "Org: " + orgName;
       bTime.textContent = receipt.event?.name ? "Event: " + receipt.event.name : "Event: (none)";
@@ -958,6 +962,12 @@
       addCheck("Venue signature", sigOk);
       addCheck("Attendee device bound", !!(receipt.attendee && receipt.attendee.pub_fp));
       addCheck("Receipt id", !!receiptId, receiptId, receiptId.slice(0, 8));
+      if (offlineCheckin) {
+        receiptHint.appendChild(document.createElement("br"));
+        receiptHint.appendChild(document.createTextNode(
+          "Offline / unverified check-in: made without the live venue QR (backup QR, or saved offline and synced later). The venue signature is valid; the time is the phone's own."
+        ));
+      }
     } catch (e) {
       document.getElementById("topQr").innerHTML = '<div class="panel" style="padding:20px; text-align:center;">Org receipt not found.</div>';
       rawJson.textContent = String(e && e.message ? e.message : e);
