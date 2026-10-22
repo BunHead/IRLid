@@ -1445,6 +1445,8 @@ async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, orgId, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, orgId);
+  if (modeStatement) statements.push(modeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -1471,6 +1473,8 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, orgId)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, orgId);
+  if (modeStatement) statements.push(modeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
@@ -4030,6 +4034,48 @@ async function requireFreshStaffProof(request, env, org) {
   };
 }
 
+// Crowd check-in (docs/design-crowd-checkin.md). An event in "crowd" mode
+// uses the same venue QR nonce as any other event, but a crowd scanning one
+// frame all get in: the code stays valid for CROWD_CODE_GRACE_S after its
+// first use (the Check-in panel's used-nonce poll then rotates the QR).
+// Offline-first (docs/requirements/offline-first.md): a crowd check-in with
+// no code, or a code that is stale, used or unknown (e.g. a queued check-in
+// replayed hours later), is never refused. It is accepted as "offline".
+const CHECKIN_MODES = new Set(["standard", "crowd"]);
+const CROWD_CODE_GRACE_S = 5;
+let checkinModeStorageReady = false;
+
+async function ensureCheckinModeStorage(env) {
+  if (checkinModeStorageReady) return;
+  const columns = await tableColumnSet(env, "weekly_events");
+  if (!columns.has("checkin_mode")) {
+    try {
+      await env.DB.prepare("ALTER TABLE weekly_events ADD COLUMN checkin_mode TEXT DEFAULT 'standard'").run();
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e?.message || e))) throw e;
+    }
+  }
+  checkinModeStorageReady = true;
+}
+
+async function isCrowdEvent(env, orgId, eventId) {
+  if (!eventId) return false;
+  await ensureCheckinModeStorage(env);
+  const row = await env.DB.prepare(
+    "SELECT checkin_mode FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
+  ).bind(eventId, orgId).first();
+  return row?.checkin_mode === "crowd";
+}
+
+// Written as its own statement so the long-standing weekly_events INSERT and
+// UPDATE stay unchanged. undefined = leave the mode as it is.
+async function checkinModeStatement(env, ev, orgId) {
+  if (ev.checkin_mode === undefined) return null;
+  await ensureCheckinModeStorage(env);
+  return env.DB.prepare("UPDATE weekly_events SET checkin_mode=? WHERE id=? AND org_id=?")
+    .bind(ev.checkin_mode, ev.id, orgId);
+}
+
 async function orgCheckin(request, env) {
   // v6.4.4 — QR diet PR-3 (QR-SLIMMING-SPEC.md): the attendee check-in path
   // accepts org slug (or id) as well as api_key, so slim venue QRs never carry
@@ -4052,22 +4098,30 @@ async function orgCheckin(request, env) {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
     if (staffError) return staffError;
   }
-  const nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
+  let nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
   const nonceNow = now();
   let assurance = null;
   if (mode === "attendee_scan" && nonce) {
+    const crowd = await isCrowdEvent(env, org.id, eventId);
     const nonceRow = await env.DB.prepare(
       "SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
     ).bind(nonce).first();
-    if (!nonceRow || nonceRow.org_api_key !== org.api_key) return err("Check-in nonce not found", 404);
-    if (String(nonceRow.event_id || "") !== String(eventId || "")) return err("Check-in nonce not found", 404);
-    if (nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined) return err("Check-in nonce already used", 409);
-    if (Number(nonceRow.expires_at) <= nonceNow) return err("Check-in nonce expired", 410);
-    const consumed = await env.DB.prepare(
-      "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
-    ).bind(nonceNow, nonce).run();
-    if (Number(consumed.meta?.changes || 0) !== 1) return err("Check-in nonce already used", 409);
-    assurance = "fresh";
+    const used = nonceRow && nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined;
+    let nonceError = null;
+    if (!nonceRow || nonceRow.org_api_key !== org.api_key) nonceError = err("Check-in nonce not found", 404);
+    else if (String(nonceRow.event_id || "") !== String(eventId || "")) nonceError = err("Check-in nonce not found", 404);
+    else if (used && !(crowd && Number(nonceRow.consumed_at) >= nonceNow - CROWD_CODE_GRACE_S)) nonceError = err("Check-in nonce already used", 409);
+    else if (Number(nonceRow.expires_at) <= nonceNow) nonceError = err("Check-in nonce expired", 410);
+    else if (!used) {
+      const consumed = await env.DB.prepare(
+        "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
+      ).bind(nonceNow, nonce).run();
+      // A crowd code claimed by someone else a moment ago is still in grace.
+      if (Number(consumed.meta?.changes || 0) !== 1 && !crowd) nonceError = err("Check-in nonce already used", 409);
+    }
+    if (nonceError && !crowd) return nonceError;
+    if (nonceError) nonce = ""; // crowd: fall back to an offline / unverified check-in below
+    else assurance = "fresh";
   }
   let eventRow = null;
   if (eventId) {
@@ -4872,6 +4926,7 @@ function eventResponse(row, expectedIds) {
     notes: row.notes || "",
     require_proof: Number(row.require_proof || 0),
     late_grace_min: Number(row.late_grace_min || 0),
+    checkin_mode: row.checkin_mode === "crowd" ? "crowd" : "standard",
     created_at: Number(row.created_at),
     archived_at: row.archived_at || null,
     expected_ids: expectedIds || []
@@ -5125,7 +5180,8 @@ function cleanEventBody(body, existing = {}) {
     color_hex: body.color_hex !== undefined ? cleanOptionalText(body.color_hex, 16) : (existing.color_hex || null),
     notes: body.notes !== undefined ? cleanOptionalText(body.notes, 2000) : (existing.notes || null),
     require_proof: requireProof ? 1 : 0,
-    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0
+    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0,
+    checkin_mode: body.checkin_mode !== undefined ? String(body.checkin_mode || "").trim().toLowerCase() : undefined
   };
 }
 
@@ -5136,6 +5192,7 @@ function validateEventInput(ev) {
   if (!Number.isFinite(Number(ev.duration_min)) || Number(ev.duration_min) < 1) return "duration_min must be >= 1";
   if (ev.capacity !== null && (!Number.isFinite(Number(ev.capacity)) || Number(ev.capacity) < 0)) return "capacity must be >= 0 or null";
   if (ev.color_hex && !/^#[0-9a-f]{6}$/i.test(ev.color_hex)) return "color_hex must be #RRGGBB";
+  if (ev.checkin_mode !== undefined && !CHECKIN_MODES.has(ev.checkin_mode)) return "checkin_mode must be standard or crowd";
   return null;
 }
 
@@ -5158,6 +5215,8 @@ async function orgWeeklyEventCreate(request, env) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, org.id, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, org.id);
+  if (modeStatement) statements.push(modeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -5190,6 +5249,8 @@ async function orgWeeklyEventUpdate(request, env, id) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, org.id)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, org.id);
+  if (modeStatement) statements.push(modeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
