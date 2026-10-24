@@ -110,7 +110,7 @@ test("nonce issued for another org returns 404", async () => {
 });
 
 test("missing nonce is still accepted (offline-first) and marked offline", async () => {
-  const db = new FakeDB({ settings: { anonymousMode: true, requireFreshCheckin: true } });
+  const db = new FakeDB({ settings: { anonymousMode: true } });
   const result = await checkin(db, attendee());
   assert.equal(result.response.status, 200);
   assert.equal(result.body.assurance, "offline");
@@ -130,7 +130,7 @@ test("offline check-in repeated on the same device within 60 seconds is a no-op"
 });
 
 test("doorman_scan remains nonce-exempt", async () => {
-  const db = new FakeDB({ settings: { anonymousMode: false, requireFreshCheckin: true } });
+  const db = new FakeDB({ settings: { anonymousMode: false } });
   const result = await checkin(db, { mode: "doorman_scan", client_checkin_id: crypto.randomUUID(), name: "Walk-in", score: 70 }, { bearer: true });
   assert.equal(result.response.status, 200);
   assert.equal(result.body.assurance, undefined);

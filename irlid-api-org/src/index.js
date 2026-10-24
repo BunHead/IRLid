@@ -2861,9 +2861,8 @@ async function orgUpdateSettings(request, env) {
   const allowed = [
     // --- Original v6 core gates ---
     "minScore","distanceM","windowS","bioRequired","privacyMode","checkoutEnabled","anonymousMode",
-    // --- Identity / proof rules (placeholder-but-persist-able for first-scan flow integration) ---
-    "returnAllowed","allowSelfSelection","requireDoormanConfirmation","requireAdditionalProof",
-    "allowProofRecording","enableIdPhotoCapture",
+    // --- First-scan identity rules ---
+    "returnAllowed","allowSelfSelection","requireDoormanConfirmation",
     // --- Branding ---
     // v5.9.0.10 — orgTerms added: optional org-customisable terms/disclaimer text
     // shown to attendees on org-entry.html (allow/orange/review states). Display-only,

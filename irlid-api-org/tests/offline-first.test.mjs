@@ -238,13 +238,6 @@ test("nonce-less check-in is accepted and marked offline everywhere", async () =
   assert.equal(payload.assurance, "offline");
 });
 
-test("nonce-less check-in is never refused, even with requireFreshCheckin set", async () => {
-  const d1 = new D1({ anonymousMode: true, requireFreshCheckin: true });
-  const res = await call(d1, "POST", "/org/checkin", await attendeeBody());
-  assert.equal(res.status, 200, JSON.stringify(res.body));
-  assert.equal(res.body.assurance, "offline");
-});
-
 // ---- (b) + replay: queued on the phone, synced later ------------------------
 
 test("a check-in queued offline and replayed 24 h later still lands", async () => {

@@ -3376,7 +3376,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.5.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.5.3</span></div>
   </div>
 </div>
 
@@ -12277,9 +12277,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <h4>Assisted identity and proof rules</h4>
                 <div class="switch-grid">
                   <label class="switch-tile"><div class="switch-top"><strong>Require doorman confirmation</strong><label class="switch-wrap"><input id="requireDoormanConfirmation" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Keeps the doorman step active even if a match looks strong.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Require additional proof if unmatched</strong><label class="switch-wrap"><input id="requireAdditionalProof" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Use a second proof path when there is no confident match.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Allow proof recording</strong><label class="switch-wrap"><input id="allowProofRecording" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">UI setting only for now. Does not enable any backend storage.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Enable ID photo capture</strong><label class="switch-wrap"><input id="enableIdPhotoCapture" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Placeholder switch for later camera or proof-capture work.</div></label>
                 </div>
               </div>
 
@@ -13129,9 +13126,6 @@ const PORTAL_DEFAULTS = {
   returnAllowed: true,
   allowSelfSelection: true,
   requireDoormanConfirmation: true,
-  requireAdditionalProof: true,
-  allowProofRecording: false,
-  enableIdPhotoCapture: false,
   logoUrl: '',
   websiteUrl: '',
   redirectUrl: '',
@@ -13142,7 +13136,7 @@ const PORTAL_DEFAULTS = {
 };
 const PORTAL_IDS = [
   'orgCode','eventCode','minimumTrustScore','biometricRequired','privacyMode','anonymousMode','checkoutRequired','returnAllowed',
-  'allowSelfSelection','requireDoormanConfirmation','requireAdditionalProof','allowProofRecording','enableIdPhotoCapture','logoUrl','websiteUrl','redirectUrl','staffRedirectUrl','welcomeMessage','orgTerms'
+  'allowSelfSelection','requireDoormanConfirmation','logoUrl','websiteUrl','redirectUrl','staffRedirectUrl','welcomeMessage','orgTerms'
 ];
 let currentOrg = null;
 let currentMode = 'attendee_scan';
@@ -13161,9 +13155,6 @@ let settings = {
   staffRedirectUrl: '',
   allowSelfSelect: true,
   requireDoormanConfirm: true,
-  requireProof: true,
-  allowProofRecording: true,
-  allowIdPhotoCapture: false,
   manager_perms: { calendar: false },
   roleLabels: { attendee: 'Attendee', staff: 'Staff', manager: 'Manager', lead_admin: 'Lead admin', developer: 'Developer' } // v5.9.0.13.14
 };
@@ -13280,9 +13271,6 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.staffRedirectUrl === 'string') portalState.staffRedirectUrl = src.staffRedirectUrl;
   if (typeof src.allowSelfSelection === 'boolean') portalState.allowSelfSelection = src.allowSelfSelection;
   if (typeof src.requireDoormanConfirmation === 'boolean') portalState.requireDoormanConfirmation = src.requireDoormanConfirmation;
-  if (typeof src.requireAdditionalProof === 'boolean') portalState.requireAdditionalProof = src.requireAdditionalProof;
-  if (typeof src.allowProofRecording === 'boolean') portalState.allowProofRecording = src.allowProofRecording;
-  if (typeof src.enableIdPhotoCapture === 'boolean') portalState.enableIdPhotoCapture = src.enableIdPhotoCapture;
   settings.manager_perms = normaliseManagerPerms(src.manager_perms);
   writeManagerPermsToUI(settings.manager_perms);
   // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
@@ -13711,14 +13699,8 @@ function setSignedInUI(isSignedIn) {
   document.getElementById('navDashboard').classList.toggle('hidden', !isSignedIn);
   document.getElementById('navCheckin').classList.toggle('hidden', !isSignedIn);
   document.getElementById('refreshBtn').disabled = !isSignedIn;
-  // v5.11.0b — null-guard csvBtn. The unified id="csvBtn" element was retired in
-  // favour of separate csvDownloadBtn/csvUploadBtn during the orphan-button sweep
-  // but this setter survived the strip. Guard rather than remove in case a future
-  // patch re-introduces a unified CSV button.
   const csvBtn = document.getElementById('csvBtn');
   if (csvBtn) csvBtn.disabled = !isSignedIn;
-  const csvRoleFilter = document.getElementById('csvRoleFilter');
-  if (csvRoleFilter) csvRoleFilter.disabled = !isSignedIn;
   document.getElementById('signOutBtn').disabled = !isSignedIn;
   if (isSignedIn && currentOrg) {
     document.getElementById('sidebarOrgName').textContent = currentOrg.name;
@@ -14149,8 +14131,7 @@ async function loadDashboardForOrg(org) {
     minScore: 50, bioRequired: false, privacyMode: true,
     checkoutEnabled: true, returnAllowed: true, anonymousMode: false,
     logoUrl: '', welcomeMessage: '', redirectUrl: '',
-    allowSelfSelect: true, requireDoormanConfirm: true, requireProof: true,
-    allowProofRecording: true, allowIdPhotoCapture: false,
+    allowSelfSelect: true, requireDoormanConfirm: true,
     manager_perms: { calendar: false }
   };
   saveJson(STORAGE_KEY_PORTAL, portalState);
@@ -14462,9 +14443,6 @@ function collectSettingsFromCanonical() {
     staffRedirectUrl: document.getElementById('staffRedirectUrl')?.value.trim() || '',
     allowSelfSelect: !!document.getElementById('allowSelfSelection')?.checked,
     requireDoormanConfirm: !!document.getElementById('requireDoormanConfirmation')?.checked,
-    requireProof: !!document.getElementById('requireAdditionalProof')?.checked,
-    allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
-    allowIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
     manager_perms: readManagerPermsFromUI(),
     roleLabels: readRoleLabelsFromUI() // v5.9.0.13.14
   };
@@ -14703,9 +14681,6 @@ async function saveSettings() {
     orgTerms: (document.getElementById('orgTerms')?.value || '').trim(),
     allowSelfSelection: !!document.getElementById('allowSelfSelection')?.checked,
     requireDoormanConfirmation: !!document.getElementById('requireDoormanConfirmation')?.checked,
-    requireAdditionalProof: !!document.getElementById('requireAdditionalProof')?.checked,
-    allowProofRecording: !!document.getElementById('allowProofRecording')?.checked,
-    enableIdPhotoCapture: !!document.getElementById('enableIdPhotoCapture')?.checked,
     roleLabels: readRoleLabelsFromUI(), // v5.9.0.13.14 — role vocabulary panel
     // v6.4.21 — org-attested venue contact details, embedded into signed
     // receipts at mint time. The old seeded placeholder 'hello@example.com'
@@ -17312,9 +17287,6 @@ function getFullscreenLogoUrl() {
   const logo = (settings.logoUrl || portalState.logoUrl || '').trim();
   return logo || 'logo.png';
 }
-function fullscreenRefreshStamp() {
-  return new Date().toLocaleTimeString(displayLocale(), { minute: '2-digit', second: '2-digit' });
-}
 function fullscreenQR() {
   // v5.11.5 — Architectural rewrite per Captain's directive after hours of
   // patching parallel implementations. Clone the Settings preview stage
@@ -17724,43 +17696,6 @@ function csvEscape(value) {
   const s = String(value == null ? '' : value);
   return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
-function attendanceRoleKey(row) {
-  const direct = String(row && row.prototype_role || '').trim().toLowerCase();
-  if (ROLE_VOCAB_KEYS.includes(direct)) return direct;
-  const expectedId = row && row.expected_id != null ? String(row.expected_id) : '';
-  if (expectedId) {
-    const expected = expectedAttendees.find(item => String(item.id) === expectedId);
-    const expectedRole = String(expected && expected.prototype_role || '').trim().toLowerCase();
-    if (ROLE_VOCAB_KEYS.includes(expectedRole)) return expectedRole;
-  }
-  return 'attendee';
-}
-function csvRoleFilterValue() {
-  return document.getElementById('csvRoleFilter')?.value || 'all';
-}
-function csvRoleFilterAllows(row, filter) {
-  const role = attendanceRoleKey(row);
-  if (filter === 'attendees') return role === 'attendee';
-  if (filter === 'staff_plus') return ['staff', 'manager', 'lead_admin', 'developer'].includes(role);
-  return true;
-}
-function surnameSortParts(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return { empty: true, surname: '', first: '' };
-  return {
-    empty: false,
-    surname: parts[parts.length - 1].toLocaleLowerCase(displayLocale()),
-    first: parts[0].toLocaleLowerCase(displayLocale())
-  };
-}
-function compareBySurnameThenFirst(a, b) {
-  const aName = surnameSortParts(a.name || '');
-  const bName = surnameSortParts(b.name || '');
-  if (aName.empty !== bName.empty) return aName.empty ? 1 : -1;
-  const surname = aName.surname.localeCompare(bName.surname, displayLocale(), { sensitivity: 'base' });
-  if (surname) return surname;
-  return aName.first.localeCompare(bName.first, displayLocale(), { sensitivity: 'base' });
-}
 
 function parseDelimitedLine(line, delimiter) {
   const out = [];
@@ -18097,9 +18032,6 @@ function buildOutcomeUrl(mode) {
   url.searchParams.set('biometricRequired', String(!!portalState.biometricRequired));
   url.searchParams.set('allowSelfSelection', String(!!portalState.allowSelfSelection));
   url.searchParams.set('requireDoormanConfirmation', String(!!portalState.requireDoormanConfirmation));
-  url.searchParams.set('requireAdditionalProof', String(!!portalState.requireAdditionalProof));
-  url.searchParams.set('allowProofRecording', String(!!portalState.allowProofRecording));
-  url.searchParams.set('enableIdPhotoCapture', String(!!portalState.enableIdPhotoCapture));
   appendOptional(url, 'welcome', (portalState.welcomeMessage || '').trim());
   appendOptional(url, 'terms', (portalState.orgTerms || '').trim());
   if (mode === 'allow') appendOptional(url, 'redirect', (portalState.redirectUrl || '').trim());
@@ -18137,9 +18069,6 @@ function buildPortalSummaryText() {
     `Return Allowed: ${portalState.returnAllowed ? 'Yes' : 'No'}`,
     `Allow attendee self-selection: ${portalState.allowSelfSelection ? 'Yes' : 'No'}`,
     `Require doorman confirmation: ${portalState.requireDoormanConfirmation ? 'Yes' : 'No'}`,
-    `Require additional proof if unmatched: ${portalState.requireAdditionalProof ? 'Yes' : 'No'}`,
-    `Allow proof recording: ${portalState.allowProofRecording ? 'Yes' : 'No'}`,
-    `Enable ID photo capture: ${portalState.enableIdPhotoCapture ? 'Yes' : 'No'}`,
     `Logo image URL: ${portalState.logoUrl || '(none)'}`,
     `Website URL: ${portalState.websiteUrl || '(none)'}`,
     `Custom welcome message: ${portalState.welcomeMessage || '(none)'}`,
@@ -18165,9 +18094,6 @@ function syncPortalFromLegacy() {
   portalState.returnAllowed = !!settings.returnAllowed;
   portalState.allowSelfSelection = !!settings.allowSelfSelect;
   portalState.requireDoormanConfirmation = !!settings.requireDoormanConfirm;
-  portalState.requireAdditionalProof = !!settings.requireProof;
-  portalState.allowProofRecording = !!settings.allowProofRecording;
-  portalState.enableIdPhotoCapture = !!settings.allowIdPhotoCapture;
   portalState.logoUrl = settings.logoUrl || '';
   portalState.websiteUrl = settings.websiteUrl || '';
   portalState.redirectUrl = settings.redirectUrl || '';
@@ -18187,9 +18113,6 @@ function syncLegacyFromPortal() {
   settings.returnAllowed = !!portalState.returnAllowed;
   settings.allowSelfSelect = !!portalState.allowSelfSelection;
   settings.requireDoormanConfirm = !!portalState.requireDoormanConfirmation;
-  settings.requireProof = !!portalState.requireAdditionalProof;
-  settings.allowProofRecording = !!portalState.allowProofRecording;
-  settings.allowIdPhotoCapture = !!portalState.enableIdPhotoCapture;
   settings.logoUrl = portalState.logoUrl || '';
   settings.websiteUrl = portalState.websiteUrl || '';
   settings.redirectUrl = portalState.redirectUrl || '';
@@ -18252,9 +18175,6 @@ function buildPortalSummaryItems() {
     ['Return allowed',  portalState.returnAllowed ? 'Yes' : 'No'],
     ['Self-select',     portalState.allowSelfSelection ? 'Yes' : 'No'],
     ['Doorman confirm', portalState.requireDoormanConfirmation ? 'Yes' : 'No'],
-    ['Extra proof',     portalState.requireAdditionalProof ? 'Yes' : 'No'],
-    ['Proof recording', portalState.allowProofRecording ? 'Yes' : 'No'],
-    ['ID photo',        portalState.enableIdPhotoCapture ? 'Yes' : 'No'],
     ['Logo URL',        displayValue(portalState.logoUrl)],
     ['Website URL',     displayValue(portalState.websiteUrl)],
     ['Welcome',         displayValue(portalState.welcomeMessage)],
