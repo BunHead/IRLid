@@ -350,6 +350,40 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Venue GPS band (offline-first: docs/requirements/offline-first.md). The
+// phone's best-effort GPS is compared with the org-provided venue location
+// and reduced to a band: "near" (within venueRadiusM, default 200 m), "far",
+// or "none" (no usable phone GPS). Only the band (plus a rough distance for
+// "far") is stored; the raw phone position never is. This is a FLAG only and
+// never refuses a check-in. Returns null when the org has no venue location.
+const VENUE_RADIUS_DEFAULT_M = 200;
+const VENUE_GPS_MIN_POOR_ACC_M = 500;
+
+function finiteOrNull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function venueGpsBand(settings, gps) {
+  const vLat = finiteOrNull(settings?.venueLat);
+  const vLon = finiteOrNull(settings?.venueLon);
+  if (vLat === null || vLon === null) return null;
+  const radiusRaw = finiteOrNull(settings?.venueRadiusM);
+  const radiusM = radiusRaw !== null && radiusRaw > 0 ? radiusRaw : VENUE_RADIUS_DEFAULT_M;
+  const lat = finiteOrNull(gps?.lat);
+  const lon = finiteOrNull(gps?.lon);
+  if (lat === null || lon === null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return { band: "none", radius_m: radiusM };
+  // A reading whose accuracy circle is wider than the radius (and at least
+  // 500 m) can't tell near from far, so it counts as no GPS.
+  const acc = finiteOrNull(gps?.acc_m ?? gps?.acc ?? gps?.accuracy);
+  if (acc !== null && (acc < 0 || acc > Math.max(radiusM, VENUE_GPS_MIN_POOR_ACC_M))) return { band: "none", radius_m: radiusM };
+  const distanceM = haversineMeters(vLat, vLon, lat, lon);
+  if (distanceM <= radiusM) return { band: "near", radius_m: radiusM };
+  const km = distanceM / 1000;
+  return { band: "far", radius_m: radiusM, distance_km: km < 10 ? Math.round(km * 10) / 10 : Math.round(km) };
+}
+
 async function verifyReceipt(comb) {
   const TS_TOL = 90; const DIST_TOL = 12; const checks = {};
 
@@ -2840,6 +2874,9 @@ async function orgUpdateSettings(request, env) {
     // the venue's own address/contact instead of a dead end. Asserted by the
     // org, not measured — receipt.html labels them "provided by organisation".
     "contactEmail","contactPhone","venueAddress",
+    // Venue GPS (org-provided, set via "Find on map"). Used to flag check-ins
+    // as near / far from the venue; never to refuse one.
+    "venueLat","venueLon","venueRadiusM",
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     "calendar_defaults",
@@ -3027,6 +3064,12 @@ async function orgUpdateSettings(request, env) {
   if (body.contactEmail !== undefined && (typeof body.contactEmail !== "string" || body.contactEmail.length > 200)) return err("contactEmail must be a string (max 200 chars)");
   if (body.contactPhone !== undefined && (typeof body.contactPhone !== "string" || body.contactPhone.length > 50)) return err("contactPhone must be a string (max 50 chars)");
   if (body.venueAddress !== undefined && (typeof body.venueAddress !== "string" || body.venueAddress.length > 300)) return err("venueAddress must be a string (max 300 chars)");
+  // Venue GPS: null clears; otherwise a real coordinate / sane radius.
+  for (const [f, lo, hi] of [["venueLat", -90, 90], ["venueLon", -180, 180], ["venueRadiusM", 10, 50000]]) {
+    const v = body[f];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi) return err(f + " must be a number between " + lo + " and " + hi);
+  }
   // v5.9.0.13.14 — Role vocabulary: per-org custom labels for the role chain.
   if (body.roleLabels !== undefined) {
     const rl = body.roleLabels;
@@ -3402,11 +3445,10 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
       lon: Number(gps.lon),
       acc_m: Number.isFinite(Number(gps.acc_m ?? gps.acc ?? gps.accuracy)) ? Number(gps.acc_m ?? gps.acc ?? gps.accuracy) : null
     };
-    if (privacyMode) {
-      payload.gps_hash = await sha256B64url(canonical(gpsObj));
-    } else {
-      payload.gps = gpsObj;
-    }
+    // Venue GPS rule: the raw phone position is never stored, so the receipt
+    // only ever carries its hash (plus the server-computed gps_band below),
+    // whatever privacyMode says.
+    payload.gps_hash = await sha256B64url(canonical(gpsObj));
   } else if (checkinRow.gps_hash) {
     payload.gps_hash = checkinRow.gps_hash;
   }
@@ -3420,11 +3462,24 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
   const venueAddress = typeof settings.venueAddress === "string" ? settings.venueAddress.trim().slice(0, 300) : "";
   const venueEmail = typeof settings.contactEmail === "string" ? settings.contactEmail.trim().slice(0, 200) : "";
   const venuePhone = typeof settings.contactPhone === "string" ? settings.contactPhone.trim().slice(0, 50) : "";
-  if (venueAddress || venueEmail || venuePhone) {
+  const venueLat = finiteOrNull(settings.venueLat);
+  const venueLon = finiteOrNull(settings.venueLon);
+  const hasVenueGps = venueLat !== null && venueLon !== null;
+  if (venueAddress || venueEmail || venuePhone || hasVenueGps) {
     payload.venue = {};
     if (venueAddress) payload.venue.address = venueAddress;
+    // Org-provided venue location (asserted, not measured), so a receipt
+    // carries where the venue is even when the phone had no GPS.
+    if (hasVenueGps) { payload.venue.lat = venueLat; payload.venue.lon = venueLon; }
     if (venueEmail) payload.venue.email = venueEmail;
     if (venuePhone) payload.venue.phone = venuePhone;
+  }
+  // Server-computed phone-vs-venue band (flag only). Never the raw position.
+  if (checkinRow.gps_band) {
+    payload.gps_band = checkinRow.gps_band;
+    if (checkinRow.gps_band === "far" && finiteOrNull(checkinRow.gps_distance_km) !== null) {
+      payload.gps_distance_km = Number(checkinRow.gps_distance_km);
+    }
   }
 
   payload.venue_pub_jwk = venuePub;
@@ -4145,6 +4200,11 @@ async function orgCheckin(request, env) {
   if (gps && (settings.privacyMode !== false)) {
     gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));
   }
+  // Venue GPS band, worked out the same way live or when a queued offline
+  // check-in syncs later (the phone's reading travels in the queued body).
+  const venueBand = venueGpsBand(settings, gps);
+  const gpsBand = venueBand ? venueBand.band : null;
+  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
   const helloPubJwk = normaliseDevicePubJwk(helloPayload?.pub);
   const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
   const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
@@ -4178,7 +4238,8 @@ async function orgCheckin(request, env) {
     }
   }
   if (clientCheckinId) {
-    const existing = await env.DB.prepare("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=? AND org_id=? LIMIT 1")
+    const bandSelect = checkinColumns.has("gps_band") && checkinColumns.has("gps_distance_km") ? ",gps_band,gps_distance_km" : "";
+    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
     if (existing) {
       let expectedName = null;
@@ -4195,6 +4256,8 @@ async function orgCheckin(request, env) {
         duplicate: true,
         expected_id: existing.expected_id || null,
         ...(assurance ? { assurance } : {}),
+        ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
+        ...(existing.gps_distance_km != null ? { gps_distance_km: existing.gps_distance_km } : {}),
         ...(expectedName ? { expected_name: expectedName } : {}),
         ...(existing.status === "conflict" ? { conflict: true } : {})
       });
@@ -4246,6 +4309,14 @@ async function orgCheckin(request, env) {
     insertColumns.push("assurance");
     insertValues.push(assurance);
   }
+  if (checkinColumns.has("gps_band")) {
+    insertColumns.push("gps_band");
+    insertValues.push(gpsBand);
+  }
+  if (checkinColumns.has("gps_distance_km")) {
+    insertColumns.push("gps_distance_km");
+    insertValues.push(gpsDistanceKm);
+  }
   await env.DB.prepare(
     `INSERT INTO org_checkins (${insertColumns.join(",")}) VALUES (${insertColumns.map(() => "?").join(",")})`
   ).bind(...insertValues).run();
@@ -4282,7 +4353,9 @@ async function orgCheckin(request, env) {
       device_key_fp: attendeeDeviceFp,
       status,
       expected_id: expectedId,
-      assurance
+      assurance,
+      gps_band: gpsBand,
+      gps_distance_km: gpsDistanceKm
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
@@ -4296,6 +4369,8 @@ async function orgCheckin(request, env) {
     event_name: eventRow?.name || null,
     settings,
     ...(assurance ? { assurance } : {}),
+    ...(gpsBand ? { gps_band: gpsBand } : {}),
+    ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
   });
@@ -4307,9 +4382,11 @@ async function ensureOrgCheckinNonceStorage(env) {
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
   const columns = await tableColumnSet(env, "org_checkins");
-  if (!columns.has("assurance")) {
+  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"]]) {
+    if (columns.has(col)) continue;
     try {
-      await env.DB.prepare("ALTER TABLE org_checkins ADD COLUMN assurance TEXT").run();
+      await env.DB.prepare(`ALTER TABLE org_checkins ADD COLUMN ${col} ${type}`).run();
+      columns.add(col);
     } catch (e) {
       if (!/duplicate column/i.test(String(e?.message || e))) throw e;
     }
@@ -4525,6 +4602,8 @@ async function orgAttendance(request, env) {
       selectCheckinColumn("conflict_id"),
       selectCheckinColumn("event_id"),
       selectCheckinColumn("assurance"),
+      selectCheckinColumn("gps_band"),
+      selectCheckinColumn("gps_distance_km"),
       receiptSelect,
       checkoutMethodSelect,
       selectCheckinColumn("checkout_ts")
@@ -5846,6 +5925,8 @@ async function orgAuth(request, env) {
 // =====================
 //  ROUTER
 // =====================
+
+export { venueGpsBand };
 
 export default {
   async fetch(request, env) {

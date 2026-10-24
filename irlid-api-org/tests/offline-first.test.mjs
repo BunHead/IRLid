@@ -9,7 +9,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
-import worker from "../src/index.js";
+import worker, { venueGpsBand } from "../src/index.js";
 
 const ORG_KEY = "org_offline_test_key_123456";
 const OTHER_KEY = "org_other_key_1234567890";
@@ -33,7 +33,7 @@ class D1 {
     this.db = new DatabaseSync(":memory:");
     this.db.exec(`
       CREATE TABLE organisations (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, api_key TEXT NOT NULL UNIQUE, venue_pub_jwk TEXT, venue_prv_jwk TEXT, settings_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT);
+      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL);
       CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
       CREATE TABLE org_receipts (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, checkin_id TEXT, attendee_pub_fp TEXT, payload_json TEXT NOT NULL, signature TEXT NOT NULL, created_at INTEGER NOT NULL, privacy_mode INTEGER DEFAULT 1);
       CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id TEXT NOT NULL, display_name TEXT, initials TEXT, role_key TEXT, device_pub_fp TEXT, email_hint TEXT, phone_hint TEXT, notes TEXT, created_at INTEGER, archived_at INTEGER);
@@ -337,3 +337,104 @@ test("a terminally refused check-in is kept on the phone, not lost", async () =>
   assert.equal(kept[0].idempotency_key, body.client_checkin_id);
   assert.equal(kept[0].reason, "HTTP 409");
 });
+
+// ---- Venue GPS band: flag only, never a refusal -----------------------------
+
+// Imbue-ish venue; ~111 m per 0.001 deg of latitude.
+const VENUE = { anonymousMode: true, venueLat: 51.5, venueLon: -0.12, venueRadiusM: 200 };
+
+test("venue GPS band: near / far / none, default radius and poor accuracy", () => {
+  assert.equal(venueGpsBand({}, { lat: 51.5, lon: -0.12 }), null, "no venue location: no band");
+  assert.equal(venueGpsBand(VENUE, { lat: 51.5005, lon: -0.12, acc_m: 20 }).band, "near");
+  assert.equal(venueGpsBand(VENUE, { lat: 51.5, lon: -0.12 }).band, "near", "missing accuracy is fine");
+  const far = venueGpsBand(VENUE, { lat: 51.53, lon: -0.12, acc_m: 15 });
+  assert.equal(far.band, "far");
+  assert.equal(far.distance_km, 3.3);
+  assert.equal(venueGpsBand(VENUE, { lat: 52.5, lon: -0.12, acc_m: 15 }).distance_km, 111);
+  assert.equal(venueGpsBand(VENUE, null).band, "none");
+  assert.equal(venueGpsBand(VENUE, { lat: "x", lon: 1 }).band, "none");
+  assert.equal(venueGpsBand(VENUE, { lat: 51.5, lon: -0.12, acc_m: 1500 }).band, "none", "poor accuracy counts as none");
+  // Default radius is 200 m: 300 m away is far, 150 m is near.
+  const noRadius = { venueLat: 51.5, venueLon: -0.12 };
+  assert.equal(venueGpsBand(noRadius, { lat: 51.50135, lon: -0.12 }).band, "near");
+  assert.equal(venueGpsBand(noRadius, { lat: 51.5027, lon: -0.12 }).band, "far");
+  assert.equal(venueGpsBand(noRadius, { lat: 51.5027, lon: -0.12 }).radius_m, 200);
+});
+
+test("far / no-GPS / poor-accuracy check-ins are never refused, only flagged", async () => {
+  const d1 = new D1(VENUE);
+  const cases = [
+    [{ lat: 40.7, lon: -74.0, acc_m: 10 }, "far"],
+    [undefined, "none"],
+    [{ lat: 51.5, lon: -0.12, acc_m: 5000 }, "none"],
+    [{ lat: "nonsense" }, "none"],
+    [{ lat: 51.5001, lon: -0.12, acc_m: 12 }, "near"]
+  ];
+  for (const [gps, band] of cases) {
+    const res = await call(d1, "POST", "/org/checkin", await attendeeBody(gps === undefined ? {} : { gps }));
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.assurance, "offline");
+    assert.equal(res.body.gps_band, band);
+    assert.equal(res.body.receipt.gps_band, band);
+    assert.equal(res.body.receipt.gps, undefined, "raw phone position never in the receipt");
+  }
+  // Also with a live nonce (fresh) and far away.
+  const nonce = await issueNonce(d1);
+  const fresh = await call(d1, "POST", "/org/checkin", await attendeeBody({ nonce, gps: { lat: 48.85, lon: 2.35, acc_m: 8 } }));
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body));
+  assert.equal(fresh.body.assurance, "fresh");
+  assert.equal(fresh.body.gps_band, "far");
+  assert.ok(fresh.body.gps_distance_km > 300);
+
+  const rows = d1.checkins();
+  assert.equal(rows.length, 6);
+  for (const row of rows) {
+    assert.ok(["near", "far", "none"].includes(row.gps_band));
+    assert.equal(JSON.stringify(row).includes("40.7"), false, "raw latitude never stored");
+  }
+  const attendance = await call(d1, "GET", "/org/attendance?since=0");
+  assert.equal(attendance.status, 200);
+  assert.ok(attendance.body.checkins.every(c => ["near", "far", "none"].includes(c.gps_band)));
+});
+
+test("check-in without phone GPS still carries the org-provided venue location", async () => {
+  const d1 = new D1({ ...VENUE, venueAddress: "1 High St" });
+  const res = await call(d1, "POST", "/org/checkin", await attendeeBody());
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.receipt.venue, { address: "1 High St", lat: 51.5, lon: -0.12 });
+  assert.equal(res.body.receipt.gps_band, "none");
+  assert.equal(res.body.receipt.gps_hash, undefined);
+});
+
+test("an offline check-in queued with phone GPS and replayed 24 h later lands with its band", async () => {
+  const d1 = new D1(VENUE);
+  let serverUp = false;
+  const { queue } = loadOfflineQueue((url, init) => {
+    if (!serverUp) return Promise.reject(new TypeError("Failed to fetch"));
+    return workerFetch(d1, url, init);
+  });
+  const scannedAt = Math.floor(Date.now() / 1000) - DAY;
+  const nearBody = await attendeeBody({ checkin_ts: scannedAt, gps: { lat: 51.5004, lon: -0.1201, acc_m: 25 } });
+  const farBody = await attendeeBody({ checkin_ts: scannedAt + 5, gps: { lat: 53.48, lon: -2.24, acc_m: 30 } });
+  await queueCheckinLikeOrgEntry(queue, nearBody);
+  await queueCheckinLikeOrgEntry(queue, farBody);
+  assert.equal((await queue.replay()).halted, true);
+
+  serverUp = true;
+  const pass = await queue.replay();
+  assert.deepEqual({ drained: pass.drained, dropped: pass.dropped }, { drained: 2, dropped: 0 });
+  const rows = d1.checkins();
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(r => [r.id, r.assurance, r.gps_band]), [
+    [nearBody.client_checkin_id, "offline", "near"],
+    [farBody.client_checkin_id, "offline", "far"]
+  ]);
+  assert.ok(rows[1].gps_distance_km > 200);
+
+  // Replaying the same op again returns the stored band.
+  const again = await call(d1, "POST", "/org/checkin", queue.toOfflineCheckin(farBody));
+  assert.equal(again.status, 200);
+  assert.equal(again.body.duplicate, true);
+  assert.equal(again.body.gps_band, "far");
+});
+

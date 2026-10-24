@@ -1017,6 +1017,7 @@ body.audit-mode #attendanceBody { overflow-x: hidden; }
 .checkout-legacy-badge { color: var(--orange); font-size: 10px; font-weight: 600; margin-left: 4px; }
 .venue-qr-offline-badge { margin: 6px auto 0; padding: 3px 10px; width: fit-content; border-radius: 999px; background: var(--orange); color: #000; font-size: 11px; font-weight: 700; text-align: center; }
 .assurance-offline-badge { color: var(--orange); font-size: 10px; font-weight: 600; margin-left: 4px; white-space: nowrap; }
+.assurance-offline-badge.gps-band-near, .assurance-offline-badge.gps-band-none { color: var(--muted, #8b949e); }
 .checkout-qr-panel { flex-basis: 100%; width: 172px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #0b1220; display: grid; gap: 8px; }
 .checkout-qr-box { width: 132px; height: 132px; display: grid; place-items: center; padding: 6px; background: #fff; border-radius: 6px; }
 .checkout-qr-box canvas, .checkout-qr-box img { width: 120px !important; height: 120px !important; max-width: 120px !important; max-height: 120px !important; image-rendering: pixelated; }
@@ -6427,6 +6428,22 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" placeholder="hello@your-org.com — optional, shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgContactPhone">Contact phone</label><input type="text" id="v511OrgContactPhone" placeholder="Optional — shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgVenueAddress">Venue address</label><input type="text" id="v511OrgVenueAddress" placeholder="Optional — shown on receipts so verifiers can reach the venue" /></div>
+          <!-- Venue GPS: geocode the address (OpenStreetMap Nominatim), confirm
+               with a draggable pin, or type lat/lon by hand. Used only to FLAG
+               check-ins as near / far from the venue; never to refuse one. -->
+          <div class="v511-row" style="align-items: start;"><label for="v511VenueLat">Venue location</label>
+            <div>
+              <button type="button" class="v511-btn" id="v511VenueFindBtn">Find on map</button>
+              <span class="v511-hint" id="v511VenueGeoStatus" aria-live="polite"></span>
+              <div id="v511VenueMap" style="display: none; height: 260px; margin-top: 8px; border-radius: 8px; overflow: hidden;"></div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                <input type="number" id="v511VenueLat" step="0.000001" min="-90" max="90" placeholder="Latitude" style="flex: 1 1 110px; min-width: 0;" aria-label="Venue latitude" />
+                <input type="number" id="v511VenueLon" step="0.000001" min="-180" max="180" placeholder="Longitude" style="flex: 1 1 110px; min-width: 0;" aria-label="Venue longitude" />
+                <input type="number" id="v511VenueRadius" step="10" min="10" max="50000" placeholder="200" style="flex: 0 1 90px; min-width: 0;" aria-label="Near-venue radius in metres" title="Near-venue radius (metres)" />
+              </div>
+              <span class="v511-hint" style="display: block; margin-top: 4px;">Lat, lon and the "near venue" radius in metres (default 200). Check-ins are flagged near / far / no phone GPS — never refused. Address search by <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener noreferrer">Nominatim</a>; map data &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>.</span>
+            </div>
+          </div>
 
           <details class="v511-expander">
             <summary>Brand polish &amp; contact info <span class="v511-hint-inline">(hero image, tagline, footer, contact info on check-in, theme import)</span> <span class="v511-badge v511-badge-in-design" style="margin-left: 6px;">IN-DESIGN</span></summary>
@@ -8016,6 +8033,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
                   var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? (row.checkout_method === 'auto' ? 'OUT · auto' : 'OUT') : 'IN');
                   if (!row.expected_only && (row.assurance === 'offline' || row.assurance === 'soft')) status += ' · offline / unverified';
+                  if (!row.expected_only && row.gps_band && typeof venueGpsBandLabel === 'function') status += ' · ' + venueGpsBandLabel(row.gps_band, row.gps_distance_km);
                   var timeValue = row.expected_only ? '' : (row.checkout_at || row.checkin_at || row.created_at);
                   var timeHtml = timeValue ? '<span class="v511-attendance-time">&middot; ' + htmlEscape(formatLocalTime(timeValue)) + '</span>' : '';
                   return '<div class="v511-expected-suggestion"><strong>' + htmlEscape(label) + '</strong><span class="v511-attendance-status">&middot; ' + htmlEscape(status) + '</span>' + timeHtml + '</div>';
@@ -13257,6 +13275,7 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.contactEmail === 'string') { portalState.contactEmail = src.contactEmail; const ce = document.getElementById('v511OrgContactEmail'); if (ce) ce.value = src.contactEmail; }
   if (typeof src.contactPhone === 'string') { portalState.contactPhone = src.contactPhone; const cp = document.getElementById('v511OrgContactPhone'); if (cp) cp.value = src.contactPhone; }
   if (typeof src.venueAddress === 'string') { portalState.venueAddress = src.venueAddress; const va = document.getElementById('v511OrgVenueAddress'); if (va) va.value = src.venueAddress; }
+  if (typeof window.v511VenueGpsHydrate === 'function') window.v511VenueGpsHydrate(src);
   if (typeof src.redirectUrl === 'string') portalState.redirectUrl = src.redirectUrl;
   if (typeof src.staffRedirectUrl === 'string') portalState.staffRedirectUrl = src.staffRedirectUrl;
   if (typeof src.allowSelfSelection === 'boolean') portalState.allowSelfSelection = src.allowSelfSelection;
@@ -14694,6 +14713,9 @@ async function saveSettings() {
     contactEmail: (function () { const v = (document.getElementById('v511OrgContactEmail')?.value || '').trim(); return v === 'hello@example.com' ? '' : v; })(),
     contactPhone: (document.getElementById('v511OrgContactPhone')?.value || '').trim(),
     venueAddress: (document.getElementById('v511OrgVenueAddress')?.value || '').trim(),
+    // Venue GPS — only sent once the fields were loaded or edited, so a save
+    // before hydration can't wipe the server's venue location.
+    ...((typeof window.v511VenueGpsForSave === 'function') ? window.v511VenueGpsForSave() : {}),
     manager_perms: readManagerPermsFromUI(),
     calendar_defaults: (typeof window.v511CalendarDefaultsForSave === 'function') ? window.v511CalendarDefaultsForSave() : undefined
   };
@@ -15116,7 +15138,9 @@ function aggregateAttendees(checkins) {
         conflict_id: row.conflict_id || null,
         expected_id: row.expected_id || null,
         receipt_id: row.receipt_id || null,
-        assurance: row.assurance || null
+        assurance: row.assurance || null,
+        gps_band: row.gps_band || null,
+        gps_distance_km: row.gps_distance_km ?? null
       });
       return;
     }
@@ -15136,6 +15160,8 @@ function aggregateAttendees(checkins) {
       existing.expected_id = row.expected_id || null;
       existing.receipt_id = row.receipt_id || existing.receipt_id || null;
       existing.assurance = row.assurance || null;
+      existing.gps_band = row.gps_band || null;
+      existing.gps_distance_km = row.gps_distance_km ?? null;
     } else if (!isActive && !existing.active_checkin_id && row.checkout_method) {
       existing.checkout_method = row.checkout_method;
       existing.status = row.status || existing.status;
@@ -15657,6 +15683,10 @@ function renderTable(rows) {
     const assuranceHtml = !r.expected_only && isOfflineAssurance(r.assurance)
       ? '<span class="assurance-offline-badge" title="Checked in without a live QR (static/backup QR or synced from offline). Freshness not verified.">offline / unverified</span>'
       : '';
+    const gpsBandText = !r.expected_only ? venueGpsBandLabel(r.gps_band, r.gps_distance_km) : '';
+    const gpsBandHtml = gpsBandText
+      ? `<span class="assurance-offline-badge gps-band-${escapeHtml(r.gps_band)}" title="Phone GPS vs the venue location (flag only — never refuses a check-in)">${escapeHtml(gpsBandText)}</span>`
+      : '';
     const rowClass = recentlyCheckedOutId && recentlyCheckedOutId === r.id ? ' class="checkout-row-complete"' : '';
     // v5.7.0k — Role badge moves to its own column; Action holds only the
     // verbs (Initiate check-out / Delete record / Delete expected / etc.).
@@ -15667,13 +15697,21 @@ function renderTable(rows) {
     const lateMinutes = isCurrentlyIn ? lateMinutesForAttendanceRow(r, eventInfo) : 0;
     const lateHtml = lateMinutes > 0 ? `<span class="late-marker">${lateMinutes} min late</span>` : '';
     const roleHtml = expectedRoleBadge(r.prototype_role, isCurrentlyIn);
-    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}${lateHtml}</td><td>${r.scan_count || 0}</td><td>${rowStatus}${assuranceHtml}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
+    return `<tr${rowClass}><td>${escapeHtml(displayLabel)}${pendingPill}</td><td>${formatTimestamp(r.first_seen)}</td><td>${formatTimestamp(r.last_seen)}${lateHtml}</td><td>${r.scan_count || 0}</td><td>${rowStatus}${assuranceHtml}${gpsBandHtml}</td><td class="att-role-col">${roleHtml}</td><td><div class="att-action-cell">${actionHtml}</div></td></tr>`;
   }).join('');
 }
 // Nonce-less check-ins are accepted (offline-first) but never shown as live-
 // verified. "soft" is the pre-v6.5.2 name for the same thing.
 function isOfflineAssurance(assurance) {
   return assurance === 'offline' || assurance === 'soft';
+}
+// Venue GPS band (server-computed flag; never a refusal). Empty when the org
+// has no venue location set.
+function venueGpsBandLabel(band, distanceKm) {
+  if (band === 'near') return 'near venue';
+  if (band === 'far') return Number.isFinite(Number(distanceKm)) && distanceKm !== null ? 'far from venue (~' + Number(distanceKm) + ' km)' : 'far from venue';
+  if (band === 'none') return 'no phone GPS';
+  return '';
 }
 function expectedRoleBadge(role, isCurrentlyIn) {
   const normalized = String(role || 'attendee').trim().toLowerCase();
@@ -22748,6 +22786,153 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   window.v512MountAnchorFloat = mount;
+})();
+</script>
+<script>
+// Venue GPS (Org Settings > Organisation). "Find on map" geocodes the venue
+// address with OpenStreetMap Nominatim (no key; browsers can't set a custom
+// User-Agent, so the page Referer identifies us; max 1 request / second per
+// the Nominatim usage policy), then shows a Leaflet map with a draggable pin.
+// Lat/lon can always be typed by hand (works offline). Saved as
+// settings.venueLat / venueLon / venueRadiusM; flags check-ins only.
+(function () {
+  var NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+  var LEAFLET_JS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+  var LEAFLET_JS_SRI = 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH';
+  var LEAFLET_CSS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+  var LEAFLET_CSS_SRI = 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H';
+  var lastLookupAt = 0;
+  var touched = false;
+  var hydrated = false;
+  var map = null, marker = null, leafletPromise = null;
+
+  function el(id) { return document.getElementById(id); }
+  function status(msg) { var s = el('v511VenueGeoStatus'); if (s) s.textContent = msg || ''; }
+  function num(id) {
+    var v = (el(id) && el(id).value || '').trim();
+    if (v === '') return null;
+    var n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  function setLatLon(lat, lon) {
+    el('v511VenueLat').value = (Math.round(lat * 1e6) / 1e6).toString();
+    el('v511VenueLon').value = (Math.round(lon * 1e6) / 1e6).toString();
+    touched = true;
+  }
+
+  function loadLeaflet() {
+    if (window.L && window.L.map) return Promise.resolve(window.L);
+    if (leafletPromise) return leafletPromise;
+    leafletPromise = new Promise(function (resolve, reject) {
+      var css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = LEAFLET_CSS; css.integrity = LEAFLET_CSS_SRI; css.crossOrigin = 'anonymous';
+      document.head.appendChild(css);
+      var js = document.createElement('script');
+      js.src = LEAFLET_JS; js.integrity = LEAFLET_JS_SRI; js.crossOrigin = 'anonymous';
+      js.onload = function () { window.L ? resolve(window.L) : reject(new Error('map failed to load')); };
+      js.onerror = function () { leafletPromise = null; reject(new Error('map failed to load')); };
+      document.head.appendChild(js);
+    });
+    return leafletPromise;
+  }
+
+  function radiusM() { var r = num('v511VenueRadius'); return r && r > 0 ? r : 200; }
+
+  async function showMap(lat, lon) {
+    var L = await loadLeaflet();
+    var box = el('v511VenueMap');
+    box.style.display = 'block';
+    if (!map) {
+      map = L.map(box).setView([lat, lon], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors · Search: Nominatim'
+      }).addTo(map);
+      marker = L.marker([lat, lon], { draggable: true, title: 'Drag to the venue entrance' }).addTo(map);
+      marker._irlidCircle = L.circle([lat, lon], { radius: radiusM(), weight: 1 }).addTo(map);
+      marker.on('drag', function (e) { marker._irlidCircle.setLatLng(e.target.getLatLng()); });
+      marker.on('dragend', function (e) { var p = e.target.getLatLng(); setLatLon(p.lat, p.lng); status('Pin moved — remember to Save.'); });
+      map.on('click', function (e) { marker.setLatLng(e.latlng); marker._irlidCircle.setLatLng(e.latlng); setLatLon(e.latlng.lat, e.latlng.lng); status('Pin moved — remember to Save.'); });
+    } else {
+      map.setView([lat, lon], 17);
+      marker.setLatLng([lat, lon]);
+      marker._irlidCircle.setLatLng([lat, lon]);
+    }
+    marker._irlidCircle.setRadius(radiusM());
+    setTimeout(function () { map.invalidateSize(); }, 50);
+  }
+
+  async function findOnMap() {
+    var btn = el('v511VenueFindBtn');
+    var address = (el('v511OrgVenueAddress') && el('v511OrgVenueAddress').value || '').trim();
+    var typedLat = num('v511VenueLat'), typedLon = num('v511VenueLon');
+    if (!address && (typedLat === null || typedLon === null)) { status('Type the venue address first (or enter lat/lon by hand).'); return; }
+    if (!navigator.onLine) { status('Offline — type lat/lon by hand; the map needs internet.'); return; }
+    btn.disabled = true;
+    try {
+      var lat = typedLat, lon = typedLon;
+      if (address) {
+        var wait = 1000 - (Date.now() - lastLookupAt);
+        if (wait > 0) await new Promise(function (r) { setTimeout(r, wait); });
+        lastLookupAt = Date.now();
+        status('Looking up address…');
+        var url = NOMINATIM + '?format=jsonv2&limit=1&q=' + encodeURIComponent(address);
+        var resp = await fetch(url, { headers: { 'Accept': 'application/json' }, referrerPolicy: 'strict-origin-when-cross-origin' });
+        if (!resp.ok) throw new Error('lookup failed (' + resp.status + ')');
+        var results = await resp.json();
+        if (Array.isArray(results) && results.length) {
+          lat = Number(results[0].lat); lon = Number(results[0].lon);
+          setLatLon(lat, lon);
+          status('Found: ' + String(results[0].display_name || '').slice(0, 140) + ' — drag the pin to the exact spot, then Save.');
+        } else if (typedLat === null || typedLon === null) {
+          status('Address not found — enter lat/lon by hand.');
+          return;
+        } else {
+          status('Address not found — showing the lat/lon you typed.');
+        }
+      }
+      await showMap(lat, lon);
+    } catch (e) {
+      status('Could not look up the address (' + (e && e.message || e) + '). You can type lat/lon by hand.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  window.v511VenueGpsHydrate = function (src) {
+    // Only a source that actually carries the venue keys counts as loaded, so
+    // a cached settings blob without them can't lead to a save that wipes them.
+    if (!src || !el('v511VenueLat') || !('venueLat' in src || 'venueLon' in src)) return;
+    hydrated = true;
+    el('v511VenueLat').value = Number.isFinite(Number(src.venueLat)) && src.venueLat !== null && src.venueLat !== '' ? String(src.venueLat) : '';
+    el('v511VenueLon').value = Number.isFinite(Number(src.venueLon)) && src.venueLon !== null && src.venueLon !== '' ? String(src.venueLon) : '';
+    el('v511VenueRadius').value = Number(src.venueRadiusM) > 0 ? String(src.venueRadiusM) : '';
+  };
+
+  window.v511VenueGpsForSave = function () {
+    if (!el('v511VenueLat') || (!touched && !hydrated)) return {};
+    var lat = num('v511VenueLat'), lon = num('v511VenueLon'), r = num('v511VenueRadius');
+    var ok = lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    return {
+      venueLat: ok ? lat : null,
+      venueLon: ok ? lon : null,
+      venueRadiusM: r !== null && r >= 10 && r <= 50000 ? r : null
+    };
+  };
+
+  function wire() {
+    var btn = el('v511VenueFindBtn');
+    if (!btn || btn._irlidWired) return;
+    btn._irlidWired = true;
+    btn.addEventListener('click', findOnMap);
+    ['v511VenueLat', 'v511VenueLon', 'v511VenueRadius'].forEach(function (id) {
+      el(id).addEventListener('input', function () {
+        touched = true;
+        if (map && marker && id === 'v511VenueRadius') marker._irlidCircle.setRadius(radiusM());
+      });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();
 </script>
 </body>

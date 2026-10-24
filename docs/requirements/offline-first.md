@@ -34,6 +34,7 @@ IRLid check-in **must keep working with no internet**, at the venue, on the phon
 | **Server-only receipts plan** (org receipts listed from the account). | Keep the local copy as the source while offline; merge with the server list when online (match by `receipt_id`). |
 | **Account-linking plan / PR #132 auth fix.** | Login proof must be a device-key signature, which works offline to sign and is verified on sync. Don't add steps that need a live round-trip before a check-in can be recorded. |
 | **Location (GPS) offline** | GPS works without data; keep privacy mode. Mark "no GPS" rather than failing. |
+| **Venue GPS flag (v6.6.0)** | Org sets `venueLat`/`venueLon`/`venueRadiusM` (default 200 m). org-entry sends best-effort phone GPS (4 s, optional). Server (live or on queued replay) stores only a band: `near` / `far` (+ rough km) / `none`; poor accuracy counts as `none`. Flag only, never a refusal. Receipts carry `venue.lat`/`venue.lon`, `gps_band`, `gps_distance_km`; never the raw phone position. |
 
 ## Checklist for any PR touching check-in
 - [ ] Nonce-less `attendee_scan` still accepted.
