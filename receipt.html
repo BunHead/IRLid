@@ -551,6 +551,16 @@
 <script src="js/qr.js?v=63"></script>
 
 <script>
+
+// Venue GPS band label (server-computed flag; never a refusal). Empty when the
+// org has no venue location set.
+function venueGpsBandLabel(band, distanceKm) {
+  if (band === "near") return "near venue";
+  if (band === "far") return Number.isFinite(Number(distanceKm)) && distanceKm !== null ? "far from venue (~" + Number(distanceKm) + " km)" : "far from venue";
+  if (band === "none") return "no phone GPS";
+  return "";
+}
+
   let receiptQrUrl = null;  // hoisted for fullscreen access
 
   const TS_TOL_S = 90;
@@ -936,12 +946,21 @@
         sumDistance.textContent = "Venue address (provided by organisation): " + venue.address;
         sumMap.innerHTML = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(venue.address) + '" target="_blank" rel="noopener noreferrer">Open map (venue address)</a>';
       }
+      // Org-provided venue location (asserted, not measured).
+      const vLat = Number(venue.lat), vLon = Number(venue.lon);
+      if (!receipt.gps && venue.lat != null && venue.lon != null && Number.isFinite(vLat) && Number.isFinite(vLon)) {
+        if (!venue.address) sumDistance.textContent = "Venue location (provided by organisation): " + vLat + ", " + vLon;
+        sumMap.innerHTML = '<a href="https://www.openstreetmap.org/?mlat=' + encodeURIComponent(vLat) + '&mlon=' + encodeURIComponent(vLon) + '#map=18/' + encodeURIComponent(vLat) + '/' + encodeURIComponent(vLon) + '" target="_blank" rel="noopener noreferrer">Open map (venue location)</a>';
+      }
       aCoords.textContent = receipt.attendee?.pub_fp ? "Device: " + receipt.attendee.pub_fp : "Device: (missing)";
       // Offline-first: a check-in without a live QR nonce is valid but its
       // freshness is unverified ("soft" is the pre-v6.5.2 name).
       const offlineCheckin = receipt.assurance === "offline" || receipt.assurance === "soft";
       aTime.textContent = "Action: " + (receipt.action || "in") +
         (offlineCheckin ? " · offline / unverified" : (receipt.assurance === "fresh" ? " · live QR" : ""));
+      // Venue GPS band: server-computed flag (phone GPS vs the venue location).
+      const gpsBandText = venueGpsBandLabel(receipt.gps_band, receipt.gps_distance_km);
+      if (gpsBandText) aTime.textContent += " · " + gpsBandText;
       aAcc.textContent = receipt.score != null ? "Score: " + receipt.score : "Score: (missing)";
       bCoords.textContent = "Org: " + orgName;
       bTime.textContent = receipt.event?.name ? "Event: " + receipt.event.name : "Event: (none)";

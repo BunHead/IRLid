@@ -350,6 +350,40 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Venue GPS band (offline-first: docs/requirements/offline-first.md). The
+// phone's best-effort GPS is compared with the org-provided venue location
+// and reduced to a band: "near" (within venueRadiusM, default 200 m), "far",
+// or "none" (no usable phone GPS). Only the band (plus a rough distance for
+// "far") is stored; the raw phone position never is. This is a FLAG only and
+// never refuses a check-in. Returns null when the org has no venue location.
+const VENUE_RADIUS_DEFAULT_M = 200;
+const VENUE_GPS_MIN_POOR_ACC_M = 500;
+
+function finiteOrNull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function venueGpsBand(settings, gps) {
+  const vLat = finiteOrNull(settings?.venueLat);
+  const vLon = finiteOrNull(settings?.venueLon);
+  if (vLat === null || vLon === null) return null;
+  const radiusRaw = finiteOrNull(settings?.venueRadiusM);
+  const radiusM = radiusRaw !== null && radiusRaw > 0 ? radiusRaw : VENUE_RADIUS_DEFAULT_M;
+  const lat = finiteOrNull(gps?.lat);
+  const lon = finiteOrNull(gps?.lon);
+  if (lat === null || lon === null || Math.abs(lat) > 90 || Math.abs(lon) > 180) return { band: "none", radius_m: radiusM };
+  // A reading whose accuracy circle is wider than the radius (and at least
+  // 500 m) can't tell near from far, so it counts as no GPS.
+  const acc = finiteOrNull(gps?.acc_m ?? gps?.acc ?? gps?.accuracy);
+  if (acc !== null && (acc < 0 || acc > Math.max(radiusM, VENUE_GPS_MIN_POOR_ACC_M))) return { band: "none", radius_m: radiusM };
+  const distanceM = haversineMeters(vLat, vLon, lat, lon);
+  if (distanceM <= radiusM) return { band: "near", radius_m: radiusM };
+  const km = distanceM / 1000;
+  return { band: "far", radius_m: radiusM, distance_km: km < 10 ? Math.round(km * 10) / 10 : Math.round(km) };
+}
+
 async function verifyReceipt(comb) {
   const TS_TOL = 90; const DIST_TOL = 12; const checks = {};
 
@@ -1445,6 +1479,8 @@ async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, orgId, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, orgId);
+  if (modeStatement) statements.push(modeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -1471,6 +1507,8 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, orgId)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, orgId);
+  if (modeStatement) statements.push(modeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
@@ -2835,6 +2873,9 @@ async function orgUpdateSettings(request, env) {
     // the venue's own address/contact instead of a dead end. Asserted by the
     // org, not measured — receipt.html labels them "provided by organisation".
     "contactEmail","contactPhone","venueAddress",
+    // Venue GPS (org-provided, set via "Find on map"). Used to flag check-ins
+    // as near / far from the venue; never to refuse one.
+    "venueLat","venueLon","venueRadiusM",
     // v5.9.0.13.14 — Role vocabulary per-org. Object with 5 string fields.
     "roleLabels",
     "calendar_defaults",
@@ -3022,6 +3063,12 @@ async function orgUpdateSettings(request, env) {
   if (body.contactEmail !== undefined && (typeof body.contactEmail !== "string" || body.contactEmail.length > 200)) return err("contactEmail must be a string (max 200 chars)");
   if (body.contactPhone !== undefined && (typeof body.contactPhone !== "string" || body.contactPhone.length > 50)) return err("contactPhone must be a string (max 50 chars)");
   if (body.venueAddress !== undefined && (typeof body.venueAddress !== "string" || body.venueAddress.length > 300)) return err("venueAddress must be a string (max 300 chars)");
+  // Venue GPS: null clears; otherwise a real coordinate / sane radius.
+  for (const [f, lo, hi] of [["venueLat", -90, 90], ["venueLon", -180, 180], ["venueRadiusM", 10, 50000]]) {
+    const v = body[f];
+    if (v === undefined || v === null) continue;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi) return err(f + " must be a number between " + lo + " and " + hi);
+  }
   // v5.9.0.13.14 — Role vocabulary: per-org custom labels for the role chain.
   if (body.roleLabels !== undefined) {
     const rl = body.roleLabels;
@@ -3397,11 +3444,10 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
       lon: Number(gps.lon),
       acc_m: Number.isFinite(Number(gps.acc_m ?? gps.acc ?? gps.accuracy)) ? Number(gps.acc_m ?? gps.acc ?? gps.accuracy) : null
     };
-    if (privacyMode) {
-      payload.gps_hash = await sha256B64url(canonical(gpsObj));
-    } else {
-      payload.gps = gpsObj;
-    }
+    // Venue GPS rule: the raw phone position is never stored, so the receipt
+    // only ever carries its hash (plus the server-computed gps_band below),
+    // whatever privacyMode says.
+    payload.gps_hash = await sha256B64url(canonical(gpsObj));
   } else if (checkinRow.gps_hash) {
     payload.gps_hash = checkinRow.gps_hash;
   }
@@ -3415,11 +3461,24 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
   const venueAddress = typeof settings.venueAddress === "string" ? settings.venueAddress.trim().slice(0, 300) : "";
   const venueEmail = typeof settings.contactEmail === "string" ? settings.contactEmail.trim().slice(0, 200) : "";
   const venuePhone = typeof settings.contactPhone === "string" ? settings.contactPhone.trim().slice(0, 50) : "";
-  if (venueAddress || venueEmail || venuePhone) {
+  const venueLat = finiteOrNull(settings.venueLat);
+  const venueLon = finiteOrNull(settings.venueLon);
+  const hasVenueGps = venueLat !== null && venueLon !== null;
+  if (venueAddress || venueEmail || venuePhone || hasVenueGps) {
     payload.venue = {};
     if (venueAddress) payload.venue.address = venueAddress;
+    // Org-provided venue location (asserted, not measured), so a receipt
+    // carries where the venue is even when the phone had no GPS.
+    if (hasVenueGps) { payload.venue.lat = venueLat; payload.venue.lon = venueLon; }
     if (venueEmail) payload.venue.email = venueEmail;
     if (venuePhone) payload.venue.phone = venuePhone;
+  }
+  // Server-computed phone-vs-venue band (flag only). Never the raw position.
+  if (checkinRow.gps_band) {
+    payload.gps_band = checkinRow.gps_band;
+    if (checkinRow.gps_band === "far" && finiteOrNull(checkinRow.gps_distance_km) !== null) {
+      payload.gps_distance_km = Number(checkinRow.gps_distance_km);
+    }
   }
 
   payload.venue_pub_jwk = venuePub;
@@ -4029,6 +4088,48 @@ async function requireFreshStaffProof(request, env, org) {
   };
 }
 
+// Crowd check-in (docs/design-crowd-checkin.md). An event in "crowd" mode
+// uses the same venue QR nonce as any other event, but a crowd scanning one
+// frame all get in: the code stays valid for CROWD_CODE_GRACE_S after its
+// first use (the Check-in panel's used-nonce poll then rotates the QR).
+// Offline-first (docs/requirements/offline-first.md): a crowd check-in with
+// no code, or a code that is stale, used or unknown (e.g. a queued check-in
+// replayed hours later), is never refused. It is accepted as "offline".
+const CHECKIN_MODES = new Set(["standard", "crowd"]);
+const CROWD_CODE_GRACE_S = 5;
+let checkinModeStorageReady = false;
+
+async function ensureCheckinModeStorage(env) {
+  if (checkinModeStorageReady) return;
+  const columns = await tableColumnSet(env, "weekly_events");
+  if (!columns.has("checkin_mode")) {
+    try {
+      await env.DB.prepare("ALTER TABLE weekly_events ADD COLUMN checkin_mode TEXT DEFAULT 'standard'").run();
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e?.message || e))) throw e;
+    }
+  }
+  checkinModeStorageReady = true;
+}
+
+async function isCrowdEvent(env, orgId, eventId) {
+  if (!eventId) return false;
+  await ensureCheckinModeStorage(env);
+  const row = await env.DB.prepare(
+    "SELECT checkin_mode FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL LIMIT 1"
+  ).bind(eventId, orgId).first();
+  return row?.checkin_mode === "crowd";
+}
+
+// Written as its own statement so the long-standing weekly_events INSERT and
+// UPDATE stay unchanged. undefined = leave the mode as it is.
+async function checkinModeStatement(env, ev, orgId) {
+  if (ev.checkin_mode === undefined) return null;
+  await ensureCheckinModeStorage(env);
+  return env.DB.prepare("UPDATE weekly_events SET checkin_mode=? WHERE id=? AND org_id=?")
+    .bind(ev.checkin_mode, ev.id, orgId);
+}
+
 async function orgCheckin(request, env) {
   // v6.4.4 — QR diet PR-3 (QR-SLIMMING-SPEC.md): the attendee check-in path
   // accepts org slug (or id) as well as api_key, so slim venue QRs never carry
@@ -4051,22 +4152,30 @@ async function orgCheckin(request, env) {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
     if (staffError) return staffError;
   }
-  const nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
+  let nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
   const nonceNow = now();
   let assurance = null;
   if (mode === "attendee_scan" && nonce) {
+    const crowd = await isCrowdEvent(env, org.id, eventId);
     const nonceRow = await env.DB.prepare(
       "SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
     ).bind(nonce).first();
-    if (!nonceRow || nonceRow.org_api_key !== org.api_key) return err("Check-in nonce not found", 404);
-    if (String(nonceRow.event_id || "") !== String(eventId || "")) return err("Check-in nonce not found", 404);
-    if (nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined) return err("Check-in nonce already used", 409);
-    if (Number(nonceRow.expires_at) <= nonceNow) return err("Check-in nonce expired", 410);
-    const consumed = await env.DB.prepare(
-      "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
-    ).bind(nonceNow, nonce).run();
-    if (Number(consumed.meta?.changes || 0) !== 1) return err("Check-in nonce already used", 409);
-    assurance = "fresh";
+    const used = nonceRow && nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined;
+    let nonceError = null;
+    if (!nonceRow || nonceRow.org_api_key !== org.api_key) nonceError = err("Check-in nonce not found", 404);
+    else if (String(nonceRow.event_id || "") !== String(eventId || "")) nonceError = err("Check-in nonce not found", 404);
+    else if (used && !(crowd && Number(nonceRow.consumed_at) >= nonceNow - CROWD_CODE_GRACE_S)) nonceError = err("Check-in nonce already used", 409);
+    else if (Number(nonceRow.expires_at) <= nonceNow) nonceError = err("Check-in nonce expired", 410);
+    else if (!used) {
+      const consumed = await env.DB.prepare(
+        "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
+      ).bind(nonceNow, nonce).run();
+      // A crowd code claimed by someone else a moment ago is still in grace.
+      if (Number(consumed.meta?.changes || 0) !== 1 && !crowd) nonceError = err("Check-in nonce already used", 409);
+    }
+    if (nonceError && !crowd) return nonceError;
+    if (nonceError) nonce = ""; // crowd: fall back to an offline / unverified check-in below
+    else assurance = "fresh";
   }
   let eventRow = null;
   if (eventId) {
@@ -4090,6 +4199,11 @@ async function orgCheckin(request, env) {
   if (gps && (settings.privacyMode !== false)) {
     gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));
   }
+  // Venue GPS band, worked out the same way live or when a queued offline
+  // check-in syncs later (the phone's reading travels in the queued body).
+  const venueBand = venueGpsBand(settings, gps);
+  const gpsBand = venueBand ? venueBand.band : null;
+  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
   const helloPubJwk = normaliseDevicePubJwk(helloPayload?.pub);
   const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
   const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
@@ -4123,7 +4237,8 @@ async function orgCheckin(request, env) {
     }
   }
   if (clientCheckinId) {
-    const existing = await env.DB.prepare("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=? AND org_id=? LIMIT 1")
+    const bandSelect = checkinColumns.has("gps_band") && checkinColumns.has("gps_distance_km") ? ",gps_band,gps_distance_km" : "";
+    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
     if (existing) {
       let expectedName = null;
@@ -4140,6 +4255,8 @@ async function orgCheckin(request, env) {
         duplicate: true,
         expected_id: existing.expected_id || null,
         ...(assurance ? { assurance } : {}),
+        ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
+        ...(existing.gps_distance_km != null ? { gps_distance_km: existing.gps_distance_km } : {}),
         ...(expectedName ? { expected_name: expectedName } : {}),
         ...(existing.status === "conflict" ? { conflict: true } : {})
       });
@@ -4191,6 +4308,14 @@ async function orgCheckin(request, env) {
     insertColumns.push("assurance");
     insertValues.push(assurance);
   }
+  if (checkinColumns.has("gps_band")) {
+    insertColumns.push("gps_band");
+    insertValues.push(gpsBand);
+  }
+  if (checkinColumns.has("gps_distance_km")) {
+    insertColumns.push("gps_distance_km");
+    insertValues.push(gpsDistanceKm);
+  }
   await env.DB.prepare(
     `INSERT INTO org_checkins (${insertColumns.join(",")}) VALUES (${insertColumns.map(() => "?").join(",")})`
   ).bind(...insertValues).run();
@@ -4227,7 +4352,9 @@ async function orgCheckin(request, env) {
       device_key_fp: attendeeDeviceFp,
       status,
       expected_id: expectedId,
-      assurance
+      assurance,
+      gps_band: gpsBand,
+      gps_distance_km: gpsDistanceKm
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
@@ -4241,6 +4368,8 @@ async function orgCheckin(request, env) {
     event_name: eventRow?.name || null,
     settings,
     ...(assurance ? { assurance } : {}),
+    ...(gpsBand ? { gps_band: gpsBand } : {}),
+    ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
   });
@@ -4252,9 +4381,11 @@ async function ensureOrgCheckinNonceStorage(env) {
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
   const columns = await tableColumnSet(env, "org_checkins");
-  if (!columns.has("assurance")) {
+  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"]]) {
+    if (columns.has(col)) continue;
     try {
-      await env.DB.prepare("ALTER TABLE org_checkins ADD COLUMN assurance TEXT").run();
+      await env.DB.prepare(`ALTER TABLE org_checkins ADD COLUMN ${col} ${type}`).run();
+      columns.add(col);
     } catch (e) {
       if (!/duplicate column/i.test(String(e?.message || e))) throw e;
     }
@@ -4470,6 +4601,8 @@ async function orgAttendance(request, env) {
       selectCheckinColumn("conflict_id"),
       selectCheckinColumn("event_id"),
       selectCheckinColumn("assurance"),
+      selectCheckinColumn("gps_band"),
+      selectCheckinColumn("gps_distance_km"),
       receiptSelect,
       checkoutMethodSelect,
       selectCheckinColumn("checkout_ts")
@@ -4871,6 +5004,7 @@ function eventResponse(row, expectedIds) {
     notes: row.notes || "",
     require_proof: Number(row.require_proof || 0),
     late_grace_min: Number(row.late_grace_min || 0),
+    checkin_mode: row.checkin_mode === "crowd" ? "crowd" : "standard",
     created_at: Number(row.created_at),
     archived_at: row.archived_at || null,
     expected_ids: expectedIds || []
@@ -5124,7 +5258,8 @@ function cleanEventBody(body, existing = {}) {
     color_hex: body.color_hex !== undefined ? cleanOptionalText(body.color_hex, 16) : (existing.color_hex || null),
     notes: body.notes !== undefined ? cleanOptionalText(body.notes, 2000) : (existing.notes || null),
     require_proof: requireProof ? 1 : 0,
-    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0
+    late_grace_min: Number.isFinite(lateGrace) ? Math.max(0, Math.floor(lateGrace)) : 0,
+    checkin_mode: body.checkin_mode !== undefined ? String(body.checkin_mode || "").trim().toLowerCase() : undefined
   };
 }
 
@@ -5135,6 +5270,7 @@ function validateEventInput(ev) {
   if (!Number.isFinite(Number(ev.duration_min)) || Number(ev.duration_min) < 1) return "duration_min must be >= 1";
   if (ev.capacity !== null && (!Number.isFinite(Number(ev.capacity)) || Number(ev.capacity) < 0)) return "capacity must be >= 0 or null";
   if (ev.color_hex && !/^#[0-9a-f]{6}$/i.test(ev.color_hex)) return "color_hex must be #RRGGBB";
+  if (ev.checkin_mode !== undefined && !CHECKIN_MODES.has(ev.checkin_mode)) return "checkin_mode must be standard or crowd";
   return null;
 }
 
@@ -5157,6 +5293,8 @@ async function orgWeeklyEventCreate(request, env) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(ev.id, org.id, ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, t)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, org.id);
+  if (modeStatement) statements.push(modeStatement);
   for (const expectedId of expectedCheck.ids) {
     statements.push(env.DB.prepare(
       "INSERT OR IGNORE INTO event_expected (event_id,expected_id,added_at,added_by) VALUES (?,?,?,?)"
@@ -5189,6 +5327,8 @@ async function orgWeeklyEventUpdate(request, env, id) {
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
     ).bind(ev.room_id, ev.name, ev.day_of_week, ev.start_time_local, Math.floor(ev.duration_min), ev.capacity, ev.color_hex, ev.notes, ev.require_proof, ev.late_grace_min, id, org.id)
   ];
+  const modeStatement = await checkinModeStatement(env, ev, org.id);
+  if (modeStatement) statements.push(modeStatement);
   if (expectedCheck) {
     const currentRows = await env.DB.prepare("SELECT expected_id FROM event_expected WHERE event_id=?").bind(id).all();
     const current = new Set((currentRows.results || []).map(r => r.expected_id));
@@ -5784,6 +5924,8 @@ async function orgAuth(request, env) {
 // =====================
 //  ROUTER
 // =====================
+
+export { venueGpsBand };
 
 export default {
   async fetch(request, env) {

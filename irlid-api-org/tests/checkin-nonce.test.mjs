@@ -33,7 +33,7 @@ class FakeDB {
     if (sql.startsWith("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?")) return this.org;
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS org_checkin_nonces")) return { meta: { changes: 0 } };
     if (sql.startsWith("PRAGMA table_info(org_checkins)")) {
-      return ["id","org_id","event_id","assurance"].map(name => ({ name }));
+      return ["id","org_id","event_id","assurance","gps_band","gps_distance_km"].map(name => ({ name }));
     }
     if (sql.startsWith("SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces")) {
       return this.nonces.get(args[0]) || null;
@@ -44,7 +44,7 @@ class FakeDB {
       row.consumed_at = args[0];
       return { meta: { changes: 1 } };
     }
-    if (sql.startsWith("SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE id=?")) return null;
+    if (sql.startsWith("SELECT id,checkin_at,event_id,status,expected_id") && sql.includes("FROM org_checkins WHERE id=?")) return null;
     if (sql.includes("FROM weekly_events")) return null;
     if (sql.includes("FROM org_checkins WHERE org_id=? AND device_key_fp=?")) return this.duplicate;
     if (sql.includes("FROM org_expected WHERE org_id=?") && sql.includes("LOWER(display_name)=LOWER(?)")) return null;
