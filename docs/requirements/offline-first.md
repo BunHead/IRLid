@@ -2,6 +2,8 @@
 
 **Status:** core requirement (set by Spencer, Oct 2026). Builds on PROTOCOL.md §16 (Offline-Capable Operation).
 
+Part of the IRLid rules: see `docs/rules.md` (C1–C16).
+
 ## The rule
 IRLid check-in **must keep working with no internet**, at the venue, on the phone, or both.
 
