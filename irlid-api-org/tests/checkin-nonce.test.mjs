@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
+import { signedCheckinBody, newDevice } from "./helpers/signed-checkin.mjs";
 
 const ORG_KEY = "org_test_key_1234567890";
 const ORG = {
@@ -33,7 +34,7 @@ class FakeDB {
     if (sql.startsWith("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?")) return this.org;
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS org_checkin_nonces")) return { meta: { changes: 0 } };
     if (sql.startsWith("PRAGMA table_info(org_checkins)")) {
-      return ["id","org_id","event_id","assurance","gps_band","gps_distance_km"].map(name => ({ name }));
+      return ["id","org_id","event_id","assurance","gps_band","gps_distance_km","out_of_hours"].map(name => ({ name }));
     }
     if (sql.startsWith("SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces")) {
       return this.nonces.get(args[0]) || null;
@@ -48,6 +49,8 @@ class FakeDB {
     if (sql.includes("FROM weekly_events")) return null;
     if (sql.includes("FROM org_checkins WHERE org_id=? AND device_key_fp=?")) return this.duplicate;
     if (sql.includes("FROM org_expected WHERE org_id=?") && sql.includes("LOWER(display_name)=LOWER(?)")) return null;
+    if (sql.includes("FROM org_expected WHERE org_id=? AND device_pub_fp=?")) return null;
+    if (sql.includes("FROM sqlite_master")) return null;
     if (sql.startsWith("INSERT INTO org_checkins")) {
       this.checkins.push({ sql, args });
       return { meta: { changes: 1 } };
@@ -73,14 +76,17 @@ async function checkin(db, body, options) {
   return { response, body: await response.json() };
 }
 
+// Device-signed attendee_scan; pass checkin_ts for an older (queued) scan.
 function attendee(overrides = {}) {
-  return { mode: "attendee_scan", client_checkin_id: crypto.randomUUID(), score: 70, ...overrides };
+  const { checkin_ts, nonce, device, ...rest } = overrides;
+  return signedCheckinBody({ org: ORG_KEY, ts: checkin_ts, nonce, device, ...rest });
 }
+const tenMinutesAgo = () => Math.floor(Date.now() / 1000) - 600;
 
 test("valid nonce succeeds, marks fresh, and is consumed atomically", async () => {
   const nonce = "cin_valid";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
-  const result = await checkin(db, attendee({ nonce }));
+  const result = await checkin(db, await attendee({ nonce }));
   assert.equal(result.response.status, 200);
   assert.equal(result.body.assurance, "fresh");
   assert.equal(typeof db.nonces.get(nonce).consumed_at, "number");
@@ -92,7 +98,7 @@ test("valid nonce succeeds, marks fresh, and is consumed atomically", async () =
 test("replaying the same nonce returns 409", async () => {
   const nonce = "cin_replay";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
-  const payload = attendee({ nonce });
+  const payload = await attendee({ nonce });
   assert.equal((await checkin(db, payload)).response.status, 200);
   assert.equal((await checkin(db, payload)).response.status, 409);
 });
@@ -100,29 +106,27 @@ test("replaying the same nonce returns 409", async () => {
 test("expired nonce returns 410", async () => {
   const nonce = "cin_expired";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 1, consumed_at: null } } });
-  assert.equal((await checkin(db, attendee({ nonce }))).response.status, 410);
+  assert.equal((await checkin(db, await attendee({ nonce }))).response.status, 410);
 });
 
 test("nonce issued for another org returns 404", async () => {
   const nonce = "cin_wrong_org";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: "org_other", event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
-  assert.equal((await checkin(db, attendee({ nonce }))).response.status, 404);
+  assert.equal((await checkin(db, await attendee({ nonce }))).response.status, 404);
 });
 
-test("missing nonce is still accepted (offline-first) and marked offline", async () => {
+test("missing nonce on an offline replay is still accepted (offline-first) and marked offline", async () => {
   const db = new FakeDB({ settings: { anonymousMode: true } });
-  const result = await checkin(db, attendee());
+  const result = await checkin(db, await attendee({ checkin_ts: tenMinutesAgo() }));
   assert.equal(result.response.status, 200);
   assert.equal(result.body.assurance, "offline");
   assert.ok(db.checkins[0].args.includes("offline"));
 });
 
 test("offline check-in repeated on the same device within 60 seconds is a no-op", async () => {
-  const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const pub = await crypto.subtle.exportKey("jwk", keys.publicKey);
   const duplicate = { id: "existing", checkin_at: Math.floor(Date.now() / 1000), event_id: null, status: "checked_in", expected_id: null };
   const db = new FakeDB({ duplicate });
-  const result = await checkin(db, attendee({ helloPayload: { pub } }));
+  const result = await checkin(db, await attendee({ device: await newDevice(), checkin_ts: tenMinutesAgo() }));
   assert.equal(result.response.status, 200);
   assert.equal(result.body.duplicate, true);
   assert.equal(result.body.assurance, "offline");

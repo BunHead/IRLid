@@ -70,7 +70,11 @@ CREATE TABLE org_checkins (
   checkout_at     INTEGER,             -- NULL until checkout
   duration_s      INTEGER,             -- populated on checkout
   created_at      INTEGER NOT NULL
-, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL);
+, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER DEFAULT 0);
+
+-- v6.7.0 signed check-in: offline replays with a bad or missing device
+-- signature are kept here for staff review, never counted as check-ins.
+CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT);
 
 CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NULL, org_api_key TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
 

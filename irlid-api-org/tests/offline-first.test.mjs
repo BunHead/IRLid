@@ -10,6 +10,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
 import worker, { venueGpsBand } from "../src/index.js";
+import { signedCheckinBody } from "./helpers/signed-checkin.mjs";
 
 const ORG_KEY = "org_offline_test_key_123456";
 const OTHER_KEY = "org_other_key_1234567890";
@@ -77,24 +78,16 @@ async function issueNonce(d1) {
 const nonceStatus = (d1, nonce, orgKey) =>
   call(d1, "GET", "/org/checkin-nonce/status?nonce=" + encodeURIComponent(nonce), null, orgKey);
 
+// A device-signed check-in. Pass checkin_ts to sign an older scan (a queued
+// offline check-in); by default it is a live scan signed now.
 async function attendeeBody(overrides = {}) {
-  const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
-  const pub = { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
-  const ts = Math.floor(Date.now() / 1000);
-  return {
-    mode: "attendee_scan",
-    client_checkin_id: "checkin_" + crypto.randomUUID(),
-    checkin_ts: ts,
-    helloPayload: { mode: "attendee_scan", org: ORG_KEY, pub, ts, v: 1 },
-    helloHash: "hash_" + ts,
-    event_id: null,
-    nonce: null,
-    score: 70,
-    bioVerified: false,
-    ...overrides
-  };
+  const { checkin_ts, nonce, event_id, client_checkin_id, ...rest } = overrides;
+  return signedCheckinBody({ org: ORG_KEY, ts: checkin_ts, nonce, event_id, client_checkin_id, ...rest });
 }
+
+// An offline check-in signed `ageS` seconds ago (default 10 minutes).
+const offlineBody = (overrides = {}, ageS = 600) =>
+  attendeeBody({ checkin_ts: Math.floor(Date.now() / 1000) - ageS, ...overrides });
 
 // ---- Browser offline queue harness ---------------------------------------
 // Just enough IndexedDB for js/offline-queue.js: one object store with an
@@ -220,9 +213,9 @@ test("nonce status reports expiry so the panel replaces an old QR", async () => 
 
 // ---- (c) nonce-less check-ins: accepted, marked offline ---------------------
 
-test("nonce-less check-in is accepted and marked offline everywhere", async () => {
+test("nonce-less offline check-in is accepted and marked offline everywhere", async () => {
   const d1 = new D1();
-  const res = await call(d1, "POST", "/org/checkin", await attendeeBody());
+  const res = await call(d1, "POST", "/org/checkin", await offlineBody());
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(res.body.assurance, "offline");
   assert.equal(res.body.receipt.assurance, "offline");
@@ -249,7 +242,6 @@ test("a check-in queued offline and replayed 24 h later still lands", async () =
   });
   const scannedAt = Math.floor(Date.now() / 1000) - DAY;
   const body = await attendeeBody({ checkin_ts: scannedAt });
-  body.helloPayload.ts = scannedAt;
   await queueCheckinLikeOrgEntry(queue, body);
   assert.equal(await queue.count(), 1);
 
@@ -364,7 +356,7 @@ test("far / no-GPS / poor-accuracy check-ins are never refused, only flagged", a
     [{ lat: 51.5001, lon: -0.12, acc_m: 12 }, "near"]
   ];
   for (const [gps, band] of cases) {
-    const res = await call(d1, "POST", "/org/checkin", await attendeeBody(gps === undefined ? {} : { gps }));
+    const res = await call(d1, "POST", "/org/checkin", await offlineBody(gps === undefined ? {} : { gps }));
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.assurance, "offline");
     assert.equal(res.body.gps_band, band);
@@ -392,7 +384,7 @@ test("far / no-GPS / poor-accuracy check-ins are never refused, only flagged", a
 
 test("check-in without phone GPS still carries the org-provided venue location", async () => {
   const d1 = new D1({ ...VENUE, venueAddress: "1 High St" });
-  const res = await call(d1, "POST", "/org/checkin", await attendeeBody());
+  const res = await call(d1, "POST", "/org/checkin", await offlineBody());
   assert.equal(res.status, 200);
   assert.deepEqual(res.body.receipt.venue, { address: "1 High St", lat: 51.5, lon: -0.12 });
   assert.equal(res.body.receipt.gps_band, "none");
