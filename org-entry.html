@@ -981,12 +981,16 @@
         meta
       });
     } catch (err) {
-      const rescanLiveQr = checkinNonce && [404, 409, 410].includes(Number(err.status));
+      if (err.data?.reason === "already_checked_in") {
+        renderCheckoutChoice(err.data);
+        return;
+      }
+      const rescanLiveQr = [404, 409, 410].includes(Number(err.status)) || err.data?.reason === "live_code_required";
       render({
         status: "deny",
         title: "Check-in rejected",
         subtitle: rescanLiveQr ? "Please scan the live QR on screen again" : (err.message || "Could not record check-in"),
-        meta: rescanLiveQr ? "This QR has expired or was already used" : "Please ask staff for help"
+        meta: rescanLiveQr ? (checkinNonce ? "This QR has expired or was already used" : "This printed QR only works offline") : "Please ask staff for help"
       });
     }
   }
@@ -995,8 +999,8 @@
     const name = details.name || localStorage.getItem(`irlid_org_name_${orgParam}`) || "this attendee";
     render({
       status: "review",
-      title: `Check out ${name}?`,
-      subtitle: "This device is already checked in",
+      title: `Already signed in${name && name !== "this attendee" ? ", " + name : ""}`,
+      subtitle: "This phone is already checked in. Check out?",
       meta: "Confirm to sign check-out with this phone"
     });
     const choiceActions = document.getElementById("choiceActions");
@@ -1101,7 +1105,10 @@
       headers: { "Content-Type": "application/json", "X-Org-Key": orgParam },
       body: JSON.stringify(queuedBody),
       idempotency_key: body.client_checkin_id,
-      kind: "org_checkin"
+      kind: "org_checkin",
+      // The Worker treats a hello signed in the last 120 s as a live scan and
+      // would refuse it without a live code; wait until it is clearly a replay.
+      not_before: (Number(body.checkin_ts) + 125) * 1000
     });
     window.dispatchEvent(new CustomEvent("irlid:queue-changed"));
     return {
@@ -1113,6 +1120,29 @@
       queued_at: queued && queued.queued_at
     };
   }
+
+  // Visible notice when a queued check-in could not be synced as one: a
+  // quarantined offline check-in (signature did not verify) or a dropped op.
+  function showQueueNotice(message) {
+    let el = document.getElementById("queueNotice");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "queueNotice";
+      el.setAttribute("role", "alert");
+      el.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;padding:12px 14px;border-radius:12px;background:#7a1f1f;color:#fff;font:600 14px/1.4 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.35)";
+      el.addEventListener("click", () => el.remove());
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+  }
+  window.addEventListener("irlid:queue-quarantined", (ev) => {
+    const d = (ev && ev.detail) || {};
+    showQueueNotice(d.notice || "An offline check-in from this phone could not be verified. It was kept for staff to review and was not counted - please see staff.");
+  });
+  window.addEventListener("irlid:queue-dropped", (ev) => {
+    const d = (ev && ev.detail) || {};
+    showQueueNotice("An offline check-in could not sync (" + (d.reason || "refused") + "). A copy is kept on this phone - please see staff.");
+  });
 
   async function resolveCheckoutToken(token) {
     let response;
@@ -1621,22 +1651,46 @@
     });
   }
 
+  // A staff session (POST /org/staff/auth, saved by Org.html) lets a
+  // staff-tier member check in outside event times. The Worker only honours it
+  // for the device key that signed it.
+  function activeStaffSessionToken() {
+    const nowS = Math.floor(Date.now() / 1000);
+    for (const store of [window.sessionStorage, window.localStorage]) {
+      try {
+        for (let i = 0; i < store.length; i += 1) {
+          const key = store.key(i) || "";
+          if (!key.startsWith("irlid_staff_auth_session_v1:")) continue;
+          const saved = JSON.parse(store.getItem(key) || "null");
+          if (saved?.staff_session && Number(saved.expires_at) > nowS) return saved.staff_session;
+        }
+      } catch (_) {}
+    }
+    return "";
+  }
+
   async function recordVenueCheckin(options = {}) {
     if (!isCheckinContext || !orgParam || typeof getPublicJwk !== "function") return;
     const gpsPromise = bestEffortGps();
     const pub = compactJwk(await getPublicJwk());
     const scanTs = Math.floor(Date.now() / 1000);
     const clientCheckinId = entryClientId("checkin");
-    const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: scanTs, v: 1 };
+    // Signed check-in hello: the Worker verifies this device-key signature and
+    // that it covers this org, check-in id, event and live code.
+    const helloPayload = { mode: "attendee_scan", org: orgParam, pub, ts: scanTs, cid: clientCheckinId, event_id: eventId || null, nonce: checkinNonce || null, v: 2 };
     const helloHash = await hashPayloadToB64url(helloPayload, 3);
+    const helloSig = await signHashB64url(helloHash);
     const cachedName = options.anonymous ? "" : await recognizedNameForDevice(pub);
     const gps = await gpsPromise;
+    const staffSession = activeStaffSessionToken();
     const payload = await postOrgCheckinResilient({
       mode: "attendee_scan",
       client_checkin_id: clientCheckinId,
       checkin_ts: scanTs,
       helloPayload,
       helloHash,
+      helloSig,
+      ...(staffSession ? { staff_session: staffSession } : {}),
       attendeeLabel: cachedName,
       name: cachedName,
       event_id: eventId || null,
@@ -1657,6 +1711,10 @@
     }
     if (payload?.checkin_id) localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
     if (payload?.receipt_id) storeOrgReceipt(payload);
+    if (payload?.out_of_hours) {
+      render({ status: "allow", title: `Welcome, ${payload?.expected_name || cachedName || "staff"}`, subtitle: "Checked in outside event times", meta: "Staff check-in, time recorded" });
+      return payload;
+    }
     if (payload?.expected_name) localStorage.setItem(`irlid_org_name_${orgParam}`, payload.expected_name);
     if (payload?.conflict) {
       render({ status: "review", title: "Identity review", subtitle: "This name is linked to another device", meta: "The doorman can confirm or reject this phone" });

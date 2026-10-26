@@ -1,6 +1,7 @@
-// Crowd check-in (docs/design-crowd-checkin.md) under the offline-first rule
-// (docs/requirements/offline-first.md): a crowd check-in with no code, or a
-// stale / used code (e.g. replayed from the offline queue a day later), is
+// Crowd check-in (docs/design-crowd-checkin.md) under the signed check-in
+// rules (docs/requirements/offline-first.md): ONLINE, a crowd check-in needs a
+// live code like any other (used codes get CROWD_CODE_GRACE_S); an OFFLINE
+// replay with no code, or a stale / used one (e.g. queued a day earlier), is
 // accepted as "offline" and never refused. The harness is the same as
 // offline-first.test.mjs: real SQLite + the browser offline queue in a VM.
 import test from "node:test";
@@ -9,6 +10,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
 import worker from "../src/index.js";
+import { signedCheckinBody, eventScheduleAt } from "./helpers/signed-checkin.mjs";
 
 const CROWD = "ev-crowd";
 const ORG_KEY = "org_offline_test_key_123456";
@@ -40,9 +42,13 @@ class D1 {
       CREATE TABLE expected_device_keys (org_id TEXT, expected_id INTEGER, device_key_fp TEXT, revoked_at INTEGER);
       CREATE TABLE rooms (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, label TEXT);
       CREATE TABLE weekly_events (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, room_id TEXT, name TEXT NOT NULL, day_of_week INTEGER NOT NULL, start_time_local TEXT NOT NULL, duration_min INTEGER NOT NULL, capacity INTEGER, color_hex TEXT, notes TEXT, require_proof INTEGER DEFAULT 0, late_grace_min INTEGER DEFAULT 0, created_at INTEGER NOT NULL, archived_at INTEGER);
-      INSERT INTO weekly_events (id,org_id,name,day_of_week,start_time_local,duration_min,created_at) VALUES ('ev-crowd','org-1','Open day',1,'10:00',120,0);
-      INSERT INTO weekly_events (id,org_id,name,day_of_week,start_time_local,duration_min,created_at) VALUES ('ev-standard','org-1','Class',1,'10:00',60,0);
     `);
+    // Both events are on now, so live check-ins are inside event times.
+    const { day_of_week, start_time_local } = eventScheduleAt(-10);
+    for (const [id, name] of [["ev-crowd", "Open day"], ["ev-standard", "Class"]]) {
+      this.db.prepare("INSERT INTO weekly_events (id,org_id,name,day_of_week,start_time_local,duration_min,created_at) VALUES (?,?,?,?,?,120,0)")
+        .run(id, "org-1", name, day_of_week, start_time_local);
+    }
     this.db.prepare("INSERT INTO organisations (id,name,slug,api_key,settings_json,created_at,updated_at) VALUES (?,?,?,?,?,0,0)")
       .run("org-1", "Test Org", "test-org", ORG_KEY, JSON.stringify(settings));
     this.db.prepare("INSERT INTO organisations (id,name,slug,api_key,settings_json,created_at,updated_at) VALUES (?,?,?,?,?,0,0)")
@@ -80,23 +86,11 @@ const nonceStatus = (d1, nonce, orgKey) =>
   call(d1, "GET", "/org/checkin-nonce/status?nonce=" + encodeURIComponent(nonce), null, orgKey);
 
 async function attendeeBody(overrides = {}) {
-  const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
-  const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
-  const pub = { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
-  const ts = Math.floor(Date.now() / 1000);
-  return {
-    mode: "attendee_scan",
-    client_checkin_id: "checkin_" + crypto.randomUUID(),
-    checkin_ts: ts,
-    helloPayload: { mode: "attendee_scan", org: ORG_KEY, pub, ts, v: 1 },
-    helloHash: "hash_" + ts,
-    event_id: CROWD,
-    nonce: null,
-    score: 70,
-    bioVerified: false,
-    ...overrides
-  };
+  const { checkin_ts, nonce, event_id = CROWD, client_checkin_id, ...rest } = overrides;
+  return signedCheckinBody({ org: ORG_KEY, ts: checkin_ts, nonce, event_id, client_checkin_id, ...rest });
 }
+
+const offlineBody = (overrides = {}) => attendeeBody({ checkin_ts: Math.floor(Date.now() / 1000) - 600, ...overrides });
 
 // ---- Browser offline queue harness ---------------------------------------
 // Just enough IndexedDB for js/offline-queue.js: one object store with an
@@ -202,31 +196,38 @@ test("crowd: a fresh code is accepted as fresh, and others scanning the same fra
   assert.equal(d1.checkins().length, 3);
 });
 
-test("crowd: a code-less check-in is accepted and marked offline, never 409", async () => {
+test("crowd: online, a code-less check-in is refused; offline it is accepted and marked offline", async () => {
   const d1 = makeCrowd(new D1());
-  const res = await checkin(d1, await attendeeBody());
+  const online = await checkin(d1, await attendeeBody());
+  assert.equal(online.status, 403, JSON.stringify(online.body));
+  assert.equal(online.body.reason, "live_code_required");
+  assert.equal(d1.checkins().length, 0);
+  const res = await checkin(d1, await offlineBody());
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(res.body.assurance, "offline");
   assert.equal(res.body.event_id, CROWD);
   assert.equal(d1.checkins()[0].assurance, "offline");
 });
 
-test("crowd: a used code past its grace falls back to offline instead of being refused", async () => {
+test("crowd: online, a used code past its grace is refused; offline it falls back to offline", async () => {
   const d1 = makeCrowd(new D1());
   const nonce = await issueNonce(d1);
   assert.equal((await checkin(d1, await attendeeBody({ nonce }))).body.assurance, "fresh");
   d1.db.prepare("UPDATE org_checkin_nonces SET consumed_at=consumed_at-60 WHERE nonce=?").run(nonce);
-  const res = await checkin(d1, await attendeeBody({ nonce }));
+  assert.equal((await checkin(d1, await attendeeBody({ nonce }))).status, 409);
+  const res = await checkin(d1, await offlineBody({ nonce }));
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(res.body.assurance, "offline");
 });
 
-test("crowd: an expired or unknown code falls back to offline instead of being refused", async () => {
+test("crowd: online, an expired or unknown code is refused; offline it falls back to offline", async () => {
   const d1 = makeCrowd(new D1());
   const nonce = await issueNonce(d1);
   d1.db.prepare("UPDATE org_checkin_nonces SET expires_at=1 WHERE nonce=?").run(nonce);
+  assert.equal((await checkin(d1, await attendeeBody({ nonce }))).status, 410);
+  assert.equal((await checkin(d1, await attendeeBody({ nonce: "cin_never_issued" }))).status, 404);
   for (const code of [nonce, "cin_never_issued"]) {
-    const res = await checkin(d1, await attendeeBody({ nonce: code }));
+    const res = await checkin(d1, await offlineBody({ nonce: code }));
     assert.equal(res.status, 200, JSON.stringify(res.body));
     assert.equal(res.body.assurance, "offline");
   }
@@ -240,7 +241,6 @@ test("crowd: a check-in queued offline and replayed 24 h later lands, labelled o
     (serverUp ? workerFetch(d1, url, init) : Promise.reject(new TypeError("Failed to fetch"))));
   const scannedAt = Math.floor(Date.now() / 1000) - DAY;
   const body = await attendeeBody({ nonce, checkin_ts: scannedAt });
-  body.helloPayload.ts = scannedAt;
   await queueCheckinLikeOrgEntry(queue, body);
   assert.equal((await queue.replay()).halted, true, "still offline: kept on the phone");
 
@@ -281,6 +281,8 @@ test("standard events keep single-use codes (crowd grace does not leak)", async 
   const second = await checkin(d1, await attendeeBody({ nonce, event_id: "ev-standard" }));
   assert.equal(second.status, 409);
   const noCode = await checkin(d1, await attendeeBody({ event_id: "ev-standard" }));
-  assert.equal(noCode.status, 200);
-  assert.equal(noCode.body.assurance, "offline");
+  assert.equal(noCode.status, 403);
+  const offline = await checkin(d1, await offlineBody({ event_id: "ev-standard" }));
+  assert.equal(offline.status, 200);
+  assert.equal(offline.body.assurance, "offline");
 });
