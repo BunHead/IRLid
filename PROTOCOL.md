@@ -3,6 +3,7 @@
 **Status:** Live  
 **Version:** 3  
 **Author:** Spencer Austin  
+**Rules:** the agreed IRLid rules are in `docs/rules.md`. Where this spec and the rules disagree, the rules win until this spec is updated.  
 **Last updated:** 9 May 2026 — §14.18 OAuth identity linkage refined to user-held-envelope design (Captain's GDPR / data-minimisation call). Schema changed: Worker now stores only `link_hash`, not `external_id` or `display_label`. Linking and verification flows documented. Future blockchain anchoring noted as additive layer (consistent with §11 tsTokens).
 
 ---
