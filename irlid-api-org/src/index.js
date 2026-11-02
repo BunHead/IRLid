@@ -3438,20 +3438,8 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
     bioVerified: !!(checkinRow.bio_verified || options?.bioVerified)
   };
 
-  const gps = options?.gps;
-  if (gps && Number.isFinite(Number(gps.lat)) && Number.isFinite(Number(gps.lon))) {
-    const gpsObj = {
-      lat: Number(gps.lat),
-      lon: Number(gps.lon),
-      acc_m: Number.isFinite(Number(gps.acc_m ?? gps.acc ?? gps.accuracy)) ? Number(gps.acc_m ?? gps.acc ?? gps.accuracy) : null
-    };
-    // Venue GPS rule: the raw phone position is never stored, so the receipt
-    // only ever carries its hash (plus the server-computed gps_band below),
-    // whatever privacyMode says.
-    payload.gps_hash = await sha256B64url(canonical(gpsObj));
-  } else if (checkinRow.gps_hash) {
-    payload.gps_hash = checkinRow.gps_hash;
-  }
+  // C10 / R8: an org receipt carries only the server-computed GPS band
+  // (below), never the phone's position and never a hash of it.
 
   // v6.4.21 — org-attested venue details (Captain's 2 Jul call). A receipt
   // with no GPS used to give the verifier a dead end; now it carries the
@@ -4132,20 +4120,37 @@ async function checkinModeStatement(env, ev, orgId) {
 }
 
 // Signed check-in (docs/requirements/offline-first.md, "Check-in signature
-// rules"). The phone signs its check-in hello with its device key; the Worker
-// recomputes the hash and verifies the signature against hello.pub.
+// rules"; docs/rules.md v3.1: S1, S13, C2, C6, C8, C14, C15). The phone signs
+// its check-in hello with its device key; the Worker recomputes the hash and
+// verifies the signature against hello.pub.
 //
-// Online vs offline is decided here, never from a phone-reported flag
-// (offline_queued is ignored). A hello signed in the last LIVE_CHECKIN_WINDOW_S
-// is a live scan and gets every rule. One signed earlier can only be a queued
-// replay: it is never refused, only recorded as offline / unverified (or
-// quarantined if its signature is bad). The phone's clock can therefore only
-// ever downgrade a check-in to "offline", never upgrade it to "fresh".
+// Freshness is the server's call, never a phone flag (offline_queued is
+// ignored). Only a live, unused code the Worker itself issued makes a check-in
+// "fresh". Everything else (no code, a stale / used / unknown code, a queued
+// replay, or a hello signed long ago) is accepted as "offline / unverified"
+// and never refused (C2, C6, C14). The signature is always checked (S1): a
+// bad one is refused live, or quarantined with a notice when it syncs later
+// (C8). The phone's clock can only downgrade a check-in, never make it fresh.
 const LIVE_CHECKIN_WINDOW_S = 120;
 // A live check-in for a scheduled event opens this long before its start.
 const EVENT_EARLY_CHECKIN_MIN = 30;
 const STAFF_TIER_ROLES = new Set(["staff", "manager", "lead_admin", "developer"]);
 const QUARANTINE_BODY_MAX = 4096;
+// C15: when the signing requirement shipped, check-ins from old cached pages or
+// already queued on phones carry no signature. Until this server date they
+// land as "offline / unverified"; after it the signature is required. Set the
+// Worker var CHECKIN_SIGNING_CUTOFF (unix seconds, or an ISO date) to change it.
+const CHECKIN_SIGNING_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 10, 23) / 1000); // 23 Nov 2026
+function checkinSigningCutoffS(env) {
+  const raw = env && env.CHECKIN_SIGNING_CUTOFF;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber)) return asNumber;
+    const asDate = Date.parse(String(raw));
+    if (Number.isFinite(asDate)) return Math.floor(asDate / 1000);
+  }
+  return CHECKIN_SIGNING_CUTOFF_DEFAULT_S;
+}
 
 function orgRefMatches(org, ref) {
   const r = String(ref || "").trim();
@@ -4154,14 +4159,15 @@ function orgRefMatches(org, ref) {
 }
 
 // Checks the device signature and that the signed hello is bound to this
-// request (org, check-in id, event, live code). Returns { ok, reason, ts, hash }.
+// request (org, check-in id, event, live code). Returns { ok, reason, ts, hash, unsigned }
+// (unsigned: no signature was sent at all, as from an old cached page).
 async function verifyCheckinSignature(org, body) {
   const hello = body.helloPayload;
   const sig = typeof body.helloSig === "string" ? body.helloSig.trim() : "";
-  if (!hello || typeof hello !== "object") return { ok: false, reason: "missing_signed_hello", ts: null };
+  if (!hello || typeof hello !== "object") return { ok: false, reason: "missing_signed_hello", ts: null, unsigned: true };
   const signedTs = Number(hello.ts);
   const ts = Number.isFinite(signedTs) && signedTs > 0 ? Math.floor(signedTs) : null;
-  if (!sig) return { ok: false, reason: "missing_signature", ts };
+  if (!sig) return { ok: false, reason: "missing_signature", ts, unsigned: true };
   const pub = normaliseDevicePubJwk(hello.pub);
   if (!pub) return { ok: false, reason: "bad_public_key", ts };
   const hash = await hashPayloadToB64url(hello, 3);
@@ -4285,20 +4291,28 @@ async function orgCheckin(request, env) {
     if (staffError) return staffError;
   }
   const tNow = now();
-  let helloHash = body.helloHash || null;
+  let helloHash = null;
   let live = false;
   let signedTs = null;
+  // C15: no signature at all, from an old page, before the server cutoff.
+  let unsignedGrace = false;
   if (mode === "attendee_scan") {
     const signature = await verifyCheckinSignature(org, body);
     signedTs = signature.ts;
     // No usable signed time counts as live: only a provably old hello may
     // take the offline path.
     live = !Number.isFinite(signedTs) || tNow - signedTs <= LIVE_CHECKIN_WINDOW_S;
-    if (!signature.ok) {
+    unsignedGrace = !signature.ok && signature.unsigned === true && tNow < checkinSigningCutoffS(env);
+    if (!signature.ok && !unsignedGrace) {
       if (live) return json({ error: "Check-in signature invalid", reason: signature.reason }, 401);
       return quarantineCheckin(env, org, body, signature.reason, tNow);
     }
-    helloHash = signature.hash;
+    if (signature.ok) helloHash = signature.hash;
+    else if (helloPayload && typeof helloPayload === "object") {
+      try { helloHash = await hashPayloadToB64url(helloPayload, 3); } catch (_) { helloHash = null; }
+    }
+  } else {
+    helloHash = body.helloHash || null;
   }
   const helloPubJwk = normaliseDevicePubJwk(helloPayload?.pub);
   const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
@@ -4350,21 +4364,15 @@ async function orgCheckin(request, env) {
   let crowd = false;
   if (mode === "attendee_scan") {
     crowd = await isCrowdEvent(env, org.id, eventId);
-    let codeError = nonce ? await checkLiveCode(env, org, nonce, eventId, crowd, tNow) : null;
+    // An unsigned check-in (C15 grace) is never fresh: its code is evidence only.
+    let codeError = nonce && !unsignedGrace ? await checkLiveCode(env, org, nonce, eventId, crowd, tNow) : null;
+    const codeUsable = !!nonce && !unsignedGrace && !codeError;
     // A slow phone clock must not cost a live scan its valid code.
-    if (nonce && !codeError) live = true;
-    if (live) {
-      // Online: static QR and crowd mode included, the code must be live.
-      if (!nonce) return json({ error: "Scan the live QR on screen to check in", reason: "live_code_required" }, 403);
-      if (codeError) return codeError;
-      if (eventRow && !eventWindowContains(eventRow, tNow)) {
-        if (!(await staffSessionForDevice(env, org, staff_session, attendeeDeviceFp))) {
-          return json({ error: "This event is not open for check-in right now", reason: "outside_event_times" }, 403);
-        }
-        outOfHours = true; // staff any-time check-in, flagged with the time recorded
-      }
+    if (codeUsable) live = true;
+    let fresh = false;
+    if (live && !unsignedGrace) {
       // A second scan while checked in: say so (the phone offers check-out)
-      // instead of recording a second check-in or burning the code.
+      // instead of recording a second check-in or burning the code (C4).
       const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
       const active = attendeeDeviceFp ? await env.DB.prepare(
         `SELECT id,checkin_at,name,attendee_label FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkout_at IS NULL AND COALESCE(status,'checked_in') NOT IN ('invalid','conflict') ORDER BY checkin_at DESC LIMIT 1`
@@ -4380,17 +4388,33 @@ async function orgCheckin(request, env) {
           nonce: "rescan_" + randomToken()
         }, 409);
       }
+    }
+    if (codeUsable) {
+      // The live code proves the time (C5): outside the event's times it is
+      // refused, unless a staff-tier member signs in with a signed staff session.
+      if (eventRow && !eventWindowContains(eventRow, tNow)) {
+        if (!(await staffSessionForDevice(env, org, staff_session, attendeeDeviceFp))) {
+          return json({ error: "This event is not open for check-in right now", reason: "outside_event_times" }, 403);
+        }
+        outOfHours = true; // staff any-time check-in, flagged with the time recorded
+      }
+      // Used up a moment ago by someone else (a lost race): C14, so it lands
+      // as offline instead of being refused.
       codeError = await consumeLiveCode(env, nonce, crowd, tNow);
-      if (codeError) return codeError;
+      fresh = !codeError;
+    }
+    if (fresh) {
       assurance = "fresh";
     } else {
-      // Offline replay (signed more than LIVE_CHECKIN_WINDOW_S ago): never
-      // refused. Recorded as "offline" (unverified freshness) and labelled so
-      // on receipts, the dashboard and check.html; any code it carries is
+      // No code (static QR), a stale / used / unknown code, a queued replay
+      // or an unsigned old-page check-in: never refused (C2, C6, C14, C15).
+      // Recorded as "offline" (unverified freshness) and labelled so on
+      // receipts, the dashboard and check.html; any code it carries is
       // evidence only. Older rows may still carry the pre-v6.5.2 name "soft".
       nonce = "";
       assurance = "offline";
-      if (eventRow && !eventWindowContains(eventRow, Math.min(signedTs, tNow))) outOfHours = true;
+      const scanTs = signedTs !== null ? Math.min(signedTs, tNow) : tNow;
+      if (eventRow && !eventWindowContains(eventRow, scanTs)) outOfHours = true;
       if (attendeeDeviceFp) {
         const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
         const duplicate = await env.DB.prepare(
@@ -4413,16 +4437,16 @@ async function orgCheckin(request, env) {
   }
   const settings = JSON.parse(org.settings_json || "{}");
   const minScore = settings.minScore || 50;
-  // Phone-reported: can only refuse, never vouch for a check-in.
-  if (score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
+  // Phone-reported (S13): it can never vouch for a check-in, and it never
+  // refuses an offline / unverified one (C2). Only a fresh scan is held to it.
+  if (assurance === "fresh" && score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
   const id = clientCheckinId || uuid();
   // Live check-ins use the Worker's clock; an offline replay keeps the phone's
   // signed scan time (never in the future) and the Worker's received time.
-  const t = mode === "attendee_scan" && !live && signedTs !== null ? Math.min(signedTs, tNow) : tNow;
-  let gpsHash = null;
-  if (gps && (settings.privacyMode !== false)) {
-    gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));
-  }
+  const t = mode === "attendee_scan" && assurance !== "fresh" && signedTs !== null ? Math.min(signedTs, tNow) : tNow;
+  // C10: GPS only flags near / far / none. No raw position and no GPS hash is
+  // kept: the band below is all that is stored.
+  const gpsHash = null;
   // Venue GPS band, worked out the same way live or when a queued offline
   // check-in syncs later (the phone's reading travels in the queued body).
   const venueBand = venueGpsBand(settings, gps);

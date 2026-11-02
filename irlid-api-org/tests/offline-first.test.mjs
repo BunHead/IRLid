@@ -286,12 +286,13 @@ test("a live-QR scan made during an outage queues and lands after the nonce is l
   assert.equal(d1.checkins()[0].assurance, "offline");
 });
 
-test("the raw stale nonce would have been dropped as terminal (why it is stripped)", async () => {
+test("a stale nonce is no longer a terminal refusal: it lands as offline (C14)", async () => {
   const d1 = new D1();
   const nonce = await issueNonce(d1);
   d1.db.prepare("UPDATE org_checkin_nonces SET expires_at=1 WHERE nonce=?").run(nonce);
   const res = await call(d1, "POST", "/org/checkin", await attendeeBody({ nonce }));
-  assert.equal(res.status, 410);
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.assurance, "offline");
   const { queue } = loadOfflineQueue(() => Promise.reject(new TypeError("offline")));
   assert.equal(queue.isTerminalHttpStatus(410), true);
 });

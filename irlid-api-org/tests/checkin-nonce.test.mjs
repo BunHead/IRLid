@@ -95,24 +95,31 @@ test("valid nonce succeeds, marks fresh, and is consumed atomically", async () =
   assert.equal(result.body.receipt.assurance, "fresh");
 });
 
-test("replaying the same nonce returns 409", async () => {
+test("replaying a used nonce is accepted as offline, never refused (C14)", async () => {
   const nonce = "cin_replay";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
   const payload = await attendee({ nonce });
-  assert.equal((await checkin(db, payload)).response.status, 200);
-  assert.equal((await checkin(db, payload)).response.status, 409);
+  assert.equal((await checkin(db, payload)).body.assurance, "fresh");
+  const replay = await checkin(db, await attendee({ nonce }));
+  assert.equal(replay.response.status, 200);
+  assert.equal(replay.body.assurance, "offline");
 });
 
-test("expired nonce returns 410", async () => {
+test("expired nonce is accepted as offline, never refused (C14)", async () => {
   const nonce = "cin_expired";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 1, consumed_at: null } } });
-  assert.equal((await checkin(db, await attendee({ nonce }))).response.status, 410);
+  const result = await checkin(db, await attendee({ nonce }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.assurance, "offline");
 });
 
-test("nonce issued for another org returns 404", async () => {
+test("nonce issued for another org is accepted as offline and never consumed (C14)", async () => {
   const nonce = "cin_wrong_org";
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: "org_other", event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
-  assert.equal((await checkin(db, await attendee({ nonce }))).response.status, 404);
+  const result = await checkin(db, await attendee({ nonce }));
+  assert.equal(result.response.status, 200);
+  assert.equal(result.body.assurance, "offline");
+  assert.equal(db.nonces.get(nonce).consumed_at, null);
 });
 
 test("missing nonce on an offline replay is still accepted (offline-first) and marked offline", async () => {

@@ -985,12 +985,14 @@
         renderCheckoutChoice(err.data);
         return;
       }
-      const rescanLiveQr = [404, 409, 410].includes(Number(err.status)) || err.data?.reason === "live_code_required";
+      // v3.1 (C6, C14): a stale, used or missing code is accepted as offline /
+      // unverified now, so the server no longer refuses on the code. Only a
+      // time or signature refusal reaches here.
       render({
         status: "deny",
         title: "Check-in rejected",
-        subtitle: rescanLiveQr ? "Please scan the live QR on screen again" : (err.message || "Could not record check-in"),
-        meta: rescanLiveQr ? (checkinNonce ? "This QR has expired or was already used" : "This printed QR only works offline") : "Please ask staff for help"
+        subtitle: err.message || "Could not record check-in",
+        meta: err.data?.reason === "outside_event_times" ? "This event is not open for check-in right now" : "Please ask staff for help"
       });
     }
   }

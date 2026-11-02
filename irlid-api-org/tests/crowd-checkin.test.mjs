@@ -196,12 +196,12 @@ test("crowd: a fresh code is accepted as fresh, and others scanning the same fra
   assert.equal(d1.checkins().length, 3);
 });
 
-test("crowd: online, a code-less check-in is refused; offline it is accepted and marked offline", async () => {
+test("crowd: a code-less check-in is accepted and marked offline, online or queued (C2, C6)", async () => {
   const d1 = makeCrowd(new D1());
   const online = await checkin(d1, await attendeeBody());
-  assert.equal(online.status, 403, JSON.stringify(online.body));
-  assert.equal(online.body.reason, "live_code_required");
-  assert.equal(d1.checkins().length, 0);
+  assert.equal(online.status, 200, JSON.stringify(online.body));
+  assert.equal(online.body.assurance, "offline");
+  assert.equal(d1.checkins().length, 1);
   const res = await checkin(d1, await offlineBody());
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(res.body.assurance, "offline");
@@ -209,23 +209,28 @@ test("crowd: online, a code-less check-in is refused; offline it is accepted and
   assert.equal(d1.checkins()[0].assurance, "offline");
 });
 
-test("crowd: online, a used code past its grace is refused; offline it falls back to offline", async () => {
+test("crowd: a used code past its grace is accepted as offline, online or queued (C14)", async () => {
   const d1 = makeCrowd(new D1());
   const nonce = await issueNonce(d1);
   assert.equal((await checkin(d1, await attendeeBody({ nonce }))).body.assurance, "fresh");
   d1.db.prepare("UPDATE org_checkin_nonces SET consumed_at=consumed_at-60 WHERE nonce=?").run(nonce);
-  assert.equal((await checkin(d1, await attendeeBody({ nonce }))).status, 409);
+  const late = await checkin(d1, await attendeeBody({ nonce }));
+  assert.equal(late.status, 200, JSON.stringify(late.body));
+  assert.equal(late.body.assurance, "offline");
   const res = await checkin(d1, await offlineBody({ nonce }));
   assert.equal(res.status, 200, JSON.stringify(res.body));
   assert.equal(res.body.assurance, "offline");
 });
 
-test("crowd: online, an expired or unknown code is refused; offline it falls back to offline", async () => {
+test("crowd: an expired or unknown code is accepted as offline, online or queued (C14)", async () => {
   const d1 = makeCrowd(new D1());
   const nonce = await issueNonce(d1);
   d1.db.prepare("UPDATE org_checkin_nonces SET expires_at=1 WHERE nonce=?").run(nonce);
-  assert.equal((await checkin(d1, await attendeeBody({ nonce }))).status, 410);
-  assert.equal((await checkin(d1, await attendeeBody({ nonce: "cin_never_issued" }))).status, 404);
+  for (const code of [nonce, "cin_never_issued"]) {
+    const online = await checkin(d1, await attendeeBody({ nonce: code }));
+    assert.equal(online.status, 200, JSON.stringify(online.body));
+    assert.equal(online.body.assurance, "offline");
+  }
   for (const code of [nonce, "cin_never_issued"]) {
     const res = await checkin(d1, await offlineBody({ nonce: code }));
     assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -278,10 +283,13 @@ test("standard events keep single-use codes (crowd grace does not leak)", async 
   const nonce = await issueNonce(d1, "ev-standard");
   const first = await checkin(d1, await attendeeBody({ nonce, event_id: "ev-standard" }));
   assert.equal(first.body.assurance, "fresh");
+  // Single use: a second scan of the same code is not fresh, but not refused (C14).
   const second = await checkin(d1, await attendeeBody({ nonce, event_id: "ev-standard" }));
-  assert.equal(second.status, 409);
+  assert.equal(second.status, 200);
+  assert.equal(second.body.assurance, "offline");
   const noCode = await checkin(d1, await attendeeBody({ event_id: "ev-standard" }));
-  assert.equal(noCode.status, 403);
+  assert.equal(noCode.status, 200);
+  assert.equal(noCode.body.assurance, "offline");
   const offline = await checkin(d1, await offlineBody({ event_id: "ev-standard" }));
   assert.equal(offline.status, 200);
   assert.equal(offline.body.assurance, "offline");

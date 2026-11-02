@@ -2,11 +2,14 @@
 // rules"). The phone signs its check-in hello with its device key and the
 // Worker verifies it against hello.pub and recomputes the hash.
 //
-// ONLINE (hello signed in the last 120 s): a bad or missing signature, a
-// missing / stale / used code (static QR and crowd mode included) or a time
-// outside the event is refused. Staff-tier members with a signed staff
-// session may check in any time, flagged. OFFLINE replays are never dropped:
-// valid ones land as offline / unverified, bad-signature ones are quarantined.
+// Rules v3.1: a bad signature is always refused (S1), live, or quarantined
+// with a notice when it syncs later (C8). A missing, stale, used or unknown
+// code (static QR and crowd mode included) is accepted as "offline /
+// unverified", never refused (C2, C6, C14). Only a live unused code makes a
+// check-in fresh, and only that is refused outside the event's times (C5)
+// unless a staff-tier member signs in with a signed staff session. Old pages
+// that send no signature land as offline until the server cutoff (C15). GPS
+// only flags a band; no GPS hash is kept (C10).
 //
 // Same harness as offline-first.test.mjs: real SQLite + the browser offline
 // queue (js/offline-queue.js) in a VM.
@@ -73,8 +76,17 @@ class D1 {
   }
 }
 
+// The C15 cutoff. Tests default to "already passed" so a missing signature is
+// refused; the grace tests move it into the future.
+let signingCutoff = 1;
+async function withCutoff(value, fn) {
+  const before = signingCutoff;
+  signingCutoff = value;
+  try { return await fn(); } finally { signingCutoff = before; }
+}
+
 function workerFetch(d1, input, init) {
-  return worker.fetch(new Request(input, init), { DB: d1, CORS_ORIGIN: "*" });
+  return worker.fetch(new Request(input, init), { DB: d1, CORS_ORIGIN: "*", CHECKIN_SIGNING_CUTOFF: signingCutoff });
 }
 
 async function call(d1, method, path, body, orgKey = ORG_KEY) {
@@ -229,12 +241,14 @@ test("forged check-in: a genuine signature reused for another org, check-in id, 
   assert.equal(d1.checkins().length, 0);
 });
 
-test("phone-reported offline flag and score do not open the online rules", async () => {
+test("phone-reported offline flag and score never make a check-in fresh", async () => {
   const d1 = new D1();
   const body = await live({ offline_queued: true, score: 100, bioVerified: true });
   const res = await checkin(d1, body);
-  assert.equal(res.status, 403, JSON.stringify(res.body));
-  assert.equal(res.body.reason, "live_code_required");
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  assert.equal(res.body.assurance, "offline", "no live code, so never fresh whatever the phone says");
+  assert.equal(d1.checkins().length, 1);
+  d1.db.exec("DELETE FROM org_checkins");
   // A forged signature claiming to be an offline replay, but signed now, is refused too.
   const forged = await live({ offline_queued: true });
   forged.helloSig = await (await newDevice()).sign(forged.helloHash);
@@ -275,36 +289,161 @@ test("a retry of a recorded check-in returns it as a duplicate instead of a refu
   assert.equal(d1.checkins().length, 1);
 });
 
-// ---- 3. Stale / used / missing codes refused online ------------------------
+// ---- 3. Stale / used / missing codes land as offline (C6, C14) ------------
 
-test("online: stale, used, unknown and missing codes are refused (static QR included)", async () => {
+test("a stale, used, unknown or missing code (static QR included) is accepted as offline, never refused", async () => {
   const d1 = new D1();
   const expired = await issueNonce(d1);
   d1.db.prepare("UPDATE org_checkin_nonces SET expires_at=1 WHERE nonce=?").run(expired);
   const used = await issueNonce(d1);
-  assert.equal((await checkin(d1, await live({ nonce: used }))).status, 200);
-  const results = [
-    [await live({ nonce: expired }), 410],
-    [await live({ nonce: used }), 409],
-    [await live({ nonce: "cin_never_issued" }), 404],
-    [await live(), 403] // static QR: no code
+  assert.equal((await checkin(d1, await live({ nonce: used }))).body.assurance, "fresh");
+  const cases = [
+    await live({ nonce: expired }),
+    await live({ nonce: used }),
+    await live({ nonce: "cin_never_issued" }),
+    await live() // static QR: no code
   ];
-  for (const [body, status] of results) {
+  for (const body of cases) {
     const res = await checkin(d1, body);
-    assert.equal(res.status, status, JSON.stringify(res.body));
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.assurance, "offline");
   }
-  assert.equal(d1.checkins().length, 1);
+  assert.equal(d1.checkins().length, 5);
+  assert.deepEqual(d1.checkins().map(r => r.assurance).sort(), ["fresh", "offline", "offline", "offline", "offline"]);
+  assert.equal(d1.db.prepare("SELECT consumed_at FROM org_checkin_nonces WHERE nonce=?").get(expired).consumed_at, null);
 });
 
-test("online: crowd mode refuses a used code past its grace and a missing code", async () => {
+test("a stale or missing code does not skip the signature check (S1)", async () => {
+  const d1 = new D1();
+  const expired = await issueNonce(d1);
+  d1.db.prepare("UPDATE org_checkin_nonces SET expires_at=1 WHERE nonce=?").run(expired);
+  for (const nonce of [expired, "cin_never_issued", null]) {
+    const forged = await live({ nonce });
+    forged.helloSig = await (await newDevice()).sign(forged.helloHash);
+    const res = await checkin(d1, forged);
+    assert.equal(res.status, 401, JSON.stringify(res.body));
+    assert.equal(res.body.reason, "bad_signature");
+  }
+  assert.equal(d1.checkins().length, 0);
+});
+
+test("crowd mode: a used code past its grace and a missing code are accepted as offline", async () => {
   const d1 = new D1();
   const nonce = await issueNonce(d1, "ev-crowd");
   assert.equal((await checkin(d1, await live({ nonce, event_id: "ev-crowd" }))).body.assurance, "fresh");
-  assert.equal((await checkin(d1, await live({ nonce, event_id: "ev-crowd" }))).status, 200, "inside crowd grace");
+  const inGrace = await checkin(d1, await live({ nonce, event_id: "ev-crowd" }));
+  assert.equal(inGrace.body.assurance, "fresh", "inside crowd grace");
   d1.db.prepare("UPDATE org_checkin_nonces SET consumed_at=consumed_at-60 WHERE nonce=?").run(nonce);
-  assert.equal((await checkin(d1, await live({ nonce, event_id: "ev-crowd" }))).status, 409);
-  assert.equal((await checkin(d1, await live({ event_id: "ev-crowd" }))).status, 403);
-  assert.equal(d1.checkins().length, 2);
+  const late = await checkin(d1, await live({ nonce, event_id: "ev-crowd" }));
+  assert.equal(late.status, 200);
+  assert.equal(late.body.assurance, "offline");
+  const none = await checkin(d1, await live({ event_id: "ev-crowd" }));
+  assert.equal(none.status, 200);
+  assert.equal(none.body.assurance, "offline");
+  assert.equal(d1.checkins().length, 4);
+});
+
+test("the org score threshold never refuses an offline / unverified check-in (S13, C2)", async () => {
+  const d1 = new D1({ anonymousMode: true, minScore: 80 });
+  const offlineLow = await checkin(d1, await live({ score: 10 }));
+  assert.equal(offlineLow.status, 200, JSON.stringify(offlineLow.body));
+  assert.equal(offlineLow.body.assurance, "offline");
+  const queuedLow = await checkin(d1, await offline({ score: 10 }));
+  assert.equal(queuedLow.status, 200);
+});
+
+// ---- 3b. Old pages: unsigned check-ins until the cutoff (C15) --------------
+
+const FUTURE = () => nowS() + 7 * DAY;
+
+test("C15: before the cutoff, a check-in with no signature (old cached page) lands as offline / unverified", async () => {
+  await withCutoff(FUTURE(), async () => {
+    const d1 = new D1();
+    const noSig = await live(); delete noSig.helloSig; delete noSig.helloHash;
+    const res = await checkin(d1, noSig);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.assurance, "offline");
+    const noHello = await live(); delete noHello.helloPayload; delete noHello.helloSig; delete noHello.helloHash;
+    noHello.client_checkin_id = "old_page_2";
+    const res2 = await checkin(d1, noHello);
+    assert.equal(res2.status, 200, JSON.stringify(res2.body));
+    assert.equal(res2.body.assurance, "offline");
+    // Queued earlier on the phone, replayed later: same.
+    const queued = await offline(); delete queued.helloSig; delete queued.helloHash;
+    assert.equal((await checkin(d1, queued)).body.assurance, "offline");
+    assert.deepEqual(d1.checkins().map(r => r.assurance), ["offline", "offline", "offline"]);
+    assert.equal(d1.quarantined().length, 0);
+  });
+});
+
+test("C15: an unsigned check-in is never fresh and never burns a live code", async () => {
+  await withCutoff(FUTURE(), async () => {
+    const d1 = new D1();
+    const nonce = await issueNonce(d1);
+    const body = await live({ nonce }); delete body.helloSig;
+    const res = await checkin(d1, body);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.assurance, "offline");
+    assert.equal(d1.db.prepare("SELECT consumed_at FROM org_checkin_nonces WHERE nonce=?").get(nonce).consumed_at, null);
+  });
+});
+
+test("C15: the grace only covers a MISSING signature; a wrong one is still refused or quarantined (S1)", async () => {
+  await withCutoff(FUTURE(), async () => {
+    const d1 = new D1();
+    const forged = await live(); forged.helloSig = await (await newDevice()).sign(forged.helloHash);
+    assert.equal((await checkin(d1, forged)).status, 401);
+    const forgedQueued = await offline(); forgedQueued.helloSig = await (await newDevice()).sign(forgedQueued.helloHash);
+    assert.equal((await checkin(d1, forgedQueued)).status, 202);
+    assert.equal(d1.checkins().length, 0);
+    assert.equal(d1.quarantined().length, 1);
+  });
+});
+
+test("C15: after the cutoff the signature is required again (live refused, queued quarantined)", async () => {
+  await withCutoff(nowS() - 10, async () => {
+    const d1 = new D1();
+    const liveNoSig = await live(); delete liveNoSig.helloSig;
+    const res = await checkin(d1, liveNoSig);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.reason, "missing_signature");
+    const queuedNoSig = await offline(); delete queuedNoSig.helloSig;
+    assert.equal((await checkin(d1, queuedNoSig)).status, 202);
+    assert.equal(d1.checkins().length, 0);
+  });
+});
+
+test("C15: the cutoff is a server setting, given as unix seconds or an ISO date", async () => {
+  const d1 = new D1();
+  const noSig = async () => { const b = await live(); delete b.helloSig; return b; };
+  await withCutoff("2999-01-01T00:00:00Z", async () => assert.equal((await checkin(d1, await noSig())).status, 200));
+  await withCutoff("2000-01-01T00:00:00Z", async () => assert.equal((await checkin(d1, await noSig())).status, 401));
+  // Unset: the built-in default (23 Nov 2026, server time) applies.
+  const res = await worker.fetch(new Request("https://worker.test/org/checkin", {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Org-Key": ORG_KEY }, body: JSON.stringify(await noSig())
+  }), { DB: d1, CORS_ORIGIN: "*" });
+  assert.equal(res.status, nowS() < Date.UTC(2026, 10, 23) / 1000 ? 200 : 401);
+});
+
+// ---- 3c. GPS: flag only, nothing kept (C10) --------------------------------
+
+test("C10: GPS only flags a band; no raw position and no GPS hash is stored or put in the receipt", async () => {
+  const d1 = new D1({ anonymousMode: true, venueLat: 51.5, venueLon: -0.12 });
+  const gps = { lat: 48.8566, lon: 2.3522, acc_m: 8 };
+  const fresh = await checkin(d1, await live({ nonce: await issueNonce(d1), gps }));
+  const noCode = await checkin(d1, await live({ gps }));
+  const queued = await checkin(d1, await offline({ gps }));
+  for (const res of [fresh, noCode, queued]) {
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.equal(res.body.gps_band, "far", "far from the venue is flagged, never refused");
+    assert.equal(res.body.receipt.gps_hash, undefined);
+    assert.equal(res.body.receipt.gps, undefined);
+  }
+  for (const row of d1.checkins()) {
+    assert.equal(row.gps_hash, null);
+    assert.equal(JSON.stringify(row).includes("48.85"), false);
+  }
+  assert.equal(JSON.stringify(d1.db.prepare("SELECT payload_json FROM org_receipts").all()).includes("gps_hash"), false);
 });
 
 // ---- 4. Event times ---------------------------------------------------------
@@ -317,6 +456,17 @@ test("online: a check-in outside the event's times is refused and the code is no
   assert.equal(res.body.reason, "outside_event_times");
   assert.equal(d1.db.prepare("SELECT consumed_at FROM org_checkin_nonces WHERE nonce=?").get(nonce).consumed_at, null);
   assert.equal(d1.checkins().length, 0);
+});
+
+test("outside the event's times, a stale or missing code is accepted as offline and flagged, not refused (C5, C14)", async () => {
+  const d1 = new D1();
+  const noCode = await checkin(d1, await live({ event_id: "ev-closed" }));
+  assert.equal(noCode.status, 200, JSON.stringify(noCode.body));
+  assert.equal(noCode.body.assurance, "offline");
+  assert.equal(noCode.body.out_of_hours, true);
+  const stale = await checkin(d1, await live({ event_id: "ev-closed", nonce: "cin_never_issued" }));
+  assert.equal(stale.status, 200);
+  assert.equal(stale.body.out_of_hours, true);
 });
 
 async function staffSession(d1, device, role = "staff") {
@@ -467,4 +617,73 @@ test("doorman mode stays on the staff session (no attendee signature needed)", a
   assert.equal(res.body.assurance, undefined);
   const noSession = await checkin(d1, { mode: "doorman_scan", client_checkin_id: "door_2", score: 70 });
   assert.equal(noSession.status, 401);
+});
+
+// ---- 7. More v3.1 rules ------------------------------------------------------
+
+test("C4: a second scan while checked in says already signed in, even with no code (static QR)", async () => {
+  const d1 = new D1();
+  const device = await newDevice();
+  assert.equal((await checkin(d1, await live({ device, nonce: await issueNonce(d1) }))).body.assurance, "fresh");
+  for (const nonce of [null, "cin_never_issued"]) {
+    const res = await checkin(d1, await live({ device, nonce }));
+    assert.equal(res.status, 409, JSON.stringify(res.body));
+    assert.equal(res.body.reason, "already_checked_in");
+  }
+  assert.equal(d1.checkins().length, 1);
+});
+
+test("S3: only the public key is ever sent or stored (keys stay on the phone)", async () => {
+  const d1 = new D1();
+  const body = await live({ nonce: await issueNonce(d1) });
+  assert.equal(Object.keys(body.helloPayload.pub).includes("d"), false, "hello carries no private key part");
+  assert.equal((await checkin(d1, body)).status, 200);
+  const [row] = d1.checkins();
+  assert.equal(JSON.parse(row.attendee_pub_jwk).d, undefined);
+  // Even if a phone were to send the private part, it is not stored.
+  const leaky = await live();
+  const signedWithD = { ...leaky.helloPayload, pub: { ...leaky.helloPayload.pub, d: "SECRET" } };
+  const device = await newDevice();
+  const body2 = await signedCheckinBody({ org: ORG_KEY, device: { ...device, pub: signedWithD.pub, sign: device.sign } });
+  await checkin(d1, body2);
+  assert.equal(JSON.stringify(d1.db.prepare("SELECT attendee_pub_jwk FROM org_checkins").all()).includes("SECRET"), false);
+});
+
+test("R1: a quarantine row is never edited, and a fresh check-in leaves earlier rows untouched", async () => {
+  const d1 = new D1();
+  const first = await offline({ client_checkin_id: "q_same" });
+  first.helloSig = await (await newDevice()).sign(first.helloHash);
+  assert.equal((await checkin(d1, first)).status, 202);
+  const before = JSON.stringify(d1.quarantined());
+  const second = await offline({ client_checkin_id: "q_same" });
+  delete second.helloSig; // same id, different reason
+  assert.equal((await checkin(d1, second)).status, 202);
+  assert.equal(JSON.stringify(d1.quarantined()), before, "kept as first written");
+  const a = await checkin(d1, await live({ nonce: await issueNonce(d1) }));
+  const rowA = JSON.stringify(d1.checkins()[0]);
+  await checkin(d1, await live({ nonce: await issueNonce(d1) }));
+  assert.equal(JSON.stringify(d1.checkins().find(r => r.id === a.body.checkin_id)), rowA);
+});
+
+test("R4: the v6.7.0 migration only adds, keeps old rows as they were, and matches schema.sql", async () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT, checkin_at INTEGER, assurance TEXT, gps_band TEXT, gps_distance_km REAL)");
+  db.prepare("INSERT INTO org_checkins (id,org_id,checkin_at,assurance) VALUES ('old','org-1',100,'fresh')").run();
+  const before = JSON.stringify(db.prepare("SELECT id,org_id,checkin_at,assurance FROM org_checkins").all());
+  db.exec(readFileSync(new URL("../migrations/2026-10-25-v6.7.0-signed-checkin.sql", import.meta.url), "utf8"));
+  assert.equal(JSON.stringify(db.prepare("SELECT id,org_id,checkin_at,assurance FROM org_checkins").all()), before);
+  assert.equal(db.prepare("SELECT out_of_hours FROM org_checkins WHERE id='old'").get().out_of_hours, 0, "old rows just read the default (no UPDATE, no backfill)");
+  const cols = db.prepare("PRAGMA table_info(org_checkin_quarantine)").all().map(c => c.name);
+  assert.deepEqual(cols, ["id", "org_id", "client_checkin_id", "reason", "signed_ts", "received_at", "body_json"]);
+  const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS org_checkin_quarantine \(id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT\)/);
+});
+
+test("the Worker makes its own quarantine table and out_of_hours column if the migration has not run yet", async () => {
+  const d1 = new D1();
+  d1.db.exec("DROP TABLE IF EXISTS org_checkin_quarantine");
+  const forged = await offline();
+  forged.helloSig = await (await newDevice()).sign(forged.helloHash);
+  assert.equal((await checkin(d1, forged)).status, 202);
+  assert.equal(d1.quarantined().length, 1);
 });
