@@ -21,7 +21,7 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 |---|---|---|
 | Bad signature | Refused, 401 | **Quarantined** (202, `org_checkin_quarantine`, `GET /org/checkin-quarantine`), visible notice on the phone, not counted (C8) |
 | No signature at all, before the cutoff (old cached page) | Accepted as `offline` (C15) | Accepted as `offline` (C15) |
-| No signature at all, after the cutoff | Refused, 401 | Quarantined |
+| No signature at all, after the cutoff | Refused, 401, unless the phone marks it as a queued replay: then quarantined (202), so the queue never meets a final error (C8) | Quarantined |
 | Missing, stale, used or unknown code (static QR, crowd mode too) | Accepted as `offline`; the code is evidence only (C6, C14) | Accepted as `offline` |
 | Live code, outside event times (30 min before start to end, UTC) | Refused, 403 `outside_event_times`, unless a staff-tier member (staff / manager / lead_admin / developer) sends a signed staff session for the same device key: accepted, flagged `out_of_hours` (C5) | n/a |
 | No live code, outside event times | Accepted as `offline`, flagged `out_of_hours` | Accepted as `offline`, flagged `out_of_hours` |
@@ -29,7 +29,7 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 
 **C15 cutoff.** Check-ins with no signature at all (old cached pages, or queued before this shipped) land as `offline` until the server date `CHECKIN_SIGNING_CUTOFF` (Worker var: unix seconds or an ISO date; built-in default 23 Nov 2026). A signature that is present but wrong is never covered by this.
 
-**GPS (C10).** Only a `near` / `far` / `none` band is stored and shown. No raw position and no GPS hash is kept; org receipts carry the band only.
+**GPS (C10).** Only a `near` / `far` / `none` band is stored and shown. No raw position and no GPS hash is kept: not on check-ins, not in receipts, not in quarantined bodies. Org receipts carry the band only.
 
 The phone's queue holds a check-in until it is past the live window (`not_before`), so a quick reconnect never meets the "already signed in" refusal. Doorman mode (`doorman_scan`) is unchanged: it rides on the staff session.
 

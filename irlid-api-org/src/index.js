@@ -4245,8 +4245,13 @@ async function quarantineCheckin(env, org, body, reason, t) {
   const cid = cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90);
   const id = cid ? `q_${org.id}_${cid}` : `q_${uuid()}`;
   const signedTs = Number(body.helloPayload?.ts);
+  // C10: no raw position is ever kept, not even as evidence. Drop it before
+  // the body is stored.
   let raw = "";
-  try { raw = JSON.stringify(body).slice(0, QUARANTINE_BODY_MAX); } catch (_) {}
+  try {
+    const { gps: _gps, gps_hash: _gpsHash, ...kept } = body || {};
+    raw = JSON.stringify(kept).slice(0, QUARANTINE_BODY_MAX);
+  } catch (_) {}
   await env.DB.prepare(
     "INSERT OR IGNORE INTO org_checkin_quarantine (id,org_id,client_checkin_id,reason,signed_ts,received_at,body_json) VALUES (?,?,?,?,?,?,?)"
   ).bind(id, org.id, cid || null, reason, Number.isFinite(signedTs) ? Math.floor(signedTs) : null, t, raw).run();
@@ -4278,7 +4283,8 @@ async function orgCheckin(request, env) {
   if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   // score and bioVerified are phone-reported: stored as reported, never used
-  // to accept a check-in. offline_queued is ignored entirely.
+  // to accept a check-in. offline_queued can only downgrade a refusal to a
+  // quarantine notice (C8), never accept or freshen a check-in.
   const { mode, helloPayload, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
   await ensureOrgCheckinNonceStorage(env);
   const checkinColumns = await tableColumnSet(env, "org_checkins");
@@ -4304,7 +4310,14 @@ async function orgCheckin(request, env) {
     live = !Number.isFinite(signedTs) || tNow - signedTs <= LIVE_CHECKIN_WINDOW_S;
     unsignedGrace = !signature.ok && signature.unsigned === true && tNow < checkinSigningCutoffS(env);
     if (!signature.ok && !unsignedGrace) {
-      if (live) return json({ error: "Check-in signature invalid", reason: signature.reason }, 401);
+      // C8: never send a final error on a path the queue replays. An UNSIGNED
+      // op the phone says was queued (old queue entry, after the cutoff) has no
+      // signed time to prove it is old, so it gets the quarantine notice (202),
+      // not a 401 the queue would treat as terminal. A signature that is
+      // present but wrong stays a 401 when live. The flag only ever downgrades:
+      // it never accepts a check-in or makes one fresh.
+      const queuedUnsigned = signature.unsigned === true && body.offline_queued === true;
+      if (live && !queuedUnsigned) return json({ error: "Check-in signature invalid", reason: signature.reason }, 401);
       return quarantineCheckin(env, org, body, signature.reason, tNow);
     }
     if (signature.ok) helloHash = signature.hash;

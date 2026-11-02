@@ -687,3 +687,34 @@ test("the Worker makes its own quarantine table and out_of_hours column if the m
   assert.equal((await checkin(d1, forged)).status, 202);
   assert.equal(d1.quarantined().length, 1);
 });
+
+test("C10: a quarantined check-in keeps no raw GPS position", async () => {
+  const d1 = new D1();
+  const gps = { lat: 48.8566, lon: 2.3522, acc_m: 8 };
+  const forged = await offline({ gps });
+  forged.helloSig = await (await newDevice()).sign(forged.helloHash);
+  assert.equal((await checkin(d1, forged)).status, 202);
+  const [q] = d1.quarantined();
+  assert.equal(q.body_json.includes("48.85"), false);
+  assert.equal(q.body_json.includes("2.352"), false);
+  assert.equal(JSON.parse(q.body_json).gps, undefined);
+  assert.equal(JSON.stringify(d1.db.prepare("SELECT payload_json FROM org_receipts").all()).includes("48.85"), false);
+});
+
+test("C8: a replay the phone marks as queued never gets a final 401; it is quarantined with a notice", async () => {
+  await withCutoff(nowS() - 10, async () => {
+    const d1 = new D1();
+    const unsigned = await live({ offline_queued: true }); delete unsigned.helloSig; delete unsigned.helloPayload; delete unsigned.helloHash;
+    const res = await checkin(d1, unsigned);
+    assert.equal(res.status, 202, JSON.stringify(res.body));
+    assert.equal(res.body.quarantined, true);
+    assert.equal(d1.checkins().length, 0, "the flag never gets anything accepted");
+    // Without the flag, an unsigned live check-in is still refused outright,
+    // and so is a live forgery even if it claims to be queued.
+    const noFlag = await live(); delete noFlag.helloSig; noFlag.client_checkin_id = "plain_unsigned";
+    assert.equal((await checkin(d1, noFlag)).status, 401);
+    const forged = await live({ offline_queued: true });
+    forged.helloSig = await (await newDevice()).sign(forged.helloHash);
+    assert.equal((await checkin(d1, forged)).status, 401);
+  });
+});
