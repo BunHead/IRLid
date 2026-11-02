@@ -627,7 +627,56 @@ async function linkCreate(request, env) {
   return json({ code: code, expires_at: expiresAt });
 }
 
+// Link-code guessing guard (docs/code-review-2026-10.md H4). A code is 6
+// digits and lives 5 minutes, so /auth/link/claim must not allow unlimited
+// guesses. Every claim attempt counts against the caller's IP, and every
+// failed one also counts against one platform-wide bucket, so many IPs
+// together still get only a few hundred guesses per window. Fails closed: if
+// the limiter itself errors, the claim is refused (security over convenience).
+const LINK_CLAIM_WINDOW_S = 600;
+const LINK_CLAIM_MAX_PER_IP = 10;
+const LINK_CLAIM_MAX_FAILS_GLOBAL = 300;
+
+async function linkClaimBucketFull(env, key, max) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS ip_rate_limits (k TEXT PRIMARY KEY, count INTEGER NOT NULL, created_at INTEGER NOT NULL)"
+  ).run();
+  const row = await env.DB.prepare("SELECT count FROM ip_rate_limits WHERE k=?").bind(key).first();
+  return !!row && Number(row.count) >= max;
+}
+
+async function linkClaimBump(env, key) {
+  await env.DB.prepare(
+    "INSERT INTO ip_rate_limits (k, count, created_at) VALUES (?,1,?) ON CONFLICT(k) DO UPDATE SET count=count+1"
+  ).bind(key, now()).run();
+}
+
+function linkClaimKeys(request) {
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const bucket = Math.floor(now() / LINK_CLAIM_WINDOW_S);
+  return { ipKey: `link_claim|${ip}|${bucket}`, globalKey: `link_claim_fail|global|${bucket}` };
+}
+
 async function linkClaim(request, env) {
+  let keys;
+  try {
+    keys = linkClaimKeys(request);
+    if (await linkClaimBucketFull(env, keys.ipKey, LINK_CLAIM_MAX_PER_IP)
+        || await linkClaimBucketFull(env, keys.globalKey, LINK_CLAIM_MAX_FAILS_GLOBAL)) {
+      return err("Too many attempts. Wait a few minutes and try again.", 429);
+    }
+    await linkClaimBump(env, keys.ipKey);
+  } catch (_) {
+    return err("Linking is unavailable right now. Try again shortly.", 503);
+  }
+  const response = await linkClaimInner(request, env);
+  if (response.status >= 400) {
+    try { await linkClaimBump(env, keys.globalKey); } catch (_) {}
+  }
+  return response;
+}
+
+async function linkClaimInner(request, env) {
   let body;
   try { body = await request.json(); } catch { return err("Invalid JSON body"); }
   const { code, pub_jwk } = body;
