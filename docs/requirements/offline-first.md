@@ -25,9 +25,13 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 | Missing, stale, used or unknown code (static QR, crowd mode too) | Accepted as `offline`; the code is evidence only (C6, C14) | Accepted as `offline` |
 | Live code, outside event times (30 min before start to end, UTC) | Refused, 403 `outside_event_times`, unless a staff-tier member (staff / manager / lead_admin / developer) sends a signed staff session for the same device key: accepted, flagged `out_of_hours` (C5) | n/a |
 | No live code, outside event times | Accepted as `offline`, flagged `out_of_hours` | Accepted as `offline`, flagged `out_of_hours` |
-| Already checked in (no check-out yet) | 409 `already_checked_in`: phone shows "Already signed in" and offers check-out; the code is not used up (C4) | 60 s duplicate guard, otherwise recorded |
+| Already checked in (no check-out yet) | 409 `already_checked_in`: phone shows "Already signed in" and offers check-out; the code is not used up (C4) | Same device and event, scanned within 6 h of an earlier check-in that was not checked out before it: returned as a duplicate, not counted twice (C13). A visit after a check-out, or on another day, is recorded |
 
 **C15 cutoff.** Check-ins with no signature at all (old cached pages, or queued before this shipped) land as `offline` until the server date `CHECKIN_SIGNING_CUTOFF` (Worker var: unix seconds or an ISO date; built-in default 23 Nov 2026). A signature that is present but wrong is never covered by this.
+
+**Clock gap (C12).** Every signed check-in keeps `clock_gap_s` (Worker arrival time minus the phone's signed time). A phone time more than 1 h before arrival, or more than 60 s after it, is flagged `clock_gap` on the response and the receipt. Flagged, never refused. Telling a slow sync from a wrong clock needs a second clock (C16).
+
+**Quarantine cap.** Each org stores at most 200 quarantined bodies per UTC day. Past that the phone still gets the same 202 notice (C8), the body is not stored, and the day's count goes into `org_checkin_quarantine_overflow` (`not_stored` in `GET /org/checkin-quarantine`). Fakes are never counted as check-ins either way (S1).
 
 **GPS (C10).** Only a `near` / `far` / `none` band is stored and shown. No raw position and no GPS hash is kept: not on check-ins, not in receipts, not in quarantined bodies. Org receipts carry the band only.
 
@@ -65,3 +69,4 @@ The phone's queue holds a check-in until it is past the live window (`not_before
 - [ ] Static QR and doorman mode still work offline.
 - [ ] A queued check-in replayed late is not dropped.
 - [ ] Offline check-ins are visibly marked, not passed off as live-verified.
+- [ ] One visit replayed under a new check-in id is not counted twice (C13).

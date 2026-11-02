@@ -44,7 +44,7 @@ class D1 {
     this.db = new DatabaseSync(":memory:");
     this.db.exec(`
       CREATE TABLE organisations (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, api_key TEXT NOT NULL UNIQUE, venue_pub_jwk TEXT, venue_prv_jwk TEXT, settings_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER DEFAULT 0);
+      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER);
       CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
       CREATE TABLE org_receipts (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, checkin_id TEXT, attendee_pub_fp TEXT, payload_json TEXT NOT NULL, signature TEXT NOT NULL, created_at INTEGER NOT NULL, privacy_mode INTEGER DEFAULT 1);
       CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id TEXT NOT NULL, display_name TEXT, initials TEXT, role_key TEXT, device_pub_fp TEXT, email_hint TEXT, phone_hint TEXT, notes TEXT, created_at INTEGER, archived_at INTEGER);
@@ -717,4 +717,116 @@ test("C8: a replay the phone marks as queued never gets a final 401; it is quara
     forged.helloSig = await (await newDevice()).sign(forged.helloHash);
     assert.equal((await checkin(d1, forged)).status, 401);
   });
+});
+
+// ---- v6.7.1 hardening -------------------------------------------------------
+
+test("quarantine flood: past the daily cap the phone still gets the 202 notice, but rows stop growing and the overflow is counted", async () => {
+  const d1 = new D1();
+  const forger = await newDevice();
+  const send = async (i) => {
+    const body = await offline({ client_checkin_id: "flood_" + i });
+    body.helloSig = await forger.sign(body.helloHash); // wrong key for hello.pub
+    return checkin(d1, body);
+  };
+  // Pre-fill to just under the cap directly, to keep the test quick.
+  d1.db.exec("CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)");
+  const ins = d1.db.prepare("INSERT INTO org_checkin_quarantine (id,org_id,client_checkin_id,reason,signed_ts,received_at,body_json) VALUES (?,?,?,?,?,?,?)");
+  for (let i = 0; i < 199; i += 1) ins.run("q_pre_" + i, "org-1", "pre_" + i, "bad_signature", nowS() - 600, nowS(), "{}");
+  const atCap = await send(1);
+  assert.equal(atCap.status, 202);
+  assert.equal(d1.quarantined().length, 200, "the 200th row is stored");
+  for (const i of [2, 3, 4]) {
+    const res = await send(i);
+    assert.equal(res.status, 202, "never a final error (C8)");
+    assert.equal(res.body.quarantined, true);
+    assert.match(res.body.notice, /could not be verified/);
+  }
+  assert.equal(d1.quarantined().length, 200, "no more rows stored past the cap");
+  assert.equal(d1.checkins().length, 0, "fakes never counted (S1)");
+  const list = await call(d1, "GET", "/org/checkin-quarantine");
+  assert.equal(list.body.daily_cap, 200);
+  assert.equal(list.body.not_stored.length, 1);
+  assert.equal(list.body.not_stored[0].count, 3);
+  // Another org's cap is its own.
+  const other = await signedCheckinBody({ org: OTHER_KEY, ts: nowS() - 600 });
+  other.helloSig = await forger.sign(other.helloHash);
+  assert.equal((await call(d1, "POST", "/org/checkin", other, OTHER_KEY)).status, 202);
+  assert.equal(d1.quarantined().filter(q => q.org_id === "org-2").length, 1);
+});
+
+test("C13: the same visit replayed offline under a new check-in id is not double-counted, even hours late", async () => {
+  const d1 = new D1();
+  const device = await newDevice();
+  const first = await offline({ device, event_id: "ev-open", client_checkin_id: "visit_a" }, 3 * 3600);
+  const firstRes = await checkin(d1, first);
+  assert.equal(firstRes.status, 200, JSON.stringify(firstRes.body));
+  // Same phone, same event, scanned 5 minutes later, synced later still.
+  const again = await offline({ device, event_id: "ev-open", client_checkin_id: "visit_b" }, 3 * 3600 - 300);
+  const againRes = await checkin(d1, again);
+  assert.equal(againRes.status, 200);
+  assert.equal(againRes.body.duplicate, true);
+  assert.equal(againRes.body.checkin_id, "visit_a");
+  assert.equal(d1.checkins().length, 1, "one visit, one row");
+});
+
+test("C13: a real later visit (after a check-out, or on another day) is still recorded, never lost", async () => {
+  const d1 = new D1();
+  const device = await newDevice();
+  const first = await offline({ device, event_id: "ev-open", client_checkin_id: "day_1" }, 2 * DAY);
+  assert.equal((await checkin(d1, first)).status, 200);
+  // Another day, no check-out recorded: outside the window, so a new visit.
+  const nextDay = await offline({ device, event_id: "ev-open", client_checkin_id: "day_2" }, 2 * DAY - DAY);
+  const nextRes = await checkin(d1, nextDay);
+  assert.equal(nextRes.body.duplicate, undefined);
+  assert.equal(d1.checkins().length, 2);
+  // Same day, but after a check-out: a new visit too.
+  d1.db.prepare("UPDATE org_checkins SET checkout_at=checkin_at+600 WHERE id='day_2'").run();
+  const back = await offline({ device, event_id: "ev-open", client_checkin_id: "day_2_back" }, DAY - 3600);
+  const backRes = await checkin(d1, back);
+  assert.equal(backRes.body.duplicate, undefined);
+  assert.equal(d1.checkins().length, 3);
+});
+
+test("C12: phone time is recorded with its gap from arrival; big gaps are flagged, never refused", async () => {
+  const d1 = new D1();
+  // Synced 3 hours after the phone says it scanned: flagged.
+  const late = await offline({}, 3 * 3600);
+  const lateRes = await checkin(d1, late);
+  assert.equal(lateRes.status, 200);
+  assert.equal(lateRes.body.assurance, "offline");
+  assert.equal(lateRes.body.clock_gap, true);
+  assert.ok(lateRes.body.clock_gap_s >= 3 * 3600 - 5);
+  assert.equal(lateRes.body.receipt?.clock_gap, true, "the signed receipt carries the flag");
+  // Phone clock well ahead of the Worker: flagged, recorded at the Worker's time at most.
+  const ahead = await live({ ts: nowS() + 900 });
+  const aheadRes = await checkin(d1, ahead);
+  assert.equal(aheadRes.status, 200, JSON.stringify(aheadRes.body));
+  assert.equal(aheadRes.body.clock_gap, true);
+  assert.ok(aheadRes.body.clock_gap_s < 0);
+  assert.ok(aheadRes.body.checkin_at <= nowS());
+  // A normal live scan: gap stored, not flagged.
+  const nonce = await issueNonce(d1);
+  const fresh = await live({ nonce });
+  const freshRes = await checkin(d1, fresh);
+  assert.equal(freshRes.body.assurance, "fresh");
+  assert.equal(freshRes.body.clock_gap, undefined);
+  const rows = d1.checkins();
+  assert.equal(rows.length, 3);
+  assert.ok(rows.every(r => Number.isInteger(r.clock_gap_s)), "gap kept on every signed check-in");
+});
+
+test("R4: the v6.7.1 migration only adds, keeps old rows as they were, and matches schema.sql", async () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT, checkin_at INTEGER, assurance TEXT)");
+  db.prepare("INSERT INTO org_checkins (id,org_id,checkin_at,assurance) VALUES ('old','org-1',100,'fresh')").run();
+  const before = JSON.stringify(db.prepare("SELECT id,org_id,checkin_at,assurance FROM org_checkins").all());
+  db.exec(readFileSync(new URL("../migrations/2026-11-02-v6.7.1-checkin-hardening.sql", import.meta.url), "utf8"));
+  assert.equal(JSON.stringify(db.prepare("SELECT id,org_id,checkin_at,assurance FROM org_checkins").all()), before);
+  assert.equal(db.prepare("SELECT clock_gap_s FROM org_checkins WHERE id='old'").get().clock_gap_s, null, "no backfill");
+  const cols = db.prepare("PRAGMA table_info(org_checkin_quarantine_overflow)").all().map(c => c.name);
+  assert.deepEqual(cols, ["org_id", "day", "count"]);
+  const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
+  assert.match(schema, /out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER\);/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS org_checkin_quarantine_overflow \(org_id TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY \(org_id, day\)\);/);
 });

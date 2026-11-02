@@ -3434,6 +3434,7 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
     action: options?.action || "in",
     assurance: checkinRow.assurance || null,
     ...(checkinRow.out_of_hours ? { out_of_hours: true } : {}),
+    ...(checkinRow.clock_gap ? { clock_gap: true, clock_gap_s: Number(checkinRow.clock_gap_s) } : {}),
     score: Number(checkinRow.score || options?.score || 70),
     bioVerified: !!(checkinRow.bio_verified || options?.bioVerified)
   };
@@ -4136,6 +4137,14 @@ const LIVE_CHECKIN_WINDOW_S = 120;
 const EVENT_EARLY_CHECKIN_MIN = 30;
 const STAFF_TIER_ROLES = new Set(["staff", "manager", "lead_admin", "developer"]);
 const QUARANTINE_BODY_MAX = 4096;
+// C13: an offline check-in from the same device and event within this many
+// seconds of an earlier, not-yet-checked-out one is the same visit.
+const OFFLINE_DUPLICATE_WINDOW_S = 6 * 3600;
+// C12: the phone signs its own time; the Worker notes when it arrived. A phone
+// time more than CLOCK_GAP_BEHIND_S before arrival, or more than
+// CLOCK_GAP_AHEAD_S after it, is flagged (recorded, never refused).
+const CLOCK_GAP_BEHIND_S = 3600;
+const CLOCK_GAP_AHEAD_S = 60;
 // C15: when the signing requirement shipped, check-ins from old cached pages or
 // already queued on phones carry no signature. Until this server date they
 // land as "offline / unverified"; after it the signature is required. Set the
@@ -4235,13 +4244,49 @@ async function consumeLiveCode(env, nonce, crowd, t) {
   return null;
 }
 
+// Quarantine flood guard. /org/checkin is reachable with the public slug, so a
+// stranger could post endless bad-signature bodies. Each org keeps at most
+// QUARANTINE_DAILY_CAP stored rows per UTC day; past that, the phone still
+// gets the same 202 notice (C8: never a final error) and the day's overflow
+// count goes up, so staff see how many more arrived. Fakes are never counted
+// as check-ins either way (S1).
+const QUARANTINE_DAILY_CAP = 200;
+
+async function ensureQuarantineStorage(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)"
+  ).run();
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine_overflow (org_id TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (org_id, day))"
+  ).run();
+}
+
+function quarantineDay(t) {
+  return new Date(t * 1000).toISOString().slice(0, 10);
+}
+
 // Offline replay with a bad or missing signature: kept, never dropped, never
 // counted as a check-in. 202 so the phone's queue stops retrying it and shows
 // a notice; staff can list them via GET /org/checkin-quarantine.
 async function quarantineCheckin(env, org, body, reason, t) {
-  await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)"
-  ).run();
+  await ensureQuarantineStorage(env);
+  const notice = json({
+    quarantined: true,
+    reason,
+    client_checkin_id: cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90) || null,
+    notice: "This offline check-in could not be verified (bad or missing signature). It was kept for staff to review and was not counted."
+  }, 202);
+  const day = quarantineDay(t);
+  const dayStart = Math.floor(Date.parse(day + "T00:00:00Z") / 1000);
+  const stored = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM org_checkin_quarantine WHERE org_id=? AND received_at>=?"
+  ).bind(org.id, dayStart).first();
+  if (Number(stored?.n || 0) >= QUARANTINE_DAILY_CAP) {
+    await env.DB.prepare(
+      "INSERT INTO org_checkin_quarantine_overflow (org_id,day,count) VALUES (?,?,1) ON CONFLICT(org_id,day) DO UPDATE SET count=count+1"
+    ).bind(org.id, day).run();
+    return notice;
+  }
   const cid = cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90);
   const id = cid ? `q_${org.id}_${cid}` : `q_${uuid()}`;
   const signedTs = Number(body.helloPayload?.ts);
@@ -4255,23 +4300,19 @@ async function quarantineCheckin(env, org, body, reason, t) {
   await env.DB.prepare(
     "INSERT OR IGNORE INTO org_checkin_quarantine (id,org_id,client_checkin_id,reason,signed_ts,received_at,body_json) VALUES (?,?,?,?,?,?,?)"
   ).bind(id, org.id, cid || null, reason, Number.isFinite(signedTs) ? Math.floor(signedTs) : null, t, raw).run();
-  return json({
-    quarantined: true,
-    reason,
-    client_checkin_id: cid || null,
-    notice: "This offline check-in could not be verified (bad or missing signature). It was kept for staff to review and was not counted."
-  }, 202);
+  return notice;
 }
 
 async function orgCheckinQuarantineList(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
-  await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)"
-  ).run();
+  await ensureQuarantineStorage(env);
   const rows = await env.DB.prepare(
     "SELECT id,client_checkin_id,reason,signed_ts,received_at FROM org_checkin_quarantine WHERE org_id=? ORDER BY received_at DESC LIMIT 200"
   ).bind(org.id).all();
-  return json({ quarantined: rows.results || [] });
+  const overflow = await env.DB.prepare(
+    "SELECT day,count FROM org_checkin_quarantine_overflow WHERE org_id=? AND count>0 ORDER BY day DESC LIMIT 30"
+  ).bind(org.id).all();
+  return json({ quarantined: rows.results || [], not_stored: overflow.results || [], daily_cap: QUARANTINE_DAILY_CAP });
 }
 
 async function orgCheckin(request, env) {
@@ -4429,12 +4470,18 @@ async function orgCheckin(request, env) {
       const scanTs = signedTs !== null ? Math.min(signedTs, tNow) : tNow;
       if (eventRow && !eventWindowContains(eventRow, scanTs)) outOfHours = true;
       if (attendeeDeviceFp) {
+        // C13 / C4: never double-count one visit. An offline check-in keeps
+        // the phone's scan time, so compare against that (not the Worker's
+        // clock): the same device and event, scanned within
+        // OFFLINE_DUPLICATE_WINDOW_S either side, and not checked out before
+        // this scan, is the same visit. A visit after a check-out, or on
+        // another day, is a real new check-in and is recorded.
         const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
         const duplicate = await env.DB.prepare(
-          `SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkin_at>=? ORDER BY checkin_at DESC LIMIT 1`
+          `SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkin_at>=? AND checkin_at<=? AND (checkout_at IS NULL OR checkout_at>=?) AND COALESCE(status,'checked_in') NOT IN ('invalid') ORDER BY checkin_at DESC LIMIT 1`
         ).bind(...(eventRow?.id
-          ? [org.id, attendeeDeviceFp, eventRow.id, tNow - 60]
-          : [org.id, attendeeDeviceFp, tNow - 60])).first();
+          ? [org.id, attendeeDeviceFp, eventRow.id, scanTs - OFFLINE_DUPLICATE_WINDOW_S, scanTs + OFFLINE_DUPLICATE_WINDOW_S, scanTs]
+          : [org.id, attendeeDeviceFp, scanTs - OFFLINE_DUPLICATE_WINDOW_S, scanTs + OFFLINE_DUPLICATE_WINDOW_S, scanTs])).first();
         if (duplicate) {
           return json({
             checkin_id: duplicate.id,
@@ -4457,6 +4504,10 @@ async function orgCheckin(request, env) {
   // Live check-ins use the Worker's clock; an offline replay keeps the phone's
   // signed scan time (never in the future) and the Worker's received time.
   const t = mode === "attendee_scan" && assurance !== "fresh" && signedTs !== null ? Math.min(signedTs, tNow) : tNow;
+  // C12: phone time is recorded and flagged, never trusted. clock_gap_s is
+  // arrival minus the phone's signed time (positive: phone time is earlier).
+  const clockGapS = mode === "attendee_scan" && signedTs !== null ? tNow - signedTs : null;
+  const clockGap = clockGapS !== null && (clockGapS > CLOCK_GAP_BEHIND_S || clockGapS < -CLOCK_GAP_AHEAD_S);
   // C10: GPS only flags near / far / none. No raw position and no GPS hash is
   // kept: the band below is all that is stored.
   const gpsHash = null;
@@ -4519,6 +4570,10 @@ async function orgCheckin(request, env) {
     insertColumns.push("gps_distance_km");
     insertValues.push(gpsDistanceKm);
   }
+  if (checkinColumns.has("clock_gap_s")) {
+    insertColumns.push("clock_gap_s");
+    insertValues.push(clockGapS);
+  }
   if (checkinColumns.has("out_of_hours")) {
     insertColumns.push("out_of_hours");
     insertValues.push(outOfHours ? 1 : 0);
@@ -4561,6 +4616,8 @@ async function orgCheckin(request, env) {
       expected_id: expectedId,
       assurance,
       out_of_hours: outOfHours ? 1 : 0,
+      clock_gap_s: clockGapS,
+      clock_gap: clockGap,
       gps_band: gpsBand,
       gps_distance_km: gpsDistanceKm
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
@@ -4578,6 +4635,7 @@ async function orgCheckin(request, env) {
     settings,
     ...(assurance ? { assurance } : {}),
     ...(outOfHours ? { out_of_hours: true } : {}),
+    ...(clockGap ? { clock_gap: true, clock_gap_s: clockGapS } : {}),
     ...(gpsBand ? { gps_band: gpsBand } : {}),
     ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
@@ -4591,7 +4649,7 @@ async function ensureOrgCheckinNonceStorage(env) {
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
   const columns = await tableColumnSet(env, "org_checkins");
-  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"], ["out_of_hours", "INTEGER"]]) {
+  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"], ["out_of_hours", "INTEGER"], ["clock_gap_s", "INTEGER"]]) {
     if (columns.has(col)) continue;
     try {
       await env.DB.prepare(`ALTER TABLE org_checkins ADD COLUMN ${col} ${type}`).run();
