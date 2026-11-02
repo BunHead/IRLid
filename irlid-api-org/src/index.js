@@ -3433,24 +3433,14 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
     },
     action: options?.action || "in",
     assurance: checkinRow.assurance || null,
+    ...(checkinRow.out_of_hours ? { out_of_hours: true } : {}),
+    ...(checkinRow.clock_gap ? { clock_gap: true, clock_gap_s: Number(checkinRow.clock_gap_s) } : {}),
     score: Number(checkinRow.score || options?.score || 70),
     bioVerified: !!(checkinRow.bio_verified || options?.bioVerified)
   };
 
-  const gps = options?.gps;
-  if (gps && Number.isFinite(Number(gps.lat)) && Number.isFinite(Number(gps.lon))) {
-    const gpsObj = {
-      lat: Number(gps.lat),
-      lon: Number(gps.lon),
-      acc_m: Number.isFinite(Number(gps.acc_m ?? gps.acc ?? gps.accuracy)) ? Number(gps.acc_m ?? gps.acc ?? gps.accuracy) : null
-    };
-    // Venue GPS rule: the raw phone position is never stored, so the receipt
-    // only ever carries its hash (plus the server-computed gps_band below),
-    // whatever privacyMode says.
-    payload.gps_hash = await sha256B64url(canonical(gpsObj));
-  } else if (checkinRow.gps_hash) {
-    payload.gps_hash = checkinRow.gps_hash;
-  }
+  // C10 / R8: an org receipt carries only the server-computed GPS band
+  // (below), never the phone's position and never a hash of it.
 
   // v6.4.21 — org-attested venue details (Captain's 2 Jul call). A receipt
   // with no GPS used to give the verifier a dead end; now it carries the
@@ -4130,18 +4120,217 @@ async function checkinModeStatement(env, ev, orgId) {
     .bind(ev.checkin_mode, ev.id, orgId);
 }
 
+// Signed check-in (docs/requirements/offline-first.md, "Check-in signature
+// rules"; docs/rules.md v3.1: S1, S13, C2, C6, C8, C14, C15). The phone signs
+// its check-in hello with its device key; the Worker recomputes the hash and
+// verifies the signature against hello.pub.
+//
+// Freshness is the server's call, never a phone flag (offline_queued is
+// ignored). Only a live, unused code the Worker itself issued makes a check-in
+// "fresh". Everything else (no code, a stale / used / unknown code, a queued
+// replay, or a hello signed long ago) is accepted as "offline / unverified"
+// and never refused (C2, C6, C14). The signature is always checked (S1): a
+// bad one is refused live, or quarantined with a notice when it syncs later
+// (C8). The phone's clock can only downgrade a check-in, never make it fresh.
+const LIVE_CHECKIN_WINDOW_S = 120;
+// A live check-in for a scheduled event opens this long before its start.
+const EVENT_EARLY_CHECKIN_MIN = 30;
+const STAFF_TIER_ROLES = new Set(["staff", "manager", "lead_admin", "developer"]);
+const QUARANTINE_BODY_MAX = 4096;
+// C13: an offline check-in from the same device and event within this many
+// seconds of an earlier, not-yet-checked-out one is the same visit.
+const OFFLINE_DUPLICATE_WINDOW_S = 6 * 3600;
+// C12: the phone signs its own time; the Worker notes when it arrived. A phone
+// time more than CLOCK_GAP_BEHIND_S before arrival, or more than
+// CLOCK_GAP_AHEAD_S after it, is flagged (recorded, never refused).
+const CLOCK_GAP_BEHIND_S = 3600;
+const CLOCK_GAP_AHEAD_S = 60;
+// C15: when the signing requirement shipped, check-ins from old cached pages or
+// already queued on phones carry no signature. Until this server date they
+// land as "offline / unverified"; after it the signature is required. Set the
+// Worker var CHECKIN_SIGNING_CUTOFF (unix seconds, or an ISO date) to change it.
+// Spencer, 2 Nov 2026: no one was using check-in before signing shipped, so
+// there are no old cached pages or queued unsigned check-ins to protect. The
+// cutoff is the day it shipped: no grace, and a public key alone never signs
+// anyone in (S2). Set CHECKIN_SIGNING_CUTOFF to reopen a grace period.
+const CHECKIN_SIGNING_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 10, 2) / 1000); // 2 Nov 2026
+function checkinSigningCutoffS(env) {
+  const raw = env && env.CHECKIN_SIGNING_CUTOFF;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber)) return asNumber;
+    const asDate = Date.parse(String(raw));
+    if (Number.isFinite(asDate)) return Math.floor(asDate / 1000);
+  }
+  return CHECKIN_SIGNING_CUTOFF_DEFAULT_S;
+}
+
+function orgRefMatches(org, ref) {
+  const r = String(ref || "").trim();
+  if (!r) return false;
+  return r === org.api_key || r === org.id || r.toLowerCase() === String(org.slug || "").toLowerCase();
+}
+
+// Checks the device signature and that the signed hello is bound to this
+// request (org, check-in id, event, live code). Returns { ok, reason, ts, hash, unsigned }
+// (unsigned: no signature was sent at all, as from an old cached page).
+async function verifyCheckinSignature(org, body) {
+  const hello = body.helloPayload;
+  const sig = typeof body.helloSig === "string" ? body.helloSig.trim() : "";
+  if (!hello || typeof hello !== "object") return { ok: false, reason: "missing_signed_hello", ts: null, unsigned: true };
+  const signedTs = Number(hello.ts);
+  const ts = Number.isFinite(signedTs) && signedTs > 0 ? Math.floor(signedTs) : null;
+  if (!sig) return { ok: false, reason: "missing_signature", ts, unsigned: true };
+  const pub = normaliseDevicePubJwk(hello.pub);
+  if (!pub) return { ok: false, reason: "bad_public_key", ts };
+  const hash = await hashPayloadToB64url(hello, 3);
+  if (body.helloHash && body.helloHash !== hash) return { ok: false, reason: "hash_mismatch", ts };
+  if (!(await verifySig(hash, sig, pub))) return { ok: false, reason: "bad_signature", ts };
+  if (ts === null) return { ok: false, reason: "bad_timestamp", ts };
+  if (hello.mode !== "attendee_scan" || !orgRefMatches(org, hello.org)) return { ok: false, reason: "signed_for_other_org", ts };
+  if (String(hello.cid || "") !== String(body.client_checkin_id || "")) return { ok: false, reason: "checkin_id_not_signed", ts };
+  if (String(hello.event_id || "") !== String(body.event_id || "")) return { ok: false, reason: "event_not_signed", ts };
+  if (body.nonce && String(hello.nonce || "") !== String(body.nonce)) return { ok: false, reason: "code_not_signed", ts };
+  return { ok: true, ts, hash };
+}
+
+// Weekly event window (UTC, like the rest of the calendar): from
+// EVENT_EARLY_CHECKIN_MIN before the start to the end. An event with no usable
+// schedule has no window to enforce.
+function eventWindowContains(eventRow, ts) {
+  const day = Number(eventRow?.day_of_week);
+  const durationMin = Number(eventRow?.duration_min);
+  const parts = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(eventRow?.start_time_local || ""));
+  if (!parts || !Number.isInteger(day) || day < 1 || day > 7 || !Number.isFinite(durationMin) || durationMin < 1) return true;
+  const at = new Date(ts * 1000);
+  const dow = at.getUTCDay() === 0 ? 7 : at.getUTCDay();
+  for (const weekShift of [-7, 0, 7]) {
+    const start = Math.floor(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate() + (day - dow) + weekShift, Number(parts[1]), Number(parts[2])) / 1000);
+    if (ts >= start - EVENT_EARLY_CHECKIN_MIN * 60 && ts <= start + Math.floor(durationMin) * 60) return true;
+  }
+  return false;
+}
+
+// A staff-tier member checking themselves in with a signed staff session
+// (POST /org/staff/auth) for the same device key may check in at any time.
+async function staffSessionForDevice(env, org, token, deviceFp) {
+  const id = String(token || "").trim();
+  if (!id || !deviceFp) return null;
+  const session = await env.DB.prepare(
+    "SELECT id, staff_pub_fp, expires_at FROM org_staff_sessions WHERE id=? AND org_id=?"
+  ).bind(id, org.id).first();
+  if (!session || Number(session.expires_at) <= now() || session.staff_pub_fp !== deviceFp) return null;
+  const role = await roleForStaffPubFp(env, org, session.staff_pub_fp);
+  return STAFF_TIER_ROLES.has(role) ? { role } : null;
+}
+
+// Looks a live code up without consuming it. Returns null if it is usable,
+// else the refusal.
+async function checkLiveCode(env, org, nonce, eventId, crowd, t) {
+  const row = await env.DB.prepare(
+    "SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
+  ).bind(nonce).first();
+  const used = row && row.consumed_at !== null && row.consumed_at !== undefined;
+  if (!row || row.org_api_key !== org.api_key) return err("Check-in nonce not found", 404);
+  if (String(row.event_id || "") !== String(eventId || "")) return err("Check-in nonce not found", 404);
+  // A crowd code stays usable for CROWD_CODE_GRACE_S after its first use.
+  if (used && !(crowd && Number(row.consumed_at) >= t - CROWD_CODE_GRACE_S)) return err("Check-in nonce already used", 409);
+  if (Number(row.expires_at) <= t) return err("Check-in nonce expired", 410);
+  return null;
+}
+
+async function consumeLiveCode(env, nonce, crowd, t) {
+  const consumed = await env.DB.prepare(
+    "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
+  ).bind(t, nonce).run();
+  // A crowd code claimed by someone else a moment ago is still in grace.
+  if (Number(consumed.meta?.changes || 0) !== 1 && !crowd) return err("Check-in nonce already used", 409);
+  return null;
+}
+
+// Quarantine flood guard. /org/checkin is reachable with the public slug, so a
+// stranger could post endless bad-signature bodies. Each org keeps at most
+// QUARANTINE_DAILY_CAP stored rows per UTC day; past that, the phone still
+// gets the same 202 notice (C8: never a final error) and the day's overflow
+// count goes up, so staff see how many more arrived. Fakes are never counted
+// as check-ins either way (S1).
+const QUARANTINE_DAILY_CAP = 200;
+
+async function ensureQuarantineStorage(env) {
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)"
+  ).run();
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_quarantine_overflow (org_id TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (org_id, day))"
+  ).run();
+}
+
+function quarantineDay(t) {
+  return new Date(t * 1000).toISOString().slice(0, 10);
+}
+
+// Offline replay with a bad or missing signature: kept, never dropped, never
+// counted as a check-in. 202 so the phone's queue stops retrying it and shows
+// a notice; staff can list them via GET /org/checkin-quarantine.
+async function quarantineCheckin(env, org, body, reason, t) {
+  await ensureQuarantineStorage(env);
+  const notice = json({
+    quarantined: true,
+    reason,
+    client_checkin_id: cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90) || null,
+    notice: "This offline check-in could not be verified (bad or missing signature). It was kept for staff to review and was not counted."
+  }, 202);
+  const day = quarantineDay(t);
+  const dayStart = Math.floor(Date.parse(day + "T00:00:00Z") / 1000);
+  const stored = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM org_checkin_quarantine WHERE org_id=? AND received_at>=?"
+  ).bind(org.id, dayStart).first();
+  if (Number(stored?.n || 0) >= QUARANTINE_DAILY_CAP) {
+    await env.DB.prepare(
+      "INSERT INTO org_checkin_quarantine_overflow (org_id,day,count) VALUES (?,?,1) ON CONFLICT(org_id,day) DO UPDATE SET count=count+1"
+    ).bind(org.id, day).run();
+    return notice;
+  }
+  const cid = cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90);
+  const id = cid ? `q_${org.id}_${cid}` : `q_${uuid()}`;
+  const signedTs = Number(body.helloPayload?.ts);
+  // C10: no raw position is ever kept, not even as evidence. Drop it before
+  // the body is stored.
+  let raw = "";
+  try {
+    const { gps: _gps, gps_hash: _gpsHash, ...kept } = body || {};
+    raw = JSON.stringify(kept).slice(0, QUARANTINE_BODY_MAX);
+  } catch (_) {}
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO org_checkin_quarantine (id,org_id,client_checkin_id,reason,signed_ts,received_at,body_json) VALUES (?,?,?,?,?,?,?)"
+  ).bind(id, org.id, cid || null, reason, Number.isFinite(signedTs) ? Math.floor(signedTs) : null, t, raw).run();
+  return notice;
+}
+
+async function orgCheckinQuarantineList(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  await ensureQuarantineStorage(env);
+  const rows = await env.DB.prepare(
+    "SELECT id,client_checkin_id,reason,signed_ts,received_at FROM org_checkin_quarantine WHERE org_id=? ORDER BY received_at DESC LIMIT 200"
+  ).bind(org.id).all();
+  const overflow = await env.DB.prepare(
+    "SELECT day,count FROM org_checkin_quarantine_overflow WHERE org_id=? AND count>0 ORDER BY day DESC LIMIT 30"
+  ).bind(org.id).all();
+  return json({ quarantined: rows.results || [], not_stored: overflow.results || [], daily_cap: QUARANTINE_DAILY_CAP });
+}
+
 async function orgCheckin(request, env) {
   // v6.4.4 — QR diet PR-3 (QR-SLIMMING-SPEC.md): the attendee check-in path
   // accepts org slug (or id) as well as api_key, so slim venue QRs never carry
-  // the api_key. Security-neutral here — every attendee already held the key
-  // via the old fat QR — and security-positive everywhere else orgAuth gates.
-  // recognize / active-checkin already resolve via orgFromRequest; this brings
-  // check-in in line. The doorman_scan path inside still demands a valid
-  // staff_session, unchanged.
+  // the api_key. The attendee path is gated by the device signature below;
+  // the doorman_scan path still demands a valid staff_session, unchanged.
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
-  const { mode, helloPayload, helloHash, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
+  // score and bioVerified are phone-reported: stored as reported, never used
+  // to accept a check-in. offline_queued can only downgrade a refusal to a
+  // quarantine notice (C8), never accept or freshen a check-in.
+  const { mode, helloPayload, attendeeLabel, name, score, bioVerified, gps, staff_session } = body;
   await ensureOrgCheckinNonceStorage(env);
   const checkinColumns = await tableColumnSet(env, "org_checkins");
   const hasEventIdColumn = checkinColumns.has("event_id");
@@ -4152,95 +4341,57 @@ async function orgCheckin(request, env) {
     const staffError = await requireDevOrStaffSession(request, env, org, staff_session);
     if (staffError) return staffError;
   }
-  let nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
-  const nonceNow = now();
-  let assurance = null;
-  if (mode === "attendee_scan" && nonce) {
-    const crowd = await isCrowdEvent(env, org.id, eventId);
-    const nonceRow = await env.DB.prepare(
-      "SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
-    ).bind(nonce).first();
-    const used = nonceRow && nonceRow.consumed_at !== null && nonceRow.consumed_at !== undefined;
-    let nonceError = null;
-    if (!nonceRow || nonceRow.org_api_key !== org.api_key) nonceError = err("Check-in nonce not found", 404);
-    else if (String(nonceRow.event_id || "") !== String(eventId || "")) nonceError = err("Check-in nonce not found", 404);
-    else if (used && !(crowd && Number(nonceRow.consumed_at) >= nonceNow - CROWD_CODE_GRACE_S)) nonceError = err("Check-in nonce already used", 409);
-    else if (Number(nonceRow.expires_at) <= nonceNow) nonceError = err("Check-in nonce expired", 410);
-    else if (!used) {
-      const consumed = await env.DB.prepare(
-        "UPDATE org_checkin_nonces SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL"
-      ).bind(nonceNow, nonce).run();
-      // A crowd code claimed by someone else a moment ago is still in grace.
-      if (Number(consumed.meta?.changes || 0) !== 1 && !crowd) nonceError = err("Check-in nonce already used", 409);
-    }
-    if (nonceError && !crowd) return nonceError;
-    if (nonceError) nonce = ""; // crowd: fall back to an offline / unverified check-in below
-    else assurance = "fresh";
-  }
-  let eventRow = null;
-  if (eventId) {
-    eventRow = await env.DB.prepare(
-      "SELECT e.id,e.name,e.room_id,r.label AS room_label FROM weekly_events e LEFT JOIN rooms r ON r.id=e.room_id AND r.org_id=e.org_id WHERE e.id=? AND e.org_id=? AND e.archived_at IS NULL LIMIT 1"
-    ).bind(eventId, org.id).first();
-    if (!eventRow) {
-      console.warn("[orgCheckin] ignoring stale event_id for org", org.id, eventId);
-    }
-  }
-  const settings = JSON.parse(org.settings_json || "{}");
-  const minScore = settings.minScore || 50;
-  if (score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
-  const id = clientCheckinId || uuid();
   const tNow = now();
-  const requestedCheckinTs = Number(body.checkin_ts || helloPayload?.ts || 0);
-  const t = Number.isFinite(requestedCheckinTs) && requestedCheckinTs > 0 && requestedCheckinTs <= tNow + 300
-    ? Math.floor(requestedCheckinTs)
-    : tNow;
-  let gpsHash = null;
-  if (gps && (settings.privacyMode !== false)) {
-    gpsHash = await sha256B64url(canonical({ lat: Math.round(gps.lat * 10000) / 10000, lon: Math.round(gps.lon * 10000) / 10000 }));
+  let helloHash = null;
+  let live = false;
+  let signedTs = null;
+  // C15: no signature at all, from an old page, before the server cutoff.
+  let unsignedGrace = false;
+  if (mode === "attendee_scan") {
+    const signature = await verifyCheckinSignature(org, body);
+    signedTs = signature.ts;
+    // No usable signed time counts as live: only a provably old hello may
+    // take the offline path. An UNSIGNED hello's time proves nothing, so it
+    // never decides: an unsigned check-in is only treated as a queued replay
+    // when the phone's queue marked it so. Otherwise it is a live scan and is
+    // refused outright, so an old page with a slow clock is never sent a 202
+    // it would show as "You're checked in" (I1, C9).
+    live = signature.unsigned === true
+      ? body.offline_queued !== true
+      : !Number.isFinite(signedTs) || tNow - signedTs <= LIVE_CHECKIN_WINDOW_S;
+    unsignedGrace = !signature.ok && signature.unsigned === true && tNow < checkinSigningCutoffS(env);
+    if (!signature.ok && !unsignedGrace) {
+      // C8: never send a final error on a path the queue replays. An UNSIGNED
+      // op the phone says was queued (old queue entry, after the cutoff) has no
+      // signed time to prove it is old, so it gets the quarantine notice (202),
+      // not a 401 the queue would treat as terminal. A signature that is
+      // present but wrong stays a 401 when live. The flag only ever downgrades:
+      // it never accepts a check-in or makes one fresh.
+      const queuedUnsigned = signature.unsigned === true && body.offline_queued === true;
+      if (live && !queuedUnsigned) return json({ error: "Check-in signature invalid", reason: signature.reason }, 401);
+      return quarantineCheckin(env, org, body, signature.reason, tNow);
+    }
+    if (signature.ok) helloHash = signature.hash;
+    else if (helloPayload && typeof helloPayload === "object") {
+      try { helloHash = await hashPayloadToB64url(helloPayload, 3); } catch (_) { helloHash = null; }
+    }
+  } else {
+    helloHash = body.helloHash || null;
   }
-  // Venue GPS band, worked out the same way live or when a queued offline
-  // check-in syncs later (the phone's reading travels in the queued body).
-  const venueBand = venueGpsBand(settings, gps);
-  const gpsBand = venueBand ? venueBand.band : null;
-  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
   const helloPubJwk = normaliseDevicePubJwk(helloPayload?.pub);
   const attendeeKeyId = helloPubJwk ? await pubKeyId(helloPubJwk) : null;
   const attendeePubJwk = helloPubJwk ? JSON.stringify(helloPubJwk) : null;
   const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
-  if (mode === "attendee_scan" && !nonce) {
-    // Offline-first (docs/requirements/offline-first.md): a check-in without a
-    // live QR nonce is ALWAYS accepted - static/backup QR, a phone that queued
-    // it during an outage, or a replay hours later. It is recorded as
-    // "offline" (unverified freshness) and labelled as such on receipts, the
-    // dashboard and check.html. Refusing it here would make the offline queue
-    // drop it as a terminal 4xx, so there is deliberately no "require live QR"
-    // refusal. Older rows may still carry the pre-v6.5.2 name "soft".
-    assurance = "offline";
-    if (attendeeDeviceFp) {
-      const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
-      const duplicate = await env.DB.prepare(
-        `SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkin_at>=? ORDER BY checkin_at DESC LIMIT 1`
-      ).bind(...(eventRow?.id
-        ? [org.id, attendeeDeviceFp, eventRow.id, nonceNow - 60]
-        : [org.id, attendeeDeviceFp, nonceNow - 60])).first();
-      if (duplicate) {
-        return json({
-          checkin_id: duplicate.id,
-          checkin_at: duplicate.checkin_at,
-          org_name: org.name,
-          event_id: duplicate.event_id || null,
-          duplicate: true,
-          assurance: "offline"
-        });
-      }
-    }
-  }
   if (clientCheckinId) {
+    // Idempotent retry / replay of a check-in already recorded.
     const bandSelect = checkinColumns.has("gps_band") && checkinColumns.has("gps_distance_km") ? ",gps_band,gps_distance_km" : "";
-    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
+    const assuranceSelect = checkinColumns.has("assurance") ? ",assurance" : "";
+    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
     if (existing) {
+      if (mode === "attendee_scan" && existing.device_key_fp && existing.device_key_fp !== attendeeDeviceFp) {
+        return err("Check-in id already used by another device", 409);
+      }
       let expectedName = null;
       if (existing.expected_id) {
         const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
@@ -4254,7 +4405,7 @@ async function orgCheckin(request, env) {
         event_id: existing.event_id || null,
         duplicate: true,
         expected_id: existing.expected_id || null,
-        ...(assurance ? { assurance } : {}),
+        ...(existing.assurance ? { assurance: existing.assurance } : {}),
         ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
         ...(existing.gps_distance_km != null ? { gps_distance_km: existing.gps_distance_km } : {}),
         ...(expectedName ? { expected_name: expectedName } : {}),
@@ -4262,6 +4413,119 @@ async function orgCheckin(request, env) {
       });
     }
   }
+  let eventRow = null;
+  if (eventId) {
+    eventRow = await env.DB.prepare(
+      "SELECT e.id,e.name,e.room_id,e.day_of_week,e.start_time_local,e.duration_min,r.label AS room_label FROM weekly_events e LEFT JOIN rooms r ON r.id=e.room_id AND r.org_id=e.org_id WHERE e.id=? AND e.org_id=? AND e.archived_at IS NULL LIMIT 1"
+    ).bind(eventId, org.id).first();
+    if (!eventRow) {
+      console.warn("[orgCheckin] ignoring stale event_id for org", org.id, eventId);
+    }
+  }
+  let nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
+  let assurance = null;
+  let outOfHours = false;
+  let crowd = false;
+  if (mode === "attendee_scan") {
+    crowd = await isCrowdEvent(env, org.id, eventId);
+    // An unsigned check-in (C15 grace) is never fresh: its code is evidence only.
+    let codeError = nonce && !unsignedGrace ? await checkLiveCode(env, org, nonce, eventId, crowd, tNow) : null;
+    const codeUsable = !!nonce && !unsignedGrace && !codeError;
+    // A slow phone clock must not cost a live scan its valid code.
+    if (codeUsable) live = true;
+    let fresh = false;
+    if (live && !unsignedGrace) {
+      // A second scan while checked in: say so (the phone offers check-out)
+      // instead of recording a second check-in or burning the code (C4).
+      const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
+      const active = attendeeDeviceFp ? await env.DB.prepare(
+        `SELECT id,checkin_at,name,attendee_label FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkout_at IS NULL AND COALESCE(status,'checked_in') NOT IN ('invalid','conflict') ORDER BY checkin_at DESC LIMIT 1`
+      ).bind(...(eventRow?.id ? [org.id, attendeeDeviceFp, eventRow.id] : [org.id, attendeeDeviceFp])).first() : null;
+      if (active) {
+        return json({
+          error: "Already signed in",
+          reason: "already_checked_in",
+          active: true,
+          checkin_id: active.id,
+          checkin_at: active.checkin_at,
+          name: active.name || active.attendee_label || "",
+          nonce: "rescan_" + randomToken()
+        }, 409);
+      }
+    }
+    if (codeUsable) {
+      // The live code proves the time (C5): outside the event's times it is
+      // refused, unless a staff-tier member signs in with a signed staff session.
+      if (eventRow && !eventWindowContains(eventRow, tNow)) {
+        if (!(await staffSessionForDevice(env, org, staff_session, attendeeDeviceFp))) {
+          return json({ error: "This event is not open for check-in right now", reason: "outside_event_times" }, 403);
+        }
+        outOfHours = true; // staff any-time check-in, flagged with the time recorded
+      }
+      // Used up a moment ago by someone else (a lost race): C14, so it lands
+      // as offline instead of being refused.
+      codeError = await consumeLiveCode(env, nonce, crowd, tNow);
+      fresh = !codeError;
+    }
+    if (fresh) {
+      assurance = "fresh";
+    } else {
+      // No code (static QR), a stale / used / unknown code, a queued replay
+      // or an unsigned old-page check-in: never refused (C2, C6, C14, C15).
+      // Recorded as "offline" (unverified freshness) and labelled so on
+      // receipts, the dashboard and check.html; any code it carries is
+      // evidence only. Older rows may still carry the pre-v6.5.2 name "soft".
+      nonce = "";
+      assurance = "offline";
+      const scanTs = signedTs !== null ? Math.min(signedTs, tNow) : tNow;
+      if (eventRow && !eventWindowContains(eventRow, scanTs)) outOfHours = true;
+      if (attendeeDeviceFp) {
+        // C13 / C4: never double-count one visit. An offline check-in keeps
+        // the phone's scan time, so compare against that (not the Worker's
+        // clock): the same device and event, scanned within
+        // OFFLINE_DUPLICATE_WINDOW_S either side, and not checked out before
+        // this scan, is the same visit. A visit after a check-out, or on
+        // another day, is a real new check-in and is recorded.
+        const eventClause = eventRow?.id ? "event_id=?" : "event_id IS NULL";
+        const duplicate = await env.DB.prepare(
+          `SELECT id,checkin_at,event_id,status,expected_id FROM org_checkins WHERE org_id=? AND device_key_fp=? AND ${eventClause} AND checkin_at>=? AND checkin_at<=? AND (checkout_at IS NULL OR checkout_at>=?) AND COALESCE(status,'checked_in') NOT IN ('invalid') ORDER BY checkin_at DESC LIMIT 1`
+        ).bind(...(eventRow?.id
+          ? [org.id, attendeeDeviceFp, eventRow.id, scanTs - OFFLINE_DUPLICATE_WINDOW_S, scanTs + OFFLINE_DUPLICATE_WINDOW_S, scanTs]
+          : [org.id, attendeeDeviceFp, scanTs - OFFLINE_DUPLICATE_WINDOW_S, scanTs + OFFLINE_DUPLICATE_WINDOW_S, scanTs])).first();
+        if (duplicate) {
+          return json({
+            checkin_id: duplicate.id,
+            checkin_at: duplicate.checkin_at,
+            org_name: org.name,
+            event_id: duplicate.event_id || null,
+            duplicate: true,
+            assurance: "offline"
+          });
+        }
+      }
+    }
+  }
+  const settings = JSON.parse(org.settings_json || "{}");
+  const minScore = settings.minScore || 50;
+  // Phone-reported (S13): it can never vouch for a check-in, and it never
+  // refuses an offline / unverified one (C2). Only a fresh scan is held to it.
+  if (assurance === "fresh" && score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
+  const id = clientCheckinId || uuid();
+  // Live check-ins use the Worker's clock; an offline replay keeps the phone's
+  // signed scan time (never in the future) and the Worker's received time.
+  const t = mode === "attendee_scan" && assurance !== "fresh" && signedTs !== null ? Math.min(signedTs, tNow) : tNow;
+  // C12: phone time is recorded and flagged, never trusted. clock_gap_s is
+  // arrival minus the phone's signed time (positive: phone time is earlier).
+  const clockGapS = mode === "attendee_scan" && signedTs !== null ? tNow - signedTs : null;
+  const clockGap = clockGapS !== null && (clockGapS > CLOCK_GAP_BEHIND_S || clockGapS < -CLOCK_GAP_AHEAD_S);
+  // C10: GPS only flags near / far / none. No raw position and no GPS hash is
+  // kept: the band below is all that is stored.
+  const gpsHash = null;
+  // Venue GPS band, worked out the same way live or when a queued offline
+  // check-in syncs later (the phone's reading travels in the queued body).
+  const venueBand = venueGpsBand(settings, gps);
+  const gpsBand = venueBand ? venueBand.band : null;
+  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
   const label = settings.anonymousMode ? null : (attendeeLabel || null);
   const displayName = settings.anonymousMode ? null : ((name || attendeeLabel || "").trim() || null);
   // Batch C polish 5 — defence in depth against ghost-row creation. When the
@@ -4299,7 +4563,7 @@ async function orgCheckin(request, env) {
     }
   }
   const insertColumns = ["id","org_id","mode","attendee_label","attendee_key_id","hello_hash","score","bio_verified","gps_hash","checkin_at","created_at","name","attendee_pub_jwk","device_key_fp","status","expected_id"];
-  const insertValues = [id, org.id, mode, label, attendeeKeyId, helloHash||null, score||null, bioVerified?1:0, gpsHash, t, t, displayName, attendeePubJwk, attendeeDeviceFp, status, expectedId];
+  const insertValues = [id, org.id, mode, label, attendeeKeyId, helloHash||null, score||null, bioVerified?1:0, gpsHash, t, tNow, displayName, attendeePubJwk, attendeeDeviceFp, status, expectedId];
   if (hasEventIdColumn) {
     insertColumns.push("event_id");
     insertValues.push(eventRow?.id || null);
@@ -4315,6 +4579,14 @@ async function orgCheckin(request, env) {
   if (checkinColumns.has("gps_distance_km")) {
     insertColumns.push("gps_distance_km");
     insertValues.push(gpsDistanceKm);
+  }
+  if (checkinColumns.has("clock_gap_s")) {
+    insertColumns.push("clock_gap_s");
+    insertValues.push(clockGapS);
+  }
+  if (checkinColumns.has("out_of_hours")) {
+    insertColumns.push("out_of_hours");
+    insertValues.push(outOfHours ? 1 : 0);
   }
   await env.DB.prepare(
     `INSERT INTO org_checkins (${insertColumns.join(",")}) VALUES (${insertColumns.map(() => "?").join(",")})`
@@ -4346,13 +4618,16 @@ async function orgCheckin(request, env) {
       bio_verified: bioVerified ? 1 : 0,
       gps_hash: gpsHash,
       checkin_at: t,
-      created_at: t,
+      created_at: tNow,
       name: displayName,
       attendee_pub_jwk: attendeePubJwk,
       device_key_fp: attendeeDeviceFp,
       status,
       expected_id: expectedId,
       assurance,
+      out_of_hours: outOfHours ? 1 : 0,
+      clock_gap_s: clockGapS,
+      clock_gap: clockGap,
       gps_band: gpsBand,
       gps_distance_km: gpsDistanceKm
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
@@ -4363,11 +4638,14 @@ async function orgCheckin(request, env) {
   return json({
     checkin_id: id,
     checkin_at: t,
+    received_at: tNow,
     org_name: org.name,
     event_id: eventRow?.id || null,
     event_name: eventRow?.name || null,
     settings,
     ...(assurance ? { assurance } : {}),
+    ...(outOfHours ? { out_of_hours: true } : {}),
+    ...(clockGap ? { clock_gap: true, clock_gap_s: clockGapS } : {}),
     ...(gpsBand ? { gps_band: gpsBand } : {}),
     ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
@@ -4381,7 +4659,7 @@ async function ensureOrgCheckinNonceStorage(env) {
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
   const columns = await tableColumnSet(env, "org_checkins");
-  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"]]) {
+  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"], ["out_of_hours", "INTEGER"], ["clock_gap_s", "INTEGER"]]) {
     if (columns.has(col)) continue;
     try {
       await env.DB.prepare(`ALTER TABLE org_checkins ADD COLUMN ${col} ${type}`).run();
@@ -6005,6 +6283,7 @@ export default {
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
       else if (method === "GET"  && path === "/org/checkin-nonce/status") response = await orgCheckinNonceStatus(request, env);
+      else if (method === "GET"  && path === "/org/checkin-quarantine") response = await orgCheckinQuarantineList(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
       else if (method === "POST" && path === "/org/debug/clear-attendance") response = await orgDebugClearAttendance(request, env);

@@ -146,18 +146,63 @@
     } catch (_) {}
   }
 
+  const QUARANTINED_KEY = "irlid_offline_quarantined";
+  let deferTimer = null;
+
+  // The Worker accepted the op but quarantined it (an offline check-in whose
+  // signature did not verify): it was kept for staff, not counted. Keep a
+  // local copy and tell the page so the person sees it.
+  function noteQuarantined(op, result) {
+    try {
+      const existing = JSON.parse(localStorage.getItem(QUARANTINED_KEY) || "[]");
+      const list = Array.isArray(existing) ? existing : [];
+      list.unshift({
+        idempotency_key: op.idempotency_key,
+        queued_at: op.queued_at,
+        quarantined_at: Date.now(),
+        reason: result && result.reason
+      });
+      localStorage.setItem(QUARANTINED_KEY, JSON.stringify(list.slice(0, 20)));
+    } catch (_) {}
+    try {
+      window.dispatchEvent(new CustomEvent("irlid:queue-quarantined", {
+        detail: {
+          url: op && op.url,
+          reason: result && result.reason,
+          notice: result && result.notice,
+          queued_at: op && op.queued_at
+        }
+      }));
+    } catch (_) {}
+  }
+
+  function scheduleDeferred(notBefore) {
+    if (deferTimer && typeof clearTimeout === "function") clearTimeout(deferTimer);
+    deferTimer = setTimeout(() => { deferTimer = null; replay(); }, Math.max(0, notBefore - Date.now()) + 250);
+  }
+
   // Replay drains the queue in insertion order. 2xx removes the op. Network
   // errors, 5xx, and 429 remain queued and halt this pass. Terminal 4xx rows
   // are poison writes, so they are dropped to let later check-ins keep moving.
+  // An op with not_before in the future (a check-in still inside the Worker's
+  // live window) is left queued and retried once it is due.
   async function replay() {
     if (replaying) return { halted: false, drained: 0 };
     replaying = true;
     let drained = 0;
     let halted = false;
     let dropped = 0;
+    let deferred = 0;
+    let quarantined = 0;
+    let nextDue = 0;
     try {
       const ops = await listAll();
       for (const op of ops) {
+        if (op.not_before && Number(op.not_before) > Date.now()) {
+          deferred += 1;
+          nextDue = nextDue ? Math.min(nextDue, Number(op.not_before)) : Number(op.not_before);
+          continue;
+        }
         try {
           const response = await fetch(op.url, {
             method: op.method,
@@ -174,6 +219,14 @@
             halted = true;
             break;
           }
+          if (response.status === 202 && op.kind === "org_checkin") {
+            let result = null;
+            try { result = await response.clone().json(); } catch (_) {}
+            if (result && result.quarantined) {
+              noteQuarantined(op, result);
+              quarantined += 1;
+            }
+          }
           await remove(op.id);
           drained += 1;
           notifyQueueChanged();
@@ -186,7 +239,8 @@
     } finally {
       replaying = false;
     }
-    return { halted, drained, dropped };
+    if (nextDue && !halted) scheduleDeferred(nextDue);
+    return { halted, drained, dropped, deferred, quarantined };
   }
 
   window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay, toOfflineCheckin, isTerminalHttpStatus };
