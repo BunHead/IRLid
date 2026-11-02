@@ -21,7 +21,7 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 |---|---|---|
 | Bad signature | Refused, 401 | **Quarantined** (202, `org_checkin_quarantine`, `GET /org/checkin-quarantine`), visible notice on the phone, not counted (C8) |
 | No signature at all, before the cutoff (old cached page) | Accepted as `offline` (C15) | Accepted as `offline` (C15) |
-| No signature at all, after the cutoff | Refused, 401, unless the phone marks it as a queued replay: then quarantined (202), so the queue never meets a final error (C8) | Quarantined |
+| No signature at all, after the cutoff | Refused, 401, unless the phone's queue marks it as a queued replay: then quarantined (202), so the queue never meets a final error (C8). An unsigned hello's time is never trusted to decide this, so an old page with a slow clock is refused, never shown a false "checked in" | Quarantined |
 | Missing, stale, used or unknown code (static QR, crowd mode too) | Accepted as `offline`; the code is evidence only (C6, C14) | Accepted as `offline` |
 | Live code, outside event times (30 min before start to end, UTC) | Refused, 403 `outside_event_times`, unless a staff-tier member (staff / manager / lead_admin / developer) sends a signed staff session for the same device key: accepted, flagged `out_of_hours` (C5) | n/a |
 | No live code, outside event times | Accepted as `offline`, flagged `out_of_hours` | Accepted as `offline`, flagged `out_of_hours` |
@@ -34,6 +34,8 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 **Quarantine cap.** Each org stores at most 200 quarantined bodies per UTC day. Past that the phone still gets the same 202 notice (C8), the body is not stored, and the day's count goes into `org_checkin_quarantine_overflow` (`not_stored` in `GET /org/checkin-quarantine`). Fakes are never counted as check-ins either way (S1).
 
 **GPS (C10).** Only a `near` / `far` / `none` band is stored and shown. No raw position and no GPS hash is kept: not on check-ins, not in receipts, not in quarantined bodies. Org receipts carry the band only.
+
+The phone shows "checked in" only when the Worker returns a check-in id or the check-in is really queued offline; anything else (e.g. a quarantined, uncounted check-in) gets the normal failed message (I1, C9).
 
 The phone's queue holds a check-in until it is past the live window (`not_before`), so a quick reconnect never meets the "already signed in" refusal. Doorman mode (`doorman_scan`) is unchanged: it rides on the staff session.
 

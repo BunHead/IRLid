@@ -4351,8 +4351,14 @@ async function orgCheckin(request, env) {
     const signature = await verifyCheckinSignature(org, body);
     signedTs = signature.ts;
     // No usable signed time counts as live: only a provably old hello may
-    // take the offline path.
-    live = !Number.isFinite(signedTs) || tNow - signedTs <= LIVE_CHECKIN_WINDOW_S;
+    // take the offline path. An UNSIGNED hello's time proves nothing, so it
+    // never decides: an unsigned check-in is only treated as a queued replay
+    // when the phone's queue marked it so. Otherwise it is a live scan and is
+    // refused outright, so an old page with a slow clock is never sent a 202
+    // it would show as "You're checked in" (I1, C9).
+    live = signature.unsigned === true
+      ? body.offline_queued !== true
+      : !Number.isFinite(signedTs) || tNow - signedTs <= LIVE_CHECKIN_WINDOW_S;
     unsignedGrace = !signature.ok && signature.unsigned === true && tNow < checkinSigningCutoffS(env);
     if (!signature.ok && !unsignedGrace) {
       // C8: never send a final error on a path the queue replays. An UNSIGNED

@@ -1711,7 +1711,16 @@
       });
       return payload;
     }
-    if (payload?.checkin_id) localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
+    // Only a check-in the server confirms (it returns the check-in id) or one
+    // really queued offline (above) is shown as checked in. Anything else
+    // (e.g. a quarantined, uncounted check-in) gets the normal failed message.
+    if (!payload?.checkin_id || payload?.quarantined) {
+      const notConfirmed = new Error("");
+      notConfirmed.status = 202;
+      notConfirmed.data = payload || null;
+      throw notConfirmed;
+    }
+    localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
     if (payload?.receipt_id) storeOrgReceipt(payload);
     if (payload?.out_of_hours) {
       render({ status: "allow", title: `Welcome, ${payload?.expected_name || cachedName || "staff"}`, subtitle: "Checked in outside event times", meta: "Staff check-in, time recorded" });

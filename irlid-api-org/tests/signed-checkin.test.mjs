@@ -407,7 +407,8 @@ test("C15: after the cutoff the signature is required again (live refused, queue
     const res = await checkin(d1, liveNoSig);
     assert.equal(res.status, 401);
     assert.equal(res.body.reason, "missing_signature");
-    const queuedNoSig = await offline(); delete queuedNoSig.helloSig;
+    // As a phone's queue sends it (toOfflineCheckin sets offline_queued).
+    const queuedNoSig = await offline({ offline_queued: true }); delete queuedNoSig.helloSig;
     assert.equal((await checkin(d1, queuedNoSig)).status, 202);
     assert.equal(d1.checkins().length, 0);
   });
@@ -655,8 +656,8 @@ test("R1: a quarantine row is never edited, and a fresh check-in leaves earlier 
   first.helloSig = await (await newDevice()).sign(first.helloHash);
   assert.equal((await checkin(d1, first)).status, 202);
   const before = JSON.stringify(d1.quarantined());
-  const second = await offline({ client_checkin_id: "q_same" });
-  delete second.helloSig; // same id, different reason
+  const second = await offline({ client_checkin_id: "q_same", offline_queued: true });
+  delete second.helloSig; // same id, different reason (queued, as a phone's queue sends it)
   assert.equal((await checkin(d1, second)).status, 202);
   assert.equal(JSON.stringify(d1.quarantined()), before, "kept as first written");
   const a = await checkin(d1, await live({ nonce: await issueNonce(d1) }));
@@ -829,4 +830,49 @@ test("R4: the v6.7.1 migration only adds, keeps old rows as they were, and match
   const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
   assert.match(schema, /out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER\);/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS org_checkin_quarantine_overflow \(org_id TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY \(org_id, day\)\);/);
+});
+
+// ---- Old page, never a false "You're checked in" (I1, C9) ------------------
+
+test("old page: an unsigned live scan is refused cleanly whatever the phone's clock says, and nothing is recorded", async () => {
+  const d1 = new D1();
+  // As the pre-v6.7.0 org-entry.html sends it: v1 hello, no signature, no queue flag.
+  const oldPage = async (clockOffsetS) => {
+    const ts = nowS() + clockOffsetS;
+    const helloPayload = { mode: "attendee_scan", org: ORG_KEY, pub: (await newDevice()).pub, ts, v: 1 };
+    return { mode: "attendee_scan", client_checkin_id: "old_" + crypto.randomUUID(), checkin_ts: ts, helloPayload, helloHash: await hashHello(helloPayload), event_id: null, nonce: null, score: 70, bioVerified: false };
+  };
+  for (const offset of [0, -180, -3600, -2 * DAY, 600]) {
+    const res = await checkin(d1, await oldPage(offset));
+    assert.equal(res.status, 401, `clock offset ${offset}s: ${JSON.stringify(res.body)}`);
+    assert.equal(res.body.checkin_id, undefined);
+    assert.equal(res.body.quarantined, undefined, "never a 202 the old page would show as success");
+  }
+  assert.equal(d1.checkins().length, 0, "nothing counted");
+  assert.equal(d1.quarantined().length, 0, "nothing half-recorded");
+});
+
+test("old page: a check-in its queue really held is kept for staff (202), not counted", async () => {
+  const d1 = new D1();
+  const helloPayload = { mode: "attendee_scan", org: ORG_KEY, pub: (await newDevice()).pub, ts: nowS() - 30, v: 1 };
+  const queued = { mode: "attendee_scan", client_checkin_id: "old_queued", checkin_ts: helloPayload.ts, helloPayload, event_id: null, score: 70, offline_queued: true };
+  const res = await checkin(d1, queued);
+  assert.equal(res.status, 202);
+  assert.equal(res.body.quarantined, true);
+  assert.equal(d1.checkins().length, 0);
+  assert.equal(d1.quarantined().length, 1);
+});
+
+test("org-entry only shows checked in when the server returns a check-in id or the check-in is really queued", async () => {
+  const src = readFileSync(new URL("../../org-entry.html", import.meta.url), "utf8");
+  const fn = src.slice(src.indexOf("async function recordVenueCheckin"), src.indexOf("function storeOrgReceipt"));
+  const queuedAt = fn.indexOf("if (payload?.queued) {");
+  const guardAt = fn.indexOf("if (!payload?.checkin_id || payload?.quarantined) {");
+  const firstWelcome = fn.indexOf("checked in", queuedAt + 1);
+  assert.ok(queuedAt > 0 && guardAt > queuedAt, "queued branch first, then the server-confirmed guard");
+  assert.ok(fn.indexOf("Welcome", guardAt) > guardAt && fn.lastIndexOf("Welcome", guardAt) === -1, "no success screen before the guard");
+  assert.ok(firstWelcome > 0);
+  // The guard throws into the existing failure screen: no new wording.
+  assert.match(fn.slice(guardAt, guardAt + 300), /new Error\(""\)/);
+  assert.match(src, /subtitle: err\.message \|\| "Could not record check-in"/);
 });
