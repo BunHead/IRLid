@@ -3833,6 +3833,88 @@ async function recordAudit(env, f) {
   }
 }
 
+// ---- Rule R1: logged erasure (Delete record, Clear attendance) ------------
+// docs/rules.md R1: erasure is allowed on purpose, but the log must record
+// that it happened — who, when, what, how many rows — never the erased data.
+// Unlike recordAudit (best-effort), these writes are FAIL-CLOSED: no audit
+// row, no erasure.
+
+// Lead Admin of this org, or Developer, proven by a real login session
+// (Authorization: Bearer <session token>). The org api_key — as X-Org-Key or
+// as an org_ Bearer — is deliberately NOT enough: anyone holding the venue
+// key could otherwise erase records. Signed-in users without the role are
+// refused and the denial is logged (best-effort).
+async function requireErasureActor(request, env, org, action, target, targetRef) {
+  const bearer = bearerTokenFromRequest(request);
+  if (!bearer || bearer.startsWith("org_")) {
+    // No login session at all (or only the venue api_key). 403, not 401, so
+    // the dashboard does not treat it as an expired session and sign out.
+    return { error: json({ error: "login_session_required", message: "Sign in with your IRLid login as a Lead Admin or Developer to erase records." }, 403) };
+  }
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  const user = ctx.user;
+  const role = await orgRoleForUser(env, user, org.id);
+  if (role === "lead_admin" || role === "developer") return { user, role };
+  await recordAudit(env, {
+    orgId: org.id,
+    actorUserId: user.id,
+    actorPubFp: user.pub_fp,
+    actorName: user.display_name,
+    actorRole: role || null,
+    action,
+    target,
+    targetRef,
+    outcome: "denied",
+    detail: "insufficient_role (required lead_admin)"
+  });
+  return { error: json({ error: "insufficient_role", message: "Lead Admin or Developer access required.", required: "lead_admin", actual: role || null }, 403) };
+}
+
+// Runs the erasure as ONE D1 batch (one transaction): first an INSERT into
+// org_audit_log whose detail counts, inside that transaction, the rows each
+// DELETE is about to remove; then the DELETEs. If the audit row cannot be
+// written, the batch rolls back and nothing is erased (503).
+//   f      — audit fields (as auditStatement) plus `extra` (small JSON-safe object)
+//   counts — [[name, "FROM ... WHERE ...", args], ...]
+//   steps  — [[name, "DELETE FROM ...", args], ...]
+// Returns { rows: { name: changes } } or { error }.
+async function runLoggedErasure(env, f, counts, steps) {
+  await ensureAuditTable(env);
+  const countSql = counts.length
+    ? counts.map(([name, from]) => "'" + name + "', (SELECT COUNT(*) " + from + ")").join(", ")
+    : "";
+  const countArgs = counts.flatMap(([, , args]) => args);
+  const audit = env.DB.prepare(
+    "INSERT INTO org_audit_log (id, org_id, actor_user_id, actor_pub_fp, actor_display_name, actor_role, action, target, target_ref, outcome, detail, nonce, created_at) " +
+    "SELECT ?,?,?,?,?,?,?,?,?,'allowed', json_object('rows', json_object(" + countSql + "), 'options', json(?)), NULL, ?"
+  ).bind(
+    randomToken().slice(0, 26),
+    String(f.orgId || ""),
+    f.actorUserId || null,
+    f.actorPubFp || null,
+    f.actorName || null,
+    f.actorRole || null,
+    String(f.action || "erasure"),
+    f.target || null,
+    f.targetRef || null,
+    ...countArgs,
+    JSON.stringify(f.extra || {}),
+    now()
+  );
+  const statements = [audit, ...steps.map(([, sql, args]) => env.DB.prepare(sql).bind(...args))];
+  let results;
+  try {
+    results = await env.DB.batch(statements);
+  } catch (e) {
+    console.log("[audit] logged erasure aborted: " + String(e && e.message || e).slice(0, 160));
+    return { error: json({ error: "audit_log_unavailable", message: "Nothing was deleted: the erasure could not be logged." }, 503) };
+  }
+  const rows = {};
+  steps.forEach(([name], i) => { rows[name] = Number(results[i + 1]?.meta?.changes || 0); });
+  return { rows };
+}
+
 async function requireSignedAction(body, env, opts) {
   // v5.10.0.4 — body is now passed in pre-parsed by the caller. Previous
   // versions took `request` and tried request.clone().json() here, but
@@ -5353,79 +5435,72 @@ async function orgDebugClearAttendance(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   // Batch C polish 9 — Captain's call: clear-attendance should be available to
   // Developer (any org, for ops + bake-off testing) and Lead Admin (their own
-  // org, for legitimate dataset reset). The legacy isDebugOrg key/slug match
-  // remains as a third allow path so existing DEV orgs keep working without
-  // requiring a session token. If a Bearer session is present, validate it and
-  // check for Developer or org-scoped lead_admin membership.
-  // v6.4.24 — removed the isDebugOrg no-session bypass. Real orgs were already
-  // protected by the api_key requirement (orgAuth above); the bypass only exposed
-  // the publicly-known test org. Clear-attendance now ALWAYS requires a
-  // Developer / Lead-Admin Bearer session.
-  let allowed = false;
-  if (!allowed) {
-    const auth = request.headers.get("Authorization") || "";
-    const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());
-    if (m) {
-      const ctx = await requireSession(request, env);
-      if (!ctx.error) {
-        const user = ctx.user;
-        if (isBootstrapDeveloperFp(env, user.pub_fp)) {
-          allowed = true; // Developer — clear any org
-        } else {
-          // Lead Admin / Developer membership of the requested org.
-          const membership = await env.DB.prepare(
-            "SELECT role FROM org_memberships WHERE user_id = ? AND org_id = ?"
-          ).bind(user.id, org.id).first();
-          if (membership && (membership.role === "lead_admin" || membership.role === "developer")) {
-            allowed = true;
-          }
-        }
-      }
-    }
-  }
-  if (!allowed) return err("Clear attendance requires Developer or Lead Admin role", 403);
-
+  // org, for legitimate dataset reset).
+  // v6.4.24 — removed the isDebugOrg no-session bypass. Clear-attendance
+  // ALWAYS requires a Developer / Lead-Admin Bearer session.
+  // R1 — same gate as Delete record (requireErasureActor); denials logged.
   let body; try { body = await request.json(); } catch { body = {}; }
   const includeExpected = !!body.include_expected;
+  const target = includeExpected ? "Organisation attendance and expected list" : "Organisation attendance";
+  const actor = await requireErasureActor(request, env, org, "attendance_clear", target, org.id);
+  if (actor.error) return actor.error;
 
+  await ensureOrgCheckinNonceStorage(env);
+  const hasReceipts = await tableExists(env, "org_receipts");
+  const hasTokens = await tableExists(env, "org_checkout_tokens");
+  const hasRebind = includeExpected && await tableExists(env, "rebind_history");
+  const counts = [];
+  const steps = [];
   // v6.4.4b — org_receipts.checkin_id carries an FK to org_checkins(id)
   // (v6.0 receipt bridge), so receipts must go before the check-ins they
   // reference or the whole clear aborts with SQLITE_CONSTRAINT_FOREIGNKEY.
-  if (await tableExists(env, "org_receipts")) {
-    await env.DB.prepare("DELETE FROM org_receipts WHERE org_id=?").bind(org.id).run();
+  if (hasReceipts) {
+    counts.push(["receipts", "FROM org_receipts WHERE org_id=?", [org.id]]);
+    steps.push(["receipts", "DELETE FROM org_receipts WHERE org_id=?", [org.id]]);
   }
-  const checkins = await env.DB.prepare("DELETE FROM org_checkins WHERE org_id=?").bind(org.id).run();
-  const conflicts = await env.DB.prepare("DELETE FROM attendee_conflicts WHERE org_code=?").bind(org.id).run();
-  let checkoutTokensCleared = 0;
-  if (await tableExists(env, "org_checkout_tokens")) {
-    const tokens = await env.DB.prepare("DELETE FROM org_checkout_tokens WHERE org_api_key=?").bind(org.api_key).run();
-    checkoutTokensCleared = tokens.meta?.changes || 0;
+  counts.push(["checkins", "FROM org_checkins WHERE org_id=?", [org.id]]);
+  steps.push(["checkins", "DELETE FROM org_checkins WHERE org_id=?", [org.id]]);
+  counts.push(["conflicts", "FROM attendee_conflicts WHERE org_code=?", [org.id]]);
+  steps.push(["conflicts", "DELETE FROM attendee_conflicts WHERE org_code=?", [org.id]]);
+  if (hasTokens) {
+    counts.push(["checkout_tokens", "FROM org_checkout_tokens WHERE org_api_key=?", [org.api_key]]);
+    steps.push(["checkout_tokens", "DELETE FROM org_checkout_tokens WHERE org_api_key=?", [org.api_key]]);
   }
-  await ensureOrgCheckinNonceStorage(env);
-  const checkinNonces = await env.DB.prepare("DELETE FROM org_checkin_nonces WHERE org_api_key=?").bind(org.api_key).run();
-
-  let expectedCleared = 0;
+  counts.push(["checkin_nonces", "FROM org_checkin_nonces WHERE org_api_key=?", [org.api_key]]);
+  steps.push(["checkin_nonces", "DELETE FROM org_checkin_nonces WHERE org_api_key=?", [org.api_key]]);
   if (includeExpected) {
-    const expectedIds = await env.DB.prepare("SELECT id FROM org_expected WHERE org_id=?").bind(org.id).all();
-    const ids = (expectedIds.results || []).map(r => r.id);
-    if (ids.length && await tableExists(env, "rebind_history")) {
-      for (const id of ids) {
-        await env.DB.prepare("DELETE FROM rebind_history WHERE org_code=? AND expected_id=?").bind(org.id, id).run();
-      }
+    if (hasRebind) {
+      const sql = "FROM rebind_history WHERE org_code=? AND expected_id IN (SELECT id FROM org_expected WHERE org_id=?)";
+      counts.push(["rebind_history", sql, [org.id, org.id]]);
+      steps.push(["rebind_history", "DELETE " + sql, [org.id, org.id]]);
     }
-    const expected = await env.DB.prepare("DELETE FROM org_expected WHERE org_id=?").bind(org.id).run();
-    expectedCleared = expected.meta?.changes || 0;
+    counts.push(["expected_attendees", "FROM org_expected WHERE org_id=?", [org.id]]);
+    steps.push(["expected_attendees", "DELETE FROM org_expected WHERE org_id=?", [org.id]]);
   }
+
+  const done = await runLoggedErasure(env, {
+    orgId: org.id,
+    actorUserId: actor.user.id,
+    actorPubFp: actor.user.pub_fp,
+    actorName: actor.user.display_name,
+    actorRole: actor.role,
+    action: "attendance_clear",
+    target,
+    targetRef: org.id,
+    extra: { include_expected: includeExpected }
+  }, counts, steps);
+  if (done.error) return done.error;
+  const rows = done.rows;
 
   return json({
     ok: true,
-    checkin_nonces_cleared: checkinNonces.meta?.changes || 0,
+    checkin_nonces_cleared: rows.checkin_nonces || 0,
     org_key: org.api_key,
     cleared: {
-      checkins: checkins.meta?.changes || 0,
-      conflicts: conflicts.meta?.changes || 0,
-      checkout_tokens: checkoutTokensCleared,
-      expected_attendees: expectedCleared
+      checkins: rows.checkins || 0,
+      conflicts: rows.conflicts || 0,
+      checkout_tokens: rows.checkout_tokens || 0,
+      expected_attendees: rows.expected_attendees || 0
     }
   });
 }
@@ -5948,7 +6023,8 @@ async function orgExpectedDelete(request, env, id) {
   // the "Delete expected" button never sends → every delete failed with
   // signed_action_required (and offline-queued ones got dropped). Adding and
   // removing an expected attendee are now gated identically (staff+ / developer
-  // via Bearer). Delete-record (orgExpectedDeleteFull) is already lighter still.
+  // via Bearer). Delete-record (orgExpectedDeleteFull) is stricter: Lead Admin /
+  // Developer login session, and it is written to org_audit_log (rule R1).
   const staff = await requireCalendarStaff(request, env, org, body);
   if (staff.error) return staff.error;
   const t = now();
@@ -5969,10 +6045,16 @@ async function orgExpectedDelete(request, env, id) {
 // Refuses to delete a row with an active (un-checked-out) checkin —
 // staff must check the attendee out cleanly first. This guard exists so
 // the audit trail of live attendees can't be silently hand-wiped; if
-// ever needed, lead_admin+ can pass ?force=true to override (audit ts
-// of the delete preserved via the row's natural absence after cascade).
+// ever needed, lead_admin+ can pass ?force=true to override (recorded in
+// the org_audit_log row's options).
 async function orgExpectedDeleteFull(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
+
+  // Rule R1 — Delete record is deliberate erasure. Lead Admin / Developer
+  // only, checked HERE (the org api_key alone is not enough; the dashboard's
+  // canDeleteAttendeeRecord() is only a UI hint). Denials are logged too.
+  const actor = await requireErasureActor(request, env, org, "record_delete", "Attendee record", String(id));
+  if (actor.error) return actor.error;
 
   // Confirm the row exists for this org before any cascade work.
   const expected = await env.DB.prepare(
@@ -5993,10 +6075,8 @@ async function orgExpectedDeleteFull(request, env, id) {
     }
   }
 
-  // Cascade: checkins → rebind_history → attendee_conflicts → expected row.
-  // Each step is independent; partial failure leaves the database in a
-  // legible state (older rows persist, the org_expected row goes last so
-  // the cascade is idempotent on retry).
+  // Cascade: receipts → checkins → event_expected → rebind_history →
+  // attendee_conflicts → expected row.
   // v6.4.4b — org_receipts.checkin_id has an FK to org_checkins(id) (v6.0
   // receipt bridge). The org's copies of this person's receipts must go
   // BEFORE their check-ins or the cascade aborts with
@@ -6004,37 +6084,54 @@ async function orgExpectedDeleteFull(request, env, id) {
   // 11 Jun). Delete-record is the explicit erasure path: the attendee's own
   // downloaded receipts remain theirs and still verify — only the org's
   // stored copies are erased, consistent with the cascade's intent.
-  if (await tableExists(env, "org_receipts")) {
-    await env.DB.prepare(
-      "DELETE FROM org_receipts WHERE org_id=? AND checkin_id IN (SELECT id FROM org_checkins WHERE org_id=? AND expected_id=?)"
-    ).bind(org.id, org.id, id).run();
-  }
-  const checkinsResult = await env.DB.prepare(
-    "DELETE FROM org_checkins WHERE org_id=? AND expected_id=?"
-  ).bind(org.id, id).run();
   // v6.4.4b — also clear per-event Expected list rows (no FK, but orphans
   // would linger in every event roster this person was added to).
-  if (await tableExists(env, "event_expected")) {
-    await env.DB.prepare(
-      "DELETE FROM event_expected WHERE expected_id=?"
-    ).bind(id).run();
+  //
+  // R1 — the whole cascade AND its audit row run as ONE D1 batch (a single
+  // transaction). The audit INSERT goes first and counts the rows it is
+  // about to erase inside that transaction, so the logged counts are exact,
+  // and if the audit row cannot be written nothing is erased.
+  const hasReceipts = await tableExists(env, "org_receipts");
+  const hasEventExpected = await tableExists(env, "event_expected");
+  const counts = [];
+  const steps = [];
+  if (hasReceipts) {
+    const sql = "FROM org_receipts WHERE org_id=? AND checkin_id IN (SELECT id FROM org_checkins WHERE org_id=? AND expected_id=?)";
+    counts.push(["receipts", sql, [org.id, org.id, id]]);
+    steps.push(["receipts", "DELETE " + sql, [org.id, org.id, id]]);
   }
-  await env.DB.prepare(
-    "DELETE FROM rebind_history WHERE org_code=? AND expected_id=?"
-  ).bind(org.id, id).run();
-  await env.DB.prepare(
-    "DELETE FROM attendee_conflicts WHERE org_code=? AND expected_id=?"
-  ).bind(org.id, id).run();
-  const expectedResult = await env.DB.prepare(
-    "DELETE FROM org_expected WHERE id=? AND org_id=?"
-  ).bind(id, org.id).run();
+  counts.push(["checkins", "FROM org_checkins WHERE org_id=? AND expected_id=?", [org.id, id]]);
+  steps.push(["checkins", "DELETE FROM org_checkins WHERE org_id=? AND expected_id=?", [org.id, id]]);
+  if (hasEventExpected) {
+    counts.push(["event_expected", "FROM event_expected WHERE expected_id=?", [id]]);
+    steps.push(["event_expected", "DELETE FROM event_expected WHERE expected_id=?", [id]]);
+  }
+  counts.push(["rebind_history", "FROM rebind_history WHERE org_code=? AND expected_id=?", [org.id, id]]);
+  steps.push(["rebind_history", "DELETE FROM rebind_history WHERE org_code=? AND expected_id=?", [org.id, id]]);
+  counts.push(["conflicts", "FROM attendee_conflicts WHERE org_code=? AND expected_id=?", [org.id, id]]);
+  steps.push(["conflicts", "DELETE FROM attendee_conflicts WHERE org_code=? AND expected_id=?", [org.id, id]]);
+  counts.push(["expected", "FROM org_expected WHERE id=? AND org_id=?", [id, org.id]]);
+  steps.push(["expected", "DELETE FROM org_expected WHERE id=? AND org_id=?", [id, org.id]]);
+
+  const done = await runLoggedErasure(env, {
+    orgId: org.id,
+    actorUserId: actor.user.id,
+    actorPubFp: actor.user.pub_fp,
+    actorName: actor.user.display_name,
+    actorRole: actor.role,
+    action: "record_delete",
+    target: "Attendee record",
+    targetRef: String(id),
+    extra: { force }
+  }, counts, steps);
+  if (done.error) return done.error;
 
   return json({
     deleted: true,
     id,
     cascade: {
-      checkins: checkinsResult.meta?.changes || 0,
-      expected: expectedResult.meta?.changes || 0
+      checkins: done.rows.checkins || 0,
+      expected: done.rows.expected || 0
     }
   });
 }
