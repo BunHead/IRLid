@@ -27,7 +27,7 @@ The phone signs its check-in hello with its device key (`org-entry.html` `record
 | No live code, outside event times | Accepted as `offline`, flagged `out_of_hours` | Accepted as `offline`, flagged `out_of_hours` |
 | Already checked in (no check-out yet) | 409 `already_checked_in`: phone shows "Already signed in" and offers check-out; the code is not used up (C4) | Same device and event, scanned within 6 h of an earlier check-in that was not checked out before it: returned as a duplicate, not counted twice (C13). A visit after a check-out, or on another day, is recorded |
 
-**C15 cutoff.** Check-ins with no signature at all (old cached pages, or queued before this shipped) land as `offline` until the server date `CHECKIN_SIGNING_CUTOFF` (Worker var: unix seconds or an ISO date; built-in default 23 Nov 2026). A signature that is present but wrong is never covered by this.
+**C15 cutoff.** Check-ins with no signature at all (old cached pages, or queued before this shipped) land as `offline` until the server date `CHECKIN_SIGNING_CUTOFF` (Worker var: unix seconds or an ISO date; built-in default 2 Nov 2026, the day signing shipped: no one was using check-in before then, so there is no grace and a public key alone never signs anyone in (S2)). A signature that is present but wrong is never covered by this.
 
 **Clock gap (C12).** Every signed check-in keeps `clock_gap_s` (Worker arrival time minus the phone's signed time). A phone time more than 1 h before arrival, or more than 60 s after it, is flagged `clock_gap` on the response and the receipt. Flagged, never refused. Telling a slow sync from a wrong clock needs a second clock (C16).
 

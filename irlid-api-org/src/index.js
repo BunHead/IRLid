@@ -4149,7 +4149,11 @@ const CLOCK_GAP_AHEAD_S = 60;
 // already queued on phones carry no signature. Until this server date they
 // land as "offline / unverified"; after it the signature is required. Set the
 // Worker var CHECKIN_SIGNING_CUTOFF (unix seconds, or an ISO date) to change it.
-const CHECKIN_SIGNING_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 10, 23) / 1000); // 23 Nov 2026
+// Spencer, 2 Nov 2026: no one was using check-in before signing shipped, so
+// there are no old cached pages or queued unsigned check-ins to protect. The
+// cutoff is the day it shipped: no grace, and a public key alone never signs
+// anyone in (S2). Set CHECKIN_SIGNING_CUTOFF to reopen a grace period.
+const CHECKIN_SIGNING_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 10, 2) / 1000); // 2 Nov 2026
 function checkinSigningCutoffS(env) {
   const raw = env && env.CHECKIN_SIGNING_CUTOFF;
   if (raw !== undefined && raw !== null && String(raw).trim() !== "") {

@@ -418,11 +418,11 @@ test("C15: the cutoff is a server setting, given as unix seconds or an ISO date"
   const noSig = async () => { const b = await live(); delete b.helloSig; return b; };
   await withCutoff("2999-01-01T00:00:00Z", async () => assert.equal((await checkin(d1, await noSig())).status, 200));
   await withCutoff("2000-01-01T00:00:00Z", async () => assert.equal((await checkin(d1, await noSig())).status, 401));
-  // Unset: the built-in default (23 Nov 2026, server time) applies.
+  // Unset: the built-in default (2 Nov 2026, server time) applies.
   const res = await worker.fetch(new Request("https://worker.test/org/checkin", {
     method: "POST", headers: { "Content-Type": "application/json", "X-Org-Key": ORG_KEY }, body: JSON.stringify(await noSig())
   }), { DB: d1, CORS_ORIGIN: "*" });
-  assert.equal(res.status, nowS() < Date.UTC(2026, 10, 23) / 1000 ? 200 : 401);
+  assert.equal(res.status, nowS() < Date.UTC(2026, 10, 2) / 1000 ? 200 : 401);
 });
 
 // ---- 3c. GPS: flag only, nothing kept (C10) --------------------------------
