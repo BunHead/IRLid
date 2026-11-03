@@ -39,7 +39,13 @@
   const QUEUE_EXCLUDED_PATTERNS = [
     /^\/org\/expected\/create-and-bind([/?]|$)/,             // requireFreshStaffProof + requireSignedAction
     /^\/org\/expected\/[^/?]+\/bind-additional-key([/?]|$)/, // requireSignedAction
-    /^\/org\/expected\/[^/?]+\/rebind([/?]|$)/               // admin_signature verification
+    /^\/org\/expected\/[^/?]+\/rebind([/?]|$)/,              // admin_signature verification
+    // v6.7.2 — erasure (rule R1) is an admin action and must never be queued
+    // (rule S10, C8): a queued Delete record is replayed later with a stale
+    // login token, can stick forever on a 5xx, and the page used to say
+    // "Deleted record" while nothing had been deleted. It fails loudly now.
+    /^\/org\/expected\/[^/?]+\/full([/?]|$)/,               // Delete record (Lead Admin / Developer)
+    /^\/org\/debug\//                                         // Clear attendance
   ];
 
   function isQueueEligible(path, method) {
