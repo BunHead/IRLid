@@ -3377,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.3</span></div>
   </div>
 </div>
 
@@ -15874,24 +15874,34 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   const liveWarning = force ? '\n\nNOTE: This attendee is currently checked in. Deleting will also remove the active check-in.' : '';
   const ok = window.confirm(`Delete the full attendee record for ${name}?\n\nThis cascades to remove all check-in / check-out history rows AND the Expected entry. Cannot be undone.${liveWarning}`);
   if (!ok) return;
+  // Delete record is never offline-queued (rule R1, js/orgapi.js): it
+  // happens now or fails loudly. Only say "Deleted" when the Worker
+  // confirms it, and say why when it does not.
+  if (!navigator.onLine) return showToast('Offline: Delete record needs a connection. Nothing was deleted.', true);
+  let deleteResult;
   try {
-    const deleteResult = await window.IRLidOrgApi.deleteExpectedFull(
+    deleteResult = await window.IRLidOrgApi.deleteExpectedFull(
       currentOrg.api_key,
       expectedId,
       qrLoginSession?.session_token,
       !!force
     );
-    // v6.7.2 (I1) — only say "Deleted" when the Worker confirmed it.
-    if (!deleteResult || deleteResult.queued || deleteResult.deleted !== true) {
-      showToast(`Could not confirm the delete for ${name}. Nothing was deleted. Check you are online and try again.`, true);
-      return;
-    }
-    showToast(`Deleted record for ${name}`);
-    await refreshAttendance();
-    await refreshExpectedAttendees();
   } catch (err) {
-    showToast(err.message || 'Could not delete attendee record', true);
+    const code = err?.data?.error || '';
+    let msg = err?.data?.message || err?.message || 'Could not delete attendee record';
+    if (!err?.status) msg = 'Could not reach IRLid. Nothing was deleted, please try again.';
+    else if (code === 'login_session_required') msg = 'Sign in with your IRLid login as a Lead Admin or Developer to delete records.';
+    showToast(msg, true);
+    return;
   }
+  // v6.7.2 (I1) — only say "Deleted" when the Worker confirmed it.
+  if (!deleteResult || deleteResult.queued || deleteResult.deleted !== true) {
+    showToast(`Could not confirm the delete for ${name}. Nothing was deleted. Check you are online and try again.`, true);
+    return;
+  }
+  showToast(`Deleted record for ${name}`);
+  await refreshAttendance();
+  await refreshExpectedAttendees();
 }
 function currentPrototypeRole() {
   return currentOrg?.role || (qrLoginSession?.is_developer ? 'developer' : 'staff');
