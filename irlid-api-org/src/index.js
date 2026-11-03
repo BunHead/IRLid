@@ -5883,7 +5883,9 @@ async function expectedBoundToDevice(env, orgCode, deviceFp) {
   if (direct) return direct.id;
   if (await tableExists(env, "rebind_history")) {
     const historical = await env.DB.prepare(
-      "SELECT expected_id AS id FROM rebind_history WHERE org_code=? AND new_device_fp=? ORDER BY created_at DESC, id DESC LIMIT 1"
+      // Ignore history for people who were deleted or archived, so a freed phone
+      // can be bound again. History rows themselves are never changed (R1).
+      "SELECT rh.expected_id AS id FROM rebind_history rh JOIN org_expected oe ON oe.id = rh.expected_id AND oe.org_id = rh.org_code AND oe.archived_at IS NULL WHERE rh.org_code=? AND rh.new_device_fp=? ORDER BY rh.created_at DESC, rh.id DESC LIMIT 1"
     ).bind(orgCode, deviceFp).first();
     if (historical) return historical.id;
   }
