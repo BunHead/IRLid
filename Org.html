@@ -3376,7 +3376,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.7.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.7.2</span></div>
   </div>
 </div>
 
@@ -15479,6 +15479,9 @@ async function refreshAttendance() {
     updateRelativeRefresh();
     await saveCurrentOrgSnapshot('attendance-refresh');
   } catch (err) {
+    // v6.7.2 — never swallow the reason silently (it hid this failure on go-live
+    // day). Fetch failures and page-rendering errors both land here.
+    console.warn('[refreshAttendance] failed, using cached snapshot:', err && err.status ? 'HTTP ' + err.status : (err && err.name) || 'error', err && err.message, err);
     const snap = await loadCurrentOrgSnapshot();
     if (snap && applySnapshotToDashboard(snap)) {
       // v6.3.23 — the cached-snapshot path bypasses setSignedInUI/loadDashboardForOrg,
@@ -15488,7 +15491,7 @@ async function refreshAttendance() {
       const nowMs = Date.now();
       if (nowMs - lastCachedAttendanceToastAt > 30000) {
         lastCachedAttendanceToastAt = nowMs;
-        showToast('Showing cached attendance snapshot');
+        showToast('Showing cached attendance snapshot' + (err && err.status ? ' (server said ' + err.status + ')' : ''));
       }
       return;
     }
@@ -15748,12 +15751,17 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   const ok = window.confirm(`Delete the full attendee record for ${name}?\n\nThis cascades to remove all check-in / check-out history rows AND the Expected entry. Cannot be undone.${liveWarning}`);
   if (!ok) return;
   try {
-    await window.IRLidOrgApi.deleteExpectedFull(
+    const deleteResult = await window.IRLidOrgApi.deleteExpectedFull(
       currentOrg.api_key,
       expectedId,
       qrLoginSession?.session_token,
       !!force
     );
+    // v6.7.2 (I1) — only say "Deleted" when the Worker confirmed it.
+    if (!deleteResult || deleteResult.queued || deleteResult.deleted !== true) {
+      showToast(`Could not confirm the delete for ${name}. Nothing was deleted. Check you are online and try again.`, true);
+      return;
+    }
     showToast(`Deleted record for ${name}`);
     await refreshAttendance();
     await refreshExpectedAttendees();

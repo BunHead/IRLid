@@ -104,6 +104,22 @@
     return queuedBody;
   }
 
+  // v6.7.2 — admin erasure (Delete record, Clear attendance; rules R1/S10/C8)
+  // must never be queued or replayed. Older pages queued them when a request
+  // failed; such a row replayed later with a stale login token, could stick
+  // the queue forever on a 5xx, and could erase a record unattended. Any such
+  // row is removed unsent and the user is told to redo it while online.
+  const NEVER_REPLAY_PATTERNS = [
+    /^\/org\/expected\/[^/?]+\/full([/?]|$)/,
+    /^\/org\/debug\//
+  ];
+  function isNeverReplay(op) {
+    if (!op || !op.url || String(op.method || "").toUpperCase() === "GET") return false;
+    let path = "";
+    try { path = new URL(op.url).pathname; } catch (_) { return false; }
+    return NEVER_REPLAY_PATTERNS.some(p => p.test(path));
+  }
+
   const DROPPED_KEY = "irlid_offline_dropped";
 
   // A dropped check-in is the only record that the person was there, so keep
@@ -203,6 +219,11 @@
           nextDue = nextDue ? Math.min(nextDue, Number(op.not_before)) : Number(op.not_before);
           continue;
         }
+        if (isNeverReplay(op)) {
+          await quarantine(op, "admin action is never sent from the offline queue");
+          dropped += 1;
+          continue;
+        }
         try {
           const response = await fetch(op.url, {
             method: op.method,
@@ -243,7 +264,7 @@
     return { halted, drained, dropped, deferred, quarantined };
   }
 
-  window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay, toOfflineCheckin, isTerminalHttpStatus };
+  window.IRLidOfflineQueue = { enqueue, listAll, remove, count, replay, toOfflineCheckin, isTerminalHttpStatus, isNeverReplay };
 
   // Replay opportunistically when connectivity returns or page becomes
   // visible. Background Sync API is a later Tier 2 extension; this covers
