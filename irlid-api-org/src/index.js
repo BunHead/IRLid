@@ -2848,19 +2848,29 @@ async function orgUpdateSettings(request, env) {
   // The org api_key is intentionally returned to members for dashboard reads,
   // so api_key-only auth must not be enough to change RBAC-sensitive settings.
   const GOVERNANCE_FIELDS = ["manager_perms"];
-  if (GOVERNANCE_FIELDS.some(f => body[f] !== undefined)) {
+  // S12: "requireLiveCode" is a security gate. The api_key alone must not be
+  // able to switch it, so a change (either way) needs the same lead_admin+
+  // session. Sending the unchanged value (a full-form save) needs nothing extra.
+  if (body.requireLiveCode !== undefined && typeof body.requireLiveCode !== "boolean") {
+    return err("requireLiveCode must be a boolean");
+  }
+  const requireLiveCodeChanging = body.requireLiveCode !== undefined
+    && body.requireLiveCode !== requireLiveCodeFromSettings(org.settings_json);
+  const governedField = GOVERNANCE_FIELDS.find(f => body[f] !== undefined)
+    || (requireLiveCodeChanging ? "requireLiveCode" : null);
+  if (governedField) {
     const ctx = await requireSession(request, env);
     if (ctx.error) {
       return json({
         error: "insufficient_role",
-        message: "A Lead Admin or Developer session is required to change manager_perms."
+        message: `A Lead Admin or Developer session is required to change ${governedField}.`
       }, 403);
     }
     const callerRole = await orgRoleForUser(env, ctx.user, org.id);
     if (callerRole !== "lead_admin" && callerRole !== "developer") {
       return json({
         error: "insufficient_role",
-        message: "Only Lead Admins and Developers can change manager_perms."
+        message: `Only Lead Admins and Developers can change ${governedField}.`
       }, 403);
     }
   }
@@ -2869,6 +2879,8 @@ async function orgUpdateSettings(request, env) {
   const allowed = [
     // --- Original v6 core gates ---
     "minScore","distanceM","windowS","bioRequired","privacyMode","checkoutEnabled","anonymousMode",
+    // S12: count only check-ins made with a live, unused screen code.
+    "requireLiveCode",
     // --- First-scan identity rules ---
     "returnAllowed","allowSelfSelection","requireDoormanConfirmation",
     // --- Branding ---
@@ -4365,6 +4377,18 @@ async function consumeLiveCode(env, nonce, crowd, t) {
 // as check-ins either way (S1).
 const QUARANTINE_DAILY_CAP = 200;
 
+// S12 (photographed / forwarded QR): an org may turn on "requireLiveCode".
+// Then only a check-in carrying a live, unused code the Worker issued counts.
+// Anything else (no code, a stale / used code from a photo, a queued replay)
+// is quarantined for staff review, never counted and never dropped (C8). The
+// phone's own clock or "queued" flag cannot get round it (S13). Off by default,
+// so offline-first (C1, C2, C6, C14) is unchanged for every other org.
+const LIVE_CODE_REQUIRED_REASON = "live_code_required";
+
+function requireLiveCodeFromSettings(settingsJson) {
+  try { return JSON.parse(settingsJson || "{}")?.requireLiveCode === true; } catch (_) { return false; }
+}
+
 async function ensureQuarantineStorage(env) {
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS org_checkin_quarantine (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, client_checkin_id TEXT, reason TEXT NOT NULL, signed_ts INTEGER, received_at INTEGER NOT NULL, body_json TEXT)"
@@ -4387,7 +4411,9 @@ async function quarantineCheckin(env, org, body, reason, t) {
     quarantined: true,
     reason,
     client_checkin_id: cleanOptionalText(body.client_checkin_id || body.idempotency_key, 90) || null,
-    notice: "This offline check-in could not be verified (bad or missing signature). It was kept for staff to review and was not counted."
+    notice: reason === LIVE_CODE_REQUIRED_REASON
+      ? "This venue only counts check-ins made by scanning its live screen. This check-in had no live code, so it was kept for staff to review and was not counted."
+      : "This offline check-in could not be verified (bad or missing signature). It was kept for staff to review and was not counted."
   }, 202);
   const day = quarantineDay(t);
   const dayStart = Math.floor(Date.parse(day + "T00:00:00Z") / 1000);
@@ -4581,6 +4607,10 @@ async function orgCheckin(request, env) {
     }
     if (fresh) {
       assurance = "fresh";
+    } else if (requireLiveCodeFromSettings(org.settings_json)) {
+      // S12: this org counts only live-code check-ins. A photo of an old QR
+      // (or any other code-less check-in) is kept for staff, not counted.
+      return quarantineCheckin(env, org, body, LIVE_CODE_REQUIRED_REASON, tNow);
     } else {
       // No code (static QR), a stale / used / unknown code, a queued replay
       // or an unsigned old-page check-in: never refused (C2, C6, C14, C15).

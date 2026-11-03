@@ -45,6 +45,7 @@
 - **C2. When freshness checks can't run (no signal, no code, queued), accept, mark "offline / unverified", never refuse.**
   - Why: no one gets lost in an outage.
   - The signature is still checked (S1).
+  - **Proposed exception (needs Spencer's OK):** an org that turns on "Require live screen code" gets a photographed / forwarded QR kept for staff review and not counted, instead of accepted as offline. Off by default; nothing is dropped (C8).
 - **C3. Merged into S1 (default).**
 - **C4. Scanning again while checked in says "You're already signed in" and offers check-out. Check-out asks first.**
   - Why: someone just arriving doesn't want to leave.
