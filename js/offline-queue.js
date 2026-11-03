@@ -176,6 +176,29 @@
     } catch (_) {}
   }
 
+  // A pass that halts on a network error or 5xx used to wait for the next
+  // 'online' event, a tab switch or a reload. On a dashboard that stays open
+  // and online none of those come, so the badge sat on SYNCING until the
+  // user left the page (3 Nov report). Retry with backoff while online.
+  const RETRY_MIN_MS = 15000;
+  const RETRY_MAX_MS = 5 * 60 * 1000;
+  let retryTimer = null;
+  let retryDelay = RETRY_MIN_MS;
+
+  function scheduleRetry() {
+    if (retryTimer || typeof setTimeout !== "function") return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return; // 'online' will replay
+    retryTimer = setTimeout(() => { retryTimer = null; replay(); }, retryDelay);
+    if (retryTimer && typeof retryTimer.unref === "function") retryTimer.unref();
+    retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+  }
+
+  function clearRetry() {
+    if (retryTimer && typeof clearTimeout === "function") clearTimeout(retryTimer);
+    retryTimer = null;
+    retryDelay = RETRY_MIN_MS;
+  }
+
   function scheduleDeferred(notBefore) {
     if (deferTimer && typeof clearTimeout === "function") clearTimeout(deferTimer);
     deferTimer = setTimeout(() => { deferTimer = null; replay(); }, Math.max(0, notBefore - Date.now()) + 250);
@@ -240,6 +263,8 @@
       replaying = false;
     }
     if (nextDue && !halted) scheduleDeferred(nextDue);
+    if (halted) scheduleRetry();
+    else clearRetry();
     return { halted, drained, dropped, deferred, quarantined };
   }
 

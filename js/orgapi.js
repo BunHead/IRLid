@@ -39,7 +39,13 @@
   const QUEUE_EXCLUDED_PATTERNS = [
     /^\/org\/expected\/create-and-bind([/?]|$)/,             // requireFreshStaffProof + requireSignedAction
     /^\/org\/expected\/[^/?]+\/bind-additional-key([/?]|$)/, // requireSignedAction
-    /^\/org\/expected\/[^/?]+\/rebind([/?]|$)/               // admin_signature verification
+    /^\/org\/expected\/[^/?]+\/rebind([/?]|$)/,              // admin_signature verification
+    // Rule R1 — Delete record is a logged erasure that needs a live Lead
+    // Admin / Developer login session. It must happen now or fail loudly:
+    // if queued, the dashboard said "Deleted" while the row stayed put and
+    // the badge sat on SYNCING until the tab was left and reopened (likely
+    // the 3 Nov report), and the Bearer token sat in IndexedDB for replay.
+    /^\/org\/expected\/[^/?]+\/full([/?]|$)/                  // Delete record (erasure)
   ];
 
   function isQueueEligible(path, method) {
