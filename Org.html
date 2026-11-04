@@ -15576,7 +15576,20 @@ function handleHubEvent(ev) {
   }
   // 'members' is reserved: nothing on the dashboard needs it yet.
 }
+// KILL SWITCH (v6.8.0). Push updates are only an accelerator. To switch them off
+// without redeploying the Worker (a Durable Object migration cannot be rolled
+// back by redeploying an older Worker): set PUSH_UPDATES_ENABLED to false and
+// ship the page, or on one browser run
+//   localStorage.setItem('irlid_push_updates', 'off')   (undo: removeItem)
+// The page then never opens the socket and uses the normal polling instead
+// (2 s live-code check, 15 s attendance poll). Check-in is not affected.
+var PUSH_UPDATES_ENABLED = true;
+function pushUpdatesAllowed() {
+  if (!PUSH_UPDATES_ENABLED) return false;
+  try { return localStorage.getItem('irlid_push_updates') !== 'off'; } catch (_) { return true; }
+}
 function startOrgHub() {
+  if (!pushUpdatesAllowed()) return;
   if (!window.IRLidOrgHubClient || !window.IRLidOrgApi || !currentOrg || !currentOrg.api_key) return;
   if (__orgHub && __orgHubKey === currentOrg.api_key) return;
   stopOrgHub();

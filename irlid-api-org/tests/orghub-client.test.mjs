@@ -135,3 +135,12 @@ test("service worker caches the client and the cache version moved on (W8)", () 
   assert.match(sw, /'\.\/js\/orghub-client\.js'/);
   assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 189);
 });
+
+test("kill switch: Org.html can switch push off (flag or localStorage) and falls back to polling", () => {
+  assert.match(orgHtml, /var PUSH_UPDATES_ENABLED = true;/);
+  assert.match(orgHtml, /localStorage\.getItem\('irlid_push_updates'\) !== 'off'/);
+  const start = orgHtml.slice(orgHtml.indexOf("function startOrgHub()"));
+  assert.ok(start.indexOf("if (!pushUpdatesAllowed()) return;") > 0 && start.indexOf("if (!pushUpdatesAllowed()) return;") < start.indexOf("createOrgHubClient"));
+  // hubIsOpen() is false when no client was started, so every slow poll uses its fast interval
+  assert.match(orgHtml, /function hubIsOpen\(\) \{ return !!\(__orgHub && __orgHub\.isOpen\(\)\); \}/);
+});

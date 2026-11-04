@@ -3216,11 +3216,28 @@ async function orgGetQR(request, env) {
   return json({ payload, settings });
 }
 
+// M2 (Worf review of #152): the org api_key must never ride in a URL, because
+// URLs end up in Cloudflare logs, browser history and Referer headers. The key
+// is accepted from the X-Org-Key header (or the org_ Bearer token) only.
+// A "?key=" query parameter is refused outright, even beside a good header.
+function urlCarriesOrgKey(request) {
+  try { return new URL(request.url).searchParams.has("key"); } catch (_) { return false; }
+}
+
 async function orgFromRequest(request, env) {
+  if (urlCarriesOrgKey(request)) return null;
   const url = new URL(request.url);
-  const key = request.headers.get("X-Org-Key") || url.searchParams.get("key") || url.searchParams.get("org");
-  if (!key) return null;
-  const org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(key, key, key).first();
+  const headerKey = request.headers.get("X-Org-Key");
+  let org = null;
+  if (headerKey) {
+    // Header: api_key, org id or slug (slim venue QRs only hold the slug).
+    org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(headerKey, headerKey, headerKey).first();
+  } else {
+    // "?org=" is a public identifier only (slug or id). It never resolves an api_key.
+    const ident = url.searchParams.get("org");
+    if (!ident) return null;
+    org = await env.DB.prepare("SELECT * FROM organisations WHERE id=? OR slug=?").bind(ident, ident).first();
+  }
   if (org) requestOrg.set(request, org);
   return org;
 }
@@ -6304,7 +6321,8 @@ async function orgResolveConflict(request, env, id) {
 
 async function orgAuth(request, env) {
   const token = bearerTokenFromRequest(request);
-  const key = request.headers.get("X-Org-Key") || new URL(request.url).searchParams.get("key") || (token.startsWith("org_") ? token : "");
+  if (urlCarriesOrgKey(request)) return authErr("org_key_in_url_not_accepted: send the key in the X-Org-Key header", 401);
+  const key = request.headers.get("X-Org-Key") || (token.startsWith("org_") ? token : "");
   if (!key) return authErr("X-Org-Key header required", 401);
   const org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=?").bind(key).first();
   if (!org) return authErr("Invalid API key", 401);

@@ -344,7 +344,8 @@
     },
 
     recognize(orgKey, devicePub) {
-      return request(`/org/recognize?org=${encodeURIComponent(orgKey)}&device_pub=${encodeURIComponent(devicePub)}`);
+      // M2 (#152): the key goes in the X-Org-Key header, never in the URL.
+      return request(`/org/recognize?device_pub=${encodeURIComponent(devicePub)}`, { orgKey });
     },
 
     listExpected(orgKey) {
