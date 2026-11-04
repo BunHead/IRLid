@@ -20,3 +20,12 @@ class_name = "OrgHub"
 [[migrations]]
 tag = "v1-org-hub"
 new_sqlite_classes = ["OrgHub"]
+
+# Keep Workers Logs switched on across deploys (enabled in the dashboard on
+# 04/11/2026; a deploy without this block could turn it off).
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
