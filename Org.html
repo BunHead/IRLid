@@ -6198,8 +6198,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .v511-theme-preview-qr,
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .qr-box {
-          width: clamp(220px, min(44dvh, 44vw), 500px) !important;
-          height: clamp(220px, min(44dvh, 44vw), 500px) !important;
+          /* v6.7.3 — fit the QR inside the stage. The stage height is
+             min(max(380px, 100dvh - 320px), 720px, 68dvh); keep ~170px for
+             logo + title + padding + the offline badge, so the white QR card
+             never runs off the bottom. Floor 220px keeps it scannable. */
+          --v673-stage-h: min(max(380px, calc(100dvh - 320px)), 720px, 68dvh);
+          width: clamp(220px, min(44dvh, 44vw, calc(var(--v673-stage-h) - 170px)), 500px) !important;
+          height: clamp(220px, min(44dvh, 44vw, calc(var(--v673-stage-h) - 170px)), 500px) !important;
+          flex-shrink: 0;
+        }
+        /* v6.7.3 — offline-only badge: keep it in the flow, never squashed. */
+        .prototype-checkin #panel-checkin #v511InlineCheckinStage .venue-qr-offline-badge {
+          position: relative; z-index: 6; flex-shrink: 0; margin: 4px auto 0;
         }
         /* v5.11.19 — .qr-info reordered per Captain's reference image:
            h4 + p left-aligned under the frame, then buttons centred row,
