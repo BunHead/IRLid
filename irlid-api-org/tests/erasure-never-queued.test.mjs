@@ -159,7 +159,7 @@ test("isNeverReplay matches only erasure paths", () => {
 test("Org.html only says 'Deleted record' when the Worker confirmed, and the build is bumped (W8)", () => {
   const html = readFileSync(new URL("Org.html", ROOT), "utf8");
   assert.match(html, /deleteResult\.queued \|\| deleteResult\.deleted !== true/);
-  assert.match(html, /Build v6\.7\.2/);
+  assert.match(html, /Build v6\.(7\.[2-9]|8\.\d)/);
   // At least v188 (the bump that shipped this fix). A minimum, not an exact
   // pin, so later PRs that bump the cache don't each have to edit this test.
   const swVer = Number((readFileSync(new URL("sw.js", ROOT), "utf8").match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/) || [])[1]);
