@@ -70,6 +70,7 @@
      widget. Same library used by live repo scan.html for receipt scanning. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
 <script src="js/orgapi.js"></script>
+<script src="js/orghub-client.js"></script>
 <script src="js/qr-fullscreen.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3376,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.7.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.0</span></div>
   </div>
 </div>
 
@@ -13743,8 +13744,10 @@ function setSignedInUI(isSignedIn) {
   // v5.9.0.13.2 — start/stop the remote check-in poll alongside signed-in UI.
   if (isSignedIn) {
     try { startRemoteCheckinPoll(); } catch (_) {}
+    try { startOrgHub(); } catch (_) {}
   } else {
     try { stopRemoteCheckinPoll(); } catch (_) {}
+    try { stopOrgHub(); } catch (_) {}
   }
   // v6.3.16 — re-apply role-gated nav visibility now the session/role is resolved.
   // #navSettings (lead_admin+) is hidden by the cold-load default, and the role gate
@@ -15530,11 +15533,111 @@ async function refreshAttendance() {
 // every 4s while an org is signed in; the new-id detection in
 // refreshAttendance fires the celebration when a remote venue-QR scan
 // lands. Stopped on sign-out via stopRemoteCheckinPoll().
+// ---------------------------------------------------------------------------
+// v6.8.0 — PUSH UPDATES. The Worker's per-org Durable Object hub pushes a tiny
+// {type, ids, nonce} event when a check-in, check-out, expected-list, calendar
+// or settings change lands. We then fetch just that data through the normal
+// authenticated endpoints. Events hold no personal data. If the socket cannot
+// connect or drops, the old polls carry on at a slower pace (15 s, visible tab
+// only) and the client reconnects with backoff. Check-in and the offline
+// backup QR do not depend on any of this.
+// ---------------------------------------------------------------------------
+var __orgHub = null;
+var __orgHubKey = null;
+var __hubDirty = {};
+var __hubFlushTimer = null;
+var __lastSlowPoll = {};
+function hubIsOpen() { return !!(__orgHub && __orgHub.isOpen()); }
+// True when a safety-net poll should run now: tab visible, and long enough
+// since the last one (longer gap while the hub is connected).
+function slowPollDue(key, hubMs, pollMs) {
+  if (document.visibilityState !== 'visible') return false;
+  var t = Date.now();
+  if (t - (__lastSlowPoll[key] || 0) < (hubIsOpen() ? hubMs : pollMs)) return false;
+  __lastSlowPoll[key] = t;
+  return true;
+}
+function flushHubRefresh() {
+  __hubFlushTimer = null;
+  var d = __hubDirty; __hubDirty = {};
+  if (!currentOrg) return;
+  var noop = function () {};
+  if (d.attendance) refreshAttendance().catch(noop);
+  if (d.expected && typeof refreshExpectedAttendees === 'function') refreshExpectedAttendees().catch(noop);
+  if (d.calendar && typeof window.refreshV511CalendarData === 'function') Promise.resolve(window.refreshV511CalendarData()).catch(noop);
+}
+function scheduleHubRefresh(kind) {
+  __hubDirty[kind] = true;
+  if (document.visibilityState !== 'visible') return; // flushed when the tab is shown again
+  if (__hubFlushTimer) return;
+  __hubFlushTimer = setTimeout(flushHubRefresh, 250); // coalesce a burst of scans into one fetch
+}
+function handleHubEvent(ev) {
+  if (!currentOrg || !ev) return;
+  if (ev.type === 'attendance') {
+    // The code on screen was just scanned: swap in a fresh one straight away.
+    if (ev.nonce && ev.nonce === venueQrLiveNonce && document.body.dataset.activePanel === 'checkin' && currentMode !== 'doorman_scan') {
+      generateVenueQR();
+    }
+    scheduleHubRefresh('attendance');
+  } else if (ev.type === 'expected') {
+    scheduleHubRefresh('expected');
+  } else if (ev.type === 'events' || ev.type === 'settings') {
+    scheduleHubRefresh('calendar');
+  }
+  // 'members' is reserved: nothing on the dashboard needs it yet.
+}
+// KILL SWITCH (v6.8.0). Push updates are only an accelerator. To switch them off
+// without redeploying the Worker (a Durable Object migration cannot be rolled
+// back by redeploying an older Worker): set PUSH_UPDATES_ENABLED to false and
+// ship the page, or on one browser run
+//   localStorage.setItem('irlid_push_updates', 'off')   (undo: removeItem)
+// The page then never opens the socket and uses the normal polling instead
+// (2 s live-code check, 15 s attendance poll). Check-in is not affected.
+var PUSH_UPDATES_ENABLED = true;
+function pushUpdatesAllowed() {
+  if (!PUSH_UPDATES_ENABLED) return false;
+  try { return localStorage.getItem('irlid_push_updates') !== 'off'; } catch (_) { return true; }
+}
+function startOrgHub() {
+  if (!pushUpdatesAllowed()) return;
+  if (!window.IRLidOrgHubClient || !window.IRLidOrgApi || !currentOrg || !currentOrg.api_key) return;
+  if (__orgHub && __orgHubKey === currentOrg.api_key) return;
+  stopOrgHub();
+  __orgHubKey = currentOrg.api_key;
+  __orgHub = window.IRLidOrgHubClient.createOrgHubClient({
+    getTicket: function () {
+      if (!currentOrg || !currentOrg.api_key) return Promise.reject(new Error('no org'));
+      return window.IRLidOrgApi.wsTicket(currentOrg.api_key);
+    },
+    buildUrl: function () { return window.IRLidOrgApi.wsUrl(); },
+    onEvent: handleHubEvent,
+    onState: function (state) {
+      irlidDebugLog('[hub] ' + state);
+      if (state === 'open') scheduleHubRefresh('attendance'); // catch up on anything missed while down
+    }
+  });
+  __orgHub.start();
+}
+function stopOrgHub() {
+  if (__orgHub) { try { __orgHub.stop(); } catch (_) {} }
+  __orgHub = null; __orgHubKey = null; __hubDirty = {};
+  if (__hubFlushTimer) { clearTimeout(__hubFlushTimer); __hubFlushTimer = null; }
+}
+window.addEventListener('online', function () { if (__orgHub) __orgHub.reconnectNow(); });
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible') return;
+  if (__orgHub) __orgHub.reconnectNow();
+  if (Object.keys(__hubDirty).length && !__hubFlushTimer) __hubFlushTimer = setTimeout(flushHubRefresh, 250);
+});
 function startRemoteCheckinPoll() {
   if (__remoteCheckinPollHandle) return;
   __remoteCheckinPollHandle = setInterval(function () {
     if (!currentOrg) return;
-    if (document.hidden) return; // skip when tab backgrounded — no point burning Worker quota
+    // v6.8.0 — push updates: the hub tells us when attendance changes, so this
+    // is only a safety net (60 s while the hub is connected, 15 s if it is
+    // not) and still skips a backgrounded tab to save Worker quota.
+    if (!slowPollDue('attendance', 60000, 15000)) return;
     refreshAttendance().catch(function () {});
   }, 4000);
 }
@@ -16079,7 +16182,9 @@ function setVenueQrOfflineMode(offline) {
   });
 }
 
-// v6.5.2 — rotate the venue QR as soon as it has been scanned: ask the
+// v6.5.2 — rotate the venue QR as soon as it has been scanned. (v6.8.0: the
+// Worker now pushes that over a WebSocket; the status poll below is the
+// fallback.) Original design: ask the
 // Worker about every 2 s whether the nonce on screen has been used. The 45 s
 // refresh below stays as the backup. While on the backup QR, the same tick
 // retries issuing a live one so the door returns to live mode by itself.
@@ -16093,6 +16198,10 @@ async function checkVenueQrNonceUsed() {
       if (venueQrOffline && navigator.onLine !== false) await generateVenueQR();
       return;
     }
+    // v6.8.0 — the hub pushes "this code was scanned" instantly, so the status
+    // check is only a safety net: 60 s with the hub connected. Without the hub
+    // keep the old 2 s check so a used code rotates quickly (Worf M1, C9/C14).
+    if (!slowPollDue('nonce', 60000, 2000)) return;
     let replace = false;
     try {
       const status = await window.IRLidOrgApi.checkinNonceStatus(currentOrg.api_key, nonce);

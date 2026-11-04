@@ -1191,7 +1191,7 @@
     const fp = await deviceKeyFingerprint(pub);
     if (localName) return localName;
     try {
-      const result = await getOrg(`/org/recognize?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+      const result = await getOrgAuthed(`/org/recognize?device_pub=${encodeURIComponent(fp)}`);
       if (result?.recognized && result.name) {
         localStorage.setItem(`irlid_org_name_${orgParam}`, result.name);
         return result.name;
@@ -1203,11 +1203,11 @@
   }
 
   async function recognizeDevice(fp) {
-    return getOrg(`/org/recognize?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+    return getOrgAuthed(`/org/recognize?device_pub=${encodeURIComponent(fp)}`);
   }
 
   async function activeCheckinForDevice(fp) {
-    return getOrg(`/org/active-checkin?org=${encodeURIComponent(orgParam)}&device_pub=${encodeURIComponent(fp)}`);
+    return getOrgAuthed(`/org/active-checkin?device_pub=${encodeURIComponent(fp)}`);
   }
 
   async function lookupExpectedByFingerprint(fp) {

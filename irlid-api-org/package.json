@@ -1,0 +1,10 @@
+{
+  "name": "irlid-api-org",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Deploy tooling only. wrangler is pinned to one exact version so a deploy never changes behind our back (Durable Object migrations cannot be rolled back by redeploying an older Worker).",
+  "type": "module",
+  "devDependencies": {
+    "wrangler": "4.157.0"
+  }
+}

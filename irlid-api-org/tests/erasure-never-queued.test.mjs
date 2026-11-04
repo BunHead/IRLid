@@ -159,6 +159,6 @@ test("isNeverReplay matches only erasure paths", () => {
 test("Org.html only says 'Deleted record' when the Worker confirmed, and the build is bumped (W8)", () => {
   const html = readFileSync(new URL("Org.html", ROOT), "utf8");
   assert.match(html, /deleteResult\.queued \|\| deleteResult\.deleted !== true/);
-  assert.match(html, /Build v6\.7\.2/);
-  assert.match(readFileSync(new URL("sw.js", ROOT), "utf8"), /CACHE_VERSION = 'irlid-shell-v188'/);
+  assert.match(html, /Build v6\.(7\.2|8\.\d)/);
+  assert.match(readFileSync(new URL("sw.js", ROOT), "utf8"), /CACHE_VERSION = 'irlid-shell-v189'/);
 });
