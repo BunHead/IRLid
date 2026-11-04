@@ -10,3 +10,13 @@ CORS_ORIGIN = "https://irlid.co.uk"
 binding = "DB"
 database_name = "irlid-db-org"
 database_id = "484dad86-e75c-412e-9423-ca0bb27cdcb8"
+
+# Push updates (Org dashboard). One OrgHub Durable Object per org, holding the
+# dashboard's WebSockets. SQLite-backed so it also runs on the Workers Free plan.
+[[durable_objects.bindings]]
+name = "ORG_HUB"
+class_name = "OrgHub"
+
+[[migrations]]
+tag = "v1-org-hub"
+new_sqlite_classes = ["OrgHub"]

@@ -175,6 +175,15 @@
     checkinNonceStatus(orgKey, nonce) {
       return request("/org/checkin-nonce/status?nonce=" + encodeURIComponent(nonce), { orgKey });
     },
+    // v6.8.0 — push updates. Header-auth POST returns a 60 s ticket; the
+    // socket URL is derived from the allow-listed API base (never from the
+    // response), and carries no secret.
+    wsTicket(orgKey) {
+      return request("/org/ws-ticket", { method: "POST", orgKey });
+    },
+    wsUrl() {
+      return getBaseUrl().replace(/^http/, "ws") + "/org/ws";
+    },
     // v6.4.20 — exposed for diagnostics only (localhost smoke + Chrome-MCP
     // probes can verify queue-eligibility rules without faking an outage).
     isQueueEligible,
