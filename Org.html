@@ -13955,7 +13955,6 @@ async function handleQrLoginSuccess(data) {
   // server-side sign-in worked correctly; only the frontend UI swap was stuck.
 
   const status = document.getElementById('qrLoginStatus');
-  const orgs = Array.isArray(data.orgs) ? data.orgs : [];
   const name = data.display_name || 'developer';
 
   // Batch C tidy 2 — clean panel state. Hide the QR display, the create-org form,
@@ -13966,7 +13965,33 @@ async function handleQrLoginSuccess(data) {
   const _cop = document.getElementById('createOrgPanel'); if (_cop) _cop.style.display = 'none';
   const _opp = document.getElementById('orgPickerPanel'); if (_opp) _opp.style.display = 'none';
 
-  if (orgs.length === 0) {
+  // v6.7.3 — Decide from /user/orgs, not from the poll's org list. The poll
+  // list can come back empty for a Developer (Super-Admin) even though
+  // /user/orgs returns every org as implicit "dev access", which wrongly
+  // showed "Create your first org" (and a slug-collision error on retry).
+  // /user/orgs is also the only source of api_key, so it is fetched anyway.
+  status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
+  status.style.color = '#7ee787';
+  let myOrgs = [];
+  try {
+    const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
+    myOrgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
+    irlidDebugLog("[v5.5.5] /user/orgs returned:", myOrgs);
+  } catch (err) {
+    status.textContent = 'Could not load your org list: ' + (err.message || 'unknown error');
+    status.style.color = '#f85149';
+    return;
+  }
+
+  if (myOrgs.length === 0) {
+    if (data.is_developer) {
+      // A super-admin should always see every org. An empty list means the
+      // Worker / database is wrong — never offer "create" here (it would
+      // invite a duplicate org).
+      status.textContent = 'Signed in as Developer, but no orgs are visible. Check the Worker and database before creating anything.';
+      status.style.color = '#f0883e';
+      return;
+    }
     if (data.can_create_org) {
       // Batch C — reveal the create-org form. Pre-fill welcome name from session.
       status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Create your first org below.';
@@ -13983,23 +14008,9 @@ async function handleQrLoginSuccess(data) {
     return;
   }
 
-  // The /org/login/poll response gives id+name+role+slug but NOT api_key. Fetch
-  // api_key from /user/orgs (Batch C — returns api_key for authorised members)
-  // so the existing X-Org-Key dashboard code keeps working through v5.5.
-  status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
-  status.style.color = '#7ee787';
-  let myOrgs = [];
-  try {
-    const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
-    myOrgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
-    irlidDebugLog("[v5.5.5] /user/orgs returned:", myOrgs);
-  } catch (err) {
-    status.textContent = 'Could not load your org list: ' + (err.message || 'unknown error');
-    status.style.color = '#f85149';
-    return;
-  }
-
-  if (myOrgs.length === 1) {
+  // A developer always gets the picker (even with one org) so dev access is
+  // a visible, deliberate choice, never an automatic load.
+  if (myOrgs.length === 1 && !data.is_developer) {
     await loadDashboardForOrg(myOrgs[0]);
     return;
   }
