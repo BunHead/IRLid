@@ -1369,10 +1369,11 @@ async function signActionPayload(actionType, orgId, fields) {
   // and may be off even when a credential exists). If no credential, the
   // caller should be routed through enrol UX before reaching here.
   if (!irlidV5Enrolled()) {
-    if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
+    if (irlidCrossDeviceActionSupported(actionType) &&
+        typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
       return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
     }
-    throw new Error("Hardware-backed signing required — no v5 credential on this device. Enrol via Settings.");
+    throw new Error("Hardware-backed signing required — no v5 credential on this device. Enrol at irlid.co.uk/settings.html (Hardware-Backed Signing).");
   }
   if (typeof actionType !== "string" || !/^irlid_[a-z_]+_v5$/.test(actionType)) {
     throw new Error("signActionPayload: actionType must match /^irlid_<name>_v5$/");
@@ -1403,7 +1404,12 @@ async function signActionPayload(actionType, orgId, fields) {
   try {
     v5 = await irlidV5SignPayloadHash(payloadHashBytes);
   } catch (err) {
-    if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
+    // Only fall back to phone authorisation for action types that support it.
+    // For others (bind, create-bind, delete...) the fallback can only throw a
+    // generic "Hardware-backed signing required" error, which hides the real
+    // reason (cancelled prompt, passkey not found, UV not asserted).
+    if (irlidCrossDeviceActionSupported(actionType) &&
+        typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
       console.warn("[signActionPayload] local v5 assertion failed; falling back to cross-device action auth", err);
       return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
     }

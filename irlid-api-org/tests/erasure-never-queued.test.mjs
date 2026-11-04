@@ -159,6 +159,9 @@ test("isNeverReplay matches only erasure paths", () => {
 test("Org.html only says 'Deleted record' when the Worker confirmed, and the build is bumped (W8)", () => {
   const html = readFileSync(new URL("Org.html", ROOT), "utf8");
   assert.match(html, /deleteResult\.queued \|\| deleteResult\.deleted !== true/);
-  assert.match(html, /Build v6\.(7\.2|8\.\d)/);
-  assert.match(readFileSync(new URL("sw.js", ROOT), "utf8"), /CACHE_VERSION = 'irlid-shell-v189'/);
+  assert.match(html, /Build v6\.(7\.[2-9]|8\.\d)/);
+  // At least v188 (the bump that shipped this fix). A minimum, not an exact
+  // pin, so later PRs that bump the cache don't each have to edit this test.
+  const swVer = Number((readFileSync(new URL("sw.js", ROOT), "utf8").match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/) || [])[1]);
+  assert.ok(swVer >= 188, "sw.js CACHE_VERSION should be at least v188, got v" + swVer);
 });

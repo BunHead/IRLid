@@ -165,10 +165,77 @@
         <div class="chip-desc">Flag receipts that score below this threshold. Off means always accept regardless of score.</div>
       </div>
 
-      <!-- ===== Bio-metric verification ===== -->
+      <!-- ===== Trust History ===== -->
       <div class="panel">
-        <h3 style="margin:0 0 4px;">👆 Hardware-Backed Verification</h3>
-        <p class="small" style="margin:0 0 12px; color:#888;">Require a live device unlock (Face ID, fingerprint, or passcode) before each handshake. Proves the receipt was signed on this device with a live unlock — not copied, automated, or replayed. The unlock check happens on your device; no biometric data leaves it. Off by default — enrol once to enable.</p>
+        <h3 style="margin:0 0 4px;">📊 Trust History</h3>
+        <p class="small" style="margin:0 0 10px; color:#888;">IRLid stores a compact log of verified receipts on this device to build your local trust score (receipt depth, location diversity, device consistency).</p>
+        <div class="settings-kv" id="trustHistoryLine">Loading…</div>
+        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:10px;">
+          <button class="btn secondary" id="clearTrustBtn" type="button">Clear trust history</button>
+        </div>
+      </div>
+
+      <!-- ===== v5 Hardware-Backed Signing (Passkey / Secure Enclave) ===== -->
+      <div class="panel" id="v5Panel">
+        <h3 style="margin:0 0 4px;">🔒 Hardware-Backed Signing</h3>
+        <p class="small" style="margin:0 0 12px; color:#888;">
+          Keeps your IRLid signing key in your device's Secure Enclave (Apple) /
+          TEE (Android) / Windows Hello TPM. The private key never leaves the hardware,
+          and a device unlock (Face ID, Touch ID, fingerprint, or PIN) is required at every signature.
+          <strong>Required on any computer used for Org portal admin</strong> (Bind, Add at the door).
+          Optional for everyday handshakes. See
+          <a href="https://github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md#iii-stolen-device-attacks" target="_blank" rel="noopener">THREAT-MODEL.md §III.2</a>.
+        </p>
+
+        <div id="v5StatusRow" class="bio-status-row not-enrolled" role="status" aria-live="polite">
+          <div class="bio-dot dot-orange" id="v5Dot"></div>
+          <span id="v5StatusText">Checking…</span>
+        </div>
+
+        <div id="v5EnrolSection" style="display:none;">
+          <button class="btn" id="v5EnrolBtn" type="button" aria-describedby="v5EnrolHelp">
+            🔒 Enrol hardware-backed key
+          </button>
+          <div class="settings-kv" id="v5EnrolHelp" style="margin-top:6px;">
+            You'll be prompted once to register a passkey. Takes about 5 seconds.
+            Your fingerprint or face never leaves the device.
+          </div>
+        </div>
+
+        <div id="v5ActiveSection" style="display:none;">
+          <div class="settings-row" style="margin-bottom:10px;">
+            <label style="display:flex; gap:10px; align-items:center;">
+              <input type="checkbox" id="v5EnabledToggle" aria-describedby="v5EnabledHelp" />
+              <span><b>Also use it for my handshakes and receipts</b></span>
+            </label>
+          </div>
+          <div class="settings-kv" id="v5EnabledHelp" style="margin-bottom:10px;">
+            When ON, every HELLO and response signature requires a fresh user-verification
+            unlock (Face ID, fingerprint, or passcode). Score boost: +20 to 70/100 when v5 verifies.
+          </div>
+          <button class="btn secondary" id="v5RemoveBtn" type="button">Remove enrolment</button>
+          <div class="settings-kv" style="margin-top:6px;">
+            Removing only clears IRLid's reference to the key; the key itself stays in your
+            platform's password manager (iCloud Keychain / Google Password Manager / Windows Hello)
+            until you remove it there. You can re-enrol any time.
+          </div>
+        </div>
+
+        <div id="v5UnavailSection" style="display:none;">
+          <div class="settings-kv" style="color:#aaa;">
+            Hardware-backed signing requires a platform authenticator (Touch ID, Face ID,
+            fingerprint, or Windows Hello) and a recent browser (Safari on iOS 16+,
+            Chrome on Android 9+, or Edge/Chrome on Windows with Windows Hello set up).
+            Not available on this device or browser.
+          </div>
+        </div>
+
+        <!-- Older WebAuthn unlock gate (irlid_bio_*). Shown only when v5 is
+             unavailable on this device, or when it is already enrolled so it
+             can still be managed/removed. sign.js ignores it whenever v5 signs. -->
+        <div id="bioLegacyBlock" style="display:none; margin-top:18px; padding-top:14px; border-top:1px solid rgba(127,127,127,0.25);">
+        <h4 style="margin:0 0 4px;">👆 Older unlock check (fallback)</h4>
+        <p class="small" style="margin:0 0 12px; color:#888;">Only used when the hardware-backed key above is off or not available. Asks for a device unlock before each handshake, but the signing key itself stays in the browser. Not needed for the Org portal.</p>
 
         <div id="bioStatusRow" class="bio-status-row not-enrolled">
           <div class="bio-dot dot-orange" id="bioDot"></div>
@@ -194,71 +261,6 @@
         <div id="bioUnavailSection" style="display:none;">
           <div class="settings-kv" style="color:#aaa;">Device unlock (Face ID / fingerprint / passcode) via WebAuthn is not available on this device or browser. Try Safari on iOS 16+ or Chrome on Android 9+.</div>
         </div>
-      </div>
-
-      <!-- ===== Trust History ===== -->
-      <div class="panel">
-        <h3 style="margin:0 0 4px;">📊 Trust History</h3>
-        <p class="small" style="margin:0 0 10px; color:#888;">IRLid stores a compact log of verified receipts on this device to build your local trust score (receipt depth, location diversity, device consistency).</p>
-        <div class="settings-kv" id="trustHistoryLine">Loading…</div>
-        <div class="controls" style="justify-content:flex-start; gap:10px; margin-top:10px;">
-          <button class="btn secondary" id="clearTrustBtn" type="button">Clear trust history</button>
-        </div>
-      </div>
-
-      <!-- ===== v5 Hardware-Backed Signing (Passkey / Secure Enclave) ===== -->
-      <div class="panel" id="v5Panel">
-        <h3 style="margin:0 0 4px;">🔒 Hardware-Backed Signing — v5 (beta)</h3>
-        <p class="small" style="margin:0 0 12px; color:#888;">
-          Move your IRLid signing key into your device's Secure Enclave (Apple) /
-          TEE (Android) / Windows Hello TPM. Private key never leaves the hardware,
-          and a device unlock (Face ID, Touch ID, fingerprint, or passcode) is required at every signature.
-          Closes the strongest honest criticism of v3/v4 (localStorage extraction —
-          see <a href="https://github.com/BunHead/IRLid/blob/main/THREAT-MODEL.md#iii-stolen-device-attacks" target="_blank" rel="noopener">THREAT-MODEL.md §III.2</a>).
-          <strong>Off by default.</strong> Enrol once to enable.
-        </p>
-
-        <div id="v5StatusRow" class="bio-status-row not-enrolled" role="status" aria-live="polite">
-          <div class="bio-dot dot-orange" id="v5Dot"></div>
-          <span id="v5StatusText">Checking…</span>
-        </div>
-
-        <div id="v5EnrolSection" style="display:none;">
-          <button class="btn" id="v5EnrolBtn" type="button" aria-describedby="v5EnrolHelp">
-            🔒 Enrol hardware-backed key
-          </button>
-          <div class="settings-kv" id="v5EnrolHelp" style="margin-top:6px;">
-            You'll be prompted once to register a passkey. Takes about 5 seconds.
-            Your fingerprint or face never leaves the device.
-          </div>
-        </div>
-
-        <div id="v5ActiveSection" style="display:none;">
-          <div class="settings-row" style="margin-bottom:10px;">
-            <label style="display:flex; gap:10px; align-items:center;">
-              <input type="checkbox" id="v5EnabledToggle" aria-describedby="v5EnabledHelp" />
-              <span><b>Use hardware-backed key for signing</b></span>
-            </label>
-          </div>
-          <div class="settings-kv" id="v5EnabledHelp" style="margin-bottom:10px;">
-            When ON, every HELLO and response signature requires a fresh user-verification
-            unlock (Face ID, fingerprint, or passcode). Score boost: +20 to 70/100 when v5 verifies.
-          </div>
-          <button class="btn secondary" id="v5RemoveBtn" type="button">Remove enrolment</button>
-          <div class="settings-kv" style="margin-top:6px;">
-            Removing only clears IRLid's reference to the key; the key itself stays in your
-            platform's password manager (iCloud Keychain / Google Password Manager / Windows Hello)
-            until you remove it there. You can re-enrol any time.
-          </div>
-        </div>
-
-        <div id="v5UnavailSection" style="display:none;">
-          <div class="settings-kv" style="color:#aaa;">
-            Hardware-backed signing requires a platform authenticator (Touch ID, Face ID,
-            fingerprint, or Windows Hello) and a recent browser (Safari on iOS 16+,
-            Chrome on Android 9+, or Edge/Chrome on Windows with Windows Hello set up).
-            Not available on this device or browser.
-          </div>
         </div>
       </div>
 
@@ -408,7 +410,17 @@
     var bioRemoveBtn    = document.getElementById("bioRemoveBtn");
     var bioEnabledToggle= document.getElementById("bioEnabledToggle");
 
+    async function renderBioLegacyVisibility() {
+      var block = document.getElementById("bioLegacyBlock");
+      if (!block) return;
+      var v5Avail = (typeof irlidV5Available === "function") ? await irlidV5Available() : false;
+      var bioEnrolled = false;
+      try { bioEnrolled = !!localStorage.getItem("irlid_bio_cred_id"); } catch{}
+      block.style.display = (!v5Avail || bioEnrolled) ? "block" : "none";
+    }
+
     async function renderBioState() {
+      renderBioLegacyVisibility();
       if (typeof irlidBiometricAvailable !== "function") return;
       var available = await irlidBiometricAvailable();
       var credId = null;
@@ -509,7 +521,7 @@
         v5Dot.className = "bio-dot dot-green";
         v5StatusText.textContent = enabled
           ? "Enrolled & active — signatures use the hardware-backed key"
-          : "Enrolled — toggle below to start using v5 for signing";
+          : "Enrolled — ready for Org portal admin on this device";
         v5ActiveSection.style.display = "block";
         v5EnabledToggle.checked = !!enabled;
       }
