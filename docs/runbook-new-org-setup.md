@@ -13,10 +13,10 @@ This is written from the first Imbue Ventures Ltd setup on 4 Nov 2026. Follow it
 This is the step that caught us out.
 
 1. On the admin computer, open **irlid.co.uk/settings.html** (the main IRLid settings page, **not** Settings inside the Org portal).
-2. Scroll to **🔒 Hardware-Backed Signing — v5 (beta)** and click **Enrol hardware-backed key**. Approve the Windows Hello / Touch ID prompt.
+2. Scroll to **🔒 Hardware-Backed Signing** and click **Enrol hardware-backed key**. Approve the Windows Hello / Touch ID prompt.
 3. The panel should now say it is enrolled.
 
-Watch out: the page also has a panel called **👆 Hardware-Backed Verification**. That one is an older feature and does **not** count. If the v5 panel says "Available — not enrolled", you haven't done this step yet.
+Watch out: the same panel may also show **👆 Older unlock check (fallback)** underneath. Older pages called it "Hardware-Backed Verification". It does **not** count. If the 🔒 section says "Available — not enrolled", you haven't done this step yet.
 
 To check from the Org tab, press F12, open Console and run `localStorage.getItem('irlid_v5_cred_id')`. Anything other than `null` means it worked. You don't need to share or screenshot the value. It's only a credential ID, but there's no reason to send it around.
 
@@ -53,11 +53,10 @@ After this, that phone goes straight to green every time, unless the person clea
 |---|---|---|
 | Orange "Get a member of staff" on the phone | Phone's key isn't known to this org yet | Step 4 |
 | "No event running" on the Check-in screen | No event scheduled now | Doesn't block check-in; the lookup is org-wide |
-| "Hardware-backed signing required on this device for this action" when pressing Bind/Add | The admin computer isn't enrolled in **v5** signing | Step 1 (check the v5 panel, not the 👆 one) |
+| "Hardware-backed signing required on this device for this action" when pressing Bind/Add | The admin computer isn't enrolled in **v5** signing | Step 1 (the 🔒 section, not the 👆 fallback) |
 | Windows Hello says it's *creating* a passkey when you expected it to sign | You're on an enrolment page, or enrolment was removed | Re-do step 1 on settings.html, then reload the Org tab |
 | "far from venue" next to a check-in | Phone GPS isn't near the venue location | Expected when testing from home |
 
 ## Open follow-ups
 
-- The two "Hardware-Backed …" panels on settings.html are easy to confuse. Consider merging them or renaming the older one.
 - Bind / Add at the door can't be approved from a phone, only from an enrolled computer. That's on purpose for now: a solo admin's phone would otherwise be approving its own key.
