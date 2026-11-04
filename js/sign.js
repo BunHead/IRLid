@@ -1403,7 +1403,12 @@ async function signActionPayload(actionType, orgId, fields) {
   try {
     v5 = await irlidV5SignPayloadHash(payloadHashBytes);
   } catch (err) {
-    if (typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
+    // Only fall back to phone authorisation for action types that support it.
+    // For others (bind, create-bind, delete...) the fallback can only throw a
+    // generic "Hardware-backed signing required" error, which hides the real
+    // reason (cancelled prompt, passkey not found, UV not asserted).
+    if (irlidCrossDeviceActionSupported(actionType) &&
+        typeof window !== "undefined" && typeof window.IRLidCrossDeviceAction === "function") {
       console.warn("[signActionPayload] local v5 assertion failed; falling back to cross-device action auth", err);
       return window.IRLidCrossDeviceAction(actionType, orgId, fields || {});
     }
