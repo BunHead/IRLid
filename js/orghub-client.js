@@ -16,6 +16,7 @@
   var BACKOFF_STEPS_MS = [1000, 2000, 4000, 8000, 15000, 30000, 60000];
   var UNAVAILABLE_RETRY_MS = 5 * 60 * 1000;   // Worker has no hub (404/501) or key not accepted (401/403): try again rarely
   var PING_EVERY_MS = 30000;                  // answered by the runtime, free, keeps proxies awake
+  var PONG_TIMEOUT_MS = 45000;                // M1: no pong (or any message) this long = half-open socket, reconnect
 
   function createOrgHubClient(opts) {
     var getTicket = opts.getTicket;           // () => Promise<{ticket, protocol}>
@@ -36,7 +37,8 @@
     var attempt = 0;
     var retryTimer = null;
     var pingTimer = null;
-    var generation = 0;                       // invalidates callbacks from old sockets
+    var generation = 0;
+    var lastHeard = 0;                        // last time anything arrived on the socket (M1 watchdog)
 
     function setState(next) {
       if (state === next) return;
@@ -94,11 +96,24 @@
       ws.onopen = function () {
         if (gen !== generation) return;
         attempt = 0;
+        lastHeard = Date.now();
         setState("open");
-        pingTimer = setI(function () { try { ws.send("ping"); } catch (_) {} }, PING_EVERY_MS);
+        pingTimer = setI(function () {
+          if (gen !== generation) return;
+          if (Date.now() - lastHeard > PONG_TIMEOUT_MS) {
+            // Half-open: treat as lost so the page falls back to fast polling.
+            socket = null; generation += 1;
+            if (pingTimer) { clearI(pingTimer); pingTimer = null; }
+            try { ws.close(); } catch (_) {}
+            scheduleRetry(false);
+            return;
+          }
+          try { ws.send("ping"); } catch (_) {}
+        }, PING_EVERY_MS);
       };
       ws.onmessage = function (m) {
         if (gen !== generation) return;
+        lastHeard = Date.now();
         if (m.data === "pong") return;
         var ev; try { ev = JSON.parse(m.data); } catch (_) { return; }
         if (ev && typeof ev.type === "string") { try { onEvent(ev); } catch (_) {} }
@@ -135,7 +150,7 @@
     };
   }
 
-  var api = { createOrgHubClient: createOrgHubClient, BACKOFF_STEPS_MS: BACKOFF_STEPS_MS, UNAVAILABLE_RETRY_MS: UNAVAILABLE_RETRY_MS };
+  var api = { createOrgHubClient: createOrgHubClient, PONG_TIMEOUT_MS: PONG_TIMEOUT_MS, BACKOFF_STEPS_MS: BACKOFF_STEPS_MS, UNAVAILABLE_RETRY_MS: UNAVAILABLE_RETRY_MS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IRLidOrgHubClient = api;
 })(typeof window !== "undefined" ? window : globalThis);

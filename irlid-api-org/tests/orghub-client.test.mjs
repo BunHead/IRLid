@@ -119,7 +119,7 @@ const sw = readFileSync(new URL("../../sw.js", import.meta.url), "utf8");
 test("Org.html loads the push client and keeps slow-poll fallbacks, visible tab only", () => {
   assert.match(orgHtml, /<script src="js\/orghub-client\.js"><\/script>/);
   assert.match(orgHtml, /slowPollDue\('attendance', 60000, 15000\)/);
-  assert.match(orgHtml, /slowPollDue\('nonce', 60000, 15000\)/);
+  assert.match(orgHtml, /slowPollDue\('nonce', 60000, 2000\)/);
   assert.match(orgHtml, /document\.visibilityState !== 'visible'\) return false/);
   assert.match(orgHtml, /setInterval\(checkVenueQrNonceUsed, 2000\)/, "backup-QR retry tick is unchanged");
 });

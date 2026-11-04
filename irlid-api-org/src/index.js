@@ -10,7 +10,7 @@
 // =====================
 
 function uuid() { return crypto.randomUUID(); }
-import { mintWsTicket, verifyWsTicket, wsTicketOrgId, ticketFromProtocolHeader, WS_PROTOCOL, WS_TICKET_TTL_S } from "./org-hub.js";
+import { mintWsTicket, verifyWsTicket, wsTicketOrgId, ticketFromProtocolHeader, wsTicketNonce, hubKeyTag, WS_PROTOCOL, WS_TICKET_TTL_S } from "./org-hub.js";
 // The Durable Object class must be exported from the Worker's main module.
 export { OrgHub } from "./org-hub.js";
 
@@ -485,13 +485,7 @@ function corsHeaders(env, request) {
   // test, irlid.co.uk for live), plus the live IRLid origin always (because PROTOCOL.md
   // §14 login flow has the phone-side org-login.html hosted at irlid.co.uk POSTing to
   // either prod or test Worker — by design cross-origin), plus localhost dev variants.
-  const allowed = [
-    env.CORS_ORIGIN || "https://irlid.co.uk",
-    "https://irlid.co.uk",
-    "https://bunhead.github.io",
-    "http://localhost:3000", "http://localhost:8000",
-    "http://127.0.0.1:3000", "http://127.0.0.1:8000"
-  ];
+  const allowed = allowedOrigins(env); // one list (W7)
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -6359,7 +6353,11 @@ async function orgWebSocket(request, env) {
   if (!org || !(await verifyWsTicket(ticket, org, now()))) return err("Ticket invalid or expired", 401);
   const stub = env.ORG_HUB.get(env.ORG_HUB.idFromName(String(org.id)));
   // Build a fresh request: nothing from the public URL or body is forwarded.
-  return stub.fetch(new Request("https://org-hub/connect", { headers: { Upgrade: "websocket" } }));
+  return stub.fetch(new Request("https://org-hub/connect", { headers: {
+    Upgrade: "websocket",
+    "X-Hub-Ticket-Nonce": wsTicketNonce(ticket) || "",
+    "X-Hub-Key-Tag": await hubKeyTag(org.api_key)
+  } }));
 }
 
 // Which dashboard data a successful change touches. Coarse on purpose: the
@@ -6397,8 +6395,10 @@ async function publishHubEvents(request, response, env, ctx, method, path) {
     }
     const hint = requestHubHints.get(request) || {};
     const stub = env.ORG_HUB.get(env.ORG_HUB.idFromName(String(org.id)));
+    const keyTag = org.api_key ? await hubKeyTag(org.api_key) : "";
     const sends = types.map(type => stub.fetch("https://org-hub/notify", {
       method: "POST",
+      headers: keyTag ? { "X-Hub-Key-Tag": keyTag } : {},
       body: JSON.stringify({ type, ids: type === "attendance" ? ids : [], nonce: type === "attendance" ? hint.nonce : undefined })
     }).then(r => r.body && r.body.cancel && r.body.cancel()).catch(() => {}));
     const all = Promise.all(sends);

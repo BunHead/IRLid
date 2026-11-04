@@ -17,6 +17,8 @@ export const WS_TICKET_PREFIX = "ticket.";
 export const WS_TICKET_TTL_S = 60;
 export const MAX_SOCKETS_PER_ORG = 25;
 export const MAX_SOCKET_AGE_MS = 12 * 3600 * 1000;
+// L2: a ticket's random part is remembered this long, so each ticket opens one socket.
+export const TICKET_REPLAY_MS = 65 * 1000;
 export const MAX_NOTIFY_BYTES = 2048;
 
 // The only event types the hub will broadcast.
@@ -75,6 +77,20 @@ export async function verifyWsTicket(ticket, org, nowS) {
   } catch { return false; }
 }
 
+// Random part of a ticket (call only after verifyWsTicket passed).
+export function wsTicketNonce(ticket) {
+  try {
+    const data = JSON.parse(new TextDecoder().decode(b64urlDecode(String(ticket).split(".")[0])));
+    return typeof data.r === "string" ? data.r : null;
+  } catch { return null; }
+}
+
+// L1: short hash of the org api_key, so the hub can drop sockets opened under an old key.
+export async function hubKeyTag(apiKey) {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode("irlid-hub-key|" + String(apiKey || ""))));
+  return b64url(d.slice(0, 12));
+}
+
 // Pulls "ticket.<token>" out of a Sec-WebSocket-Protocol header value.
 export function ticketFromProtocolHeader(header) {
   for (const raw of String(header || "").split(",")) {
@@ -100,6 +116,7 @@ export class OrgHub {
   constructor(ctx, env) {
     this.ctx = ctx;
     this.env = env;
+    this.usedTickets = new Map();           // ticket random part -> expiry ms (L2)
     // Answered by the runtime without waking the object (not billed).
     try {
       if (typeof WebSocketRequestResponsePair === "function" && ctx.setWebSocketAutoResponse) {
@@ -126,6 +143,16 @@ export class OrgHub {
     if ((request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket", { status: 426 });
     }
+    // L2: one socket per ticket. In memory only: if the object hibernates the
+    // list is lost, but the 60 s ticket expiry still bounds reuse.
+    const tn = request.headers.get("X-Hub-Ticket-Nonce");
+    if (tn) {
+      const t0 = Date.now();
+      for (const [k, exp] of this.usedTickets) if (exp < t0) this.usedTickets.delete(k);
+      if (this.usedTickets.has(tn)) return new Response("Ticket already used", { status: 401 });
+      this.usedTickets.set(tn, t0 + TICKET_REPLAY_MS);
+    }
+    const keyTag = request.headers.get("X-Hub-Key-Tag") || null;
     const sockets = this.ctx.getWebSockets();
     if (sockets.length >= MAX_SOCKETS_PER_ORG) {
       // Drop the oldest so a runaway reconnect loop cannot fill the hub.
@@ -136,7 +163,7 @@ export class OrgHub {
     const client = pair[0];
     const server = pair[1];
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ t: Date.now() });
+    server.serializeAttachment({ t: Date.now(), k: keyTag });
     return this.makeUpgradeResponse(client);
   }
 
@@ -146,18 +173,20 @@ export class OrgHub {
     let input; try { input = JSON.parse(text); } catch { return json({ error: "bad json" }, 400); }
     const event = cleanHubEvent(input, Date.now());
     if (!event) return json({ error: "bad event" }, 400);
-    return json({ sent: this.broadcast(event) });
+    return json({ sent: this.broadcast(event, request.headers.get("X-Hub-Key-Tag") || null) });
   }
 
-  broadcast(event) {
+  broadcast(event, keyTag) {
     const msg = JSON.stringify(event);
     const cutoff = Date.now() - MAX_SOCKET_AGE_MS;
     let sent = 0;
     for (const ws of this.ctx.getWebSockets()) {
       try {
-        // Sockets live at most 12 h: the page reconnects with a fresh ticket,
-        // so a rotated api_key or removed access cannot linger.
-        if ((ws.deserializeAttachment()?.t || 0) < cutoff) { ws.close(1000, "renew"); continue; }
+        // Sockets live at most 12 h (checked when an event is sent). A socket
+        // opened under an older api_key is closed on the next event (L1).
+        const att = ws.deserializeAttachment() || {};
+        if ((att.t || 0) < cutoff) { ws.close(1000, "renew"); continue; }
+        if (keyTag && att.k && att.k !== keyTag) { ws.close(1008, "key rotated"); continue; }
         ws.send(msg);
         sent++;
       } catch (_) { try { ws.close(1011, "send failed"); } catch (_) {} }

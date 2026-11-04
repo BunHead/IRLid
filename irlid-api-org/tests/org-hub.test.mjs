@@ -255,3 +255,19 @@ test("failed or non-mutating requests do not notify", async () => {
   assert.equal(res.status, 400);
   assert.equal(ns.hubs.size, 0);
 });
+
+test("hub refuses a second socket from the same ticket (L2)", async () => {
+  const hub = new TestHub(fakeCtx([]), {});
+  const mk = () => hub.fetch(new Request("https://org-hub/connect", { headers: { Upgrade: "websocket", "X-Hub-Ticket-Nonce": "abc" } }));
+  assert.notEqual((await mk()).status, 401);
+  assert.equal((await mk()).status, 401);
+});
+
+test("hub closes sockets opened under an old api_key (L1)", async () => {
+  const closed = [];
+  const mkSock = (k) => ({ deserializeAttachment: () => ({ t: Date.now(), k }), send() {}, close(c) { closed.push(k); } });
+  const hub = new TestHub(fakeCtx([mkSock("old"), mkSock("new")]), {});
+  const sent = hub.broadcast({ type: "attendance", at: 1 }, "new");
+  assert.equal(sent, 1);
+  assert.deepEqual(closed, ["old"]);
+});
