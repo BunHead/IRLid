@@ -10,6 +10,9 @@
 #   If a deploy ever fails with an "account ambiguous" error, add a second secret
 #     CLOUDFLARE_ACCOUNT_ID (the irlid account id) and uncomment the line below.
 #
+# wrangler is pinned to 4.157.0 exactly (matches irlid-api-org/package.json). Bump it
+# deliberately in a PR: a Durable Object migration cannot be undone by redeploying.
+#
 # SAFETY: only fires on changes under irlid-api-org/** (frontend-only PRs don't trigger it),
 # only on main (so a merge is still the human gate), and never touches wrangler secrets
 # like BOOTSTRAP_DEVELOPER_FP — those persist across deploys untouched.
@@ -41,7 +44,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
           # CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}   # uncomment only if needed
-        run: npx --yes wrangler@latest deploy
+        run: npx --yes wrangler@4.157.0 deploy
 
       # v6.4.24 — also auto-deploy the consumer Worker (same Cloudflare account).
       # Both Workers redeploy on any push touching either dir; redeploy is idempotent.
@@ -49,4 +52,4 @@ jobs:
         working-directory: irlid-api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
-        run: npx --yes wrangler@latest deploy
+        run: npx --yes wrangler@4.157.0 deploy
