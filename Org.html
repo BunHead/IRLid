@@ -17554,6 +17554,10 @@ function renderInlineCheckinClone(opts) {
       if (now - lastStageTap < 360) { e.preventDefault(); lastStageTap = 0; try { fullscreenQR(); } catch (_) {} }
       else { lastStageTap = now; }
     });
+    // Mouse double-click: the clone's source (Settings preview stage) has no
+    // ondblclick attribute, and cloneNode() doesn't copy addEventListener
+    // handlers, so desktop dblclick had no route to fullscreen. Bind it here.
+    clone.addEventListener('dblclick', function () { try { fullscreenQR(); } catch (_) {} });
   }
 
   return clone;
