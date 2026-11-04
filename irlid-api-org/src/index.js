@@ -10,6 +10,10 @@
 // =====================
 
 function uuid() { return crypto.randomUUID(); }
+import { mintWsTicket, verifyWsTicket, wsTicketOrgId, ticketFromProtocolHeader, wsTicketNonce, hubKeyTag, WS_PROTOCOL, WS_TICKET_TTL_S } from "./org-hub.js";
+// The Durable Object class must be exported from the Worker's main module.
+export { OrgHub } from "./org-hub.js";
+
 function now() { return Math.floor(Date.now() / 1000); }
 
 function b64urlEncode(bytes) {
@@ -465,19 +469,23 @@ function requireAuth(session) {
 //  CORS
 // =====================
 
-function corsHeaders(env, request) {
-  const origin = request.headers.get("Origin") || "";
-  // Allowed origins: env.CORS_ORIGIN (the primary frontend host — bunhead.github.io for
-  // test, irlid.co.uk for live), plus the live IRLid origin always (because PROTOCOL.md
-  // §14 login flow has the phone-side org-login.html hosted at irlid.co.uk POSTing to
-  // either prod or test Worker — by design cross-origin), plus localhost dev variants.
-  const allowed = [
+function allowedOrigins(env) {
+  return [
     env.CORS_ORIGIN || "https://irlid.co.uk",
     "https://irlid.co.uk",
     "https://bunhead.github.io",
     "http://localhost:3000", "http://localhost:8000",
     "http://127.0.0.1:3000", "http://127.0.0.1:8000"
   ];
+}
+
+function corsHeaders(env, request) {
+  const origin = request.headers.get("Origin") || "";
+  // Allowed origins: env.CORS_ORIGIN (the primary frontend host — bunhead.github.io for
+  // test, irlid.co.uk for live), plus the live IRLid origin always (because PROTOCOL.md
+  // §14 login flow has the phone-side org-login.html hosted at irlid.co.uk POSTing to
+  // either prod or test Worker — by design cross-origin), plus localhost dev variants.
+  const allowed = allowedOrigins(env); // one list (W7)
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
@@ -3208,11 +3216,30 @@ async function orgGetQR(request, env) {
   return json({ payload, settings });
 }
 
+// M2 (Worf review of #152): the org api_key must never ride in a URL, because
+// URLs end up in Cloudflare logs, browser history and Referer headers. The key
+// is accepted from the X-Org-Key header (or the org_ Bearer token) only.
+// A "?key=" query parameter is refused outright, even beside a good header.
+function urlCarriesOrgKey(request) {
+  try { return new URL(request.url).searchParams.has("key"); } catch (_) { return false; }
+}
+
 async function orgFromRequest(request, env) {
+  if (urlCarriesOrgKey(request)) return null;
   const url = new URL(request.url);
-  const key = request.headers.get("X-Org-Key") || url.searchParams.get("key") || url.searchParams.get("org");
-  if (!key) return null;
-  return env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(key, key, key).first();
+  const headerKey = request.headers.get("X-Org-Key");
+  let org = null;
+  if (headerKey) {
+    // Header: api_key, org id or slug (slim venue QRs only hold the slug).
+    org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(headerKey, headerKey, headerKey).first();
+  } else {
+    // "?org=" is a public identifier only (slug or id). It never resolves an api_key.
+    const ident = url.searchParams.get("org");
+    if (!ident) return null;
+    org = await env.DB.prepare("SELECT * FROM organisations WHERE id=? OR slug=?").bind(ident, ident).first();
+  }
+  if (org) requestOrg.set(request, org);
+  return org;
 }
 
 function firstNameFromDisplayName(name) {
@@ -4409,6 +4436,9 @@ async function orgCheckin(request, env) {
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  // Push updates: remember which live code this scan carried, so the hub can
+  // tell the venue screen to rotate it. Only used if the check-in succeeds.
+  if (typeof body?.nonce === "string") requestHubHints.set(request, { nonce: body.nonce });
   // score and bioVerified are phone-reported: stored as reported, never used
   // to accept a check-in. offline_queued can only downgrade a refusal to a
   // quarantine notice (C8), never accept or freshen a check-in.
@@ -6291,10 +6321,12 @@ async function orgResolveConflict(request, env, id) {
 
 async function orgAuth(request, env) {
   const token = bearerTokenFromRequest(request);
-  const key = request.headers.get("X-Org-Key") || new URL(request.url).searchParams.get("key") || (token.startsWith("org_") ? token : "");
+  if (urlCarriesOrgKey(request)) return authErr("org_key_in_url_not_accepted: send the key in the X-Org-Key header", 401);
+  const key = request.headers.get("X-Org-Key") || (token.startsWith("org_") ? token : "");
   if (!key) return authErr("X-Org-Key header required", 401);
   const org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=?").bind(key).first();
   if (!org) return authErr("Invalid API key", 401);
+  requestOrg.set(request, org);
   return org;
 }
 
@@ -6304,13 +6336,110 @@ async function orgAuth(request, env) {
 
 export { venueGpsBand };
 
+// =====================
+//  PUSH UPDATES (Durable Object hub)
+// =====================
+// requestOrg: set by orgAuth / orgFromRequest, so the router knows which org a
+// successful change belongs to without another D1 read.
+const requestOrg = new WeakMap();
+const requestHubHints = new WeakMap();
+
+// POST /org/ws-ticket — trade the org key (header only) for a 60 s ticket.
+async function orgWsTicket(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  if (!env.ORG_HUB) return noStore(err("push_unavailable", 501));
+  const { ticket, expires_at } = await mintWsTicket(org, now());
+  const wsUrl = new URL(request.url);
+  wsUrl.protocol = wsUrl.protocol === "http:" ? "ws:" : "wss:";
+  wsUrl.pathname = "/org/ws";
+  wsUrl.search = "";
+  return noStore(json({ ticket, expires_at, ttl_s: WS_TICKET_TTL_S, protocol: WS_PROTOCOL, url: wsUrl.toString() }));
+}
+
+// GET /org/ws — WebSocket upgrade. Browsers cannot set headers on a
+// WebSocket, so the ticket rides in Sec-WebSocket-Protocol ("ticket.<token>").
+// WebSockets ignore CORS, so the Origin is checked here as well.
+async function orgWebSocket(request, env) {
+  if ((request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") return err("Expected WebSocket", 426);
+  if (!env.ORG_HUB) return err("push_unavailable", 501);
+  const origin = request.headers.get("Origin");
+  if (origin && !allowedOrigins(env).includes(origin)) return err("Origin not allowed", 403);
+  const ticket = ticketFromProtocolHeader(request.headers.get("Sec-WebSocket-Protocol"));
+  const orgId = wsTicketOrgId(ticket);
+  if (!orgId) return err("Ticket required", 401);
+  const org = await env.DB.prepare("SELECT id, api_key FROM organisations WHERE id=?").bind(orgId).first();
+  if (!org || !(await verifyWsTicket(ticket, org, now()))) return err("Ticket invalid or expired", 401);
+  const stub = env.ORG_HUB.get(env.ORG_HUB.idFromName(String(org.id)));
+  // Build a fresh request: nothing from the public URL or body is forwarded.
+  return stub.fetch(new Request("https://org-hub/connect", { headers: {
+    Upgrade: "websocket",
+    "X-Hub-Ticket-Nonce": wsTicketNonce(ticket) || "",
+    "X-Hub-Key-Tag": await hubKeyTag(org.api_key)
+  } }));
+}
+
+// Which dashboard data a successful change touches. Coarse on purpose: the
+// page re-fetches through the normal authenticated endpoints.
+function hubEventTypesFor(method, path) {
+  if (method === "POST" && path === "/org/checkin") return ["attendance"];
+  if (method === "POST" && path === "/org/checkout") return ["attendance"];
+  if (method === "POST" && path === "/org/debug/clear-attendance") return ["attendance"];
+  if (method === "POST" && /^\/org\/conflicts\/\d+\/resolve$/.test(path)) return ["attendance"];
+  if (method === "DELETE" && /^\/org\/expected\/[^/]+\/full$/.test(path)) return ["attendance", "expected"];
+  if (/^\/org\/expected(\/|$)/.test(path) && method !== "GET") return ["expected"];
+  if (method === "POST" && path === "/org/settings") return ["settings"];
+  if (/^\/org\/weekly-events(\/|$)/.test(path) && method !== "GET") return ["events"];
+  if (method === "DELETE" && /^\/org\/members\/[^/]+$/.test(path)) return ["members"];
+  if (method === "POST" && (path === "/org/invites/redeem" || path === "/org/invite/accept-on-this-device" || path === "/org/lead-admin/appoint")) return ["members"];
+  return [];
+}
+
+async function publishHubEvents(request, response, env, ctx, method, path) {
+  try {
+    if (!env.ORG_HUB || method === "GET" || method === "OPTIONS") return;
+    if (response.status < 200 || response.status >= 300) return;
+    // 202 on /org/checkin is a quarantined or queued scan: nothing changed.
+    if (path === "/org/checkin" && response.status !== 200 && response.status !== 201) return;
+    const types = hubEventTypesFor(method, path);
+    const org = requestOrg.get(request);
+    if (!types.length || !org) return;
+    let ids = [];
+    if (types.includes("attendance")) {
+      try {
+        const data = await response.clone().json();
+        const id = data && (data.checkin_id || data.id);
+        if (typeof id === "string") ids = [id];
+      } catch (_) { /* ids are optional */ }
+    }
+    const hint = requestHubHints.get(request) || {};
+    const stub = env.ORG_HUB.get(env.ORG_HUB.idFromName(String(org.id)));
+    const keyTag = org.api_key ? await hubKeyTag(org.api_key) : "";
+    const sends = types.map(type => stub.fetch("https://org-hub/notify", {
+      method: "POST",
+      headers: keyTag ? { "X-Hub-Key-Tag": keyTag } : {},
+      body: JSON.stringify({ type, ids: type === "attendance" ? ids : [], nonce: type === "attendance" ? hint.nonce : undefined })
+    }).then(r => r.body && r.body.cancel && r.body.cancel()).catch(() => {}));
+    const all = Promise.all(sends);
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(all); else await all;
+  } catch (e) {
+    // R5 / C13: a hub problem must never fail or delay a check-in.
+    console.warn("[hub] notify failed:", e && e.message);
+  }
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return addCors(new Response(null, { status: 204 }), env, request);
 
     const url = new URL(request.url);
     const method = request.method;
     const path = url.pathname;
+
+    // The upgrade response (101) has immutable headers, so it skips addCors.
+    if (path === "/org/ws" && method === "GET") {
+      try { return await orgWebSocket(request, env); }
+      catch (e) { console.error("Unhandled (ws):", e); return addCors(err("Internal error", 500), env, request); }
+    }
 
     let response;
     try {
@@ -6382,6 +6511,7 @@ export default {
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
       else if (method === "GET"  && path === "/org/checkin-nonce/status") response = await orgCheckinNonceStatus(request, env);
+      else if (method === "POST" && path === "/org/ws-ticket")       response = await orgWsTicket(request, env);
       else if (method === "GET"  && path === "/org/checkin-quarantine") response = await orgCheckinQuarantineList(request, env);
       else if (method === "POST" && path === "/org/checkout-token")  response = await orgCreateCheckoutToken(request, env);
       else if (method === "GET"  && path === "/org/attendance")      response = await orgAttendance(request, env);
@@ -6439,6 +6569,7 @@ export default {
       response = err("Internal error: " + (e.message || e), 500);
     }
 
+    await publishHubEvents(request, response, env, ctx, method, path);
     return addCors(response, env, request);
   }
 };

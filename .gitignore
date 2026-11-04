@@ -44,3 +44,6 @@ FORUM-WELCOME-DRAFT.md
 IRL-TEST-GUIDE.md
 LONG-TERM-SUCCESSION.md
 WCAG-AUDIT.md
+
+# npm (CI installs the pinned wrangler here)
+node_modules/
