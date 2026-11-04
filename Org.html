@@ -3376,7 +3376,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.7.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.7.2</span></div>
   </div>
 </div>
 
@@ -6198,8 +6198,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         }
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .v511-theme-preview-qr,
         .prototype-checkin #panel-checkin #v511InlineCheckinStage .qr-box {
-          width: clamp(220px, min(44dvh, 44vw), 500px) !important;
-          height: clamp(220px, min(44dvh, 44vw), 500px) !important;
+          /* v6.7.3 — fit the QR inside the stage. The stage height is
+             min(max(380px, 100dvh - 320px), 720px, 68dvh); keep ~170px for
+             logo + title + padding + the offline badge, so the white QR card
+             never runs off the bottom. Floor 220px keeps it scannable. */
+          --v673-stage-h: min(max(380px, calc(100dvh - 320px)), 720px, 68dvh);
+          width: clamp(220px, min(44dvh, 44vw, calc(var(--v673-stage-h) - 170px)), 500px) !important;
+          height: clamp(220px, min(44dvh, 44vw, calc(var(--v673-stage-h) - 170px)), 500px) !important;
+          flex-shrink: 0;
+        }
+        /* v6.7.3 — offline-only badge: keep it in the flow, never squashed. */
+        .prototype-checkin #panel-checkin #v511InlineCheckinStage .venue-qr-offline-badge {
+          position: relative; z-index: 6; flex-shrink: 0; margin: 4px auto 0;
         }
         /* v5.11.19 — .qr-info reordered per Captain's reference image:
            h4 + p left-aligned under the frame, then buttons centred row,
@@ -13945,7 +13955,6 @@ async function handleQrLoginSuccess(data) {
   // server-side sign-in worked correctly; only the frontend UI swap was stuck.
 
   const status = document.getElementById('qrLoginStatus');
-  const orgs = Array.isArray(data.orgs) ? data.orgs : [];
   const name = data.display_name || 'developer';
 
   // Batch C tidy 2 — clean panel state. Hide the QR display, the create-org form,
@@ -13956,7 +13965,33 @@ async function handleQrLoginSuccess(data) {
   const _cop = document.getElementById('createOrgPanel'); if (_cop) _cop.style.display = 'none';
   const _opp = document.getElementById('orgPickerPanel'); if (_opp) _opp.style.display = 'none';
 
-  if (orgs.length === 0) {
+  // v6.7.3 — Decide from /user/orgs, not from the poll's org list. The poll
+  // list can come back empty for a Developer (Super-Admin) even though
+  // /user/orgs returns every org as implicit "dev access", which wrongly
+  // showed "Create your first org" (and a slug-collision error on retry).
+  // /user/orgs is also the only source of api_key, so it is fetched anyway.
+  status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
+  status.style.color = '#7ee787';
+  let myOrgs = [];
+  try {
+    const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
+    myOrgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
+    irlidDebugLog("[v5.5.5] /user/orgs returned:", myOrgs);
+  } catch (err) {
+    status.textContent = 'Could not load your org list: ' + (err.message || 'unknown error');
+    status.style.color = '#f85149';
+    return;
+  }
+
+  if (myOrgs.length === 0) {
+    if (data.is_developer) {
+      // A super-admin should always see every org. An empty list means the
+      // Worker / database is wrong — never offer "create" here (it would
+      // invite a duplicate org).
+      status.textContent = 'Signed in as Developer, but no orgs are visible. Check the Worker and database before creating anything.';
+      status.style.color = '#f0883e';
+      return;
+    }
     if (data.can_create_org) {
       // Batch C — reveal the create-org form. Pre-fill welcome name from session.
       status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Create your first org below.';
@@ -13973,23 +14008,9 @@ async function handleQrLoginSuccess(data) {
     return;
   }
 
-  // The /org/login/poll response gives id+name+role+slug but NOT api_key. Fetch
-  // api_key from /user/orgs (Batch C — returns api_key for authorised members)
-  // so the existing X-Org-Key dashboard code keeps working through v5.5.
-  status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
-  status.style.color = '#7ee787';
-  let myOrgs = [];
-  try {
-    const r = await window.IRLidOrgApi.listMyOrgs(qrLoginSession.session_token);
-    myOrgs = (Array.isArray(r.orgs) ? r.orgs : []).map(normalizeDashboardOrg).filter(Boolean);
-    irlidDebugLog("[v5.5.5] /user/orgs returned:", myOrgs);
-  } catch (err) {
-    status.textContent = 'Could not load your org list: ' + (err.message || 'unknown error');
-    status.style.color = '#f85149';
-    return;
-  }
-
-  if (myOrgs.length === 1) {
+  // A developer always gets the picker (even with one org) so dev access is
+  // a visible, deliberate choice, never an automatic load.
+  if (myOrgs.length === 1 && !data.is_developer) {
     await loadDashboardForOrg(myOrgs[0]);
     return;
   }
@@ -15479,6 +15500,9 @@ async function refreshAttendance() {
     updateRelativeRefresh();
     await saveCurrentOrgSnapshot('attendance-refresh');
   } catch (err) {
+    // v6.7.2 — never swallow the reason silently (it hid this failure on go-live
+    // day). Fetch failures and page-rendering errors both land here.
+    console.warn('[refreshAttendance] failed, using cached snapshot:', err && err.status ? 'HTTP ' + err.status : (err && err.name) || 'error', err && err.message, err);
     const snap = await loadCurrentOrgSnapshot();
     if (snap && applySnapshotToDashboard(snap)) {
       // v6.3.23 — the cached-snapshot path bypasses setSignedInUI/loadDashboardForOrg,
@@ -15488,7 +15512,7 @@ async function refreshAttendance() {
       const nowMs = Date.now();
       if (nowMs - lastCachedAttendanceToastAt > 30000) {
         lastCachedAttendanceToastAt = nowMs;
-        showToast('Showing cached attendance snapshot');
+        showToast('Showing cached attendance snapshot' + (err && err.status ? ' (server said ' + err.status + ')' : ''));
       }
       return;
     }
@@ -15748,12 +15772,17 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   const ok = window.confirm(`Delete the full attendee record for ${name}?\n\nThis cascades to remove all check-in / check-out history rows AND the Expected entry. Cannot be undone.${liveWarning}`);
   if (!ok) return;
   try {
-    await window.IRLidOrgApi.deleteExpectedFull(
+    const deleteResult = await window.IRLidOrgApi.deleteExpectedFull(
       currentOrg.api_key,
       expectedId,
       qrLoginSession?.session_token,
       !!force
     );
+    // v6.7.2 (I1) — only say "Deleted" when the Worker confirmed it.
+    if (!deleteResult || deleteResult.queued || deleteResult.deleted !== true) {
+      showToast(`Could not confirm the delete for ${name}. Nothing was deleted. Check you are online and try again.`, true);
+      return;
+    }
     showToast(`Deleted record for ${name}`);
     await refreshAttendance();
     await refreshExpectedAttendees();
@@ -17536,6 +17565,10 @@ function renderInlineCheckinClone(opts) {
       if (now - lastStageTap < 360) { e.preventDefault(); lastStageTap = 0; try { fullscreenQR(); } catch (_) {} }
       else { lastStageTap = now; }
     });
+    // Mouse double-click: the clone's source (Settings preview stage) has no
+    // ondblclick attribute, and cloneNode() doesn't copy addEventListener
+    // handlers, so desktop dblclick had no route to fullscreen. Bind it here.
+    clone.addEventListener('dblclick', function () { try { fullscreenQR(); } catch (_) {} });
   }
 
   return clone;
