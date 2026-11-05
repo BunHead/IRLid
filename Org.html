@@ -3377,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.1</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.2</span></div>
   </div>
 </div>
 
@@ -12278,6 +12278,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <label class="switch-tile"><div class="switch-top"><strong>Device Unlock Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a live device unlock (biometric or passcode) is required before allow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Privacy Mode</strong><label class="switch-wrap"><input id="privacyMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Prefer reduced personal detail in the entry flow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Anonymous Mode</strong><label class="switch-wrap"><input id="anonymousMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Permit anonymous-style handling where appropriate.</div></label>
+                  <label class="switch-tile"><div class="switch-top"><strong>Require live screen code</strong><label class="switch-wrap"><input id="requireLiveCode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Only count check-ins made by scanning the live screen at the venue. A photo of an old QR, a printed QR or an offline check-in is kept for staff review and not counted. Lead Admin only.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Check-out Required</strong><label class="switch-wrap"><input id="checkoutRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Marks the event as requiring an exit/check-out flow later.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Return Allowed</strong><label class="switch-wrap"><input id="returnAllowed" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Passed into the test URL so entry pages can show re-entry policy.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Allow attendee self-selection</strong><label class="switch-wrap"><input id="allowSelfSelection" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Placeholder setting for attendee-led selection before confirmation.</div></label>
@@ -13284,6 +13285,11 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.requireDoormanConfirmation === 'boolean') portalState.requireDoormanConfirmation = src.requireDoormanConfirmation;
   settings.manager_perms = normaliseManagerPerms(src.manager_perms);
   writeManagerPermsToUI(settings.manager_perms);
+  // S12: hydrate from the server only. Until then it is not sent on save, so a
+  // save before load can never switch the gate off by accident.
+  settings.requireLiveCode = src.requireLiveCode === true;
+  { const rl = document.getElementById('requireLiveCode'); if (rl) rl.checked = settings.requireLiveCode; }
+  window.__irlidRequireLiveCodeHydrated = true;
   // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
   // both portalState and settings so the dashboard helper roleLabel() picks
   // them up wherever it's called.
@@ -14716,6 +14722,7 @@ async function saveSettings() {
     // before hydration can't wipe the server's venue location.
     ...((typeof window.v511VenueGpsForSave === 'function') ? window.v511VenueGpsForSave() : {}),
     manager_perms: readManagerPermsFromUI(),
+    ...(window.__irlidRequireLiveCodeHydrated ? { requireLiveCode: !!document.getElementById('requireLiveCode')?.checked } : {}),
     calendar_defaults: (typeof window.v511CalendarDefaultsForSave === 'function') ? window.v511CalendarDefaultsForSave() : undefined
   };
   let payload = Object.assign({}, domPayload);
@@ -14812,6 +14819,7 @@ async function saveSettings() {
     const recvPerms = normaliseManagerPerms(r.manager_perms);
     if (sentPerms.calendar !== recvPerms.calendar) lost.push('manager_perms.calendar');
   }
+  if (typeof payload.requireLiveCode === 'boolean' && payload.requireLiveCode !== (r.requireLiveCode === true)) lost.push('requireLiveCode');
   if (payload.calendar_defaults) {
     const sentCal = payload.calendar_defaults;
     const recvCal = r.calendar_defaults || {};

@@ -985,6 +985,17 @@
         renderCheckoutChoice(err.data);
         return;
       }
+      // S12: this venue counts only live-screen check-ins. Kept for staff,
+      // not counted, so say so plainly instead of "checked in".
+      if (err.data?.reason === "live_code_required") {
+        render({
+          status: "deny",
+          title: "Scan the live screen",
+          subtitle: "This venue only counts check-ins made by scanning its screen in person",
+          meta: "Not counted. Please ask staff for help"
+        });
+        return;
+      }
       // v3.1 (C6, C14): a stale, used or missing code is accepted as offline /
       // unverified now, so the server no longer refuses on the code. Only a
       // time or signature refusal reaches here.
