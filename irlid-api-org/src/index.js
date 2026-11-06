@@ -489,7 +489,7 @@ function corsHeaders(env, request) {
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id",
     "Access-Control-Max-Age": "86400"
   };
 }
@@ -1720,16 +1720,31 @@ async function userSignOutAllDevices(request, env) {
   return json({ ok: true, sessions_revoked: result.meta?.changes || 0 });
 }
 
-// GET /user/orgs — list orgs the authenticated user belongs to, with role and api_key
-// (api_key is returned to authorized members so the existing X-Org-Key dashboard code
-// can keep working during the v5.5 transition; v6+ will move dashboard ops onto Bearer
-// session auth and api_key returns to service-account-only). Per §14.9 role table.
+// POST /user/logout (PROTOCOL §14.8) — v6.8.4 (PR A): end THIS login session server-side, so
+// a copied token stops working the moment the user signs out. Idempotent: an
+// unknown token still answers ok (the browser wipes its copy either way).
+async function userSignOut(request, env) {
+  const auth = request.headers.get("Authorization") || "";
+  const m = /^Bearer\s+([A-Za-z0-9_-]{16,})$/.exec(auth.trim());
+  if (!m) return json({ error: "missing_bearer" }, 401);
+  const token = m[1].trim();
+  if (token.startsWith("org_")) return json({ error: "not_a_login_session" }, 400);
+  const result = await env.DB.prepare("DELETE FROM login_sessions WHERE token = ?").bind(token).run();
+  return json({ ok: true, sessions_revoked: result.meta?.changes || 0 });
+}
+
+// GET /user/orgs — list orgs the authenticated user belongs to, with role.
+// v6.8.4 (PR A, back-door removal): the org api_key is NEVER returned here.
+// The dashboard authenticates org calls with the login session itself
+// (Authorization: Bearer <session> + X-Org-Id, see orgAuth), so a browser
+// never holds the master key and signing out leaves nothing to re-enter with.
+// Per §14.9 role table.
 async function userListOrgs(request, env) {
   const ctx = await requireSession(request, env);
   if (ctx.error) return ctx.error;
   const user = ctx.user;
   const memberships = await env.DB.prepare(
-    "SELECT m.role, o.id, o.name, o.slug, o.api_key, o.settings_json " +
+    "SELECT m.role, o.id, o.name, o.slug, o.settings_json " +
     "FROM org_memberships m JOIN organisations o ON o.id = m.org_id WHERE m.user_id = ? " +
     "ORDER BY m.granted_at ASC"
   ).bind(user.id).all();
@@ -1741,7 +1756,6 @@ async function userListOrgs(request, env) {
       name: m.name,
       slug: m.slug,
       role: m.role,
-      api_key: m.api_key,
       settings,
       implicit_membership: false
     };
@@ -1761,7 +1775,7 @@ async function userListOrgs(request, env) {
   if (isBootstrapDev) {
     const ownIds = new Set(orgs.map(o => o.id));
     const allOrgs = await env.DB.prepare(
-      "SELECT id, name, slug, api_key, settings_json FROM organisations ORDER BY created_at DESC"
+      "SELECT id, name, slug, settings_json FROM organisations ORDER BY created_at DESC"
     ).all();
     for (const o of (allOrgs.results || [])) {
       if (!ownIds.has(o.id)) {
@@ -1772,7 +1786,6 @@ async function userListOrgs(request, env) {
           name: o.name,
           slug: o.slug,
           role: 'developer',
-          api_key: o.api_key,
           settings,
           implicit_membership: true
         });
@@ -1863,7 +1876,8 @@ async function userCreateOrg(request, env) {
   ).bind(user.id, orgId, role, user.id, tNow).run();
 
   return json({
-    org: { id: orgId, name, slug, api_key: apiKey, settings: defaultSettings },
+    // v6.8.4 (PR A): the api_key stays server-side; the creator uses their session.
+    org: { id: orgId, name, slug, settings: defaultSettings },
     membership: { role, user_id: user.id, granted_at: tNow },
     theme_scrape_status: websiteUrl ? "deferred_to_batch_d" : "none"
   }, 201);
@@ -2899,8 +2913,8 @@ async function orgUpdateSettings(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   // v6.2.1 - privilege-defining fields require a lead_admin+ session.
-  // The org api_key is intentionally returned to members for dashboard reads,
-  // so api_key-only auth must not be enough to change RBAC-sensitive settings.
+  // A staff-tier session (or the service-account api_key) passes orgAuth, so
+  // that alone must not be enough to change RBAC-sensitive settings.
   const GOVERNANCE_FIELDS = ["manager_perms"];
   // S12: "requireLiveCode" is a security gate. The api_key alone must not be
   // able to switch it, so a change (either way) needs the same lead_admin+
@@ -3294,8 +3308,12 @@ async function orgFromRequest(request, env) {
   if (urlCarriesOrgKey(request)) return null;
   const url = new URL(request.url);
   const headerKey = request.headers.get("X-Org-Key");
+  const headerOrgId = request.headers.get("X-Org-Id");
   let org = null;
-  if (headerKey) {
+  if (!headerKey && headerOrgId) {
+    // v6.8.4 (PR A): the signed-in dashboard names its org by id only.
+    org = await env.DB.prepare("SELECT * FROM organisations WHERE id=?").bind(headerOrgId).first();
+  } else if (headerKey) {
     // Header: api_key, org id or slug (slim venue QRs only hold the slug).
     org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?").bind(headerKey, headerKey, headerKey).first();
   } else {
@@ -4990,7 +5008,7 @@ async function orgResolveCheckoutToken(request, env, tokenParam) {
   }
 
   const org = await env.DB.prepare(
-    "SELECT name,settings_json FROM organisations WHERE api_key=?"
+    "SELECT id,slug,name,settings_json FROM organisations WHERE api_key=?"
   ).bind(row.org_api_key).first();
   if (!org) return err("Checkout token not found", 404);
 
@@ -5005,7 +5023,11 @@ async function orgResolveCheckoutToken(request, env, tokenParam) {
 
   const settings = JSON.parse(org.settings_json || "{}");
   return json({
-    org_api_key: row.org_api_key,
+    // v6.8.4 (PR A): this is an unauthenticated attendee route, so it returns
+    // the org's public identifier (slug, else id), never the api_key. The field
+    // name stays for older cached org-entry pages; /org/checkout resolves a
+    // slug or id through orgFromRequest.
+    org_api_key: org.slug || org.id,
     checkin_id: row.checkin_id,
     nonce: row.token,
     event: org.name || "IRLid Event",
@@ -5609,7 +5631,6 @@ async function orgDebugClearAttendance(request, env) {
   return json({
     ok: true,
     checkin_nonces_cleared: rows.checkin_nonces || 0,
-    org_key: org.api_key,
     cleared: {
       checkins: rows.checkins || 0,
       conflicts: rows.conflicts || 0,
@@ -6403,11 +6424,37 @@ async function orgResolveConflict(request, env, id) {
   return json({ ok: true, conflict_id: id, resolution });
 }
 
+// v6.8.4 (PR A, back-door removal). Two ways in:
+//  1. Signed-in dashboard: Authorization: Bearer <login session> + X-Org-Id.
+//     The session must be live and belong to a staff-tier member of that org
+//     (or the bootstrap Developer). This is the only path the Org portal uses,
+//     so the browser never holds the api_key and signing out (which deletes
+//     the session server-side) leaves nothing to get back in with.
+//  2. Service account: X-Org-Key (or an org_ Bearer) for automation. Never
+//     shown in the UI or returned by /user/orgs.
 async function orgAuth(request, env) {
   const token = bearerTokenFromRequest(request);
   if (urlCarriesOrgKey(request)) return authErr("org_key_in_url_not_accepted: send the key in the X-Org-Key header", 401);
-  const key = request.headers.get("X-Org-Key") || (token.startsWith("org_") ? token : "");
-  if (!key) return authErr("X-Org-Key header required", 401);
+  const headerKey = request.headers.get("X-Org-Key") || "";
+  const orgId = String(request.headers.get("X-Org-Id") || "").trim();
+  if (!headerKey && orgId && token && !token.startsWith("org_")) {
+    const ctx = await requireSession(request, env);
+    if (ctx.error) { ctx.error.error = true; return ctx.error; }
+    const org = await env.DB.prepare("SELECT * FROM organisations WHERE id=?").bind(orgId).first();
+    if (!org) return authErr("org_not_found", 404);
+    const role = await orgRoleForUser(env, ctx.user, org.id);
+    if (!role || !STAFF_TIER_ROLES.has(role)) {
+      // 403, not 401: a valid session without staff access must not look like
+      // an expired session to the dashboard.
+      const denied = json({ error: "not_a_member", message: "Your sign-in does not have staff access to this organisation." }, 403);
+      denied.error = true;
+      return denied;
+    }
+    requestOrg.set(request, org);
+    return org;
+  }
+  const key = headerKey || (token.startsWith("org_") ? token : "");
+  if (!key) return authErr("Sign in with a v5 QR scan (session + X-Org-Id) or send X-Org-Key", 401);
   const org = await env.DB.prepare("SELECT * FROM organisations WHERE api_key=?").bind(key).first();
   if (!org) return authErr("Invalid API key", 401);
   requestOrg.set(request, org);
@@ -6575,6 +6622,7 @@ export default {
       else if (method === "GET"  && path === "/user/orgs")           response = await userListOrgs(request, env);
       else if (method === "POST" && path === "/user/create-org")     response = await userCreateOrg(request, env);
       else if (method === "POST" && path === "/user/sign-out-all-devices") response = await userSignOutAllDevices(request, env);
+      else if (method === "POST" && path === "/user/logout")         response = await userSignOut(request, env);
       else if (method === "POST" && /^\/user\/orgs\/[^/]+\/scrape-theme$/.test(path)) {
         const mScrapeTheme = path.match(/^\/user\/orgs\/([^/]+)\/scrape-theme$/);
         response = await userScrapeTheme(request, env, decodeURIComponent(mScrapeTheme[1]));

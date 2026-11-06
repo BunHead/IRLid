@@ -140,5 +140,5 @@ test("fullscreenQR() draws through the shared helper and shows the backup badge"
 
 test("cache and build moved on (W8)", () => {
   assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 193);
-  assert.match(orgHtml, /Build v6\.8\.3</);
+  assert.match(orgHtml, /Build v6\.(8\.([3-9]|\d\d)|(9|\d\d)\.\d+)</, "build is v6.8.3 or later");
 });
