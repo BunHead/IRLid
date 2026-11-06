@@ -489,7 +489,7 @@ function corsHeaders(env, request) {
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id, X-Login-Poll-Secret",
     "Access-Control-Max-Age": "86400"
   };
 }
@@ -1059,45 +1059,141 @@ function genericAuthFailed(env, debug) {
   return json({ error: "auth_failed" }, 401);
 }
 
+// v6.8.5 — lost-reply recovery for the desktop poll (PR B).
+// The nonce is printed in the QR, so it is public. The desktop also gets a
+// poll secret from /org/login/init that is never in the QR; the Worker keeps
+// only its SHA-256. Every poll must carry it (X-Login-Poll-Secret header), so
+// someone who photographs the QR (or the phone that scanned it) can never
+// collect the session. Once the desktop has collected the session, the same
+// secret may collect it again for LOGIN_RECOVERY_WINDOW_S (the first reply was
+// lost on a flaky network), at most LOGIN_RECOVERY_MAX times. Each recovery
+// issues a NEW session token and deletes the old one, so a reply that was
+// lost on the way is useless if it turns up later.
+const LOGIN_RECOVERY_WINDOW_S = 120;
+const LOGIN_RECOVERY_MAX      = 3;
+let loginChallengeColumnsReady = false;
+
+async function ensureLoginChallengeColumns(env) {
+  if (loginChallengeColumnsReady) return;
+  const columns = await tableColumnSet(env, "login_challenges");
+  for (const [col, type] of [["poll_secret_hash", "TEXT"], ["consumed_at", "INTEGER"], ["recover_count", "INTEGER NOT NULL DEFAULT 0"]]) {
+    if (columns.has(col)) continue;
+    try {
+      await env.DB.prepare(`ALTER TABLE login_challenges ADD COLUMN ${col} ${type}`).run();
+      columns.add(col);
+    } catch (e) {
+      if (!/duplicate column/i.test(String(e?.message || e))) throw e;
+    }
+  }
+  loginChallengeColumnsReady = true;
+}
+
+function constantTimeEqual(a, b) {
+  a = String(a || ""); b = String(b || "");
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return diff === 0;
+}
+
 async function orgLoginInit(request, env) {
   // §14.4 step [2]: generate nonce, write login_challenges row, return for QR display.
+  // poll_secret goes to the desktop only. It must never be put in the QR.
+  await ensureLoginChallengeColumns(env);
   const nonce = randomNonce16();
+  const pollSecret = randomToken();
+  const pollSecretHash = await sha256B64url(pollSecret);
   const tNow = now();
   const expiresAt = tNow + LOGIN_CHALLENGE_TTL_S;
   await env.DB.prepare(
-    "INSERT INTO login_challenges (nonce, issued_at, expires_at, claimed_by, session_token, consumed, fail_count, locked_until) VALUES (?, ?, ?, NULL, NULL, 0, 0, 0)"
-  ).bind(nonce, tNow, expiresAt).run();
-  return json({ nonce, expires_at: expiresAt });
+    "INSERT INTO login_challenges (nonce, issued_at, expires_at, claimed_by, session_token, consumed, fail_count, locked_until, poll_secret_hash, recover_count) VALUES (?, ?, ?, NULL, NULL, 0, 0, 0, ?, 0)"
+  ).bind(nonce, tNow, expiresAt, pollSecretHash).run();
+  return json({ nonce, expires_at: expiresAt, poll_secret: pollSecret, recovery_window_s: LOGIN_RECOVERY_WINDOW_S });
 }
 
 async function orgLoginPoll(request, env) {
   // §14.4 steps [4] and [11]: desktop polls for the session.
+  await ensureLoginChallengeColumns(env);
   const url = new URL(request.url);
   const nonce = (url.searchParams.get("nonce") || "").trim();
   if (!nonce) return err("nonce required");
   const row = await env.DB.prepare(
-    "SELECT nonce, issued_at, expires_at, claimed_by, session_token, consumed FROM login_challenges WHERE nonce = ?"
+    "SELECT nonce, issued_at, expires_at, claimed_by, session_token, consumed, poll_secret_hash, consumed_at, recover_count FROM login_challenges WHERE nonce = ?"
   ).bind(nonce).first();
   if (!row) return json({ error: "challenge_expired" }, 410);
-  if (row.expires_at < now() && !row.session_token) {
+
+  // Only the page that asked for this login (holder of the poll secret) may
+  // poll it. Checked before anything about the challenge's state is shown.
+  // A header, never a query param, so it stays out of URLs and logs.
+  const pollSecret = (request.headers.get("X-Login-Poll-Secret") || "").trim();
+  if (!pollSecret || !row.poll_secret_hash
+      || !constantTimeEqual(await sha256B64url(pollSecret), row.poll_secret_hash)) {
+    return json({ error: "poll_not_allowed" }, 403);
+  }
+
+  const tNow = now();
+  if (row.expires_at < tNow && !row.session_token) {
     // Expired before claim — single-shot 410.
     await env.DB.prepare("DELETE FROM login_challenges WHERE nonce = ?").bind(nonce).run();
     return json({ error: "challenge_expired" }, 410);
   }
   if (!row.session_token) return json({ status: "pending" });
-  // Single use (docs/code-review-2026-10.md M2): the session token is handed
-  // out once. Anyone else who saw the QR nonce and polls later gets 410. The
-  // conditional UPDATE makes two polls racing each other produce one winner.
-  if (row.consumed) return json({ error: "challenge_consumed" }, 410);
-  const consumeResult = await env.DB.prepare(
-    "UPDATE login_challenges SET consumed = 1 WHERE nonce = ? AND consumed = 0"
-  ).bind(nonce).run();
-  if (Number(consumeResult?.meta?.changes ?? 1) !== 1) return json({ error: "challenge_consumed" }, 410);
+  if (!row.consumed && tNow > row.expires_at + LOGIN_RECOVERY_WINDOW_S) {
+    // Claimed in time but never collected: don't hand it out indefinitely.
+    return json({ error: "challenge_expired" }, 410);
+  }
 
+  if (row.consumed) return orgLoginRecover(request, env, row, tNow);
+
+  // Single use (docs/code-review-2026-10.md M2): the conditional UPDATE makes
+  // two polls racing each other produce one winner. The loser falls into the
+  // recovery path (same secret holder) rather than seeing "expired".
+  const consumeResult = await env.DB.prepare(
+    "UPDATE login_challenges SET consumed = 1, consumed_at = ? WHERE nonce = ? AND consumed = 0"
+  ).bind(tNow, nonce).run();
+  if (Number(consumeResult?.meta?.changes ?? 1) !== 1) {
+    const again = await env.DB.prepare(
+      "SELECT nonce, session_token, consumed, consumed_at, recover_count FROM login_challenges WHERE nonce = ?"
+    ).bind(nonce).first();
+    if (!again) return json({ error: "challenge_consumed" }, 410);
+    return orgLoginRecover(request, env, again, tNow);
+  }
+  return orgLoginPollResult(env, nonce, row.session_token, false);
+}
+
+async function orgLoginRecover(request, env, row, tNow) {
+  // The desktop already collected this session once but says it never got
+  // the reply. Allowed only inside the window and up to the cap.
+  const consumedAt = Number(row.consumed_at || 0);
+  const used = Number(row.recover_count || 0);
+  if (!consumedAt || tNow - consumedAt > LOGIN_RECOVERY_WINDOW_S || used >= LOGIN_RECOVERY_MAX) {
+    return json({ error: "challenge_consumed" }, 410);
+  }
+  const oldToken = row.session_token;
+  const old = await env.DB.prepare(
+    "SELECT token, user_id, expires_at, ip_hash, user_agent FROM login_sessions WHERE token = ?"
+  ).bind(oldToken).first();
+  if (!old) return json({ error: "challenge_consumed" }, 410); // signed out / revoked meanwhile
+  const newToken = randomToken();
+  // Claim the recovery slot first (one winner if two recoveries race).
+  const slot = await env.DB.prepare(
+    "UPDATE login_challenges SET session_token = ?, recover_count = recover_count + 1 WHERE nonce = ? AND session_token = ? AND recover_count < ?"
+  ).bind(newToken, row.nonce, oldToken, LOGIN_RECOVERY_MAX).run();
+  if (Number(slot?.meta?.changes ?? 1) !== 1) return json({ error: "challenge_consumed" }, 410);
+  // Same user and the same expiry as the session it replaces (never longer).
+  await env.DB.prepare(
+    "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
+  ).bind(newToken, old.user_id, tNow, old.expires_at, old.ip_hash ?? null, old.user_agent ?? null).run();
+  await env.DB.prepare("DELETE FROM login_sessions WHERE token = ?").bind(oldToken).run();
+  return orgLoginPollResult(env, row.nonce, newToken, true);
+}
+
+async function orgLoginPollResult(env, nonce, sessionToken, recovered) {
   // Claimed. Resolve session + user + memberships.
   const session = await env.DB.prepare(
     "SELECT token, user_id, expires_at FROM login_sessions WHERE token = ?"
-  ).bind(row.session_token).first();
+  ).bind(sessionToken).first();
   if (!session) {
     // Session vanished (revoked between claim and poll). Treat as expired.
     await env.DB.prepare("DELETE FROM login_challenges WHERE nonce = ?").bind(nonce).run();
@@ -1136,15 +1232,17 @@ async function orgLoginPoll(request, env) {
     }
   }
 
-  return json({
+  const out = {
     status: "claimed",
-    session_token: row.session_token,
+    session_token: sessionToken,
     user_id: user.id,
     display_name: user.display_name,
     orgs,
     can_create_org,
     is_developer
-  });
+  };
+  if (recovered) out.recovered = true;
+  return json(out);
 }
 
 async function orgLoginClaim(request, env) {
@@ -1252,9 +1350,14 @@ async function orgLoginClaim(request, env) {
   ).bind(sessionToken, user.id, tNow, sessionExpires, ipHash, ua).run();
 
   // Bind session to challenge for the desktop poll to pick up.
-  await env.DB.prepare(
-    "UPDATE login_challenges SET claimed_by = ?, session_token = ? WHERE nonce = ?"
+  // Conditional, so two claims racing on one nonce give one winner.
+  const bind = await env.DB.prepare(
+    "UPDATE login_challenges SET claimed_by = ?, session_token = ? WHERE nonce = ? AND session_token IS NULL"
   ).bind(user.id, sessionToken, nonce).run();
+  if (Number(bind?.meta?.changes ?? 1) !== 1) {
+    await env.DB.prepare("DELETE FROM login_sessions WHERE token = ?").bind(sessionToken).run();
+    return json({ error: "challenge_expired" }, 410);
+  }
 
   return json({ ok: true });
 }

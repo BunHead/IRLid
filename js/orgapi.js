@@ -101,7 +101,7 @@
 
     let response;
     try {
-      response = await fetch(url, { method, headers, body });
+      response = await fetch(url, opts.signal ? { method, headers, body, signal: opts.signal } : { method, headers, body });
     } catch (err) {
       if (eligible && window.IRLidOfflineQueue) {
         return enqueueOfflineRequest(url, method, headers, body);
@@ -146,8 +146,14 @@
     loginInit() {
       return request("/org/login/init", { method: "POST" });
     },
-    loginPoll(nonce) {
-      return request("/org/login/poll?nonce=" + encodeURIComponent(nonce));
+    // v6.8.5 — the poll secret from loginInit() goes in a header (never the
+    // URL or the QR). Without it the Worker refuses the poll (403).
+    loginPoll(nonce, pollSecret, opts) {
+      const o = opts || {};
+      return request("/org/login/poll?nonce=" + encodeURIComponent(nonce), {
+        headers: pollSecret ? { "X-Login-Poll-Secret": pollSecret } : {},
+        signal: o.signal
+      });
     },
     loginClaim(payload) {
       return request("/org/login/claim", {

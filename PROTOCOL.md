@@ -990,7 +990,10 @@ CREATE TABLE login_challenges (
   expires_at  INTEGER NOT NULL,         -- 180 seconds default (real human flow needs >60s)
   claimed_by  TEXT REFERENCES portal_users(id),  -- NULL until phone claims it
   session_token TEXT REFERENCES login_sessions(token),  -- set when claim succeeds
-  consumed    INTEGER NOT NULL DEFAULT 0  -- 1 once the desktop has retrieved the session
+  consumed    INTEGER NOT NULL DEFAULT 0, -- 1 once the desktop has retrieved the session
+  poll_secret_hash TEXT,                -- v6.8.5: SHA-256 of the desktop's poll secret (never in the QR)
+  consumed_at INTEGER,                  -- v6.8.5: when the desktop first retrieved the session
+  recover_count INTEGER NOT NULL DEFAULT 0  -- v6.8.5: lost-reply recoveries used (max 3)
 );
 ```
 
@@ -1092,13 +1095,26 @@ The session token is **not** itself a signing credential. It only authenticates 
 ```
 POST /org/login/init
   Body: {} (no fields required)
-  Response: 200 {nonce: "<base64url>", expires_at: <ms>}
+  Response: 200 {nonce: "<base64url>", expires_at: <seconds>,
+                 poll_secret: "<base64url, 32 bytes>", recovery_window_s: 120}
+  The poll_secret stays on the page that asked (memory, or localStorage for a
+  same-device redirect). It is never put in the QR or a URL. The Worker keeps
+  only its SHA-256.
 
 GET /org/login/poll?nonce=<n>
+  Header: X-Login-Poll-Secret: <poll_secret>   (required, v6.8.5)
   Response: 200 {status: "pending"} (challenge exists, not yet claimed)
             200 {status: "claimed", session_token, user_id, display_name,
-                 orgs: [{id, name, role, slug}], can_create_org: bool}
-            404 {error: "challenge_expired"} (nonce gone)
+                 orgs: [{id, name, role, slug}], can_create_org: bool,
+                 recovered?: true}
+            403 {error: "poll_not_allowed"}   (no secret, wrong secret)
+            410 {error: "challenge_expired"}  (nonce gone, or never signed in time)
+            410 {error: "challenge_consumed"} (collected, and recovery not allowed)
+  Lost-reply recovery (v6.8.5): after the session is first collected, the same
+  secret may collect it again for 120 s, at most 3 times. Each recovery issues
+  a new session token (same user, same expiry) and deletes the previous one,
+  so a lost reply that turns up later is useless. The phone never polls a
+  login it did not start, so it can no longer use up the computer's session.
 
 POST /org/login/claim
   Body: {nonce, pub_jwk, sig, webauthn?: {authData, clientData}}
