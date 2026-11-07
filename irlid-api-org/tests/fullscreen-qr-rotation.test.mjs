@@ -135,7 +135,9 @@ test("fullscreenQR() draws through the shared helper and shows the backup badge"
   const body = extractFunction("fullscreenQR");
   assert.match(body, /renderRealVenueQrIntoFullscreen\(clone\)/);
   assert.match(body, /setVenueQrOfflineMode\(venueQrOffline\)/);
-  assert.doesNotMatch(body, /new QRCode\(/, "only one place draws the full screen QR");
+  // The kiosk lock (PR #157) draws its own small unlock QR in here; only the
+  // venue QR must go through the shared helper.
+  assert.doesNotMatch(body, /new QRCode\([^;]*venueQrPayload/, "only one place draws the full screen venue QR");
 });
 
 test("cache and build moved on (W8)", () => {
