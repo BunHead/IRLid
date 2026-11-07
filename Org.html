@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.9</span></div>
   </div>
 </div>
 
@@ -13892,6 +13892,17 @@ function buildQrLoginUrl() {
 }
 
 let qrLoginPollSecret = null;
+
+// v6.8.7 — poll through js/login-poll.js, never through orgapi.js's
+// loginPoll(): a stale cached orgapi.js drops the poll secret (403).
+function qrLoginWorkerBase() {
+  return (window.IRLidOrgApi && typeof window.IRLidOrgApi.workerBaseUrl === 'function')
+    ? window.IRLidOrgApi.workerBaseUrl()
+    : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+}
+function qrLoginPollRequest(nonce, secret, o) {
+  return window.IRLidLoginPoll.pollLogin(qrLoginWorkerBase(), nonce, secret, o);
+}
 let qrLoginPoller = null;
 let qrLoginRecoveryMs = 120000;
 
@@ -13951,7 +13962,7 @@ async function startQrLogin() {
       secret: qrLoginPollSecret,
       expiresAtMs: qrLoginExpiresAt,
       recoveryWindowMs: qrLoginRecoveryMs,
-      poll: (nonce, secret, o) => window.IRLidOrgApi.loginPoll(nonce, secret, o),
+      poll: (nonce, secret, o) => qrLoginPollRequest(nonce, secret, o),
       onState: (state, detail) => {
         if (state === 'failed') cancelQrLogin(detail.message);
         else setQrLoginState(state, detail);
@@ -19039,11 +19050,11 @@ async function tryStaffScanRedirectOrPoll() {
       // One poll, with a quick retry if the reply is lost: the Worker hands the
       // session back to this secret for a short window (v6.8.5).
       let data;
-      try { data = await window.IRLidOrgApi.loginPoll(pendingNonce, pendingSecret); }
+      try { data = await qrLoginPollRequest(pendingNonce, pendingSecret); }
       catch (e1) {
         if (e1 && e1.status && e1.status < 500 && e1.status !== 429) throw e1;
         await new Promise(r => setTimeout(r, 1500));
-        data = await window.IRLidOrgApi.loginPoll(pendingNonce, pendingSecret);
+        data = await qrLoginPollRequest(pendingNonce, pendingSecret);
       }
       if (data && data.status === 'claimed') {
         irlidDebugLog(ctx, 'session claimed, restoring as authenticated');
