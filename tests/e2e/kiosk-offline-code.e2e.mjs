@@ -182,11 +182,33 @@ async function typeOnKiosk(kiosk, code) {
   };
 }
 
+// With no internet the padlock goes straight to the offline code panel (the
+// staff phone scan cannot work offline).
 async function openLockedKiosk(kiosk) {
   await kiosk.evaluate(() => { showPanel("dashboard"); showPanel("checkin"); });
   await kiosk.waitForSelector("#v511FullscreenStage .irlid-kiosk-padlock");
   await kiosk.click("#v511FullscreenStage .irlid-kiosk-padlock");
-  await kiosk.click(".irlid-kiosk-use-offline");
+  await kiosk.waitForSelector(".irlid-kiosk-panel .irlid-kiosk-challenge");
+}
+
+// Where the kiosk controls and the unlock panel really are on screen.
+async function kioskLayout(kiosk) {
+  return kiosk.evaluate(() => {
+    const r = (q) => { const el = document.querySelector(q); if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height, right: b.right, bottom: b.bottom }; };
+    return {
+      vw: innerWidth, vh: innerHeight,
+      padlock: r("#v511FullscreenStage .irlid-kiosk-padlock"),
+      refresh: r("#v511FullscreenStage .irlid-kiosk-refresh"),
+      dot: r("#v511FullscreenStage .irlid-kiosk-dot"),
+      panel: r(".irlid-kiosk-panel"),
+      buttons: [...document.querySelectorAll(".irlid-kiosk-panel button")].map((b) => {
+        const x = b.getBoundingClientRect();
+        // The button must be the thing a tap at its centre lands on.
+        const hit = document.elementFromPoint(x.x + x.width / 2, x.y + x.height / 2);
+        return { text: b.textContent, onScreen: x.bottom <= innerHeight && x.right <= innerWidth && x.y >= 0, hit: hit === b || b.contains(hit) };
+      })
+    };
+  });
 }
 
 test("offline unlock code works end to end with the network cut", { skip: !chromium && "Playwright not installed", timeout: 120000 }, async () => {
@@ -265,9 +287,46 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     await new Promise((r) => site.close(r));
     assert.equal(await kiosk.evaluate(() => navigator.onLine), false);
 
+    // 0) Real-device report (7 Nov): the padlock, refresh button and dot sat
+    //    under the QR, and the unlock panel was laid out inside the stage, so
+    //    its offline-code button was cut off the bottom and a tap did nothing.
+    //    The controls must sit at the top right and every panel button must be
+    //    on screen and tappable.
+    await openLockedKiosk(kiosk);
+    let lay = await kioskLayout(kiosk);
+    for (const k of ["padlock", "refresh", "dot"]) {
+      assert.ok(lay[k].y < 80 && lay[k].right > lay.vw - 160, k + " is not at the top right: " + JSON.stringify(lay[k]));
+    }
+    assert.ok(lay.refresh.right <= lay.padlock.x && lay.dot.right <= lay.refresh.x, "order is dot, refresh, padlock: " + JSON.stringify(lay));
+    assert.deepEqual([lay.panel.x, lay.panel.y, lay.panel.w, lay.panel.h], [0, 0, lay.vw, lay.vh], "unlock panel must cover the screen");
+    for (const b of lay.buttons) assert.ok(b.onScreen && b.hit, "panel button not tappable: " + JSON.stringify(b));
+    // Esc drops browser full screen (a page cannot stop that). The stage stays
+    // locked and asks for an unlock; "Stay locked" must go back into full
+    // screen, because that click is the tap a browser needs for it.
+    await kiosk.click(".irlid-kiosk-cancel");
+    await kiosk.evaluate(() => {
+      window.__fsAsks = 0;
+      document.getElementById("v511FullscreenStage").requestFullscreen = function () { window.__fsAsks += 1; return Promise.resolve(); };
+      return document.exitFullscreen();
+    });
+    await kiosk.waitForSelector(".irlid-kiosk-relock");
+    await kiosk.waitForSelector(".irlid-kiosk-panel .irlid-kiosk-cancel");
+    await kiosk.click(".irlid-kiosk-cancel");
+    assert.equal(await kiosk.evaluate(() => window.__fsAsks), 1, "Stay locked did not ask for full screen again");
+    assert.equal(await kiosk.evaluate(() => !!document.querySelector(".irlid-kiosk-panel")), false);
+    // "Staff phone scan" from the offline panel tries the scan, fails with no
+    // internet and comes back to the offline code, still locked.
+    await kiosk.click("#v511FullscreenStage .irlid-kiosk-padlock");
+    await kiosk.waitForSelector(".irlid-kiosk-panel .irlid-kiosk-use-scan");
+    await kiosk.click(".irlid-kiosk-use-scan");
+    await kiosk.waitForFunction(() => /No internet/.test(document.querySelector(".irlid-kiosk-status")?.textContent || ""));
+    assert.ok(await kiosk.evaluate(() => !!document.querySelector(".irlid-kiosk-panel .irlid-kiosk-challenge")));
+    await kiosk.click(".irlid-kiosk-cancel");
+
     // 1) Offline unlock. Kiosk opens locked, shows a challenge; the phone
     //    "scans" it: opens the URL from its offline cache and makes the code.
-    await openLockedKiosk(kiosk);
+    await kiosk.click("#v511FullscreenStage .irlid-kiosk-padlock");
+    await kiosk.waitForSelector(".irlid-kiosk-panel .irlid-kiosk-challenge");
     const url1 = await kioskOfflineChallengeUrl(kiosk);
     assert.match(url1, new RegExp("/kiosk-code\\.html#o=org-1&k=" + kioskId + "&c=[0-9A-HJKMNP-TV-Z]{8}$"));
     const signsBefore = 0;

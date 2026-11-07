@@ -258,12 +258,21 @@
       ".irlid-kiosk-btn:focus-visible{outline:2px solid #fff;outline-offset:2px;}",
       ".irlid-kiosk-padlock{right:18px;}",
       ".irlid-kiosk-refresh{right:70px;}",
-      ".irlid-kiosk-dot{position:fixed;left:14px;bottom:14px;width:10px;height:10px;border-radius:50%;z-index:100002;background:#3fb950;box-shadow:0 0 0 2px rgba(0,0,0,0.35);}",
+      ".irlid-kiosk-dot{position:fixed;top:34px;right:124px;width:10px;height:10px;border-radius:50%;z-index:100002;background:#3fb950;box-shadow:0 0 0 2px rgba(0,0,0,0.35);}",
+      // The full screen stage's own CSS (.v511-runtime-stage > *) makes every
+      // child position:relative, which beat the rules above: the padlock,
+      // refresh button, dot and unlock panel were laid out under the QR, and
+      // the panel's lower buttons (the offline code) were cut off the bottom
+      // of the screen. Every kiosk control must sit on the screen itself.
+      ".irlid-kiosk-host>.irlid-kiosk-btn,.irlid-kiosk-host>.irlid-kiosk-dot,.irlid-kiosk-host>.irlid-kiosk-panel,.irlid-kiosk-host>.irlid-kiosk-relock{position:fixed !important;}",
+      ".irlid-kiosk-host>.irlid-kiosk-btn,.irlid-kiosk-host>.irlid-kiosk-dot,.irlid-kiosk-host>.irlid-kiosk-relock{z-index:100002 !important;}",
+      ".irlid-kiosk-host>.irlid-kiosk-panel{z-index:100003 !important;}",
       ".irlid-kiosk-dot[data-online='false']{background:#f85149;}",
-      ".irlid-kiosk-panel{position:fixed;inset:0;z-index:100003;display:grid;place-items:center;padding:20px;background:rgba(1,4,9,.86);}",
+      ".irlid-kiosk-panel{position:fixed;inset:0;z-index:100003;display:grid;place-items:center;padding:20px;background:rgba(1,4,9,.86);overflow:auto;box-sizing:border-box;}",
       ".irlid-kiosk-card{width:min(420px,100%);background:#0d1117;color:#e6edf3;border:1px solid rgba(139,148,158,.35);border-radius:8px;padding:20px;text-align:center;font:400 14px/1.45 'Segoe UI',system-ui,sans-serif;}",
       ".irlid-kiosk-card h2{margin:0 0 8px;font-size:20px;line-height:1.2;}",
       ".irlid-kiosk-card p{margin:0 0 12px;color:#8b949e;}",
+      ".irlid-kiosk-qr[hidden]{display:none;}",
       ".irlid-kiosk-qr{width:250px;min-height:250px;margin:12px auto;display:grid;place-items:center;background:#fff;color:#24292f;border-radius:8px;padding:10px;}",
       ".irlid-kiosk-qr canvas,.irlid-kiosk-qr img{display:block;max-width:100%;height:auto;}",
       ".irlid-kiosk-status{min-height:20px;font-weight:700;color:#d29922;}",
@@ -289,6 +298,7 @@
     const doc = stage.ownerDocument || document;
     const win = doc.defaultView || window;
     ensureStyles(doc);
+    stage.classList.add("irlid-kiosk-host");
     const state = createLockState(opts.locked);
     const controls = [];
 
@@ -323,6 +333,19 @@
       panel = null;
     }
 
+    // "Stay locked": close the panel and go back into full screen. A browser
+    // only allows full screen from a tap or key press, and this click is one.
+    function stayLocked() {
+      closePanel();
+      if (state.isLocked() && !doc.fullscreenElement && typeof opts.requestFullscreen === "function") {
+        try { opts.requestFullscreen(); } catch (_) {}
+      }
+    }
+
+    function isOffline() {
+      try { return win.navigator.onLine === false; } catch (_) { return false; }
+    }
+
     function showRelockHint(show) {
       if (show && !relockHint) {
         relockHint = doc.createElement("div");
@@ -336,9 +359,14 @@
       }
     }
 
-    async function openUnlock() {
+    // force.scan: the person asked for the staff phone scan from the offline
+    // panel, so try it even if the browser says it is offline.
+    async function openUnlock(force) {
       if (!state.isLocked()) return;
       if (attempt && panel) return; // already showing an unlock code
+      // No internet: the staff phone scan cannot work, so show the offline
+      // code straight away instead of a blank QR (it still needs a code).
+      if (verifier && isOffline() && !(force && force.scan)) { openOffline(); return; }
       closePanel();
       const mine = { cancelled: false };
       attempt = mine;
@@ -348,7 +376,7 @@
         '<section class="irlid-kiosk-card" role="dialog" aria-modal="true" aria-labelledby="irlidKioskUnlockTitle">' +
           '<h2 id="irlidKioskUnlockTitle">Unlock this screen</h2>' +
           '<p>Scan with a staff phone that has an enrolled hardware key, then approve on the phone.</p>' +
-          '<div class="irlid-kiosk-qr" aria-label="Unlock QR code"></div>' +
+          '<div class="irlid-kiosk-qr" aria-label="Unlock QR code" hidden></div>' +
           '<div class="irlid-kiosk-status" role="status" aria-live="polite"></div>' +
           '<button type="button" class="irlid-kiosk-cancel">Stay locked</button>' +
           (opts.offline ? '<button type="button" class="irlid-kiosk-use-offline" style="margin-left:8px">No internet? Lead Admin or Developer code</button>' : '') +
@@ -357,12 +385,13 @@
       const qr = panel.querySelector(".irlid-kiosk-qr");
       const status = panel.querySelector(".irlid-kiosk-status");
       const cancelBtn = panel.querySelector(".irlid-kiosk-cancel");
-      cancelBtn.addEventListener("click", function (e) { e.stopPropagation(); closePanel(); });
+      cancelBtn.addEventListener("click", function (e) { e.stopPropagation(); stayLocked(); });
       const offlineBtn = panel.querySelector(".irlid-kiosk-use-offline");
       if (offlineBtn) offlineBtn.addEventListener("click", function (e) { e.stopPropagation(); openOffline(); });
       try { cancelBtn.focus(); } catch (_) {}
       const ui = {
         showQr: function (text) {
+          qr.hidden = false;
           qr.textContent = "";
           try { opts.renderQr(qr, text); } catch (_) { qr.textContent = "QR unavailable"; }
         },
@@ -377,7 +406,11 @@
         { state: state, isCancelled: function () { return mine.cancelled; } }
       );
       if (attempt === mine) attempt = null; // finished; the panel stays to show the message
-      if (result && (result.outcome === "offline" || result.outcome === "no_session") && opts.offline && panel) {
+      if (result && result.outcome === "offline" && verifier && panel && panel.contains(cancelBtn)) {
+        openOffline("No internet, so the staff phone scan cannot work. Use an offline code.");
+        return;
+      }
+      if (result && result.outcome === "no_session" && opts.offline && panel) {
         const st = panel.querySelector(".irlid-kiosk-status");
         if (st) st.textContent += " A Lead Admin or Developer can use an offline code instead.";
       }
@@ -401,7 +434,7 @@
     // challenge (as a QR for the admin's phone and as text); the admin types
     // the 8-digit code their phone shows.
     const verifier = opts.offline ? createOfflineVerifier({ getKeys: opts.offline.getKeys, now: opts.offline.now }) : null;
-    function openOffline() {
+    function openOffline(note) {
       if (!state.isLocked() || !verifier) return;
       closePanel();
       const mine = { cancelled: false };
@@ -417,6 +450,7 @@
           '<form class="irlid-kiosk-offline"><label>Code <input inputmode="numeric" autocomplete="off" maxlength="9" aria-label="8-digit unlock code"></label> <button type="submit">Unlock</button></form>' +
           '<div class="irlid-kiosk-status" role="status" aria-live="polite"></div>' +
           '<button type="button" class="irlid-kiosk-cancel">Stay locked</button>' +
+          '<button type="button" class="irlid-kiosk-use-scan" style="margin-left:8px">Staff phone scan</button>' +
         '</section>';
       stage.appendChild(panel);
       const qr = panel.querySelector(".irlid-kiosk-qr");
@@ -425,7 +459,9 @@
       const input = form.querySelector("input");
       const status = panel.querySelector(".irlid-kiosk-status");
       const setStatus = function (text, kind) { status.textContent = text || ""; status.dataset.kind = kind || ""; };
-      panel.querySelector(".irlid-kiosk-cancel").addEventListener("click", function (e) { e.stopPropagation(); closePanel(); });
+      panel.querySelector(".irlid-kiosk-cancel").addEventListener("click", function (e) { e.stopPropagation(); stayLocked(); });
+      const scanBtn = panel.querySelector(".irlid-kiosk-use-scan");
+      if (scanBtn) scanBtn.addEventListener("click", function (e) { e.stopPropagation(); closePanel(); openUnlock({ scan: true }); });
       let shown = null;
       function show(ch) {
         shown = ch;
@@ -435,6 +471,7 @@
       }
       const keys = (opts.offline.getKeys && opts.offline.getKeys()) || [];
       show(verifier.challenge());
+      if (note) setStatus(note, "wait");
       if (!keys.length) {
         setStatus("No offline code is set up on this screen yet. A Lead Admin or Developer must set one up on their phone, then this screen must be online once.", "err");
       }
