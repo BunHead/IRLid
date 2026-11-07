@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.8</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.9</span></div>
   </div>
 </div>
 
@@ -6410,9 +6410,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </div>
 
           <div class="v511-row"><label for="v511OrgName">Display name</label><input type="text" id="v511OrgName" value="Test Event" /></div>
-          <div class="v511-row"><label for="v511OrgWebsite">Website</label><input type="url" id="v511OrgWebsite" value="https://example.com" /></div>
+          <div class="v511-row"><label for="websiteUrl">Website</label><input type="url" id="websiteUrl" placeholder="https://example.com" /></div>
           <div class="v511-row"><label for="v511OrgDescription">Description</label><input type="text" id="v511OrgDescription" value="Co-presence verification for events" /></div>
-          <div class="v511-row"><label for="v511OrgTerms">Org terms / disclaimer</label><textarea id="v511OrgTerms" placeholder="Optional informational text shown at check-in."></textarea></div>
+          <div class="v511-row"><label for="orgTerms">Org terms / disclaimer</label><textarea id="orgTerms" placeholder="Optional text shown to attendees at check-in. Display only, nobody has to accept it."></textarea></div>
           <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" placeholder="hello@your-org.com — optional, shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgContactPhone">Contact phone</label><input type="text" id="v511OrgContactPhone" placeholder="Optional — shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgVenueAddress">Venue address</label><input type="text" id="v511OrgVenueAddress" placeholder="Optional — shown on receipts so verifiers can reach the venue" /></div>
@@ -7302,6 +7302,86 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </label>
           </div>
 
+          <!-- v6.8.7: Kiosk and live-code gates. These were in the hidden legacy
+               settings shell, so nobody could reach them. Lead Admin / Developer
+               only: the Worker refuses a change from anyone else. -->
+          <!-- v6.8.9: Check-in rules. These were in the hidden legacy settings
+               shell (display:none), so nobody could reach them, whatever their
+               role. Same ids, so hydrate and save are unchanged. Settings is
+               Lead Admin / Developer only, and every save is audited. -->
+          <div class="v511-sub" style="margin-top: 14px;" id="checkinRulesGroup">Check-in rules</div>
+          <div class="v620-permissions-matrix">
+            <label class="v620-permissions-row" for="minimumTrustScore">
+              <span>
+                <strong>Minimum trust score</strong>
+                <span class="v511-hint">A fresh check-in scoring below this is refused. Offline and queued check-ins are never refused on score.</span>
+              </span>
+              <span class="v620-permissions-cell"><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70" style="width: 70px;" aria-label="Minimum trust score" /></span>
+            </label>
+            <label class="v620-permissions-row" for="privacyMode">
+              <span>
+                <strong>Privacy mode</strong>
+                <span class="v511-hint">Shortens the attendee&#39;s name on signed check-in receipts. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="privacyMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="anonymousMode">
+              <span>
+                <strong>Anonymous mode</strong>
+                <span class="v511-hint">Check-ins keep no name, only the device. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="anonymousMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="returnAllowed">
+              <span>
+                <strong>Return allowed</strong>
+                <span class="v511-hint">The check-in page tells attendees re-entry is allowed. Display only. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="returnAllowed" checked /></span>
+            </label>
+            <label class="v620-permissions-row" for="allowSelfSelection">
+              <span>
+                <strong>Let attendees pick their name</strong>
+                <span class="v511-hint">When a phone is not linked yet, the attendee can choose their name from the expected list. Off shows &quot;See an organiser&quot; instead. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="allowSelfSelection" checked /></span>
+            </label>
+            <label class="v620-permissions-row" for="requireDoormanConfirmation">
+              <span>
+                <strong>Say staff will confirm</strong>
+                <span class="v511-hint">The pick-your-name screen tells attendees that staff will confirm their choice. Display only.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="requireDoormanConfirmation" checked /></span>
+            </label>
+          </div>
+
+          <div class="v511-sub" style="margin-top: 14px;" id="kioskSettingsGroup">Kiosk and door screen</div>
+          <div class="v620-permissions-matrix">
+            <label class="v620-permissions-row" for="kioskMode">
+              <span>
+                <strong>Kiosk mode</strong>
+                <span class="v511-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's or Developer's offline code when there is no internet. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="kioskMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="lockFullscreen" style="padding-left: 18px;">
+              <span>
+                <strong>Lock full screen</strong>
+                <span class="v511-hint">Without kiosk mode: lock the full screen QR only when someone opens it. Always on in kiosk mode. A browser cannot block the Windows key or Ctrl+Alt+Del: see the kiosk guide (docs/kiosk-lock.md).</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="lockFullscreen" /></span>
+            </label>
+            <label class="v620-permissions-row" for="requireLiveCode">
+              <span>
+                <strong>Require live screen code</strong>
+                <span class="v511-hint">Only count check-ins made by scanning the live screen at the venue. A photo of an old QR, a printed QR or an offline check-in is kept for staff review and not counted. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="requireLiveCode" /></span>
+            </label>
+          </div>
+          <div class="v511-hint" style="margin-top: 8px;">Offline unlock codes: each Lead Admin or Developer sets them up once on their own phone. <button type="button" class="v511-btn" id="kioskCodeSetupBtn">Set up on my phone</button></div>
+          <div id="kioskCodeSetupQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
+
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511AuthSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511AuthSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
 
@@ -7325,6 +7405,95 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <div class="v511-row"><label>Bootstrap fp</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">n4FzIhV_1jc2u_HO</span></div>
               <div class="v511-row"><label>Worker URL</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-api-org.irlid-bunhead.workers.dev</span></div>
               <div class="v511-row"><label>D1 binding</label><span class="v511-hint" style="font-family: var(--font-mono, monospace);">irlid-db-org</span></div>
+            </div>
+          </details>
+
+          <!-- v6.8.9: settings and tools that sat in the hidden legacy settings
+               shell (display:none). Spencer, 7 Nov: un-hide anything connected
+               to something and put it here. Ones that do nothing yet are
+               labelled "not active yet" (I1, I2: never pretend). -->
+          <div class="v511-sub" style="margin-top: 14px;" id="notActiveYetGroup">Not active yet</div>
+          <div class="v511-hint" style="margin-bottom: 8px;">These save, but nothing checks them yet. Turning one on changes nothing for attendees.</div>
+          <div class="v620-permissions-matrix">
+            <label class="v620-permissions-row" for="biometricRequired">
+              <span>
+                <strong>Device unlock required <span class="v511-badge" style="margin-left:6px;">not active yet</span></strong>
+                <span class="v511-hint">Meant to need a fingerprint, face or passcode before check-in. Today it only adds a flag the server ignores (S13).</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="biometricRequired" /></span>
+            </label>
+            <label class="v620-permissions-row" for="checkoutRequired">
+              <span>
+                <strong>Check-out required <span class="v511-badge" style="margin-left:6px;">not active yet</span></strong>
+                <span class="v511-hint">Meant to make attendees check out. Today it only changes the "Check-out enabled" label.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="checkoutRequired" /></span>
+            </label>
+          </div>
+          <div class="v511-row" style="margin-top: 10px;"><label>Website theme import <span class="v511-badge" style="margin-left:6px;">not active yet</span></label><div><span class="v511-hint">Reads colours and logo from the Website in 1. Organisation. "Use this" does not reach 4. Visual Theming yet, so copy any colour you like across by hand.</span>
+                <div class="theme-scrape-panel">
+                  <div class="theme-scrape-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="themeScrapeBtn">Extract from website</button>
+                    <span class="theme-scrape-status" id="themeScrapeStatus"></span>
+                  </div>
+                  <div class="theme-scrape-results" id="themeScrapeResults" aria-live="polite"></div>
+                </div>
+          </div></div>
+
+          <details class="v511-expander" id="testToolsGroup">
+            <summary>Test tools <span class="v511-hint-inline">(outcome page previews, hosted scanner, copy links)</span></summary>
+            <div class="v511-expander-body">
+              <div class="v511-row"><label for="orgCode">Org code</label><input id="orgCode" type="text" value="test" /></div>
+              <div class="v511-row"><label for="eventCode">Event code</label><input id="eventCode" type="text" value="demo-night" /></div>
+              <div class="v511-hint">Used only to build the test links below.</div>
+              <div class="qr-tools-card">
+            <div class="qr-tools-header">
+              <h3>QR test tools</h3>
+              <p>Preview the Allow / Review / Deny outcome pages and the hosted scanner. Nothing here records attendance.</p>
+            </div>
+            <div class="qr-tools-body">
+              <div class="qr-tool-block allow-mode" id="activeOutcomeBlock">
+                <div class="mode-chip allow" id="modeChip">ACTIVE MODE: ALLOW</div>
+                <h4>Active outcome QR</h4>
+                <p>Switch between Allow, Review, and Deny. Only the selected outcome QR is shown.</p>
+                <div class="mode-buttons">
+                  <button type="button" class="mode-btn allow active" data-mode="allow">Allow</button>
+                  <button type="button" class="mode-btn review" data-mode="review">Review</button>
+                  <button type="button" class="mode-btn deny" data-mode="deny">Deny</button>
+                </div>
+                <div class="qr-pad allow active-pad" id="outcomePad"><div class="qr-box-large" id="outcomeQr"></div></div>
+                <div class="url-inline-row">
+                  <input class="url-inline-input" id="outcomeUrlLine" readonly title="Active outcome URL">
+                </div>
+                <div class="mini-actions">
+                  <button class="btn btn-secondary btn-sm" type="button" id="copyOutcomeMiniBtn">Copy active URL</button>
+                  <button class="btn btn-primary btn-sm" type="button" id="testFireOutcomeBtn" title="Fires the celebration matching the active mode — same animation a real check-in fires on the Check-in panel">Test fire animation</button>
+                </div>
+              </div>
+
+              <details class="scan-toggle">
+                <summary>
+                  <div>
+                    <h4>Hosted scan page</h4>
+                    <p>Less-used debug helper. Expand when you want the phone pointed at the hosted scanner.</p>
+                  </div>
+                  <span class="scan-toggle-icon">⌄</span>
+                </summary>
+                <div class="scan-toggle-body">
+                  <div class="qr-pad scan"><div class="qr-box-small" id="scanQr"></div></div>
+                  <div class="compact-url" id="scanUrlBox" onclick="copyText(SCAN_URL)" title="Click to copy"></div>
+                </div>
+              </details>
+
+              <div class="settings-summary" id="settingsSummary"></div>
+              <div class="settings-actions">
+                <button class="btn btn-secondary" type="button" id="copyOutcomeUrlBtn">Copy active outcome URL</button>
+                <button class="btn btn-secondary" type="button" id="copySettingsBtn">Copy settings summary</button>
+                <button class="btn btn-secondary" type="button" id="copyScanUrlBtn">Copy hosted scan URL</button>
+              </div>
+              <div class="small-note">This page only prepares and previews test URLs. It does not perform Cloudflare writes or any production attendance action.</div>
+            </div>
+          </div>
             </div>
           </details>
 
@@ -11949,7 +12118,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // ---- Org tab ----
           var V511_ORG_LS_KEY = 'v511_mockup_org_v1';
-          var V511_ORG_FIELDS = ['v511OrgName','v511OrgWebsite','v511OrgDescription','v511OrgTerms','v511OrgContactEmail','v511OrgContactPhone','v511OrgVenueAddress'];
+          // v6.8.9: Website and Org terms are the server fields (#websiteUrl, #orgTerms),
+          // hydrated from the Worker, so they are no longer kept in this localStorage blob.
+          var V511_ORG_FIELDS = ['v511OrgName','v511OrgDescription','v511OrgContactEmail','v511OrgContactPhone','v511OrgVenueAddress'];
           function v511OrgCaptureState() {
             var state = {};
             V511_ORG_FIELDS.forEach(function (id) {
@@ -12229,12 +12400,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             </div>
             <div class="settings-card-body">
               <div class="settings-group">
-                <h4>Basic test identity</h4>
-                <div class="settings-grid-3">
-                  <label class="settings-field"><span>Org code</span><input id="orgCode" type="text" value="test"></label>
-                  <label class="settings-field"><span>Event code</span><input id="eventCode" type="text" value="demo-night"></label>
-                  <label class="settings-field"><span>Minimum Trust Score</span><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70"></label>
-                </div>
+                <h4>Staff (moved: see 3. Staff &amp; Rooms)</h4>
                 <div class="invite-staff-row" data-min-role="lead_admin">
                   <div>
                     <strong>Staff invites</strong>
@@ -12251,52 +12417,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 </div>
               </div>
 
-              <div class="settings-group">
-                <h4>Core gates and policy</h4>
-                <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Device Unlock Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a live device unlock (biometric or passcode) is required before allow.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Privacy Mode</strong><label class="switch-wrap"><input id="privacyMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Prefer reduced personal detail in the entry flow.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Anonymous Mode</strong><label class="switch-wrap"><input id="anonymousMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Permit anonymous-style handling where appropriate.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Require live screen code</strong><label class="switch-wrap"><input id="requireLiveCode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Only count check-ins made by scanning the live screen at the venue. A photo of an old QR, a printed QR or an offline check-in is kept for staff review and not counted. Lead Admin only.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Check-out Required</strong><label class="switch-wrap"><input id="checkoutRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Marks the event as requiring an exit/check-out flow later.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Return Allowed</strong><label class="switch-wrap"><input id="returnAllowed" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Passed into the test URL so entry pages can show re-entry policy.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Allow attendee self-selection</strong><label class="switch-wrap"><input id="allowSelfSelection" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Placeholder setting for attendee-led selection before confirmation.</div></label>
-                </div>
-              </div>
 
-              <div class="settings-group" id="kioskSettingsGroup">
-                <h4>Kiosk</h4>
-                <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Kiosk mode</strong><label class="switch-wrap"><input id="kioskMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's offline code when there is no internet. Lead Admin only.</div></label>
-                  <label class="switch-tile" style="margin-left:18px"><div class="switch-top"><strong>Lock full screen</strong><label class="switch-wrap"><input id="lockFullscreen" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Without kiosk mode: lock the full screen QR only when someone opens it. Always on in kiosk mode. A browser cannot block the Windows key or Ctrl+Alt+Del: see the kiosk guide. Lead Admin only.</div></label>
-                </div>
-                <div class="switch-hint" style="margin-top:8px">Offline unlock codes: each Lead Admin or Developer sets them up once on their own phone. <button type="button" class="btn btn-secondary btn-sm" id="kioskCodeSetupBtn">Set up on my phone</button></div>
-                <div id="kioskCodeSetupQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
-              </div>
-
-              <div class="settings-group">
-                <h4>Assisted identity and proof rules</h4>
-                <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Require doorman confirmation</strong><label class="switch-wrap"><input id="requireDoormanConfirmation" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Keeps the doorman step active even if a match looks strong.</div></label>
-                </div>
-              </div>
 
               <div class="settings-group">
                 <h4>Branding and post-accept behaviour</h4>
                 <div class="settings-grid-3">
                   <label class="settings-field"><span>Logo image URL</span><input id="logoUrl" type="url" placeholder="https://example.com/logo.png"></label>
-                  <label class="settings-field"><span>Website URL</span><input id="websiteUrl" type="url" placeholder="https://example.com"></label>
                   <label class="settings-field"><span>Post-accept redirect URL</span><input id="redirectUrl" type="url" placeholder="https://example.com/welcome"></label>
                   <label class="settings-field"><span>Staff post-accept redirect URL</span><input id="staffRedirectUrl" type="url" placeholder="e.g. https://example.com/staff-page (or your org's authenticated staff page)"></label>
                   <label class="settings-field"><span>Custom welcome message</span><textarea id="welcomeMessage" placeholder="Welcome to the venue."></textarea></label>
-                  <label class="settings-field"><span>Organisation terms / disclaimer</span><textarea id="orgTerms" placeholder="Optional informational text shown to attendees at check-in. Display only — not required to accept. e.g. 'By checking in you acknowledge our event safety policy and photo consent terms.'"></textarea></label>
-                </div>
-                <div class="theme-scrape-panel">
-                  <div class="theme-scrape-actions">
-                    <button type="button" class="btn btn-secondary btn-sm" id="themeScrapeBtn">Extract from website</button>
-                    <span class="theme-scrape-status" id="themeScrapeStatus"></span>
-                  </div>
-                  <div class="theme-scrape-results" id="themeScrapeResults" aria-live="polite"></div>
                 </div>
               </div>
 
@@ -12689,55 +12818,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
         </div>
 
         <div class="settings-stack qr-tools-stack">
-          <div class="qr-tools-card">
-            <div class="qr-tools-header">
-              <h3>QR test tools</h3>
-              <p>Hosted scan QR tucked below, with a larger active outcome QR above for easier scanning.</p>
-            </div>
-            <div class="qr-tools-body">
-              <div class="qr-tool-block allow-mode" id="activeOutcomeBlock">
-                <div class="mode-chip allow" id="modeChip">ACTIVE MODE: ALLOW</div>
-                <h4>Active outcome QR</h4>
-                <p>Switch between Allow, Review, and Deny. Only the selected outcome QR is shown.</p>
-                <div class="mode-buttons">
-                  <button type="button" class="mode-btn allow active" data-mode="allow">Allow</button>
-                  <button type="button" class="mode-btn review" data-mode="review">Review</button>
-                  <button type="button" class="mode-btn deny" data-mode="deny">Deny</button>
-                </div>
-                <div class="qr-pad allow active-pad" id="outcomePad"><div class="qr-box-large" id="outcomeQr"></div></div>
-                <div class="url-inline-row">
-                  <input class="url-inline-input" id="outcomeUrlLine" readonly title="Active outcome URL">
-                </div>
-                <div class="mini-actions">
-                  <button class="btn btn-secondary btn-sm" type="button" id="copyOutcomeMiniBtn">Copy active URL</button>
-                  <button class="btn btn-primary btn-sm" type="button" id="testFireOutcomeBtn" title="Fires the celebration matching the active mode — same animation a real check-in fires on the Check-in panel">Test fire animation</button>
-                </div>
-              </div>
-
-              <details class="scan-toggle">
-                <summary>
-                  <div>
-                    <h4>Hosted scan page</h4>
-                    <p>Less-used debug helper. Expand when you want the phone pointed at the hosted scanner.</p>
-                  </div>
-                  <span class="scan-toggle-icon">⌄</span>
-                </summary>
-                <div class="scan-toggle-body">
-                  <div class="qr-pad scan"><div class="qr-box-small" id="scanQr"></div></div>
-                  <div class="compact-url" id="scanUrlBox" onclick="copyText(SCAN_URL)" title="Click to copy"></div>
-                </div>
-              </details>
-
-              <div class="settings-summary" id="settingsSummary"></div>
-              <div class="settings-actions">
+          
+          <!-- v6.8.9: legacy Save / Reset kept hidden; every visible tab has its own Save all settings. -->
+          <div style="display:none">
                 <button class="btn btn-primary" type="button" id="savePortalSettingsBtn" data-min-role="lead_admin">Save All Settings</button>
-                <button class="btn btn-secondary" type="button" id="copyOutcomeUrlBtn">Copy active outcome URL</button>
-                <button class="btn btn-secondary" type="button" id="copySettingsBtn">Copy settings summary</button>
-                <button class="btn btn-secondary" type="button" id="copyScanUrlBtn">Copy hosted scan URL</button>
                 <button class="btn btn-secondary" type="button" id="resetPortalSettingsBtn" data-min-role="lead_admin">Reset to defaults</button>
-              </div>
-              <div class="small-note">This page only prepares and previews test URLs. It does not perform Cloudflare writes or any production attendance action.</div>
-            </div>
           </div>
 
           <!-- v5.9.0.13.14 — Role vocabulary panel. Customise role labels per org

@@ -154,7 +154,7 @@
       document.getElementById('manual').hidden = !manual;
       if (!manual) document.getElementById('target').textContent = 'Screen ' + kioskId + ' · challenge ' + challenge.slice(0, 4) + '-' + challenge.slice(4);
       if (!orgId || !loadSeed(orgId)) {
-        setStatus('This phone is not set up for offline unlock codes. A Lead Admin sets it up from Org Settings → Kiosk mode while online.', 'err');
+        setStatus('This phone is not set up for offline unlock codes. A Lead Admin or Developer sets it up from Org Settings → 5. Sign-in & Auth → Kiosk and door screen while online.', 'err');
         document.getElementById('makeBtn').disabled = true;
         return;
       }

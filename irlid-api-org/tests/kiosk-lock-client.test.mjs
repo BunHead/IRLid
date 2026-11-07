@@ -127,7 +127,7 @@ test("unlock flow: Stay locked cancels the wait", async () => {
 
 test("Org.html: Lock full screen toggle exists, unchecked by default, hydrated from the server only", () => {
   const html = read("Org.html");
-  const toggle = html.match(/<input id="lockFullscreen"[^>]*>/);
+  const toggle = html.match(/<input[^>]*id="lockFullscreen"[^>]*>/);
   assert.ok(toggle, "toggle missing");
   assert.doesNotMatch(toggle[0], /checked/);
   assert.match(html, /settings\.lockFullscreen = src\.lockFullscreen === true;/);
@@ -237,11 +237,11 @@ test("offline code: no cached keys means it stays locked; bad input is rejected"
 
 test("Org.html: Kiosk mode toggle, off by default, Lock full screen under it, auto opens Check-in", () => {
   const html = read("Org.html");
-  const km = html.match(/<input id="kioskMode"[^>]*>/);
+  const km = html.match(/<input[^>]*id="kioskMode"[^>]*>/);
   assert.ok(km);
   assert.doesNotMatch(km[0], /checked/);
   // Lock full screen sits inside the Kiosk group, after Kiosk mode.
-  const group = html.slice(html.indexOf('id="kioskSettingsGroup"'), html.indexOf('Assisted identity and proof rules'));
+  const group = html.slice(html.indexOf('id="kioskSettingsGroup"'), html.indexOf('id="v511AuthSaveBtn"'));
   assert.ok(group.indexOf('id="kioskMode"') > 0 && group.indexOf('id="kioskMode"') < group.indexOf('id="lockFullscreen"'));
   assert.match(html, /settings\.kioskMode = src\.kioskMode === true;/);
   assert.match(html, /window\.__irlidKioskModeHydrated \? \{ kioskMode:/);
@@ -258,4 +258,21 @@ test("sw.js serves the lock script and the phone code page from the offline shel
   assert.ok(m);
   const re = eval(m[1]);
   for (const path of ["/kiosk-code.html", "/js/kiosk-lock.js", "/Org.html", "/js/sign.js"]) assert.ok(re.test(path), path);
+});
+
+// v6.8.7: the Kiosk and live-code toggles were inside the legacy settings
+// shell (display: none), so no one could reach them. They must live in a
+// visible tab: Settings > 5. Sign-in & Auth.
+test("Org.html: Kiosk mode, Lock full screen and Require live screen code are in a visible Settings tab", () => {
+  const html = read("Org.html");
+  const authStart = html.indexOf('data-v511-panel="auth"');
+  const authEnd = html.indexOf('data-v511-panel="tools"');
+  assert.ok(authStart > 0 && authEnd > authStart);
+  const shellStart = html.indexOf('<div class="settings-shell" style="display: none;">');
+  for (const id of ["kioskMode", "lockFullscreen", "requireLiveCode", "kioskCodeSetupBtn"]) {
+    const at = html.search(new RegExp('id="' + id + '"'));
+    assert.ok(at > authStart && at < authEnd, id + " is not in Settings > Sign-in & Auth");
+    assert.ok(shellStart < 0 || at < shellStart, id + " is inside the hidden legacy shell");
+    assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " must appear once");
+  }
 });
