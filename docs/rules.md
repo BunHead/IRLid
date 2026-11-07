@@ -115,6 +115,7 @@
 - **A1. Exactly one Lead Admin per org. A handover replaces them in one step, in person, with Spencer (Developer, super admin) appointing and fixing problems.**
   - Why: one person in charge, never orphaned.
   - Ratified 30 May. Overlap idea: question 3.
+  - Developer, as super admin, can reach and change every setting a Lead Admin can (Spencer, 7 Nov). A setting that isn't wired up yet is shown in Settings → 6. Tools & Diagnostics, labelled "not active yet", never hidden (I1, I2).
 - **A2. Role names in the database never change, only labels. Developer can't be handed out.**
   - Why: stops role grabs.
 - **A3. Change a role by re-inviting. Only the Lead Admin or Developer removes people.**
@@ -185,3 +186,4 @@
 6. **Drones (parked until there's a drone partner, E3).** The drone is the second device: it signs a fresh HELLO or scans the recipient's QR. Its GPS clock backs the time (C16). At the drop point, only a printed QR can be assumed, so the drone's photo of it in place is the evidence; a fingerprint of the photo goes in the drone's signed half. Proves what the drone saw, not who was there.
 7. **Mr Data's environment:** on hold until he has a job.
 8. **Assist nonce wording in PROTOCOL:** tidy it up.
+9. **First-time phone vs the 90 s code (PR C, raised 6 Nov).** A first-time phone waits for staff approval, which usually takes longer than the 90 s life of the code it scanned, so the check-in lands as offline / unverified (C14) even when the screen is online. Needs a design call before any code.
