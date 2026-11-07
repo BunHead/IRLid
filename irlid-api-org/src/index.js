@@ -1407,7 +1407,7 @@ async function orgActionInit(request, env) {
   try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const actionType = String(body.action_type || body.actionType || "").trim();
   if (!/^irlid_[a-z_]+_v5$/.test(actionType)) return err("invalid_action_type");
-  if (!["irlid_invite_v5", "irlid_calendar_write_v5"].includes(actionType)) return json({ error: "unsupported_action_type" }, 400);
+  if (!["irlid_invite_v5", "irlid_calendar_write_v5", KIOSK_UNLOCK_ACTION].includes(actionType)) return json({ error: "unsupported_action_type" }, 400);
   const actionPayloadIn = body.action_payload || body.actionPayload || {};
   const orgId = String(actionPayloadIn.org_id || body.org_id || body.orgId || "").trim();
   if (!orgId) return err("org_id required");
@@ -1423,10 +1423,17 @@ async function orgActionInit(request, env) {
 
   const tMs = Date.now();
   const nonce = randomToken();
-  const actionPayload = normalisePendingActionPayload(actionType, org.id, actionPayloadIn, ctx.user);
+  if (actionType === KIOSK_UNLOCK_ACTION && !kioskLockActiveFromSettings(org.settings_json)) {
+    return json({ error: "kiosk_lock_off" }, 409);
+  }
+  const actionPayload = actionType === KIOSK_UNLOCK_ACTION
+    ? kioskUnlockPayload(org.id)
+    : normalisePendingActionPayload(actionType, org.id, actionPayloadIn, ctx.user);
   actionPayload.timestamp = Number(actionPayload.timestamp || tMs);
   actionPayload.nonce = nonce;
-  const summary = String(body.action_summary || body.actionSummary || actionType).trim().slice(0, 240);
+  const summary = actionType === KIOSK_UNLOCK_ACTION
+    ? KIOSK_UNLOCK_SUMMARY
+    : String(body.action_summary || body.actionSummary || actionType).trim().slice(0, 240);
   const expiresAt = tMs + ACTION_AUTH_TTL_MS;
   await env.DB.prepare(
     "INSERT INTO pending_action_authorizations (nonce, org_id, requestor_user_id, action_type, action_payload_json, action_summary, created_at, expires_at, status, fail_count, locked_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0)"
@@ -1471,6 +1478,194 @@ async function orgActionPoll(request, env, pathNonce) {
   });
 }
 
+// Kiosk unlock ("Lock full screen"). The kiosk asks for a one-time QR; a
+// staff-tier member scans it with their enrolled v5 phone and signs. The
+// payload is built here, never taken from the kiosk, so the phone signs only
+// "unlock this org's kiosk" with this nonce (S6: single use, short-lived).
+const KIOSK_UNLOCK_ACTION = "irlid_kiosk_unlock_v5";
+const KIOSK_UNLOCK_SUMMARY = "Unlock the kiosk screen (leave full screen)";
+
+function kioskUnlockPayload(orgId) {
+  return { type: KIOSK_UNLOCK_ACTION, org_id: String(orgId || ""), purpose: "exit_fullscreen" };
+}
+
+function kioskUnlockPayloadSchema(p) {
+  if (!p || p.type !== KIOSK_UNLOCK_ACTION || !p.org_id || !p.nonce || !p.timestamp) return false;
+  const allowed = new Set(["type", "org_id", "purpose", "nonce", "timestamp"]);
+  if (Object.keys(p).some(k => !allowed.has(k))) return false;
+  return p.purpose === "exit_fullscreen";
+}
+
+// ---- Offline kiosk unlock code ---------------------------------------------
+// A Lead Admin's or Developer's phone can unlock a locked kiosk with no
+// internet. Set-up (online, once per phone): the phone makes a random seed,
+// signs it with its v5 hardware key and sends it here. Only a Lead Admin or
+// Developer signature is accepted. Each kiosk (online, signed in) then fetches
+// one key per seed, derived for that kiosk only:
+//     kiosk_key = HMAC-SHA256(seed, "irlid-kiosk-code|" + org_id + "|" + kiosk_id)
+// The seed itself never leaves the phone and the Worker, so a key read off one
+// kiosk opens only that kiosk. To unlock, the kiosk shows a fresh one-time
+// challenge; the phone (offline, after the v5 fingerprint / face check) shows
+//     code = 8 digits of HMAC-SHA256(kiosk_key, "unlock|" + challenge)
+// The kiosk checks it offline. A challenge lasts 90 s, is used once, and gets
+// 5 tries. A photo of a code is useless after that (S6, S12). The kiosk logs
+// each unlock and syncs it to the audit log when back online.
+const KIOSK_CODE_ENROL_ACTION = "irlid_kiosk_code_enrol_v5";
+const KIOSK_OFFLINE_UNLOCK_ACTION = "irlid_kiosk_offline_unlock_v5";
+const KIOSK_CODE_ROLES = new Set(["lead_admin", "developer"]);
+const KIOSK_ID_RE = /^[0-9A-HJKMNP-TV-Z]{8,16}$/;
+const KIOSK_CHALLENGE_RE = /^[0-9A-HJKMNP-TV-Z]{8}$/;
+
+let kioskCodeStorageReady = false;
+async function ensureKioskCodeStorage(env) {
+  if (kioskCodeStorageReady) return;
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS kiosk_code_keys (key_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, user_id TEXT NOT NULL, pub_fp TEXT NOT NULL, seed TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER)"
+  ).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_kiosk_code_keys_org ON kiosk_code_keys(org_id)").run();
+  kioskCodeStorageReady = true;
+}
+
+function kioskCodeEnrolPayloadSchema(p) {
+  if (!p || p.type !== KIOSK_CODE_ENROL_ACTION || !p.org_id || !p.nonce || !p.timestamp) return false;
+  const allowed = new Set(["type", "org_id", "key_id", "seed", "nonce", "timestamp"]);
+  if (Object.keys(p).some(k => !allowed.has(k))) return false;
+  if (!/^[A-Za-z0-9_-]{16,40}$/.test(String(p.key_id || ""))) return false;
+  let seed;
+  try { seed = b64urlDecode(String(p.seed || "")); } catch (_) { return false; }
+  return seed.length === 32;
+}
+
+async function hmacSha256(keyBytes, text) {
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text)));
+}
+
+async function kioskKeyFor(seedB64u, orgId, kioskId) {
+  return hmacSha256(b64urlDecode(seedB64u), "irlid-kiosk-code|" + orgId + "|" + kioskId);
+}
+
+// POST /org/kiosk/code-key  { signed_action } — enrol this phone's seed.
+async function orgKioskCodeEnrol(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const p = body && body.signed_action && body.signed_action.payload;
+  const orgId = String((p && p.org_id) || "").trim();
+  if (!orgId) return err("org_id required");
+  // No request passed: the phone's own role must be Lead Admin or Developer.
+  // A staff signer cannot borrow a Lead Admin's session for this.
+  const action = await requireSignedAction(body, env, {
+    expectedType: KIOSK_CODE_ENROL_ACTION,
+    orgId,
+    minRole: "lead_admin",
+    payloadSchema: kioskCodeEnrolPayloadSchema
+  });
+  if (action.error) return action.error;
+  const user = action.user || action.authorized_by_user;
+  const role = action.role;
+  if (!KIOSK_CODE_ROLES.has(role)) return json({ error: "insufficient_role", required: "lead_admin" }, 403);
+  await ensureKioskCodeStorage(env);
+  // kiosk_code_keys is a new table, so its times are milliseconds (W10 ops
+  // traps: new D1 tables standardise on Date.now()).
+  const t = Date.now();
+  // One live seed per person per org: a new set-up replaces the old one.
+  await env.DB.prepare("UPDATE kiosk_code_keys SET revoked_at=? WHERE org_id=? AND user_id=? AND revoked_at IS NULL")
+    .bind(t, orgId, user.id).run();
+  await env.DB.prepare(
+    "INSERT INTO kiosk_code_keys (key_id, org_id, user_id, pub_fp, seed, created_at) VALUES (?,?,?,?,?,?)"
+  ).bind(String(p.key_id), orgId, user.id, user.pub_fp, String(p.seed), t).run();
+  return json({ ok: true, key_id: String(p.key_id), role });
+}
+
+// Resolve a Bearer session that is a member (staff or above) of the org.
+async function kioskSessionForOrg(request, env, orgId) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  const org = await env.DB.prepare("SELECT id, settings_json FROM organisations WHERE id = ?").bind(orgId).first();
+  if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (expectedRoleRank(role) < expectedRoleRank("staff")) {
+    return { error: json({ error: "insufficient_role", required: "staff" }, 403) };
+  }
+  return { user: ctx.user, org, role };
+}
+
+// GET /org/kiosk/code-keys?org_id=&kiosk_id= — this kiosk's derived keys.
+// Only seeds whose owner is a Lead Admin or Developer of the org right now
+// are returned, so losing that role stops their codes at the next refresh.
+async function orgKioskCodeKeys(request, env) {
+  const url = new URL(request.url);
+  const orgId = String(url.searchParams.get("org_id") || "").trim();
+  const kioskId = String(url.searchParams.get("kiosk_id") || "").trim();
+  if (!orgId) return err("org_id required");
+  if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
+  const ctx = await kioskSessionForOrg(request, env, orgId);
+  if (ctx.error) return ctx.error;
+  if (!kioskLockActiveFromSettings(ctx.org.settings_json)) return json({ error: "kiosk_lock_off" }, 409);
+  await ensureKioskCodeStorage(env);
+  const rows = (await env.DB.prepare(
+    "SELECT k.key_id, k.seed, k.user_id, u.pub_fp FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.org_id = ? AND k.revoked_at IS NULL"
+  ).bind(orgId).all()).results || [];
+  const keys = [];
+  for (const row of rows) {
+    const role = await orgRoleForUser(env, { id: row.user_id, pub_fp: row.pub_fp }, orgId);
+    if (!KIOSK_CODE_ROLES.has(role)) continue;
+    keys.push({ key_id: row.key_id, k: b64urlEncode(await kioskKeyFor(row.seed, orgId, kioskId)) });
+  }
+  return noStore(json({ ok: true, org_id: orgId, kiosk_id: kioskId, keys, fetched_at: now() }));
+}
+
+// POST /org/kiosk/offline-unlock-log { org_id, kiosk_id, entries:[{key_id, challenge, at, outcome}] }
+// The kiosk syncs its offline unlocks (and lock-outs after 5 wrong codes)
+// into the audit log once it is back online. Same entry twice is ignored.
+async function orgKioskOfflineUnlockLog(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const orgId = String((body && body.org_id) || "").trim();
+  const kioskId = String((body && body.kiosk_id) || "").trim();
+  if (!orgId) return err("org_id required");
+  if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
+  const entries = Array.isArray(body.entries) ? body.entries.slice(0, 200) : [];
+  const ctx = await kioskSessionForOrg(request, env, orgId);
+  if (ctx.error) return ctx.error;
+  await ensureKioskCodeStorage(env);
+  await ensureAuditTable(env);
+  let recorded = 0;
+  let skipped = 0;
+  for (const e of entries) {
+    const challenge = String((e && e.challenge) || "");
+    const outcome = e && e.outcome === "denied" ? "denied" : "allowed";
+    if (!KIOSK_CHALLENGE_RE.test(challenge)) { skipped += 1; continue; }
+    const nonce = "kiosk:" + kioskId + ":" + challenge + ":" + outcome;
+    const dup = await env.DB.prepare("SELECT id FROM org_audit_log WHERE org_id=? AND nonce=? LIMIT 1").bind(orgId, nonce).first();
+    if (dup) { skipped += 1; continue; }
+    let owner = null;
+    if (outcome === "allowed") {
+      owner = await env.DB.prepare(
+        "SELECT k.user_id, u.pub_fp, u.display_name FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.key_id=? AND k.org_id=?"
+      ).bind(String(e.key_id || ""), orgId).first();
+      if (!owner) { skipped += 1; continue; }
+    }
+    const atS = Math.floor(Number(e.at) / 1000);
+    await recordAudit(env, {
+      orgId,
+      actorUserId: owner ? owner.user_id : null,
+      actorPubFp: owner ? owner.pub_fp : null,
+      actorName: owner ? owner.display_name : null,
+      actorRole: owner ? await orgRoleForUser(env, { id: owner.user_id, pub_fp: owner.pub_fp }, orgId) : null,
+      action: KIOSK_OFFLINE_UNLOCK_ACTION,
+      target: "kiosk " + kioskId + " (offline code)",
+      outcome,
+      detail: (outcome === "denied" ? "5 wrong codes, challenge retired" : "unlocked with offline code") +
+        "; kiosk time " + (Number.isFinite(atS) && atS > 0 ? new Date(atS * 1000).toISOString() : "unknown") +
+        "; synced by " + (ctx.user.display_name || ctx.user.id),
+      nonce
+    });
+    recorded += 1;
+  }
+  return json({ ok: true, recorded, skipped });
+}
+
 function inviteActionPayloadSchema(p) {
   return !!(p && p.type === "irlid_invite_v5" && p.org_id && inviteRole(p.role) &&
     p.label && p.issuer_pub_fp && p.expiry_ts && p.nonce);
@@ -1506,12 +1701,15 @@ async function calendarWriteMinRoleForOrg(env, orgOrId) {
 
 async function pendingActionMinRole(env, actionType, orgId) {
   if (actionType === "irlid_calendar_write_v5") return calendarWriteMinRoleForOrg(env, orgId);
+  // Any staff-tier member's enrolled phone may unlock the kiosk.
+  if (actionType === KIOSK_UNLOCK_ACTION) return "staff";
   return "lead_admin";
 }
 
 function pendingActionPayloadSchema(actionType) {
   if (actionType === "irlid_invite_v5") return inviteActionPayloadSchema;
   if (actionType === "irlid_calendar_write_v5") return calendarActionPayloadSchema;
+  if (actionType === KIOSK_UNLOCK_ACTION) return kioskUnlockPayloadSchema;
   return () => false;
 }
 
@@ -1519,6 +1717,13 @@ async function executeVerifiedPendingAction(env, action) {
   const payload = action.payload || {};
   if (payload.type === "irlid_calendar_write_v5") {
     return executeVerifiedCalendarAction(env, action);
+  }
+  if (payload.type === KIOSK_UNLOCK_ACTION) {
+    // Nothing to change server side: the signature, role check, nonce burn
+    // and audit row (requireSignedAction) are the whole action. The kiosk
+    // sees "claimed" on its poll and leaves full screen.
+    // No name in the result: the poll needs only the nonce (R3, A5).
+    return { ok: true, result: { unlocked: true } };
   }
   if (payload.type !== "irlid_invite_v5") {
     return { error: json({ error: "unsupported_action_type" }, 400) };
@@ -3027,8 +3232,23 @@ async function orgUpdateSettings(request, env) {
   }
   const requireLiveCodeChanging = body.requireLiveCode !== undefined
     && body.requireLiveCode !== requireLiveCodeFromSettings(org.settings_json);
+  // Kiosk lock ("Lock full screen"): the same rule. If the api_key alone could
+  // switch it off, anyone holding the dashboard key could defeat the lock.
+  if (body.lockFullscreen !== undefined && typeof body.lockFullscreen !== "boolean") {
+    return err("lockFullscreen must be a boolean");
+  }
+  const lockFullscreenChanging = body.lockFullscreen !== undefined
+    && body.lockFullscreen !== lockFullscreenFromSettings(org.settings_json);
+  // Kiosk mode: same rule again (opens Check-in straight into the locked full screen).
+  if (body.kioskMode !== undefined && typeof body.kioskMode !== "boolean") {
+    return err("kioskMode must be a boolean");
+  }
+  const kioskModeChanging = body.kioskMode !== undefined
+    && body.kioskMode !== kioskModeFromSettings(org.settings_json);
   const governedField = GOVERNANCE_FIELDS.find(f => body[f] !== undefined)
-    || (requireLiveCodeChanging ? "requireLiveCode" : null);
+    || (requireLiveCodeChanging ? "requireLiveCode" : null)
+    || (lockFullscreenChanging ? "lockFullscreen" : null)
+    || (kioskModeChanging ? "kioskMode" : null);
   if (governedField) {
     const ctx = await requireSession(request, env);
     if (ctx.error) {
@@ -3052,6 +3272,10 @@ async function orgUpdateSettings(request, env) {
     "minScore","distanceM","windowS","bioRequired","privacyMode","checkoutEnabled","anonymousMode",
     // S12: count only check-ins made with a live, unused screen code.
     "requireLiveCode",
+    // Kiosk: leaving the full screen check-in QR needs a staff v5 scan. Off by default.
+    "lockFullscreen",
+    // Kiosk mode: Check-in opens straight into the locked full screen. Off by default.
+    "kioskMode",
     // --- First-scan identity rules ---
     "returnAllowed","allowSelfSelection","requireDoormanConfirmation",
     // --- Branding ---
@@ -3984,6 +4208,8 @@ function auditTargetSummary(actionType, payload) {
   const roleSuffix = p.role ? (" as " + p.role) : "";
   switch (String(actionType || "")) {
     case "irlid_calendar_write_v5": return p.event_title || p.title || p.event_id || "calendar event";
+    case "irlid_kiosk_unlock_v5":   return "kiosk screen (leave full screen)";
+    case "irlid_kiosk_code_enrol_v5": return "offline kiosk unlock code (set up on phone)";
     case "irlid_bind_v5":           return (name || p.expected_id || "device") + " (bind device)";
     case "irlid_create_bind_v5":    return (name || "new attendee") + " (add at door)";
     default: return name ? (name + roleSuffix) : null;
@@ -4562,6 +4788,22 @@ const LIVE_CODE_REQUIRED_REASON = "live_code_required";
 
 function requireLiveCodeFromSettings(settingsJson) {
   try { return JSON.parse(settingsJson || "{}")?.requireLiveCode === true; } catch (_) { return false; }
+}
+
+// Kiosk lock. Off by default. Only a display setting: it never touches
+// check-in (C13), it only decides whether the kiosk may offer an unlock.
+function settingsObject(settingsJson) {
+  try { return typeof settingsJson === "string" ? JSON.parse(settingsJson || "{}") || {} : (settingsJson || {}); } catch (_) { return {}; }
+}
+function lockFullscreenFromSettings(settingsJson) {
+  return settingsObject(settingsJson).lockFullscreen === true;
+}
+function kioskModeFromSettings(settingsJson) {
+  return settingsObject(settingsJson).kioskMode === true;
+}
+// The screen locks when either is on (kiosk mode always locks).
+function kioskLockActiveFromSettings(settingsJson) {
+  return lockFullscreenFromSettings(settingsJson) || kioskModeFromSettings(settingsJson);
 }
 
 async function ensureQuarantineStorage(env) {
@@ -6706,6 +6948,10 @@ export default {
         response = await orgActionPoll(request, env, decodeURIComponent(path.match(/^\/org\/action\/poll\/([^/]+)$/)[1]));
       }
       else if (method === "POST" && path === "/org/action/claim")    response = await orgActionClaim(request, env);
+      // Offline kiosk unlock codes (kiosk lock / kiosk mode).
+      else if (method === "POST" && path === "/org/kiosk/code-key")   response = await orgKioskCodeEnrol(request, env);
+      else if (method === "GET"  && path === "/org/kiosk/code-keys")  response = await orgKioskCodeKeys(request, env);
+      else if (method === "POST" && path === "/org/kiosk/offline-unlock-log") response = await orgKioskOfflineUnlockLog(request, env);
       // v5.9.14 — staff-invite QR endpoints (Brief A).
       else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
       else if (method === "GET"  && path === "/org/invites/pending") response = await orgPendingInvites(request, env);

@@ -142,6 +142,8 @@
     signOut(sessionToken) {
       return request("/user/logout", { method: "POST", sessionToken });
     },
+    // Kiosk offline-code calls (Org.html) reuse the same allowlisted base.
+    baseUrl: getBaseUrl,
     // PROTOCOL.md §14 — Identity-bound sessions (Batch B).
     loginInit() {
       return request("/org/login/init", { method: "POST" });

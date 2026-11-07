@@ -47,6 +47,14 @@ After this, that phone goes straight to green every time, unless the person clea
 
 **Add at the door creates an attendee, not staff.** To give someone staff access, also send them a staff invite (Settings > 3. Staff & Rooms > **Invite staff**, Lead Admin or above). Invites are currently the only admin action you can approve from your enrolled phone instead of the computer.
 
+## Step 5 (optional): a kiosk screen at the door
+
+1. Settings > Kiosk > turn on **Kiosk mode** (Lead Admin only). Check-in then opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot.
+2. Each Lead Admin or Developer presses **Set up on my phone** once and scans the QR with their own phone, so they can unlock the screen with no internet. Then open the kiosk screen online once so it picks up their key.
+3. To leave the locked screen: tap the padlock and scan with a staff phone, or with no internet tap **No internet? Lead Admin code**, scan the challenge with a Lead Admin / Developer phone and type the 8-digit code.
+
+**The browser can't block the Windows key.** On **Windows 11 Home** there is no Assigned Access, so someone can still press the Windows key or Alt+Tab to reach other apps. On Home, set the computer to lock itself: press **Win+L** when you walk away, and set a short screen-off / sleep time with **sign-in required on wake** (Settings > Accounts > Sign-in options > "If you've been away, when should Windows require you to sign in again?" > "When PC wakes up from sleep"). On **Windows 11 Pro** (or Enterprise / Education), use **Assigned Access** (Settings > Accounts > Other users > Set up a kiosk) so the screen runs Edge only. Full steps: `docs/kiosk-lock.md`.
+
 ## Troubleshooting
 
 | What you see | Cause | Fix |

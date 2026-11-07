@@ -340,3 +340,17 @@ CREATE INDEX idx_pending_actions_org ON pending_action_authorizations(org_id, cr
 CREATE INDEX idx_pending_actions_expires ON pending_action_authorizations(expires_at);
 CREATE INDEX idx_pending_actions_status ON pending_action_authorizations(status);
 
+
+-- v6.8.6 Offline kiosk unlock codes. One seed per Lead Admin / Developer phone
+-- per org (a new set-up revokes the old one). Kiosks only ever get keys
+-- derived from the seed for themselves (HMAC(seed, org|kiosk)), never the seed.
+CREATE TABLE IF NOT EXISTS kiosk_code_keys (
+  key_id     TEXT PRIMARY KEY,
+  org_id     TEXT NOT NULL,
+  user_id    TEXT NOT NULL,
+  pub_fp     TEXT NOT NULL,
+  seed       TEXT NOT NULL,
+  created_at INTEGER NOT NULL,   -- milliseconds (W10)
+  revoked_at INTEGER             -- milliseconds (W10)
+);
+CREATE INDEX IF NOT EXISTS idx_kiosk_code_keys_org ON kiosk_code_keys(org_id);
