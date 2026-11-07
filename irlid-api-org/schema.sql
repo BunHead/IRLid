@@ -44,7 +44,12 @@ CREATE TABLE login_challenges (
   session_token TEXT,
   consumed      INTEGER NOT NULL DEFAULT 0,
   fail_count    INTEGER NOT NULL DEFAULT 0,
-  locked_until  INTEGER NOT NULL DEFAULT 0
+  locked_until  INTEGER NOT NULL DEFAULT 0,
+  -- v6.8.5: SHA-256 of the desktop's poll secret (never in the QR), when the
+  -- session was first collected, and how many lost-reply recoveries were used.
+  poll_secret_hash TEXT,
+  consumed_at   INTEGER,
+  recover_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE login_sessions (
