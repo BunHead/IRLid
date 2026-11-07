@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.6</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.7</span></div>
   </div>
 </div>
 
@@ -7301,6 +7301,36 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
               <span class="v620-permissions-cell">Manager <input type="checkbox" id="v620ManagerPermCalendar" /></span>
             </label>
           </div>
+
+          <!-- v6.8.7: Kiosk and live-code gates. These were in the hidden legacy
+               settings shell, so nobody could reach them. Lead Admin / Developer
+               only: the Worker refuses a change from anyone else. -->
+          <div class="v511-sub" style="margin-top: 14px;" id="kioskSettingsGroup">Kiosk and door screen</div>
+          <div class="v620-permissions-matrix">
+            <label class="v620-permissions-row" for="kioskMode">
+              <span>
+                <strong>Kiosk mode</strong>
+                <span class="v511-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's offline code when there is no internet. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="kioskMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="lockFullscreen" style="padding-left: 18px;">
+              <span>
+                <strong>Lock full screen</strong>
+                <span class="v511-hint">Without kiosk mode: lock the full screen QR only when someone opens it. Always on in kiosk mode. A browser cannot block the Windows key or Ctrl+Alt+Del: see the kiosk guide (docs/kiosk-lock.md).</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="lockFullscreen" /></span>
+            </label>
+            <label class="v620-permissions-row" for="requireLiveCode">
+              <span>
+                <strong>Require live screen code</strong>
+                <span class="v511-hint">Only count check-ins made by scanning the live screen at the venue. A photo of an old QR, a printed QR or an offline check-in is kept for staff review and not counted. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="requireLiveCode" /></span>
+            </label>
+          </div>
+          <div class="v511-hint" style="margin-top: 8px;">Offline unlock codes: each Lead Admin or Developer sets them up once on their own phone. <button type="button" class="v511-btn" id="kioskCodeSetupBtn">Set up on my phone</button></div>
+          <div id="kioskCodeSetupQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511AuthSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511AuthSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
@@ -12257,21 +12287,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                   <label class="switch-tile"><div class="switch-top"><strong>Device Unlock Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a live device unlock (biometric or passcode) is required before allow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Privacy Mode</strong><label class="switch-wrap"><input id="privacyMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Prefer reduced personal detail in the entry flow.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Anonymous Mode</strong><label class="switch-wrap"><input id="anonymousMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Permit anonymous-style handling where appropriate.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Require live screen code</strong><label class="switch-wrap"><input id="requireLiveCode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Only count check-ins made by scanning the live screen at the venue. A photo of an old QR, a printed QR or an offline check-in is kept for staff review and not counted. Lead Admin only.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Check-out Required</strong><label class="switch-wrap"><input id="checkoutRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Marks the event as requiring an exit/check-out flow later.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Return Allowed</strong><label class="switch-wrap"><input id="returnAllowed" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Passed into the test URL so entry pages can show re-entry policy.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Allow attendee self-selection</strong><label class="switch-wrap"><input id="allowSelfSelection" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Placeholder setting for attendee-led selection before confirmation.</div></label>
                 </div>
-              </div>
-
-              <div class="settings-group" id="kioskSettingsGroup">
-                <h4>Kiosk</h4>
-                <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Kiosk mode</strong><label class="switch-wrap"><input id="kioskMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's offline code when there is no internet. Lead Admin only.</div></label>
-                  <label class="switch-tile" style="margin-left:18px"><div class="switch-top"><strong>Lock full screen</strong><label class="switch-wrap"><input id="lockFullscreen" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Without kiosk mode: lock the full screen QR only when someone opens it. Always on in kiosk mode. A browser cannot block the Windows key or Ctrl+Alt+Del: see the kiosk guide. Lead Admin only.</div></label>
-                </div>
-                <div class="switch-hint" style="margin-top:8px">Offline unlock codes: each Lead Admin or Developer sets them up once on their own phone. <button type="button" class="btn btn-secondary btn-sm" id="kioskCodeSetupBtn">Set up on my phone</button></div>
-                <div id="kioskCodeSetupQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
               </div>
 
               <div class="settings-group">
