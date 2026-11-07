@@ -67,15 +67,26 @@
     };
   }
 
+  let sessionProvider = null;
+  function currentSessionToken() {
+    try { return (sessionProvider && sessionProvider()) || ""; } catch (_) { return ""; }
+  }
+
   async function request(path, options) {
     const opts = options || {};
     const method = (opts.method || "GET").toUpperCase();
     const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
-    if (opts.orgKey) headers["X-Org-Key"] = opts.orgKey;
-    // Batch C — Bearer session token for user-level endpoints (/user/*). The api_key
-    // and the session token coexist during v5.5: api_key for org-scoped service ops,
-    // Bearer for user-identity ops. Send whichever the caller has supplied.
-    if (opts.sessionToken) headers["Authorization"] = "Bearer " + opts.sessionToken;
+    // v6.8.4 (PR A, back-door removal) — the Org portal never holds the org
+    // api_key. `orgKey` is the org's id; it goes out as X-Org-Id and the login
+    // session (from setSessionProvider) authenticates the call. An org_ value is
+    // only honoured for service-account callers outside the portal.
+    if (opts.orgKey) {
+      const orgRef = String(opts.orgKey);
+      if (orgRef.startsWith("org_")) headers["X-Org-Key"] = orgRef;
+      else headers["X-Org-Id"] = orgRef;
+    }
+    const sessionToken = opts.sessionToken || (opts.orgKey && !String(opts.orgKey).startsWith("org_") ? currentSessionToken() : "");
+    if (sessionToken) headers["Authorization"] = "Bearer " + sessionToken;
 
     const url = getBaseUrl() + path;
     const body = opts.body ? JSON.stringify(opts.body) : undefined;
@@ -124,6 +135,13 @@
   function publicBaseUrl() { return getBaseUrl(); }
 
   window.IRLidOrgApi = {
+    // v6.8.4 (PR A) — the dashboard hands over a getter for its live login
+    // session; org-scoped calls use it as their Bearer. Signing out clears it.
+    setSessionProvider(fn) { sessionProvider = typeof fn === "function" ? fn : null; },
+    // POST /user/logout (PROTOCOL §14.8) — end this login session on the server.
+    signOut(sessionToken) {
+      return request("/user/logout", { method: "POST", sessionToken });
+    },
     // PROTOCOL.md §14 — Identity-bound sessions (Batch B).
     loginInit() {
       return request("/org/login/init", { method: "POST" });

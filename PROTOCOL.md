@@ -1113,17 +1113,25 @@ POST /org/login/claim
 
 GET /user/orgs
   Header: Authorization: Bearer <session_token>
-  Response: 200 {orgs: [{id, name, role, slug, theme}]}
+  Response: 200 {orgs: [{id, name, role, slug, settings}]}
+  The org api_key is never returned (v6.8.4). The dashboard calls org endpoints with
+  Authorization: Bearer <session_token> + X-Org-Id: <org id>; the Worker checks the
+  session is live and belongs to a staff-tier member (staff / manager / lead_admin /
+  developer) of that org. X-Org-Key stays for service accounts only and is never shown
+  in the portal.
 
 POST /user/create-org
   Header: Authorization: Bearer <session_token>
   Body: {name: "<string>", website_url?: "<url>", staff?: [{pub_jwk, role, display_name}]}
   Allowed only when user.role === 'developer' OR user has lead_admin on at least one existing org.
-  Response: 201 {org: {id, name, slug, api_key}, memberships: [...], theme_scrape_status: "queued"|"none"}
+  Response: 201 {org: {id, name, slug, settings}, membership: {...}, theme_scrape_status: "queued"|"none"}
+  (no api_key, v6.8.4)
 
 POST /user/logout
   Header: Authorization: Bearer <session_token>
-  Response: 204 (idempotent — succeeds even if token already gone)
+  Response: 200 {ok: true, sessions_revoked} (idempotent — succeeds even if token already gone).
+  The portal's Sign out calls this, then wipes the saved session and org; getting back in
+  always needs a new v5 QR scan.
 ```
 
 The `theme_scrape_status: "queued"` field is a forward-defined hook for Batch D (website scraping). v5.5 returns `"none"` here; the Worker function that does the scrape lands later.
@@ -1169,7 +1177,7 @@ The `developer` role is reserved for the bootstrap fingerprint (and any subseque
 
 - **Existing org api_keys continue to work** for service-account / machine-to-machine flows. Widget integrations, automation scripts, and the existing test-env paste-an-`org_<key>` flow all keep functioning during migration. Endpoints that require a user identity (e.g., `/user/create-org`, audited mutations) reject api_key auth and require Bearer session tokens.
 - **v3/v4 receipts are unaffected.** Identity-bound sessions are a Worker/portal concern; the receipt layer is untouched.
-- **Legacy "load existing key" UI** in `OrgCheckin.html` remains as a fallback path in v5.5 but is hidden behind a "Service-account login" expander. The default path is "Sign in with IRLid" (the QR scan).
+- **Legacy "load existing key" UI** was removed in v6.8.4 (it was a back door: a saved or pasted api_key reached the dashboard with no QR scan). "Sign in with IRLid" (the v5 QR scan) is the only way into the Org portal. Sign out ends the session on the server and wipes the saved session and org.
 
 ### 14.12 Forward considerations
 

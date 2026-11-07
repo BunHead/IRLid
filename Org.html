@@ -3364,7 +3364,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 
   <div class="org-badge">
     <div class="org-name" id="sidebarOrgName">Not signed in</div>
-    <div class="org-plan" id="sidebarOrgPlan">Load or register an organisation</div>
+    <div class="org-plan" id="sidebarOrgPlan">Sign in with a QR scan</div>
   </div>
 
   <nav class="nav-main">
@@ -3377,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.3</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.4</span></div>
   </div>
 </div>
 
@@ -3396,7 +3396,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
            CSV import/export now lives inside the per-event drill-down
            on the Settings → Event & calendar tab (one event = one CSV,
            data shape symmetric: import-out -> run -> export-in). -->
-      <button class="btn btn-secondary btn-sm" id="signOutBtn" onclick="signOutOrg()">Sign out</button>
+      <button class="btn btn-secondary btn-sm" id="signOutBtn" onclick="confirmAndSignOutOrg()">Sign out</button>
     </div>
   </div>
 
@@ -3474,35 +3474,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div id="createOrgStatus" style="margin-top:12px; font-size:13px; min-height:18px;"></div>
         </div>
 
-        <!-- Service-account fallback (existing api_key flow, demoted to expandable) -->
-        <details id="serviceAccountWrap" style="margin-top:24px; padding-top:14px; border-top:1px solid #30363d;">
-          <summary style="cursor:pointer; font-size:13px; color:#8b949e; padding:6px 0;">Service-account login (paste an org_… key)</summary>
-          <p style="margin:12px 0 8px; font-size:12px; color:#8b949e;">For automation, widget integrations, or local dev. Humans should normally use the QR sign-in above.</p>
-
-          <div id="setupForm" style="margin-top:14px;">
-            <div class="input-group">
-              <label>Register a new organisation (test env, no auth)</label>
-              <input type="text" id="orgNameInput" placeholder="e.g. Acme Conference Ltd" />
-            </div>
-            <button class="btn btn-secondary" style="width:100%" onclick="registerOrg()">Register Organisation</button>
-          </div>
-
-          <div id="setupResult" style="display:none; margin-top:14px;">
-            <div class="alert alert-warn" style="font-size:12px;">Save this api key now — local browser storage only.</div>
-            <div class="api-key-box" id="apiKeyDisplay"></div>
-            <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="saveKeyAndContinue()">Continue with this organisation →</button>
-          </div>
-
-          <div id="existingKeyForm" style="margin-top:18px;">
-            <div class="input-group">
-              <label>Or load an existing org by api key</label>
-              <input type="text" id="existingKeyInput" placeholder="org_..." />
-            </div>
-            <button class="btn btn-secondary" style="width:100%" onclick="loadExistingKey()">Load Organisation</button>
-          </div>
-
-          <div id="setupMessage" style="margin-top:14px;font-size:12px;"></div>
-        </details>
+        <!-- v6.8.4 (PR A, back-door removal): the service-account login (paste an
+             org_ key / register / "Continue with this organisation") is gone.
+             The only way into the dashboard is a v5 QR scan. The org api_key is
+             never shown here. -->
       </div>
     </div>
 
@@ -7304,13 +7279,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <div class="v511-row"><label for="v511AuthSessionExpiry">Session expiry</label><select id="v511AuthSessionExpiry"><option value="24h-sliding" selected>24 hours (sliding)</option><option value="12h">12 hours</option><option value="7d">7 days</option></select></div>
           <div class="v511-row"><label>Session-poll interval</label><div><span class="v511-hint">30 seconds (v5.10.7) &mdash; fixed</span></div></div>
 
-          <details class="v511-expander">
-            <summary>Service-account login <span class="v511-hint-inline">(legacy mode for non-interactive integrations)</span></summary>
-            <div class="v511-expander-body">
-              <div class="v511-row"><label for="v511AuthApiKey">API key</label><input type="text" id="v511AuthApiKey" placeholder="org_..." /></div>
-              <div class="v511-hint" style="padding: 4px 0;">Use only for non-interactive integrations. Bearer + QR sign-in is preferred for humans.</div>
-            </div>
-          </details>
+          <!-- v6.8.4 (PR A): the "Service-account login / API key" field is gone.
+               The org api_key is never shown or typed into the portal. -->
 
           <div class="v511-danger-zone">
             <div class="v511-sub">Sign-out</div>
@@ -7540,9 +7510,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             async function liveCalendarApi(path, opts) {
               opts = opts || {};
-              if (!currentOrg?.api_key) throw new Error('No organisation loaded');
-              var headers = Object.assign({ 'X-Org-Key': currentOrg.api_key }, opts.headers || {});
-              var token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
+              if (!currentOrg?.id) throw new Error('No organisation loaded');
+              var headers = Object.assign({ 'X-Org-Id': currentOrg.id }, opts.headers || {});
+              var token = qrLoginSession && qrLoginSession.session_token;
               if (token) headers.Authorization = 'Bearer ' + token;
               var body = opts.body;
               if (body && !(body instanceof FormData)) {
@@ -7573,7 +7543,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             async function refreshLiveCalendar(options) {
               options = options || {};
-              if (!currentOrg?.api_key) return;
+              if (!currentOrg?.id) return;
               var payload = await Promise.all([
                 liveCalendarApi('/org/rooms'),
                 liveCalendarApi('/org/expected'),
@@ -10224,7 +10194,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             applyBgState();
             if (bgDurSlider && sampleStage) sampleStage.style.setProperty('--bg-cycle-dur', bgDurSlider.value + 's');
             if (celDurSlider && sampleStage) sampleStage.style.setProperty('--cel-cycle-dur', celDurSlider.value + 's');
-            if (!currentOrg || !currentOrg.api_key) { v511SetVisualSaveStatus('Sign in to save', 'error'); return; }
+            if (!currentOrg || !currentOrg.id) { v511SetVisualSaveStatus('Sign in to save', 'error'); return; }
             if (!window.IRLidOrgApi || typeof window.IRLidOrgApi.getOrgSettings !== 'function' || typeof window.IRLidOrgApi.updateOrgSettings !== 'function') {
               v511SetVisualSaveStatus('Settings API missing', 'error');
               return;
@@ -10239,7 +10209,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             var payload = null;
             var resp = null;
             try {
-              currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+              currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
               currentSettings = (currentResp && currentResp.settings) || {};
               themePayload = v511BuildThemePayload(currentSettings.theme || {});
               payload = Object.assign({}, currentSettings, {
@@ -10247,8 +10217,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 theme: themePayload
               });
               console.info('[v6.2.2 font save] payload.theme.globalFont:', payload.theme && payload.theme.globalFont);
-              irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
-              resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload, qrLoginSession?.session_token);
+              irlidDebugLog('[v5.12 visual theme save] POST /org/settings payload:', payload, 'org:', currentOrg.name, 'org id:', currentOrg.id);
+              resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.id, payload, qrLoginSession?.session_token);
               irlidDebugLog('[v5.12 visual theme save] Worker response:', resp);
               if (resp && resp.queued) { v511SetVisualSaveStatus('Queued offline', ''); return; }
               var readback;
@@ -10259,7 +10229,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 readback = { settings: resp.theme };
                 irlidDebugLog('[v5.12 visual theme save] Persisted POST echo:', readback);
               } else {
-                readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+                readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
                 irlidDebugLog('[v5.12 visual theme save] GET readback:', readback);
               }
               var readbackSettings = (readback && readback.settings) || {};
@@ -12035,7 +12005,6 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             { id: 'v511AuthQrSignin',       type: 'checkbox' },
             { id: 'v511AuthSameDevice',     type: 'checkbox' },
             { id: 'v511AuthSessionExpiry',  type: 'value' },
-            { id: 'v511AuthApiKey',         type: 'value' },
             { id: 'v620ManagerPermCalendar', type: 'checkbox' }
           ];
           function v511AuthCaptureState() {
@@ -12070,7 +12039,15 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           function v511AuthLoadFromStorage() {
             try {
               var raw = localStorage.getItem(V511_AUTH_LS_KEY);
-              if (raw) v511AuthApplyState(JSON.parse(raw));
+              if (raw) {
+                var parsed = JSON.parse(raw);
+                // v6.8.4 (PR A): drop any API key an older build saved here.
+                if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'v511AuthApiKey')) {
+                  delete parsed.v511AuthApiKey;
+                  localStorage.setItem(V511_AUTH_LS_KEY, JSON.stringify(parsed));
+                }
+                v511AuthApplyState(parsed);
+              }
             } catch (e) { /* corrupted blob — leave seeded values */ }
           }
           var v511AuthSaveBtn = document.getElementById('v511AuthSaveBtn');
@@ -12167,10 +12144,10 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
             }
             async function fetchEntries() {
               var org = (typeof currentOrg !== 'undefined' && currentOrg) ? currentOrg : null;
-              if (!org || !org.api_key) throw new Error('Sign in to an organisation first.');
+              if (!org || !org.id) throw new Error('Sign in to an organisation first.');
               var sess = (typeof qrLoginSession !== 'undefined') ? qrLoginSession : null;
-              var headers = { 'X-Org-Key': org.api_key };
-              var token = (sess && sess.session_token) || org.api_key;
+              var headers = { 'X-Org-Id': org.id };
+              var token = sess && sess.session_token;
               if (token) headers.Authorization = 'Bearer ' + token;
               var resp = await fetch(auditBaseUrl() + '/org/audit-log?limit=200', { headers: headers });
               var data = null; try { data = await resp.json(); } catch (_) {}
@@ -13060,19 +13037,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 <input type="file" id="csvFileInput" accept=".csv,.tsv,text/csv,text/tab-separated-values" style="display:none">
 
 <script>
-// DEV_AUTO_LOGIN is true by default to streamline iteration in the test env,
-// but ?dev=0 in the URL forces the real sign-in screen (Batch B QR-scan flow).
-const DEV_AUTO_LOGIN = (function () {
-  try {
-    const isTestSurface = window.location.hostname.endsWith('github.io') || window.location.hostname === 'localhost';
-    if (!isTestSurface) return false;
-    const v = new URLSearchParams(location.search || '').get('dev');
-    if (v === '0' || v === 'false' || v === 'off') return false;
-  } catch (_) {}
-  return true;
-})();
-const DEV_ORG_NAME = "DEV";
-const DEV_ORG_KEY = "org_DEV_IRLID_TEST_ENVIRONMENT";
+// v6.8.4 (PR A, back-door removal): DEV_AUTO_LOGIN, the built-in DEV org key
+// and ?orgKey= / ?key= URL sign-in are gone. Re-entry always needs a v5 QR scan.
+const DEV_AUTO_LOGIN = false;
 // v5.9.0.8 — localStorage key namespace cleaned up. The "_mock_" prefix
 // was a legacy naming from the early prototype days when the dashboard
 // was a pure-mock; in production it's misleading and shows up in DevTools
@@ -13213,39 +13180,17 @@ function saveJson(key, value) { localStorage.setItem(key, JSON.stringify(value))
 function defaultExpectedAttendees() {
   return [];
 }
-function ensureDevOrg() {
-  return {
-    name: DEV_ORG_NAME,
-    api_key: DEV_ORG_KEY,
-    slug: 'dev',
-    mode: 'irlid-api-test-dev'
-  };
-}
-function orgFromUrl() {
-  const params = new URLSearchParams(location.search || '');
-  const apiKey = params.get('orgKey') || params.get('key');
-  if (!apiKey) return null;
-  return {
-    name: params.get('orgName') || params.get('org') || 'IRLid Test Organisation',
-    api_key: apiKey,
-    mode: 'irlid-api-test'
-  };
-}
 function ensureExpectedAttendees() { let stored = loadJson(STORAGE_KEY_EXPECTED, null); if (!stored || !Array.isArray(stored) || !stored.length) { stored = defaultExpectedAttendees(); saveJson(STORAGE_KEY_EXPECTED, stored); } return stored; }
 function loadPortalState() { try { const raw = localStorage.getItem(STORAGE_KEY_PORTAL); return { ...PORTAL_DEFAULTS, ...(raw ? JSON.parse(raw) : {}) }; } catch (e) { return { ...PORTAL_DEFAULTS }; } }
 function savePortalState() { localStorage.setItem(STORAGE_KEY_PORTAL, JSON.stringify(portalState)); }
-function dashboardOrgKey(org) {
-  const nested = org?.org || {};
-  return org?.api_key || org?.apiKey || org?.org_key || org?.orgKey || org?.key ||
-    nested.api_key || nested.apiKey || nested.org_key || nested.orgKey || nested.key || '';
-}
+// v6.8.4 (PR A, back-door removal): an org is identified by its id only.
+// The api_key is never read, kept or shown by the portal; org calls are
+// authenticated by the v5 login session (Bearer + X-Org-Id).
 function normalizeDashboardOrg(org) {
   if (!org) return null;
   const nested = org.org || {};
-  const apiKey = dashboardOrgKey(org);
   return {
     name: org.name || nested.name || 'IRLid Test Organisation',
-    api_key: apiKey,
     id: org.id || nested.id,
     slug: org.slug || nested.slug,
     role: org.role || org.membership?.role || 'member',
@@ -13255,7 +13200,7 @@ function normalizeDashboardOrg(org) {
 }
 function snapshotOrgCode(org) {
   const target = org || currentOrg || {};
-  return target.id || target.slug || target.api_key || target.name || '';
+  return target.id || target.slug || target.name || '';
 }
 function applyServerSettingsToLocalState(s) {
   const src = s || {};
@@ -13361,7 +13306,7 @@ function updateSnapshotFreshnessLabel(syncedAt) {
 
 let snapshotRefreshInFlight = false;
 async function refreshSnapshotFromWorker(reason) {
-  if (snapshotRefreshInFlight || !navigator.onLine || !currentOrg?.api_key) return;
+  if (snapshotRefreshInFlight || !navigator.onLine || !currentOrg?.id) return;
   snapshotRefreshInFlight = true;
   try {
     await refreshAttendance();
@@ -13436,7 +13381,7 @@ function applySetupPanelSignedInState() {
   const summary = document.getElementById('signedInSummary');
   const signInCard = document.getElementById('signInCard');
   if (!summary || !signInCard) return;
-  const isSignedIn = !!(currentOrg && currentOrg.api_key);
+  const isSignedIn = !!(currentOrg && currentOrg.id);
   if (isSignedIn) {
     // Populate summary fields from current state.
     const orgNameEl = document.getElementById('signedInOrgName');
@@ -13691,7 +13636,7 @@ async function extractThemeFromWebsite() {
     if (portalState.websiteUrl !== websiteUrl) {
       portalState.websiteUrl = websiteUrl;
       syncLegacyFromPortal();
-      await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, { websiteUrl }, qrLoginSession?.session_token);
+      await window.IRLidOrgApi.updateOrgSettings(currentOrg.id, { websiteUrl }, qrLoginSession?.session_token);
     }
     setThemeScrapeStatus('Extracting theme...', '');
     const result = await window.IRLidOrgApi.scrapeTheme(qrLoginSession.session_token, currentOrg.id);
@@ -13743,7 +13688,7 @@ function setSignedInUI(isSignedIn) {
     document.getElementById('sidebarOrgPlan').textContent = planLabel;
   } else {
     document.getElementById('sidebarOrgName').textContent = 'Not signed in';
-    document.getElementById('sidebarOrgPlan').textContent = 'Load or register an organisation';
+    document.getElementById('sidebarOrgPlan').textContent = 'Sign in with a QR scan';
   }
   updateChromeLogo();
   if (isSignedIn) refreshStaffAuthPanel();
@@ -13760,44 +13705,59 @@ function setSignedInUI(isSignedIn) {
   // never re-ran after the session restored, so the Settings nav vanished on refresh.
   if (isSignedIn) { try { applyRoleGatedVisibility(); } catch (_) {} }
 }
-async function registerOrg() {
-  const name = document.getElementById('orgNameInput').value.trim();
-  if (!name) return showToast('Enter an organisation name', true);
+// v6.8.4 (PR A): registerOrg / saveKeyAndContinue / loadExistingKey removed.
+// They signed the browser into an org with only the api_key, no QR scan.
+// Strip any api_key an older build left in the saved org (S9: the master key
+// must not sit in browser storage).
+(function stripSavedOrgKey() {
   try {
-    const org = await window.IRLidOrgApi.registerOrganisation(name);
-    currentOrg = { name: org.name || name, api_key: org.api_key, id: org.id, slug: org.slug, created_at: Date.now(), mode: 'irlid-api-test' };
-    saveJson(STORAGE_KEY_ORG, currentOrg);
-    document.getElementById('apiKeyDisplay').textContent = currentOrg.api_key;
-    document.getElementById('existingKeyInput').value = currentOrg.api_key;
-    document.getElementById('setupForm').style.display = 'none';
-    document.getElementById('setupResult').style.display = 'block';
-    showSetupMessage('Organisation registered with irlid-api-org.', false);
-  } catch (err) {
-    showSetupMessage(err.message || 'Could not register organisation.', true);
-  }
+    const raw = localStorage.getItem(STORAGE_KEY_ORG);
+    if (!raw) return;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object') { localStorage.removeItem(STORAGE_KEY_ORG); return; }
+    if ('api_key' in o || 'apiKey' in o || 'org_key' in o) {
+      if (!o.id) { localStorage.removeItem(STORAGE_KEY_ORG); return; }
+      delete o.api_key; delete o.apiKey; delete o.org_key;
+      localStorage.setItem(STORAGE_KEY_ORG, JSON.stringify(o));
+    }
+  } catch (_) { try { localStorage.removeItem(STORAGE_KEY_ORG); } catch (_) {} }
+})();
+// v6.8.4 (PR A): everything that could put this browser back into an org
+// without a QR scan. Used by Sign out and by an expired session.
+function wipeSavedOrgSession() {
+  try { localStorage.removeItem('irlid_login_session'); } catch (_) {}
+  try { localStorage.removeItem(STORAGE_KEY_ORG); } catch (_) {}
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && k.indexOf(STAFF_AUTH_STORAGE_KEY) === 0) sessionStorage.removeItem(k);
+    }
+  } catch (_) {}
 }
-async function saveKeyAndContinue() {
-  if (!currentOrg) return showToast('No organisation ready to continue with', true);
-  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
-}
-async function loadExistingKey() {
-  const k = document.getElementById('existingKeyInput').value.trim();
-  if (!k.startsWith('org_')) return showToast('Key must start with org_', true);
-  const stored = loadJson(STORAGE_KEY_ORG, null);
-  currentOrg = stored && stored.api_key === k ? stored : { name: 'IRLid Test Organisation', api_key: k, mode: 'irlid-api-test' };
-  saveJson(STORAGE_KEY_ORG, currentOrg);
-  document.getElementById('orgNameInput').value = currentOrg.name || '';
-  setSignedInUI(true); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); generateVenueQR(); showPanel('checkin'); showToast('Organisation loaded');
+// v6.8.4 (PR A): signing out ends the login session, so anything this
+// dashboard queued offline (doorman / manual check-ins) can no longer sync
+// under it (C7). Say so before the user signs out, rather than after.
+async function confirmAndSignOutOrg() {
+  let waiting = 0;
+  try { if (window.IRLidOfflineQueue) waiting = await window.IRLidOfflineQueue.count(); } catch (_) {}
+  if (waiting > 0 && !confirm(waiting + ' check-in' + (waiting === 1 ? ' is' : 's are') + ' still waiting to sync from this screen. Signing out now means ' + (waiting === 1 ? 'it' : 'they') + ' will be set aside instead of syncing. Sign out anyway?')) return;
+  signOutOrg();
 }
 function signOutOrg() {
   clearStaffAuthSession();
+  // v6.8.4 (PR A): end the login session on the server too (best effort; the
+  // local wipe below happens whether or not this reaches the Worker), so a
+  // copied token stops working. Re-entry needs a fresh v5 QR scan.
+  const endingToken = qrLoginSession && qrLoginSession.session_token;
+  if (endingToken && window.IRLidOrgApi && typeof window.IRLidOrgApi.signOut === 'function') {
+    window.IRLidOrgApi.signOut(endingToken).catch(function () {});
+  }
+  wipeSavedOrgSession();
   currentOrg = null;
   // Batch C polish 7 — also clear the QR-login session + saved org so a
   // refresh after sign-out doesn't bounce straight back into the dashboard
   // via the optimistic session-restore added in polish 4.
   qrLoginSession = null;
-  try { localStorage.removeItem('irlid_login_session'); } catch (_) {}
-  try { localStorage.removeItem(STORAGE_KEY_ORG); } catch (_) {}
   // v5.7.1e — Captain reported that signing out then refreshing dropped
   // the user straight back into the Check-in tab as though they hadn't
   // signed out. Cause: DEV_AUTO_LOGIN is true by default and runs on
@@ -13810,7 +13770,7 @@ function signOutOrg() {
   try { localStorage.setItem('irlid_signed_out', '1'); } catch (_) {}
   // Restore the sign-in card's child panels (the switch-org / create-org
   // flows hide them; we want them back for a fresh sign-in).
-  ['qrLoginPanel','serviceAccountWrap'].forEach(function (id) {
+  ['qrLoginPanel'].forEach(function (id) {
     const el = document.getElementById(id); if (el) el.style.display = '';
   });
   ['orgPickerPanel','createOrgPanel','signedInSummary'].forEach(function (id) {
@@ -13820,7 +13780,7 @@ function signOutOrg() {
   showPanel('setup');
   showToast('Signed out');
 }
-function showSetupMessage(msg, isError) { const el = document.getElementById('setupMessage'); el.textContent = msg; el.style.color = isError ? '#f85149' : '#7ee787'; }
+function showSetupMessage(msg, isError) { const el = document.getElementById('setupMessage'); if (!el) return; el.textContent = msg; el.style.color = isError ? '#f85149' : '#7ee787'; }
 
 // =============================================================================
 //  IRLid QR-scan sign-in (PROTOCOL.md §14, Batch B)
@@ -13834,6 +13794,9 @@ let qrLoginPollTimer = null;
 let qrLoginCountdownTimer = null;
 let qrLoginExpiresAt = 0;
 let qrLoginSession = null;
+// v6.8.4 (PR A): org calls are authenticated by this login session (Bearer +
+// X-Org-Id). Once signed out, qrLoginSession is null and nothing is sent.
+try { window.IRLidOrgApi && window.IRLidOrgApi.setSessionProvider(function () { return qrLoginSession && qrLoginSession.session_token; }); } catch (_) {}
 const QR_LOGIN_PAGE = 'https://irlid.co.uk/org-login.html';
 
 function buildQrLoginUrl() {
@@ -13978,7 +13941,7 @@ async function handleQrLoginSuccess(data) {
   // list can come back empty for a Developer (Super-Admin) even though
   // /user/orgs returns every org as implicit "dev access", which wrongly
   // showed "Create your first org" (and a slug-collision error on retry).
-  // /user/orgs is also the only source of api_key, so it is fetched anyway.
+  // (v6.8.4: /user/orgs no longer returns any api_key.)
   status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
   status.style.color = '#7ee787';
   let myOrgs = [];
@@ -14115,7 +14078,6 @@ async function freshOrgFromSession(savedOrg) {
   const match = orgs.find(o =>
     (savedOrg.id && o.id === savedOrg.id) ||
     (savedOrg.slug && o.slug === savedOrg.slug) ||
-    (savedOrg.api_key && o.api_key === savedOrg.api_key) ||
     (savedOrg.name && o.name === savedOrg.name)
   );
   if (!match && orgs.length > 0) {
@@ -14124,9 +14086,9 @@ async function freshOrgFromSession(savedOrg) {
   return match || orgs[0] || null;
 }
 
-// Batch C — populate currentOrg from a /user/orgs row (which carries api_key) and
-// hand control over to the existing dashboard loader. The X-Org-Key auth path still
-// works during the v5.5 transition; v6+ will move dashboard ops onto Bearer auth.
+// Batch C — populate currentOrg from a /user/orgs row and hand control over to the
+// existing dashboard loader. v6.8.4 (PR A): dashboard ops use Bearer session +
+// X-Org-Id; the row carries no api_key.
 //
 // IMPORTANT (Batch C+ tidy, 4 May 2026 evening): when switching orgs we MUST reset
 // the local portalState/settings to defaults THEN load the new org's server-side
@@ -14138,14 +14100,13 @@ async function freshOrgFromSession(savedOrg) {
 // Settings page rendered Imbue's wixstatic logo + "Welcome to Imbue" copy.
 async function loadDashboardForOrg(org) {
   const dashboardOrg = normalizeDashboardOrg(org);
-  if (!dashboardOrg || !dashboardOrg.api_key) {
-    console.warn('[v5.5.5] Org row missing api_key:', org);
-    showToast('Org missing api_key — cannot load dashboard', true);
+  if (!dashboardOrg || !dashboardOrg.id) {
+    console.warn('[v5.5.5] Org row missing id:', org);
+    showToast('Organisation not recognised. Sign in again with a QR scan.', true);
     return;
   }
   currentOrg = {
     name: dashboardOrg.name,
-    api_key: dashboardOrg.api_key,
     id: dashboardOrg.id,
     slug: dashboardOrg.slug,
     role: dashboardOrg.role,
@@ -14178,8 +14139,8 @@ async function loadDashboardForOrg(org) {
   // the org is brand new, the defaults above remain.
   try {
     if (window.IRLidOrgApi && typeof window.IRLidOrgApi.getOrgSettings === 'function') {
-      irlidDebugLog("[v5.5.5] /org/settings sending key:", currentOrg && currentOrg.api_key);
-      const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+      irlidDebugLog("[v5.5.5] /org/settings for org id:", currentOrg && currentOrg.id);
+      const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
       const s = (res && res.settings) || {};
       applyServerSettingsToLocalState(s);
     }
@@ -14195,8 +14156,6 @@ async function loadDashboardForOrg(org) {
 
   // Keep the legacy fields populated so existing dashboard code is happy.
   const orgNameInput = document.getElementById('orgNameInput'); if (orgNameInput) orgNameInput.value = currentOrg.name || '';
-  const existingKeyInput = document.getElementById('existingKeyInput'); if (existingKeyInput) existingKeyInput.value = currentOrg.api_key || '';
-  const apiKeyDisplay = document.getElementById('apiKeyDisplay'); if (apiKeyDisplay) apiKeyDisplay.textContent = currentOrg.api_key || '';
 
   setSignedInUI(true);
   if (typeof syncPrototypeRoleFromSession === 'function') syncPrototypeRoleFromSession();
@@ -14258,8 +14217,8 @@ async function submitCreateOrg() {
     const payload = { name };
     if (websiteUrl) payload.website_url = websiteUrl;
     const resp = await window.IRLidOrgApi.createOrg(qrLoginSession.session_token, payload);
-    if (!resp || !resp.org || !resp.org.api_key) {
-      throw new Error('Worker response missing org.api_key');
+    if (!resp || !resp.org || !resp.org.id) {
+      throw new Error('Worker response missing org.id');
     }
     status.innerHTML = '<strong>Org created:</strong> ' + escapeHtml(resp.org.name) + ' (' + escapeHtml(resp.membership.role) + '). Loading dashboard…';
     status.style.color = '#7ee787';
@@ -14268,7 +14227,6 @@ async function submitCreateOrg() {
       id: resp.org.id,
       name: resp.org.name,
       slug: resp.org.slug,
-      api_key: resp.org.api_key,
       role: resp.membership.role
     });
   } catch (err) {
@@ -14288,13 +14246,13 @@ function normaliseCheckinEventContext(eventId, eventName) {
   return {
     eventId: id || null,
     eventName: id ? String(eventName || '').trim() : null,
-    orgKey: currentOrg?.api_key || null
+    orgKey: currentOrg?.id || null
   };
 }
 
 function activeCheckinEventContext(explicitContext) {
   if (explicitContext) return normaliseCheckinEventContext(explicitContext.eventId, explicitContext.eventName);
-  if (currentCheckinEventContext?.orgKey === currentOrg?.api_key) return currentCheckinEventContext;
+  if (currentCheckinEventContext?.orgKey === currentOrg?.id) return currentCheckinEventContext;
   return normaliseCheckinEventContext(null, null);
 }
 
@@ -14340,7 +14298,7 @@ function updateCheckinQrTitle(eventName) {
 }
 
 function refreshCurrentEventQr() {
-  if (!currentOrg?.api_key) {
+  if (!currentOrg?.id) {
     currentCheckinEventContext = normaliseCheckinEventContext(null, null);
     updateCurrentEventBadge(null);
     updateCheckinQrTitle(null);
@@ -14384,7 +14342,7 @@ function buildVenuePayload(eventContext) {
   }
   const qp = new URLSearchParams({
     type,
-    org: currentOrg?.api_key || 'demo',
+    org: currentOrg?.id || 'demo',
     returnAllowed: settings.returnAllowed ? '1' : '0'
   });
   if (checkinEvent.eventName) qp.set('event', checkinEvent.eventName);
@@ -14736,9 +14694,9 @@ async function saveSettings() {
   generateVenueQR();
 
   // Need an authenticated org to persist server-side.
-  if (!currentOrg || !currentOrg.api_key) {
+  if (!currentOrg || !currentOrg.id) {
     showToast('Saved locally — no signed-in org', true);
-    console.warn('[settings save] No currentOrg.api_key, skipped server save', { currentOrg });
+    console.warn('[settings save] No currentOrg.id, skipped server save', { currentOrg });
     return;
   }
   if (!window.IRLidOrgApi || typeof window.IRLidOrgApi.updateOrgSettings !== 'function') {
@@ -14749,7 +14707,7 @@ async function saveSettings() {
   setThemeSaveStatus('Saving...', '');
   if (typeof window.IRLidOrgApi.getOrgSettings === 'function') {
     try {
-      const currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+      const currentResp = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
       const currentSettings = (currentResp && currentResp.settings) || {};
       payload = Object.assign({}, currentSettings, domPayload);
     } catch (getErr) {
@@ -14768,10 +14726,10 @@ async function saveSettings() {
       console.warn('[settings save] theme build failed; preserving existing theme', themeErr);
     }
   }
-  irlidDebugLog('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'api_key:', currentOrg.api_key);
+  irlidDebugLog('[settings save] POST payload:', payload, 'org:', currentOrg.name, 'org id:', currentOrg.id);
   let resp;
   try {
-    resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.api_key, payload, qrLoginSession?.session_token);
+    resp = await window.IRLidOrgApi.updateOrgSettings(currentOrg.id, payload, qrLoginSession?.session_token);
     irlidDebugLog('[settings save] Worker response:', resp);
   } catch (err) {
     console.error('[settings save] POST failed:', err);
@@ -14796,7 +14754,7 @@ async function saveSettings() {
     // Defensive rollout fallback for old Workers that have not deployed the
     // v5.11.22 response shape yet.
     try {
-      readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+      readback = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
       irlidDebugLog('[settings save] Readback:', readback);
     } catch (rbErr) {
       console.warn('[settings save] Readback failed:', rbErr);
@@ -14958,7 +14916,7 @@ async function refreshExpectedAttendees() {
   expectedError = null;
   renderExpectedAttendees();
   try {
-    const payload = await window.IRLidOrgApi.listExpected(currentOrg.api_key);
+    const payload = await window.IRLidOrgApi.listExpected(currentOrg.id);
     expectedAttendees = payload.expected || [];
     await saveCurrentOrgSnapshot('expected-refresh');
   } catch (err) {
@@ -14997,9 +14955,9 @@ async function addExpectedAttendee() {
   try {
     const body = { first_name: firstName, surname };
     const payload = await window.IRLidOrgApi.createExpected(
-      currentOrg.api_key,
+      currentOrg.id,
       body,
-      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
+      developerBearerSessionIsActive() ? qrLoginSession?.session_token : undefined
     );
     if (payload && payload.queued) {
       queueExpectedRow(body, payload);
@@ -15060,9 +15018,9 @@ async function confirmExpectedDelete() {
   cancelExpectedEdit();
   try {
     await window.IRLidOrgApi.deleteExpected(
-      currentOrg.api_key,
+      currentOrg.id,
       id,
-      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
+      developerBearerSessionIsActive() ? qrLoginSession?.session_token : undefined
     );
     expectedAttendees = expectedAttendees.filter(row => String(row.id) !== String(id));
     setExpectedDeleteMode(false);
@@ -15105,7 +15063,7 @@ async function saveExpectedEdit(id) {
     return;
   }
   try {
-    const payload = await window.IRLidOrgApi.updateExpected(currentOrg.api_key, id, { first_name: firstName, surname });
+    const payload = await window.IRLidOrgApi.updateExpected(currentOrg.id, id, { first_name: firstName, surname });
     if (payload.expected) {
       expectedAttendees = expectedAttendees.map(item => String(item.id) === String(id) ? payload.expected : item);
       expectedAttendees.sort((a, b) => (a.surname || '').localeCompare(b.surname || '', undefined, { sensitivity: 'base' }) || (a.first_name || '').localeCompare(b.first_name || '', undefined, { sensitivity: 'base' }));
@@ -15451,7 +15409,7 @@ async function refreshAttendance() {
     return;
   }
   try {
-    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.api_key);
+    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.id);
     const checkins = payload.checkins || [];
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
     // everything without firing. Subsequent polls compare each row's current
@@ -15609,14 +15567,14 @@ function pushUpdatesAllowed() {
 }
 function startOrgHub() {
   if (!pushUpdatesAllowed()) return;
-  if (!window.IRLidOrgHubClient || !window.IRLidOrgApi || !currentOrg || !currentOrg.api_key) return;
-  if (__orgHub && __orgHubKey === currentOrg.api_key) return;
+  if (!window.IRLidOrgHubClient || !window.IRLidOrgApi || !currentOrg || !currentOrg.id) return;
+  if (__orgHub && __orgHubKey === currentOrg.id) return;
   stopOrgHub();
-  __orgHubKey = currentOrg.api_key;
+  __orgHubKey = currentOrg.id;
   __orgHub = window.IRLidOrgHubClient.createOrgHubClient({
     getTicket: function () {
-      if (!currentOrg || !currentOrg.api_key) return Promise.reject(new Error('no org'));
-      return window.IRLidOrgApi.wsTicket(currentOrg.api_key);
+      if (!currentOrg || !currentOrg.id) return Promise.reject(new Error('no org'));
+      return window.IRLidOrgApi.wsTicket(currentOrg.id);
     },
     buildUrl: function () { return window.IRLidOrgApi.wsUrl(); },
     onEvent: handleHubEvent,
@@ -15698,15 +15656,15 @@ async function refreshAttendanceFromUI() {
 }
 async function clearTestAttendanceDataset() {
   if (!canClearTestAttendance()) return showToast(`${roleLabelFor('developer')} role required to clear test attendance`, true);
-  if (!currentOrg?.api_key) return showToast('Load the DEV organisation first', true);
+  if (!currentOrg?.id) return showToast('Load the DEV organisation first', true);
   const includeExpected = !!document.getElementById('clearExpectedCheck')?.checked;
   const scope = includeExpected ? 'attendance, conflicts, checkout tokens, and expected attendees' : 'attendance, conflicts, and checkout tokens';
-  const ok = confirm(`Clear ${scope} for org key:\n\n${currentOrg.api_key}\n\nThis debug action cannot be undone.`);
+  const ok = confirm(`Clear ${scope} for ${currentOrg.name || 'this organisation'}?\n\nThis debug action cannot be undone.`);
   if (!ok) return;
   const btn = document.getElementById('clearAttendanceBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
   try {
-    const result = await window.IRLidOrgApi.clearTestAttendance(currentOrg.api_key, includeExpected, qrLoginSession?.session_token);
+    const result = await window.IRLidOrgApi.clearTestAttendance(currentOrg.id, includeExpected, qrLoginSession?.session_token);
     cancelCheckout(false);
     await refreshAttendance();
     if (includeExpected) await refreshExpectedAttendees();
@@ -15872,7 +15830,7 @@ function buildCheckoutAction(row) {
 }
 async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   if (!canDeleteAttendeeRecord()) return showToast(`${roleLabelFor('lead_admin')} role required to delete attendee records`, true);
-  if (!currentOrg?.api_key) return showToast('No organisation loaded', true);
+  if (!currentOrg?.id) return showToast('No organisation loaded', true);
   // Find a display name from current attendance / expected lists for the
   // confirm dialog. Fall back to "this attendee" if the row has just been
   // wiped from local state.
@@ -15884,7 +15842,7 @@ async function deleteAttendeeRecordFromAttendance(expectedId, force) {
   if (!ok) return;
   try {
     const deleteResult = await window.IRLidOrgApi.deleteExpectedFull(
-      currentOrg.api_key,
+      currentOrg.id,
       expectedId,
       qrLoginSession?.session_token,
       !!force
@@ -16035,11 +15993,11 @@ async function renderCheckoutQr(checkinId, forceRefresh=false) {
   target.classList.remove('checkout-qr-error');
   target.textContent = 'Creating QR...';
   try {
-    if (!currentOrg?.api_key) throw new Error('Organisation not loaded');
+    if (!currentOrg?.id) throw new Error('Organisation not loaded');
     if (!window.IRLidOrgApi?.createCheckoutToken) throw new Error('Checkout token API unavailable');
     if (typeof QRCode === 'undefined') throw new Error('Local QR renderer unavailable');
 
-    const tokenPayload = await window.IRLidOrgApi.createCheckoutToken(currentOrg.api_key, checkinId);
+    const tokenPayload = await window.IRLidOrgApi.createCheckoutToken(currentOrg.id, checkinId);
     if (tokenPayload && tokenPayload.queued) {
       target.textContent = 'Queued offline';
       checkoutErrors[checkinId] = 'Check-out token queued offline; it will sync when reconnected.';
@@ -16093,7 +16051,7 @@ function cancelCheckout(shouldRender = true) {
 async function resolveConflict(conflictId, resolution) {
   if (!currentOrg) return showToast('Load an organisation first', true);
   try {
-    await window.IRLidOrgApi.resolveConflict(currentOrg.api_key, conflictId, resolution);
+    await window.IRLidOrgApi.resolveConflict(currentOrg.id, conflictId, resolution);
     await refreshAttendance();
     await refreshExpectedAttendees();
     showToast(resolution === 'confirmed_new_device' ? 'New device confirmed' : 'Conflict rejected');
@@ -16140,7 +16098,7 @@ async function generateVenueQR(eventContext) {
   const checkinEvent = activeCheckinEventContext();
   updateCheckinQrTitle(checkinEvent.eventName);
   const basePayload = buildVenuePayload(checkinEvent);
-  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.api_key) {
+  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.id) {
     venueQrLiveNonce = null;
     renderVenueQR(basePayload);
     setVenueQrOfflineMode(false);
@@ -16151,7 +16109,7 @@ async function generateVenueQR(eventContext) {
     // Offline-first (docs/requirements/offline-first.md): with no network,
     // skip the round-trip and show the static backup QR straight away.
     if (navigator.onLine === false) throw new Error('offline');
-    const issued = await window.IRLidOrgApi.createCheckinNonce(currentOrg.api_key, checkinEvent.eventId);
+    const issued = await window.IRLidOrgApi.createCheckinNonce(currentOrg.id, checkinEvent.eventId);
     if (requestId !== venueQrNonceRequestId || document.body.dataset.activePanel !== 'checkin') return;
     const payloadUrl = new URL(basePayload, location.href);
     payloadUrl.searchParams.set('n', issued.nonce);
@@ -16200,7 +16158,7 @@ function setVenueQrOfflineMode(offline) {
 // refresh below stays as the backup. While on the backup QR, the same tick
 // retries issuing a live one so the door returns to live mode by itself.
 async function checkVenueQrNonceUsed() {
-  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.api_key) return;
+  if (document.body.dataset.activePanel !== 'checkin' || currentMode === 'doorman_scan' || !currentOrg?.id) return;
   if (venueQrUsedPollBusy) return;
   const nonce = venueQrLiveNonce;
   venueQrUsedPollBusy = true;
@@ -16215,7 +16173,7 @@ async function checkVenueQrNonceUsed() {
     if (!slowPollDue('nonce', 60000, 2000)) return;
     let replace = false;
     try {
-      const status = await window.IRLidOrgApi.checkinNonceStatus(currentOrg.api_key, nonce);
+      const status = await window.IRLidOrgApi.checkinNonceStatus(currentOrg.id, nonce);
       replace = !!(status && (status.used || status.expired));
     } catch (err) {
       // 404 = unknown/retired nonce; no status = network down, which falls
@@ -16245,7 +16203,7 @@ function stopVenueQrNoncePolling() {
   venueQrNonceRequestId += 1;
 }
 function staffAuthKey() {
-  return `${STAFF_AUTH_STORAGE_KEY}:${currentOrg?.api_key || 'none'}`;
+  return `${STAFF_AUTH_STORAGE_KEY}:${currentOrg?.id || 'none'}`;
 }
 function staffAuthNow() {
   return Math.floor(Date.now() / 1000);
@@ -16255,7 +16213,7 @@ function loadStaffAuthSession() {
   try {
     const raw = sessionStorage.getItem(staffAuthKey());
     const saved = raw ? JSON.parse(raw) : null;
-    if (!saved || saved.org_key !== currentOrg.api_key || !saved.staff_session || !saved.expires_at) {
+    if (!saved || saved.org_key !== currentOrg.id || !saved.staff_session || !saved.expires_at) {
       staffAuthSession = null;
       return null;
     }
@@ -16300,8 +16258,10 @@ function developerBearerSessionIsActive() {
   // given org grants full developer powers within that org. Cross-org
   // developer override (one credential, all orgs) is the v6/§14.18
   // OAuth identity chapter; for now this is per-org-correct.
-  if (currentOrg?.api_key && typeof currentOrg.api_key === 'string' && currentOrg.api_key.startsWith('org_')) return true;
-  return !!(qrLoginSession?.is_developer && qrLoginSession?.session_token);
+  // v6.8.4 (PR A): the portal no longer holds the org_ key. A live login
+  // session for this org is what the Worker checks now (orgAuth: Bearer
+  // session + X-Org-Id, staff-tier role), so it is what turns this on.
+  return !!(currentOrg?.id && qrLoginSession?.session_token);
 }
 function formatStaffAuthExpiry(expiresAt) {
   if (!expiresAt) return 'unknown';
@@ -16453,9 +16413,9 @@ async function authenticateStaffHelloPayload(hello) {
   if (!currentOrg) throw new Error('Load an organisation before authenticating staff.');
   if (!hello) throw new Error('Paste a staff HELLO payload first.');
   if (!window.IRLidOrgApi?.authenticateStaff) throw new Error('Staff auth API helper unavailable.');
-  const result = await window.IRLidOrgApi.authenticateStaff(currentOrg.api_key, hello);
+  const result = await window.IRLidOrgApi.authenticateStaff(currentOrg.id, hello);
   saveStaffAuthSession({
-    org_key: currentOrg.api_key,
+    org_key: currentOrg.id,
     staff_session: result.staff_session,
     expires_at: result.expires_at,
     staff_pub_fp: result.staff_pub_fp
@@ -17051,10 +17011,10 @@ async function bindEscalationExpected(id) {
     });
     body.signed_action = signed;
     const result = await window.IRLidOrgApi.bindAdditionalKey(
-      currentOrg.api_key,
+      currentOrg.id,
       id,
       body,
-      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
+      developerBearerSessionIsActive() ? qrLoginSession?.session_token : undefined
     );
     if (result.expected) {
       expectedAttendees = expectedAttendees.map(item => String(item.id) === String(id) ? result.expected : item);
@@ -17093,10 +17053,10 @@ async function bindAdditionalEscalationExpected(id) {
     });
     body.signed_action = signed;
     const result = await window.IRLidOrgApi.bindAdditionalKey(
-      currentOrg.api_key,
+      currentOrg.id,
       id,
       body,
-      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
+      developerBearerSessionIsActive() ? qrLoginSession?.session_token : undefined
     );
     if (result.expected) {
       expectedAttendees = expectedAttendees.map(item => String(item.id) === String(id) ? result.expected : item);
@@ -17133,9 +17093,9 @@ async function addEscalationAtDoor() {
     });
     const body = { ...base, first_name: firstName, surname, signed_action: signed };
     const result = await window.IRLidOrgApi.createAndBindExpected(
-      currentOrg.api_key,
+      currentOrg.id,
       body,
-      developerBearerSessionIsActive() ? (qrLoginSession?.session_token || currentOrg?.api_key) : undefined
+      developerBearerSessionIsActive() ? qrLoginSession?.session_token : undefined
     );
     if (result.expected) expectedAttendees.unshift(result.expected);
     await refreshExpectedAttendees();
@@ -17220,7 +17180,7 @@ async function runRecognisedDeviceKeyCheckin(env, recognition) {
     body.staff_session = token;
   }
   const result = await window.IRLidOrgApi.createCheckin(
-    currentOrg.api_key,
+    currentOrg.id,
     body,
     developerBypass ? qrLoginSession.session_token : undefined
   );
@@ -17262,7 +17222,7 @@ async function runDoormanCheckin(env) {
     body.staff_session = token;
   }
   const result = await window.IRLidOrgApi.createCheckin(
-    currentOrg.api_key,
+    currentOrg.id,
     body,
     developerBypass ? qrLoginSession.session_token : undefined
   );
@@ -17394,7 +17354,7 @@ async function manualCheckin() {
     };
     if (!developerBypass) checkinPayload.staff_session = staffAuthSession.staff_session;
     const result = await window.IRLidOrgApi.createCheckin(
-      currentOrg.api_key,
+      currentOrg.id,
       checkinPayload,
       developerBypass ? qrLoginSession.session_token : undefined
     );
@@ -18569,7 +18529,7 @@ function renderStaffScanDiag() {
   }
 }
 function staffScanSessionReady() {
-  return !!currentOrg?.api_key;
+  return !!currentOrg?.id;
 }
 function updateStaffScanDiag(patch = {}) {
   __staffScanDiagState = { ...__staffScanDiagState, ...patch };
@@ -18813,7 +18773,7 @@ async function tryProcessStaffScanIfPending() {
   // phones can legitimately hit this branch first; keep the payload stashed
   // and re-check shortly until the session lands.
   if (!staffScanSessionReady()) {
-    const reason = currentOrg?.api_key ? 'Bearer session not ready' : 'currentOrg/api_key not ready';
+    const reason = currentOrg?.id ? 'Bearer session not ready' : 'currentOrg not ready';
     updateStaffScanDiag({ bearerReady: 'n', err: reason });
     scheduleStaffScanReadyRetry(reason);
     return false;
@@ -19696,9 +19656,9 @@ function v611OrgApiBase() {
 }
 async function v611OrgApi(path, opts) {
   opts = opts || {};
-  if (!currentOrg?.api_key) throw new Error('No organisation loaded');
-  const headers = Object.assign({ 'X-Org-Key': currentOrg.api_key }, opts.headers || {});
-  const token = (qrLoginSession && qrLoginSession.session_token) || currentOrg.api_key;
+  if (!currentOrg?.id) throw new Error('No organisation loaded');
+  const headers = Object.assign({ 'X-Org-Id': currentOrg.id }, opts.headers || {});
+  const token = qrLoginSession && qrLoginSession.session_token;
   if (token) headers.Authorization = 'Bearer ' + token;
   let body = opts.body;
   if (body && !(body instanceof FormData)) {
@@ -19753,7 +19713,7 @@ async function v611RenderStaffMembers() {
   const list = document.getElementById('v511StaffList');
   if (!list) return;
   list.innerHTML = '<div class="v511-hint">Loading staff members...</div>';
-  if (!currentOrg?.api_key || !qrLoginSession?.session_token) {
+  if (!currentOrg?.id || !qrLoginSession?.session_token) {
     list.innerHTML = '<div class="v511-hint">Sign in with a Lead Admin or Developer session to load staff members.</div>';
     return;
   }
@@ -19817,7 +19777,7 @@ async function v611RevokePendingInvite(nonce, row) {
 }
 async function v611RenderPendingInvites() {
   const list = document.getElementById('v511StaffList');
-  if (!list || !currentOrg?.api_key) return;
+  if (!list || !currentOrg?.id) return;
   list.querySelectorAll('.staff-member-pending').forEach(function (row) { row.remove(); });
   let data;
   try { data = await v611OrgApi('/org/invites/pending'); }
@@ -20011,7 +19971,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Batch C polish 7 — signed-in summary buttons
   document.getElementById('signedInSwitchBtn')?.addEventListener('click', signedInSwitchOrg);
   document.getElementById('signedInCreateBtn')?.addEventListener('click', signedInCreateOrg);
-  document.getElementById('signedInSignOutBtn')?.addEventListener('click', signOutOrg);
+  document.getElementById('signedInSignOutBtn')?.addEventListener('click', confirmAndSignOutOrg);
   // Batch C — wire create-org form submit. Same no-op-if-missing pattern.
   document.getElementById('createOrgSubmitBtn')?.addEventListener('click', submitCreateOrg);
   if (typeof syncPrototypeRoleFromSession === 'function') syncPrototypeRoleFromSession();
@@ -20144,7 +20104,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // v6.4.17 — wire the Sign-in & Auth tab's sign-out buttons (were dead). The
   // functionality already exists (signOutOrg + IRLidOrgApi.signOutAllDevices,
   // v5.10.5); "Sign out of all devices" had no other UI entry point.
-  document.getElementById('v511SignOutThisBtn')?.addEventListener('click', signOutOrg);
+  document.getElementById('v511SignOutThisBtn')?.addEventListener('click', confirmAndSignOutOrg);
   document.getElementById('v511SignOutAllBtn')?.addEventListener('click', async function () {
     var tok = (qrLoginSession && qrLoginSession.session_token) ? qrLoginSession.session_token : null;
     if (tok && window.IRLidOrgApi) { try { await window.IRLidOrgApi.signOutAllDevices(tok); } catch (_) {} }
@@ -20173,34 +20133,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     setExpectedDeleteMode(false);
   });
 
-  const bootOrg = orgFromUrl() || ensureDevOrg();
-  // v5.7.1e — Respect the explicit sign-out flag (set by signOutOrg). If
-  // the user just signed out and then refreshed, don't silently re-sign
-  // them in via DEV_AUTO_LOGIN. They have to authenticate again.
-  let __recentlySignedOut = false;
-  try { __recentlySignedOut = localStorage.getItem('irlid_signed_out') === '1'; } catch (_) {}
-  // v5.7.1g — If a real Org Portal session is in localStorage (user QR-signed-in
-  // to a real org like Imbue Ventures), DEV_AUTO_LOGIN MUST NOT run — otherwise
-  // it would clobber the saved org's api_key with DEV_ORG_KEY on every refresh.
-  // Captain reported "refreshing the whole page seem to lose the api key" and
-  // "invalid API"; this was the cause. The saved-session restore path below
-  // handles real sessions correctly; DEV_AUTO_LOGIN is now a fallback for the
-  // genuinely-not-signed-in case only.
-  let __hasRealSession = false;
-  try {
-    const s = JSON.parse(localStorage.getItem('irlid_login_session') || 'null');
-    __hasRealSession = !!(s && s.session_token);
-  } catch (_) {}
-  if (DEV_AUTO_LOGIN && bootOrg && !__recentlySignedOut && !__hasRealSession) {
-    currentOrg = bootOrg; ensureExpectedAttendees();
-    saveJson(STORAGE_KEY_ORG, currentOrg);
-    document.getElementById('orgNameInput').value = currentOrg.name || '';
-    document.getElementById('existingKeyInput').value = currentOrg.api_key || '';
-    document.getElementById('apiKeyDisplay').textContent = currentOrg.api_key || '';
-    document.getElementById('setupForm').style.display = 'none'; document.getElementById('setupResult').style.display = 'block';
-    setSignedInUI(true); syncLegacyFromPortal(); await refreshAttendance(); await refreshExpectedAttendees(); if (typeof window.refreshV511CalendarData === 'function') await window.refreshV511CalendarData(); showPanel('checkin'); generateVenueQR(); try { renderPortalAll(); } catch (err) { console.warn('[portal] render failed during cached snapshot restore:', err); }
-    return;
-  }
+  // v6.8.4 (PR A): no DEV auto-login and no URL key sign-in. Without a live
+  // v5 login session the dashboard always shows the sign-in QR.
 
   // v6.4.14 (Client A) — a freshly-scanned staff invite takes precedence over
   // session-restore. A re-hire (enrolled device whose membership was removed)
@@ -20213,7 +20147,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Batch C polish 4 — restore QR-login session on refresh. handleQrLoginSuccess
   // saves `irlid_login_session` (Bearer token + display_name + is_developer flag)
-  // alongside `currentOrg` (api_key for X-Org-Key dashboard ops). On a hard refresh
+  // alongside `currentOrg` (org id only since v6.8.4). On a hard refresh
   // those persist, but `qrLoginSession` is just an in-memory `let` so it goes back
   // to null and the user gets bounced to the sign-in screen even though they're
   // still authenticated server-side. Captain flagged this as a minor annoyance.
@@ -20232,7 +20166,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // smoke symptom). Mirror handleQrLoginSuccess: fetch /user/orgs with the
   // Bearer and load the first membership. Additive — only fires when a session
   // is present WITHOUT a cached org.
-  if (savedSession && savedSession.session_token && !(savedOrg && savedOrg.api_key)) {
+  if (savedSession && savedSession.session_token && !(savedOrg && savedOrg.id)) {
     qrLoginSession = savedSession;
     try { localStorage.removeItem('irlid_signed_out'); } catch (_) {}
     document.querySelectorAll('[data-developer-only="true"]').forEach(function (el) {
@@ -20254,7 +20188,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       qrLoginSession = null;
     }
   }
-  if (savedSession && savedSession.session_token && savedOrg && savedOrg.api_key) {
+  if (savedSession && savedSession.session_token && savedOrg && savedOrg.id) {
     qrLoginSession = savedSession;
     // v5.7.1e — A valid restored session clears any lingering "signed out"
     // flag (set by signOutOrg). The user is logged in via persisted state.
@@ -20274,8 +20208,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       return; // skip sign-in UI fallthrough below
     } catch (err) {
       // Dashboard load failed — clear stale session and fall through to sign-in.
+      // v6.8.4 (PR A): the cached snapshot is only for a venue that is offline
+      // (C1). If the Worker answered (expired / revoked session, not a member),
+      // that is a refusal, not an outage: wipe and show the sign-in QR.
+      const workerRefused = !!(err && err.status);
       currentOrg = savedOrg;
-      const snap = await loadCurrentOrgSnapshot();
+      const snap = workerRefused ? null : await loadCurrentOrgSnapshot();
       if (snap) {
         saveJson(STORAGE_KEY_ORG, currentOrg);
         setSignedInUI(true);
@@ -20288,8 +20226,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         showToast('Loaded cached organisation snapshot');
         return;
       }
-      try { localStorage.removeItem('irlid_login_session'); } catch (_) {}
-      try { localStorage.removeItem(STORAGE_KEY_ORG); } catch (_) {}
+      wipeSavedOrgSession();
+      currentOrg = null;
       qrLoginSession = null;
     }
   }
@@ -20327,11 +20265,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   irlidDebugLog('[v5.11.25b] Rendering default sign-in QR UI (no session, no invite)');
   setSignedInUI(false); syncLegacyFromPortal(); ensureExpectedAttendees(); renderExpectedAttendees(); renderPortalAll(); showPanel('setup', document.getElementById('navOrganisation'));
-  const stored = loadJson(STORAGE_KEY_ORG, null);
-  if (stored) {
-    currentOrg = stored; document.getElementById('orgNameInput').value = currentOrg.name || ''; document.getElementById('existingKeyInput').value = currentOrg.api_key || ''; document.getElementById('apiKeyDisplay').textContent = currentOrg.api_key || '';
-    document.getElementById('setupForm').style.display = 'none'; document.getElementById('setupResult').style.display = 'block'; showSetupMessage('Existing local debug organisation found. Load it to continue.', false);
-  }
+  // v6.8.4 (PR A): the old "Existing local debug organisation found. Load it
+  // to continue" / "Continue with this organisation" back door is gone.
 });
 
 // ============================================================================
@@ -21365,10 +21300,10 @@ function triggerDenyCycleAnimation(attendeeName) {
 }
 
 async function loadThemeFromServer() {
-  if (typeof currentOrg === 'undefined' || !currentOrg || !currentOrg.api_key) return;
+  if (typeof currentOrg === 'undefined' || !currentOrg || !currentOrg.id) return;
   if (!window.IRLidOrgApi || typeof window.IRLidOrgApi.getOrgSettings !== 'function') return;
   try {
-    const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.api_key);
+    const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
     const t = (res && res.settings && res.settings.theme) || {};
     // Batch 6.5d → 6.5f — backward compat:
     //   • Legacy bgAnimEnabled (boolean, pre-6.5d) → bgMode = 'off' or 'glow'.
@@ -21861,7 +21796,7 @@ document.addEventListener('DOMContentLoaded', function () {
     wireThemePanel();
     let attempts = 0;
     const tryLoad = function () {
-      if (typeof currentOrg !== 'undefined' && currentOrg && currentOrg.api_key) {
+      if (typeof currentOrg !== 'undefined' && currentOrg && currentOrg.id) {
         loadThemeFromServer();
       } else if (attempts < 20) {
         attempts++;
@@ -22662,7 +22597,7 @@ document.addEventListener('DOMContentLoaded', function () {
 (function(){
   async function calendarSigned(fields){ if(typeof signActionPayload!=='function') throw new Error('Hardware-backed action signing unavailable'); return signActionPayload('irlid_calendar_write_v5', currentOrg && currentOrg.id, fields||{}); }
   function base(){ return window.IRLidOrgApi?.workerBaseUrl ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/,'') : 'https://irlid-api-org.irlid-bunhead.workers.dev'; }
-  async function api(path, opts){ opts=opts||{}; if(!currentOrg?.api_key) throw new Error('No organisation loaded'); const h=Object.assign({'X-Org-Key':currentOrg.api_key}, opts.headers||{}); const tok=(qrLoginSession&&qrLoginSession.session_token)||currentOrg.api_key; if(tok) h.Authorization='Bearer '+tok; let body=opts.body; if(body && !(body instanceof FormData)){ h['Content-Type']='application/json'; body=JSON.stringify(body); } const r=await fetch(base()+path,{method:opts.method||'GET',headers:h,body}); if(opts.raw){ if(!r.ok) throw new Error('Request failed with status '+r.status); return r; } let data=null; try{data=await r.json();}catch(_){} if(!r.ok) throw new Error((data&&data.error)||('Request failed with status '+r.status)); return data||{}; }
+  async function api(path, opts){ opts=opts||{}; if(!currentOrg?.id) throw new Error('No organisation loaded'); const h=Object.assign({'X-Org-Id':currentOrg.id}, opts.headers||{}); const tok=qrLoginSession&&qrLoginSession.session_token; if(tok) h.Authorization='Bearer '+tok; let body=opts.body; if(body && !(body instanceof FormData)){ h['Content-Type']='application/json'; body=JSON.stringify(body); } const r=await fetch(base()+path,{method:opts.method||'GET',headers:h,body}); if(opts.raw){ if(!r.ok) throw new Error('Request failed with status '+r.status); return r; } let data=null; try{data=await r.json();}catch(_){} if(!r.ok) throw new Error((data&&data.error)||('Request failed with status '+r.status)); return data||{}; }
   async function refreshLiveCalendar(){ if (typeof window.refreshV511CalendarData === 'function') return window.refreshV511CalendarData(); try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
   document.addEventListener('DOMContentLoaded',function(){
     const exp=document.getElementById('v511ExportWeekBtn'); if(exp) exp.addEventListener('click',async function(e){ e.stopImmediatePropagation(); try{ const r=await api('/org/weekly-events/export-csv',{raw:true}); const blob=new Blob([await r.text()],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='week-export.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),500); }catch(err){ showToast('Export failed: '+(err.message||err), true); } }, true);
