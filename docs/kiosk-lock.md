@@ -12,7 +12,8 @@ When it is on and the Check-in QR is opened full screen on the venue screen:
 - The **X** becomes a **padlock**. To its left is a round **refresh QR** button, which asks for a new live code straight away.
 - Leaving full screen (the padlock, **Esc** or **F11**) shows an **unlock QR**. A staff-tier member (staff, manager, Lead Admin or Developer of this org) scans it with their phone and approves with the phone's enrolled hardware key (v5). Only then does the screen leave full screen.
 - Anything else keeps it locked: an attendee's or unknown phone, a rejected or expired code, a changed payload, a bad signature, or no internet.
-- A small dot at the bottom left shows **green** when the screen is online and **red** when it is offline (no network, or the screen has fallen back to the static backup QR).
+- **Stay locked** closes the unlock panel and goes back into full screen. Esc always leaves browser full screen (a page cannot stop it), but the screen stays locked; tap it or press Stay locked to return.
+- The padlock, refresh button and a small dot sit at the top right. The dot shows **green** when the screen is online and **red** when it is offline (no network, or the screen has fallen back to the static backup QR).
 
 It only affects the screen. Check-in keeps working exactly as before, online or offline (C1, C13).
 
@@ -26,7 +27,7 @@ Set-up, once per phone, online: Settings → 5. Sign-in & Auth → Kiosk and doo
 
 The seed never reaches a screen, so a key read off one screen opens only that screen. A seed stops working at the next refresh once its owner is no longer Lead Admin / Developer.
 
-To unlock with no internet: tap the padlock → **No internet? Lead Admin or Developer code**. The screen shows a fresh one-time challenge as a QR and as text. The admin scans it (the page opens from the phone's offline cache), confirms with fingerprint or face, and types the code shown:
+To unlock with no internet: tap the padlock. With no internet it goes straight to the offline code (if the browser thinks it is online but the unlock code can't be fetched, it switches there by itself; **No internet? Lead Admin or Developer code** is the manual way, and **Staff phone scan** tries the staff scan again). The screen shows a fresh one-time challenge as a QR and as text. The admin scans it (the page opens from the phone's offline cache), confirms with fingerprint or face, and types the code shown:
 
     code = 8 digits of HMAC-SHA256(kiosk_key, "unlock|" + challenge)
 

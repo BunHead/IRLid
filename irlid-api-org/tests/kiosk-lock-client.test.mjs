@@ -132,7 +132,7 @@ test("Org.html: Lock full screen toggle exists, unchecked by default, hydrated f
   assert.doesNotMatch(toggle[0], /checked/);
   assert.match(html, /settings\.lockFullscreen = src\.lockFullscreen === true;/);
   assert.match(html, /window\.__irlidLockFullscreenHydrated \? \{ lockFullscreen: irlidKioskLockFullscreenForSave\(\) \}/);
-  assert.match(html, /<script src="js\/kiosk-lock\.js"><\/script>/);
+  assert.match(html, /<script src="js\/kiosk-lock\.js(\?v=[0-9.]+)?"><\/script>/);
   // Only the real Check-in full screen locks, never the theme preview.
   assert.match(html, /const kioskLockOn = !!\(settings && \(settings\.lockFullscreen === true \|\| settings\.kioskMode === true\)\) && !emitInSetup &&\s*document\.body\.dataset\.activePanel === 'checkin';/);
   // When locked there is no plain X.
