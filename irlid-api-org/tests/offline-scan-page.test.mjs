@@ -20,7 +20,8 @@ const ORIGIN = "https://irlid.co.uk";
 // A minimal Cache Storage: one cache, keyed by full URL, honouring ignoreSearch.
 function fakeCaches() {
   const store = new Map();
-  const keyOf = (req) => (typeof req === "string" ? new URL(req, ORIGIN + "/").toString() : req.url);
+  // Requests may be relative (sw.js pre-caches new Request("./Org.html", { cache: "reload" })).
+  const keyOf = (req) => new URL(typeof req === "string" ? req : req.url, ORIGIN + "/").toString();
   const find = (req, opts = {}) => {
     const key = keyOf(req);
     if (store.has(key)) return store.get(key);
@@ -32,7 +33,7 @@ function fakeCaches() {
   };
   const cache = {
     put: async (req, res) => { store.set(keyOf(req), res); },
-    addAll: async (list) => { for (const u of list) store.set(keyOf(u), { body: "cached " + new URL(u, ORIGIN + "/").pathname, ok: true }); },
+    addAll: async (list) => { for (const u of list) store.set(keyOf(u), { body: "cached " + new URL(keyOf(u)).pathname, ok: true }); },
     add: async (req) => { store.set(keyOf(req), { body: "cached " + keyOf(req), ok: true }); }
   };
   return {
@@ -129,5 +130,5 @@ test("consumer pages and the Worker API are still not intercepted", async () => 
 
 test("cache and build moved on (W8)", () => {
   assert.ok(Number(swSource.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 197);
-  assert.match(orgHtml, /Build v6\.8\.7</);
+  assert.match(orgHtml, /Build v6\.(8\.([7-9]|\d\d)|(9|\d\d)\.\d+)</, "build is v6.8.7 or later");
 });
