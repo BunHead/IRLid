@@ -351,7 +351,7 @@
           '<div class="irlid-kiosk-qr" aria-label="Unlock QR code"></div>' +
           '<div class="irlid-kiosk-status" role="status" aria-live="polite"></div>' +
           '<button type="button" class="irlid-kiosk-cancel">Stay locked</button>' +
-          (opts.offline ? '<button type="button" class="irlid-kiosk-use-offline" style="margin-left:8px">No internet? Lead Admin code</button>' : '') +
+          (opts.offline ? '<button type="button" class="irlid-kiosk-use-offline" style="margin-left:8px">No internet? Lead Admin or Developer code</button>' : '') +
         '</section>';
       stage.appendChild(panel);
       const qr = panel.querySelector(".irlid-kiosk-qr");
@@ -436,7 +436,7 @@
       const keys = (opts.offline.getKeys && opts.offline.getKeys()) || [];
       show(verifier.challenge());
       if (!keys.length) {
-        setStatus("No offline code is set up on this screen yet. A Lead Admin must set one up on their phone, then this screen must be online once.", "err");
+        setStatus("No offline code is set up on this screen yet. A Lead Admin or Developer must set one up on their phone, then this screen must be online once.", "err");
       }
       // Refresh the challenge display when it runs out.
       const tick = win.setInterval(function () {

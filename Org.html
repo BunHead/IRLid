@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.7</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.8</span></div>
   </div>
 </div>
 
@@ -6410,9 +6410,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </div>
 
           <div class="v511-row"><label for="v511OrgName">Display name</label><input type="text" id="v511OrgName" value="Test Event" /></div>
-          <div class="v511-row"><label for="v511OrgWebsite">Website</label><input type="url" id="v511OrgWebsite" value="https://example.com" /></div>
+          <div class="v511-row"><label for="websiteUrl">Website</label><input type="url" id="websiteUrl" placeholder="https://example.com" /></div>
           <div class="v511-row"><label for="v511OrgDescription">Description</label><input type="text" id="v511OrgDescription" value="Co-presence verification for events" /></div>
-          <div class="v511-row"><label for="v511OrgTerms">Org terms / disclaimer</label><textarea id="v511OrgTerms" placeholder="Optional informational text shown at check-in."></textarea></div>
+          <div class="v511-row"><label for="orgTerms">Org terms / disclaimer</label><textarea id="orgTerms" placeholder="Optional text shown to attendees at check-in. Display only, nobody has to accept it."></textarea></div>
           <div class="v511-row"><label for="v511OrgContactEmail">Contact email</label><input type="text" id="v511OrgContactEmail" placeholder="hello@your-org.com — optional, shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgContactPhone">Contact phone</label><input type="text" id="v511OrgContactPhone" placeholder="Optional — shown on receipts" /></div>
           <div class="v511-row"><label for="v511OrgVenueAddress">Venue address</label><input type="text" id="v511OrgVenueAddress" placeholder="Optional — shown on receipts so verifiers can reach the venue" /></div>
@@ -7305,12 +7305,62 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           <!-- v6.8.7: Kiosk and live-code gates. These were in the hidden legacy
                settings shell, so nobody could reach them. Lead Admin / Developer
                only: the Worker refuses a change from anyone else. -->
+          <!-- v6.8.8: Check-in rules. These were in the hidden legacy settings
+               shell (display:none), so nobody could reach them, whatever their
+               role. Same ids, so hydrate and save are unchanged. Settings is
+               Lead Admin / Developer only, and every save is audited. -->
+          <div class="v511-sub" style="margin-top: 14px;" id="checkinRulesGroup">Check-in rules</div>
+          <div class="v620-permissions-matrix">
+            <label class="v620-permissions-row" for="minimumTrustScore">
+              <span>
+                <strong>Minimum trust score</strong>
+                <span class="v511-hint">A fresh check-in scoring below this is refused. Offline and queued check-ins are never refused on score.</span>
+              </span>
+              <span class="v620-permissions-cell"><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70" style="width: 70px;" aria-label="Minimum trust score" /></span>
+            </label>
+            <label class="v620-permissions-row" for="privacyMode">
+              <span>
+                <strong>Privacy mode</strong>
+                <span class="v511-hint">Shortens the attendee&#39;s name on signed check-in receipts. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="privacyMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="anonymousMode">
+              <span>
+                <strong>Anonymous mode</strong>
+                <span class="v511-hint">Check-ins keep no name, only the device. Default off.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="anonymousMode" /></span>
+            </label>
+            <label class="v620-permissions-row" for="returnAllowed">
+              <span>
+                <strong>Return allowed</strong>
+                <span class="v511-hint">The check-in page tells attendees re-entry is allowed. Display only. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="returnAllowed" checked /></span>
+            </label>
+            <label class="v620-permissions-row" for="allowSelfSelection">
+              <span>
+                <strong>Let attendees pick their name</strong>
+                <span class="v511-hint">When a phone is not linked yet, the attendee can choose their name from the expected list. Off shows &quot;See an organiser&quot; instead. Default on.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="allowSelfSelection" checked /></span>
+            </label>
+            <label class="v620-permissions-row" for="requireDoormanConfirmation">
+              <span>
+                <strong>Say staff will confirm</strong>
+                <span class="v511-hint">The pick-your-name screen tells attendees that staff will confirm their choice. Display only.</span>
+              </span>
+              <span class="v620-permissions-cell">On <input type="checkbox" id="requireDoormanConfirmation" checked /></span>
+            </label>
+          </div>
+
           <div class="v511-sub" style="margin-top: 14px;" id="kioskSettingsGroup">Kiosk and door screen</div>
           <div class="v620-permissions-matrix">
             <label class="v620-permissions-row" for="kioskMode">
               <span>
                 <strong>Kiosk mode</strong>
-                <span class="v511-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's offline code when there is no internet. Default off.</span>
+                <span class="v511-hint">For a screen left at the door. Check-in opens straight into a locked full screen QR with a padlock, a refresh button and a red/green online dot. Leaving needs a staff phone scan, or a Lead Admin's or Developer's offline code when there is no internet. Default off.</span>
               </span>
               <span class="v620-permissions-cell">On <input type="checkbox" id="kioskMode" /></span>
             </label>
@@ -11979,7 +12029,9 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           }
           // ---- Org tab ----
           var V511_ORG_LS_KEY = 'v511_mockup_org_v1';
-          var V511_ORG_FIELDS = ['v511OrgName','v511OrgWebsite','v511OrgDescription','v511OrgTerms','v511OrgContactEmail','v511OrgContactPhone','v511OrgVenueAddress'];
+          // v6.8.8: Website and Org terms are the server fields (#websiteUrl, #orgTerms),
+          // hydrated from the Worker, so they are no longer kept in this localStorage blob.
+          var V511_ORG_FIELDS = ['v511OrgName','v511OrgDescription','v511OrgContactEmail','v511OrgContactPhone','v511OrgVenueAddress'];
           function v511OrgCaptureState() {
             var state = {};
             V511_ORG_FIELDS.forEach(function (id) {
@@ -12263,8 +12315,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <div class="settings-grid-3">
                   <label class="settings-field"><span>Org code</span><input id="orgCode" type="text" value="test"></label>
                   <label class="settings-field"><span>Event code</span><input id="eventCode" type="text" value="demo-night"></label>
-                  <label class="settings-field"><span>Minimum Trust Score</span><input id="minimumTrustScore" type="number" min="0" max="100" step="1" value="70"></label>
-                </div>
+                  </div>
                 <div class="invite-staff-row" data-min-role="lead_admin">
                   <div>
                     <strong>Staff invites</strong>
@@ -12285,30 +12336,18 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
                 <h4>Core gates and policy</h4>
                 <div class="switch-grid">
                   <label class="switch-tile"><div class="switch-top"><strong>Device Unlock Required</strong><label class="switch-wrap"><input id="biometricRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Use when a live device unlock (biometric or passcode) is required before allow.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Privacy Mode</strong><label class="switch-wrap"><input id="privacyMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Prefer reduced personal detail in the entry flow.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Anonymous Mode</strong><label class="switch-wrap"><input id="anonymousMode" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Permit anonymous-style handling where appropriate.</div></label>
                   <label class="switch-tile"><div class="switch-top"><strong>Check-out Required</strong><label class="switch-wrap"><input id="checkoutRequired" type="checkbox"><span class="switch-slider"></span></label></div><div class="switch-hint">Marks the event as requiring an exit/check-out flow later.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Return Allowed</strong><label class="switch-wrap"><input id="returnAllowed" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Passed into the test URL so entry pages can show re-entry policy.</div></label>
-                  <label class="switch-tile"><div class="switch-top"><strong>Allow attendee self-selection</strong><label class="switch-wrap"><input id="allowSelfSelection" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Placeholder setting for attendee-led selection before confirmation.</div></label>
                 </div>
               </div>
 
-              <div class="settings-group">
-                <h4>Assisted identity and proof rules</h4>
-                <div class="switch-grid">
-                  <label class="switch-tile"><div class="switch-top"><strong>Require doorman confirmation</strong><label class="switch-wrap"><input id="requireDoormanConfirmation" type="checkbox" checked><span class="switch-slider"></span></label></div><div class="switch-hint">Keeps the doorman step active even if a match looks strong.</div></label>
-                </div>
-              </div>
 
               <div class="settings-group">
                 <h4>Branding and post-accept behaviour</h4>
                 <div class="settings-grid-3">
                   <label class="settings-field"><span>Logo image URL</span><input id="logoUrl" type="url" placeholder="https://example.com/logo.png"></label>
-                  <label class="settings-field"><span>Website URL</span><input id="websiteUrl" type="url" placeholder="https://example.com"></label>
                   <label class="settings-field"><span>Post-accept redirect URL</span><input id="redirectUrl" type="url" placeholder="https://example.com/welcome"></label>
                   <label class="settings-field"><span>Staff post-accept redirect URL</span><input id="staffRedirectUrl" type="url" placeholder="e.g. https://example.com/staff-page (or your org's authenticated staff page)"></label>
                   <label class="settings-field"><span>Custom welcome message</span><textarea id="welcomeMessage" placeholder="Welcome to the venue."></textarea></label>
-                  <label class="settings-field"><span>Organisation terms / disclaimer</span><textarea id="orgTerms" placeholder="Optional informational text shown to attendees at check-in. Display only — not required to accept. e.g. 'By checking in you acknowledge our event safety policy and photo consent terms.'"></textarea></label>
                 </div>
                 <div class="theme-scrape-panel">
                   <div class="theme-scrape-actions">
