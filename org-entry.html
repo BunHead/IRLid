@@ -2009,6 +2009,15 @@
     }
   }
 
+  // v6.8.7 - offline-first (rule C1): register the service worker here too.
+  // Before this only Org.html and kiosk-code.html registered it, so a phone
+  // that had only ever scanned a venue QR had nothing cached: with data off the
+  // next scan opened a blank page instead of saving an offline check-in. After
+  // one online scan the page, its scripts and the queue load with no signal.
+  if ('serviceWorker' in navigator) {
+    try { navigator.serviceWorker.register('sw.js').catch(function (err) { console.warn('[sw] registration failed:', err); }); } catch (_) {}
+  }
+
   (async function bootEntryPage() {
     await hydrateEntryInfo();
     if (type === "checkout") {
