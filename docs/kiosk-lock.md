@@ -1,6 +1,6 @@
 # Kiosk mode and the full screen lock
 
-Two org settings, both **off by default**, both Lead Admin or Developer only to change (the org key alone cannot switch them either way). Settings → **Kiosk**:
+Two org settings, both **off by default**, both Lead Admin or Developer only to change (the org key alone cannot switch them either way). Settings → 5. Sign-in & Auth → **Kiosk and door screen**:
 
 - **Kiosk mode**: Check-in opens straight into the locked full screen QR (padlock, refresh-QR button, red/green online dot). The lock is always on in kiosk mode. A browser only enters true full screen after a tap, so until the first tap the locked QR covers the page and the first tap makes it full screen.
 - **Lock full screen** (under Kiosk mode): without kiosk mode, lock the full screen QR only when someone opens it. With kiosk mode on it shows as on and greyed out.
@@ -20,13 +20,13 @@ It only affects the screen. Check-in keeps working exactly as before, online or 
 
 So a Lead Admin or Developer is never locked out, their phone can make a one-time 8-digit code with no internet.
 
-Set-up, once per phone, online: Settings → Kiosk → **Set up on my phone**, scan the QR with the phone, tap **Set up on this phone** and confirm with the hardware key. The phone makes a random 32-byte seed, signs it with its v5 key and sends it to the Worker (`POST /org/kiosk/code-key`). Only a Lead Admin or Developer signature is accepted; manager, staff and attendee phones are refused. Setting up again replaces that person's old seed. Each locked screen fetches its keys whenever it is online (`GET /org/kiosk/code-keys`, signed-in member session, lock on):
+Set-up, once per phone, online: Settings → 5. Sign-in & Auth → Kiosk and door screen → **Set up on my phone**, scan the QR with the phone, tap **Set up on this phone** and confirm with the hardware key. The phone makes a random 32-byte seed, signs it with its v5 key and sends it to the Worker (`POST /org/kiosk/code-key`). Only a Lead Admin or Developer signature is accepted; manager, staff and attendee phones are refused. Setting up again replaces that person's old seed. Each locked screen fetches its keys whenever it is online (`GET /org/kiosk/code-keys`, signed-in member session, lock on):
 
     kiosk_key = HMAC-SHA256(seed, "irlid-kiosk-code|" + org_id + "|" + screen_id)
 
 The seed never reaches a screen, so a key read off one screen opens only that screen. A seed stops working at the next refresh once its owner is no longer Lead Admin / Developer.
 
-To unlock with no internet: tap the padlock → **No internet? Lead Admin code**. The screen shows a fresh one-time challenge as a QR and as text. The admin scans it (the page opens from the phone's offline cache), confirms with fingerprint or face, and types the code shown:
+To unlock with no internet: tap the padlock → **No internet? Lead Admin or Developer code**. The screen shows a fresh one-time challenge as a QR and as text. The admin scans it (the page opens from the phone's offline cache), confirms with fingerprint or face, and types the code shown:
 
     code = 8 digits of HMAC-SHA256(kiosk_key, "unlock|" + challenge)
 
