@@ -172,8 +172,6 @@ function visibleSettings() {
 // setting, has a visible replacement that owns the saved value, or does
 // nothing yet (rule I2: hide placeholders). Adding to this list needs a reason.
 const STILL_HIDDEN_ON_PURPOSE = new Set([
-  "biometricRequired",  // "Device Unlock Required": only sets a bioVerified flag the server ignores (S13). Placeholder.
-  "checkoutRequired",   // "Check-out Required": only changes a label. Placeholder.
   "logoUrl",            // Visual Theming's logo field owns it (copied in on save).
   "redirectUrl", "staffRedirectUrl", "welcomeMessage" // Visual Theming per-mode fields own these.
 ]);
@@ -228,4 +226,40 @@ test("Worker: every lead_admin role check also lets developer in", () => {
   }
   assert.match(src, /const KIOSK_CODE_ROLES = new Set\(\["lead_admin", "developer"\]\);/);
   assert.match(src, /const EXPECTED_ROLE_RANK = \{ attendee: 0, staff: 1, manager: 2, lead_admin: 3, developer: 4 \};/);
+});
+
+// Spencer, 7 Nov: un-hide anything connected to something and put it in
+// Tools & Diagnostics. Settings that do nothing yet are shown there, labelled
+// "not active yet" so nobody thinks they work (I1, I2).
+function toolsTab() {
+  const a = html.indexOf('<section class="v511-panel" data-v511-panel="tools">');
+  return html.slice(a, html.indexOf("</section>", a));
+}
+
+test("Org.html: placeholders are in Tools & Diagnostics, labelled not active yet", () => {
+  const tools = toolsTab();
+  const group = tools.slice(tools.indexOf('id="notActiveYetGroup"'), tools.indexOf('id="testToolsGroup"'));
+  for (const id of ["biometricRequired", "checkoutRequired", "themeScrapeBtn"]) {
+    assert.equal(html.split(`id="${id}"`).length - 1, 1, id + " must appear exactly once");
+    const at = group.indexOf(`id="${id}"`);
+    assert.ok(at > 0, id + " not in the Not active yet group");
+  }
+  assert.equal((group.match(/not active yet<\/span>/g) || []).length, 3);
+  assert.doesNotMatch(html.slice(...hiddenShell()), /id="(biometricRequired|checkoutRequired|themeScrapeBtn)"/);
+});
+
+test("Org.html: test tools (outcome previews, org and event code, copy links) are in Tools & Diagnostics", () => {
+  const tools = toolsTab();
+  const group = tools.slice(tools.indexOf('id="testToolsGroup"'));
+  for (const id of ["orgCode", "eventCode", "outcomeQr", "copyOutcomeMiniBtn", "testFireOutcomeBtn",
+                    "copyOutcomeUrlBtn", "copySettingsBtn", "copyScanUrlBtn", "scanQr"]) {
+    assert.ok(group.includes(`id="${id}"`), id);
+  }
+});
+
+test("Org.html: the hidden legacy shell holds only controls a visible tab already owns", () => {
+  const shell = html.slice(...hiddenShell());
+  const owned = /^(theme|celeb|roleLabel)|^(logoUrl|redirectUrl|staffRedirectUrl|welcomeMessage|inviteStaffBtn|leadAdminAppointBtn|savePortalSettingsBtn|resetPortalSettingsBtn)$/;
+  const ids = [...shell.matchAll(/<(?:input|select|textarea|button)\b[^>]*\bid="([^"]+)"/g)].map(m => m[1]);
+  for (const id of ids) assert.match(id, owned, id + " is stuck in the hidden shell");
 });
