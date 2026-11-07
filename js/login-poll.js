@@ -126,5 +126,28 @@
     };
   }
 
-  root.IRLidLoginPoll = { createLoginPoller, classify, FAIL_MESSAGES, BASE_POLL_MS, BACKOFF_STEPS_MS, REQUEST_TIMEOUT_MS };
+  // v6.8.7 — the poll request itself lives here, not in js/orgapi.js. The
+  // service worker serves orgapi.js cache-first, so a phone or laptop can run
+  // the new Org.html with an OLD cached orgapi.js whose loginPoll() drops the
+  // secret; the Worker then refuses every poll (403) and the page says "This
+  // page did not start this login" within seconds (7 Nov). This function sends
+  // the X-Login-Poll-Secret header whatever version of orgapi.js is loaded.
+  async function pollLogin(baseUrl, nonce, secret, opts) {
+    const o = opts || {};
+    const fetchImpl = o.fetch || (typeof fetch !== "undefined" ? fetch : null);
+    const url = String(baseUrl || "").replace(/\/+$/, "") + "/org/login/poll?nonce=" + encodeURIComponent(nonce);
+    const init = { method: "GET", headers: { "X-Login-Poll-Secret": String(secret || "") } };
+    if (o.signal) init.signal = o.signal;
+    const res = await fetchImpl(url, init);
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) {
+      const e = new Error((data && data.error) || ("Request failed with status " + res.status));
+      e.status = res.status; e.data = data;
+      throw e;
+    }
+    return data;
+  }
+
+  root.IRLidLoginPoll = { pollLogin, createLoginPoller, classify, FAIL_MESSAGES, BASE_POLL_MS, BACKOFF_STEPS_MS, REQUEST_TIMEOUT_MS };
 })(typeof window !== "undefined" ? window : globalThis);
