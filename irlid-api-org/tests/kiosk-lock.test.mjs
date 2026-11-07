@@ -374,3 +374,19 @@ test("offline unlocks are written to the audit log when the screen is back onlin
   res = await call(d1, "POST", "/org/kiosk/offline-unlock-log", body, { orgKey: ORG_KEY });
   assert.equal(res.status, 401);
 });
+
+// 7 Nov real-device test: the audit log showed one offline unlock twice. Two
+// syncs from the same screen overlapped and both passed the duplicate check.
+test("offline unlock log: overlapping syncs write each unlock once", async () => {
+  const { d1, kioskSession, leadPhone } = await setupOffline();
+  await enrol(d1, leadPhone, enrolPayload(new Uint8Array(32).fill(9), "KEYRACERACERACERACE1"));
+  const body = { org_id: "org-1", kiosk_id: "RACE1234AB", entries: [
+    { key_id: "KEYRACERACERACERACE1", challenge: "RACE2345", at: Date.now() - 1000, outcome: "allowed" },
+    { key_id: "KEYRACERACERACERACE1", challenge: "RACE6789", at: Date.now(), outcome: "allowed" }
+  ] };
+  const results = await Promise.all([1, 2, 3].map(() => call(d1, "POST", "/org/kiosk/offline-unlock-log", body, { session: kioskSession })));
+  for (const r of results) assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(results.reduce((n, r) => n + r.body.recorded, 0), 2, JSON.stringify(results.map((r) => r.body)));
+  const n = d1.db.prepare("SELECT COUNT(*) n FROM org_audit_log WHERE action='irlid_kiosk_offline_unlock_v5' AND target LIKE '%RACE1234AB%'").get().n;
+  assert.equal(n, 2);
+});

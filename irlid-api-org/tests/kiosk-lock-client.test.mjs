@@ -179,6 +179,20 @@ test("offline code: the phone's code for this screen and challenge unlocks, once
   assert.equal(replay.ok, false);
 });
 
+test("offline code: two checks at once (double submit) accept the code only once", async () => {
+  const keys = [
+    { key_id: "lead-a", k: await kioskKeyB64(seedB, "org-1", "KIOSK0001") },
+    { key_id: "lead-b", k: await kioskKeyB64(seedA, "org-1", "KIOSK0001") }
+  ];
+  const v = K.createOfflineVerifier({ keys });
+  const { challenge } = v.challenge();
+  const code = await K.offlineCode(await K.deriveKioskKey(seedA, "org-1", "KIOSK0001"), challenge);
+  const results = await Promise.all([v.check(code), v.check(code), v.check(code)]);
+  assert.equal(results.filter((r) => r.ok).length, 1, JSON.stringify(results));
+  // And afterwards the code is spent.
+  assert.equal((await v.check(code)).ok, false);
+});
+
 test("offline code: a code made for another screen or another challenge fails", async () => {
   const keys = [{ key_id: "lead-a", k: await kioskKeyB64(seedA, "org-1", "KIOSK0001") }];
   const v = K.createOfflineVerifier({ keys });

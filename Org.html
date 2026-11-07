@@ -73,7 +73,7 @@
 <script src="js/login-poll.js"></script>
 <script src="js/orghub-client.js"></script>
 <script src="js/qr-fullscreen.js"></script>
-<script src="js/kiosk-lock.js?v=6.8.10"></script>
+<script src="js/kiosk-lock.js?v=6.8.11"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.10</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.11</span></div>
   </div>
 </div>
 
@@ -17807,7 +17807,22 @@ function irlidKioskLogOfflineUnlock(entry) {
   irlidKioskFlushLog();
 }
 // Audit sync. Kept until the Worker accepts it (R5: never blocks anything).
-async function irlidKioskFlushLog() {
+// v6.8.11: one sync at a time. The "online" event and the key refresh both
+// flush; two overlapping syncs sent the same entries twice, and each then
+// trimmed the queue by its own count, which could also drop an entry queued
+// in between. A call made while one runs waits for it, then syncs once more.
+let irlidKioskFlushRunning = null;
+let irlidKioskFlushAgain = false;
+function irlidKioskFlushLog() {
+  if (irlidKioskFlushRunning) { irlidKioskFlushAgain = true; return irlidKioskFlushRunning; }
+  irlidKioskFlushRunning = (async function () {
+    try {
+      do { irlidKioskFlushAgain = false; await irlidKioskFlushLogOnce(); } while (irlidKioskFlushAgain);
+    } finally { irlidKioskFlushRunning = null; }
+  })();
+  return irlidKioskFlushRunning;
+}
+async function irlidKioskFlushLogOnce() {
   const orgId = irlidKioskOrgId();
   const key = IRLID_KIOSK_LOG_PREFIX + orgId;
   let list = [];

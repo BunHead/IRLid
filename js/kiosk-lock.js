@@ -214,32 +214,44 @@
         return { challenge: current.challenge, expires_at: current.created + ttl };
       },
       renew: function () { fresh(); return { challenge: current.challenge, expires_at: current.created + ttl }; },
+      // One check at a time per challenge: the code is worked out with async
+      // WebCrypto, so a double submit (Enter and a click) could otherwise run
+      // two checks on the same challenge and accept it twice.
       check: async function (code) {
         const keys = (typeof opts.getKeys === "function" ? opts.getKeys() : opts.keys) || [];
         if (!keys.length) return { ok: false, reason: "no_keys" };
         if (!current) return { ok: false, reason: "expired" };
-        const ch = current.challenge;
-        if (now() - current.created > ttl) { used.add(ch); fresh(); return { ok: false, reason: "expired", challenge: ch }; }
+        const cur = current;
+        if (cur.busy) return { ok: false, reason: "busy" };
+        const ch = cur.challenge;
+        if (now() - cur.created > ttl) { used.add(ch); fresh(); return { ok: false, reason: "expired", challenge: ch }; }
         const typed = normaliseCode(code);
         if (typed.length !== 8) return { ok: false, reason: "format" };
-        for (const key of keys) {
-          let bytes;
-          try { bytes = b64uToBytes(key.k); } catch (_) { continue; }
-          if (bytes.length !== 32) continue;
-          const want = await offlineCode(bytes, ch);
-          if (timingSafeEqual(want, typed)) {
-            used.add(ch);
-            current = null;
-            return { ok: true, key_id: key.key_id, challenge: ch };
+        cur.busy = true;
+        try {
+          for (const key of keys) {
+            let bytes;
+            try { bytes = b64uToBytes(key.k); } catch (_) { continue; }
+            if (bytes.length !== 32) continue;
+            const want = await offlineCode(bytes, ch);
+            if (current !== cur) return { ok: false, reason: "expired" };
+            if (timingSafeEqual(want, typed)) {
+              used.add(ch);
+              current = null;
+              return { ok: true, key_id: key.key_id, challenge: ch };
+            }
           }
+          if (current !== cur) return { ok: false, reason: "expired" };
+          cur.tries += 1;
+          if (cur.tries >= maxTries) {
+            used.add(ch);
+            fresh();
+            return { ok: false, reason: "locked_out", challenge: ch };
+          }
+          return { ok: false, reason: "wrong", tries_left: maxTries - cur.tries };
+        } finally {
+          cur.busy = false;
         }
-        current.tries += 1;
-        if (current.tries >= maxTries) {
-          used.add(ch);
-          fresh();
-          return { ok: false, reason: "locked_out", challenge: ch };
-        }
-        return { ok: false, reason: "wrong", tries_left: maxTries - current.tries };
       }
     };
   }
@@ -484,7 +496,12 @@
       form.addEventListener("submit", async function (e) {
         e.preventDefault();
         e.stopPropagation();
-        const r = await verifier.check(input.value);
+        const submitBtn = form.querySelector("button");
+        if (submitBtn && submitBtn.disabled) return;
+        if (submitBtn) submitBtn.disabled = true;
+        let r;
+        try { r = await verifier.check(input.value); } finally { if (submitBtn) submitBtn.disabled = false; }
+        if (r.reason === "busy") return;
         input.value = "";
         if (r.ok && state.acceptOfflineUnlock(r)) {
           setStatus("Unlocked.", "ok");

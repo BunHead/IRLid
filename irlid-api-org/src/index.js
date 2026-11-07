@@ -1637,6 +1637,7 @@ async function orgKioskOfflineUnlockLog(request, env) {
     const outcome = e && e.outcome === "denied" ? "denied" : "allowed";
     if (!KIOSK_CHALLENGE_RE.test(challenge)) { skipped += 1; continue; }
     const nonce = "kiosk:" + kioskId + ":" + challenge + ":" + outcome;
+    // Cheap early skip; the insert below is what really stops duplicates.
     const dup = await env.DB.prepare("SELECT id FROM org_audit_log WHERE org_id=? AND nonce=? LIMIT 1").bind(orgId, nonce).first();
     if (dup) { skipped += 1; continue; }
     let owner = null;
@@ -1647,7 +1648,12 @@ async function orgKioskOfflineUnlockLog(request, env) {
       if (!owner) { skipped += 1; continue; }
     }
     const atS = Math.floor(Number(e.at) / 1000);
-    await recordAudit(env, {
+    // v6.8.11: insert only if no row has this nonce, in ONE statement. Two
+    // syncs from the same screen can overlap (the "online" event and the
+    // key refresh both flush the queue); with a separate check then insert,
+    // both passed the check and the audit log showed one unlock twice
+    // (7 Nov real-device test). A single INSERT ... WHERE NOT EXISTS is atomic.
+    const added = await recordAuditOnce(env, {
       orgId,
       actorUserId: owner ? owner.user_id : null,
       actorPubFp: owner ? owner.pub_fp : null,
@@ -1661,7 +1667,7 @@ async function orgKioskOfflineUnlockLog(request, env) {
         "; synced by " + (ctx.user.display_name || ctx.user.id),
       nonce
     });
-    recorded += 1;
+    if (added) recorded += 1; else skipped += 1;
   }
   return json({ ok: true, recorded, skipped });
 }
@@ -4237,6 +4243,40 @@ function auditStatement(env, f) {
     f.nonce || null,
     now()
   );
+}
+
+// Like recordAudit, but writes nothing if this org already has a row with
+// f.nonce. The check and the insert are one statement, so two overlapping
+// requests cannot both write it. Returns true when a row was written.
+async function recordAuditOnce(env, f) {
+  try {
+    if (!f || !f.orgId || !f.nonce) return false;
+    await ensureAuditTable(env);
+    const r = await env.DB.prepare(
+      "INSERT INTO org_audit_log (id, org_id, actor_user_id, actor_pub_fp, actor_display_name, actor_role, action, target, target_ref, outcome, detail, nonce, created_at) " +
+      "SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM org_audit_log WHERE org_id=? AND nonce=?)"
+    ).bind(
+      randomToken().slice(0, 26),
+      String(f.orgId),
+      f.actorUserId || null,
+      f.actorPubFp || null,
+      f.actorName || null,
+      f.actorRole || null,
+      String(f.action || "unknown"),
+      f.target || null,
+      f.targetRef || null,
+      f.outcome || "allowed",
+      f.detail || null,
+      String(f.nonce),
+      now(),
+      String(f.orgId),
+      String(f.nonce)
+    ).run();
+    return Number((r && r.meta && r.meta.changes) || 0) > 0;
+  } catch (e) {
+    console.log("[audit] write failed: " + String(e && e.message || e).slice(0, 160));
+    return false;
+  }
 }
 
 // The audit table is created lazily by the Worker itself — its D1 binding has
