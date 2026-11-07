@@ -126,7 +126,7 @@ test("Org.html: QR carries the nonce only, never the poll secret", () => {
   assert.match(fn, /nonce=/);
   assert.doesNotMatch(fn, /secret/i);
   assert.match(html, /<script src="js\/login-poll\.js"><\/script>/);
-  assert.match(html, /loginPoll\(nonce, secret, o\)/);
+  assert.match(html, /qrLoginPollRequest\(nonce, secret, o\)/);
   assert.match(html, /Build v6\.(8\.([5-9]|\d\d)|(9|\d\d)\.\d+)</, "build is v6.8.5 or later");
 });
 
@@ -164,4 +164,38 @@ test("sw.js caches the new script and is bumped to v195 or later", () => {
   const sw = read("sw.js");
   assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 195);
   assert.match(sw, /'\.\/js\/login-poll\.js'/);
+});
+
+// ---- v6.8.7: stale cached orgapi.js must not break QR login (7 Nov) ----
+
+test("pollLogin always sends the poll secret header and maps errors", async () => {
+  const { pollLogin } = globalThis.IRLidLoginPoll;
+  const seen = [];
+  const fakeFetch = async (url, init) => {
+    seen.push({ url, init });
+    return { ok: false, status: 410, json: async () => ({ error: "challenge_consumed" }) };
+  };
+  await assert.rejects(
+    pollLogin("https://w.test/", "n 1", "SEC", { fetch: fakeFetch }),
+    e => e.status === 410 && e.data.error === "challenge_consumed"
+  );
+  assert.equal(seen[0].url, "https://w.test/org/login/poll?nonce=n%201");
+  assert.equal(seen[0].init.headers["X-Login-Poll-Secret"], "SEC");
+  const ok = await pollLogin("https://w.test", "n", "SEC", { fetch: async () => ({ ok: true, status: 200, json: async () => ({ status: "pending" }) }) });
+  assert.deepEqual(ok, { status: "pending" });
+});
+
+test("Org.html never polls login through orgapi.js (a stale cached copy drops the secret)", () => {
+  const html = read("Org.html");
+  assert.doesNotMatch(html, /IRLidOrgApi\.loginPoll\(/);
+  assert.match(html, /IRLidLoginPoll\.pollLogin\(/);
+});
+
+test("sw.js pre-caches with cache:'reload' and serves scripts network-first", () => {
+  const sw = read("sw.js");
+  assert.match(sw, /addAll\(SHELL_ASSETS\.map\(\(u\) => new Request\(u, \{ cache: 'reload' \}\)\)\)/);
+  const jsBranch = sw.slice(sw.indexOf("if (/\\.js(\\?|$)/.test(url.pathname))"), sw.indexOf("// Other static assets: cache-first."));
+  assert.ok(jsBranch.length > 50, "network-first JS branch present");
+  assert.match(jsBranch, /fetch\(req/);
+  assert.match(jsBranch, /caches\.match\(req\)/, "offline fallback to cache kept (C1)");
 });
