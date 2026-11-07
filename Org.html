@@ -3377,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.2</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.3</span></div>
   </div>
 </div>
 
@@ -16109,6 +16109,9 @@ function renderVenueQR(payload) {
   // Refresh QR button refreshes the visible QR (the hidden #venueQrBox above
   // is the legacy slot; the clone is what attendees actually see).
   try { if (typeof renderRealVenueQrIntoInlineClone === 'function') renderRealVenueQrIntoInlineClone(); } catch (_) {}
+  // v6.8.3 - and the full screen kiosk QR, so a kiosk left in full screen
+  // shows the new live code too (otherwise its scans land as offline, C14).
+  try { if (typeof renderRealVenueQrIntoFullscreen === 'function') renderRealVenueQrIntoFullscreen(); } catch (_) {}
   // v5.11.8 — removed dead data-qr-fullscreen-* attributes on #venueQrBox.
   // Pre-v5.11.5 these enabled qr-fullscreen.js's double-tap-to-fullscreen,
   // but v5.11.5 replaced that dependency with the clone-based fullscreenQR().
@@ -16174,7 +16177,7 @@ async function generateVenueQR(eventContext) {
 function setVenueQrOfflineMode(offline) {
   venueQrOffline = !!offline;
   document.body.dataset.venueQrMode = venueQrOffline ? 'offline' : 'live';
-  ['venueQrBox', 'v511InlineCheckinStage'].forEach(function (id) {
+  ['venueQrBox', 'v511InlineCheckinStage', 'v511FullscreenStage'].forEach(function (id) {
     const host = document.getElementById(id);
     const slot = id === 'venueQrBox' ? host : host && host.querySelector('.v511-theme-preview-qr');
     const parent = slot && slot.parentNode;
@@ -17487,23 +17490,9 @@ function fullscreenQR() {
   const banner = clone.querySelector('.v511-theme-preview-banner');
   if (banner) banner.textContent = orgName;
 
-  // Render production venue QR into the cloned QR slot.
-  const qrSlot = clone.querySelector('.v511-theme-preview-qr');
-  if (qrSlot) qrSlot.innerHTML = '';
-  if (qrSlot && window.QRCode) {
-    try {
-      new QRCode(qrSlot, {
-        text: venueQrPayload,
-        width: 840,
-        height: 840,
-        colorDark: (window.IRLID_THEME_QR_FG || '#000000'),
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : undefined
-      });
-    } catch (e) {
-      qrSlot.textContent = 'QR unavailable';
-    }
-  }
+  // Render production venue QR into the cloned QR slot. renderVenueQR() calls
+  // the same helper on every rotation, so the full screen QR never goes stale.
+  renderRealVenueQrIntoFullscreen(clone);
 
   // Close button — Settings preview uses Esc-only; production needs a tap target.
   const closeBtn = document.createElement('button');
@@ -17523,6 +17512,8 @@ function fullscreenQR() {
   // Re-apply theme decoration so the clone gets bg-mode-image class, --qr-cx/cy
   // CSS vars, mirror DOM, etc. We extend applyV511 below to iterate the clone.
   try { applyV511BackgroundToHostStages(activeTheme); } catch (_) {}
+  // Show the backup-QR badge in full screen too, if the door is on it now.
+  try { setVenueQrOfflineMode(venueQrOffline); } catch (_) {}
 
   // Cleanup + close handlers.
   const cleanup = function() {
@@ -17723,6 +17714,35 @@ function renderRealVenueQrIntoInlineClone() {
   }
 }
 window.renderRealVenueQrIntoInlineClone = renderRealVenueQrIntoInlineClone;
+
+// v6.8.3 - the full screen kiosk QR follows every rotation. fullscreenQR()
+// used to draw the QR once when full screen opened, and renderVenueQR() only
+// refreshed #venueQrBox and the inline clone. A kiosk left in full screen kept
+// showing the first live code: after one scan (or 90 s) it was used / expired,
+// so every later scan was accepted as "offline / unverified" (C14) while the
+// kiosk was online. renderVenueQR() now calls this on every new payload.
+// stage: the full screen clone; defaults to the one on screen (if any).
+function renderRealVenueQrIntoFullscreen(stage) {
+  var clone = stage || document.getElementById('v511FullscreenStage');
+  if (!clone || !venueQrPayload) return;
+  var qrSlot = clone.querySelector('.v511-theme-preview-qr');
+  if (!qrSlot) return;
+  qrSlot.innerHTML = '';
+  if (!window.QRCode) { qrSlot.textContent = 'QR unavailable'; return; }
+  try {
+    new QRCode(qrSlot, {
+      text: venueQrPayload,
+      width: 840,
+      height: 840,
+      colorDark: (window.IRLID_THEME_QR_FG || '#000000'),
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : undefined
+    });
+  } catch (e) {
+    qrSlot.textContent = 'QR unavailable';
+  }
+}
+window.renderRealVenueQrIntoFullscreen = renderRealVenueQrIntoFullscreen;
 
 // v5.11.23a — Render the org logo (or IRLid default) above the banner text
 // on any stage surface. Captain: "default to IRLid logo (with contrast)" when
