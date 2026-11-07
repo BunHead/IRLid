@@ -70,7 +70,6 @@
      widget. Same library used by live repo scan.html for receipt scanning. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous"></script>
 <script src="js/orgapi.js"></script>
-<script src="js/login-poll.js"></script>
 <script src="js/orghub-client.js"></script>
 <script src="js/qr-fullscreen.js"></script>
 <style>
@@ -3378,7 +3377,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.5</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.4</span></div>
   </div>
 </div>
 
@@ -13812,47 +13811,17 @@ function buildQrLoginUrl() {
     + '&worker=' + encodeURIComponent(workerBase);
 }
 
-let qrLoginPollSecret = null;
-let qrLoginPoller = null;
-let qrLoginRecoveryMs = 120000;
-
-// v6.8.5 — clear login states (waiting / signed on phone / logging in / failed).
-// Text only (S11), announced politely for screen readers (I5).
-function setQrLoginState(state, detail) {
-  const status = document.getElementById('qrLoginStatus');
-  if (!status) return;
-  status.setAttribute('role', 'status');
-  status.setAttribute('aria-live', 'polite');
-  status.dataset.loginState = state;
-  const d = detail || {};
-  const map = {
-    waiting:         ['Waiting for your phone to scan and sign…', '#8b949e'],
-    retrying:        ['Connection is patchy. Still checking for your phone…', '#d29922'],
-    signed_on_phone: ['Signed on your phone. Logging in…', '#7ee787'],
-    logging_in:      ['Logging in…', '#7ee787'],
-    failed:          [d.message || 'Login failed. Get a fresh QR.', '#f85149']
-  };
-  const m = map[state] || ['', '#8b949e'];
-  status.textContent = m[0];
-  status.style.color = m[1];
-}
-
 async function startQrLogin() {
   const stage = document.getElementById('qrLoginStage');
   const active = document.getElementById('qrLoginActive');
   const status = document.getElementById('qrLoginStatus');
   const codeBox = document.getElementById('qrLoginCode');
-  if (qrLoginPoller) { qrLoginPoller.stop(); qrLoginPoller = null; }
   status.textContent = 'Requesting login challenge…';
   status.style.color = '#8b949e';
   try {
     const resp = await window.IRLidOrgApi.loginInit();
     qrLoginNonce = resp.nonce;
-    // Kept in memory only: it lets this page, and nothing that saw the QR,
-    // collect the session (and recover it if a reply is lost).
-    qrLoginPollSecret = resp.poll_secret || null;
     qrLoginExpiresAt = (resp.expires_at || 0) * 1000;
-    qrLoginRecoveryMs = (Number(resp.recovery_window_s) || 120) * 1000;
     const url = buildQrLoginUrl();
     if (typeof window.makeQR === 'function') {
       await window.makeQR('qrLoginCode', url, 240);
@@ -13864,22 +13833,10 @@ async function startQrLogin() {
     }
     stage.style.display = 'none';
     active.style.display = 'block';
-    setQrLoginState('waiting');
+    status.textContent = 'Waiting for phone to scan + sign…';
     updateQrLoginCountdown();
     qrLoginCountdownTimer = setInterval(updateQrLoginCountdown, 1000);
-    qrLoginPoller = window.IRLidLoginPoll.createLoginPoller({
-      nonce: qrLoginNonce,
-      secret: qrLoginPollSecret,
-      expiresAtMs: qrLoginExpiresAt,
-      recoveryWindowMs: qrLoginRecoveryMs,
-      poll: (nonce, secret, o) => window.IRLidOrgApi.loginPoll(nonce, secret, o),
-      onState: (state, detail) => {
-        if (state === 'failed') cancelQrLogin(detail.message);
-        else setQrLoginState(state, detail);
-      },
-      onClaimed: (data) => { handleQrLoginSuccess(data); }
-    });
-    qrLoginPoller.start();
+    qrLoginPollTimer = setTimeout(pollQrLogin, 1500);
   } catch (err) {
     status.textContent = 'Could not start login: ' + (err.message || 'unknown error');
     status.style.color = '#f85149';
@@ -13889,34 +13846,40 @@ async function startQrLogin() {
 function updateQrLoginCountdown() {
   const remaining = Math.max(0, Math.floor((qrLoginExpiresAt - Date.now()) / 1000));
   const cd = document.getElementById('qrLoginCountdown');
-  if (cd) cd.textContent = remaining > 0 ? 'Expires in ' + remaining + 's' : 'Checking…';
-  // v6.8.5 — the countdown no longer ends the login by itself. The phone may
-  // have signed in the last seconds; one more poll asks the Worker, which says
-  // whether the QR really ran out (410 challenge_expired) or the login is done.
-  if (remaining <= 0) {
-    clearInterval(qrLoginCountdownTimer); qrLoginCountdownTimer = null;
-    if (qrLoginPoller) qrLoginPoller.pollNow();
+  if (cd) cd.textContent = remaining > 0 ? 'Expires in ' + remaining + 's' : 'Expired';
+  if (remaining <= 0) cancelQrLogin('QR expired. Get a fresh one.');
+}
+
+async function pollQrLogin() {
+  if (!qrLoginNonce) return;
+  try {
+    const data = await window.IRLidOrgApi.loginPoll(qrLoginNonce);
+    if (data.status === 'pending') {
+      qrLoginPollTimer = setTimeout(pollQrLogin, 1500);
+      return;
+    }
+    if (data.status === 'claimed') {
+      handleQrLoginSuccess(data);
+      return;
+    }
+    qrLoginPollTimer = setTimeout(pollQrLogin, 1500);
+  } catch (err) {
+    if (err.status === 410) cancelQrLogin('QR expired. Get a fresh one.');
+    else qrLoginPollTimer = setTimeout(pollQrLogin, 3000); // backoff on transient errors
   }
 }
 
-// Kept for any older callers: one immediate poll through the poller.
-async function pollQrLogin() {
-  if (qrLoginPoller) qrLoginPoller.pollNow();
-}
-
 function cancelQrLogin(reason) {
-  if (qrLoginPoller) { qrLoginPoller.stop(); qrLoginPoller = null; }
   clearTimeout(qrLoginPollTimer); qrLoginPollTimer = null;
   clearInterval(qrLoginCountdownTimer); qrLoginCountdownTimer = null;
   qrLoginNonce = null;
-  qrLoginPollSecret = null;
   qrLoginExpiresAt = 0;
   document.getElementById('qrLoginStage').style.display = 'block';
   document.getElementById('qrLoginActive').style.display = 'none';
   const status = document.getElementById('qrLoginStatus');
   if (reason) {
     status.textContent = reason;
-    const isError = /expired|ran out|failed|error|rate|fresh|could not/i.test(reason);
+    const isError = /expired|failed|error|rate/i.test(reason);
     status.style.color = isError ? '#f85149' : '#8b949e';
   } else {
     status.textContent = '';
@@ -13924,8 +13887,6 @@ function cancelQrLogin(reason) {
 }
 
 async function handleQrLoginSuccess(data) {
-  if (qrLoginPoller) { qrLoginPoller.stop(); qrLoginPoller = null; }
-  qrLoginPollSecret = null;
   clearTimeout(qrLoginPollTimer); qrLoginPollTimer = null;
   clearInterval(qrLoginCountdownTimer); qrLoginCountdownTimer = null;
   qrLoginSession = {
@@ -13981,8 +13942,7 @@ async function handleQrLoginSuccess(data) {
   // /user/orgs returns every org as implicit "dev access", which wrongly
   // showed "Create your first org" (and a slug-collision error on retry).
   // (v6.8.4: /user/orgs no longer returns any api_key.)
-  status.innerHTML = '<strong>Signed on your phone as ' + escapeHtml(name) + '.</strong> Logging in…';
-  status.dataset.loginState = 'logging_in';
+  status.innerHTML = '<strong>Signed in as ' + escapeHtml(name) + '.</strong> Loading your orgs…';
   status.style.color = '#7ee787';
   let myOrgs = [];
   try {
@@ -18117,7 +18077,6 @@ async function tryStaffInviteRedirectIfNeeded() {
       ? window.IRLidOrgApi.workerBaseUrl()
       : 'https://irlid-api-org.irlid-bunhead.workers.dev';
     try { localStorage.setItem(STAFF_SCAN_PENDING_NONCE_KEY, nonce); } catch (_) {}
-    try { localStorage.setItem(STAFF_SCAN_PENDING_SECRET_KEY, initResp.poll_secret || ''); } catch (_) {}
     try { localStorage.setItem(STAFF_SCAN_PENDING_WORKER_KEY, workerBase); } catch (_) {}
     stashPendingStaffInvite(__staffInvitePending);
     const dashboardUrl = window.location.origin + window.location.pathname + window.location.search + '#staff_invite=' + encodeURIComponent(__staffInvitePending);
@@ -18494,8 +18453,6 @@ let __staffScanPending = null;
 const STAFF_SCAN_PENDING_PAYLOAD_KEY = 'irlid_pending_staff_scan_payload';
 const STAFF_SCAN_PENDING_NONCE_KEY = 'irlid_pending_login_nonce';
 const STAFF_SCAN_PENDING_WORKER_KEY = 'irlid_pending_login_worker';
-// v6.8.5 — poll secret for the pending nonce (same device only, never in a URL).
-const STAFF_SCAN_PENDING_SECRET_KEY = 'irlid_pending_login_secret';
 const ORG_LOGIN_URL_BASE = 'https://irlid.co.uk/org-login.html';
 
 // DIAG (retained in v6.2.9): visible phone-side breadcrumbs for the doorman
@@ -18741,21 +18698,11 @@ async function tryStaffScanRedirectOrPoll() {
     const ctx = __staffScanPending ? '[staff_scan]' : '[staff_signin]';
     irlidDebugLog(ctx, 'returning from org-login, polling for session with nonce', pendingNonce.slice(0, 8) + '...');
     try {
-      const pendingSecret = (() => { try { return localStorage.getItem(STAFF_SCAN_PENDING_SECRET_KEY) || ''; } catch (_) { return ''; } })();
-      // One poll, with a quick retry if the reply is lost: the Worker hands the
-      // session back to this secret for a short window (v6.8.5).
-      let data;
-      try { data = await window.IRLidOrgApi.loginPoll(pendingNonce, pendingSecret); }
-      catch (e1) {
-        if (e1 && e1.status && e1.status < 500 && e1.status !== 429) throw e1;
-        await new Promise(r => setTimeout(r, 1500));
-        data = await window.IRLidOrgApi.loginPoll(pendingNonce, pendingSecret);
-      }
+      const data = await window.IRLidOrgApi.loginPoll(pendingNonce);
       if (data && data.status === 'claimed') {
         irlidDebugLog(ctx, 'session claimed, restoring as authenticated');
         // Clear the pending markers — session is now in hand.
         try { localStorage.removeItem(STAFF_SCAN_PENDING_NONCE_KEY); } catch (_) {}
-        try { localStorage.removeItem(STAFF_SCAN_PENDING_SECRET_KEY); } catch (_) {}
         try { localStorage.removeItem(STAFF_SCAN_PENDING_WORKER_KEY); } catch (_) {}
         // Hand off to the existing success handler (writes session to
         // localStorage, sets qrLoginSession, fetches /user/orgs, loads dashboard).
@@ -18765,14 +18712,12 @@ async function tryStaffScanRedirectOrPoll() {
       console.warn(ctx, 'login poll returned status:', data && data.status);
       // Not claimed yet — clear stale nonce and fall through to normal sign-in.
       try { localStorage.removeItem(STAFF_SCAN_PENDING_NONCE_KEY); } catch (_) {}
-        try { localStorage.removeItem(STAFF_SCAN_PENDING_SECRET_KEY); } catch (_) {}
       try { localStorage.removeItem(STAFF_SCAN_PENDING_WORKER_KEY); } catch (_) {}
     } catch (err) {
       console.warn(ctx, 'login poll failed:', err);
       // 410 = expired, anything else = transient. Either way, clear stale state
       // and let the user sign in normally.
       try { localStorage.removeItem(STAFF_SCAN_PENDING_NONCE_KEY); } catch (_) {}
-        try { localStorage.removeItem(STAFF_SCAN_PENDING_SECRET_KEY); } catch (_) {}
       try { localStorage.removeItem(STAFF_SCAN_PENDING_WORKER_KEY); } catch (_) {}
     }
     return;
@@ -18794,7 +18739,6 @@ async function tryStaffScanRedirectOrPoll() {
       ? window.IRLidOrgApi.workerBaseUrl()
       : 'https://irlid-api-org.irlid-bunhead.workers.dev';
     try { localStorage.setItem(STAFF_SCAN_PENDING_NONCE_KEY, nonce); } catch (_) {}
-    try { localStorage.setItem(STAFF_SCAN_PENDING_SECRET_KEY, initResp.poll_secret || ''); } catch (_) {}
     try { localStorage.setItem(STAFF_SCAN_PENDING_WORKER_KEY, workerBase); } catch (_) {}
     stashPendingStaffScan(__staffScanPending);
     // Re-encode the staff_scan into the return URL so we come back to the

@@ -191,32 +191,9 @@
         b.disabled = !!disabled;
       }
 
-      // v6.8.5 — the poll secret only exists on the device that started the
-      // login. Same-device flows (staff scan, invite, auto staff sign-in) stash
-      // it beside the nonce; a phone that scanned a desktop's QR has none.
-      function pendingPollSecret() {
-        try {
-          if (localStorage.getItem("irlid_pending_login_nonce") !== nonce) return "";
-          return localStorage.getItem("irlid_pending_login_secret") || "";
-        } catch (_) { return ""; }
-      }
-
       async function persistClaimedSessionLocally() {
-        // Cross-device: never collect the session here. The computer that
-        // shows the QR collects it (before v6.8.5 this phone poll used up the
-        // single-use session first, and the computer then said "QR expired").
-        const secret = pendingPollSecret();
-        if (!secret) { diag("Cross-device login: the computer collects the session."); return null; }
         const pollUrl = workerRaw.replace(/\/$/, "") + "/org/login/poll?nonce=" + encodeURIComponent(nonce);
-        let pollResp;
-        try {
-          pollResp = await fetch(pollUrl, { headers: { "X-Login-Poll-Secret": secret } });
-        } catch (e) {
-          // Lost reply: one retry. The Worker hands the session back to this
-          // secret for a short window after it was collected.
-          await new Promise(r => setTimeout(r, 1500));
-          pollResp = await fetch(pollUrl, { headers: { "X-Login-Poll-Secret": secret } });
-        }
+        const pollResp = await fetch(pollUrl);
         let sessionData = null;
         try { sessionData = await pollResp.json(); } catch (_) { sessionData = {}; }
         diag("Session poll " + pollResp.status + " " + JSON.stringify(sessionData));
@@ -230,9 +207,6 @@
         };
         localStorage.setItem("irlid_login_session", JSON.stringify(session));
         localStorage.removeItem("irlid_signed_out");
-        localStorage.removeItem("irlid_pending_login_nonce");
-        localStorage.removeItem("irlid_pending_login_worker");
-        localStorage.removeItem("irlid_pending_login_secret");
         diag("Session persisted locally on this device.");
         return sessionData;
       }
@@ -319,17 +293,10 @@
           diag("Response " + resp.status + " " + JSON.stringify(data));
 
           if (resp.ok) {
-            const sameDevice = !!pendingPollSecret();
             try {
               await persistClaimedSessionLocally();
             } catch (e) {
               diag("Could not persist session locally: " + (e && e.message ? e.message : e));
-            }
-            if (!sameDevice) {
-              // Cross-device: the computer showing the QR finishes the login.
-              setStatus("pass", "Signed on this phone. Your computer will finish logging in.");
-              setBtn("Done", true);
-              return;
             }
             // v5.7.1c — Same-device staff_scan flow: caller passed
             // ?return=<url>; after successful claim, redirect back to

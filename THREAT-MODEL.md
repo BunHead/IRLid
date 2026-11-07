@@ -330,8 +330,6 @@ Each row is a real constraint a reviewer can interrogate. The gap closer is the 
 
 **Defence:** the login QR encodes only a one-time `nonce` + the worker URL — it does **not** carry signing material. To complete the login, the observer would need to produce a valid v5 envelope (hardware-backed assertion) with a `pub_fp` that matches a registered user. They don't have that hardware key. Even if they did, the nonce is single-use (consumed on the first valid claim) and 180-second TTL. Photographing the QR is information-theoretically useless.
 
-**Session pickup (v6.8.5):** collecting the session from `/org/login/poll` needs the poll secret that `/org/login/init` gave the desktop. The secret is never in the QR, so an observer who only has the nonce cannot race the desktop for the session (before v6.8.5 anyone with the nonce could poll, and the first poll won). The lost-reply recovery window (120 s, max 3, new token each time, old one deleted) is open only to the secret holder.
-
 **Caveat:** the nonce TTL was bumped from 60s to 180s on 4 May 2026 after IRL testing showed 60s left zero margin for a real human flow. 180s still bounds the replay window narrowly: an observer would need to produce a valid v5 envelope and POST it before the legitimate user's biometric prompt + POST completes. Realistic attacker bandwidth here is zero.
 
 ### XI.2 Cross-context envelope replay
