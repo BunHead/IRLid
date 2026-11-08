@@ -8,72 +8,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../src/index.js";
 import { canonical, b64url, newDevice } from "./helpers/signed-checkin.mjs";
+import { SqliteD1 } from "./helpers/sqlite-d1.mjs";
 
 const enc = new TextEncoder();
 
+// Real SQLite with the real schema (helpers/sqlite-d1.mjs), so the Worker's
+// own SQL runs and a D1 batch is a real transaction. `t` is a read view used
+// by the assertions below.
 function makeDb() {
-  const t = { challenges: new Map(), sessions: new Map(), users: new Map() };
-  const db = { t, unknown: [] };
-  db.prepare = (sql) => {
-    const q = sql.replace(/\s+/g, " ").trim();
-    const st = { args: [] };
-    st.bind = (...a) => { st.args = a; return st; };
-    const exec = () => {
-      const a = st.args;
-      if (q.startsWith("PRAGMA table_info(login_challenges)")) {
-        return { results: ["nonce", "issued_at", "expires_at", "claimed_by", "session_token", "consumed", "fail_count", "locked_until"].map(name => ({ name })) };
-      }
-      if (q.startsWith("ALTER TABLE login_challenges ADD COLUMN")) return { changes: 0 };
-      if (q.startsWith("INSERT INTO login_challenges")) {
-        t.challenges.set(a[0], { nonce: a[0], issued_at: a[1], expires_at: a[2], claimed_by: null, session_token: null, consumed: 0, fail_count: 0, locked_until: 0, poll_secret_hash: a[3], consumed_at: null, recover_count: 0 });
-        return { changes: 1 };
-      }
-      if (q.startsWith("SELECT") && q.includes("FROM login_challenges WHERE nonce = ?")) {
-        const r = t.challenges.get(a[0]); return r ? { ...r } : null;
-      }
-      if (q === "DELETE FROM login_challenges WHERE nonce = ?") { t.challenges.delete(a[0]); return { changes: 1 }; }
-      if (q.startsWith("UPDATE login_challenges SET consumed = 1, consumed_at = ? WHERE nonce = ? AND consumed = 0")) {
-        const r = t.challenges.get(a[1]); if (!r || r.consumed) return { changes: 0 };
-        r.consumed = 1; r.consumed_at = a[0]; return { changes: 1 };
-      }
-      if (q.startsWith("UPDATE login_challenges SET session_token = ?, recover_count = recover_count + 1")) {
-        const r = t.challenges.get(a[1]);
-        if (!r || r.session_token !== a[2] || !(r.recover_count < a[3])) return { changes: 0 };
-        r.session_token = a[0]; r.recover_count += 1; return { changes: 1 };
-      }
-      if (q.startsWith("UPDATE login_challenges SET claimed_by = ?, session_token = ? WHERE nonce = ? AND session_token IS NULL")) {
-        const r = t.challenges.get(a[2]); if (!r || r.session_token) return { changes: 0 };
-        r.claimed_by = a[0]; r.session_token = a[1]; return { changes: 1 };
-      }
-      if (q.startsWith("UPDATE login_challenges SET fail_count")) return { changes: 1 };
-      if (q.startsWith("SELECT") && q.includes("FROM login_sessions WHERE token = ?")) {
-        const r = t.sessions.get(a[0]); return r ? { ...r } : null;
-      }
-      if (q.startsWith("INSERT INTO login_sessions")) {
-        t.sessions.set(a[0], { token: a[0], user_id: a[1], issued_at: a[2], expires_at: a[3], ip_hash: a[4], user_agent: a[5] });
-        return { changes: 1 };
-      }
-      if (q === "DELETE FROM login_sessions WHERE token = ?") { t.sessions.delete(a[0]); return { changes: 1 }; }
-      if (q.startsWith("SELECT id, display_name FROM portal_users WHERE pub_fp = ?")) {
-        for (const u of t.users.values()) if (u.pub_fp === a[0]) return { id: u.id, display_name: u.display_name };
-        return null;
-      }
-      if (q.startsWith("INSERT INTO portal_users")) {
-        t.users.set(a[0], { id: a[0], pub_jwk: a[1], pub_fp: a[2], display_name: a[3] }); return { changes: 1 };
-      }
-      if (q.startsWith("SELECT id, display_name, pub_fp FROM portal_users WHERE id = ?")) {
-        const u = t.users.get(a[0]); return u ? { id: u.id, display_name: u.display_name, pub_fp: u.pub_fp } : null;
-      }
-      if (q.includes("FROM org_memberships")) return { results: [] };
-      db.unknown.push(q);
-      return null;
-    };
-    st.first = async () => exec();
-    st.all = async () => { const r = exec(); return r && r.results ? r : { results: [] }; };
-    st.run = async () => { const r = exec(); return { meta: { changes: (r && r.changes) || 0 } }; };
-    return st;
+  const db = new SqliteD1();
+  db.t = {
+    challenges: { get: (nonce) => db.get("SELECT * FROM login_challenges WHERE nonce = ?", nonce) },
+    sessions: {
+      has: (token) => !!db.get("SELECT token FROM login_sessions WHERE token = ?", token),
+      get: (token) => db.get("SELECT * FROM login_sessions WHERE token = ?", token),
+      delete: (token) => db.exec("DELETE FROM login_sessions WHERE token = ?", token),
+      get size() { return db.get("SELECT COUNT(*) AS n FROM login_sessions").n; }
+    }
   };
-  db.batch = async (stmts) => Promise.all(stmts.map(s => s.run()));
   return db;
 }
 
@@ -232,7 +184,7 @@ test("signed in the last seconds: the desktop can still collect just after the Q
 test("a challenge row from before this change (no secret hash) is never handed out", async () => {
   const e = env();
   const { nonce, poll_secret } = await init(e);
-  e.DB.t.challenges.get(nonce).poll_secret_hash = null;
+  e.DB.exec("UPDATE login_challenges SET poll_secret_hash = NULL WHERE nonce = ?", nonce);
   await claim(e, nonce, await phone());
   assert.equal((await poll(e, nonce, poll_secret)).status, 403);
   assert.equal((await poll(e, nonce)).status, 403);
@@ -253,4 +205,79 @@ test("CORS allows the poll-secret header; the secret is never read from the URL"
   const { nonce, poll_secret } = await init(e);
   const r = await worker.fetch(new Request(W + "/org/login/poll?nonce=" + nonce + "&poll_secret=" + poll_secret), e);
   assert.equal(r.status, 403);
+});
+
+// ---- Atomic recovery (copy session, move pointer, delete old: all or none) ----
+// The three writes run in one D1 batch (one transaction). A failure at any
+// step leaves the login exactly as it was, the poll gets a retryable 503, and
+// the next poll still recovers inside the same 120 s / 3-recovery bound.
+function loginState(e, nonce) {
+  const c = e.DB.t.challenges.get(nonce);
+  return { pointer: c.session_token, used: c.recover_count, sessions: e.DB.all("SELECT token FROM login_sessions").map(r => r.token).sort() };
+}
+
+for (const [step, re] of [
+  ["copying the session", /^INSERT INTO login_sessions .* SELECT/],
+  ["moving the pointer", /^UPDATE login_challenges SET session_token = \?, recover_count/],
+  ["deleting the old token", /^DELETE FROM login_sessions WHERE token = \? AND EXISTS/]
+]) {
+  test("recovery that fails while " + step + " changes nothing, then the retry works", async () => {
+    const e = env();
+    const { nonce, poll_secret } = await init(e);
+    await claim(e, nonce, await phone());
+    const first = await (await poll(e, nonce, poll_secret)).json();
+    const before = loginState(e, nonce);
+    assert.deepEqual(before.sessions, [first.session_token]);
+    e.DB.failOn(re);
+    const failed = await poll(e, nonce, poll_secret);
+    assert.equal(failed.status, 503, "retryable, so js/login-poll.js tries again");
+    assert.deepEqual(loginState(e, nonce), before, "pointer, recovery count and sessions unchanged");
+    assert.ok(e.DB.t.sessions.has(first.session_token), "the old token was not lost");
+    const ok = await poll(e, nonce, poll_secret);
+    assert.equal(ok.status, 200);
+    const b = await ok.json();
+    assert.equal(b.recovered, true);
+    const after = loginState(e, nonce);
+    assert.equal(after.pointer, b.session_token);
+    assert.equal(after.used, 1, "the failed try did not use up a recovery");
+    assert.deepEqual(after.sessions, [b.session_token], "exactly one live session");
+  });
+}
+
+test("racing recoveries: one winner, one live session, the cap still holds", async () => {
+  const e = env();
+  const { nonce, poll_secret } = await init(e);
+  await claim(e, nonce, await phone());
+  await poll(e, nonce, poll_secret);
+  const results = await Promise.all([0, 1, 2, 3, 4, 5].map(() => poll(e, nonce, poll_secret)));
+  const ok = results.filter(r => r.status === 200).length;
+  assert.ok(ok >= 1 && ok <= 3, "at most 3 recoveries, got " + ok);
+  for (const r of results) assert.ok(r.status === 200 || r.status === 410);
+  const st = loginState(e, nonce);
+  assert.ok(st.used <= 3);
+  assert.equal(st.sessions.length, 1, "never two live sessions for one login");
+  assert.deepEqual(st.sessions, [st.pointer]);
+});
+
+test("a recovery after sign-out writes nothing (no orphan session, no spent slot)", async () => {
+  const e = env();
+  const { nonce, poll_secret } = await init(e);
+  await claim(e, nonce, await phone());
+  const first = await (await poll(e, nonce, poll_secret)).json();
+  e.DB.t.sessions.delete(first.session_token);
+  assert.equal((await poll(e, nonce, poll_secret)).status, 410);
+  const st = loginState(e, nonce);
+  assert.equal(st.used, 0);
+  assert.equal(st.pointer, first.session_token);
+  assert.deepEqual(st.sessions, []);
+});
+
+test("a recovered (lost) token replayed later is refused by every session endpoint", async () => {
+  const e = env();
+  const { nonce, poll_secret } = await init(e);
+  await claim(e, nonce, await phone());
+  const lost = await (await poll(e, nonce, poll_secret)).json();
+  await poll(e, nonce, poll_secret);
+  const r = await worker.fetch(new Request(W + "/user/orgs", { headers: { Authorization: "Bearer " + lost.session_token } }), e);
+  assert.equal(r.status, 401);
 });
