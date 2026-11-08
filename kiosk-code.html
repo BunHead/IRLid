@@ -52,6 +52,7 @@
     </section>
 
     <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div class="status" id="offlineReady" style="color:var(--muted);font-weight:600" aria-live="polite"></div>
   </main>
   <script src="js/sign.js"></script>
   <script src="js/kiosk-lock.js"></script>
@@ -93,6 +94,29 @@
       }
       // Register the offline shell so this page opens with no signal later.
       if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (_) {} }
+
+      // v6.8.12: say whether this phone can open this page with no signal:
+      // the page and both scripts must be in the offline cache. Checked on
+      // this browser only (another browser or app on the phone has its own).
+      const readyEl = document.getElementById('offlineReady');
+      async function offlineReady() {
+        try {
+          if (!('caches' in window)) return false;
+          for (const u of ['kiosk-code.html', 'js/sign.js', 'js/kiosk-lock.js']) {
+            if (!(await caches.match(new URL(u, location.href).toString(), { ignoreSearch: true }))) return false;
+          }
+          return true;
+        } catch (_) { return false; }
+      }
+      async function showOfflineReady(tries) {
+        const ok = await offlineReady();
+        readyEl.textContent = ok
+          ? 'Ready with no signal on this browser.'
+          : 'Not ready with no signal yet. Keep this page open online for a few seconds, then reload it once.';
+        readyEl.style.color = ok ? 'var(--green)' : '#d29922';
+        if (!ok && tries > 0) setTimeout(function () { showOfflineReady(tries - 1); }, 2000);
+      }
+      showOfflineReady(5);
 
       // Scanning a second kiosk QR in the same tab only changes the #hash,
       // which does not reload the page. Reload so the new challenge is used.

@@ -73,7 +73,7 @@
 <script src="js/login-poll.js"></script>
 <script src="js/orghub-client.js"></script>
 <script src="js/qr-fullscreen.js"></script>
-<script src="js/kiosk-lock.js?v=6.8.11"></script>
+<script src="js/kiosk-lock.js?v=6.8.12"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html:not(.irlid-debug-on) [data-debug-gated] { display: none !important; }
@@ -3379,7 +3379,7 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.11</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.12</span></div>
   </div>
 </div>
 
@@ -7381,6 +7381,11 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
           </div>
           <div class="v511-hint" style="margin-top: 8px;">Offline unlock codes: each Lead Admin or Developer sets them up once on their own phone. <button type="button" class="v511-btn" id="kioskCodeSetupBtn">Set up on my phone</button></div>
           <div id="kioskCodeSetupQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
+          <div class="v511-hint" style="margin-top: 8px;">Then approve each door screen once, on that screen: a Lead Admin or Developer scans the QR it shows and confirms. Only approved screens can check offline codes, and a screen's keys stop working after 72 hours offline or when its approval ends (30 days). <button type="button" class="v511-btn" id="kioskScreenApproveBtn">Approve this screen</button></div>
+          <div id="kioskScreenApproveQr" style="display:none;margin-top:8px;background:#fff;padding:8px;border-radius:8px;width:max-content"></div>
+          <div class="v511-hint" id="kioskScreenApproveStatus" role="status" aria-live="polite"></div>
+          <div class="v511-hint" style="margin-top: 8px;">Approved screens: <button type="button" class="v511-btn" id="kioskScreensRefreshBtn">Show</button></div>
+          <div class="v511-hint" id="kioskScreensList" aria-live="polite"></div>
 
           <div class="v511-save"><button type="button" class="v511-btn-primary v511-btn" id="v511AuthSaveBtn">Save all settings</button><span class="v511-saved-pulse" id="v511AuthSavedPulse" aria-live="polite">&check; Saved</span></div>
         </section>
@@ -13833,6 +13838,10 @@ function setSignedInUI(isSignedIn) {
 // without a QR scan. Used by Sign out and by an expired session.
 function wipeSavedOrgSession() {
   try { localStorage.removeItem('irlid_login_session'); } catch (_) {}
+  // v6.8.12: a signed-out browser keeps no offline kiosk keys. The screen's
+  // approval secret and its unsynced unlock log stay, so the log still syncs
+  // after the next sign-in and the screen need not be approved again.
+  try { if (typeof irlidKioskClearKeys === 'function') irlidKioskClearKeys(); } catch (_) {}
   try { localStorage.removeItem(STORAGE_KEY_ORG); } catch (_) {}
   try {
     for (let i = sessionStorage.length - 1; i >= 0; i--) {
@@ -17746,6 +17755,10 @@ function fullscreenQR() {
 const IRLID_KIOSK_ID_KEY = 'irlid_kiosk_id';
 const IRLID_KIOSK_KEYS_PREFIX = 'irlid_kiosk_codekeys:';
 const IRLID_KIOSK_LOG_PREFIX = 'irlid_kiosk_unlock_log:';
+// v6.8.12: the random secret that proves to the Worker this is the screen a
+// Lead Admin / Developer approved. Only its SHA-256 leaves this browser, in
+// the approval request; the secret itself is sent only as X-Kiosk-Secret.
+const IRLID_KIOSK_SECRET_PREFIX = 'irlid_kiosk_secret:';
 function irlidKioskId() {
   let id = '';
   try { id = localStorage.getItem(IRLID_KIOSK_ID_KEY) || ''; } catch (_) {}
@@ -17756,12 +17769,25 @@ function irlidKioskId() {
   return id;
 }
 function irlidKioskOrgId() { return String((currentOrg && currentOrg.id) || ''); }
+function irlidKioskSecret() {
+  try { return localStorage.getItem(IRLID_KIOSK_SECRET_PREFIX + irlidKioskOrgId()) || ''; } catch (_) { return ''; }
+}
+// Keys are used only for this screen and only until the expiry the Worker
+// gave them (72 h at most). An older cache with no expiry is never used.
 function irlidKioskCachedKeys() {
   try {
     const saved = JSON.parse(localStorage.getItem(IRLID_KIOSK_KEYS_PREFIX + irlidKioskOrgId()) || 'null');
-    if (!saved || saved.kiosk_id !== irlidKioskId() || !Array.isArray(saved.keys)) return [];
-    return saved.keys;
+    return window.IRLidKioskLock ? window.IRLidKioskLock.readKeyCache(saved, irlidKioskId(), Date.now()) : [];
   } catch (_) { return []; }
+}
+function irlidKioskClearKeys(orgId) {
+  try {
+    if (orgId) { localStorage.removeItem(IRLID_KIOSK_KEYS_PREFIX + orgId); return; }
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf(IRLID_KIOSK_KEYS_PREFIX) === 0) localStorage.removeItem(k);
+    }
+  } catch (_) {}
 }
 function irlidKioskCodeUrl(challenge) {
   return location.origin + location.pathname.replace(/[^/]*$/, '') + 'kiosk-code.html#o=' +
@@ -17774,36 +17800,62 @@ function irlidKioskApiBase() {
 async function irlidKioskFetch(path, init) {
   const token = qrLoginSession && qrLoginSession.session_token;
   if (!token) throw new Error('session_required');
+  const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token };
+  const secret = irlidKioskSecret();
+  if (secret) headers['X-Kiosk-Secret'] = secret;
   const res = await fetch(irlidKioskApiBase() + path, Object.assign({}, init || {}, {
-    headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, (init && init.headers) || {})
+    headers: Object.assign(headers, (init && init.headers) || {})
   }));
   const data = await res.json().catch(function () { return {}; });
   if (!res.ok) { const e = new Error(data.error || ('HTTP ' + res.status)); e.status = res.status; e.data = data; throw e; }
   return data;
 }
-// Refresh this screen's offline keys. Never clears a good cache on a network
-// error, so a screen that goes offline keeps the keys it had.
+// Refresh this screen's offline keys (online, signed in, approved screen).
+// v6.8.12 policy (docs/kiosk-lock.md): a network error keeps the cache
+// until its own expiry (offline-first); the Worker saying no (401 sign-in
+// gone, 403 revoked / expired / not approved / role lost, 409 lock off)
+// clears it now. Sign-out and an expired session clear it too.
 async function irlidKioskRefreshKeys() {
   const orgId = irlidKioskOrgId();
   if (!orgId || navigator.onLine === false || !(qrLoginSession && qrLoginSession.session_token)) return;
-  try {
-    const data = await irlidKioskFetch('/org/kiosk/code-keys?org_id=' + encodeURIComponent(orgId) + '&kiosk_id=' + encodeURIComponent(irlidKioskId()));
-    if (data && Array.isArray(data.keys)) {
-      localStorage.setItem(IRLID_KIOSK_KEYS_PREFIX + orgId, JSON.stringify({ kiosk_id: data.kiosk_id, keys: data.keys, fetched_at: data.fetched_at }));
+  if (irlidKioskSecret()) {
+    try {
+      const data = await irlidKioskFetch('/org/kiosk/code-keys?org_id=' + encodeURIComponent(orgId) + '&kiosk_id=' + encodeURIComponent(irlidKioskId()));
+      if (data && Array.isArray(data.keys) && Number(data.expires_at) > 0) {
+        localStorage.setItem(IRLID_KIOSK_KEYS_PREFIX + orgId, JSON.stringify(window.IRLidKioskLock.makeKeyCache(data)));
+      }
+    } catch (err) {
+      if (window.IRLidKioskLock && window.IRLidKioskLock.keyCacheOnError(err) === 'clear') irlidKioskClearKeys(orgId);
     }
-  } catch (err) {
-    // 409 kiosk_lock_off: the org turned the lock off, so drop the keys.
-    if (err && err.status === 409) { try { localStorage.removeItem(IRLID_KIOSK_KEYS_PREFIX + orgId); } catch (_) {} }
+  } else {
+    // Never approved on this browser: nothing it may hold.
+    irlidKioskClearKeys(orgId);
   }
   irlidKioskFlushLog();
 }
-function irlidKioskLogOfflineUnlock(entry) {
-  const key = IRLID_KIOSK_LOG_PREFIX + irlidKioskOrgId();
+// Offline unlock audit queue. Real unlocks are never dropped; lock-outs past
+// 100 are counted, not itemised (IRLidKioskLock.appendLogEntry). If the
+// browser refuses to save (storage full), the queue is kept in memory and
+// still synced, and saving is tried again on every change.
+const irlidKioskLogMemory = {};
+function irlidKioskReadLog(orgId) {
+  const key = IRLID_KIOSK_LOG_PREFIX + orgId;
+  if (irlidKioskLogMemory[key]) return irlidKioskLogMemory[key];
+  try { return window.IRLidKioskLock.normaliseLogQueue(JSON.parse(localStorage.getItem(key) || '[]')); }
+  catch (_) { return window.IRLidKioskLock.normaliseLogQueue([]); }
+}
+function irlidKioskWriteLog(orgId, queue) {
+  const key = IRLID_KIOSK_LOG_PREFIX + orgId;
   try {
-    const list = JSON.parse(localStorage.getItem(key) || '[]');
-    list.push(entry);
-    localStorage.setItem(key, JSON.stringify(list.slice(-200)));
-  } catch (_) {}
+    localStorage.setItem(key, JSON.stringify(queue));
+    delete irlidKioskLogMemory[key];
+  } catch (_) {
+    irlidKioskLogMemory[key] = queue;
+  }
+}
+function irlidKioskLogOfflineUnlock(entry) {
+  const orgId = irlidKioskOrgId();
+  if (window.IRLidKioskLock) irlidKioskWriteLog(orgId, window.IRLidKioskLock.appendLogEntry(irlidKioskReadLog(orgId), entry));
   irlidKioskFlushLog();
 }
 // Audit sync. Kept until the Worker accepts it (R5: never blocks anything).
@@ -17811,6 +17863,7 @@ function irlidKioskLogOfflineUnlock(entry) {
 // flush; two overlapping syncs sent the same entries twice, and each then
 // trimmed the queue by its own count, which could also drop an entry queued
 // in between. A call made while one runs waits for it, then syncs once more.
+// v6.8.12: sent in batches of 50; only what the Worker accepted is removed.
 let irlidKioskFlushRunning = null;
 let irlidKioskFlushAgain = false;
 function irlidKioskFlushLog() {
@@ -17824,23 +17877,131 @@ function irlidKioskFlushLog() {
 }
 async function irlidKioskFlushLogOnce() {
   const orgId = irlidKioskOrgId();
-  const key = IRLID_KIOSK_LOG_PREFIX + orgId;
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { list = []; }
-  if (!list.length || !orgId || navigator.onLine === false || !(qrLoginSession && qrLoginSession.session_token)) return;
-  try {
-    await irlidKioskFetch('/org/kiosk/offline-unlock-log', {
-      method: 'POST',
-      body: JSON.stringify({ org_id: orgId, kiosk_id: irlidKioskId(), entries: list })
-    });
-    const now = JSON.parse(localStorage.getItem(key) || '[]');
-    localStorage.setItem(key, JSON.stringify(now.slice(list.length)));
-  } catch (_) { /* retry on the next refresh / online event */ }
+  const K = window.IRLidKioskLock;
+  if (!K || !orgId || navigator.onLine === false || !(qrLoginSession && qrLoginSession.session_token)) return;
+  for (let guard = 0; guard < 100; guard++) {
+    const batch = K.logBatch(irlidKioskReadLog(orgId));
+    if (!batch.entries.length && !batch.overflow) return;
+    try {
+      await irlidKioskFetch('/org/kiosk/offline-unlock-log', {
+        method: 'POST',
+        body: JSON.stringify({ org_id: orgId, kiosk_id: irlidKioskId(), entries: batch.entries, overflow: batch.overflow || undefined })
+      });
+    } catch (_) { return; /* kept; retry on the next refresh / online event */ }
+    irlidKioskWriteLog(orgId, K.ackLogBatch(irlidKioskReadLog(orgId), batch));
+  }
 }
-window.addEventListener('online', function () { irlidKioskFlushLog(); });
+window.addEventListener('online', function () { irlidKioskRefreshKeys(); irlidKioskFlushLog(); });
 setInterval(function () {
   if (settings && (settings.kioskMode === true || settings.lockFullscreen === true)) irlidKioskRefreshKeys();
 }, 10 * 60 * 1000);
+
+// v6.8.12: approve THIS screen for offline codes. The screen asks the Worker
+// for a one-time approval QR (3 min) carrying its screen id and the hash of a
+// new secret; a Lead Admin or Developer scans it and signs with their v5
+// hardware key. A new approval replaces the old one for this screen.
+let irlidKioskApprovePoll = null;
+async function irlidKioskApproveScreen() {
+  const box = document.getElementById('kioskScreenApproveQr');
+  const statusEl = document.getElementById('kioskScreenApproveStatus');
+  const orgId = irlidKioskOrgId();
+  const say = function (t) { if (statusEl) statusEl.textContent = t || ''; };
+  if (!box || !orgId || !(qrLoginSession && qrLoginSession.session_token)) { showToast('Sign in to an org first', true); return; }
+  if (irlidKioskApprovePoll) { irlidKioskApprovePoll.cancelled = true; irlidKioskApprovePoll = null; }
+  const K = window.IRLidKioskLock;
+  const secretBytes = new Uint8Array(32);
+  crypto.getRandomValues(secretBytes);
+  const secret = btoa(String.fromCharCode.apply(null, secretBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const hashBytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret)));
+  const secretHash = btoa(String.fromCharCode.apply(null, hashBytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  let init;
+  try {
+    init = await window.IRLidOrgApi.actionInit(qrLoginSession.session_token, {
+      action_type: 'irlid_kiosk_screen_approve_v5',
+      action_payload: { org_id: orgId, kiosk_id: irlidKioskId(), secret_hash: secretHash }
+    });
+  } catch (err) {
+    const code = String((err && err.data && err.data.error) || (err && err.message) || '');
+    say(/kiosk_lock_off/.test(code) ? 'Turn on Kiosk mode or Lock full screen and save first.' : 'Could not start the approval. Check the internet and try again.');
+    return;
+  }
+  box.innerHTML = '';
+  box.style.display = 'block';
+  try { new QRCode(box, { text: init.auth_url, width: 200, height: 200, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }); }
+  catch (_) { box.textContent = init.auth_url; }
+  say('Screen ' + irlidKioskId() + ': a Lead Admin or Developer scans this with their phone and confirms. It works once, for 3 minutes.');
+  const mine = { cancelled: false };
+  irlidKioskApprovePoll = mine;
+  let delay = 1500;
+  while (!mine.cancelled) {
+    if (Number(init.expires_at) <= Date.now()) { say('The approval QR ran out. Tap the button again.'); box.style.display = 'none'; return; }
+    await new Promise(function (r) { setTimeout(r, delay); });
+    if (mine.cancelled) return;
+    let polled;
+    try { polled = await window.IRLidOrgApi.actionPoll(init.nonce); delay = 1500; }
+    catch (_) { delay = Math.min(delay * 2, 8000); continue; }
+    if (polled && polled.status === 'claimed') {
+      box.style.display = 'none';
+      if (polled.action_result && polled.action_result.approved === true && polled.action_result.kiosk_id === irlidKioskId()) {
+        // Only now does this browser keep the secret the approval is bound to.
+        try { localStorage.setItem(IRLID_KIOSK_SECRET_PREFIX + orgId, secret); } catch (_) {}
+        irlidKioskClearKeys(orgId);
+        await irlidKioskRefreshKeys();
+        say('Approved. This screen can check offline codes until ' + new Date(Number(polled.action_result.expires_at)).toLocaleDateString('en-GB') + '. Keys refresh while it is online.');
+        irlidKioskLoadScreens();
+      } else {
+        say('That approval was not for this screen.');
+      }
+      return;
+    }
+    if (polled && (polled.status === 'rejected' || polled.status === 'expired')) {
+      box.style.display = 'none';
+      say(polled.status === 'rejected' ? 'Approval was declined on the phone.' : 'The approval QR ran out. Tap the button again.');
+      return;
+    }
+  }
+}
+// Screens approved for offline codes, with Revoke (Lead Admin / Developer).
+// Built with text nodes only (S11).
+async function irlidKioskLoadScreens() {
+  const list = document.getElementById('kioskScreensList');
+  const orgId = irlidKioskOrgId();
+  if (!list || !orgId || !(qrLoginSession && qrLoginSession.session_token)) return;
+  let data;
+  try { data = await irlidKioskFetch('/org/kiosk/screens?org_id=' + encodeURIComponent(orgId)); }
+  catch (err) { list.textContent = err && err.status === 403 ? 'Only a Lead Admin or Developer can see approved screens.' : 'Could not load approved screens.'; return; }
+  list.textContent = '';
+  const rows = (data && data.screens || []).filter(function (s) { return s.active; });
+  if (!rows.length) { list.textContent = 'No screen is approved for offline codes.'; return; }
+  rows.forEach(function (s) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap';
+    const label = document.createElement('span');
+    label.textContent = 'Screen ' + s.kiosk_id + (s.kiosk_id === irlidKioskId() ? ' (this screen)' : '') +
+      ' · approved by ' + (s.approved_by || 'unknown') + ' · until ' + new Date(Number(s.expires_at)).toLocaleDateString('en-GB');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'v511-btn';
+    btn.textContent = 'Revoke';
+    btn.addEventListener('click', async function () {
+      if (!confirm('Stop screen ' + s.kiosk_id + ' accepting offline codes? It drops its keys the next time it is online.')) return;
+      try {
+        await irlidKioskFetch('/org/kiosk/screen/revoke', { method: 'POST', body: JSON.stringify({ org_id: orgId, kiosk_id: s.kiosk_id }) });
+        if (s.kiosk_id === irlidKioskId()) irlidKioskClearKeys(orgId);
+        showToast('Screen ' + s.kiosk_id + ' revoked');
+      } catch (_) { showToast('Could not revoke. Check the internet and try again.', true); }
+      irlidKioskLoadScreens();
+    });
+    row.appendChild(label);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+}
+document.addEventListener('click', function (e) {
+  if (!e.target) return;
+  if (e.target.id === 'kioskScreenApproveBtn') irlidKioskApproveScreen();
+  if (e.target.id === 'kioskScreensRefreshBtn') irlidKioskLoadScreens();
+});
 
 // In kiosk mode the lock is always on; the sub-toggle shows that.
 function irlidKioskSyncSettingsUi() {

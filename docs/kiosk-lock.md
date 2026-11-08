@@ -21,11 +21,17 @@ It only affects the screen. Check-in keeps working exactly as before, online or 
 
 So a Lead Admin or Developer is never locked out, their phone can make a one-time 8-digit code with no internet.
 
-Set-up, once per phone, online: Settings → 5. Sign-in & Auth → Kiosk and door screen → **Set up on my phone**, scan the QR with the phone, tap **Set up on this phone** and confirm with the hardware key. The phone makes a random 32-byte seed, signs it with its v5 key and sends it to the Worker (`POST /org/kiosk/code-key`). Only a Lead Admin or Developer signature is accepted; manager, staff and attendee phones are refused. Setting up again replaces that person's old seed. Each locked screen fetches its keys whenever it is online (`GET /org/kiosk/code-keys`, signed-in member session, lock on):
+Set-up, once per phone, online: Settings → 5. Sign-in & Auth → Kiosk and door screen → **Set up on my phone**, scan the QR with the phone, tap **Set up on this phone** and confirm with the hardware key. The phone makes a random 32-byte seed, signs it with its v5 key and sends it to the Worker (`POST /org/kiosk/code-key`). Only a Lead Admin or Developer signature is accepted; manager, staff and attendee phones are refused. Setting up again replaces that person's old seed. The page then says **Ready with no signal on this browser** once its offline copy is saved; if it says not ready, keep it open online for a few seconds and reload it once.
+
+Then approve each door screen, once, on that screen, online (v6.8.12): Settings → 5. Sign-in & Auth → Kiosk and door screen → **Approve this screen**. The screen makes a random secret, keeps it, and shows a one-time QR (3 minutes, single use). A Lead Admin or Developer scans it and confirms with their hardware key; the phone shows "Let screen XXXX accept offline unlock codes for 30 days", so check the screen id matches the one on the screen. The Worker builds what the phone signs (org, screen id, the SHA-256 of the screen's secret, a one-time nonce, the approval's expiry), so a staff member cannot approve a screen and cannot change what is approved. A Developer approves without being a member of the org. Approving the same screen again replaces its old approval. **Approved screens → Show** lists them with **Revoke** (Lead Admin or Developer; audited).
+
+An approved screen fetches its keys whenever it is online (`GET /org/kiosk/code-keys`: signed-in staff-tier session, lock on, and the screen's secret in the `X-Kiosk-Secret` header):
 
     kiosk_key = HMAC-SHA256(seed, "irlid-kiosk-code|" + org_id + "|" + screen_id)
 
-The seed never reaches a screen, so a key read off one screen opens only that screen. A seed stops working at the next refresh once its owner is no longer Lead Admin / Developer.
+The seed never reaches a screen, so a key read off one screen opens only that screen. Before v6.8.12 any staff session could fetch the keys for any screen id it typed in, and so make codes for any screen; now it needs that screen's approval and its secret.
+
+**When a screen stops accepting codes.** Keys carry an expiry: **72 hours** after they were fetched, and never past the screen's approval (**30 days**). The screen refreshes them every 10 minutes and whenever it comes back online, so a screen that stays online never runs out; one that has been offline for more than 72 hours has no offline codes until it is online again. A screen drops its keys at once when the Worker says no: the screen was revoked, re-approved elsewhere or its approval ran out, the approver is no longer Lead Admin / Developer, the lock was turned off, or the session lost its role or was signed out (401, 403, 409). Signing out of the dashboard, or a session that expired, also clears them. A network error keeps them until their own expiry. A seed stops working at the next refresh once its owner is no longer Lead Admin / Developer.
 
 To unlock with no internet: tap the padlock. With no internet it goes straight to the offline code (if the browser thinks it is online but the unlock code can't be fetched, it switches there by itself; **No internet? Lead Admin or Developer code** is the manual way, and **Staff phone scan** tries the staff scan again). The screen shows a fresh one-time challenge as a QR and as text. The admin scans it (the page opens from the phone's offline cache), confirms with fingerprint or face, and types the code shown:
 
@@ -33,7 +39,11 @@ To unlock with no internet: tap the padlock. With no internet it goes straight t
 
 The screen checks it offline. A challenge lasts 90 s, works once, and is retired after 5 wrong codes, so a photo of the screen or of a code is no use later (S6, S12). Every offline unlock, and every 5-wrong-codes lock-out, is queued on the screen and written to the audit log (`POST /org/kiosk/offline-unlock-log`, action `irlid_kiosk_offline_unlock_v5`) when the screen is back online and signed in. The same entry is never logged twice.
 
-Limits: the screen must have been online (and signed in) at least once after the admin set up their phone. If no admin has set one up, the offline panel says so and the screen stays locked (recover with Ctrl+Alt+Del, see below). Anyone who can read the screen's browser storage can make codes for that screen only; that needs the dashboard already open, which the lock is there to stop.
+**What the audit row proves (I1).** It is what the screen reported. The screen holds the key that checks a code, so it could make a matching code itself: the row is never proof that the key's owner was there, and it names no actor (shown as "Kiosk XXXX (kiosk-reported)"). It says whether the report came from the approved screen (its secret), whether the code the screen sent matches the named person's key for that screen and challenge, the screen's own time, and who was signed in when it synced. The phone's fingerprint / face check unlocks the code on the phone only; that signature is not sent anywhere yet.
+
+**Nothing is lost from the queue.** Real unlocks are kept until the Worker has recorded them. Lock-outs can be made by anyone at the screen, so only the first 100 are kept one by one; after that they are counted (with the first and last time) and the count is written as one audit row, so a burst of wrong codes can never push a real unlock out. The screen sends at most 50 entries at a time and removes only what the Worker accepted; the Worker refuses more than 200 in one request rather than cutting them. If the browser cannot save the queue (storage full), it is kept in memory and still synced.
+
+Limits: the screen must have been approved and online (and signed in) after the admin set up their phone, and within the last 72 hours. If no admin has set one up, or the screen is not approved, the offline panel says so and the screen stays locked (recover with Ctrl+Alt+Del, see below). Anyone who can read the screen's browser storage can make codes for that screen only, until its keys expire; that needs the dashboard already open, which the lock is there to stop.
 
 ## How the staff QR unlock works
 
@@ -53,7 +63,22 @@ A web page cannot fully lock a computer. Browsers do not let a page block:
 
 Reloading or closing the tab shows the browser's "Leave site?" prompt, which can be confirmed. So the lock stops casual tapping on the dashboard behind the QR. It is not a sealed kiosk.
 
-If the kiosk is offline or its sign-in has expired, the staff QR unlock can't work; a Lead Admin or Developer uses an offline code instead. If none is set up, it stays locked and staff recover with Ctrl+Alt+Del or by closing the browser, then sign in again with a v5 scan.
+If the kiosk is offline, the staff QR unlock can't work; a Lead Admin or Developer uses an offline code instead. If its sign-in has expired (or it was signed out), the dashboard signs out and the screen's offline keys are cleared, so neither works. If no code is set up, the screen is not approved, or its keys have run out, it stays locked and staff recover with Ctrl+Alt+Del or by closing the browser, then sign in again with a v5 scan.
+
+## Testing the phone with no signal (physical test)
+
+Use the phone and browser you will really use (each browser, and an app's built-in browser, keeps its own copy and its own set-up).
+
+1. Online: on the dashboard, open Settings → 5. Sign-in & Auth → Kiosk and door screen → **Set up on my phone** and scan its QR with the phone. Tap **Set up on this phone** and confirm. Wait until it says **Ready with no signal on this browser** (reload once if it says not ready).
+2. Online, on the door screen (Kiosk mode or Lock full screen on and saved): **Approve this screen**, scan its QR with the same phone, check the screen id matches, confirm. The screen says Approved.
+3. Put the door screen in kiosk mode and open Check-in full screen.
+4. Phone: turn on airplane mode (Wi-Fi off too). Screen: unplug its network or turn off its Wi-Fi.
+5. Tap the padlock. Scan the challenge QR with the phone's camera. The code page must open with no signal, show the same screen id and challenge, and after fingerprint / face show an 8-digit code. Type it on the screen: it unlocks.
+6. Scan the same challenge again: the phone shows the same code (it is tied to that challenge); the screen refuses it because the challenge is used.
+7. Reconnect the screen, sign in if needed, and check the audit log shows one "kiosk-reported" offline unlock.
+8. Revoke the screen in Settings → Approved screens; after its next refresh, a fresh offline code is refused.
+
+If the code page shows "not set up" in step 5, the camera opened a different browser than step 1; open the link in the browser you set up, or set that browser up too.
 
 ## Windows 11 Home
 
