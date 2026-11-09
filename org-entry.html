@@ -957,6 +957,11 @@
         continueVenueWalkin();
         return;
       }
+      // First-scan hold (v6.8.13): staff approval usually outlasts the 90 s
+      // code, so hold it now, while it is live. Not awaited: the orange
+      // screen never waits for it, and if it fails (offline, code already
+      // gone) the check-in simply lands as it always has.
+      holdLiveCode(pub);
       await renderDoormanEscalation(pub, fp);
     } catch (err) {
       console.warn("Venue first-scan identity check failed", err);
@@ -1060,6 +1065,21 @@
         subtitle: err.message || "Could not sign this check-out",
         meta: "Use the same phone that checked in"
       });
+    }
+  }
+
+  // Signed with this phone's device key, like the check-in hello. Live only:
+  // never queued, never retried, any failure is ignored.
+  async function holdLiveCode(pub) {
+    if (!checkinNonce || !orgParam) return null;
+    try {
+      const helloPayload = { mode: "checkin_hold", org: orgParam, pub, ts: Math.floor(Date.now() / 1000), event_id: eventId || null, nonce: checkinNonce, v: 2 };
+      const helloHash = await hashPayloadToB64url(helloPayload, 3);
+      const helloSig = await signHashB64url(helloHash);
+      return await postOrg("/org/checkin/hold", { helloPayload, helloHash, helloSig, nonce: checkinNonce, event_id: eventId || null });
+    } catch (err) {
+      console.warn("First-scan hold not placed", err && (err.status || err.message));
+      return null;
     }
   }
 

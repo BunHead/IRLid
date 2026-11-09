@@ -45,7 +45,10 @@
     // login token, can stick forever on a 5xx, and the page used to say
     // "Deleted record" while nothing had been deleted. It fails loudly now.
     /^\/org\/expected\/[^/?]+\/full([/?]|$)/,               // Delete record (Lead Admin / Developer)
-    /^\/org\/debug\//                                         // Clear attendance
+    /^\/org\/debug\//,                                        // Clear attendance
+    // v6.8.13 — a first-scan hold only means anything while the code is live,
+    // so it is never queued (a late copy would only be refused).
+    /^\/org\/checkin\/hold([/?]|$)/
   ];
 
   function isQueueEligible(path, method) {
