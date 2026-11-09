@@ -87,6 +87,11 @@ CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NU
 
 CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
 
+-- v6.8.13 first-scan hold: a first-time phone holds the live code it scanned
+-- (signed with its device key) while staff approve it. Single use, one device
+-- key, 10 minutes. The Worker also creates this table on first use.
+CREATE TABLE IF NOT EXISTS org_checkin_holds (id TEXT PRIMARY KEY, nonce TEXT NOT NULL, org_id TEXT NOT NULL, event_id TEXT, device_key_fp TEXT NOT NULL, hello_hash TEXT, held_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, checkin_id TEXT, UNIQUE (nonce, device_key_fp));
+
 CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_code TEXT NOT NULL, first_name TEXT NOT NULL, surname TEXT NOT NULL, status TEXT DEFAULT 'assist', created_at INTEGER NOT NULL, linked_at INTEGER, device_key_fp TEXT, prototype_role TEXT DEFAULT 'attendee');
 
 CREATE TABLE IF NOT EXISTS org_invites (

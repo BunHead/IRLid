@@ -5055,6 +5055,148 @@ async function consumeLiveCode(env, nonce, crowd, t) {
   return null;
 }
 
+// First-scan hold (option C, docs/design-first-time-approval.md; Spencer,
+// 9 Nov 2026: 10 minutes). A phone the org has never seen scans the live
+// code, then waits on the orange screen for staff. Approval usually takes
+// longer than the code's 90 s, so its first check-in used to land as
+// "offline". Now, while the code is still live, the phone sends a hold signed
+// with its device key (S1). The Worker checks the code is live, records
+// {code, device key fp, org, event, server time} and tells the screen to move
+// to a new code. When the phone checks in with that code, signed by the same
+// key, live (not a late or queued replay) and within CHECKIN_HOLD_TTL_S of the
+// hold, the hold is used up (once) and the check-in is "fresh": the server saw
+// this phone's signed hello with a live code inside the code's life.
+// "Fresh" keeps its meaning (S13, C9): the phone's clock or flags never make a
+// hold or a check-in fresh, and a hold never refuses anything. A failed hold,
+// or a check-in with no usable hold, takes the normal path unchanged (offline
+// / unverified, C2, C6, C14), and the hold endpoint is never queued (C8).
+// Two phones, one code: a hold does not take the code's own one-time check-in.
+// So a known phone that scanned the same screen a moment earlier or later
+// still checks in fresh, and another first-time phone can hold the same code
+// within CHECKIN_HOLD_SHARED_GRACE_S of the first hold or check-in (the ~2 s
+// before the screen changes), up to CHECKIN_HOLD_MAX_PER_CODE holds.
+const CHECKIN_HOLD_TTL_S = 600;
+const CHECKIN_HOLD_SHARED_GRACE_S = 5;
+const CHECKIN_HOLD_MAX_PER_CODE = 4;
+
+// The hold hello is signed like a check-in hello, with mode "checkin_hold".
+async function verifyCheckinHoldSignature(org, body) {
+  const hello = body.helloPayload;
+  const sig = typeof body.helloSig === "string" ? body.helloSig.trim() : "";
+  if (!hello || typeof hello !== "object" || !sig) return { ok: false, reason: "missing_signature" };
+  const pub = normaliseDevicePubJwk(hello.pub);
+  if (!pub) return { ok: false, reason: "bad_public_key" };
+  const hash = await hashPayloadToB64url(hello, 3);
+  if (body.helloHash && body.helloHash !== hash) return { ok: false, reason: "hash_mismatch" };
+  if (!(await verifySig(hash, sig, pub))) return { ok: false, reason: "bad_signature" };
+  const ts = Number(hello.ts);
+  if (!Number.isFinite(ts) || ts <= 0) return { ok: false, reason: "bad_timestamp" };
+  if (hello.mode !== "checkin_hold" || !orgRefMatches(org, hello.org)) return { ok: false, reason: "signed_for_other_org" };
+  if (!body.nonce || String(hello.nonce || "") !== String(body.nonce)) return { ok: false, reason: "code_not_signed" };
+  if (String(hello.event_id || "") !== String(body.event_id || "")) return { ok: false, reason: "event_not_signed" };
+  return { ok: true, ts: Math.floor(ts), hash, pub };
+}
+
+// Remembered per database binding (not one module flag), so a Worker that
+// sees a new or reset database still creates the table.
+async function ensureCheckinHoldStorage(env) {
+  if (checkinHoldStorageReady.has(env.DB)) return;
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS org_checkin_holds (id TEXT PRIMARY KEY, nonce TEXT NOT NULL, org_id TEXT NOT NULL, event_id TEXT, device_key_fp TEXT NOT NULL, hello_hash TEXT, held_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, checkin_id TEXT, UNIQUE (nonce, device_key_fp))"
+  ).run();
+  checkinHoldStorageReady.add(env.DB);
+}
+const checkinHoldStorageReady = new WeakSet();
+
+// POST /org/checkin/hold. Live only: the phone sends it once, online, from the
+// orange screen and ignores any failure (the check-in then lands as it would
+// have without a hold). Never queued, so its refusals are not on a replay path.
+async function orgCheckinHold(request, env) {
+  const org = await orgFromRequest(request, env);
+  if (!org) return authErr("Invalid org key or slug", 401);
+  let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  await ensureOrgCheckinNonceStorage(env);
+  await ensureCheckinHoldStorage(env);
+  const nonce = cleanOptionalText(body?.nonce, 64);
+  const eventId = cleanOptionalText(body?.event_id, 90);
+  if (!nonce) return err("nonce required");
+  const signature = await verifyCheckinHoldSignature(org, { ...body, nonce, event_id: eventId });
+  if (!signature.ok) return json({ error: "Hold signature invalid", reason: signature.reason }, 401);
+  const tNow = now();
+  // The phone's clock can only refuse a hold, never make one.
+  if (tNow - signature.ts > LIVE_CHECKIN_WINDOW_S || signature.ts - tNow > CLOCK_GAP_AHEAD_S) {
+    return json({ error: "Hold is not live", reason: "hold_not_live" }, 409);
+  }
+  const deviceFp = await deviceKeyFp(signature.pub);
+  const row = await env.DB.prepare(
+    "SELECT org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=?"
+  ).bind(nonce).first();
+  if (!row || row.org_api_key !== org.api_key || String(row.event_id || "") !== String(eventId || "")) {
+    return err("Check-in nonce not found", 404);
+  }
+  if (Number(row.expires_at) <= tNow) return err("Check-in nonce expired", 410);
+  // Same phone again (a retry): the hold it already has stands, unchanged.
+  const mine = await env.DB.prepare(
+    "SELECT id,held_at,expires_at,used_at FROM org_checkin_holds WHERE nonce=? AND device_key_fp=? LIMIT 1"
+  ).bind(nonce, deviceFp).first();
+  if (mine) return json({ held: true, hold_id: mine.id, held_at: Number(mine.held_at), expires_at: Number(mine.expires_at), duplicate: true });
+  // Only while the code is live and unseen, or seen within the shared grace
+  // (two phones scanning the same frame). Checked and written in one
+  // statement so two holds racing each other cannot both slip past the cap.
+  const id = "hold_" + randomToken();
+  const sinceGrace = tNow - CHECKIN_HOLD_SHARED_GRACE_S;
+  const inserted = await env.DB.prepare(
+    `INSERT OR IGNORE INTO org_checkin_holds (id,nonce,org_id,event_id,device_key_fp,hello_hash,held_at,expires_at,used_at,checkin_id)
+     SELECT ?,?,?,?,?,?,?,?,NULL,NULL
+     WHERE EXISTS (SELECT 1 FROM org_checkin_nonces n WHERE n.nonce=? AND n.expires_at>? AND (n.consumed_at IS NULL OR n.consumed_at>=?))
+       AND NOT EXISTS (SELECT 1 FROM org_checkin_holds h WHERE h.nonce=? AND h.held_at<?)
+       AND (SELECT COUNT(*) FROM org_checkin_holds h WHERE h.nonce=?) < ?`
+  ).bind(id, nonce, org.id, eventId || null, deviceFp, signature.hash, tNow, tNow + CHECKIN_HOLD_TTL_S,
+    nonce, tNow, sinceGrace, nonce, sinceGrace, nonce, CHECKIN_HOLD_MAX_PER_CODE).run();
+  if (Number(inserted.meta?.changes || 0) !== 1) {
+    const again = await env.DB.prepare(
+      "SELECT id,held_at,expires_at FROM org_checkin_holds WHERE nonce=? AND device_key_fp=? LIMIT 1"
+    ).bind(nonce, deviceFp).first();
+    if (again) return json({ held: true, hold_id: again.id, held_at: Number(again.held_at), expires_at: Number(again.expires_at), duplicate: true });
+    return err("Check-in nonce already used", 409);
+  }
+  requestHubHints.set(request, { nonce });
+  return json({ held: true, hold_id: id, held_at: tNow, expires_at: tNow + CHECKIN_HOLD_TTL_S });
+}
+
+// The unused, unexpired hold this device has on this code, or null. A hold
+// problem (table missing, D1 hiccup) never fails or changes a check-in: it
+// just takes the normal path, as if there were no hold (C13).
+async function findCheckinHold(env, org, nonce, eventId, deviceFp, t) {
+  if (!nonce || !deviceFp) return null;
+  let hold = null;
+  try {
+    await ensureCheckinHoldStorage(env);
+    hold = await env.DB.prepare(
+      "SELECT id,held_at,expires_at,event_id FROM org_checkin_holds WHERE nonce=? AND device_key_fp=? AND org_id=? AND used_at IS NULL LIMIT 1"
+    ).bind(nonce, deviceFp, org.id).first();
+  } catch (e) {
+    console.warn("[hold] lookup failed:", e && e.message);
+    return null;
+  }
+  if (!hold || Number(hold.expires_at) <= t) return null;
+  if (String(hold.event_id || "") !== String(eventId || "")) return null;
+  return hold;
+}
+
+// Uses the hold up. Single use: only one check-in can ever do this.
+async function redeemCheckinHold(env, holdId, checkinId, t) {
+  try {
+    const res = await env.DB.prepare(
+      "UPDATE org_checkin_holds SET used_at=?, checkin_id=? WHERE id=? AND used_at IS NULL AND expires_at>?"
+    ).bind(t, checkinId, holdId, t).run();
+    return Number(res.meta?.changes || 0) === 1;
+  } catch (e) {
+    console.warn("[hold] redeem failed:", e && e.message);
+    return false;
+  }
+}
+
 // Quarantine flood guard. /org/checkin is reachable with the public slug, so a
 // stranger could post endless bad-signature bodies. Each org keeps at most
 // QUARANTINE_DAILY_CAP stored rows per UTC day; past that, the phone still
@@ -5187,8 +5329,10 @@ async function orgCheckin(request, env) {
   let signedTs = null;
   // C15: no signature at all, from an old page, before the server cutoff.
   let unsignedGrace = false;
+  let signatureOk = false;
   if (mode === "attendee_scan") {
     const signature = await verifyCheckinSignature(org, body);
+    signatureOk = signature.ok === true;
     signedTs = signature.ts;
     // No usable signed time counts as live: only a provably old hello may
     // take the offline path. An UNSIGNED hello's time proves nothing, so it
@@ -5266,11 +5410,20 @@ async function orgCheckin(request, env) {
   let assurance = null;
   let outOfHours = false;
   let crowd = false;
+  let heldCode = false;
+  const newCheckinId = clientCheckinId || uuid();
   if (mode === "attendee_scan") {
     crowd = await isCrowdEvent(env, org.id, eventId);
+    // First-scan hold: this phone held this code while it was live (see
+    // orgCheckinHold). Only a correctly signed, live check-in by the same
+    // device key can use it; a late or queued replay never does, and the
+    // queue flag can only take the hold away, never grant it.
+    const hold = nonce && signatureOk && live && body.offline_queued !== true
+      ? await findCheckinHold(env, org, nonce, eventId, attendeeDeviceFp, tNow)
+      : null;
     // An unsigned check-in (C15 grace) is never fresh: its code is evidence only.
-    let codeError = nonce && !unsignedGrace ? await checkLiveCode(env, org, nonce, eventId, crowd, tNow) : null;
-    const codeUsable = !!nonce && !unsignedGrace && !codeError;
+    let codeError = !hold && nonce && !unsignedGrace ? await checkLiveCode(env, org, nonce, eventId, crowd, tNow) : null;
+    const codeUsable = !!nonce && !unsignedGrace && (!!hold || !codeError);
     // A slow phone clock must not cost a live scan its valid code.
     if (codeUsable) live = true;
     let fresh = false;
@@ -5296,7 +5449,9 @@ async function orgCheckin(request, env) {
     if (codeUsable) {
       // The live code proves the time (C5): outside the event's times it is
       // refused, unless a staff-tier member signs in with a signed staff session.
-      if (eventRow && !eventWindowContains(eventRow, tNow)) {
+      // A held code proves the time of the hold, not of the approval.
+      const provenAt = hold ? Number(hold.held_at) : tNow;
+      if (eventRow && !eventWindowContains(eventRow, provenAt)) {
         if (!(await staffSessionForDevice(env, org, staff_session, attendeeDeviceFp))) {
           return json({ error: "This event is not open for check-in right now", reason: "outside_event_times" }, 403);
         }
@@ -5304,8 +5459,16 @@ async function orgCheckin(request, env) {
       }
       // Used up a moment ago by someone else (a lost race): C14, so it lands
       // as offline instead of being refused.
-      codeError = await consumeLiveCode(env, nonce, crowd, tNow);
-      fresh = !codeError;
+      if (hold) {
+        // The hold, not the code's own one-time check-in, is used up, so a
+        // phone that scanned the same screen keeps its fresh check-in. Lost
+        // only to another check-in by this same phone: then offline (C14).
+        fresh = await redeemCheckinHold(env, hold.id, newCheckinId, tNow);
+        heldCode = fresh;
+      } else {
+        codeError = await consumeLiveCode(env, nonce, crowd, tNow);
+        fresh = !codeError;
+      }
     }
     if (fresh) {
       assurance = "fresh";
@@ -5354,7 +5517,7 @@ async function orgCheckin(request, env) {
   // Phone-reported (S13): it can never vouch for a check-in, and it never
   // refuses an offline / unverified one (C2). Only a fresh scan is held to it.
   if (assurance === "fresh" && score !== undefined && score < minScore) return err(`Score ${score} below minimum ${minScore}`, 403);
-  const id = clientCheckinId || uuid();
+  const id = newCheckinId;
   // Live check-ins use the Worker's clock; an offline replay keeps the phone's
   // signed scan time (never in the future) and the Worker's received time.
   const t = mode === "attendee_scan" && assurance !== "fresh" && signedTs !== null ? Math.min(signedTs, tNow) : tNow;
@@ -5489,6 +5652,7 @@ async function orgCheckin(request, env) {
     settings,
     ...(assurance ? { assurance } : {}),
     ...(outOfHours ? { out_of_hours: true } : {}),
+    ...(heldCode ? { held_code: true } : {}),
     ...(clockGap ? { clock_gap: true, clock_gap_s: clockGapS } : {}),
     ...(gpsBand ? { gps_band: gpsBand } : {}),
     ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
@@ -5548,7 +5712,15 @@ async function orgCheckinNonceStatus(request, env) {
     "SELECT expires_at,consumed_at FROM org_checkin_nonces WHERE nonce=? AND org_api_key=? LIMIT 1"
   ).bind(nonce, org.api_key).first();
   if (!row) return noStore(err("Check-in nonce not found", 404));
-  const used = row.consumed_at !== null && row.consumed_at !== undefined;
+  // A held code reads as used, so the screen moves on to a new code.
+  let held = null;
+  try {
+    await ensureCheckinHoldStorage(env);
+    held = await env.DB.prepare("SELECT 1 AS held FROM org_checkin_holds WHERE nonce=? LIMIT 1").bind(nonce).first();
+  } catch (e) {
+    console.warn("[hold] status lookup failed:", e && e.message);
+  }
+  const used = (row.consumed_at !== null && row.consumed_at !== undefined) || !!held;
   return noStore(json({
     nonce,
     used,
@@ -7143,6 +7315,7 @@ async function orgWebSocket(request, env) {
 // page re-fetches through the normal authenticated endpoints.
 function hubEventTypesFor(method, path) {
   if (method === "POST" && path === "/org/checkin") return ["attendance"];
+  if (method === "POST" && path === "/org/checkin/hold") return ["attendance"];
   if (method === "POST" && path === "/org/checkout") return ["attendance"];
   if (method === "POST" && path === "/org/debug/clear-attendance") return ["attendance"];
   if (method === "POST" && /^\/org\/conflicts\/\d+\/resolve$/.test(path)) return ["attendance"];
@@ -7276,6 +7449,7 @@ export default {
       else if (method === "GET"  && path === "/org/members")         response = await orgMembersList(request, env);
       else if (method === "GET"  && path === "/org/audit-log")        response = await orgAuditLog(request, env);
       else if (method === "POST" && path === "/org/checkin")         response = await orgCheckin(request, env);
+      else if (method === "POST" && path === "/org/checkin/hold")    response = await orgCheckinHold(request, env);
       else if (method === "POST" && path === "/org/checkout")        response = await orgCheckout(request, env);
       else if (method === "POST" && path === "/org/checkin-nonce")   response = await orgCreateCheckinNonce(request, env);
       else if (method === "GET"  && path === "/org/checkin-nonce/status") response = await orgCheckinNonceStatus(request, env);
