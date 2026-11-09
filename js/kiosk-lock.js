@@ -238,7 +238,7 @@
             if (timingSafeEqual(want, typed)) {
               used.add(ch);
               current = null;
-              return { ok: true, key_id: key.key_id, challenge: ch };
+              return { ok: true, key_id: key.key_id, challenge: ch, code: typed };
             }
           }
           if (current !== cur) return { ok: false, reason: "expired" };
@@ -255,6 +255,88 @@
       }
     };
   }
+
+  // ---------- Screen key cache (docs/kiosk-lock.md) ----------
+  // The Worker hands an approved screen its keys with an expiry. The screen
+  // uses them only until then, and only for the screen id they were made for.
+  // Older caches (no expiry) are never used.
+  const KEY_CACHE_VERSION = 2;
+  function readKeyCache(saved, kioskId, nowMs) {
+    if (!saved || saved.v !== KEY_CACHE_VERSION || saved.kiosk_id !== kioskId || !Array.isArray(saved.keys)) return [];
+    const exp = Number(saved.expires_at);
+    if (!Number.isFinite(exp) || exp <= Number(nowMs)) return [];
+    return saved.keys;
+  }
+  function makeKeyCache(data) {
+    return { v: KEY_CACHE_VERSION, kiosk_id: data.kiosk_id, keys: data.keys, fetched_at: data.fetched_at, expires_at: Number(data.expires_at) };
+  }
+  // What to do with cached keys when a refresh fails:
+  //  - the Worker says no: 401 (sign-in lapsed or signed out: the dashboard
+  //    signs out on a 401 anyway), 403 (screen revoked / expired / not
+  //    approved, or the session lost its role), 409 (lock turned off):
+  //    drop them now.
+  //  - network error / 5xx: keep them until their own expiry (72 h at most),
+  //    so an offline screen can still be unlocked (offline-first, C1).
+  function keyCacheOnError(err) {
+    const status = Number(err && err.status);
+    if (status === 401 || status === 403 || status === 409) return "clear";
+    return "keep";
+  }
+
+  // ---------- Offline unlock audit queue ----------
+  // Every offline unlock is kept until the Worker has recorded it; nothing is
+  // dropped to make room (R5, C7). Lock-outs (5 wrong codes) can be made by
+  // anyone at the screen, so they are kept one by one only up to
+  // LOG_MAX_DENIED; past that they are counted (with first and last time)
+  // and the count is synced as one audit row. A burst of wrong codes can
+  // therefore never push a real unlock out of the queue.
+  const LOG_MAX_DENIED = 100;
+  const LOG_BATCH = 50;
+  function normaliseLogQueue(raw) {
+    if (Array.isArray(raw)) return { v: 2, entries: raw.filter(Boolean), overflow: null }; // pre-v6.8.12 format
+    if (!raw || typeof raw !== "object" || !Array.isArray(raw.entries)) return { v: 2, entries: [], overflow: null };
+    const ov = raw.overflow && Number(raw.overflow.count) > 0 ? raw.overflow : null;
+    return { v: 2, entries: raw.entries.filter(Boolean), overflow: ov };
+  }
+  function appendLogEntry(queue, entry, maxDenied) {
+    const q = normaliseLogQueue(queue);
+    const cap = maxDenied || LOG_MAX_DENIED;
+    if (entry && entry.outcome === "denied" && q.entries.filter(function (e) { return e.outcome === "denied"; }).length >= cap) {
+      const at = Number(entry.at) || 0;
+      const ov = q.overflow || { count: 0, first_at: at, last_at: at };
+      q.overflow = { count: Number(ov.count) + 1, first_at: Math.min(Number(ov.first_at) || at, at), last_at: Math.max(Number(ov.last_at) || at, at) };
+    } else if (entry) {
+      q.entries.push(entry);
+    }
+    return q;
+  }
+  function logEntryId(e) { return String(e && e.challenge) + ":" + String(e && e.outcome); }
+  // The next batch to send: at most LOG_BATCH entries, plus the overflow count
+  // with the last batch.
+  function logBatch(queue, size) {
+    const q = normaliseLogQueue(queue);
+    const n = size || LOG_BATCH;
+    const entries = q.entries.slice(0, n);
+    return { entries: entries, overflow: q.entries.length <= n ? q.overflow : null };
+  }
+  // After the Worker accepted a batch: remove exactly what was sent (entries
+  // queued meanwhile stay), and the overflow count that was sent.
+  function ackLogBatch(queue, sent) {
+    const q = normaliseLogQueue(queue);
+    const ids = new Set((sent.entries || []).map(logEntryId));
+    q.entries = q.entries.filter(function (e) { return !ids.has(logEntryId(e)); });
+    if (sent.overflow && q.overflow) {
+      const left = Number(q.overflow.count) - Number(sent.overflow.count);
+      q.overflow = left > 0 ? { count: left, first_at: sent.overflow.last_at, last_at: q.overflow.last_at } : null;
+    }
+    return q;
+  }
+  function logQueueSize(queue) {
+    const q = normaliseLogQueue(queue);
+    return q.entries.length + (q.overflow ? Number(q.overflow.count) : 0);
+  }
+
+  const NO_KEYS_TEXT = "This screen has no offline codes it can check. A Lead Admin or Developer must set up their phone and approve this screen (Settings, 5. Sign-in & Auth, Kiosk and door screen) while online. Approved keys stop working after 72 hours offline.";
 
   // ---------- Browser UI ----------
 
@@ -485,7 +567,7 @@
       show(verifier.challenge());
       if (note) setStatus(note, "wait");
       if (!keys.length) {
-        setStatus("No offline code is set up on this screen yet. A Lead Admin or Developer must set one up on their phone, then this screen must be online once.", "err");
+        setStatus(NO_KEYS_TEXT, "err");
       }
       // Refresh the challenge display when it runs out.
       const tick = win.setInterval(function () {
@@ -505,7 +587,7 @@
         input.value = "";
         if (r.ok && state.acceptOfflineUnlock(r)) {
           setStatus("Unlocked.", "ok");
-          try { if (typeof opts.offline.onLog === "function") opts.offline.onLog({ key_id: r.key_id, challenge: r.challenge, at: Date.now(), outcome: "allowed" }); } catch (_) {}
+          try { if (typeof opts.offline.onLog === "function") opts.offline.onLog({ key_id: r.key_id, challenge: r.challenge, code: r.code, at: Date.now(), outcome: "allowed" }); } catch (_) {}
           win.clearInterval(tick);
           closePanel();
           destroy();
@@ -520,7 +602,7 @@
           show(verifier.challenge());
           setStatus("That challenge ran out. Scan the new one.", "err");
         } else if (r.reason === "no_keys") {
-          setStatus("No offline code is set up on this screen yet. The screen stays locked.", "err");
+          setStatus(NO_KEYS_TEXT + " The screen stays locked.", "err");
         } else if (r.reason === "format") {
           setStatus("Type the 8-digit code from the phone.", "err");
         } else {
@@ -607,7 +689,9 @@
 
   const api = {
     UNLOCK_ACTION, createLockState, runUnlock, attach,
-    deriveKioskKey, offlineCode, createOfflineVerifier, newKioskId, randomB32, b64uToBytes
+    deriveKioskKey, offlineCode, createOfflineVerifier, newKioskId, randomB32, b64uToBytes,
+    readKeyCache, makeKeyCache, keyCacheOnError,
+    normaliseLogQueue, appendLogEntry, logBatch, ackLogBatch, logQueueSize, LOG_MAX_DENIED, LOG_BATCH
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.IRLidKioskLock = api;

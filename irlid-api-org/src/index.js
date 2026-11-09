@@ -489,7 +489,7 @@ function corsHeaders(env, request) {
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id, X-Login-Poll-Secret",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id, X-Login-Poll-Secret, X-Kiosk-Secret",
     "Access-Control-Max-Age": "86400"
   };
 }
@@ -1431,7 +1431,7 @@ async function orgActionInit(request, env) {
   try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const actionType = String(body.action_type || body.actionType || "").trim();
   if (!/^irlid_[a-z_]+_v5$/.test(actionType)) return err("invalid_action_type");
-  if (!["irlid_invite_v5", "irlid_calendar_write_v5", KIOSK_UNLOCK_ACTION].includes(actionType)) return json({ error: "unsupported_action_type" }, 400);
+  if (!["irlid_invite_v5", "irlid_calendar_write_v5", KIOSK_UNLOCK_ACTION, KIOSK_SCREEN_APPROVE_ACTION].includes(actionType)) return json({ error: "unsupported_action_type" }, 400);
   const actionPayloadIn = body.action_payload || body.actionPayload || {};
   const orgId = String(actionPayloadIn.org_id || body.org_id || body.orgId || "").trim();
   if (!orgId) return err("org_id required");
@@ -1440,24 +1440,41 @@ async function orgActionInit(request, env) {
     .bind(orgId).first();
   if (!org) return json({ error: "org_not_found" }, 404);
   const role = await orgRoleForUser(env, ctx.user, org.id);
-  const requiredRole = await pendingActionMinRole(env, actionType, org);
+  // Who may ASK for the action. For the kiosk screen approval this is the
+  // screen's own (staff-tier) session; who may SIGN it is checked at claim.
+  const requiredRole = actionType === KIOSK_SCREEN_APPROVE_ACTION ? "staff" : await pendingActionMinRole(env, actionType, org);
   if (expectedRoleRank(role) < expectedRoleRank(requiredRole)) {
     return json({ error: "insufficient_role", required: requiredRole, actual: role || null }, 403);
   }
 
   const tMs = Date.now();
   const nonce = randomToken();
-  if (actionType === KIOSK_UNLOCK_ACTION && !kioskLockActiveFromSettings(org.settings_json)) {
+  const kioskAction = actionType === KIOSK_UNLOCK_ACTION || actionType === KIOSK_SCREEN_APPROVE_ACTION;
+  if (kioskAction && !kioskLockActiveFromSettings(org.settings_json)) {
     return json({ error: "kiosk_lock_off" }, 409);
   }
-  const actionPayload = actionType === KIOSK_UNLOCK_ACTION
-    ? kioskUnlockPayload(org.id)
-    : normalisePendingActionPayload(actionType, org.id, actionPayloadIn, ctx.user);
+  let actionPayload;
+  let summary;
+  if (actionType === KIOSK_UNLOCK_ACTION) {
+    actionPayload = kioskUnlockPayload(org.id);
+    summary = KIOSK_UNLOCK_SUMMARY;
+  } else if (actionType === KIOSK_SCREEN_APPROVE_ACTION) {
+    // Built here from checked fields only; the phone signs exactly this.
+    const kioskId = String(actionPayloadIn.kiosk_id || "").trim();
+    const secretHash = String(actionPayloadIn.secret_hash || "").trim();
+    if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
+    if (!KIOSK_SECRET_HASH_RE.test(secretHash)) return err("invalid_secret_hash");
+    actionPayload = {
+      type: KIOSK_SCREEN_APPROVE_ACTION, org_id: org.id, kiosk_id: kioskId, secret_hash: secretHash,
+      purpose: "offline_unlock_screen", approval_expires_at: tMs + KIOSK_SCREEN_TTL_MS
+    };
+    summary = "Let screen " + kioskId + " accept offline unlock codes for " + Math.round(KIOSK_SCREEN_TTL_MS / 86400000) + " days";
+  } else {
+    actionPayload = normalisePendingActionPayload(actionType, org.id, actionPayloadIn, ctx.user);
+    summary = String(body.action_summary || body.actionSummary || actionType).trim().slice(0, 240);
+  }
   actionPayload.timestamp = Number(actionPayload.timestamp || tMs);
   actionPayload.nonce = nonce;
-  const summary = actionType === KIOSK_UNLOCK_ACTION
-    ? KIOSK_UNLOCK_SUMMARY
-    : String(body.action_summary || body.actionSummary || actionType).trim().slice(0, 240);
   const expiresAt = tMs + ACTION_AUTH_TTL_MS;
   await env.DB.prepare(
     "INSERT INTO pending_action_authorizations (nonce, org_id, requestor_user_id, action_type, action_payload_json, action_summary, created_at, expires_at, status, fail_count, locked_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, 0)"
@@ -1547,6 +1564,12 @@ async function ensureKioskCodeStorage(env) {
     "CREATE TABLE IF NOT EXISTS kiosk_code_keys (key_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, user_id TEXT NOT NULL, pub_fp TEXT NOT NULL, seed TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER)"
   ).run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_kiosk_code_keys_org ON kiosk_code_keys(org_id)").run();
+  // Screens a Lead Admin / Developer approved for offline codes (times in ms).
+  // Only the SHA-256 of each screen's secret is kept.
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS kiosk_screens (approval_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kiosk_id TEXT NOT NULL, secret_hash TEXT NOT NULL, approved_by_user_id TEXT NOT NULL, approved_by_pub_fp TEXT, approved_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER, revoked_by_user_id TEXT)"
+  ).run();
+  await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_kiosk_screens_org_kiosk ON kiosk_screens(org_id, kiosk_id)").run();
   kioskCodeStorageReady = true;
 }
 
@@ -1601,6 +1624,84 @@ async function orgKioskCodeEnrol(request, env) {
   return json({ ok: true, key_id: String(p.key_id), role });
 }
 
+// ---- Approved screens (offline codes) ---------------------------------------
+// A screen gets offline keys only after a Lead Admin or Developer approves
+// THAT screen in person: the screen asks for an approval QR
+// (POST /org/action/init, action irlid_kiosk_screen_approve_v5, sending its
+// screen id and the SHA-256 of a random secret it keeps), the admin scans it
+// and signs with their v5 hardware key. The Worker builds the payload, so the
+// signature is bound to this org, this screen id, this secret, a single-use
+// nonce (3 min, S6) and an approval expiry. Then GET /org/kiosk/code-keys
+// needs the screen's secret (X-Kiosk-Secret) as well as a staff-tier
+// session, so another staff member's session can no longer fetch keys for a
+// screen id it typed in. A Developer approves with no org membership
+// (orgRoleForUser gives the bootstrap Developer "developer" everywhere).
+//
+// Screen keys handed out carry an expiry (KIOSK_KEY_TTL_MS, never past the
+// approval's own expiry). The screen drops them at that time, and drops them
+// at once when the Worker says the screen is revoked or expired, the lock is
+// off, or the session has lost its role (see docs/kiosk-lock.md).
+const KIOSK_SCREEN_APPROVE_ACTION = "irlid_kiosk_screen_approve_v5";
+const KIOSK_SCREEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;   // approval lasts 30 days
+const KIOSK_KEY_TTL_MS = 72 * 60 * 60 * 1000;           // a fetched key works 72 h offline
+const KIOSK_SECRET_HASH_RE = /^[A-Za-z0-9_-]{43}$/;      // base64url SHA-256
+const KIOSK_SECRET_RE = /^[A-Za-z0-9_-]{43}$/;           // base64url 32 bytes
+const KIOSK_LOG_MAX_ENTRIES = 200;
+
+function kioskScreenApprovePayloadSchema(p) {
+  if (!p || p.type !== KIOSK_SCREEN_APPROVE_ACTION || !p.org_id || !p.nonce || !p.timestamp) return false;
+  const allowed = new Set(["type", "org_id", "kiosk_id", "secret_hash", "purpose", "approval_expires_at", "nonce", "timestamp"]);
+  if (Object.keys(p).some(k => !allowed.has(k))) return false;
+  return p.purpose === "offline_unlock_screen" && KIOSK_ID_RE.test(String(p.kiosk_id || "")) &&
+    KIOSK_SECRET_HASH_RE.test(String(p.secret_hash || "")) && Number.isFinite(Number(p.approval_expires_at));
+}
+
+async function executeKioskScreenApproval(env, action) {
+  const p = action.payload || {};
+  const user = action.authorized_by_user || action.user;
+  const role = action.role;
+  if (!user || !KIOSK_CODE_ROLES.has(role)) return { error: json({ error: "insufficient_role", required: "lead_admin" }, 403) };
+  const org = await env.DB.prepare("SELECT id, settings_json FROM organisations WHERE id = ?").bind(String(p.org_id)).first();
+  if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  if (!kioskLockActiveFromSettings(org.settings_json)) return { error: json({ error: "kiosk_lock_off" }, 409) };
+  const t = Date.now();
+  const expiresAt = Math.min(Number(p.approval_expires_at), t + KIOSK_SCREEN_TTL_MS);
+  if (!(expiresAt > t)) return { error: json({ error: "invalid_action_payload" }, 400) };
+  await ensureKioskCodeStorage(env);
+  // One live approval per screen: a new approval replaces the old one, in
+  // one transaction.
+  await env.DB.batch([
+    env.DB.prepare("UPDATE kiosk_screens SET revoked_at=?, revoked_by_user_id=? WHERE org_id=? AND kiosk_id=? AND revoked_at IS NULL")
+      .bind(t, user.id, org.id, String(p.kiosk_id)),
+    env.DB.prepare("INSERT INTO kiosk_screens (approval_id, org_id, kiosk_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at) VALUES (?,?,?,?,?,?,?,?)")
+      .bind(String(p.nonce), org.id, String(p.kiosk_id), String(p.secret_hash), user.id, user.pub_fp || null, t, expiresAt)
+  ]);
+  return { ok: true, result: { approved: true, kiosk_id: String(p.kiosk_id), expires_at: expiresAt } };
+}
+
+// The screen's approval row, if the secret it sent matches one. Checked in
+// constant time against every approval this screen id has had, newest first.
+async function kioskScreenForSecret(env, orgId, kioskId, secret) {
+  if (!KIOSK_SECRET_RE.test(String(secret || ""))) return null;
+  await ensureKioskCodeStorage(env);
+  const hash = await sha256B64url(String(secret));
+  const rows = (await env.DB.prepare(
+    "SELECT approval_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at, revoked_at FROM kiosk_screens WHERE org_id=? AND kiosk_id=? ORDER BY approved_at DESC LIMIT 20"
+  ).bind(orgId, kioskId).all()).results || [];
+  for (const row of rows) if (constantTimeEqual(hash, row.secret_hash)) return row;
+  return null;
+}
+
+// Why a screen may not have keys right now, or null if it may.
+async function kioskScreenProblem(env, orgId, screen) {
+  if (!screen) return "not_approved";
+  if (screen.revoked_at) return "revoked";
+  if (Number(screen.expires_at) <= Date.now()) return "expired";
+  const approverRole = await orgRoleForUser(env, { id: screen.approved_by_user_id, pub_fp: screen.approved_by_pub_fp }, orgId);
+  if (!KIOSK_CODE_ROLES.has(approverRole)) return "approver_role";
+  return null;
+}
+
 // Resolve a Bearer session that is a member (staff or above) of the org.
 async function kioskSessionForOrg(request, env, orgId) {
   const ctx = await requireSession(request, env);
@@ -1614,18 +1715,28 @@ async function kioskSessionForOrg(request, env, orgId) {
   return { user: ctx.user, org, role };
 }
 
-// GET /org/kiosk/code-keys?org_id=&kiosk_id= — this kiosk's derived keys.
-// Only seeds whose owner is a Lead Admin or Developer of the org right now
-// are returned, so losing that role stops their codes at the next refresh.
+// GET /org/kiosk/code-keys?org_id=&kiosk_id=   header X-Kiosk-Secret
+// This approved screen's derived keys. Only seeds whose owner is a Lead Admin
+// or Developer of the org right now are returned, so losing that role stops
+// their codes at the next refresh.
 async function orgKioskCodeKeys(request, env) {
   const url = new URL(request.url);
   const orgId = String(url.searchParams.get("org_id") || "").trim();
   const kioskId = String(url.searchParams.get("kiosk_id") || "").trim();
   if (!orgId) return err("org_id required");
   if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
+  // The screen's own approval state is checked first, so a revoked or
+  // expired screen is told to drop its keys even when its sign-in has
+  // lapsed (it holds the secret, so this tells nobody else anything).
+  const screen = await kioskScreenForSecret(env, orgId, kioskId, request.headers.get("X-Kiosk-Secret"));
+  if (screen && (screen.revoked_at || Number(screen.expires_at) <= Date.now())) {
+    return noStore(json({ error: "kiosk_screen_not_approved", reason: screen.revoked_at ? "revoked" : "expired" }, 403));
+  }
   const ctx = await kioskSessionForOrg(request, env, orgId);
   if (ctx.error) return ctx.error;
   if (!kioskLockActiveFromSettings(ctx.org.settings_json)) return json({ error: "kiosk_lock_off" }, 409);
+  const problem = await kioskScreenProblem(env, orgId, screen);
+  if (problem) return noStore(json({ error: "kiosk_screen_not_approved", reason: problem }, 403));
   await ensureKioskCodeStorage(env);
   const rows = (await env.DB.prepare(
     "SELECT k.key_id, k.seed, k.user_id, u.pub_fp FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.org_id = ? AND k.revoked_at IS NULL"
@@ -1636,12 +1747,80 @@ async function orgKioskCodeKeys(request, env) {
     if (!KIOSK_CODE_ROLES.has(role)) continue;
     keys.push({ key_id: row.key_id, k: b64urlEncode(await kioskKeyFor(row.seed, orgId, kioskId)) });
   }
-  return noStore(json({ ok: true, org_id: orgId, kiosk_id: kioskId, keys, fetched_at: now() }));
+  const t = Date.now();
+  return noStore(json({
+    ok: true, org_id: orgId, kiosk_id: kioskId, keys,
+    fetched_at: now(),
+    expires_at: Math.min(t + KIOSK_KEY_TTL_MS, Number(screen.expires_at)),
+    screen_expires_at: Number(screen.expires_at)
+  }));
 }
 
-// POST /org/kiosk/offline-unlock-log { org_id, kiosk_id, entries:[{key_id, challenge, at, outcome}] }
+// GET /org/kiosk/screens?org_id=  (Lead Admin / Developer session)
+// Screens approved for offline codes, newest first. No secrets or hashes.
+async function orgKioskScreens(request, env) {
+  const url = new URL(request.url);
+  const orgId = String(url.searchParams.get("org_id") || "").trim();
+  if (!orgId) return err("org_id required");
+  const ctx = await kioskSessionForOrg(request, env, orgId);
+  if (ctx.error) return ctx.error;
+  if (!KIOSK_CODE_ROLES.has(ctx.role)) return json({ error: "insufficient_role", required: "lead_admin" }, 403);
+  await ensureKioskCodeStorage(env);
+  const rows = (await env.DB.prepare(
+    "SELECT s.kiosk_id, s.approved_at, s.expires_at, s.revoked_at, u.display_name AS approved_by FROM kiosk_screens s LEFT JOIN portal_users u ON u.id = s.approved_by_user_id WHERE s.org_id = ? ORDER BY s.approved_at DESC LIMIT 50"
+  ).bind(orgId).all()).results || [];
+  const t = Date.now();
+  return noStore(json({ ok: true, screens: rows.map(r => ({
+    kiosk_id: r.kiosk_id, approved_by: r.approved_by || null, approved_at: r.approved_at, expires_at: r.expires_at,
+    revoked_at: r.revoked_at || null, active: !r.revoked_at && Number(r.expires_at) > t
+  })) }));
+}
+
+// POST /org/kiosk/screen/revoke { org_id, kiosk_id }  (Lead Admin / Developer
+// session). Takes access away, so a session is enough (no hardware scan
+// standing between an admin and stopping a lost screen); it is audited.
+async function orgKioskScreenRevoke(request, env) {
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const orgId = String((body && body.org_id) || "").trim();
+  const kioskId = String((body && body.kiosk_id) || "").trim();
+  if (!orgId) return err("org_id required");
+  if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
+  const ctx = await kioskSessionForOrg(request, env, orgId);
+  if (ctx.error) return ctx.error;
+  if (!KIOSK_CODE_ROLES.has(ctx.role)) {
+    await recordAudit(env, { orgId, actorUserId: ctx.user.id, actorPubFp: ctx.user.pub_fp, actorName: ctx.user.display_name, actorRole: ctx.role,
+      action: "irlid_kiosk_screen_revoke", target: "kiosk " + kioskId, outcome: "denied", detail: "insufficient_role" });
+    return json({ error: "insufficient_role", required: "lead_admin" }, 403);
+  }
+  await ensureKioskCodeStorage(env);
+  const t = Date.now();
+  const r = await env.DB.prepare("UPDATE kiosk_screens SET revoked_at=?, revoked_by_user_id=? WHERE org_id=? AND kiosk_id=? AND revoked_at IS NULL")
+    .bind(t, ctx.user.id, orgId, kioskId).run();
+  const revoked = Number((r && r.meta && r.meta.changes) || 0);
+  await recordAudit(env, { orgId, actorUserId: ctx.user.id, actorPubFp: ctx.user.pub_fp, actorName: ctx.user.display_name, actorRole: ctx.role,
+    action: "irlid_kiosk_screen_revoke", target: "kiosk " + kioskId, outcome: "allowed",
+    detail: revoked ? "screen can no longer take offline codes" : "nothing to revoke" });
+  return json({ ok: true, revoked });
+}
+
+// POST /org/kiosk/offline-unlock-log   header X-Kiosk-Secret
+//   { org_id, kiosk_id, entries:[{key_id, challenge, code, at, outcome}], overflow? }
 // The kiosk syncs its offline unlocks (and lock-outs after 5 wrong codes)
 // into the audit log once it is back online. Same entry twice is ignored.
+//
+// Honest attribution (I1): these rows are what the SCREEN reports. The
+// screen holds the key that checks a code, so it could make a matching code
+// itself; a report is never proof that the key's owner was there. So the row
+// names no actor. It says it is kiosk-reported, whether the report came from
+// the approved screen (its secret), and whether the code it sent matches the
+// named key for that screen and challenge.
+//
+// Nothing is dropped silently (R5, C7): every well-formed entry is recorded,
+// whatever its checks say; more than KIOSK_LOG_MAX_ENTRIES in one request is
+// refused (413) rather than cut, so the screen keeps the rest and sends them
+// in smaller batches; an `overflow` count (lock-outs the screen did not keep
+// one by one) is recorded as one row.
 async function orgKioskOfflineUnlockLog(request, env) {
   let body;
   try { body = await request.json(); } catch { return err("Invalid JSON"); }
@@ -1649,51 +1828,86 @@ async function orgKioskOfflineUnlockLog(request, env) {
   const kioskId = String((body && body.kiosk_id) || "").trim();
   if (!orgId) return err("org_id required");
   if (!KIOSK_ID_RE.test(kioskId)) return err("invalid_kiosk_id");
-  const entries = Array.isArray(body.entries) ? body.entries.slice(0, 200) : [];
+  const entries = Array.isArray(body.entries) ? body.entries : [];
+  if (entries.length > KIOSK_LOG_MAX_ENTRIES) return json({ error: "too_many_entries", max: KIOSK_LOG_MAX_ENTRIES }, 413);
   const ctx = await kioskSessionForOrg(request, env, orgId);
   if (ctx.error) return ctx.error;
   await ensureKioskCodeStorage(env);
   await ensureAuditTable(env);
+  // Any approval this screen has had (even revoked or expired): it only shows
+  // the report came from the same browser that was approved.
+  const screen = await kioskScreenForSecret(env, orgId, kioskId, request.headers.get("X-Kiosk-Secret"));
+  const screenNote = screen ? "approved screen" : "screen NOT verified (no matching screen secret)";
+  const syncedBy = "synced by " + (ctx.user.display_name || ctx.user.id);
+  const when = (ms) => {
+    const s = Math.floor(Number(ms) / 1000);
+    return Number.isFinite(s) && s > 0 ? new Date(s * 1000).toISOString() : "unknown";
+  };
   let recorded = 0;
   let skipped = 0;
+  let rejected = 0;
   for (const e of entries) {
     const challenge = String((e && e.challenge) || "");
     const outcome = e && e.outcome === "denied" ? "denied" : "allowed";
-    if (!KIOSK_CHALLENGE_RE.test(challenge)) { skipped += 1; continue; }
+    if (!KIOSK_CHALLENGE_RE.test(challenge)) { rejected += 1; continue; }
     const nonce = "kiosk:" + kioskId + ":" + challenge + ":" + outcome;
-    // Cheap early skip; the insert below is what really stops duplicates.
-    const dup = await env.DB.prepare("SELECT id FROM org_audit_log WHERE org_id=? AND nonce=? LIMIT 1").bind(orgId, nonce).first();
-    if (dup) { skipped += 1; continue; }
-    let owner = null;
+    let what;
+    let keyId = null;
     if (outcome === "allowed") {
-      owner = await env.DB.prepare(
-        "SELECT k.user_id, u.pub_fp, u.display_name FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.key_id=? AND k.org_id=?"
-      ).bind(String(e.key_id || ""), orgId).first();
-      if (!owner) { skipped += 1; continue; }
+      keyId = String((e && e.key_id) || "").slice(0, 64);
+      const owner = keyId ? await env.DB.prepare(
+        "SELECT k.seed, u.display_name FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.key_id=? AND k.org_id=?"
+      ).bind(keyId, orgId).first() : null;
+      const code = String((e && e.code) || "").replace(/[^0-9]/g, "");
+      let codeNote;
+      if (!owner) codeNote = "named key not found";
+      else if (code.length !== 8) codeNote = "no code sent (older screen page)";
+      else {
+        const want = await kioskOfflineCodeFor(owner.seed, orgId, kioskId, challenge);
+        codeNote = constantTimeEqual(want, code)
+          ? "code matches the offline key of " + (owner.display_name || "unknown")
+          : "code does NOT match the named key";
+      }
+      what = "unlocked with an offline code (kiosk-reported, not signed by the key owner); " + codeNote;
+    } else {
+      what = "5 wrong codes, challenge retired (kiosk-reported)";
     }
-    const atS = Math.floor(Number(e.at) / 1000);
-    // v6.8.11: insert only if no row has this nonce, in ONE statement. Two
-    // syncs from the same screen can overlap (the "online" event and the
-    // key refresh both flush the queue); with a separate check then insert,
-    // both passed the check and the audit log showed one unlock twice
-    // (7 Nov real-device test). A single INSERT ... WHERE NOT EXISTS is atomic.
     const added = await recordAuditOnce(env, {
       orgId,
-      actorUserId: owner ? owner.user_id : null,
-      actorPubFp: owner ? owner.pub_fp : null,
-      actorName: owner ? owner.display_name : null,
-      actorRole: owner ? await orgRoleForUser(env, { id: owner.user_id, pub_fp: owner.pub_fp }, orgId) : null,
+      actorUserId: null, actorPubFp: null, actorRole: null,
+      actorName: "Kiosk " + kioskId + " (kiosk-reported)",
       action: KIOSK_OFFLINE_UNLOCK_ACTION,
       target: "kiosk " + kioskId + " (offline code)",
+      targetRef: keyId,
       outcome,
-      detail: (outcome === "denied" ? "5 wrong codes, challenge retired" : "unlocked with offline code") +
-        "; kiosk time " + (Number.isFinite(atS) && atS > 0 ? new Date(atS * 1000).toISOString() : "unknown") +
-        "; synced by " + (ctx.user.display_name || ctx.user.id),
+      detail: what + "; " + screenNote + "; kiosk time " + when(e.at) + "; " + syncedBy,
       nonce
     });
     if (added) recorded += 1; else skipped += 1;
   }
-  return json({ ok: true, recorded, skipped });
+  let overflowRecorded = false;
+  const ov = body && body.overflow;
+  const ovCount = Math.floor(Number(ov && ov.count));
+  if (ovCount > 0) {
+    const first = Math.floor(Number(ov.first_at)) || 0;
+    const last = Math.floor(Number(ov.last_at)) || 0;
+    overflowRecorded = await recordAuditOnce(env, {
+      orgId, actorUserId: null, actorPubFp: null, actorRole: null,
+      actorName: "Kiosk " + kioskId + " (kiosk-reported)",
+      action: KIOSK_OFFLINE_UNLOCK_ACTION,
+      target: "kiosk " + kioskId + " (offline code)",
+      outcome: "denied",
+      detail: ovCount + " more lock-outs (5 wrong codes each) the screen did not keep one by one, between " + when(first) + " and " + when(last) + " (kiosk-reported); " + screenNote + "; " + syncedBy,
+      nonce: "kiosk:" + kioskId + ":overflow:" + first + ":" + last + ":" + ovCount
+    });
+  }
+  return json({ ok: true, recorded, skipped, rejected, overflow_recorded: overflowRecorded });
+}
+
+async function kioskOfflineCodeFor(seedB64u, orgId, kioskId, challenge) {
+  const mac = await hmacSha256(await kioskKeyFor(seedB64u, orgId, kioskId), "unlock|" + challenge);
+  const n = ((mac[0] & 0x7f) << 24 | mac[1] << 16 | mac[2] << 8 | mac[3]) >>> 0;
+  return String(n % 100000000).padStart(8, "0");
 }
 
 function inviteActionPayloadSchema(p) {
@@ -1733,6 +1947,8 @@ async function pendingActionMinRole(env, actionType, orgId) {
   if (actionType === "irlid_calendar_write_v5") return calendarWriteMinRoleForOrg(env, orgId);
   // Any staff-tier member's enrolled phone may unlock the kiosk.
   if (actionType === KIOSK_UNLOCK_ACTION) return "staff";
+  // Approving a screen for offline codes: Lead Admin or Developer only.
+  if (actionType === KIOSK_SCREEN_APPROVE_ACTION) return "lead_admin";
   return "lead_admin";
 }
 
@@ -1740,6 +1956,7 @@ function pendingActionPayloadSchema(actionType) {
   if (actionType === "irlid_invite_v5") return inviteActionPayloadSchema;
   if (actionType === "irlid_calendar_write_v5") return calendarActionPayloadSchema;
   if (actionType === KIOSK_UNLOCK_ACTION) return kioskUnlockPayloadSchema;
+  if (actionType === KIOSK_SCREEN_APPROVE_ACTION) return kioskScreenApprovePayloadSchema;
   return () => false;
 }
 
@@ -1754,6 +1971,9 @@ async function executeVerifiedPendingAction(env, action) {
     // sees "claimed" on its poll and leaves full screen.
     // No name in the result: the poll needs only the nonce (R3, A5).
     return { ok: true, result: { unlocked: true } };
+  }
+  if (payload.type === KIOSK_SCREEN_APPROVE_ACTION) {
+    return executeKioskScreenApproval(env, action);
   }
   if (payload.type !== "irlid_invite_v5") {
     return { error: json({ error: "unsupported_action_type" }, 400) };
@@ -4240,6 +4460,7 @@ function auditTargetSummary(actionType, payload) {
     case "irlid_calendar_write_v5": return p.event_title || p.title || p.event_id || "calendar event";
     case "irlid_kiosk_unlock_v5":   return "kiosk screen (leave full screen)";
     case "irlid_kiosk_code_enrol_v5": return "offline kiosk unlock code (set up on phone)";
+    case "irlid_kiosk_screen_approve_v5": return "kiosk " + String(p.kiosk_id || "?") + " (approve screen for offline codes)";
     case "irlid_bind_v5":           return (name || p.expected_id || "device") + " (bind device)";
     case "irlid_create_bind_v5":    return (name || "new attendee") + " (add at door)";
     default: return name ? (name + roleSuffix) : null;
@@ -7189,6 +7410,8 @@ export default {
       else if (method === "POST" && path === "/org/kiosk/code-key")   response = await orgKioskCodeEnrol(request, env);
       else if (method === "GET"  && path === "/org/kiosk/code-keys")  response = await orgKioskCodeKeys(request, env);
       else if (method === "POST" && path === "/org/kiosk/offline-unlock-log") response = await orgKioskOfflineUnlockLog(request, env);
+      else if (method === "GET"  && path === "/org/kiosk/screens")    response = await orgKioskScreens(request, env);
+      else if (method === "POST" && path === "/org/kiosk/screen/revoke") response = await orgKioskScreenRevoke(request, env);
       // v5.9.14 — staff-invite QR endpoints (Brief A).
       else if (method === "POST" && path === "/org/invites/create")  response = await orgInviteCreate(request, env);
       else if (method === "GET"  && path === "/org/invites/pending") response = await orgPendingInvites(request, env);

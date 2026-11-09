@@ -359,3 +359,22 @@ CREATE TABLE IF NOT EXISTS kiosk_code_keys (
   revoked_at INTEGER             -- milliseconds (W10)
 );
 CREATE INDEX IF NOT EXISTS idx_kiosk_code_keys_org ON kiosk_code_keys(org_id);
+
+-- v6.8.12 Screens approved for offline kiosk codes. A Lead Admin / Developer
+-- approves one screen in person (v5 signature over org, screen id, the
+-- SHA-256 of the screen's secret, a single-use nonce and an expiry). Only the
+-- hash of the screen's secret is kept. One live approval per screen; a new
+-- one revokes the old. Times in milliseconds (W10).
+CREATE TABLE IF NOT EXISTS kiosk_screens (
+  approval_id         TEXT PRIMARY KEY,  -- the signed action's nonce
+  org_id              TEXT NOT NULL,
+  kiosk_id            TEXT NOT NULL,
+  secret_hash         TEXT NOT NULL,
+  approved_by_user_id TEXT NOT NULL,
+  approved_by_pub_fp  TEXT,
+  approved_at         INTEGER NOT NULL,  -- milliseconds (W10)
+  expires_at          INTEGER NOT NULL,  -- milliseconds (W10)
+  revoked_at          INTEGER,           -- milliseconds (W10)
+  revoked_by_user_id  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_kiosk_screens_org_kiosk ON kiosk_screens(org_id, kiosk_id);

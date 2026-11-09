@@ -274,11 +274,33 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
       currentOrg = { id: "org-1", name: "E2E Org", api_key: "org_e2e_kiosk_key_1234567890" };
       qrLoginSession = { session_token: t };
       settings.kioskMode = true;
+      // An older cache with no expiry (pre-v6.8.12) must never be used.
+      localStorage.setItem("irlid_kiosk_codekeys:org-1", JSON.stringify({ kiosk_id: irlidKioskId(), keys: [{ key_id: "old", k: "x".repeat(43) }] }));
       await irlidKioskRefreshKeys();
     }, token);
-    const cachedKeys = await kiosk.evaluate(() => irlidKioskCachedKeys());
-    assert.equal(cachedKeys.length, 1, "kiosk did not cache the Lead Admin key");
+    assert.equal((await kiosk.evaluate(() => irlidKioskCachedKeys())).length, 0, "a screen nobody approved got keys");
+    assert.equal(await kiosk.evaluate(() => localStorage.getItem("irlid_kiosk_codekeys:org-1")), null, "old unexpiring cache not cleared");
     const kioskId = await kiosk.evaluate(() => irlidKioskId());
+
+    // Approve this screen: the screen shows an approval QR, the Lead Admin's
+    // phone opens it (org-action-auth.html) and signs with its v5 key.
+    const approving = kiosk.evaluate(() => irlidKioskApproveScreen());
+    await kiosk.waitForFunction(() => !!document.querySelector("#kioskScreenApproveQr[data-qr-text]"), null, { timeout: 5000 });
+    const approveUrl = new URL(await kiosk.getAttribute("#kioskScreenApproveQr", "data-qr-text"));
+    await phone.goto(site0 + "/org-action-auth.html?nonce=" + encodeURIComponent(approveUrl.searchParams.get("nonce")) + "&worker=" + encodeURIComponent(workerUrl));
+    await phone.waitForFunction(() => !document.getElementById("approve").disabled, null, { timeout: 5000 });
+    assert.match(await phone.textContent("#summary"), new RegExp("Let screen " + kioskId + " accept offline unlock codes"));
+    await installFakeV5(phone);
+    await phone.click("#approve");
+    await approving;
+    assert.match(await kiosk.textContent("#kioskScreenApproveStatus"), /Approved/, await kiosk.textContent("#kioskScreenApproveStatus"));
+    const cachedKeys = await kiosk.evaluate(() => irlidKioskCachedKeys());
+    assert.equal(cachedKeys.length, 1, "approved kiosk did not cache the Lead Admin key");
+    const saved = await kiosk.evaluate(() => JSON.parse(localStorage.getItem("irlid_kiosk_codekeys:org-1")));
+    assert.ok(saved.expires_at > Date.now() && saved.expires_at <= Date.now() + 72 * 3600000 + 5000, "keys must expire within 72 h");
+    // Another staff session that only knows the screen id gets nothing.
+    const other = await (await fetch(workerUrl + "/org/kiosk/code-keys?org_id=org-1&kiosk_id=" + kioskId, { headers: { Authorization: "Bearer " + token } })).json();
+    assert.equal(other.error, "kiosk_screen_not_approved");
 
     // ---------- NETWORK CUT ----------
     await phoneCtx.setOffline(true);
@@ -387,9 +409,10 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     assert.equal(r.unlocked, true, r.status);
 
     // Unlocks are queued on the kiosk while offline.
-    const queued = await kiosk.evaluate(() => JSON.parse(localStorage.getItem("irlid_kiosk_unlock_log:org-1") || "[]"));
+    const queued = await kiosk.evaluate(() => JSON.parse(localStorage.getItem("irlid_kiosk_unlock_log:org-1") || "{}").entries || []);
     assert.equal(queued.filter((e) => e.outcome === "allowed").length, 2);
     assert.equal(queued.filter((e) => e.outcome === "denied").length, 1);
+    assert.ok(queued.filter((e) => e.outcome === "allowed").every((e) => /^\d{8}$/.test(e.code)), "the typed code goes with the report");
     assert.equal(d1.db.prepare("SELECT COUNT(*) n FROM org_audit_log WHERE action='irlid_kiosk_offline_unlock_v5'").get().n, 0);
 
     // ---------- BACK ONLINE: audit sync ----------
@@ -397,19 +420,49 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     await listen(workerServer2, workerPort);
     await kioskCtx.setOffline(false);
     await kiosk.evaluate(() => irlidKioskFlushLog());
-    await kiosk.waitForFunction(() => JSON.parse(localStorage.getItem("irlid_kiosk_unlock_log:org-1") || "[]").length === 0, null, { timeout: 5000 });
-    const rows = d1.db.prepare("SELECT actor_user_id, actor_role, outcome FROM org_audit_log WHERE action='irlid_kiosk_offline_unlock_v5' ORDER BY created_at").all();
-    assert.equal(rows.filter((x) => x.outcome === "allowed" && x.actor_user_id === "lead-1" && x.actor_role === "lead_admin").length, 2, JSON.stringify(rows));
+    await kiosk.waitForFunction(() => (JSON.parse(localStorage.getItem("irlid_kiosk_unlock_log:org-1") || "{}").entries || [1]).length === 0, null, { timeout: 5000 });
+    const rows = d1.db.prepare("SELECT actor_user_id, actor_role, actor_display_name, outcome, detail FROM org_audit_log WHERE action='irlid_kiosk_offline_unlock_v5' ORDER BY created_at").all();
+    // Honest attribution: kiosk-reported, no actor; the code was checked
+    // against the Lead Admin's key and the report came from the approved screen.
+    const allowedRows = rows.filter((x) => x.outcome === "allowed");
+    assert.equal(allowedRows.length, 2, JSON.stringify(rows));
+    for (const x of allowedRows) {
+      assert.equal(x.actor_user_id, null);
+      assert.equal(x.actor_role, null);
+      assert.match(x.actor_display_name, /kiosk-reported/);
+      assert.match(x.detail, /code matches the offline key of lead-1/);
+      assert.match(x.detail, /approved screen/);
+    }
     assert.equal(rows.filter((x) => x.outcome === "denied").length, 1);
-    // Syncing again adds nothing.
+    // An old-format queue (a plain list, from a v6.8.11 page) still syncs.
     await kiosk.evaluate(() => { localStorage.setItem("irlid_kiosk_unlock_log:org-1", JSON.stringify([{ challenge: "ABCD2345", outcome: "denied", at: 1 }])); });
     await kiosk.evaluate(() => irlidKioskFlushLog());
+    assert.equal(d1.db.prepare("SELECT COUNT(*) n FROM org_audit_log WHERE nonce LIKE '%:ABCD2345:denied'").get().n, 1);
 
     // Role removed: on the next online refresh the kiosk drops that key, so
     // the old phone's codes stop working there.
     d1.db.prepare("UPDATE org_memberships SET role='staff' WHERE user_id='lead-1'").run();
     await kiosk.evaluate(() => irlidKioskRefreshKeys());
     assert.equal((await kiosk.evaluate(() => irlidKioskCachedKeys())).length, 0);
+    d1.db.prepare("UPDATE org_memberships SET role='lead_admin' WHERE user_id='lead-1'").run();
+    await kiosk.evaluate(() => irlidKioskRefreshKeys());
+    assert.equal((await kiosk.evaluate(() => irlidKioskCachedKeys())).length, 1);
+
+    // Revoked screen: the next online refresh drops its keys.
+    d1.db.prepare("UPDATE kiosk_screens SET revoked_at=? WHERE kiosk_id=?").run(Date.now(), kioskId);
+    await kiosk.evaluate(() => irlidKioskRefreshKeys());
+    assert.equal((await kiosk.evaluate(() => irlidKioskCachedKeys())).length, 0, "revoked screen kept its keys");
+    // Keys past their expiry are not used, even with no network to ask.
+    await kiosk.evaluate((exp) => {
+      const s = JSON.parse(localStorage.getItem("irlid_kiosk_codekeys:org-1") || "null") || { v: 2, kiosk_id: irlidKioskId(), keys: [{ key_id: "k", k: "x" }] };
+      s.expires_at = exp; s.v = 2; s.kiosk_id = irlidKioskId(); s.keys = [{ key_id: "k", k: "x" }];
+      localStorage.setItem("irlid_kiosk_codekeys:org-1", JSON.stringify(s));
+    }, Date.now() - 1);
+    assert.equal((await kiosk.evaluate(() => irlidKioskCachedKeys())).length, 0, "expired keys used");
+    // Signing out clears any keys.
+    await kiosk.evaluate((exp) => localStorage.setItem("irlid_kiosk_codekeys:org-1", JSON.stringify({ v: 2, kiosk_id: irlidKioskId(), keys: [{ key_id: "k", k: "x" }], expires_at: exp })), Date.now() + 60000);
+    await kiosk.evaluate(() => wipeSavedOrgSession());
+    assert.equal(await kiosk.evaluate(() => localStorage.getItem("irlid_kiosk_codekeys:org-1")), null);
 
     await new Promise((res) => workerServer2.close(res));
     // Dashboard calls unrelated to the kiosk (rooms, calendar) hit tables the
