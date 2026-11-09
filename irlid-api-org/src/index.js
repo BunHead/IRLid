@@ -1171,21 +1171,45 @@ async function orgLoginRecover(request, env, row, tNow) {
     return json({ error: "challenge_consumed" }, 410);
   }
   const oldToken = row.session_token;
-  const old = await env.DB.prepare(
-    "SELECT token, user_id, expires_at, ip_hash, user_agent FROM login_sessions WHERE token = ?"
-  ).bind(oldToken).first();
-  if (!old) return json({ error: "challenge_consumed" }, 410); // signed out / revoked meanwhile
+  if (!oldToken) return json({ error: "challenge_consumed" }, 410);
   const newToken = randomToken();
-  // Claim the recovery slot first (one winner if two recoveries race).
-  const slot = await env.DB.prepare(
-    "UPDATE login_challenges SET session_token = ?, recover_count = recover_count + 1 WHERE nonce = ? AND session_token = ? AND recover_count < ?"
-  ).bind(newToken, row.nonce, oldToken, LOGIN_RECOVERY_MAX).run();
-  if (Number(slot?.meta?.changes ?? 1) !== 1) return json({ error: "challenge_consumed" }, 410);
-  // Same user and the same expiry as the session it replaces (never longer).
-  await env.DB.prepare(
-    "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) VALUES (?, ?, ?, ?, ?, ?)"
-  ).bind(newToken, old.user_id, tNow, old.expires_at, old.ip_hash ?? null, old.user_agent ?? null).run();
-  await env.DB.prepare("DELETE FROM login_sessions WHERE token = ?").bind(oldToken).run();
+  // One transaction (a D1 batch runs as a single SQL transaction): copy the
+  // session to a new token, move the challenge's pointer to it, delete the
+  // old token. Each step is guarded so it only happens if the step before it
+  // did, so the result is all three or none:
+  //   1. the copy needs the old session to exist and the pointer to still be
+  //      on it with a recovery left (two racing recoveries: one winner);
+  //   2. the pointer moves only if the copy now exists;
+  //   3. the old token is deleted only if the pointer now names the copy.
+  // Until Nov 2026 these were three separate writes, so a failure between
+  // them could move the pointer to a token that was never written (the
+  // desktop could not log in and the slot was spent) or leave the old token
+  // alive next to the new one. If the batch fails, nothing changed and the
+  // desktop's poll gets a 503 and retries (js/login-poll.js), still inside
+  // the same 120 s window and 3-recovery cap.
+  let results;
+  try {
+    results = await env.DB.batch([
+      env.DB.prepare(
+        "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) " +
+        "SELECT ?, s.user_id, ?, s.expires_at, s.ip_hash, s.user_agent FROM login_sessions s " +
+        "WHERE s.token = ? AND EXISTS (SELECT 1 FROM login_challenges c WHERE c.nonce = ? AND c.session_token = ? AND c.recover_count < ?)"
+      ).bind(newToken, tNow, oldToken, row.nonce, oldToken, LOGIN_RECOVERY_MAX),
+      env.DB.prepare(
+        "UPDATE login_challenges SET session_token = ?, recover_count = recover_count + 1 " +
+        "WHERE nonce = ? AND session_token = ? AND recover_count < ? AND EXISTS (SELECT 1 FROM login_sessions WHERE token = ?)"
+      ).bind(newToken, row.nonce, oldToken, LOGIN_RECOVERY_MAX, newToken),
+      env.DB.prepare(
+        "DELETE FROM login_sessions WHERE token = ? AND EXISTS (SELECT 1 FROM login_challenges WHERE nonce = ? AND session_token = ?)"
+      ).bind(oldToken, row.nonce, newToken)
+    ]);
+  } catch (e) {
+    console.log("[login] recovery batch failed: " + String(e && e.message || e).slice(0, 160));
+    return json({ error: "recovery_retry" }, 503);
+  }
+  const moved = Number(results && results[1] && results[1].meta && results[1].meta.changes) === 1;
+  // Not moved: signed out / revoked meanwhile, or another recovery won.
+  if (!moved) return json({ error: "challenge_consumed" }, 410);
   return orgLoginPollResult(env, row.nonce, newToken, true);
 }
 
