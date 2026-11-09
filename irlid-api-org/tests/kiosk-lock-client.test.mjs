@@ -290,3 +290,78 @@ test("Org.html: Kiosk mode, Lock full screen and Require live screen code are in
     assert.equal(html.split('id="' + id + '"').length - 1, 1, id + " must appear once");
   }
 });
+
+// ---- v6.8.12: key cache expiry and the unlock audit queue ----
+
+test("key cache: used only for this screen, only until its expiry; old caches never", () => {
+  const t = 1_000_000;
+  const good = K.makeKeyCache({ kiosk_id: "AB12CD34EF", keys: [{ key_id: "a", k: "x" }], fetched_at: 1, expires_at: t + 1000 });
+  assert.equal(K.readKeyCache(good, "AB12CD34EF", t).length, 1);
+  assert.equal(K.readKeyCache(good, "AB12CD34EF", t + 1000).length, 0, "expired");
+  assert.equal(K.readKeyCache(good, "OTHER12345", t).length, 0, "another screen");
+  assert.equal(K.readKeyCache({ kiosk_id: "AB12CD34EF", keys: [{ key_id: "a", k: "x" }], fetched_at: 1 }, "AB12CD34EF", t).length, 0, "pre-v6.8.12 cache with no expiry");
+  assert.equal(K.readKeyCache(Object.assign({}, good, { expires_at: "soon" }), "AB12CD34EF", t).length, 0);
+  assert.equal(K.readKeyCache(null, "AB12CD34EF", t).length, 0);
+});
+
+test("key cache: the Worker saying no clears it; a network failure keeps it", () => {
+  for (const status of [401, 403, 409]) assert.equal(K.keyCacheOnError({ status }), "clear", String(status));
+  for (const err of [{ status: 500 }, { status: 503 }, {}, new TypeError("Failed to fetch"), null]) assert.equal(K.keyCacheOnError(err), "keep");
+});
+
+test("audit queue: a flood of wrong codes never pushes out a real unlock", () => {
+  let q = K.normaliseLogQueue(null);
+  q = K.appendLogEntry(q, { key_id: "k", challenge: "REAL0001", code: "12345678", at: 5, outcome: "allowed" });
+  for (let i = 0; i < 1000; i++) q = K.appendLogEntry(q, { challenge: "D" + String(i).padStart(7, "0"), at: 10 + i, outcome: "denied" });
+  q = K.appendLogEntry(q, { key_id: "k", challenge: "REAL0002", code: "87654321", at: 2000, outcome: "allowed" });
+  assert.equal(q.entries.filter((e) => e.outcome === "allowed").length, 2);
+  assert.equal(q.entries.filter((e) => e.outcome === "denied").length, K.LOG_MAX_DENIED);
+  assert.equal(q.overflow.count, 1000 - K.LOG_MAX_DENIED, "the rest are counted, not lost");
+  assert.equal(q.overflow.first_at, 10 + K.LOG_MAX_DENIED);
+  assert.equal(q.overflow.last_at, 1009);
+  assert.equal(K.logQueueSize(q), 1002);
+});
+
+test("audit queue: batches send everything, and only what was sent is removed", () => {
+  let q = K.normaliseLogQueue([{ challenge: "OLD00001", outcome: "denied", at: 1 }]); // pre-v6.8.12 list
+  assert.equal(q.entries.length, 1);
+  for (let i = 0; i < 120; i++) q = K.appendLogEntry(q, { key_id: "k", challenge: "A" + String(i).padStart(7, "0"), at: i, outcome: "allowed" }, 100);
+  q.overflow = { count: 3, first_at: 1, last_at: 9 };
+  const sent = [];
+  for (let guard = 0; guard < 10; guard++) {
+    const b = K.logBatch(q);
+    if (!b.entries.length && !b.overflow) break;
+    assert.ok(b.entries.length <= K.LOG_BATCH);
+    if (b.overflow) assert.ok(K.logBatch(q, 1000).entries.length <= K.LOG_BATCH, "overflow only goes with the last batch");
+    sent.push(b);
+    // An unlock queued while the batch was in flight survives the ack.
+    if (guard === 0) q = K.appendLogEntry(q, { key_id: "k", challenge: "LATE0001", at: 999, outcome: "allowed" });
+    q = K.ackLogBatch(q, b);
+  }
+  const all = sent.flatMap((b) => b.entries.map((e) => e.challenge));
+  assert.equal(new Set(all).size, 122, "every entry sent once, including the late one");
+  assert.ok(all.includes("LATE0001") && all.includes("OLD00001"));
+  assert.equal(sent.filter((b) => b.overflow).length, 1);
+  assert.equal(K.logQueueSize(q), 0);
+});
+
+test("audit queue: a failed sync removes nothing", () => {
+  let q = K.normaliseLogQueue(null);
+  q = K.appendLogEntry(q, { key_id: "k", challenge: "KEEP0001", at: 1, outcome: "allowed" });
+  const b = K.logBatch(q);
+  // No ack (the POST failed): the queue is unchanged.
+  assert.deepEqual(K.logBatch(q), b);
+  assert.equal(K.logQueueSize(q), 1);
+});
+
+test("offline verifier: a matched code is handed to the log with the report", async () => {
+  const seed = new Uint8Array(32).fill(3);
+  const key = await K.deriveKioskKey(seed, "org-1", "AB12CD34EF");
+  const keyB64 = Buffer.from(key).toString("base64url");
+  const v = K.createOfflineVerifier({ keys: [{ key_id: "k1", k: keyB64 }] });
+  const ch = v.challenge().challenge;
+  const code = await K.offlineCode(key, ch);
+  const r = await v.check(code);
+  assert.equal(r.ok, true);
+  assert.equal(r.code, code);
+});
