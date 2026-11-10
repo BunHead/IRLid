@@ -891,6 +891,9 @@ async function lookupByKey(request, env, pubKeyIdParam) {
 //  ROUTER
 // =====================
 
+// Exported for the tests (review 3.4): they run this exact code.
+export { verifyReceipt, verifyV5Envelope };
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return addCors(new Response(null, { status: 204 }), env, request);
