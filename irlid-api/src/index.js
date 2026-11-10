@@ -920,10 +920,40 @@ async function lookupByKey(request, env, pubKeyIdParam) {
 //  ROUTER
 // =====================
 
+// Review 2.4 (old L2, L5): nightly cleanup of rows that are not records.
+// Rate-limit buckets older than a day (the longest window is 1 h) and
+// sessions past their expiry. Never touches check-ins, receipts, the audit
+// log or anything else R1 / R5 protect. Each table is cleaned on its own, so
+// a missing table (created on demand) never stops the others.
+const CLEANUP_RATE_LIMIT_AGE_S = 24 * 60 * 60;
+const CLEANUP_TARGETS = [
+  ["ip_rate_limits", "DELETE FROM ip_rate_limits WHERE created_at < ?", (t) => t - CLEANUP_RATE_LIMIT_AGE_S],
+  ["sessions", "DELETE FROM sessions WHERE expires_at < ?", (t) => t]
+];
+async function cleanupExpiredRows(env, t = now(), targets = CLEANUP_TARGETS) {
+  const removed = {};
+  for (const [table, sql, cutoff] of targets) {
+    try {
+      const res = await env.DB.prepare(sql).bind(cutoff(t)).run();
+      removed[table] = Number(res?.meta?.changes || 0);
+    } catch (e) {
+      removed[table] = null;
+      console.warn("[cleanup] " + table + " skipped: " + String(e && e.message || e).slice(0, 120));
+    }
+  }
+  return removed;
+}
+
+export { cleanupExpiredRows };
 // Exported for the tests (review 3.4): they run this exact code.
 export { verifyReceipt, verifyV5Envelope };
 
 export default {
+  // Cron Trigger (wrangler.toml [triggers]): nightly cleanup, review 2.4.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cleanupExpiredRows(env));
+  },
+
   async fetch(request, env) {
     if (request.method === "OPTIONS") return addCors(new Response(null, { status: 204 }), env, request);
 
