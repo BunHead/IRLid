@@ -10,6 +10,9 @@ CORS_ORIGIN = "https://irlid.co.uk"
 binding = "DB"
 database_name = "irlid-db-org"
 database_id = "484dad86-e75c-412e-9423-ca0bb27cdcb8"
+# Numbered, wrangler-tracked migrations (review 2.2). Not ./migrations, which
+# holds the hand-applied history and must never be re-run.
+migrations_dir = "d1-migrations"
 
 # Push updates (Org dashboard). One OrgHub Durable Object per org, holding the
 # dashboard's WebSockets. SQLite-backed so it also runs on the Workers Free plan.
