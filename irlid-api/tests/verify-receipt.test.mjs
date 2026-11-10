@@ -1,19 +1,19 @@
-// Worker-side v5 verification smoke — mirrors irlid-api/src/index.js verifyReceipt + verifyV5Envelope
-// against constructed receipts: pure v3, pure v5, hybrid, mutated, wrong-origin, missing-UV.
+// Worker-side v5 verification: runs the consumer Worker's real verifyReceipt and
+// verifyV5Envelope (imported from irlid-api/src/index.js) against constructed
+// receipts: pure v3, pure v5, hybrid, mutated, wrong-origin, missing-UV.
 //
 // Run with: node --test irlid-api/tests/verify-receipt.test.mjs
 //
-// This file is a behavioural mirror of the Worker code, not an in-Worker test runner. It uses Node's
-// webcrypto (which behaves identically to Cloudflare Workers' Web Crypto for ECDSA P-256) so the same
-// envelope verification logic can be regression-tested in CI without spinning up a real Worker.
-// The Worker source is the truth; if this file disagrees with the Worker, the Worker wins and this
-// file is brought back into alignment.
+// Until 10 Nov 2026 (review 3.4) this file re-typed those two functions, so a
+// change to the Worker could pass here while broken. It now imports them. The
+// small helpers below are only used to BUILD signed receipts.
 //
 // First landed: 1 May 2026, alongside the v5 Worker-side verification (PROTOCOL.md §13).
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
+import { verifyReceipt, verifyV5Envelope } from "../src/index.js";
 const { subtle } = webcrypto;
 
 // ─── Worker primitives (verbatim from irlid-api/src/index.js after the v5 pass) ───
@@ -43,109 +43,8 @@ async function hashPayloadToB64url(payloadObj, protocolV) {
   const hashBuf = await subtle.digest("SHA-256", new TextEncoder().encode(str));
   return b64urlEncode(new Uint8Array(hashBuf));
 }
-async function verifySig(midB64url, sigB64url, pubJwk) {
-  try {
-    const pub = await subtle.importKey("jwk", pubJwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
-    return await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, b64urlDecode(sigB64url), b64urlDecode(midB64url));
-  } catch { return false; }
-}
-function haversineMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000; const toRad = d => d * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1); const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-const IRLID_V5_ORIGIN_ALLOWLIST = ["https://irlid.co.uk", "https://bunhead.github.io"];
-function irlidV5OriginAllowed(origin) { return IRLID_V5_ORIGIN_ALLOWLIST.includes(String(origin)); }
-
-async function verifyV5Envelope(payload, pubJwk, sigRawB64u, webauthnEnv, expectedRpOrigin) {
-  if (!webauthnEnv || !webauthnEnv.authData || !webauthnEnv.clientData) throw new Error("v5: envelope missing");
-  if (!pubJwk || pubJwk.kty !== "EC" || pubJwk.crv !== "P-256") throw new Error("v5: pub is not a P-256 JWK");
-  if (!sigRawB64u) throw new Error("v5: sig missing");
-  const expected = await hashPayloadToB64url(payload);
-  const cdBytes = b64urlDecode(webauthnEnv.clientData);
-  let cd;
-  try { cd = JSON.parse(new TextDecoder().decode(cdBytes)); } catch { throw new Error("v5: clientDataJSON not valid JSON"); }
-  if (cd.type !== "webauthn.get") throw new Error("v5: type wrong");
-  if (expectedRpOrigin) { if (cd.origin !== expectedRpOrigin) throw new Error("v5: origin mismatch"); }
-  else if (!irlidV5OriginAllowed(cd.origin)) throw new Error("v5: origin not in allowlist");
-  if (cd.challenge !== expected) throw new Error("v5: challenge does not match");
-  const adBytes = b64urlDecode(webauthnEnv.authData);
-  if (adBytes.length < 37) throw new Error("v5: authData too short");
-  if ((adBytes[32] & 0x04) !== 0x04) throw new Error("v5: UV flag not asserted");
-  const cdHash = new Uint8Array(await subtle.digest("SHA-256", cdBytes));
-  const signed = new Uint8Array(adBytes.length + cdHash.length);
-  signed.set(adBytes, 0); signed.set(cdHash, adBytes.length);
-  const pk = await subtle.importKey("jwk", pubJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["verify"]);
-  const ok = await subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pk, b64urlDecode(sigRawB64u), signed);
-  if (!ok) throw new Error("v5: ECDSA signature verification failed");
-  return true;
-}
-
-// Worker's verifyReceipt — tracks the live-Worker version (with compact-receipt fallback).
-async function verifyReceipt(comb) {
-  const TS_TOL = 90; const DIST_TOL = 12; const checks = {};
-  const helloPub = (comb.hello && comb.hello.pub) ? comb.hello.pub : null;
-
-  const a = comb.a;
-  const aPub = (a && a.pub) ? a.pub : helloPub;
-  if (a && a.payload && a.sig && aPub) {
-    checks.a_structure = true;
-    const computedA = await hashPayloadToB64url(a.payload, a.v);
-    checks.a_hash = a.hash ? (computedA === a.hash) : true;
-    if (a.webauthn && Number(a.v) === 5) {
-      try { await verifyV5Envelope(a.payload, aPub, a.sig, a.webauthn); checks.a_sig = true; checks.a_v5_envelope = true; }
-      catch (e) { checks.a_sig = false; checks.a_v5_envelope = false; checks.a_v5_error = e.message; }
-    } else { checks.a_sig = await verifySig(computedA, a.sig, aPub); checks.a_v5_envelope = false; }
-  } else { checks.a_structure = false; checks.a_hash = false; checks.a_sig = false; checks.a_v5_envelope = false; }
-
-  const b = comb.b;
-  if (b && b.payload && b.sig && b.pub) {
-    checks.b_structure = true;
-    const computedB = await hashPayloadToB64url(b.payload, b.v);
-    checks.b_hash = b.hash ? (computedB === b.hash) : true;
-    if (b.webauthn && Number(b.v) === 5) {
-      try { await verifyV5Envelope(b.payload, b.pub, b.sig, b.webauthn); checks.b_sig = true; checks.b_v5_envelope = true; }
-      catch (e) { checks.b_sig = false; checks.b_v5_envelope = false; checks.b_v5_error = e.message; }
-    } else { checks.b_sig = await verifySig(computedB, b.sig, b.pub); checks.b_v5_envelope = false; }
-  } else { checks.b_structure = false; checks.b_hash = false; checks.b_sig = false; checks.b_v5_envelope = false; }
-
-  const hello = comb.hello;
-  if (hello && hello.offer && hello.offer.payload && hello.offer.sig && hello.pub) {
-    const cof = await hashPayloadToB64url(hello.offer.payload);
-    if (hello.offer.webauthn && Number(hello.v) === 5) {
-      try { await verifyV5Envelope(hello.offer.payload, hello.pub, hello.offer.sig, hello.offer.webauthn); checks.hello_sig = true; checks.hello_v5_envelope = true; }
-      catch (e) { checks.hello_sig = false; checks.hello_v5_envelope = false; checks.hello_v5_error = e.message; }
-    } else { checks.hello_sig = await verifySig(cof, hello.offer.sig, hello.pub); checks.hello_v5_envelope = false; }
-  }
-
-  if (hello) {
-    const helloStr = canonical(hello);
-    const helloHash = b64urlEncode(new Uint8Array(await subtle.digest("SHA-256", new TextEncoder().encode(helloStr))));
-    if (a && a.payload) checks.a_binds_hello = a.payload.helloHash === helloHash;
-    if (b && b.payload) checks.b_binds_hello = b.payload.helloHash === helloHash;
-  }
-
-  const tsA = a?.payload?.ts, tsB = b?.payload?.ts;
-  if (typeof tsA === "number" && typeof tsB === "number") {
-    checks.time_delta_s = Math.abs(tsA - tsB);
-    checks.time_delta_ok = checks.time_delta_s <= TS_TOL;
-  } else checks.time_delta_ok = false;
-
-  const latA = a?.payload?.lat, lonA = a?.payload?.lon, latB = b?.payload?.lat, lonB = b?.payload?.lon;
-  if (latA != null && lonA != null && latB != null && lonB != null) {
-    checks.distance_m = Math.round(haversineMeters(latA, lonA, latB, lonB) * 100) / 100;
-    checks.distance_ok = checks.distance_m <= DIST_TOL;
-  } else checks.distance_ok = false;
-
-  checks.fully_v5 = !!(checks.a_v5_envelope && checks.b_v5_envelope &&
-                       (!hello || !hello.offer || checks.hello_v5_envelope));
-  checks.valid = !!(checks.a_structure && checks.a_hash && checks.a_sig &&
-                    checks.b_structure && checks.b_hash && checks.b_sig &&
-                    checks.time_delta_ok && checks.distance_ok);
-  return checks;
-}
+// verifyReceipt and verifyV5Envelope are imported from the real Worker
+// (review 3.4), so this file can no longer drift from irlid-api/src/index.js.
 
 // ─── Test infrastructure: build real combined receipts ───
 
@@ -429,4 +328,12 @@ describe("Worker verifyReceipt — distance + time", () => {
     assert.ok(c.distance_m > 12);
     assert.equal(c.valid, false);
   });
+});
+
+test("this file tests the Worker's own code, not a copy", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL(import.meta.url), "utf8");
+  for (const name of ["verifyReceipt", "verifyV5Envelope"]) {
+    assert.doesNotMatch(src, new RegExp("^async function " + name + "\\(", "m"), name + " is imported, not re-typed");
+  }
 });
