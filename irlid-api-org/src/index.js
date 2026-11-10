@@ -10,51 +10,13 @@
 // =====================
 
 function uuid() { return crypto.randomUUID(); }
+import { b64urlEncode, b64urlDecode, b64urlJsonDecode, inflateRawB64urlJson, canonical, deepCanonical, hashPayloadToB64url, sha256B64url, sha256DeepB64url, verifySig, signCanonicalPayload, pubKeyId, deviceKeyFp } from "./crypto.js";
 import { mintWsTicket, verifyWsTicket, wsTicketOrgId, ticketFromProtocolHeader, wsTicketNonce, hubKeyTag, WS_PROTOCOL, WS_TICKET_TTL_S } from "./org-hub.js";
 // The Durable Object class must be exported from the Worker's main module.
 export { OrgHub } from "./org-hub.js";
 
 function now() { return Math.floor(Date.now() / 1000); }
 
-function b64urlEncode(bytes) {
-  const b64 = btoa(String.fromCharCode(...bytes));
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function b64urlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) str += "=";
-  const bin = atob(str);
-  return Uint8Array.from(bin, c => c.charCodeAt(0));
-}
-
-function b64urlJsonDecode(str) {
-  return JSON.parse(new TextDecoder().decode(b64urlDecode(String(str || ""))));
-}
-
-async function inflateRawB64urlJson(str) {
-  if (typeof DecompressionStream !== "function") throw new Error("Compressed HELLO unsupported");
-  const stream = new Blob([b64urlDecode(String(str || ""))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return JSON.parse(await new Response(stream).text());
-}
-
-// v6.4.8 — FULLY RECURSIVE canonical, byte-identical to the client's canonical()
-// in js/sign.js. The previous version sorted ONLY top-level keys then
-// JSON.stringify'd, leaving nested objects in insertion order. Every signature
-// in the system is computed over the client's recursive form, so any nested
-// payload (the HELLO carries offer / offer.payload / pub) hashed differently
-// on the Worker → accept_not_bound_to_hello in the Lead Admin co-presence
-// check (Captain hit this 11 Jun). This is the same non-recursive-canonical
-// trap the CONSUMER Worker was fixed for on 1 May 2026; the org Worker never
-// got the upgrade because no org flow hashed a nested structure until the
-// Lead Admin ceremony. Strictly corrective: flat payloads (per-action grants,
-// gps {lat,lon}) produce identical output either way, so no path regresses.
-function canonical(val) {
-  if (val === null || typeof val !== "object") return JSON.stringify(val);
-  if (Array.isArray(val)) return "[" + val.map(canonical).join(",") + "]";
-  const keys = Object.keys(val).sort();
-  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonical(val[k])).join(",") + "}";
-}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -149,46 +111,8 @@ function randomCode6() {
 // =====================
 //  CRYPTO
 // =====================
+// Encoding, hash and signature primitives live in ./crypto.js (review 4.2).
 
-async function hashPayloadToB64url(payloadObj, protocolV) {
-  // v3+: canonical() — order-independent. v2 and below: JSON.stringify (backward compat).
-  const v = (protocolV != null) ? Number(protocolV) : ((payloadObj && payloadObj.v) ? Number(payloadObj.v) : 3);
-  const str = (v >= 3) ? canonical(payloadObj) : JSON.stringify(payloadObj);
-  const bytes = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
-
-async function sha256B64url(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return b64urlEncode(new Uint8Array(buf));
-}
-
-async function verifySig(midB64url, sigB64url, pubJwk) {
-  try {
-    const pub = await crypto.subtle.importKey("jwk", pubJwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
-    return await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, b64urlDecode(sigB64url), b64urlDecode(midB64url));
-  } catch { return false; }
-}
-
-async function signCanonicalPayload(payloadObj, privateJwk) {
-  const hash = await sha256B64url(deepCanonical(payloadObj));
-  const key = await crypto.subtle.importKey("jwk", privateJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, b64urlDecode(hash));
-  return b64urlEncode(new Uint8Array(sig));
-}
-
-async function pubKeyId(pubJwk) {
-  const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return b64urlEncode(new Uint8Array(h)).slice(0, 18);
-}
-
-async function deviceKeyFp(pubJwk) {
-  if (!pubJwk) return null;
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(pubJwk)));
-  return b64urlEncode(new Uint8Array(h)).slice(0, 16);
-}
 
 // =====================
 //  v5 ENVELOPE VERIFIER (PROTOCOL.md §13.7) — Batch A port from live Worker
@@ -2609,17 +2533,6 @@ function encodeInvitePayload(payload) {
   return "I:" + b64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
 }
 
-function deepCanonical(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map(deepCanonical).join(",") + "]";
-  const keys = Object.keys(value).sort();
-  return "{" + keys.map(k => JSON.stringify(k) + ":" + deepCanonical(value[k])).join(",") + "}";
-}
-
-async function sha256DeepB64url(value) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(deepCanonical(value)));
-  return b64urlEncode(new Uint8Array(buf));
-}
 
 function inviteUnsignedPayload(payload) {
   const clean = Object.assign({}, payload || {});
