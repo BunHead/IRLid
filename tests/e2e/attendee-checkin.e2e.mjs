@@ -20,6 +20,7 @@ import { extname, join, normalize } from "node:path";
 import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import worker from "../../irlid-api-org/src/index.js";
+import { cleanup } from "./cleanup.mjs";
 
 const require = createRequire(import.meta.url);
 let chromium = null;
@@ -137,16 +138,17 @@ const text = (page, sel) => page.evaluate((s) => document.querySelector(s)?.text
 const rows = (d1) => d1.db.prepare("SELECT id, assurance, status, device_key_fp, expected_id FROM org_checkins ORDER BY created_at").all();
 
 test("attendee check-in: first-time phone held fresh after staff approval; offline phone queued and synced",
-  { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "Playwright not installed", timeout: 120000 }, async () => {
+  { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "Playwright not installed", timeout: 120000 }, async (t) => {
+  const res = cleanup(t);
   const d1 = new D1();
-  const workerServer = startWorker(d1);
-  const workerPort = await listen(workerServer, 0);
-  const site = startSite();
-  await listen(site, SITE_PORT);
-  const browser = await chromium.launch();
   const net = { up: true };
   const errors = [];
   try {
+    const workerServer = res.server(startWorker(d1));
+    const workerPort = await listen(workerServer, 0);
+    const site = res.server(startSite());
+    await listen(site, SITE_PORT);
+    const browser = res.browser(await chromium.launch());
     const entry = (code) => `http://localhost:${SITE_PORT}/org-entry.html?type=checkin&org=e2e-org&n=${code}`;
 
     // ---------- 1. First-time phone, online ----------
@@ -201,8 +203,6 @@ test("attendee check-in: first-time phone held fresh after staff approval; offli
     assert.notEqual(all[1].device_key_fp, fp);
     assert.deepEqual(errors, [], "no page errors");
   } finally {
-    await browser.close();
-    await new Promise((r) => workerServer.close(r));
-    await new Promise((r) => site.close(r));
+    await res.closeAll();
   }
 });

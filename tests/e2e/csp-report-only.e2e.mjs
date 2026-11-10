@@ -12,6 +12,7 @@ import http from "node:http";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { createRequire } from "node:module";
+import { cleanup } from "./cleanup.mjs";
 
 const require = createRequire(import.meta.url);
 let chromium = null;
@@ -47,17 +48,18 @@ test("CSP policy file parses into the directives we rely on", () => {
 });
 
 test("every page loads with the report-only CSP and nothing would be blocked",
-  { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "playwright not installed", timeout: 180000 }, async () => {
+  { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "playwright not installed", timeout: 180000 }, async (t) => {
   assert.ok(chromium, "playwright is required in CI (IRLID_E2E_REQUIRED=1)");
+  const res = cleanup(t);
   const policy = loadPolicy();
-  const site = startSite(policy);
+  const site = res.server(startSite(policy));
   // Any free port: this test needs no origin allowlist, and a fixed port
   // would clash with the other e2e files when they run in parallel.
   await new Promise(r => site.listen(0, "127.0.0.1", r));
   const origin = "http://127.0.0.1:" + site.address().port + "/";
-  const browser = await chromium.launch();
   const failures = [];
   try {
+    const browser = res.browser(await chromium.launch());
     for (const name of PAGES) {
       const ctx = await browser.newContext({ serviceWorkers: "block" });
       await ctx.route(url => !url.href.startsWith(origin), route => route.abort());
@@ -79,8 +81,7 @@ test("every page loads with the report-only CSP and nothing would be blocked",
       await ctx.close();
     }
   } finally {
-    await browser.close();
-    await new Promise(r => site.close(r));
+    await res.closeAll();
   }
   assert.deepEqual(failures, [], "the report-only CSP would block:\n" + failures.join("\n"));
 });

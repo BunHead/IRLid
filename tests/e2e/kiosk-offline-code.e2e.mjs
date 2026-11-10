@@ -22,6 +22,7 @@ import { extname, join, normalize } from "node:path";
 import { createRequire } from "node:module";
 import { DatabaseSync } from "node:sqlite";
 import worker from "../../irlid-api-org/src/index.js";
+import { cleanup, closeServer } from "./cleanup.mjs";
 
 const require = createRequire(import.meta.url);
 let chromium = null;
@@ -211,14 +212,15 @@ async function kioskLayout(kiosk) {
   });
 }
 
-test("offline unlock code works end to end with the network cut", { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "Playwright not installed", timeout: 120000 }, async () => {
+test("offline unlock code works end to end with the network cut", { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "Playwright not installed", timeout: 120000 }, async (t) => {
+  const res = cleanup(t);
   const d1 = new D1();
-  const workerServer = startWorker(d1);
-  const workerPort = await listen(workerServer, 0);
-  const site = startSite();
-  await listen(site, SITE_PORT);
-  const browser = await chromium.launch();
   try {
+    const workerServer = res.server(startWorker(d1));
+    const workerPort = await listen(workerServer, 0);
+    const site = res.server(startSite());
+    await listen(site, SITE_PORT);
+    const browser = res.browser(await chromium.launch());
     const phoneCtx = await newContext(browser, workerPort);
     const managerCtx = await newContext(browser, workerPort);
     const kioskCtx = await newContext(browser, workerPort);
@@ -305,8 +307,8 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     // ---------- NETWORK CUT ----------
     await phoneCtx.setOffline(true);
     await kioskCtx.setOffline(true);
-    await new Promise((r) => workerServer.close(r));
-    await new Promise((r) => site.close(r));
+    await closeServer(workerServer);
+    await closeServer(site);
     assert.equal(await kiosk.evaluate(() => navigator.onLine), false);
 
     // 0) Real-device report (7 Nov): the padlock, refresh button and dot sat
@@ -416,7 +418,7 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     assert.equal(d1.db.prepare("SELECT COUNT(*) n FROM org_audit_log WHERE action='irlid_kiosk_offline_unlock_v5'").get().n, 0);
 
     // ---------- BACK ONLINE: audit sync ----------
-    const workerServer2 = startWorker(d1);
+    const workerServer2 = res.server(startWorker(d1));
     await listen(workerServer2, workerPort);
     await kioskCtx.setOffline(false);
     await kiosk.evaluate(() => irlidKioskFlushLog());
@@ -464,13 +466,13 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     await kiosk.evaluate(() => wipeSavedOrgSession());
     assert.equal(await kiosk.evaluate(() => localStorage.getItem("irlid_kiosk_codekeys:org-1")), null);
 
-    await new Promise((res) => workerServer2.close(res));
+    await closeServer(workerServer2);
     // Dashboard calls unrelated to the kiosk (rooms, calendar) hit tables the
     // test database doesn't have; only kiosk errors count here.
     assert.deepEqual(errors.filter((e) => /kiosk|offline code|unlock/i.test(e)), []);
   } finally {
-    await browser.close();
-    try { site.close(); } catch (_) {}
-    try { workerServer.close(); } catch (_) {}
+    // Pass or fail, nothing is left listening (a leftover server kept Node,
+    // and the deploy job waiting on it, running for hours).
+    await res.closeAll();
   }
 });
