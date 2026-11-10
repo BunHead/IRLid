@@ -370,7 +370,9 @@ test("far / no-GPS / poor-accuracy check-ins are never refused, only flagged", a
   assert.equal(fresh.status, 200, JSON.stringify(fresh.body));
   assert.equal(fresh.body.assurance, "fresh");
   assert.equal(fresh.body.gps_band, "far");
-  assert.ok(fresh.body.gps_distance_km > 300);
+  // R8: band only. The distance is not sent back, signed or stored.
+  assert.equal(fresh.body.gps_distance_km, undefined);
+  assert.equal(fresh.body.receipt.gps_distance_km, undefined);
 
   const rows = d1.checkins();
   assert.equal(rows.length, 6);
@@ -381,6 +383,8 @@ test("far / no-GPS / poor-accuracy check-ins are never refused, only flagged", a
   const attendance = await call(d1, "GET", "/org/attendance?since=0");
   assert.equal(attendance.status, 200);
   assert.ok(attendance.body.checkins.every(c => ["near", "far", "none"].includes(c.gps_band)));
+  assert.ok(attendance.body.checkins.every(c => c.gps_distance_km === undefined), "R8: the dashboard gets the band only");
+  assert.ok(rows.every(r => r.gps_distance_km === null), "R8: no distance stored");
 });
 
 test("check-in without phone GPS still carries the org-provided venue location", async () => {
@@ -415,7 +419,7 @@ test("an offline check-in queued with phone GPS and replayed 24 h later lands wi
     [nearBody.client_checkin_id, "offline", "near"],
     [farBody.client_checkin_id, "offline", "far"]
   ]);
-  assert.ok(rows[1].gps_distance_km > 200);
+  assert.equal(rows[1].gps_distance_km, null, "R8: the distance is not stored");
 
   // Replaying the same op again returns the stored band.
   const again = await call(d1, "POST", "/org/checkin", queue.toOfflineCheckin(farBody));
