@@ -4065,12 +4065,8 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
     if (venuePhone) payload.venue.phone = venuePhone;
   }
   // Server-computed phone-vs-venue band (flag only). Never the raw position.
-  if (checkinRow.gps_band) {
-    payload.gps_band = checkinRow.gps_band;
-    if (checkinRow.gps_band === "far" && finiteOrNull(checkinRow.gps_distance_km) !== null) {
-      payload.gps_distance_km = Number(checkinRow.gps_distance_km);
-    }
-  }
+  // Band only (R8, C10): the distance is never signed into an org receipt.
+  if (checkinRow.gps_band) payload.gps_band = checkinRow.gps_band;
 
   payload.venue_pub_jwk = venuePub;
 
@@ -5281,7 +5277,7 @@ async function orgCheckin(request, env) {
   const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
   if (clientCheckinId) {
     // Idempotent retry / replay of a check-in already recorded.
-    const bandSelect = checkinColumns.has("gps_band") && checkinColumns.has("gps_distance_km") ? ",gps_band,gps_distance_km" : "";
+    const bandSelect = checkinColumns.has("gps_band") ? ",gps_band" : "";
     const assuranceSelect = checkinColumns.has("assurance") ? ",assurance" : "";
     const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
@@ -5304,7 +5300,6 @@ async function orgCheckin(request, env) {
         expected_id: existing.expected_id || null,
         ...(existing.assurance ? { assurance: existing.assurance } : {}),
         ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
-        ...(existing.gps_distance_km != null ? { gps_distance_km: existing.gps_distance_km } : {}),
         ...(expectedName ? { expected_name: expectedName } : {}),
         ...(existing.status === "conflict" ? { conflict: true } : {})
       });
@@ -5445,7 +5440,10 @@ async function orgCheckin(request, env) {
   // check-in syncs later (the phone's reading travels in the queued body).
   const venueBand = venueGpsBand(settings, gps);
   const gpsBand = venueBand ? venueBand.band : null;
-  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
+  // R8 / C10 (review 1.2): org check-ins keep the band only. The distance is
+  // used to work the band out and is then dropped: it is not stored, signed
+  // into the receipt or sent back. The gps_distance_km column stays (R4) and
+  // older rows keep what they had; it is never read back out.
   const label = settings.anonymousMode ? null : (attendeeLabel || null);
   const displayName = settings.anonymousMode ? null : ((name || attendeeLabel || "").trim() || null);
   // Batch C polish 5 — defence in depth against ghost-row creation. When the
@@ -5496,10 +5494,6 @@ async function orgCheckin(request, env) {
     insertColumns.push("gps_band");
     insertValues.push(gpsBand);
   }
-  if (checkinColumns.has("gps_distance_km")) {
-    insertColumns.push("gps_distance_km");
-    insertValues.push(gpsDistanceKm);
-  }
   if (checkinColumns.has("clock_gap_s")) {
     insertColumns.push("clock_gap_s");
     insertValues.push(clockGapS);
@@ -5548,8 +5542,7 @@ async function orgCheckin(request, env) {
       out_of_hours: outOfHours ? 1 : 0,
       clock_gap_s: clockGapS,
       clock_gap: clockGap,
-      gps_band: gpsBand,
-      gps_distance_km: gpsDistanceKm
+      gps_band: gpsBand
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
@@ -5568,7 +5561,6 @@ async function orgCheckin(request, env) {
     ...(heldCode ? { held_code: true } : {}),
     ...(clockGap ? { clock_gap: true, clock_gap_s: clockGapS } : {}),
     ...(gpsBand ? { gps_band: gpsBand } : {}),
-    ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
   });
@@ -5813,7 +5805,6 @@ async function orgAttendance(request, env) {
       selectCheckinColumn("event_id"),
       selectCheckinColumn("assurance"),
       selectCheckinColumn("gps_band"),
-      selectCheckinColumn("gps_distance_km"),
       receiptSelect,
       checkoutMethodSelect,
       selectCheckinColumn("checkout_ts")
