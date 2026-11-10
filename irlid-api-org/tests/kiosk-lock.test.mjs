@@ -447,10 +447,38 @@ test("a staff session can no longer fetch keys for a screen id it typed in", asy
     assert.equal(r.status, 403);
     assert.equal(r.body.keys, undefined);
   }
-  // The approved screen itself (its secret) gets them.
+  // The secret alone is not enough (review 1.3): another staff member's
+  // session with the right secret is refused.
   r = await fetchKeys(d1, staffSession, "ZZZZ1234AB");
+  assert.equal(r.status, 403);
+  assert.equal(r.body.reason, "signed_in_as_someone_else");
+  assert.equal(r.body.keys, undefined);
+  // The approved screen itself (its secret and its own session) gets them.
+  r = await fetchKeys(d1, kioskSession, "ZZZZ1234AB");
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.keys.length, 1);
+});
+
+test("screen keys go to the member signed in on the screen at approval, or a Lead Admin / Developer", async () => {
+  const { d1, kioskDevice, leadPhone } = await setupOffline({ approve: false });
+  await enrol(d1, leadPhone, enrolPayload(new Uint8Array(32).fill(6)));
+  const screenStaff = addSession(d1, "staff-1");           // signed in on the door screen
+  addUser(d1, "staff-2", await makeDevice(), "staff");
+  const otherStaff = addSession(d1, "staff-2");            // someone else, same org
+  const otherLead = addSession(d1, "lead-2");
+  await approveScreen(d1, screenStaff, kioskDevice, "DR001234AB");
+  assert.equal(d1.db.prepare("SELECT screen_user_id FROM kiosk_screens WHERE kiosk_id='DR001234AB'").get().screen_user_id, "staff-1");
+  let r = await fetchKeys(d1, screenStaff, "DR001234AB");
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  r = await fetchKeys(d1, otherStaff, "DR001234AB");
+  assert.equal(r.status, 403);
+  assert.equal(r.body.reason, "signed_in_as_someone_else");
+  r = await fetchKeys(d1, otherLead, "DR001234AB");
+  assert.equal(r.status, 200, "a Lead Admin can make codes anyway");
+  // An approval from before this change (no screen user) keeps working until renewed.
+  d1.db.prepare("UPDATE kiosk_screens SET screen_user_id=NULL WHERE kiosk_id='DR001234AB'").run();
+  r = await fetchKeys(d1, otherStaff, "DR001234AB");
+  assert.equal(r.status, 200);
 });
 
 test("only a Lead Admin's or Developer's phone can approve a screen; staff and managers cannot", async () => {

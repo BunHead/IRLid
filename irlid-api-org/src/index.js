@@ -1567,9 +1567,15 @@ async function ensureKioskCodeStorage(env) {
   // Screens a Lead Admin / Developer approved for offline codes (times in ms).
   // Only the SHA-256 of each screen's secret is kept.
   await env.DB.prepare(
-    "CREATE TABLE IF NOT EXISTS kiosk_screens (approval_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kiosk_id TEXT NOT NULL, secret_hash TEXT NOT NULL, approved_by_user_id TEXT NOT NULL, approved_by_pub_fp TEXT, approved_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER, revoked_by_user_id TEXT)"
+    "CREATE TABLE IF NOT EXISTS kiosk_screens (approval_id TEXT PRIMARY KEY, org_id TEXT NOT NULL, kiosk_id TEXT NOT NULL, secret_hash TEXT NOT NULL, approved_by_user_id TEXT NOT NULL, approved_by_pub_fp TEXT, approved_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, revoked_at INTEGER, revoked_by_user_id TEXT, screen_user_id TEXT)"
   ).run();
   await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_kiosk_screens_org_kiosk ON kiosk_screens(org_id, kiosk_id)").run();
+  // v6.8.14 (review 1.3): the member signed in on the screen when it was
+  // approved. Added, never changed (R4); older approvals have none.
+  const screenCols = await tableColumnSet(env, "kiosk_screens");
+  if (!screenCols.has("screen_user_id")) {
+    try { await env.DB.prepare("ALTER TABLE kiosk_screens ADD COLUMN screen_user_id TEXT").run(); } catch (_) { /* added by a concurrent request */ }
+  }
   kioskCodeStorageReady = true;
 }
 
@@ -1673,8 +1679,8 @@ async function executeKioskScreenApproval(env, action) {
   await env.DB.batch([
     env.DB.prepare("UPDATE kiosk_screens SET revoked_at=?, revoked_by_user_id=? WHERE org_id=? AND kiosk_id=? AND revoked_at IS NULL")
       .bind(t, user.id, org.id, String(p.kiosk_id)),
-    env.DB.prepare("INSERT INTO kiosk_screens (approval_id, org_id, kiosk_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at) VALUES (?,?,?,?,?,?,?,?)")
-      .bind(String(p.nonce), org.id, String(p.kiosk_id), String(p.secret_hash), user.id, user.pub_fp || null, t, expiresAt)
+    env.DB.prepare("INSERT INTO kiosk_screens (approval_id, org_id, kiosk_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at, screen_user_id) VALUES (?,?,?,?,?,?,?,?,?)")
+      .bind(String(p.nonce), org.id, String(p.kiosk_id), String(p.secret_hash), user.id, user.pub_fp || null, t, expiresAt, action.requestor_user_id || null)
   ]);
   return { ok: true, result: { approved: true, kiosk_id: String(p.kiosk_id), expires_at: expiresAt } };
 }
@@ -1686,7 +1692,7 @@ async function kioskScreenForSecret(env, orgId, kioskId, secret) {
   await ensureKioskCodeStorage(env);
   const hash = await sha256B64url(String(secret));
   const rows = (await env.DB.prepare(
-    "SELECT approval_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at, revoked_at FROM kiosk_screens WHERE org_id=? AND kiosk_id=? ORDER BY approved_at DESC LIMIT 20"
+    "SELECT approval_id, secret_hash, approved_by_user_id, approved_by_pub_fp, approved_at, expires_at, revoked_at, screen_user_id FROM kiosk_screens WHERE org_id=? AND kiosk_id=? ORDER BY approved_at DESC LIMIT 20"
   ).bind(orgId, kioskId).all()).results || [];
   for (const row of rows) if (constantTimeEqual(hash, row.secret_hash)) return row;
   return null;
@@ -1737,6 +1743,15 @@ async function orgKioskCodeKeys(request, env) {
   if (!kioskLockActiveFromSettings(ctx.org.settings_json)) return json({ error: "kiosk_lock_off" }, 409);
   const problem = await kioskScreenProblem(env, orgId, screen);
   if (problem) return noStore(json({ error: "kiosk_screen_not_approved", reason: problem }, 403));
+  // Review 1.3: the screen's secret alone is not enough. Keys go to the member
+  // who was signed in on the screen when it was approved, or to a Lead Admin /
+  // Developer (who can make codes anyway). So another staff member who copies
+  // the secret off the screen cannot fetch its keys with their own session.
+  // Approvals made before this change have no screen_user_id and still work
+  // until they are renewed (30 days at most).
+  if (screen.screen_user_id && String(screen.screen_user_id) !== String(ctx.user.id) && !KIOSK_CODE_ROLES.has(ctx.role)) {
+    return noStore(json({ error: "kiosk_screen_not_approved", reason: "signed_in_as_someone_else" }, 403));
+  }
   await ensureKioskCodeStorage(env);
   const rows = (await env.DB.prepare(
     "SELECT k.key_id, k.seed, k.user_id, u.pub_fp FROM kiosk_code_keys k JOIN portal_users u ON u.id = k.user_id WHERE k.org_id = ? AND k.revoked_at IS NULL"
@@ -2216,6 +2231,8 @@ async function orgActionClaim(request, env) {
     return fails >= ACTION_CLAIM_FAIL_LIMIT ? json({ error: "rate_limited", retry_after: ACTION_CLAIM_COOLDOWN_MS / 1000 }, 429) : action.error;
   }
   action.signed_envelope = signedEnvelope;
+  // Who asked for this action (the screen's own session for a screen approval).
+  action.requestor_user_id = row.requestor_user_id || null;
 
   const executed = await executeVerifiedPendingAction(env, action);
   if (executed.error) return executed.error;
