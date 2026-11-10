@@ -765,14 +765,42 @@ async function revokeDevice(request, env) {
 //  RECEIPT HANDLERS
 // =====================
 
+const RECEIPT_UPLOAD_MAX_BYTES = 64 * 1024;
+const RECEIPT_UPLOAD_WINDOW_S = 600;
+const RECEIPT_UPLOAD_MAX_PER_IP = 30;
+
+// Per-IP upload cap. Fails closed: if the limiter errors, the upload is
+// refused and the phone uses its self-contained receipt link instead.
+async function receiptUploadLimited(env, request) {
+  try {
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    const key = `receipt_upload|${ip}|${Math.floor(now() / RECEIPT_UPLOAD_WINDOW_S)}`;
+    if (await linkClaimBucketFull(env, key, RECEIPT_UPLOAD_MAX_PER_IP)) return true;
+    await linkClaimBump(env, key);
+    return false;
+  } catch (_) {
+    return true;
+  }
+}
+
 async function uploadReceipt(request, env) {
   // Auth is optional — logged-in users get their profile attached,
   // anonymous users can still store receipts for free verification
   const session = await getSession(request, env);
 
+  // Review 1.5 (old M5): anyone can upload, so cap size and rate, and only
+  // keep receipts that verify. A refused upload is not a dead end: scan.html
+  // and receipt.html fall back to the self-contained receipt link.
+  const declared = Number(request.headers.get("content-length") || 0);
+  if (declared > RECEIPT_UPLOAD_MAX_BYTES) return err("receipt_too_large", 413);
+  let raw;
+  try { raw = await request.text(); } catch { return err("Invalid JSON body"); }
+  if (raw.length > RECEIPT_UPLOAD_MAX_BYTES) return err("receipt_too_large", 413);
+  if (await receiptUploadLimited(env, request)) return err("rate_limited", 429);
+
   let body;
-  try { body = await request.json(); } catch { return err("Invalid JSON body"); }
-  const { combined } = body;
+  try { body = JSON.parse(raw); } catch { return err("Invalid JSON body"); }
+  const { combined } = body || {};
   if (!combined || combined.type !== "combined") return err("Body must include 'combined' with type:'combined'");
 
   const receiptHash = await sha256B64url(canonical(combined));
@@ -780,6 +808,7 @@ async function uploadReceipt(request, env) {
   if (dup) return json({ receipt_id: dup.id, receipt_hash: receiptHash, duplicate: true });
 
   const checks = await verifyReceipt(combined);
+  if (!checks.valid) return json({ error: "receipt_not_valid", verified: false, checks }, 422);
   // Compact receipts strip a.pub (it equals hello.pub) — fall back so we still record the key
   const helloPub = (combined.hello && combined.hello.pub) ? combined.hello.pub : null;
   const aPubForId = (combined.a && combined.a.pub) ? combined.a.pub : helloPub;
@@ -891,7 +920,40 @@ async function lookupByKey(request, env, pubKeyIdParam) {
 //  ROUTER
 // =====================
 
+// Review 2.4 (old L2, L5): nightly cleanup of rows that are not records.
+// Rate-limit buckets older than a day (the longest window is 1 h) and
+// sessions past their expiry. Never touches check-ins, receipts, the audit
+// log or anything else R1 / R5 protect. Each table is cleaned on its own, so
+// a missing table (created on demand) never stops the others.
+const CLEANUP_RATE_LIMIT_AGE_S = 24 * 60 * 60;
+const CLEANUP_TARGETS = [
+  ["ip_rate_limits", "DELETE FROM ip_rate_limits WHERE created_at < ?", (t) => t - CLEANUP_RATE_LIMIT_AGE_S],
+  ["sessions", "DELETE FROM sessions WHERE expires_at < ?", (t) => t]
+];
+async function cleanupExpiredRows(env, t = now(), targets = CLEANUP_TARGETS) {
+  const removed = {};
+  for (const [table, sql, cutoff] of targets) {
+    try {
+      const res = await env.DB.prepare(sql).bind(cutoff(t)).run();
+      removed[table] = Number(res?.meta?.changes || 0);
+    } catch (e) {
+      removed[table] = null;
+      console.warn("[cleanup] " + table + " skipped: " + String(e && e.message || e).slice(0, 120));
+    }
+  }
+  return removed;
+}
+
+export { cleanupExpiredRows };
+// Exported for the tests (review 3.4): they run this exact code.
+export { verifyReceipt, verifyV5Envelope };
+
 export default {
+  // Cron Trigger (wrangler.toml [triggers]): nightly cleanup, review 2.4.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cleanupExpiredRows(env));
+  },
+
   async fetch(request, env) {
     if (request.method === "OPTIONS") return addCors(new Response(null, { status: 204 }), env, request);
 

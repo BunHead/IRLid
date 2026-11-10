@@ -102,6 +102,25 @@ class D1 {
   expectedId(name) { return this.db.prepare("SELECT id FROM org_expected WHERE display_name=?").get(name).id; }
 }
 
+// R1 checks that an audit row never holds the erased data (names). The row's
+// id is random base64url text, so a plain regex over the whole row failed
+// about 1 run in 12,000 when the id happened to contain "Ann" (review 3.3,
+// the "Clear attendance with include_expected" flake). Check every field
+// except the random id.
+function auditTextWithoutRandomId(row) {
+  const { id, ...rest } = row;
+  return JSON.stringify(rest);
+}
+
+// Makes crypto.getRandomValues return bytes whose base64url text spells
+// `word` over and over, so the next random audit id contains it.
+async function withRandomIdSpelling(word, fn) {
+  const bytes = Buffer.from(word.repeat(16).slice(0, 64), "base64");
+  const original = crypto.getRandomValues;
+  crypto.getRandomValues = (arr) => { arr.set(bytes.subarray(0, arr.length)); return arr; };
+  try { return await fn(); } finally { crypto.getRandomValues = original; }
+}
+
 function tokenFor(userId) { return ("session_token_for_" + userId).replace(/[^A-Za-z0-9_-]/g, "_"); }
 
 async function call(d1, method, path, { bearer, orgKey = ORG_KEY, body } = {}) {
@@ -194,7 +213,7 @@ test("Delete record by a Lead Admin erases the cascade and writes one audit row 
     options: { force: false }
   });
   // R1: never the erased data.
-  assert.doesNotMatch(JSON.stringify(row), /Becky/);
+  assert.doesNotMatch(auditTextWithoutRandomId(row), /Becky/);
 });
 
 test("Delete record: org-scoped developer and bootstrap Developer are allowed; force on a live check-in is recorded", async () => {
@@ -284,7 +303,17 @@ test("Clear attendance with include_expected also clears the expected list and l
   assert.equal(detail.rows.expected_attendees, 2);
   assert.equal(detail.rows.rebind_history, 2);
   assert.deepEqual(detail.options, { include_expected: true });
-  assert.doesNotMatch(JSON.stringify(row), /Becky|Ann/);
+  assert.doesNotMatch(auditTextWithoutRandomId(row), /Becky|Ann/);
+});
+
+test("R1 name check ignores the random audit id (regression for the 3.3 flake)", async () => {
+  const d1 = new D1();
+  const res = await withRandomIdSpelling("AnnA", () =>
+    clearAttendance(d1, { bearer: tokenFor("u-boot"), body: { include_expected: true } }));
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  const [row] = d1.audit();
+  assert.match(row.id, /Ann/, "the stub put the name into the random id");
+  assert.doesNotMatch(auditTextWithoutRandomId(row), /Becky|Ann/);
 });
 
 test("Clear attendance: if the audit row cannot be written, nothing is erased", async () => {

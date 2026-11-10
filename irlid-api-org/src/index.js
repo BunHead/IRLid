@@ -10,51 +10,13 @@
 // =====================
 
 function uuid() { return crypto.randomUUID(); }
+import { b64urlEncode, b64urlDecode, b64urlJsonDecode, inflateRawB64urlJson, canonical, deepCanonical, hashPayloadToB64url, sha256B64url, sha256DeepB64url, verifySig, signCanonicalPayload, pubKeyId, deviceKeyFp } from "./crypto.js";
 import { mintWsTicket, verifyWsTicket, wsTicketOrgId, ticketFromProtocolHeader, wsTicketNonce, hubKeyTag, WS_PROTOCOL, WS_TICKET_TTL_S } from "./org-hub.js";
 // The Durable Object class must be exported from the Worker's main module.
 export { OrgHub } from "./org-hub.js";
 
 function now() { return Math.floor(Date.now() / 1000); }
 
-function b64urlEncode(bytes) {
-  const b64 = btoa(String.fromCharCode(...bytes));
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function b64urlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) str += "=";
-  const bin = atob(str);
-  return Uint8Array.from(bin, c => c.charCodeAt(0));
-}
-
-function b64urlJsonDecode(str) {
-  return JSON.parse(new TextDecoder().decode(b64urlDecode(String(str || ""))));
-}
-
-async function inflateRawB64urlJson(str) {
-  if (typeof DecompressionStream !== "function") throw new Error("Compressed HELLO unsupported");
-  const stream = new Blob([b64urlDecode(String(str || ""))]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return JSON.parse(await new Response(stream).text());
-}
-
-// v6.4.8 — FULLY RECURSIVE canonical, byte-identical to the client's canonical()
-// in js/sign.js. The previous version sorted ONLY top-level keys then
-// JSON.stringify'd, leaving nested objects in insertion order. Every signature
-// in the system is computed over the client's recursive form, so any nested
-// payload (the HELLO carries offer / offer.payload / pub) hashed differently
-// on the Worker → accept_not_bound_to_hello in the Lead Admin co-presence
-// check (Captain hit this 11 Jun). This is the same non-recursive-canonical
-// trap the CONSUMER Worker was fixed for on 1 May 2026; the org Worker never
-// got the upgrade because no org flow hashed a nested structure until the
-// Lead Admin ceremony. Strictly corrective: flat payloads (per-action grants,
-// gps {lat,lon}) produce identical output either way, so no path regresses.
-function canonical(val) {
-  if (val === null || typeof val !== "object") return JSON.stringify(val);
-  if (Array.isArray(val)) return "[" + val.map(canonical).join(",") + "]";
-  const keys = Object.keys(val).sort();
-  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonical(val[k])).join(",") + "}";
-}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -79,6 +41,8 @@ const EXPECTED_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, d
 const THEME_SCRAPE_TTL_MS = 24 * 60 * 60 * 1000;
 const THEME_SCRAPE_TIMEOUT_MS = 5000;
 const IMAGE_PROXY_MAX_BYTES = 2 * 1024 * 1024;
+const IMAGE_PROXY_MAX_PER_IP = 120;   // per IP per window (review 1.4)
+const IMAGE_PROXY_WINDOW_S = 600;
 const PUBLIC_HTTP_URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i;
 const AUTO_CHECKOUT_MIN_INTERVAL_MS = 60 * 1000;
 const autoCheckoutLastRunByOrg = new Map();
@@ -128,6 +92,28 @@ function parsePublicHttpUrl(value) {
   return url;
 }
 
+// Review 1.4 (old M6): fetch a public URL without letting a redirect land
+// somewhere the first check would have refused. Redirects are followed by
+// hand, at most PUBLIC_FETCH_MAX_REDIRECTS hops, and every Location is
+// checked with parsePublicHttpUrl again (no internal hosts, http(s) only).
+const PUBLIC_FETCH_MAX_REDIRECTS = 3;
+async function fetchPublicUrl(url, init = {}, fetchImpl = fetch) {
+  let current = url instanceof URL ? url : parsePublicHttpUrl(String(url || ""));
+  if (!current) throw new Error("not_a_public_url");
+  for (let hop = 0; hop <= PUBLIC_FETCH_MAX_REDIRECTS; hop++) {
+    const response = await fetchImpl(current.href, { ...init, redirect: "manual" });
+    if (response.status < 300 || response.status > 399 || response.status === 304) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    let nextHref;
+    try { nextHref = new URL(location, current.href).href; } catch (_) { throw new Error("bad_redirect"); }
+    const next = parsePublicHttpUrl(nextHref);
+    if (!next) throw new Error("redirect_not_public");
+    current = next;
+  }
+  throw new Error("too_many_redirects");
+}
+
 // Batch C polish 5 — Developer role is bootstrap-only. The /org/expected create
 // + update endpoints accept prototype_role from any authenticated org member.
 // That's fine for attendee/staff/manager/lead_admin (gated by frontend RBAC
@@ -149,46 +135,8 @@ function randomCode6() {
 // =====================
 //  CRYPTO
 // =====================
+// Encoding, hash and signature primitives live in ./crypto.js (review 4.2).
 
-async function hashPayloadToB64url(payloadObj, protocolV) {
-  // v3+: canonical() — order-independent. v2 and below: JSON.stringify (backward compat).
-  const v = (protocolV != null) ? Number(protocolV) : ((payloadObj && payloadObj.v) ? Number(payloadObj.v) : 3);
-  const str = (v >= 3) ? canonical(payloadObj) : JSON.stringify(payloadObj);
-  const bytes = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
-
-async function sha256B64url(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return b64urlEncode(new Uint8Array(buf));
-}
-
-async function verifySig(midB64url, sigB64url, pubJwk) {
-  try {
-    const pub = await crypto.subtle.importKey("jwk", pubJwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
-    return await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, b64urlDecode(sigB64url), b64urlDecode(midB64url));
-  } catch { return false; }
-}
-
-async function signCanonicalPayload(payloadObj, privateJwk) {
-  const hash = await sha256B64url(deepCanonical(payloadObj));
-  const key = await crypto.subtle.importKey("jwk", privateJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, b64urlDecode(hash));
-  return b64urlEncode(new Uint8Array(sig));
-}
-
-async function pubKeyId(pubJwk) {
-  const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return b64urlEncode(new Uint8Array(h)).slice(0, 18);
-}
-
-async function deviceKeyFp(pubJwk) {
-  if (!pubJwk) return null;
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(pubJwk)));
-  return b64urlEncode(new Uint8Array(h)).slice(0, 16);
-}
 
 // =====================
 //  v5 ENVELOPE VERIFIER (PROTOCOL.md §13.7) — Batch A port from live Worker
@@ -2626,17 +2574,6 @@ function encodeInvitePayload(payload) {
   return "I:" + b64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
 }
 
-function deepCanonical(value) {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map(deepCanonical).join(",") + "]";
-  const keys = Object.keys(value).sort();
-  return "{" + keys.map(k => JSON.stringify(k) + ":" + deepCanonical(value[k])).join(",") + "}";
-}
-
-async function sha256DeepB64url(value) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(deepCanonical(value)));
-  return b64urlEncode(new Uint8Array(buf));
-}
 
 function inviteUnsignedPayload(payload) {
   const clean = Object.assign({}, payload || {});
@@ -3314,13 +3251,12 @@ async function userScrapeTheme(request, env, orgId) {
 
   let htmlResponse;
   try {
-    htmlResponse = await fetch(websiteUrl.href, {
+    htmlResponse = await fetchPublicUrl(websiteUrl, {
       headers: {
         "User-Agent": "IRLidThemeScraper/1.0 (+https://github.com/BunHead/IRLid-TestEnvironment)",
         "Accept": "text/html,application/xhtml+xml"
       },
-      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS),
-      redirect: "follow"
+      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS)
     });
   } catch (e) {
     return json({ error: "scrape_fetch_failed", detail: e && e.message ? e.message : "fetch failed" }, 502);
@@ -3391,16 +3327,19 @@ async function userScrapeTheme(request, env, orgId) {
 async function utilImageProxy(request, env) {
   const target = parsePublicHttpUrl(new URL(request.url).searchParams.get("url") || "");
   if (!target) return err("url must be a public http(s) image URL", 400);
+  // Open endpoint (logo previews), so cap it per IP against abuse and cost.
+  if (await ipRateLimited(env, request, "image_proxy", IMAGE_PROXY_MAX_PER_IP, IMAGE_PROXY_WINDOW_S)) {
+    return err("rate_limited", 429);
+  }
 
   let proxied;
   try {
-    proxied = await fetch(target.href, {
+    proxied = await fetchPublicUrl(target, {
       headers: {
         "User-Agent": "IRLidImageProxy/1.0",
         "Accept": "image/*"
       },
-      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS),
-      redirect: "follow"
+      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS)
     });
   } catch (e) {
     return err("image_fetch_failed", 502);
@@ -4169,12 +4108,8 @@ async function mintOrgReceipt(env, request, org, checkinRow, options) {
     if (venuePhone) payload.venue.phone = venuePhone;
   }
   // Server-computed phone-vs-venue band (flag only). Never the raw position.
-  if (checkinRow.gps_band) {
-    payload.gps_band = checkinRow.gps_band;
-    if (checkinRow.gps_band === "far" && finiteOrNull(checkinRow.gps_distance_km) !== null) {
-      payload.gps_distance_km = Number(checkinRow.gps_distance_km);
-    }
-  }
+  // Band only (R8, C10): the distance is never signed into an org receipt.
+  if (checkinRow.gps_band) payload.gps_band = checkinRow.gps_band;
 
   payload.venue_pub_jwk = venuePub;
 
@@ -5385,7 +5320,7 @@ async function orgCheckin(request, env) {
   const attendeeDeviceFp = helloPubJwk ? await deviceKeyFp(helloPubJwk) : null;
   if (clientCheckinId) {
     // Idempotent retry / replay of a check-in already recorded.
-    const bandSelect = checkinColumns.has("gps_band") && checkinColumns.has("gps_distance_km") ? ",gps_band,gps_distance_km" : "";
+    const bandSelect = checkinColumns.has("gps_band") ? ",gps_band" : "";
     const assuranceSelect = checkinColumns.has("assurance") ? ",assurance" : "";
     const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
@@ -5408,7 +5343,6 @@ async function orgCheckin(request, env) {
         expected_id: existing.expected_id || null,
         ...(existing.assurance ? { assurance: existing.assurance } : {}),
         ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
-        ...(existing.gps_distance_km != null ? { gps_distance_km: existing.gps_distance_km } : {}),
         ...(expectedName ? { expected_name: expectedName } : {}),
         ...(existing.status === "conflict" ? { conflict: true } : {})
       });
@@ -5549,7 +5483,10 @@ async function orgCheckin(request, env) {
   // check-in syncs later (the phone's reading travels in the queued body).
   const venueBand = venueGpsBand(settings, gps);
   const gpsBand = venueBand ? venueBand.band : null;
-  const gpsDistanceKm = venueBand && venueBand.band === "far" ? venueBand.distance_km : null;
+  // R8 / C10 (review 1.2): org check-ins keep the band only. The distance is
+  // used to work the band out and is then dropped: it is not stored, signed
+  // into the receipt or sent back. The gps_distance_km column stays (R4) and
+  // older rows keep what they had; it is never read back out.
   const label = settings.anonymousMode ? null : (attendeeLabel || null);
   const displayName = settings.anonymousMode ? null : ((name || attendeeLabel || "").trim() || null);
   // Batch C polish 5 — defence in depth against ghost-row creation. When the
@@ -5600,10 +5537,6 @@ async function orgCheckin(request, env) {
     insertColumns.push("gps_band");
     insertValues.push(gpsBand);
   }
-  if (checkinColumns.has("gps_distance_km")) {
-    insertColumns.push("gps_distance_km");
-    insertValues.push(gpsDistanceKm);
-  }
   if (checkinColumns.has("clock_gap_s")) {
     insertColumns.push("clock_gap_s");
     insertValues.push(clockGapS);
@@ -5623,10 +5556,27 @@ async function orgCheckin(request, env) {
     await env.DB.prepare("UPDATE org_checkins SET conflict_id=? WHERE id=? AND org_id=?").bind(conflictId, id, org.id).run();
     link = { linked: false, conflict: true, expected_id: expected.id, conflict_id: conflictId };
   } else if (expected) {
-      await env.DB.prepare(
-        "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
-      ).bind(attendeeDeviceFp, expected.id, org.id).run();
-      link = { linked: true, expected_id: expected.id, expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim() };
+      // Review 1.1: a typed name alone must never claim a guest-list place.
+      // A phone is only bound to an expected attendee by a fresh, live-code,
+      // correctly signed attendee scan. An offline / unverified (or doorman)
+      // check-in still counts against the name, but leaves the binding for
+      // staff to make (doorman "choose from list"), so the real person's phone
+      // is never turned into a "conflict" by whoever typed their name first.
+      const mayBind = mode === "attendee_scan" && assurance === "fresh" && signatureOk && !!attendeeDeviceFp;
+      let deviceBound = !!attendeeDeviceFp && (expected.device_pub_fp === attendeeDeviceFp || (expected.device_key_fps || []).includes(attendeeDeviceFp));
+      if (!deviceBound && mayBind && !expected.device_pub_fp) {
+        await env.DB.prepare(
+          "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
+        ).bind(attendeeDeviceFp, expected.id, org.id).run();
+        deviceBound = true;
+      }
+      link = {
+        linked: true,
+        expected_id: expected.id,
+        expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim(),
+        device_bound: deviceBound,
+        ...(deviceBound || !attendeeDeviceFp ? {} : { bind_skipped: "needs_fresh_signed_checkin" })
+      };
   }
   let receiptResult = null;
   let receiptUnavailable = false;
@@ -5652,8 +5602,7 @@ async function orgCheckin(request, env) {
       out_of_hours: outOfHours ? 1 : 0,
       clock_gap_s: clockGapS,
       clock_gap: clockGap,
-      gps_band: gpsBand,
-      gps_distance_km: gpsDistanceKm
+      gps_band: gpsBand
     }, { gps, expected, score, bioVerified, action: "in", event_id: eventRow?.id || null, event_name: eventRow?.name || null, room: eventRow?.room_label || null });
   } catch (e) {
     console.warn("org receipt mint failed:", e && (e.message || e));
@@ -5672,7 +5621,6 @@ async function orgCheckin(request, env) {
     ...(heldCode ? { held_code: true } : {}),
     ...(clockGap ? { clock_gap: true, clock_gap_s: clockGapS } : {}),
     ...(gpsBand ? { gps_band: gpsBand } : {}),
-    ...(gpsDistanceKm !== null ? { gps_distance_km: gpsDistanceKm } : {}),
     ...(receiptResult ? { receipt_id: receiptResult.receipt_id, receipt_url: receiptResult.receipt_url, receipt: receiptResult.receipt } : { receipt_unavailable: receiptUnavailable }),
     ...link
   });
@@ -5917,7 +5865,6 @@ async function orgAttendance(request, env) {
       selectCheckinColumn("event_id"),
       selectCheckinColumn("assurance"),
       selectCheckinColumn("gps_band"),
-      selectCheckinColumn("gps_distance_km"),
       receiptSelect,
       checkoutMethodSelect,
       selectCheckinColumn("checkout_ts")
@@ -7284,7 +7231,7 @@ async function orgAuth(request, env) {
 //  ROUTER
 // =====================
 
-export { venueGpsBand };
+export { venueGpsBand, fetchPublicUrl };
 
 // =====================
 //  PUSH UPDATES (Durable Object hub)
@@ -7378,7 +7325,39 @@ async function publishHubEvents(request, response, env, ctx, method, path) {
   }
 }
 
+// Review 2.4 (old L2, L5): nightly cleanup of rows that are not records.
+// Rate-limit buckets older than a day (the longest window is 1 h) and
+// sessions past their expiry. Never touches check-ins, receipts, the audit
+// log or anything else R1 / R5 protect. Each table is cleaned on its own, so
+// a missing table (created on demand) never stops the others.
+const CLEANUP_RATE_LIMIT_AGE_S = 24 * 60 * 60;
+const CLEANUP_TARGETS = [
+  ["ip_rate_limits", "DELETE FROM ip_rate_limits WHERE created_at < ?", (t) => t - CLEANUP_RATE_LIMIT_AGE_S],
+  ["sessions", "DELETE FROM sessions WHERE expires_at < ?", (t) => t],
+  ["org_staff_sessions", "DELETE FROM org_staff_sessions WHERE expires_at < ?", (t) => t]
+];
+async function cleanupExpiredRows(env, t = now(), targets = CLEANUP_TARGETS) {
+  const removed = {};
+  for (const [table, sql, cutoff] of targets) {
+    try {
+      const res = await env.DB.prepare(sql).bind(cutoff(t)).run();
+      removed[table] = Number(res?.meta?.changes || 0);
+    } catch (e) {
+      removed[table] = null;
+      console.warn("[cleanup] " + table + " skipped: " + String(e && e.message || e).slice(0, 120));
+    }
+  }
+  return removed;
+}
+
+export { cleanupExpiredRows };
+
 export default {
+  // Cron Trigger (wrangler.toml [triggers]): nightly cleanup, review 2.4.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cleanupExpiredRows(env));
+  },
+
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return addCors(new Response(null, { status: 204 }), env, request);
 

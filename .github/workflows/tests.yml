@@ -1,0 +1,60 @@
+# Run every test suite on each pull request and on every push to main.
+# The Worker deploy (deploy-worker.yml) calls this workflow and only deploys
+# when it passes. To stop a red PR being merged, Spencer also needs to make
+# the "Tests / unit" and "Tests / e2e" checks required in branch protection
+# (see the PR that added this file for the exact settings).
+
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sign tests
+        run: npm test
+
+      - name: Org Worker tests
+        run: npm run test:org-worker
+
+      - name: Consumer Worker tests
+        run: npm run test:api
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Pinned exactly, installed only for this job (not added to package.json).
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx --no-install playwright install --with-deps chromium
+
+      - name: Browser tests
+        env:
+          IRLID_E2E_REQUIRED: '1'
+        run: npm run test:e2e
