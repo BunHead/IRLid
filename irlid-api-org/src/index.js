@@ -41,6 +41,8 @@ const EXPECTED_ROLE_RANK = { attendee: 0, staff: 1, manager: 2, lead_admin: 3, d
 const THEME_SCRAPE_TTL_MS = 24 * 60 * 60 * 1000;
 const THEME_SCRAPE_TIMEOUT_MS = 5000;
 const IMAGE_PROXY_MAX_BYTES = 2 * 1024 * 1024;
+const IMAGE_PROXY_MAX_PER_IP = 120;   // per IP per window (review 1.4)
+const IMAGE_PROXY_WINDOW_S = 600;
 const PUBLIC_HTTP_URL_RE = /^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i;
 const AUTO_CHECKOUT_MIN_INTERVAL_MS = 60 * 1000;
 const autoCheckoutLastRunByOrg = new Map();
@@ -88,6 +90,28 @@ function parsePublicHttpUrl(value) {
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
   if (isInternalHostname(url.hostname)) return null;
   return url;
+}
+
+// Review 1.4 (old M6): fetch a public URL without letting a redirect land
+// somewhere the first check would have refused. Redirects are followed by
+// hand, at most PUBLIC_FETCH_MAX_REDIRECTS hops, and every Location is
+// checked with parsePublicHttpUrl again (no internal hosts, http(s) only).
+const PUBLIC_FETCH_MAX_REDIRECTS = 3;
+async function fetchPublicUrl(url, init = {}, fetchImpl = fetch) {
+  let current = url instanceof URL ? url : parsePublicHttpUrl(String(url || ""));
+  if (!current) throw new Error("not_a_public_url");
+  for (let hop = 0; hop <= PUBLIC_FETCH_MAX_REDIRECTS; hop++) {
+    const response = await fetchImpl(current.href, { ...init, redirect: "manual" });
+    if (response.status < 300 || response.status > 399 || response.status === 304) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    let nextHref;
+    try { nextHref = new URL(location, current.href).href; } catch (_) { throw new Error("bad_redirect"); }
+    const next = parsePublicHttpUrl(nextHref);
+    if (!next) throw new Error("redirect_not_public");
+    current = next;
+  }
+  throw new Error("too_many_redirects");
 }
 
 // Batch C polish 5 — Developer role is bootstrap-only. The /org/expected create
@@ -3210,13 +3234,12 @@ async function userScrapeTheme(request, env, orgId) {
 
   let htmlResponse;
   try {
-    htmlResponse = await fetch(websiteUrl.href, {
+    htmlResponse = await fetchPublicUrl(websiteUrl, {
       headers: {
         "User-Agent": "IRLidThemeScraper/1.0 (+https://github.com/BunHead/IRLid-TestEnvironment)",
         "Accept": "text/html,application/xhtml+xml"
       },
-      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS),
-      redirect: "follow"
+      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS)
     });
   } catch (e) {
     return json({ error: "scrape_fetch_failed", detail: e && e.message ? e.message : "fetch failed" }, 502);
@@ -3287,16 +3310,19 @@ async function userScrapeTheme(request, env, orgId) {
 async function utilImageProxy(request, env) {
   const target = parsePublicHttpUrl(new URL(request.url).searchParams.get("url") || "");
   if (!target) return err("url must be a public http(s) image URL", 400);
+  // Open endpoint (logo previews), so cap it per IP against abuse and cost.
+  if (await ipRateLimited(env, request, "image_proxy", IMAGE_PROXY_MAX_PER_IP, IMAGE_PROXY_WINDOW_S)) {
+    return err("rate_limited", 429);
+  }
 
   let proxied;
   try {
-    proxied = await fetch(target.href, {
+    proxied = await fetchPublicUrl(target, {
       headers: {
         "User-Agent": "IRLidImageProxy/1.0",
         "Accept": "image/*"
       },
-      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS),
-      redirect: "follow"
+      signal: AbortSignal.timeout(THEME_SCRAPE_TIMEOUT_MS)
     });
   } catch (e) {
     return err("image_fetch_failed", 502);
@@ -7171,7 +7197,7 @@ async function orgAuth(request, env) {
 //  ROUTER
 // =====================
 
-export { venueGpsBand };
+export { venueGpsBand, fetchPublicUrl };
 
 // =====================
 //  PUSH UPDATES (Durable Object hub)
