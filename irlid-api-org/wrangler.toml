@@ -29,3 +29,7 @@ enabled = true
 [observability.logs]
 enabled = true
 invocation_logs = true
+
+# Nightly cleanup of expired sessions and old rate-limit rows (review 2.4).
+[triggers]
+crons = ["17 3 * * *"]
