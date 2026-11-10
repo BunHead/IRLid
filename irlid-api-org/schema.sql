@@ -375,7 +375,6 @@ CREATE TABLE IF NOT EXISTS kiosk_screens (
   approved_at         INTEGER NOT NULL,  -- milliseconds (W10)
   expires_at          INTEGER NOT NULL,  -- milliseconds (W10)
   revoked_at          INTEGER,           -- milliseconds (W10)
-  revoked_by_user_id  TEXT,
-  screen_user_id      TEXT               -- v6.8.14: member signed in on the screen at approval
+  revoked_by_user_id  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_kiosk_screens_org_kiosk ON kiosk_screens(org_id, kiosk_id);
