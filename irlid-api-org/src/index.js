@@ -5539,10 +5539,27 @@ async function orgCheckin(request, env) {
     await env.DB.prepare("UPDATE org_checkins SET conflict_id=? WHERE id=? AND org_id=?").bind(conflictId, id, org.id).run();
     link = { linked: false, conflict: true, expected_id: expected.id, conflict_id: conflictId };
   } else if (expected) {
-      await env.DB.prepare(
-        "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
-      ).bind(attendeeDeviceFp, expected.id, org.id).run();
-      link = { linked: true, expected_id: expected.id, expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim() };
+      // Review 1.1: a typed name alone must never claim a guest-list place.
+      // A phone is only bound to an expected attendee by a fresh, live-code,
+      // correctly signed attendee scan. An offline / unverified (or doorman)
+      // check-in still counts against the name, but leaves the binding for
+      // staff to make (doorman "choose from list"), so the real person's phone
+      // is never turned into a "conflict" by whoever typed their name first.
+      const mayBind = mode === "attendee_scan" && assurance === "fresh" && signatureOk && !!attendeeDeviceFp;
+      let deviceBound = !!attendeeDeviceFp && (expected.device_pub_fp === attendeeDeviceFp || (expected.device_key_fps || []).includes(attendeeDeviceFp));
+      if (!deviceBound && mayBind && !expected.device_pub_fp) {
+        await env.DB.prepare(
+          "UPDATE org_expected SET device_pub_fp=COALESCE(device_pub_fp,?) WHERE id=? AND org_id=?"
+        ).bind(attendeeDeviceFp, expected.id, org.id).run();
+        deviceBound = true;
+      }
+      link = {
+        linked: true,
+        expected_id: expected.id,
+        expected_name: expected.display_name || `${expected.first_name || ""} ${expected.surname || ""}`.trim(),
+        device_bound: deviceBound,
+        ...(deviceBound || !attendeeDeviceFp ? {} : { bind_skipped: "needs_fresh_signed_checkin" })
+      };
   }
   let receiptResult = null;
   let receiptUnavailable = false;
