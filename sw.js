@@ -22,6 +22,7 @@ const CACHE_VERSION = 'irlid-shell-v203'; // v6.8.13 FIRST-SCAN HOLD (option C, 
 // Static shell assets — pre-cached on first install. Same-origin only.
 const SHELL_ASSETS = [
   './Org.html',
+  './css/org.css',
   './org-action-auth.html',
   './org-entry.html',
   './receipt.html',
@@ -115,7 +116,7 @@ self.addEventListener('fetch', (event) => {
   // v6.8.7 - pages also match without .html (/Org, /org-entry: the host
   // serves both), and every pre-cached script is listed (login-poll and
   // orghub-client were missing, so they never loaded offline).
-  const DASHBOARD_PATHS = /^\/((Org|org-action-auth|org-entry|receipt|check|kiosk-code)(\.html)?$|js\/(orgapi|orghub-client|login-poll|offline-queue|offline-snapshot|qr-fullscreen|kiosk-lock|sign|brand-fonts|vendor\/jsqr\.min)\.js$|manifest\.json$|sw\.js$)/;
+  const DASHBOARD_PATHS = /^\/((Org|org-action-auth|org-entry|receipt|check|kiosk-code)(\.html)?$|js\/(orgapi|orghub-client|login-poll|offline-queue|offline-snapshot|qr-fullscreen|kiosk-lock|sign|brand-fonts|vendor\/jsqr\.min)\.js$|css\/org\.css$|manifest\.json$|sw\.js$)/;
   if (url.origin === self.location.origin && !DASHBOARD_PATHS.test(url.pathname)) {
     return; // pass through; no caching, no shell fallback
   }
@@ -152,8 +153,9 @@ self.addEventListener('fetch', (event) => {
       return;
     }
     // v6.8.7 — scripts: network-first (cache fallback offline), so a page
-    // never runs fresh HTML against a stale script after a deploy.
-    if (/\.js(\?|$)/.test(url.pathname)) {
+    // never runs fresh HTML against a stale script after a deploy. The same
+    // for the dashboard stylesheet (css/org.css, review 4.1).
+    if (/\.(js|css)(\?|$)/.test(url.pathname)) {
       event.respondWith(
         fetch(req, { cache: 'no-cache' })
           .then((response) => {

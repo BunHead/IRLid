@@ -194,7 +194,7 @@ test("Org.html never polls login through orgapi.js (a stale cached copy drops th
 test("sw.js pre-caches with cache:'reload' and serves scripts network-first", () => {
   const sw = read("sw.js");
   assert.match(sw, /addAll\(SHELL_ASSETS\.map\(\(u\) => new Request\(u, \{ cache: 'reload' \}\)\)\)/);
-  const jsBranch = sw.slice(sw.indexOf("if (/\\.js(\\?|$)/.test(url.pathname))"), sw.indexOf("// Other static assets: cache-first."));
+  const jsBranch = sw.slice(sw.indexOf("if (/\\.(js|css)(\\?|$)/.test(url.pathname))"), sw.indexOf("// Other static assets: cache-first."));
   assert.ok(jsBranch.length > 50, "network-first JS branch present");
   assert.match(jsBranch, /fetch\(req/);
   assert.match(jsBranch, /caches\.match\(req\)/, "offline fallback to cache kept (C1)");
