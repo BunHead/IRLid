@@ -211,7 +211,7 @@ async function kioskLayout(kiosk) {
   });
 }
 
-test("offline unlock code works end to end with the network cut", { skip: !chromium && "Playwright not installed", timeout: 120000 }, async () => {
+test("offline unlock code works end to end with the network cut", { skip: !chromium && !process.env.IRLID_E2E_REQUIRED && "Playwright not installed", timeout: 120000 }, async () => {
   const d1 = new D1();
   const workerServer = startWorker(d1);
   const workerPort = await listen(workerServer, 0);
