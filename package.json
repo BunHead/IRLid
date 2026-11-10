@@ -8,7 +8,7 @@
     "test:watch": "node --test --watch tests/sign.test.js",
     "test:org-worker": "node --test irlid-api-org/tests/*.test.mjs",
     "test:api": "node --test irlid-api/tests/*.test.mjs",
-    "test:e2e": "node --test tests/e2e/*.e2e.mjs"
+    "test:e2e": "node --test --test-concurrency=1 tests/e2e/*.e2e.mjs"
   },
   "author": "Spencer Austin",
   "license": "Apache-2.0"
