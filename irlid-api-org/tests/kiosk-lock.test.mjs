@@ -447,10 +447,83 @@ test("a staff session can no longer fetch keys for a screen id it typed in", asy
     assert.equal(r.status, 403);
     assert.equal(r.body.keys, undefined);
   }
-  // The approved screen itself (its secret) gets them.
+  // The approved screen (its secret) gets them, whoever is signed in on it.
   r = await fetchKeys(d1, staffSession, "ZZZZ1234AB");
   assert.equal(r.status, 200, JSON.stringify(r.body));
   assert.equal(r.body.keys.length, 1);
+});
+
+// Review 1.3 (Spencer, 10 Nov): offline-code keys belong to the approved
+// SCREEN, proven by its secret (X-Kiosk-Secret, whose hash the Lead Admin /
+// Developer signed at approval). They are not tied to whichever member was
+// signed in when it was approved, so a shift change on the door screen keeps
+// its offline codes. A session on its own, staff or Lead Admin, gets nothing.
+async function setupScreenScope() {
+  const ctx = await setupOffline({ approve: false });
+  await enrol(ctx.d1, ctx.leadPhone, enrolPayload(new Uint8Array(32).fill(6)));
+  addUser(ctx.d1, "staff-2", await makeDevice(), "staff");
+  ctx.morningStaff = addSession(ctx.d1, "staff-1");       // signed in when approved
+  ctx.eveningStaff = addSession(ctx.d1, "staff-2");       // signs in later, same screen
+  ctx.leadSession = addSession(ctx.d1, "lead-2");
+  await approveScreen(ctx.d1, ctx.morningStaff, ctx.kioskDevice, "DR001234AB");
+  await approveScreen(ctx.d1, ctx.morningStaff, ctx.kioskDevice, "DR009999AB");
+  return ctx;
+}
+
+test("screen keys: another staff member signing in on the approved screen keeps its keys", async () => {
+  const { d1, morningStaff, eveningStaff, leadSession, kioskSession } = await setupScreenScope();
+  const first = await fetchKeys(d1, morningStaff, "DR001234AB");
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  assert.equal(first.body.keys.length, 1);
+  // Shift change: the morning staff signs out, the evening staff signs in on
+  // the same screen (same secret). Same keys, no new approval needed.
+  for (const session of [eveningStaff, leadSession, kioskSession]) {
+    const r = await fetchKeys(d1, session, "DR001234AB");
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(r.body.keys, first.body.keys);
+    assert.equal(r.body.screen_expires_at, first.body.screen_expires_at);
+  }
+  // Nothing about who was signed in is stored with the approval.
+  const cols = d1.db.prepare("PRAGMA table_info(kiosk_screens)").all().map(c => c.name);
+  assert.equal(cols.some(c => /screen_user|session/.test(c)), false, cols.join(","));
+});
+
+test("screen keys: an ordinary session without that screen's secret is refused", async () => {
+  const { d1, eveningStaff, leadSession } = await setupScreenScope();
+  const otherScreensSecret = d1.secrets.DR009999AB;
+  for (const session of [eveningStaff, leadSession]) {
+    for (const secret of ["", Buffer.alloc(32, 7).toString("base64url"), otherScreensSecret]) {
+      const r = await fetchKeys(d1, session, "DR001234AB", secret);
+      assert.equal(r.status, 403, "secret " + JSON.stringify(secret));
+      assert.equal(r.body.error, "kiosk_screen_not_approved");
+      assert.equal(r.body.reason, "not_approved");
+      assert.equal(r.body.keys, undefined);
+    }
+  }
+  // The right secret still needs a signed-in member of the org.
+  let r = await fetchKeys(d1, null, "DR001234AB");
+  assert.equal(r.status, 401);
+  assert.equal(r.body.keys, undefined);
+  r = await fetchKeys(d1, addSession(d1, "attendee-1"), "DR001234AB");
+  assert.equal(r.status, 403);
+  assert.equal(r.body.keys, undefined);
+});
+
+test("screen keys: a revoked or expired screen is refused for every session", async () => {
+  const { d1, morningStaff, eveningStaff, leadSession } = await setupScreenScope();
+  const rev = await call(d1, "POST", "/org/kiosk/screen/revoke", { org_id: "org-1", kiosk_id: "DR001234AB" }, { session: leadSession });
+  assert.equal(rev.status, 200);
+  d1.db.prepare("UPDATE kiosk_screens SET expires_at=? WHERE kiosk_id='DR009999AB'").run(Date.now() - 1);
+  for (const session of [morningStaff, eveningStaff, leadSession]) {
+    let r = await fetchKeys(d1, session, "DR001234AB");
+    assert.equal(r.status, 403);
+    assert.equal(r.body.reason, "revoked");
+    assert.equal(r.body.keys, undefined);
+    r = await fetchKeys(d1, session, "DR009999AB");
+    assert.equal(r.status, 403);
+    assert.equal(r.body.reason, "expired");
+    assert.equal(r.body.keys, undefined);
+  }
 });
 
 test("only a Lead Admin's or Developer's phone can approve a screen; staff and managers cannot", async () => {

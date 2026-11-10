@@ -1683,6 +1683,10 @@ async function orgKioskCodeKeys(request, env) {
   const ctx = await kioskSessionForOrg(request, env, orgId);
   if (ctx.error) return ctx.error;
   if (!kioskLockActiveFromSettings(ctx.org.settings_json)) return json({ error: "kiosk_lock_off" }, 409);
+  // Review 1.3: keys belong to the approved SCREEN, proven by its secret
+  // (whose hash the Lead Admin / Developer signed). They are deliberately not
+  // tied to the member signed in at approval, so a shift change keeps them;
+  // a session without this screen's secret gets none, whatever its role.
   const problem = await kioskScreenProblem(env, orgId, screen);
   if (problem) return noStore(json({ error: "kiosk_screen_not_approved", reason: problem }, 403));
   await ensureKioskCodeStorage(env);
