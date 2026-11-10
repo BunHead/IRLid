@@ -1,0 +1,40 @@
+# STAGING / TEST copy of the org Worker (review item 2.3). NOT live yet.
+#
+# Used only by `wrangler deploy -c wrangler.staging.toml` (the manual
+# "Deploy staging Workers" workflow). Production uses wrangler.toml, which
+# this file does not change, so the main-branch auto-deploy is unaffected.
+# It deploys a SEPARATE Worker (irlid-api-org-staging) with its OWN empty D1
+# database, so test data never touches production. Spencer creates the
+# database once and pastes its id below; see docs/test-environment.md. Until
+# then the placeholder makes the staging workflow stop before deploying.
+#
+# Keep in step with wrangler.toml: same main, compatibility settings,
+# Durable Object binding and migrations. staging-env-config.test.mjs checks.
+name = "irlid-api-org-staging"
+main = "src/index.js"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+CORS_ORIGIN = "http://localhost:8000"  # change to the preview site address once it exists
+IRLID_ENV = "staging"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "irlid-db-org-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
+
+[[durable_objects.bindings]]
+name = "ORG_HUB"
+class_name = "OrgHub"
+
+[[migrations]]
+tag = "v1-org-hub"
+new_sqlite_classes = ["OrgHub"]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
