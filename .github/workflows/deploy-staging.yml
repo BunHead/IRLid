@@ -1,0 +1,60 @@
+# Deploy BOTH Workers to the STAGING / TEST environment (review item 2.3).
+#
+# Manual only: Actions tab -> "Deploy staging Workers" -> Run workflow.
+# It never runs on push or on a PR, and it never touches production:
+# it always uses wrangler.staging.toml, which deploys irlid-api-org-staging and
+# irlid-api-staging with their own empty D1 databases.
+#
+# Before the first run Spencer must do the one-time setup in
+# docs/test-environment.md (create the two staging D1 databases and paste
+# their ids into the two wrangler.staging.toml files). Until then the first step stops
+# the run, so nothing is deployed with a placeholder id.
+
+name: Deploy staging Workers
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Stop if the staging database ids are still placeholders
+        run: |
+          if grep -n 'REPLACE_WITH_STAGING_D1_ID' irlid-api-org/wrangler.staging.toml irlid-api/wrangler.staging.toml; then
+            echo "::error::Staging D1 ids are not set yet. Follow docs/test-environment.md first."
+            exit 1
+          fi
+
+      - name: Run the tests first
+        run: |
+          npm test
+          npm run test:org-worker
+          npm run test:api
+
+      - name: Deploy org Worker (staging)
+        working-directory: irlid-api-org
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
+        run: npx --yes wrangler@4.157.0 deploy -c wrangler.staging.toml
+
+      - name: Deploy consumer Worker (staging)
+        working-directory: irlid-api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_070626 }}
+        run: npx --yes wrangler@4.157.0 deploy -c wrangler.staging.toml

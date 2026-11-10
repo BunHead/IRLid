@@ -1,0 +1,19 @@
+# STAGING / TEST copy of the consumer Worker (review item 2.3). NOT live yet.
+#
+# Used only by `wrangler deploy -c wrangler.staging.toml` (the manual
+# "Deploy staging Workers" workflow). Production uses wrangler.toml, which
+# this file does not change. Separate Worker, separate empty D1 database.
+# See docs/test-environment.md.
+name = "irlid-api-staging"
+main = "src/index.js"
+compatibility_date = "2025-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+CORS_ORIGIN = "http://localhost:8000"  # change to the preview site address once it exists
+IRLID_ENV = "staging"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "irlid-db-staging"
+database_id = "REPLACE_WITH_STAGING_D1_ID"
