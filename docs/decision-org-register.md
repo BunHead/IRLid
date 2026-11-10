@@ -41,7 +41,7 @@ Either way, before the change, it's worth one read-only check of whether any org
     LEFT JOIN org_memberships m ON m.org_id = o.id
     WHERE m.org_id IS NULL;
 
-I can run that as part of the follow-up PR's checks if you'd like. It reads only, and changes nothing.
+It can be run in the Cloudflare dashboard's D1 console for `irlid-db-org`. It only reads. (I can't reach the live database from here.)
 
 ## What I need from you
 
