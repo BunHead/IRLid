@@ -25,6 +25,7 @@ on:
     paths:
       - 'irlid-api-org/**'
       - 'irlid-api/**'
+      - 'shared/**'
   workflow_dispatch: {}   # manual "Run workflow" button in the Actions tab
 
 jobs:

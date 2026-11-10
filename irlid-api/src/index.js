@@ -5,32 +5,16 @@
 // Auth (device key + Google), profile, receipts, device linking, user lookup
 // Deploy 116: Gmail allowlist gating on googleAuth(), GPS strip on getReceipt()
 
+import {
+  b64urlEncode, b64urlDecode, canonical, hashPayloadToB64url, sha256B64url, verifySig, pubKeyId
+} from "../../shared/crypto-core.js"; // review 4.3: one copy for both Workers
+
 // =====================
 //  HELPERS
 // =====================
 
 function uuid() { return crypto.randomUUID(); }
 function now() { return Math.floor(Date.now() / 1000); }
-
-function b64urlEncode(bytes) {
-  const b64 = btoa(String.fromCharCode(...bytes));
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function b64urlDecode(str) {
-  str = str.replace(/-/g, "+").replace(/_/g, "/");
-  while (str.length % 4) str += "=";
-  const bin = atob(str);
-  return Uint8Array.from(bin, c => c.charCodeAt(0));
-}
-
-// v3: fully recursive — sorts keys at every nesting level
-function canonical(val) {
-  if (val === null || typeof val !== "object") return JSON.stringify(val);
-  if (Array.isArray(val)) return "[" + val.map(canonical).join(",") + "]";
-  const keys = Object.keys(val).sort();
-  return "{" + keys.map(k => JSON.stringify(k) + ":" + canonical(val[k])).join(",") + "}";
-}
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -50,32 +34,8 @@ function randomCode6() {
 //  CRYPTO
 // =====================
 
-async function hashPayloadToB64url(payloadObj, protocolV) {
-  // v3+: canonical() — order-independent. v2 and below: JSON.stringify (backward compat).
-  const v = (protocolV != null) ? Number(protocolV) : ((payloadObj && payloadObj.v) ? Number(payloadObj.v) : 3);
-  const str = (v >= 3) ? canonical(payloadObj) : JSON.stringify(payloadObj);
-  const bytes = new TextEncoder().encode(str);
-  const hashBuf = await crypto.subtle.digest("SHA-256", bytes);
-  return b64urlEncode(new Uint8Array(hashBuf));
-}
-
-async function sha256B64url(str) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-  return b64urlEncode(new Uint8Array(buf));
-}
-
-async function verifySig(midB64url, sigB64url, pubJwk) {
-  try {
-    const pub = await crypto.subtle.importKey("jwk", pubJwk, { name: "ECDSA", namedCurve: "P-256" }, true, ["verify"]);
-    return await crypto.subtle.verify({ name: "ECDSA", hash: "SHA-256" }, pub, b64urlDecode(sigB64url), b64urlDecode(midB64url));
-  } catch { return false; }
-}
-
-async function pubKeyId(pubJwk) {
-  const s = `${pubJwk.kty}.${pubJwk.crv}.${pubJwk.x}.${pubJwk.y}`;
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-  return b64urlEncode(new Uint8Array(h)).slice(0, 18);
-}
+// b64url, canonical, hashing, verifySig and pubKeyId now live in
+// shared/crypto-core.js (imported at the top of this file).
 
 // =====================
 //  GOOGLE TOKEN VERIFY
