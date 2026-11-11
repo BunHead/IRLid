@@ -721,6 +721,38 @@
   const isDoormanContext = type === "doorman" && context === "doorman";
   const isCheckinContext = type === "venue" || type === "checkin";
 
+  // After a successful check-in or check-out, drop the scan payload from the
+  // URL so a phone refresh cannot submit the same scan again. The result
+  // on screen stays the same (restored from sessionStorage when shown=1).
+  const shownResultKey = "irlid_entry_shown_" + (orgParam || "org");
+  function rememberShownResult(state) {
+    try {
+      sessionStorage.setItem(shownResultKey, JSON.stringify({
+        status: state.status,
+        title: state.title,
+        subtitle: state.subtitle || "",
+        meta: state.meta || ""
+      }));
+    } catch (_) {}
+    try {
+      const u = new URL(window.location.href);
+      ["n", "nonce", "t", "checkin"].forEach((k) => u.searchParams.delete(k));
+      u.searchParams.set("shown", "1");
+      history.replaceState(history.state, document.title, u.pathname + u.search + u.hash);
+    } catch (_) {}
+  }
+  function loadShownResult() {
+    try {
+      const state = JSON.parse(sessionStorage.getItem(shownResultKey) || "null");
+      if (state && state.status && state.title) return state;
+    } catch (_) {}
+    return null;
+  }
+  function renderAndKeep(state) {
+    render(state);
+    rememberShownResult(state);
+  }
+
   let returnTimer = null;
   let lastTapAt = 0;
   let identityState = { pub: null, fp: "", expected: [], query: "", busyId: null, error: "" };
@@ -981,7 +1013,7 @@
       const payload = await recordVenueCheckin(options);
       if (payload?.queued) return;
       if (payload?.conflict || payload?.expected_name) return;
-      render({
+      renderAndKeep({
         status: "allow",
         title: `Welcome to ${eventName}`,
         subtitle: welcomeMessage || "You’re checked in",
@@ -1032,7 +1064,7 @@
     choiceActions.classList.add("show");
     document.getElementById("confirmCheckoutBtn")?.addEventListener("click", () => performCheckout(details));
     document.getElementById("stayCheckedInBtn")?.addEventListener("click", () => {
-      render({
+      renderAndKeep({
         status: "allow",
         title: `Welcome back, ${name}`,
         subtitle: "Still checked in",
@@ -1052,7 +1084,7 @@
       const payloadHash = await hashPayloadToB64url(checkoutPayload, 3);
       const signature = await signHashB64url(payloadHash);
       const result = await postOrg("/org/checkout", { checkin_id: checkoutDetails.checkin_id, checkout_payload: checkoutPayload, signature }, checkoutDetails.org_api_key);
-      render({
+      renderAndKeep({
         status: "allow",
         title: "Checked out",
         subtitle: "Check-out signed and recorded",
@@ -1736,11 +1768,22 @@
     });
     if (payload?.queued) {
       localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id || clientCheckinId);
-      render({
+      renderAndKeep({
         status: "allow",
         title: "Checked in",
         subtitle: "Syncing when back online",
         meta: "Saved on this phone as an offline check-in"
+      });
+      return payload;
+    }
+    // A refresh of this page replayed a used door code after check-out:
+    // show the existing check-out, and do not treat it as a new check-in.
+    if (payload?.duplicate && payload?.checkout_at) {
+      renderAndKeep({
+        status: "allow",
+        title: "Checked out",
+        subtitle: "You already checked out",
+        meta: "Refreshing this page will not check you in again"
       });
       return payload;
     }
@@ -1756,7 +1799,7 @@
     localStorage.setItem(`irlid_org_last_checkin_${orgParam}`, payload.checkin_id);
     if (payload?.receipt_id) storeOrgReceipt(payload);
     if (payload?.out_of_hours) {
-      render({ status: "allow", title: `Welcome, ${payload?.expected_name || cachedName || "staff"}`, subtitle: "Checked in outside event times", meta: "Staff check-in, time recorded" });
+      renderAndKeep({ status: "allow", title: `Welcome, ${payload?.expected_name || cachedName || "staff"}`, subtitle: "Checked in outside event times", meta: "Staff check-in, time recorded" });
       return payload;
     }
     if (payload?.expected_name) localStorage.setItem(`irlid_org_name_${orgParam}`, payload.expected_name);
@@ -1764,7 +1807,7 @@
       render({ status: "review", title: "Identity review", subtitle: "This name is linked to another device", meta: "The doorman can confirm or reject this phone" });
     } else if (cachedName || payload?.expected_name) {
       const welcomeName = payload?.expected_name || cachedName;
-      render({ status: "allow", title: `Welcome back, ${welcomeName}`, subtitle: welcomeMessage || "You’re checked in", meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed" });
+      renderAndKeep({ status: "allow", title: `Welcome back, ${welcomeName}`, subtitle: welcomeMessage || "You’re checked in", meta: returnAllowed ? "Re-entry allowed" : "Re-entry not allowed" });
     }
     return payload;
   }
@@ -2040,6 +2083,21 @@
 
   (async function bootEntryPage() {
     await hydrateEntryInfo();
+    if ((params.get("shown") || "").trim() === "1") {
+      const remembered = loadShownResult();
+      if (remembered) {
+        render(remembered);
+        return;
+      }
+      if (type === "checkout") {
+        render({ status: "allow", title: "Checked out", subtitle: "Check-out already recorded", meta: "Refreshing this page will not check you out again" });
+        return;
+      }
+      if (isCheckinContext) {
+        render({ status: "allow", title: "Already recorded", subtitle: "Refreshing this page will not check you in again", meta: "" });
+        return;
+      }
+    }
     if (type === "checkout") {
       renderCheckout();
     } else if (isCheckinContext) {
