@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v205
+
+v6.8.14 LIVE vs TEST (12 Nov 2026): a person added on the old test site ended up on a live organisation's dashboard. New js/irlid-env.js decides LIVE (page open on irlid.co.uk) or TEST (anywhere else). On a test copy, js/orgapi.js, js/backend.js, scan.html and org-entry.html use only the staging Workers and refuse the live ones; org-entry.html's orange staff QR opens the copy's own scan page, not live irlid.co.uk/scan.html; every page shows a striped "TEST COPY - NOT LIVE" bar and "[TEST]" in the tab title. org-login.html, org-action-auth.html and kiosk-code.html (always on irlid.co.uk) accept the staging Workers and show a "TEST SIGN-IN - NOT LIVE" bar for any Worker that is not live. On irlid.co.uk nothing changes for live users.
+
 ## irlid-shell-v203
 
 v6.8.13 FIRST-SCAN HOLD (option C, Spencer 9 Nov 2026): a phone the org has never seen signs a hold on the live code as soon as it shows the orange 'Get a member of staff' screen; after staff approve it, its check-in is fresh if signed by the same key within 10 minutes (single use). The held code reads as used so the screen moves on; a phone scanning the same frame still gets its own fresh check-in. Late, queued or offline check-ins still land as offline / unverified.

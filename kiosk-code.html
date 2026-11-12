@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <script src="js/irlid-env.js?v=6.8.14"></script><!-- v6.8.14: LIVE vs TEST, first script on the page -->
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'" />
   <meta name="referrer" content="no-referrer" />
@@ -66,8 +67,9 @@
       function workerBase(raw) {
         let url;
         try { url = new URL(raw); } catch (_) { throw new Error('Worker URL is invalid.'); }
-        const allowed = ['irlid-api-org.irlid-bunhead.workers.dev', 'irlid-api-org-test.irlid-bunhead.workers.dev', 'localhost', '127.0.0.1'];
+        const allowed = ['irlid-api-org.irlid-bunhead.workers.dev', 'irlid-api-org-test.irlid-bunhead.workers.dev', 'irlid-api-org-staging.irlid-bunhead.workers.dev', 'localhost', '127.0.0.1'];
         if (!allowed.includes(url.hostname)) throw new Error('Worker URL is not allowed.');
+        if (window.IRLidEnv) window.IRLidEnv.markWorker(url.origin); // v6.8.14 striped TEST bar if not live
         return url.origin.replace(/\/+$/, '');
       }
       function loadSeed(orgId) {

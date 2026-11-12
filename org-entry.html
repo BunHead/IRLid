@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="js/irlid-env.js?v=6.8.14"></script><!-- v6.8.14: LIVE vs TEST, first script on the page -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -650,7 +651,12 @@
     try { localStorage.setItem('irlid_pending_login_secret', (initData && initData.poll_secret) || ''); } catch (_) {}
     // v5.11.0 — retargeted from OrgCheckin.html (retired 25 May 2026)
     // to Org.html (canonical v5.11 dashboard).
-    const dashboardReturn = "https://irlid.co.uk/Org.html";
+    // v6.8.14 — a test copy returns to its own dashboard, never the live one.
+    // The sign-in page itself stays on irlid.co.uk (passkeys are tied to it);
+    // it signs in to whichever Worker API_BASE names (staging on a test copy).
+    const dashboardReturn = (window.IRLidEnv && !window.IRLidEnv.isLive)
+      ? new URL("Org.html", location.href).href
+      : "https://irlid.co.uk/Org.html";
     const orgLoginUrl = "https://irlid.co.uk/org-login.html"
       + "?nonce=" + encodeURIComponent(nonce)
       + "&worker=" + encodeURIComponent(API_BASE)
@@ -768,7 +774,10 @@
   let helloQrData = "";
 
   const returnTo = (params.get("returnTo") || "").trim();
-  const API_BASE = "https://irlid-api-org.irlid-bunhead.workers.dev";
+  // v6.8.14 — live org Worker only on irlid.co.uk; a test copy uses staging (js/irlid-env.js).
+  const API_BASE = (window.IRLidOrgApi && window.IRLidOrgApi.baseUrl)
+    ? window.IRLidOrgApi.baseUrl()
+    : "https://irlid-api-org.irlid-bunhead.workers.dev";
 
   function defaultReturnTarget() {
 	  // v5.7.0y — Default fallback was hardcoded scan.html, dating from
@@ -785,6 +794,10 @@
 	}
 
   function scanUrlBase() {
+    // v6.8.14 — on a test copy the orange staff QR opens that copy's own
+    // scan page, never live irlid.co.uk/scan.html (which hands the scan to
+    // the live dashboard). The old test site did exactly this (12 Nov 2026).
+    if (window.IRLidEnv && !window.IRLidEnv.isLive) return new URL("scan.html", location.href).href;
     return "https://irlid.co.uk/scan.html";
   }
 

@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <script src="js/irlid-env.js?v=6.8.14"></script><!-- v6.8.14: LIVE vs TEST, first script on the page -->
   <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -476,7 +477,10 @@
     return { kind:"UNKNOWN", v:null };
   }
 
-  const ORG_WORKER_BASE = (window.IRLID_ORG_API_BASE_URL || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
+  // v6.8.14 — js/irlid-env.js sets IRLID_ORG_API_BASE_URL to the staging Worker
+  // on any test copy. The extra IRLidEnv fallback keeps a test copy off live
+  // even if that override is missing.
+  const ORG_WORKER_BASE = (window.IRLID_ORG_API_BASE_URL || (window.IRLidEnv && window.IRLidEnv.orgApi) || "https://irlid-api-org.irlid-bunhead.workers.dev").replace(/\/+$/, "");
 
   function decodeInviteEnvelope(payload) {
     return irlidDecodeB64urlJson(String(payload || "").replace(/^I:/, ""));

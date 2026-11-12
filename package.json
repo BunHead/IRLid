@@ -4,7 +4,7 @@
   "description": "Browser-based proof-of-co-presence — ECDSA P-256, no app, no central authority.",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/sign.test.js",
+    "test": "node --test tests/sign.test.js tests/environment-isolation.test.mjs",
     "test:watch": "node --test --watch tests/sign.test.js",
     "test:org-worker": "node --test irlid-api-org/tests/*.test.mjs",
     "test:api": "node --test irlid-api/tests/*.test.mjs",
