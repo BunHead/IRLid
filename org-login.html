@@ -9,6 +9,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <script src="js/irlid-env.js?v=6.8.14"></script><!-- v6.8.14: LIVE vs TEST, first script on the page -->
   <meta name="copyright" content="Copyright 2026 Spencer Austin. All rights reserved." />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'" />
@@ -143,8 +144,14 @@
       // Worker at irlid-api-org.irlid-bunhead.workers.dev (Phase 1 of v5.9 live
       // port). Now matches all three Workers in the irlid-bunhead account:
       // irlid-api (consumer), irlid-api-test (test env), irlid-api-org (org).
+      // v6.8.14 — added the staging Workers (irlid-api-org-staging,
+      // irlid-api-staging; docs/test-environment.md). Any Worker that is not a
+      // live one gets a striped "TEST SIGN-IN - NOT LIVE" bar (js/irlid-env.js),
+      // so a test sign-in can't be mistaken for a live one. irlid-api-test (the
+      // old test site) is kept so that site can still sign in to its own test
+      // database; it never wrote to live through this page.
       const WORKER_ALLOWLIST = [
-        /^https:\/\/irlid-api(-test|-org)?\.irlid-bunhead\.workers\.dev\/?$/,
+        /^https:\/\/irlid-api(-test|-org|-staging|-org-staging)?\.irlid-bunhead\.workers\.dev\/?$/,
         /^http:\/\/localhost:\d+\/?$/,
         /^http:\/\/127\.0\.0\.1:\d+\/?$/
       ];
@@ -250,6 +257,9 @@
           setStatus("fail", "Invalid login link — worker URL not recognised.");
           diag("VALIDATION FAIL: worker not in allowlist.");
           return;
+        }
+        if (window.IRLidEnv && window.IRLidEnv.markWorker(workerRaw)) {
+          diag("TEST Worker: " + workerRaw + " (not live).");
         }
         if (typeof irlidV5Enrolled !== "function" || !irlidV5Enrolled()) {
           setStatus("warn", "No v5 credential on this device.");

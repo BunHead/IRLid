@@ -1,8 +1,59 @@
 # Test (staging) environment (review item 2.3)
 
-Today every change is first tried on the live site and the live database.
-This adds a separate test copy of both Workers, so a change can be tried
-with test data before it reaches real organisations.
+> **Status on 12 Nov 2026: the staging Workers and databases do NOT exist
+> yet.** Steps 1 to 6 below have not been done. Until they are, there is no
+> safe place to add test people. Do not add test people on the live site
+> (irlid.co.uk), in a second org on the live site, or on the old test site
+> (bunhead.github.io/IRLid-TestEnvironment).
+
+## Why this matters (12 Nov 2026)
+
+Spencer added his nephew on the old test site and he appeared, checked in,
+on a live organisation's dashboard. The old test site and the live site
+were tangled:
+
+- The old test site's orange "show to staff" QR opened **live**
+  `https://irlid.co.uk/scan.html` (IRLid-TestEnvironment `org-entry.html`
+  `scanUrlBase()`). Live scan.html hands a staff scan to the **live**
+  dashboard (`/Org#staff_scan=...`), which checks the person in to whichever
+  org is open there.
+- Both copies sign in through live `irlid.co.uk/org-login.html` (passkeys
+  are tied to irlid.co.uk), and the phone's browser keeps one set of saved
+  settings for irlid.co.uk for both.
+- A theme picture (the dragons) can be set on any org, live or test, so it
+  does not tell you which copy you are in.
+- A second org on the live site is **not** a sandbox: it is in the same live
+  database, and a Developer can see and write every org there.
+
+## How the pages choose LIVE or TEST (v6.8.14)
+
+`js/irlid-env.js` is the first script on every page:
+
+| Page opened on | Workers used | On screen |
+|---|---|---|
+| `https://irlid.co.uk` (or www.) | live `irlid-api-org`, `irlid-api` (unchanged) | nothing new |
+| anywhere else (localhost, a preview copy, a GitHub Pages copy) | staging `irlid-api-org-staging`, `irlid-api-staging` only; the live Workers are refused | striped yellow "TEST COPY - NOT LIVE" bar and "[TEST]" in the tab title |
+
+`js/orgapi.js` and `js/backend.js` also check the page address themselves,
+so a page that forgets `irlid-env.js` still cannot fall back to live.
+`org-entry.html` on a test copy points the orange staff QR and the sign-in
+return at that copy's own `scan.html` / `Org.html`.
+
+`org-login.html`, `org-action-auth.html` and `kiosk-code.html` always open on
+irlid.co.uk (passkeys). They now accept the staging Workers and show a
+striped "TEST SIGN-IN - NOT LIVE" bar whenever the QR names a Worker that is
+not live. The sign-in goes to the Worker named in the QR, so a staging
+sign-in only touches the staging database. `tests/environment-isolation.test.mjs`
+checks all of this.
+
+## The old test site (IRLid-TestEnvironment)
+
+Retire it. It uses Worker `irlid-api-test` (its own database
+`irlid-db-test`), but it is out of date and sends staff scans to live
+irlid.co.uk. A separate PR on that repo stops that and adds a "RETIRED
+TEST SITE" bar. Use the staging copy below instead once it is set up.
+
+## The staging Workers
 
 **Nothing in this PR creates anything on Cloudflare or GitHub.** It adds
 config and a manual workflow that stays switched off until Spencer does the
@@ -71,18 +122,24 @@ the website:
   open `http://localhost:8000`. The staging Workers already allow this
   address (`CORS_ORIGIN = "http://localhost:8000"`).
 
-Either way the pages still call the **production** API today: the API
-address is written into the code in about 25 places (`js/orgapi.js`,
-`js/backend.js`, `Org.html`, `org-entry.html`, `scan.html` and others). A
-follow-up code PR would read the API address from one place and choose the
-staging Workers when the page is opened from a preview or localhost address
-(and add the staging host to the `orgapi.js` allowlist). Until then, a
-preview site is useful for layout checks only, not for check-ins.
+Since v6.8.14 a page opened from a preview or localhost address uses the
+staging Workers (see "How the pages choose LIVE or TEST" above). Some pages
+still have the live address written in as a last fallback (for example
+`Org.html` and `check.html` when `orgapi.js` has not loaded); on a test copy
+`irlid-env.js` sets `IRLID_ORG_API_BASE_URL` to staging first, so those
+fallbacks are not reached. A later tidy-up can remove them.
 
-When the preview address is known, change `CORS_ORIGIN` in both staging
-files from `http://localhost:8000` to that address.
+When the preview address is known:
+- change `CORS_ORIGIN` in both staging files from `http://localhost:8000` to
+  that address (note: editing files under `irlid-api-org/` or `irlid-api/`
+  on main also triggers the production Worker auto-deploy of unchanged code);
+- add the address to `RETURN_ALLOWLIST` in `org-login.html`, so a test
+  sign-in can return to the preview dashboard.
 
 ## Rules for the test environment
+
+- Check the striped yellow TEST bar is on screen before adding anyone. No
+  bar means you are on live.
 
 - Test data only. Never copy production data into staging.
 - Staging must never point at a production database (the test enforces it).
