@@ -44,7 +44,7 @@ class D1 {
     this.db = new DatabaseSync(":memory:");
     this.db.exec(`
       CREATE TABLE organisations (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, api_key TEXT NOT NULL UNIQUE, venue_pub_jwk TEXT, venue_prv_jwk TEXT, settings_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER);
+      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, attendee_key_id TEXT, hello_hash TEXT, score INTEGER, bio_verified INTEGER DEFAULT 0, gps_hash TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, duration_s INTEGER, created_at INTEGER NOT NULL, name TEXT, attendee_pub_jwk TEXT, checkout_payload_hash TEXT, checkout_signature TEXT, checkout_ts INTEGER, checkout_method TEXT DEFAULT 'signed', device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, conflict_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER, live_nonce TEXT);
       CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
       CREATE TABLE org_receipts (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, checkin_id TEXT, attendee_pub_fp TEXT, payload_json TEXT NOT NULL, signature TEXT NOT NULL, created_at INTEGER NOT NULL, privacy_mode INTEGER DEFAULT 1);
       CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id TEXT NOT NULL, display_name TEXT, initials TEXT, role_key TEXT, device_pub_fp TEXT, email_hint TEXT, phone_hint TEXT, notes TEXT, created_at INTEGER, archived_at INTEGER);
@@ -533,6 +533,64 @@ test("a second scan while checked in says already signed in and offers check-out
   assert.equal((await checkin(d1, await live({ device, nonce, event_id: "ev-open" }))).status, 200);
 });
 
+test("refreshing a used door code on the same phone returns the original check-in, even after check-out", async () => {
+  const d1 = new D1();
+  const device = await newDevice();
+  const nonce = await issueNonce(d1, "ev-open");
+  const first = await checkin(d1, await live({ device, nonce, event_id: "ev-open" }));
+  assert.equal(first.status, 200);
+  const replayWhileIn = await checkin(d1, await live({ device, nonce, event_id: "ev-open" }));
+  assert.equal(replayWhileIn.status, 200, JSON.stringify(replayWhileIn.body));
+  assert.equal(replayWhileIn.body.duplicate, true);
+  assert.equal(replayWhileIn.body.checkin_id, first.body.checkin_id);
+  assert.equal(replayWhileIn.body.checkout_at, undefined);
+  assert.equal(d1.checkins().length, 1);
+
+  const checkoutAt = nowS();
+  d1.db.prepare("UPDATE org_checkins SET checkout_at=?, duration_s=60, checkout_method='signed' WHERE id=?").run(checkoutAt, first.body.checkin_id);
+  const replayAfterOut = await checkin(d1, await live({ device, nonce, event_id: "ev-open" }));
+  assert.equal(replayAfterOut.status, 200, JSON.stringify(replayAfterOut.body));
+  assert.equal(replayAfterOut.body.duplicate, true);
+  assert.equal(replayAfterOut.body.checkin_id, first.body.checkin_id);
+  assert.equal(replayAfterOut.body.checkout_at, checkoutAt);
+  assert.equal(d1.checkins().length, 1, "a refresh must not open a new visit after check-out");
+});
+
+test("a different phone can still check in offline with a spent code (C14)", async () => {
+  const d1 = new D1();
+  const nonce = await issueNonce(d1, "ev-open");
+  const first = await checkin(d1, await live({ device: await newDevice(), nonce, event_id: "ev-open" }));
+  assert.equal(first.status, 200);
+  const other = await checkin(d1, await live({ device: await newDevice(), nonce, event_id: "ev-open" }));
+  assert.equal(other.status, 200, JSON.stringify(other.body));
+  assert.equal(other.body.assurance, "offline");
+  assert.equal(other.body.duplicate, undefined);
+  assert.equal(d1.checkins().length, 2);
+});
+
+test("a second check-out of the same visit is idempotent", async () => {
+  const d1 = new D1();
+  const device = await newDevice();
+  const nonce = await issueNonce(d1, "ev-open");
+  const first = await checkin(d1, await live({ device, nonce, event_id: "ev-open" }));
+  assert.equal(first.status, 200);
+  async function checkoutBody() {
+    const checkout_payload = { checkin_id: first.body.checkin_id, nonce: "rescan_refresh", ts: nowS(), v: 1 };
+    const signature = await device.sign(await hashHello(checkout_payload));
+    return { checkin_id: first.body.checkin_id, checkout_payload, signature };
+  }
+  const out = await call(d1, "POST", "/org/checkout", await checkoutBody());
+  assert.equal(out.status, 200, JSON.stringify(out.body));
+  assert.equal(out.body.ok, true);
+  assert.equal(out.body.duplicate, undefined);
+  const checkoutAt = out.body.checkout_at;
+  const again = await call(d1, "POST", "/org/checkout", await checkoutBody());
+  assert.equal(again.status, 200, JSON.stringify(again.body));
+  assert.equal(again.body.duplicate, true);
+  assert.equal(again.body.checkout_at, checkoutAt);
+  assert.equal(d1.checkins().filter((row) => row.checkout_at).length, 1);
+});
+
 // ---- 6. Offline queue: never dropped ---------------------------------------
 
 test("offline queue: a valid queued check-in is kept, then lands as offline / unverified", async () => {
@@ -828,7 +886,7 @@ test("R4: the v6.7.1 migration only adds, keeps old rows as they were, and match
   const cols = db.prepare("PRAGMA table_info(org_checkin_quarantine_overflow)").all().map(c => c.name);
   assert.deepEqual(cols, ["org_id", "day", "count"]);
   const schema = readFileSync(new URL("../schema.sql", import.meta.url), "utf8");
-  assert.match(schema, /out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER\);/);
+  assert.match(schema, /out_of_hours INTEGER DEFAULT 0, clock_gap_s INTEGER, live_nonce TEXT\);/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS org_checkin_quarantine_overflow \(org_id TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY \(org_id, day\)\);/);
 });
 
@@ -875,4 +933,20 @@ test("org-entry only shows checked in when the server returns a check-in id or t
   // The guard throws into the existing failure screen: no new wording.
   assert.match(fn.slice(guardAt, guardAt + 300), /new Error\(""\)/);
   assert.match(src, /subtitle: err\.message \|\| "Could not record check-in"/);
+});
+
+test("org-entry strips the scan payload after a successful check-in or check-out, and a refresh does not resubmit", async () => {
+  const src = readFileSync(new URL("../../org-entry.html", import.meta.url), "utf8");
+  assert.match(src, /history\.replaceState/);
+  assert.match(src, /searchParams\.set\("shown", "1"\)/);
+  assert.match(src, /\["n", "nonce", "t", "checkin"\]/);
+  assert.match(src, /params\.get\("shown"\)/);
+  assert.match(src, /loadShownResult/);
+  assert.match(src, /Refreshing this page will not check you in again/);
+  assert.match(src, /payload\?\.duplicate && payload\?\.checkout_at/);
+  // Boot must honour shown=1 before it auto-submits a check-in or check-out.
+  const boot = src.slice(src.indexOf("(async function bootEntryPage()"), src.indexOf("if (type === \"checkout\") {", src.indexOf("(async function bootEntryPage()")));
+  assert.match(boot, /shown/);
+  assert.ok(boot.indexOf("loadShownResult") > 0);
+  assert.ok(boot.indexOf("renderCheckout") === -1, "must not call renderCheckout when shown=1");
 });

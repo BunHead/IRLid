@@ -28,14 +28,17 @@ class FakeDB {
     this.nonces = new Map(Object.entries(nonces));
     this.duplicate = duplicate;
     this.checkins = [];
+    this.inserted = [];
+    this.nonceUses = new Map();
   }
   prepare(sql) { return new FakeStatement(this, sql); }
   async execute(sql, args, kind) {
     if (sql.startsWith("SELECT * FROM organisations WHERE api_key=? OR id=? OR slug=?")) return this.org;
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS org_checkin_nonces")) return { meta: { changes: 0 } };
     if (sql.startsWith("PRAGMA table_info(org_checkins)")) {
-      return ["id","org_id","event_id","assurance","gps_band","gps_distance_km","out_of_hours","clock_gap_s"].map(name => ({ name }));
+      return ["id","org_id","event_id","assurance","gps_band","gps_distance_km","out_of_hours","clock_gap_s","checkout_at","checkout_method","live_nonce"].map(name => ({ name }));
     }
+    if (sql.startsWith("ALTER TABLE org_checkins ADD COLUMN")) return { meta: { changes: 0 } };
     if (sql.startsWith("SELECT nonce,org_api_key,event_id,expires_at,consumed_at FROM org_checkin_nonces")) {
       return this.nonces.get(args[0]) || null;
     }
@@ -47,12 +50,30 @@ class FakeDB {
     }
     if (sql.startsWith("SELECT id,checkin_at,event_id,status,expected_id") && sql.includes("FROM org_checkins WHERE id=?")) return null;
     if (sql.includes("FROM weekly_events")) return null;
-    if (sql.includes("FROM org_checkins WHERE org_id=? AND device_key_fp=?")) return this.duplicate;
+    if (sql.includes("AND live_nonce=?")) {
+      return this.nonceUses.get(`${args[1]}::${args[2]}`) || null;
+    }
+    if (sql.includes("FROM org_checkins WHERE org_id=? AND device_key_fp=?") && sql.includes("checkin_at")) return this.duplicate;
     if (sql.includes("FROM org_expected WHERE org_id=?") && sql.includes("LOWER(display_name)=LOWER(?)")) return null;
     if (sql.includes("FROM org_expected WHERE org_id=? AND device_pub_fp=?")) return null;
     if (sql.includes("FROM sqlite_master")) return null;
     if (sql.startsWith("INSERT INTO org_checkins")) {
       this.checkins.push({ sql, args });
+      const cols = sql.slice(sql.indexOf("(") + 1, sql.indexOf(")")).split(",").map((c) => c.trim());
+      const rec = Object.fromEntries(cols.map((c, i) => [c, args[i]]));
+      this.inserted.push(rec);
+      if (rec.live_nonce && rec.device_key_fp) {
+        this.nonceUses.set(`${rec.device_key_fp}::${rec.live_nonce}`, {
+          id: rec.id,
+          checkin_at: rec.checkin_at,
+          event_id: rec.event_id || null,
+          status: rec.status || "checked_in",
+          expected_id: rec.expected_id || null,
+          device_key_fp: rec.device_key_fp,
+          assurance: rec.assurance || null,
+          checkout_at: rec.checkout_at || null
+        });
+      }
       return { meta: { changes: 1 } };
     }
     if (sql.startsWith("UPDATE organisations SET venue_pub_jwk=")) {
@@ -95,14 +116,30 @@ test("valid nonce succeeds, marks fresh, and is consumed atomically", async () =
   assert.equal(result.body.receipt.assurance, "fresh");
 });
 
-test("replaying a used nonce is accepted as offline, never refused (C14)", async () => {
+test("replaying a used nonce on the same phone returns the original check-in, never a second visit", async () => {
   const nonce = "cin_replay";
+  const device = await newDevice();
   const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
-  const payload = await attendee({ nonce });
-  assert.equal((await checkin(db, payload)).body.assurance, "fresh");
-  const replay = await checkin(db, await attendee({ nonce }));
+  const first = await checkin(db, await attendee({ nonce, device }));
+  assert.equal(first.response.status, 200);
+  assert.equal(first.body.assurance, "fresh");
+  const replay = await checkin(db, await attendee({ nonce, device }));
   assert.equal(replay.response.status, 200);
-  assert.equal(replay.body.assurance, "offline");
+  assert.equal(replay.body.duplicate, true);
+  assert.equal(replay.body.checkin_id, first.body.checkin_id);
+  assert.equal(replay.body.assurance, "fresh");
+  assert.equal(db.checkins.length, 1);
+});
+
+test("a different phone can still use a spent code as an offline check-in (C14)", async () => {
+  const nonce = "cin_replay_other";
+  const db = new FakeDB({ nonces: { [nonce]: { nonce, org_api_key: ORG_KEY, event_id: null, expires_at: 4_000_000_000, consumed_at: null } } });
+  assert.equal((await checkin(db, await attendee({ nonce, device: await newDevice() }))).body.assurance, "fresh");
+  const other = await checkin(db, await attendee({ nonce, device: await newDevice() }));
+  assert.equal(other.response.status, 200);
+  assert.equal(other.body.assurance, "offline");
+  assert.equal(other.body.duplicate, undefined);
+  assert.equal(db.checkins.length, 2);
 });
 
 test("expired nonce is accepted as offline, never refused (C14)", async () => {

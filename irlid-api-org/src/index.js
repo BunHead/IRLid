@@ -5309,30 +5309,15 @@ async function orgCheckin(request, env) {
     // Idempotent retry / replay of a check-in already recorded.
     const bandSelect = checkinColumns.has("gps_band") ? ",gps_band" : "";
     const assuranceSelect = checkinColumns.has("assurance") ? ",assurance" : "";
-    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
+    const checkoutAtSelect = checkinColumns.has("checkout_at") ? ",checkout_at" : "";
+    const checkoutMethodSelect = checkinColumns.has("checkout_method") ? ",checkout_method" : "";
+    const existing = await env.DB.prepare(`SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect}${checkoutAtSelect}${checkoutMethodSelect} FROM org_checkins WHERE id=? AND org_id=? LIMIT 1`)
       .bind(clientCheckinId, org.id).first();
     if (existing) {
       if (mode === "attendee_scan" && existing.device_key_fp && existing.device_key_fp !== attendeeDeviceFp) {
         return err("Check-in id already used by another device", 409);
       }
-      let expectedName = null;
-      if (existing.expected_id) {
-        const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
-          .bind(existing.expected_id, org.id).first();
-        expectedName = existingExpected && (existingExpected.display_name || `${existingExpected.first_name || ""} ${existingExpected.surname || ""}`.trim()) || null;
-      }
-      return json({
-        checkin_id: existing.id,
-        checkin_at: existing.checkin_at,
-        org_name: org.name,
-        event_id: existing.event_id || null,
-        duplicate: true,
-        expected_id: existing.expected_id || null,
-        ...(existing.assurance ? { assurance: existing.assurance } : {}),
-        ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
-        ...(expectedName ? { expected_name: expectedName } : {}),
-        ...(existing.status === "conflict" ? { conflict: true } : {})
-      });
+      return duplicateCheckinReply(env, org, existing);
     }
   }
   let eventRow = null;
@@ -5345,6 +5330,11 @@ async function orgCheckin(request, env) {
     }
   }
   let nonce = mode === "attendee_scan" ? cleanOptionalText(body.nonce, 64) : "";
+  const presentedNonce = nonce;
+  if (mode === "attendee_scan" && presentedNonce && signatureOk && attendeeDeviceFp) {
+    const usedByThisPhone = await findCheckinForUsedNonce(env, org, presentedNonce, attendeeDeviceFp, checkinColumns);
+    if (usedByThisPhone) return duplicateCheckinReply(env, org, usedByThisPhone);
+  }
   let assurance = null;
   let outOfHours = false;
   let crowd = false;
@@ -5532,6 +5522,10 @@ async function orgCheckin(request, env) {
     insertColumns.push("out_of_hours");
     insertValues.push(outOfHours ? 1 : 0);
   }
+  if (checkinColumns.has("live_nonce")) {
+    insertColumns.push("live_nonce");
+    insertValues.push(presentedNonce || null);
+  }
   await env.DB.prepare(
     `INSERT INTO org_checkins (${insertColumns.join(",")}) VALUES (${insertColumns.map(() => "?").join(",")})`
   ).bind(...insertValues).run();
@@ -5613,13 +5607,54 @@ async function orgCheckin(request, env) {
   });
 }
 
+
+// A refresh of the check-in result page signs a new client_checkin_id, so
+// id-based idempotency is not enough. The live code (nonce) the door QR
+// carried is stored on the check-in; a later submit of that same code by
+// the same phone returns the original visit, even if they have since
+// checked out. A different phone, or a new live code after check-out, is
+// still a real new check-in (C14 / C13).
+async function findCheckinForUsedNonce(env, org, nonce, deviceFp, checkinColumns) {
+  if (!nonce || !deviceFp || !checkinColumns.has("live_nonce")) return null;
+  const assuranceSelect = checkinColumns.has("assurance") ? ",assurance" : "";
+  const bandSelect = checkinColumns.has("gps_band") ? ",gps_band" : "";
+  const checkoutAtSelect = checkinColumns.has("checkout_at") ? ",checkout_at" : "";
+  const checkoutMethodSelect = checkinColumns.has("checkout_method") ? ",checkout_method" : "";
+  return env.DB.prepare(
+    `SELECT id,checkin_at,event_id,status,expected_id,device_key_fp${assuranceSelect}${bandSelect}${checkoutAtSelect}${checkoutMethodSelect} FROM org_checkins WHERE org_id=? AND device_key_fp=? AND live_nonce=? AND COALESCE(status,'checked_in') NOT IN ('invalid') ORDER BY checkin_at DESC LIMIT 1`
+  ).bind(org.id, deviceFp, nonce).first();
+}
+
+async function duplicateCheckinReply(env, org, existing) {
+  let expectedName = null;
+  if (existing.expected_id) {
+    const existingExpected = await env.DB.prepare("SELECT display_name,first_name,surname FROM org_expected WHERE id=? AND org_id=? LIMIT 1")
+      .bind(existing.expected_id, org.id).first();
+    expectedName = existingExpected && (existingExpected.display_name || `${existingExpected.first_name || ""} ${existingExpected.surname || ""}`.trim()) || null;
+  }
+  return json({
+    checkin_id: existing.id,
+    checkin_at: existing.checkin_at,
+    org_name: org.name,
+    event_id: existing.event_id || null,
+    duplicate: true,
+    expected_id: existing.expected_id || null,
+    ...(existing.assurance ? { assurance: existing.assurance } : {}),
+    ...(existing.gps_band ? { gps_band: existing.gps_band } : {}),
+    ...(existing.checkout_at ? { checkout_at: existing.checkout_at } : {}),
+    ...(existing.checkout_method ? { checkout_method: existing.checkout_method } : {}),
+    ...(expectedName ? { expected_name: expectedName } : {}),
+    ...(existing.status === "conflict" ? { conflict: true } : {})
+  });
+}
+
 async function ensureOrgCheckinNonceStorage(env) {
   if (checkinNonceStorageReady) return;
   await env.DB.prepare(
     "CREATE TABLE IF NOT EXISTS org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER)"
   ).run();
   const columns = await tableColumnSet(env, "org_checkins");
-  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"], ["out_of_hours", "INTEGER"], ["clock_gap_s", "INTEGER"]]) {
+  for (const [col, type] of [["assurance", "TEXT"], ["gps_band", "TEXT"], ["gps_distance_km", "REAL"], ["out_of_hours", "INTEGER"], ["clock_gap_s", "INTEGER"], ["live_nonce", "TEXT"]]) {
     if (columns.has(col)) continue;
     try {
       await env.DB.prepare(`ALTER TABLE org_checkins ADD COLUMN ${col} ${type}`).run();
@@ -5699,7 +5734,26 @@ async function orgCheckout(request, env) {
     ? await env.DB.prepare("SELECT * FROM org_checkins WHERE id=? AND org_id=?").bind(checkin_id, org.id).first()
     : await env.DB.prepare("SELECT * FROM org_checkins WHERE attendee_key_id=? AND org_id=? AND checkout_at IS NULL ORDER BY checkin_at DESC LIMIT 1").bind(attendee_key_id, org.id).first();
   if (!row) return err("Check-in record not found", 404);
-  if (row.checkout_at) return err("Already checked out");
+  if (row.checkout_at) {
+    if (!legacyCheckout) {
+      if (!checkout_payload || !signature) return err("checkout_payload and signature required", 400);
+      if (checkout_payload.checkin_id !== row.id) return err("checkout payload checkin_id mismatch", 400);
+      if (!checkout_payload.nonce) return err("checkout payload nonce required", 400);
+      if (!row.attendee_pub_jwk) return err("missing_attendee_public_key", 409);
+      const pub = JSON.parse(row.attendee_pub_jwk);
+      const payloadHash = await sha256B64url(canonical(checkout_payload));
+      const valid = await verifySig(payloadHash, signature, pub);
+      if (!valid) return err("invalid_checkout_signature", 401);
+    }
+    return json({
+      ok: true,
+      checkin_id: row.id,
+      checkout_at: row.checkout_at,
+      duration_s: row.duration_s || (row.checkout_at - row.checkin_at),
+      checkout_method: row.checkout_method || (legacyCheckout ? "legacy_button" : "signed"),
+      duplicate: true
+    });
+  }
   const t = now();
   const duration = t - row.checkin_at;
   if (legacyCheckout) {

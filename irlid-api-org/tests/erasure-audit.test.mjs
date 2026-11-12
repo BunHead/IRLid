@@ -33,7 +33,7 @@ class D1 {
     this.db.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE organisations (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, api_key TEXT NOT NULL UNIQUE, venue_pub_jwk TEXT, venue_prv_jwk TEXT, settings_json TEXT NOT NULL DEFAULT '{}', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, created_at INTEGER NOT NULL, name TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER, clock_gap_s INTEGER);
+      CREATE TABLE org_checkins (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, mode TEXT NOT NULL, attendee_label TEXT, checkin_at INTEGER NOT NULL, checkout_at INTEGER, created_at INTEGER NOT NULL, name TEXT, device_key_fp TEXT, status TEXT DEFAULT 'checked_in', expected_id INTEGER, event_id TEXT, assurance TEXT, gps_band TEXT, gps_distance_km REAL, out_of_hours INTEGER, clock_gap_s INTEGER, live_nonce TEXT);
       CREATE TABLE org_receipts (id TEXT PRIMARY KEY, org_id TEXT NOT NULL, checkin_id TEXT REFERENCES org_checkins(id), payload_json TEXT NOT NULL, signature TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE org_expected (id INTEGER PRIMARY KEY AUTOINCREMENT, org_id TEXT NOT NULL, display_name TEXT, initials TEXT, role_key TEXT, device_pub_fp TEXT, created_at INTEGER, archived_at INTEGER);
       CREATE TABLE event_expected (event_id TEXT, expected_id INTEGER);
