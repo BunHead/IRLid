@@ -10598,6 +10598,10 @@ function resetOrgScopedState(opts) {
   venueQrPayload = null;
   venueQrLiveNonce = null;
   currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null };
+  // The "new check-in" detector starts again, so the next organisation's
+  // existing rows are not announced as arrivals.
+  __seenRowSnapshot = new Map();
+  __seenSnapshotInitialised = false;
   // Server-only switches are sent on save only after they load for THIS org.
   window.__irlidRequireLiveCodeHydrated = false;
   window.__irlidLockFullscreenHydrated = false;
@@ -11913,12 +11917,18 @@ async function refreshExpectedAttendees() {
   expectedLoading = true;
   expectedError = null;
   renderExpectedAttendees();
+  // v6.8.14: a reply that arrives after the page has left this organisation
+  // is dropped, never shown or cached under the next one.
+  const expectedGeneration = orgLoadGeneration;
   try {
     const payload = await window.IRLidOrgApi.listExpected(currentOrg.id);
+    if (expectedGeneration !== orgLoadGeneration) return;
     expectedAttendees = payload.expected || [];
     await saveCurrentOrgSnapshot('expected-refresh');
   } catch (err) {
+    if (expectedGeneration !== orgLoadGeneration) return;
     const snap = await loadCurrentOrgSnapshot();
+    if (expectedGeneration !== orgLoadGeneration) return;
     if (snap) {
       expectedAttendees = Array.isArray(snap.expected) ? snap.expected : [];
       expectedError = null;
@@ -12406,8 +12416,12 @@ async function refreshAttendance() {
     irlidDebugLog('[poll] offline — skipping refresh to preserve pending_sync rows');
     return;
   }
+  // v6.8.14: a reply that arrives after the page has left this organisation
+  // (switch or sign-out) is dropped, never shown or cached under the next one.
+  const attendanceGeneration = orgLoadGeneration;
   try {
     const payload = await window.IRLidOrgApi.listAttendance(currentOrg.id);
+    if (attendanceGeneration !== orgLoadGeneration) return;
     const checkins = payload.checkins || [];
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record
     // everything without firing. Subsequent polls compare each row's current
@@ -12470,7 +12484,9 @@ async function refreshAttendance() {
     // v6.7.2 — never swallow the reason silently (it hid this failure on go-live
     // day). Fetch failures and page-rendering errors both land here.
     console.warn('[refreshAttendance] failed, using cached snapshot:', err && err.status ? 'HTTP ' + err.status : (err && err.name) || 'error', err && err.message, err);
+    if (attendanceGeneration !== orgLoadGeneration) return;
     const snap = await loadCurrentOrgSnapshot();
+    if (attendanceGeneration !== orgLoadGeneration) return;
     if (snap && applySnapshotToDashboard(snap)) {
       // v6.3.23 — the cached-snapshot path bypasses setSignedInUI/loadDashboardForOrg,
       // so the lead_admin-gated Settings nav was never re-evaluated here. Once the
@@ -16251,6 +16267,7 @@ async function tryProcessStaffScanIfPending() {
       updateStaffScanDiag({ escalationOpened: 'n', err: 'scan is for another organisation' });
       setDashboardScanStatus(wrongOrg, 'error');
       showToast(wrongOrg, true);
+      try { document.getElementById('dashboardScanStatus')?.scrollIntoView({ block: 'center' }); } catch (_) {}
     } else if (env?.type === 'device_key') {
       // v6.2.7 — Handle staff-scan device_key payloads directly instead of
       // routing through processDashboardScan(), whose internal catch converts

@@ -284,6 +284,19 @@ test("opening an organisation: tell the server, clear the last one, then show th
   assert.ok(src.indexOf("if (stale()) return;") < src.indexOf("applyServerSettingsToLocalState(s)"), "old settings are never applied to the new organisation");
 });
 
+test("a slow people or attendance reply for the organisation just left is dropped, not shown or cached under the next", () => {
+  const people = fnSource("refreshExpectedAttendees");
+  assert.match(people, /const expectedGeneration = orgLoadGeneration;/);
+  assert.ok(people.indexOf("if (expectedGeneration !== orgLoadGeneration) return;") < people.indexOf("expectedAttendees = payload.expected"), "checked before the list is replaced");
+  assert.ok(people.indexOf("expectedAttendees = payload.expected") < people.indexOf("saveCurrentOrgSnapshot('expected-refresh')"), "and so before the offline copy is saved");
+  const attendance = fnSource("refreshAttendance");
+  assert.match(attendance, /const attendanceGeneration = orgLoadGeneration;/);
+  assert.ok(attendance.indexOf("if (attendanceGeneration !== orgLoadGeneration) return;") < attendance.indexOf("const checkins = payload.checkins"));
+  assert.ok((attendance.match(/if \(attendanceGeneration !== orgLoadGeneration\) return;/g) || []).length >= 3, "the cached fallback is guarded too");
+  // The next organisation's existing rows are not announced as new arrivals.
+  assert.match(fnSource("resetOrgScopedState"), /__seenRowSnapshot = new Map\(\);\s*__seenSnapshotInitialised = false;/);
+});
+
 // ---------- the session is tied to the organisation ----------
 
 function bindCtx(selectImpl) {
