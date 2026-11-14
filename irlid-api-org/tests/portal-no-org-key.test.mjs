@@ -93,7 +93,9 @@ test("Org.html: never sends or reads the org api_key", () => {
 });
 
 test("Org.html: Sign out ends the session on the server and wipes the saved session and org", () => {
-  const start = ORG_HTML.indexOf("function signOutOrg() {");
+  // v6.8.14: signOutOrg takes an options argument (who asked for the sign-out).
+  const start = ORG_HTML.indexOf("function signOutOrg(opts) {");
+  assert.ok(start > 0, "signOutOrg exists");
   const body = ORG_HTML.slice(start, ORG_HTML.indexOf("\n}\n", start));
   assert.match(body, /IRLidOrgApi\.signOut\(/);
   assert.match(body, /wipeSavedOrgSession\(\)/);
@@ -105,6 +107,7 @@ test("Org.html: Sign out ends the session on the server and wipes the saved sess
 });
 
 test("Org.html: a refused session restore never falls back to the cached dashboard", () => {
-  assert.match(ORG_HTML, /const workerRefused = !!\(err && err\.status\);/);
+  // v6.8.14: the restore error is now held in restoreErr (one restore path).
+  assert.match(ORG_HTML, /const workerRefused = !!\(restoreErr && restoreErr\.status\);/);
   assert.match(ORG_HTML, /const snap = workerRefused \? null : await loadCurrentOrgSnapshot\(\);/);
 });

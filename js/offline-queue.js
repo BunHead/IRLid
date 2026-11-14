@@ -263,7 +263,10 @@
             halted = true;
             break;
           }
-          if (response.status === 202 && op.kind === "org_checkin") {
+          // v6.8.14: any queued op the Worker answers "quarantined" gets
+          // the visible notice (also the dashboard's own door check-ins and
+          // check-outs, which carry no kind).
+          if (response.status === 202) {
             let result = null;
             try { result = await response.clone().json(); } catch (_) {}
             if (result && result.quarantined) {
