@@ -1387,6 +1387,8 @@ async function orgActionInit(request, env) {
   const org = await env.DB.prepare("SELECT id, name, slug, settings_json FROM organisations WHERE id = ?")
     .bind(orgId).first();
   if (!org) return json({ error: "org_not_found" }, 404);
+  const actionMismatch = await sessionOrgMismatch(request, env, org.id);
+  if (actionMismatch) return actionMismatch;
   const role = await orgRoleForUser(env, ctx.user, org.id);
   // Who may ASK for the action. For the kiosk screen approval this is the
   // screen's own (staff-tier) session; who may SIGN it is checked at claim.
@@ -1656,6 +1658,8 @@ async function kioskSessionForOrg(request, env, orgId) {
   if (ctx.error) return { error: ctx.error };
   const org = await env.DB.prepare("SELECT id, settings_json FROM organisations WHERE id = ?").bind(orgId).first();
   if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  const kioskMismatch = await sessionOrgMismatch(request, env, org.id);
+  if (kioskMismatch) return { error: kioskMismatch };
   const role = await orgRoleForUser(env, ctx.user, org.id);
   if (expectedRoleRank(role) < expectedRoleRank("staff")) {
     return { error: json({ error: "insufficient_role", required: "staff" }, 403) };
@@ -2212,6 +2216,120 @@ async function requireSession(request, env) {
   return { user };
 }
 
+// =====================
+//  SESSION → ORGANISATION BINDING (v6.8.14, two-org bleed fix)
+// =====================
+// A login session used to be user-level only: it could be used against any
+// organisation the user could reach (every organisation, for a Developer), and
+// the Worker wrote to whichever one the page named in X-Org-Id. A page holding
+// a stale organisation therefore wrote a new person into the wrong one.
+//
+// Now the page says which organisation it is in (POST /user/session/org), and
+// that choice is stored against the session token. The token then works for
+// that organisation only: an org-scoped call naming any other organisation is
+// refused (403 session_org_mismatch). The choice never changes for a token.
+// Switching organisation hands back a NEW token for the new organisation, so
+// anything still holding the old token (another tab, a queued offline
+// check-in) keeps writing to the organisation it was made for (C7, C13).
+//
+// A session that has not chosen yet (an old cached page) behaves as before.
+// Times are in seconds, like login_sessions.
+const sessionOrgStorageReady = new WeakSet();
+async function ensureSessionOrgStorage(env) {
+  if (sessionOrgStorageReady.has(env.DB)) return;
+  await env.DB.prepare(
+    "CREATE TABLE IF NOT EXISTS login_session_orgs (token TEXT PRIMARY KEY, org_id TEXT NOT NULL, bound_at INTEGER NOT NULL)"
+  ).run();
+  sessionOrgStorageReady.add(env.DB);
+}
+
+// The organisation this session token is tied to, or null if none yet.
+async function sessionBoundOrgId(env, token) {
+  if (!token || token.startsWith("org_")) return null;
+  await ensureSessionOrgStorage(env);
+  const row = await env.DB.prepare(
+    "SELECT org_id FROM login_session_orgs WHERE token = ?"
+  ).bind(token).first();
+  return row && row.org_id ? String(row.org_id) : null;
+}
+
+// A 403 response if the request's session is tied to a different organisation
+// than `orgId`; null if it matches, has not chosen yet, or is not a session.
+async function sessionOrgMismatch(request, env, orgId) {
+  const token = bearerTokenFromRequest(request);
+  const bound = await sessionBoundOrgId(env, token);
+  if (!bound || bound === String(orgId || "")) return null;
+  console.warn("[session-org] refused: session is for org " + bound + ", request named " + String(orgId || ""));
+  return json({
+    error: "session_org_mismatch",
+    message: "This sign-in is for a different organisation. Switch organisation or sign in again.",
+    session_org_id: bound
+  }, 403);
+}
+
+// For handlers that resolve the organisation with orgFromRequest. Attendee
+// phones call those with no login session (nothing to check). The dashboard
+// calls them with one, and is held to its organisation here too.
+//   Live calls: 403 session_org_mismatch.
+//   Check-in and check-out are replayed by the offline queue, which must
+//   never meet a final error (C8). They get the same 202 "not counted" notice
+//   as a quarantined check-in. Nothing is stored and nothing is counted.
+async function sessionOrgRefusal(request, env, org, queueReplayed) {
+  const mismatch = await sessionOrgMismatch(request, env, org.id);
+  if (!mismatch) return null;
+  if (!queueReplayed) return mismatch;
+  return json({
+    quarantined: true,
+    not_stored: true,
+    reason: "session_org_mismatch",
+    notice: "This was sent for a different organisation than the one this sign-in is in. It was not counted. Open the right organisation and do it again."
+  }, 202);
+}
+
+// POST /user/session/org { org_id } — tie this login session to one
+// organisation. Needs a staff-tier role there (or the bootstrap Developer).
+// Returns the token to use from now on: the same one, or a new one when the
+// session was already tied to another organisation (switch organisation).
+async function userSessionSelectOrg(request, env) {
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return ctx.error;
+  let body;
+  try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const orgId = String((body && (body.org_id || body.orgId)) || "").trim();
+  if (!orgId) return err("org_id required");
+  const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?").bind(orgId).first();
+  if (!org) return json({ error: "org_not_found" }, 404);
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  if (!role || !STAFF_TIER_ROLES.has(role)) {
+    return json({ error: "not_a_member", message: "Your sign-in does not have staff access to this organisation." }, 403);
+  }
+  const token = bearerTokenFromRequest(request);
+  const t = now();
+  await ensureSessionOrgStorage(env);
+  // First choice wins, even if two requests race.
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO login_session_orgs (token, org_id, bound_at) VALUES (?, ?, ?)"
+  ).bind(token, org.id, t).run();
+  const bound = await sessionBoundOrgId(env, token);
+  if (bound === String(org.id)) {
+    return noStore(json({ ok: true, org_id: org.id, org_name: org.name, role, session_token: token, switched: false }));
+  }
+  // Already tied to another organisation: a new token for the new one. The
+  // old token stays tied to the old organisation until it expires or is
+  // signed out.
+  const newToken = randomToken();
+  await env.DB.batch([
+    env.DB.prepare(
+      "INSERT INTO login_sessions (token, user_id, issued_at, expires_at, ip_hash, user_agent) " +
+      "SELECT ?, user_id, ?, ?, ip_hash, user_agent FROM login_sessions WHERE token = ?"
+    ).bind(newToken, t, t + LOGIN_SESSION_TTL_S, token),
+    env.DB.prepare(
+      "INSERT INTO login_session_orgs (token, org_id, bound_at) VALUES (?, ?, ?)"
+    ).bind(newToken, org.id, t)
+  ]);
+  return noStore(json({ ok: true, org_id: org.id, org_name: org.name, role, session_token: newToken, switched: true, previous_org_id: bound }));
+}
+
 async function userSignOutAllDevices(request, env) {
   const auth = request.headers.get("Authorization") || "";
   const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
@@ -2224,6 +2342,12 @@ async function userSignOutAllDevices(request, env) {
   ).bind(token).first();
   if (!session) return json({ error: "auth_failed" }, 401);
 
+  try {
+    await ensureSessionOrgStorage(env);
+    await env.DB.prepare(
+      "DELETE FROM login_session_orgs WHERE token IN (SELECT token FROM login_sessions WHERE user_id = ?)"
+    ).bind(session.user_id).run();
+  } catch (e) { console.warn("[session-org] cleanup skipped:", e && e.message); }
   const result = await env.DB.prepare(
     "DELETE FROM login_sessions WHERE user_id = ?"
   ).bind(session.user_id).run();
@@ -2240,6 +2364,10 @@ async function userSignOut(request, env) {
   const token = m[1].trim();
   if (token.startsWith("org_")) return json({ error: "not_a_login_session" }, 400);
   const result = await env.DB.prepare("DELETE FROM login_sessions WHERE token = ?").bind(token).run();
+  try {
+    await ensureSessionOrgStorage(env);
+    await env.DB.prepare("DELETE FROM login_session_orgs WHERE token = ?").bind(token).run();
+  } catch (e) { console.warn("[session-org] cleanup skipped:", e && e.message); }
   return json({ ok: true, sessions_revoked: result.meta?.changes || 0 });
 }
 
@@ -2303,7 +2431,13 @@ async function userListOrgs(request, env) {
     }
   }
 
-  return json({ user_id: user.id, display_name: user.display_name, orgs, is_developer: isBootstrapDev });
+  // v6.8.14: the organisation this session is tied to (null if none yet), so
+  // a reloaded page shows the organisation the server will write to, not
+  // whatever the browser last remembered.
+  let sessionOrgId = null;
+  try { sessionOrgId = await sessionBoundOrgId(env, bearerTokenFromRequest(request)); }
+  catch (e) { console.warn("[session-org] lookup skipped:", e && e.message); }
+  return json({ user_id: user.id, display_name: user.display_name, orgs, is_developer: isBootstrapDev, session_org_id: sessionOrgId });
 }
 
 // POST /user/create-org — create a new organisation with the authenticated user as
@@ -2399,6 +2533,8 @@ async function requireOrgThemeAdmin(request, env, orgId) {
   const org = await env.DB.prepare("SELECT * FROM organisations WHERE id = ?")
     .bind(orgId).first();
   if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  const themeMismatch = await sessionOrgMismatch(request, env, org.id);
+  if (themeMismatch) return { error: themeMismatch };
 
   const isBootstrapDev = isBootstrapDeveloperFp(env, ctx.user.pub_fp);
   if (isBootstrapDev) return { user: ctx.user, org, role: "developer" };
@@ -2430,6 +2566,8 @@ async function requireOrgInviteIssuer(request, env, orgId) {
   const org = await env.DB.prepare("SELECT id, name, slug FROM organisations WHERE id = ?")
     .bind(orgId).first();
   if (!org) return { error: json({ error: "org_not_found" }, 404) };
+  const inviteMismatch = await sessionOrgMismatch(request, env, org.id);
+  if (inviteMismatch) return { error: inviteMismatch };
   const role = await orgRoleForUser(env, ctx.user, org.id);
   if (role !== "lead_admin" && role !== "developer") {
     return { error: inviteJsonError("insufficient_role", "Only Lead Admins and platform Developers can issue invites.", 403) };
@@ -3056,6 +3194,9 @@ async function orgLeadAdminAppoint(request, env) {
   if (computedReceiptHash !== copresenceHash) {
     return leadAdminJsonError("copresence_hash_mismatch", "Co-presence receipt hash does not match the grant.", 400);
   }
+
+  const appointMismatch = await sessionOrgMismatch(request, env, orgId);
+  if (appointMismatch) return appointMismatch;
 
   const issuerPubFp = await deviceKeyFp(issuerPubJwk);
   if (!issuerPubFp || !isBootstrapDeveloperFp(env, issuerPubFp)) {
@@ -3928,6 +4069,8 @@ async function findExpectedByDeviceFp(env, orgCode, deviceFp) {
 async function orgRecognize(request, env) {
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("organisation required", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   const url = new URL(request.url);
   const deviceFp = (url.searchParams.get("device_pub") || "").trim();
   if (!deviceFp) return err("device_pub required");
@@ -3939,6 +4082,8 @@ async function orgRecognize(request, env) {
 async function orgExpectedLookupByFp(request, env, fpParam) {
   const org = await orgFromRequest(request, env);
   if (!org) return noStore(err("organisation not found", 404));
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   const fp = String(fpParam || "").trim();
   if (!fp) return noStore(err("pub_fp required", 400));
 
@@ -3967,6 +4112,8 @@ async function orgExpectedLookupByFp(request, env, fpParam) {
 async function orgActiveCheckin(request, env) {
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("organisation required", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   const url = new URL(request.url);
   const deviceFp = (url.searchParams.get("device_pub") || "").trim();
   if (!deviceFp) return err("device_pub required");
@@ -5053,6 +5200,8 @@ const checkinHoldStorageReady = new WeakSet();
 async function orgCheckinHold(request, env) {
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   await ensureOrgCheckinNonceStorage(env);
   await ensureCheckinHoldStorage(env);
@@ -5244,6 +5393,8 @@ async function orgCheckin(request, env) {
   // the doorman_scan path still demands a valid staff_session, unchanged.
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, true);
+  if (orgRefusal) return orgRefusal;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   // Push updates: remember which live code this scan carried, so the hub can
   // tell the venue screen to rotate it. Only used if the check-in succeeds.
@@ -5725,6 +5876,8 @@ async function orgCheckout(request, env) {
   // api_key never gated anything an attendee didn't already hold.
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, true);
+  if (orgRefusal) return orgRefusal;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
   const url = new URL(request.url);
   const legacyCheckout = url.searchParams.get("checkout_method") === "legacy";
@@ -6459,6 +6612,8 @@ async function orgExpectedList(request, env) {
   // with it the full hint columns.
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   const staff = await requireCalendarStaff(request, env, org);
   if (staff.error) {
     let settings = {};
@@ -6834,9 +6989,34 @@ async function expectedBoundToDevice(env, orgCode, deviceFp) {
   return null;
 }
 
+// v6.8.14 (two-org bleed fix). The orange "Get a member of staff" QR names
+// the organisation whose check-in QR the phone scanned (org_code: its slug or
+// id; an api_key on very old printed QRs). The dashboard passes that on as
+// scan_org_code. If it names a DIFFERENT organisation than the one being
+// written to, the add / link is refused, so a dashboard sitting in the wrong
+// organisation can never add the person there.
+// Refuse only: a matching, missing or unknown value grants nothing and blocks
+// nothing (S13). Old pages send no scan_org_code and behave as before.
+async function scanOrgMismatch(env, org, body) {
+  const code = String((body && (body.scan_org_code || body.scanOrgCode)) || "").trim();
+  if (!code) return null;
+  if (code === String(org.id) || (org.slug && code === String(org.slug)) || (org.api_key && code === String(org.api_key))) return null;
+  const other = await env.DB.prepare(
+    "SELECT id FROM organisations WHERE id=? OR slug=? OR api_key=? LIMIT 1"
+  ).bind(code, code, code).first();
+  if (!other || String(other.id) === String(org.id)) return null;
+  return json({
+    error: "scan_org_mismatch",
+    message: "This phone's QR is for a different organisation than the one you are signed in to. Nothing was added.",
+    signed_in_org: org.name || null
+  }, 409);
+}
+
 async function bindAdditionalExpectedKey(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const scanMismatch = await scanOrgMismatch(env, org, body);
+  if (scanMismatch) return scanMismatch;
 
   // v5.10.0 Phase 0 — per-action WebAuthn replaces requireFreshStaffProof
   // for the doorman bind endpoints. Every bind is now a non-repudiable
@@ -6907,6 +7087,8 @@ async function orgExpectedCreateAndBind(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
 
   let body; try { body = await request.json(); } catch { return err("Invalid JSON"); }
+  const scanMismatch = await scanOrgMismatch(env, org, body);
+  if (scanMismatch) return scanMismatch;
   const firstName = (body.first_name || "").trim();
   const surname = (body.surname || "").trim();
   const prototypeRole = attendeeOnlyExpectedRole(body, "orgExpectedCreateAndBind");
@@ -7165,6 +7347,8 @@ async function orgExpectedClaim(request, env, id) {
   // the response is redacted for them — hint columns stay staff-tier only.
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("Invalid org key or slug", 401);
+  const orgRefusal = await sessionOrgRefusal(request, env, org, false);
+  if (orgRefusal) return orgRefusal;
   const isServiceTier = requestHasOrgServiceAccount(request, org);
   if (!isServiceTier) {
     let settings = {};
@@ -7257,6 +7441,9 @@ async function orgAuth(request, env) {
       denied.error = true;
       return denied;
     }
+    // v6.8.14: a session tied to one organisation is refused for any other.
+    const mismatch = await sessionOrgMismatch(request, env, org.id);
+    if (mismatch) { mismatch.error = true; return mismatch; }
     requestOrg.set(request, org);
     return org;
   }
@@ -7469,6 +7656,7 @@ export default {
       else if (method === "POST" && path === "/user/create-org")     response = await userCreateOrg(request, env);
       else if (method === "POST" && path === "/user/sign-out-all-devices") response = await userSignOutAllDevices(request, env);
       else if (method === "POST" && path === "/user/logout")         response = await userSignOut(request, env);
+      else if (method === "POST" && path === "/user/session/org")    response = await userSessionSelectOrg(request, env);
       else if (method === "POST" && /^\/user\/orgs\/[^/]+\/scrape-theme$/.test(path)) {
         const mScrapeTheme = path.match(/^\/user\/orgs\/([^/]+)\/scrape-theme$/);
         response = await userScrapeTheme(request, env, decodeURIComponent(mScrapeTheme[1]));

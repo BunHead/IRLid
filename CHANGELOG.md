@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v205
+
+v6.8.14 TWO-ORG BLEED FIX: a person added from a staff scan could land in the wrong organisation. The dashboard added to whichever organisation that browser was in and ignored the organisation named in the scanned QR; after sign-out and a same-device sign-in it opened the first organisation in the list without asking (the oldest of every organisation, for a Developer); and the Worker let one sign-in write to any organisation the user could reach. Now: sign-out and switching organisation clear every saved setting, person, theme and Organisation-tab field of the last organisation; a reloaded page opens the organisation the server has on record for that sign-in, or asks, and never guesses; a scan whose QR names another organisation is refused with both names shown; the add-person dialog shows the organisation name; a theme that cannot load falls back to the plain look, not the last organisation's; each sign-in is tied to one organisation on the Worker (POST /user/session/org) and calls for any other are refused (403 session_org_mismatch), switching organisation gets a new session token so queued check-ins still reach the organisation they were made for; add / link at the door is refused if the scanned QR names a different organisation (409 scan_org_mismatch).
+
 ## irlid-shell-v203
 
 v6.8.13 FIRST-SCAN HOLD (option C, Spencer 9 Nov 2026): a phone the org has never seen signs a hold on the live code as soon as it shows the orange 'Get a member of staff' screen; after staff approve it, its check-in is fresh if signed by the same key within 10 minutes (single use). The held code reads as used so the screen moves on; a phone scanning the same frame still gets its own fresh check-in. Late, queued or offline check-ins still land as offline / unverified.

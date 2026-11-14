@@ -87,6 +87,10 @@ CREATE TABLE org_checkout_tokens (token TEXT PRIMARY KEY, checkin_id TEXT NOT NU
 
 CREATE TABLE org_checkin_nonces (nonce TEXT PRIMARY KEY, org_api_key TEXT NOT NULL, event_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, consumed_at INTEGER);
 
+-- v6.8.14: the one organisation a login session token is tied to (seconds).
+-- Created on demand by the Worker; see d1-migrations/0002_login_session_orgs.sql.
+CREATE TABLE IF NOT EXISTS login_session_orgs (token TEXT PRIMARY KEY, org_id TEXT NOT NULL, bound_at INTEGER NOT NULL);
+
 -- v6.8.13 first-scan hold: a first-time phone holds the live code it scanned
 -- (signed with its device key) while staff approve it. Single use, one device
 -- key, 10 minutes. The Worker also creates this table on first use.

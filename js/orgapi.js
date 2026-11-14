@@ -123,8 +123,26 @@
       if (response.status === 401 && data && /^session_(invalid|expired|required|user_missing)$/.test(String(data.error || ""))) {
         try { window.dispatchEvent(new CustomEvent("irlid:session-expired", { detail: { error: data.error } })); } catch (_) {}
       }
+      // v6.8.14 — the Worker refused because this sign-in is tied to a
+      // different organisation than the one the page named. The dashboard
+      // listens and stops, rather than carry on showing the wrong one.
+      if (response.status === 403 && data && data.error === "session_org_mismatch") {
+        try { window.dispatchEvent(new CustomEvent("irlid:session-org-mismatch", { detail: { session_org_id: data.session_org_id || null } })); } catch (_) {}
+      }
       const error = new Error(message);
       error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    // v6.8.14 — a door check-in sent for a different organisation than this
+    // sign-in is in comes back 202 "not counted" (that path is replayed by the
+    // offline queue, so the Worker never answers it with a final error, C8).
+    // For a live call that is a failure: say so instead of showing success.
+    if (response.status === 202 && data && data.quarantined && data.reason === "session_org_mismatch") {
+      try { window.dispatchEvent(new CustomEvent("irlid:session-org-mismatch", { detail: {} })); } catch (_) {}
+      const error = new Error(data.notice || "Not counted: this sign-in is in a different organisation.");
+      error.status = 403;
       error.data = data;
       throw error;
     }
@@ -220,6 +238,17 @@
     // PROTOCOL.md §14 — Batch C user-level endpoints, Bearer session token auth.
     listMyOrgs(sessionToken) {
       return request("/user/orgs", { sessionToken });
+    },
+    // v6.8.14 — tie this login session to one organisation. The Worker then
+    // refuses org calls from it for any other organisation. Returns
+    // { session_token }: the token to use from now on (a new one when the
+    // session was already tied to another organisation).
+    selectSessionOrg(sessionToken, orgId) {
+      return request("/user/session/org", {
+        method: "POST",
+        sessionToken,
+        body: { org_id: orgId }
+      });
     },
     createOrg(sessionToken, payload) {
       return request("/user/create-org", {
