@@ -6699,7 +6699,82 @@ async function orgDebugClearAttendance(request, env) {
   });
 }
 
+// v6.8.19 — Lead Admin / Developer of THIS org, proven by a login session
+// (Bearer + X-Org-Id, never the venue api_key). Used to see and restore
+// archived expected attendees. Admin only, never queued offline (S10).
+async function requireOrgAdminSession(request, env, org) {
+  const bearer = bearerTokenFromRequest(request);
+  if (!bearer || bearer.startsWith("org_")) {
+    return { error: json({ error: "login_session_required", message: "Sign in with your IRLid login as a Lead Admin or Developer." }, 403) };
+  }
+  const ctx = await requireSession(request, env);
+  if (ctx.error) return { error: ctx.error };
+  let role = await orgRoleForUser(env, ctx.user, org.id);
+  if (!role && isBootstrapDeveloperFp(env, ctx.user.pub_fp)) role = "developer";
+  if (role === "lead_admin" || role === "developer") return { user: ctx.user, role };
+  return { error: json({ error: "insufficient_role", message: "Lead Admin or Developer access required.", required: "lead_admin", actual: role || null }, 403) };
+}
+
+// Archived ("Delete expected") people of this organisation only. No device
+// keys, hints or notes leave this response. Fully deleted records are gone.
+async function orgExpectedListArchived(request, env) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  const admin = await requireOrgAdminSession(request, env, org);
+  if (admin.error) return admin.error;
+  const rows = await env.DB.prepare(
+    "SELECT id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,created_at,archived_at FROM org_expected WHERE org_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC, id DESC LIMIT 500"
+  ).bind(org.id).all();
+  return noStore(json({ expected: rows.results || [], archived: true }));
+}
+
+// v6.8.19 — restore one archived expected attendee (clear archived_at).
+// Scoped to the caller's organisation in every query. An already-active row
+// is a no-op success with no extra log row. The log write is best-effort
+// like Delete expected (R5): the restore stands even if the log cannot write.
+async function orgExpectedRestore(request, env, id) {
+  const org = await orgAuth(request, env); if (org.error) return org;
+  let body = {};
+  try { body = await request.json(); } catch {}
+  const admin = await requireOrgAdminSession(request, env, org);
+  if (admin.error) return admin.error;
+
+  const existing = await env.DB.prepare(
+    "SELECT id, display_name, archived_at FROM org_expected WHERE id=? AND org_id=?"
+  ).bind(id, org.id).first();
+  if (!existing) return err("Expected attendee not found", 404);
+  if (existing.archived_at == null) {
+    return json({ ok: true, restored: false, already_active: true, id });
+  }
+  const dup = await env.DB.prepare(
+    "SELECT id FROM org_expected WHERE org_id=? AND id<>? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
+  ).bind(org.id, id, existing.display_name || "").first();
+  if (dup) return json({ error: "duplicate", existing_id: dup.id, message: "Someone with this name is already on the list." }, 409);
+
+  const result = await env.DB.prepare(
+    "UPDATE org_expected SET archived_at=NULL WHERE id=? AND org_id=? AND archived_at IS NOT NULL"
+  ).bind(id, org.id).run();
+  if ((result.meta?.changes || 0) === 0) {
+    // Someone else restored it first: success, but only the winner logs.
+    return json({ ok: true, restored: false, already_active: true, id });
+  }
+  const actor = await actorForAudit(request, env, org, body);
+  await recordAudit(env, {
+    orgId: org.id,
+    actorUserId: actor.actorUserId,
+    actorPubFp: actor.actorPubFp,
+    actorName: actor.actorName,
+    actorRole: actor.actorRole,
+    action: "expected_restore",
+    target: existing.display_name || "Expected attendee",
+    targetRef: String(id),
+    outcome: "allowed",
+    detail: JSON.stringify({ restored: true, org_id: org.id, org_name: org.name || null })
+  });
+  return json({ ok: true, restored: true, id });
+}
+
 async function orgExpectedList(request, env) {
+  if (new URL(request.url).searchParams.get("archived") === "1") return orgExpectedListArchived(request, env);
   // v6.4.4a — QR diet follow-up. Slim venue QRs hand the attendee phone a slug,
   // not the api_key, so the "I'm not on the list" picker can no longer present
   // the service-account key. Resolution widened to orgFromRequest; FULL rows
@@ -7892,6 +7967,7 @@ export default {
       else {
         const mExpected = path.match(/^\/org\/expected\/([^/]+)$/);
         const mExpectedFull = path.match(/^\/org\/expected\/([^/]+)\/full$/);
+        const mExpectedRestore = path.match(/^\/org\/expected\/([^/]+)\/restore$/);
         const mExpectedRebind = path.match(/^\/org\/expected\/([^/]+)\/rebind$/);
         const mExpectedBindAdditional = path.match(/^\/org\/expected\/([^/]+)\/bind-additional-key$/);
         const mExpectedClaim = path.match(/^\/org\/expected\/([^/]+)\/claim$/);
@@ -7904,6 +7980,7 @@ export default {
         const mOrgPublicInfo = path.match(/^\/org\/public-info\/([^/]+)$/);
         const mOrgEntryInfo = path.match(/^\/org\/entry-info\/([^/]+)$/);
         if (method === "DELETE" && mExpected) response = await orgExpectedDelete(request, env, decodeURIComponent(mExpected[1]));
+        else if (method === "POST" && mExpectedRestore) response = await orgExpectedRestore(request, env, decodeURIComponent(mExpectedRestore[1]));
         else if (method === "DELETE" && mExpectedFull) response = await orgExpectedDeleteFull(request, env, decodeURIComponent(mExpectedFull[1]));
         else if (method === "PATCH" && mExpected) response = await orgExpectedUpdate(request, env, decodeURIComponent(mExpected[1]));
         else if (method === "POST" && mExpectedRebind) response = await orgExpectedRebind(request, env, decodeURIComponent(mExpectedRebind[1]));
