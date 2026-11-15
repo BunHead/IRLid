@@ -279,7 +279,7 @@ Each step is its own PR. Rough size in brackets.
 
 ## 8. Receipts on all devices (plan only)
 
-**Status:** plan only, updated 15 Nov 2026 with Spencer's decisions (10:56 UK). No code, no merge, no deploy. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
+**Status:** plan only, updated 15 Nov 2026 with Spencer's decisions (10:56 UK, and question 2 at 15:39 UK). No code, no merge, no deploy. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
 
 ### 8.1 Spencer's decisions
 
@@ -288,6 +288,7 @@ Each step is its own PR. Rough size in brackets.
 3. **Keep every receipt.** Nothing is purged, anywhere. If someone clears their phone, the server copy is the backup.
 4. **Phone first.** Build for the phone, then other devices.
 5. **Docs only** until Spencer says build.
+6. **No erase of the synced server copy, for now** (15:39 UK). People may not erase their own synced list on the server. Storage is not an issue until things scale up, so revisit then.
 
 ### 8.2 The problem today
 
@@ -336,7 +337,7 @@ What this means for the plan:
 
 **Entries.** Each entry is locked with the list key. Its id is not the receipt id (it is a keyed hash of it, so the server can't match it to a public receipt id). The entry is bound to the account and its own id (so entries can't be swapped between people or moved around). Each entry records which version of the list key locked it.
 
-**Never purged.** The server never deletes entries, and a device "hiding" a receipt just adds a new locked entry (R1: add a note, don't edit). The only way entries go is a deliberate "erase my synced copy" by the person, who must confirm; the log records that it happened, never the content (R1 exception, as for org erasure). **Spencer to confirm** that a person may erase their own synced copy (question 2).
+**Never purged.** The server never deletes entries, and a device "hiding" a receipt just adds a new locked entry (R1: add a note, don't edit). **Spencer decided (15 Nov 2026, 15:39 UK):** people may not erase their own synced server copy for now. Keep every receipt. Storage is not an issue until things scale up, so revisit then. There is no erase button in this plan.
 
 **The list is stored where.** Phones move it from `localStorage` (about 5 MB, easy to lose) to IndexedDB so "keep every receipt" is real. Size per receipt and storage limits are tested (8.8).
 
@@ -387,7 +388,7 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 - The server stores only locked data: with the Worker's own database, search every stored field for a known receipt name, org name and venue and find nothing.
 - A request from a device that is not linked, or is revoked, or signs wrongly, is refused (S1, S12). Another person's account cannot read or write this list (A5).
 - An entry cannot be moved to another account or another id (the lock is bound to both).
-- Nothing deletes an entry except the person's confirmed erase; that writes a log row with counts only (R1, R5).
+- Nothing deletes an entry. There is no erase of the synced server copy for now (Spencer, 15:39 UK, 15 Nov 2026). A test must fail if any sync route deletes or purges an entry. Revisit when storage becomes an issue.
 - Link code: single use, 5 minutes, attempt limit (S6, S7), and the code alone returns no usable key.
 - Wrong or swapped device key during adding: the phone refuses on a code mismatch.
 - Rotation: a revoked device cannot read entries created after the revoke.
@@ -401,10 +402,15 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 
 *Real phones (manual, **[UNCHECKED]** until done):* iPhone Safari and installed PWA, Android Chrome, in-app browser, desktop, tablet, a Pi. After clearing site data; after a week unused; storage-full; airplane mode. Confirm the iPhone storage and in-app browser claims in 8.2 as part of this.
 
-### 8.9 Questions still open for Spencer
+### 8.9 Questions for Spencer
+
+**Answered (15 Nov 2026, 15:39 UK):**
+
+2. **Erasure.** People may **not** erase their own synced server copy for now. Keep every receipt. Storage is not an issue until things scale up, so revisit then.
+
+**Still open:**
 
 1. **v5 as an extra gate (8.3).** Where a phone has v5 enabled, require a v5 signature to add a device or change the recovery key? (Recommended.) Or never require it?
-2. **Erasure.** May a person erase their own synced copy (one deliberate, confirmed action, logged with counts only)? Recommended, since it is their data. Otherwise "keep every receipt" means no way out.
 3. **Recovery key skippable?** Recommended: setup tells the person plainly and lets them skip, with an "unprotected" state shown. Or make it mandatory.
 4. **Honest wording on org visits (8.5).** The org and the server operator can still link an org receipt to a device key. Is the plain-English wording acceptable, or should the server stop recording the device key on org receipts? (Stopping would change org receipts and needs its own review: R2, R4.)
 5. **Pi scope.** A Pi with a screen and keyboard is in; a Pi with no screen is out of v1?
