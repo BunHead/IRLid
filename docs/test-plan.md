@@ -167,7 +167,7 @@ Each area lists **Exists** (real, today), **Missing** (a gap, in priority order)
   - A public key alone never signs anyone in (S2).
   - Receipt page escapes every field (S11): names, venue address, org text.
   - Receipt read from a link on a phone that has never seen it.
-  - Receipts on all devices: see section 8.
+  - Receipts on all devices (locked sync, phone first): see section 8 for the plan and its tests.
 - **Run:** `npm test`, `npm run test:api`, `npm run test:org-worker`; browser: `npm run test:e2e`.
 
 ### 4.9 Audit log
@@ -275,62 +275,139 @@ Each step is its own PR. Rough size in brackets.
 10. **Accessibility pass** (medium): 4.1, 4.2.
 11. **Staging smoke pack** (needs Spencer's one-time Cloudflare setup first).
 12. **Outside security review** (separate decision).
+13. **Receipt sync, phone first** (section 8): not before Spencer's answers to 8.9 and a design review.
 
 ## 8. Receipts on all devices (plan only)
 
-### The problem
+**Status:** plan only, updated 15 Nov 2026 with Spencer's decisions (10:56 UK). No code, no merge, no deploy. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
 
-A person's receipts live in the browser of the phone that made them: consumer handshakes under `irlid_receipts`, org check-in receipts under `irlid_org_receipts` (last 50), both in `localStorage`. Switch phones, clear site data, or let the browser evict storage, and the list is gone. The receipt itself still exists: an org receipt is stored on the Worker and opens by its id (`receipt.html?org_receipt=<id>`), and it is signed, so anyone can verify it. What is lost is the person's **list**.
+### 8.1 Spencer's decisions
 
-Known ways a phone loses its list today (to confirm on real phones, W4):
-- A new phone or a second device (tablet, laptop).
-- iOS Safari clears script-written storage for sites not used for a while, unless the site is installed to the home screen.
-- Opening the scan link in an in-app browser (a social or chat app) uses separate storage from the person's main browser.
-- Private browsing, "clear history", a storage-full phone.
-- The cap of 50 org receipts.
+1. **Personal only.** Each person sees all of their own receipts, including their org visits, on any device: phone, desktop, tablet, Pi. This is a person's own list. Organisations never see it, and it is never a shared or org-wide record (A5). The org keeps its own copy of org receipts, as now.
+2. **Account sync, end-to-end encrypted.** The list is locked with a key only the person's own devices hold. The server stores the locked copy and cannot read it.
+3. **Keep every receipt.** Nothing is purged, anywhere. If someone clears their phone, the server copy is the backup.
+4. **Phone first.** Build for the phone, then other devices.
+5. **Docs only** until Spencer says build.
 
-### What must stay true
+### 8.2 The problem today
 
-- Old receipts stay valid forever (R2). Nothing here changes a receipt.
-- Keys never leave the phone (S3). Moving receipts moves signed receipts only, never keys.
-- Keep data small and private (R3, A5, C10): no guest lists; org receipts carry only a GPS band; consumer handshake receipts keep their GPS (R8).
-- Check-in and showing a receipt work offline (C1). Syncing is extra and optional.
-- Anything new is optional and off by default (R2). No account is needed to check in.
-- Never claim more than the crypto proves (I1): a receipt is "a signed record", whoever holds it.
+A person's receipts live in the browser of the phone that made them: consumer handshakes under `irlid_receipts`, org check-in receipts under `irlid_org_receipts` (cut to the last 50 by `org-entry.html`), both in `localStorage`. A new phone, cleared site data or lost storage loses the **list**. The receipts themselves still exist (an org receipt is on the org Worker and opens by id, and every receipt is signed, so anyone can verify it).
 
-### Options
+Ways a phone can lose its list (all **[UNCHECKED]** until tried on real devices):
+- A new or second device.
+- iPhone Safari clearing site storage after a period of non-use, unless installed to the home screen. **[UNCHECKED]**
+- Links opened in an in-app browser (a chat or social app) using separate storage from the main browser. **[UNCHECKED]**
+- Private browsing, "clear history", a full phone.
+- The 50-receipt cap (this one is in the code, so it is checked).
 
-| Option | How it works | Pros | Cons |
-|---|---|---|---|
-| **A. Receipt link** (exists, make it obvious) | Every receipt has a link; "Copy link" and "Show QR" | Works today, no account, offline to create | Person must save the link; one at a time |
-| **B. Export and import file** | "Save my receipts" downloads one signed file; "Add receipts" imports it on another device and checks every signature | Works offline, no server, no account, easy to test | Manual; files can be lost or shared by mistake |
-| **C. Move to this phone by QR** | Old phone shows a QR or short code for a bundle; new phone scans it | No account; quick for two devices in hand | Needs both phones present; size limits for QR (links, not bodies) |
-| **D. Account sync** | A person who links an account (the existing Google link, section 14.18 of PROTOCOL.md) can list their receipts from any device. The Worker stores the receipt ids and a lookup hash, the phone fetches the signed receipts by id | Seamless for people who want it | Needs internet and an account; privacy design (hash only, user holds the link proof); more to build and secure |
-| **E. Ask the browser to keep storage** | Call `navigator.storage.persist()` and prompt "install to home screen" | Cheap; reduces loss | Not a guarantee; no help for new devices |
+### 8.3 What the code says about "is this phone the linked v5 device?" (checked 15 Nov 2026)
 
-### Recommendation
+Short answer: **today nothing in the check-in path checks that, and the "linked" thing is not the v5 key.** Details:
 
-Do it in three small steps, each its own PR and each optional.
+- **Check-ins are signed with the phone's ordinary device key**, not the v5 hardware key. `org-entry.html` signs through `signHashB64url()`, which uses the key stored in the browser as `irlid_priv_jwk` (`js/sign.js` lines 73 to 83, 140 to 153). `org-entry.html` has no v5 call at all.
+- **The v5 hardware key is a separate, optional key.** It lives as three browser flags (`irlid_v5_cred_id`, `irlid_v5_pub_jwk`, `irlid_v5_enabled`). Enrolling sets "enabled" to off (`js/sign.js` lines 920 to 946 and 1163 to 1166). So a phone can be "enrolled" and still sign with the ordinary key. It is off by default (R2).
+- **The consumer Worker (`irlid-api`) has no record of v5 for a phone.** It can verify a v5 signature on a receipt (`verifyV5Envelope`), but it stores no "this device is v5" flag.
+- **What the server does record is a linked device:** the `devices` table (`user_id`, `pub_key_id` of the ordinary key, `label`, `revoked_at`). New devices join through a link code (6 digits, 5 minutes, attempt-limited, `/auth/link/claim`). `listReceipts` already returns receipts where a linked, non-revoked device key is party A or B. The org Worker records `attendee_pub_fp` on each org receipt, so "this org receipt belongs to this device key" is knowable.
+- **The org side's v5 link is for staff** (`portal_users.pub_fp`), a different table from a person's consumer `devices`.
 
-1. **Keep it where it is** (cheap, do first): ask for persistent storage; remove the 50 cap or raise it with a clear "older receipts are kept by link" message; "Copy link" on every receipt; tell people why a receipt list can disappear. Add **B (export/import)**, because it works offline and needs no account.
-2. **Phone to phone (C)**, if testing shows people want it. Links in the bundle, not receipt bodies.
-3. **Account sync (D)** only for people who already link an account, using hash lookups as in section 14.18. Needs a design review (privacy, what the Worker may store) and Spencer's decision before any code.
+What this means for the plan:
+- "Linked" has to mean **a row in `devices`, not revoked**, proved by a signature from that device's ordinary key. That check is the gate for every sync call.
+- v5 can add strength but cannot be the gate: most phones don't have it on (R2), and the server can't tell. Plan: where a phone **does** have v5 enabled, adding a device or changing the recovery key also needs a v5 signature. Without v5, the person confirms on an already-linked phone in person (S5). **Spencer to confirm** (question 1 in 8.9).
+- A test must read this from the code, not assume it (see 8.8).
 
-### Tests (when built)
+### 8.4 What must stay true
 
-- Import rejects a tampered receipt, a wrong-org receipt and a duplicate; keeps every valid one (S1, R2).
-- Export contains no keys and no other person's data (S3, A5).
-- A v3, v4, v5 and org receipt from the fixtures all import and verify (R2).
-- Works with the network off (C1).
-- Two phones: receipts made on phone A appear on phone B only after the person chooses to move them.
-- Real phones: iPhone Safari, Android Chrome, installed PWA, in-app browser, after clearing site data, after a week unused.
+- Old receipts stay valid forever, and nothing here edits a receipt (R2, R1).
+- **Keys never leave the phone (S3).** The signing keys (ordinary and v5) are never copied, wrapped or sent. The sync uses **separate** keys, below. A bug in sync must not be able to expose a signing key.
+- Keep data small and private (R3, A5, C10): no guest lists; org receipts carry a GPS band only; consumer handshake receipts keep their GPS (R8).
+- Check-in and showing a receipt work offline (C1). Sync is extra: queued, "N waiting" dot, no spinner (I3, C7).
+- Optional, off by default (R2). No account is needed to check in.
+- Claim only what the crypto proves (I1): a receipt is "a signed record", whoever holds it.
+- Admin actions are never queued (S10): adding a device and changing the recovery key are done live, in person.
 
-### Open questions for Spencer
+### 8.5 The design in plain English
 
-1. Is "all devices" one person's phones and laptop (this plan), or also an organisation's shared record? (The org already has its own copy.)
-2. Do we want account sync (D) at all, given the privacy cost, or stop at export/import (B) and QR (C)?
-3. Should the list keep every receipt, or is "last 50 plus links" enough?
-4. Which devices matter first: iPhone, Android, desktop?
+**What is locked.** One list per person. Each receipt is one small locked entry. The server sees: the person's account, the size and time of each entry, and how many there are. It cannot see which org, who, when you visited, or the receipt contents. **Honest limit:** for an org visit the org Worker already holds the receipt and the device key it was made with. So the server operator could in principle match an org receipt to a device key. The lock protects the person's *list and its contents* from the account server. It does not hide the fact of a visit from the org that recorded it. This must be said in the product, plainly (I1).
+
+**Keys (three kinds, none of them the signing keys):**
+1. **List key.** One random 256-bit key per person, made on the first phone. Locks every entry (AES-GCM). Never leaves a device unlocked.
+2. **Device sync key.** Each device makes its own key pair just for sync (ECDH P-256, separate from the signing key). The list key is wrapped for each device with that device's public sync key. The server stores these wrapped copies and can't open them.
+3. **Recovery key.** A random key shown once (as words or a QR to print) that also wraps the list key. The server stores that wrapped copy. Only someone holding the recovery key can open it.
+
+**Entries.** Each entry is locked with the list key. Its id is not the receipt id (it is a keyed hash of it, so the server can't match it to a public receipt id). The entry is bound to the account and its own id (so entries can't be swapped between people or moved around). Each entry records which version of the list key locked it.
+
+**Never purged.** The server never deletes entries, and a device "hiding" a receipt just adds a new locked entry (R1: add a note, don't edit). The only way entries go is a deliberate "erase my synced copy" by the person, who must confirm; the log records that it happened, never the content (R1 exception, as for org erasure). **Spencer to confirm** that a person may erase their own synced copy (question 2).
+
+**The list is stored where.** Phones move it from `localStorage` (about 5 MB, easy to lose) to IndexedDB so "keep every receipt" is real. Size per receipt and storage limits are tested (8.8).
+
+### 8.6 Getting the key onto devices
+
+**First setup (the first phone).**
+1. The person turns on "Sync my receipts" in settings. (Off by default.)
+2. The phone must already be a linked device (8.3). If not, it links first, using the existing account flow.
+3. The phone makes the list key and its sync key pair, locks the receipts it holds, and uploads them.
+4. It then shows the **recovery key once** and asks the person to save it (write down, print, or password manager). The person must tick that they saved it before sync is marked "protected". They can skip, and then the screen says plainly "if you lose this phone, your synced list can't be opened". (E1, I1: honest, not blocking.)
+
+**Adding a new device (phone, tablet, desktop, Pi).**
+1. New device: "Sign in to see my receipts." It makes its own sync key pair and shows a **QR and a short check code** (words or 6 digits) made from its public sync key.
+2. An already-linked phone scans that QR (in person, S5: no email or code shortcut). It checks the short code matches what the new device shows, so a server in the middle can't swap the key (anti man-in-the-middle).
+3. The phone wraps the list key for the new device and uploads it. The new device downloads the locked entries and opens them.
+4. The existing **link code** (6 digits, 5 minutes, single use, attempt-limited) can be how the server knows the new device may join the account. **The link code alone never gives the key**: without step 2 the new device gets locked data it can't open.
+5. Where the new device has no camera (a Pi), it shows the QR on screen and the phone scans it, so the Pi needs no camera. A Pi with no screen at all is out of scope for v1.
+
+**Phone lost or stolen (other devices still work).**
+1. On another linked device the person removes the lost one (sets `revoked_at`, the existing revoke flow). That needs the person's in-person confirmation on a linked device (S5).
+2. The list key is **rotated**: a new key version is made and wrapped only for the remaining devices. New entries use it. Old entries are re-locked in the background.
+3. **Honest limit:** a thief with an unlocked phone already has what is on the phone, and anything already downloaded stays readable on it. Rotation stops it getting anything new from the server. Tell the person to also lock or wipe the phone.
+
+**All devices lost (recovery).**
+1. New phone: "I lost all my devices" then enter the recovery key (type the words or scan the printed QR).
+2. The phone unwraps the list key from the recovery copy on the server, makes its own sync key, wraps the key for itself, and rotates to a fresh recovery key, shown once.
+3. Because nothing is ever purged, every entry is still there and opens.
+4. Recovery is **never an email or Google shortcut** (S4, S8): without the recovery key or a linked device, nobody, including us, can open the list.
+5. **If the person has no device and no recovery key, the locked list can't be opened, ever.** The entries stay on the server (nothing is purged) but unreadable. What is still recoverable: an org receipt opens by its id if the person has the link, and the org still has its own record. Say this at setup (I1). It is the cost of the server not being able to read the list.
+
+**Later options (not v1, unchecked):** passkey-derived unlock (WebAuthn PRF extension), which may allow unlocking with Face ID or a fingerprint. Support differs by browser and device. **[UNCHECKED]** until tested on real phones.
+
+### 8.7 Order of build (phone first)
+
+Each step is its own PR, optional for the person, off by default (R2). No step starts until Spencer approves the open items.
+
+1. **Phone keeps every receipt locally:** move the receipt list to IndexedDB, remove the 50 cap, ask the browser to keep storage, "Copy link" on every receipt. No account, no server. This alone fixes most loss on one phone. **[UNCHECKED]** on iPhone until tested.
+2. **Local export and import file** (signed receipts only, no keys): a backup that works offline.
+3. **The locked list on the server:** new Worker routes (create entry, list since a cursor, add device wrap, revoke, rotate), gated by the linked-device check (8.3). New tables only (R4). A **design review before any code**: crypto parameters, what the server logs, rate limits. Ideally reviewed by someone who is not the author (W9).
+4. **Phone sync UI:** setup, recovery key screen, "N waiting" dot.
+5. **Adding a device by QR** (phone as the already-linked device, desktop or tablet as the new one).
+6. **Recovery and lost-device flow**, with rotation.
+7. **Other devices:** desktop browser, tablet, Pi. Tested in a plain browser first.
+
+### 8.8 Tests (when built)
+
+*Unit and API (Node, in CI):*
+- The server stores only locked data: with the Worker's own database, search every stored field for a known receipt name, org name and venue and find nothing.
+- A request from a device that is not linked, or is revoked, or signs wrongly, is refused (S1, S12). Another person's account cannot read or write this list (A5).
+- An entry cannot be moved to another account or another id (the lock is bound to both).
+- Nothing deletes an entry except the person's confirmed erase; that writes a log row with counts only (R1, R5).
+- Link code: single use, 5 minutes, attempt limit (S6, S7), and the code alone returns no usable key.
+- Wrong or swapped device key during adding: the phone refuses on a code mismatch.
+- Rotation: a revoked device cannot read entries created after the revoke.
+- Recovery key: right key opens; wrong key fails cleanly; the recovery key is rotated afterwards.
+- **A test that reads the code and fails if sync ever touches `irlid_priv_jwk` or the v5 keys (S3).**
+- Imports verify every signature; a tampered receipt is refused; duplicates are ignored; v3, v4, v5 and org receipts from the fixtures all import and verify (S1, R2).
+- Check-in is unchanged with sync off, and with the sync server down (C1, C13).
+- The test that states the check in 8.3: the sync gate uses the `devices` table and the ordinary key, and v5 is an extra only where enabled.
+
+*Browser (Playwright):* two browser profiles stand in for two devices: set up on A, add B by the QR flow, receipts made on A appear on B only after adding; clear A's storage and restore from B; offline then reconnect shows "N waiting" and nothing is lost or doubled (C7, C13); recovery path end to end.
+
+*Real phones (manual, **[UNCHECKED]** until done):* iPhone Safari and installed PWA, Android Chrome, in-app browser, desktop, tablet, a Pi. After clearing site data; after a week unused; storage-full; airplane mode. Confirm the iPhone storage and in-app browser claims in 8.2 as part of this.
+
+### 8.9 Questions still open for Spencer
+
+1. **v5 as an extra gate (8.3).** Where a phone has v5 enabled, require a v5 signature to add a device or change the recovery key? (Recommended.) Or never require it?
+2. **Erasure.** May a person erase their own synced copy (one deliberate, confirmed action, logged with counts only)? Recommended, since it is their data. Otherwise "keep every receipt" means no way out.
+3. **Recovery key skippable?** Recommended: setup tells the person plainly and lets them skip, with an "unprotected" state shown. Or make it mandatory.
+4. **Honest wording on org visits (8.5).** The org and the server operator can still link an org receipt to a device key. Is the plain-English wording acceptable, or should the server stop recording the device key on org receipts? (Stopping would change org receipts and needs its own review: R2, R4.)
+5. **Pi scope.** A Pi with a screen and keyboard is in; a Pi with no screen is out of v1?
 
 ## 9. Out of scope
 
