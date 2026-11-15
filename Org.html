@@ -63,8 +63,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js" integrity="sha384-oZxUObEswsFY+jlvIkPj4iWF3WW1I6vMNyzoakb3v99l1DtAoF/VyBTrNKtSCVoa" crossorigin="anonymous"></script>
 <script src="js/brand-fonts.js"></script>
 <script src="js/sign.js"></script>
+<script src="js/fetch-timeout.js?v=6.8.15"></script>
 <script src="js/offline-queue.js"></script>
 <script src="js/offline-snapshot.js"></script>
+<script src="js/attendance-week.js?v=6.8.15"></script>
 <script src="js/vendor/jsqr.min.js"></script>
 <!-- v5.7.0h — html5-qrcode for live webcam scanning in the Process attendee scan
      widget. Same library used by live repo scan.html for receipt scanning. -->
@@ -448,6 +450,14 @@
                     <div class="receipts-history-wrap" id="receiptsHistoryBody">
                       <div class="empty-state receipts-history-empty">No receipts yet today &mdash; receipts are minted at check-in.</div>
                     </div>
+                  </div>
+                </details>
+
+                <details class="dashboard-collapsible" id="attendanceWeekPanel" data-min-role="staff">
+                  <summary><span class="dashboard-summary-title">Last 7 days</span><button class="btn btn-secondary btn-sm dashboard-summary-action" type="button" id="attendanceWeekExportBtn" onclick="event.preventDefault(); event.stopPropagation(); exportAttendanceWeekCsv();">Export CSV</button></summary>
+                  <div class="card-body">
+                    <div class="v511-hint" id="attendanceWeekStatus" aria-live="polite">Open this list to load the last 7 days (UK time).</div>
+                    <div class="receipts-history-wrap" id="attendanceWeekBody"></div>
                   </div>
                 </details>
               </div>
@@ -9076,7 +9086,7 @@
                 var detail = e.detail ? ('<div style="opacity:0.55; font-size:0.82em;">' + esc(e.detail) + '</div>') : '';
                 return '<tr style="border-top:1px solid rgba(127,127,127,0.18);">' +
                   '<td style="padding:7px 8px; white-space:nowrap; font-variant-numeric:tabular-nums; opacity:0.85;">' + esc(fmtWhen(e.created_at)) + '</td>' +
-                  '<td style="padding:7px 8px;">' + esc(e.actor_name || '—') + rolePill + '</td>' +
+                  '<td style="padding:7px 8px;">' + esc(e.actor_name || ('Unnamed ' + (String(e.actor_role || 'person').replace(/_/g, ' ')))) + rolePill + '</td>' +
                   '<td style="padding:7px 8px;">' + esc(actionLabel(e.action)) + '</td>' +
                   '<td style="padding:7px 8px;">' + esc(e.target || '') + detail + '</td>' +
                   '<td style="padding:7px 8px; color:' + oColor + '; font-weight:600; white-space:nowrap;">' + oText + '</td>' +
@@ -10593,6 +10603,9 @@ function resetOrgScopedState(opts) {
   };
   attendanceData = [];
   receiptsHistoryRows = [];
+  // v6.8.15: the "Last 7 days" list belongs to the organisation that loaded it.
+  attendanceWeekRows = null;
+  { const wb = document.getElementById('attendanceWeekBody'); if (wb) wb.textContent = ''; const ws = document.getElementById('attendanceWeekStatus'); if (ws) ws.textContent = 'Open this list to load the last 7 days (UK time).'; }
   attendanceStats = null;
   expectedAttendees = [];
   venueQrPayload = null;
@@ -12301,6 +12314,80 @@ function exportReceiptsHistoryCsv() {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
+
+// v6.8.15 — "Last 7 days" attendance list + CSV (staff and above). The Worker
+// works out the 7 days in UK time; js/attendance-week.js does the grouping and
+// the CSV. Names are put on the page with textContent only (rule S11).
+let attendanceWeekRows = null;
+let attendanceWeekLoading = false;
+async function loadAttendanceWeek() {
+  const statusEl = document.getElementById('attendanceWeekStatus');
+  const bodyEl = document.getElementById('attendanceWeekBody');
+  if (!statusEl || !bodyEl || !currentOrg || attendanceWeekLoading || !window.IRLidAttendanceWeek) return;
+  if (!navigator.onLine) { statusEl.textContent = 'You are offline. The last 7 days need a connection.'; return; }
+  attendanceWeekLoading = true;
+  const generation = orgLoadGeneration;
+  statusEl.textContent = 'Loading\u2026';
+  try {
+    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.id, { range: '7d' });
+    if (generation !== orgLoadGeneration) return; // another organisation now: drop it (v6.8.14)
+    attendanceWeekRows = payload.checkins || [];
+    const days = window.IRLidAttendanceWeek.groupByDay(attendanceWeekRows);
+    bodyEl.textContent = '';
+    if (!days.length) {
+      statusEl.textContent = 'No check-ins in the last 7 days.';
+      return;
+    }
+    const total = days.reduce((n, d) => n + d.rows.length, 0);
+    statusEl.textContent = total + ' check-in' + (total === 1 ? '' : 's') + ' in the last 7 days (UK time)' + (payload.truncated ? ' \u2014 list is cut short, narrow it down or export the week in parts.' : '.');
+    days.forEach(function (day) {
+      const h = document.createElement('div');
+      h.className = 'v511-hint';
+      h.style.cssText = 'margin:10px 0 4px;font-weight:600;';
+      h.textContent = day.label + ' \u2014 ' + day.rows.length;
+      bodyEl.appendChild(h);
+      const table = document.createElement('table');
+      table.className = 'att-table';
+      const head = document.createElement('thead');
+      const hr = document.createElement('tr');
+      ['Attendee', 'In', 'Out', 'How'].forEach(function (t) { const th = document.createElement('th'); th.textContent = t; hr.appendChild(th); });
+      head.appendChild(hr);
+      table.appendChild(head);
+      const tb = document.createElement('tbody');
+      day.rows.forEach(function (r) {
+        const tr = document.createElement('tr');
+        [rowDisplayName(r) || '\u2014', window.IRLidAttendanceWeek.londonTime(r.checkin_at), window.IRLidAttendanceWeek.londonTime(r.checkout_at) || '\u2014', window.IRLidAttendanceWeek.kindOf(r)].forEach(function (t) {
+          const td = document.createElement('td'); td.textContent = t; tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      table.appendChild(tb);
+      bodyEl.appendChild(table);
+    });
+  } catch (err) {
+    statusEl.textContent = 'Could not load the last 7 days: ' + ((err && err.message) || 'unknown error');
+  } finally {
+    attendanceWeekLoading = false;
+  }
+}
+async function exportAttendanceWeekCsv() {
+  if (!attendanceWeekRows) await loadAttendanceWeek();
+  if (!attendanceWeekRows || !attendanceWeekRows.length) return showToast('No check-ins in the last 7 days to export', true);
+  const csv = window.IRLidAttendanceWeek.buildCsv(attendanceWeekRows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'irlid-attendance-last-7-days-' + window.IRLidAttendanceWeek.londonDate(Date.now() / 1000) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+document.addEventListener('DOMContentLoaded', function () {
+  const panel = document.getElementById('attendanceWeekPanel');
+  if (panel) panel.addEventListener('toggle', function () { if (panel.open) loadAttendanceWeek(); });
+});
 function prefersReducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -12420,7 +12507,7 @@ async function refreshAttendance() {
   // (switch or sign-out) is dropped, never shown or cached under the next one.
   const attendanceGeneration = orgLoadGeneration;
   try {
-    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.id);
+    const payload = await window.IRLidOrgApi.listAttendance(currentOrg.id, { range: 'today' });
     if (attendanceGeneration !== orgLoadGeneration) return;
     const checkins = payload.checkins || [];
     // v5.9.0.13.6 — Per-row event detection. On baseline poll, just record

@@ -7,6 +7,7 @@
   const DB_VERSION = 1;
   const STORE = "pending_ops";
 
+  const REPLAY_TIMEOUT_MS = 20000;
   let dbPromise = null;
   let replaying = false;
 
@@ -248,11 +249,12 @@
           continue;
         }
         try {
-          const response = await fetch(op.url, {
-            method: op.method,
-            headers: op.headers,
-            body: op.body
-          });
+          // v6.8.15 — a hung sync fails after REPLAY_TIMEOUT_MS and is treated
+          // like any network error: the op stays queued and is retried.
+          const init = { method: op.method, headers: op.headers, body: op.body };
+          const response = (typeof window !== "undefined" && window.IRLidFetch && window.IRLidFetch.fetch)
+            ? await window.IRLidFetch.fetch(op.url, init, REPLAY_TIMEOUT_MS)
+            : await fetch(op.url, init);
           if (!response.ok) {
             console.warn("[offline-queue] replay HTTP", response.status, op.url);
             if (isTerminalHttpStatus(response.status)) {
