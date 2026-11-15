@@ -75,6 +75,12 @@
     try { return (sessionProvider && sessionProvider()) || ""; } catch (_) { return ""; }
   }
 
+  // v6.8.15 — time limit on every Worker call (see js/fetch-timeout.js).
+  const REQUEST_TIMEOUT_MS = 15000;
+  function timedFetch(url, init, ms) {
+    return (window.IRLidFetch && window.IRLidFetch.fetch) ? window.IRLidFetch.fetch(url, init, ms) : fetch(url, init);
+  }
+
   async function request(path, options) {
     const opts = options || {};
     const method = (opts.method || "GET").toUpperCase();
@@ -104,7 +110,9 @@
 
     let response;
     try {
-      response = await fetch(url, opts.signal ? { method, headers, body, signal: opts.signal } : { method, headers, body });
+      // v6.8.15 — a hung request fails after REQUEST_TIMEOUT_MS as a network
+      // error, so the queue below takes over instead of the page waiting.
+      response = await timedFetch(url, opts.signal ? { method, headers, body, signal: opts.signal } : { method, headers, body }, REQUEST_TIMEOUT_MS);
     } catch (err) {
       if (eligible && window.IRLidOfflineQueue) {
         return enqueueOfflineRequest(url, method, headers, body);
@@ -258,7 +266,7 @@
       });
     },
     async signOutAllDevices(sessionToken) {
-      const resp = await fetch(getBaseUrl() + "/user/sign-out-all-devices", {
+      const resp = await timedFetch(getBaseUrl() + "/user/sign-out-all-devices", {
         method: "POST",
         headers: { "Authorization": "Bearer " + sessionToken }
       });
@@ -337,6 +345,10 @@
       if (includeExpected) params.set("include_expected", "1");
       if (options && options.eventId) params.set("event_id", options.eventId);
       if (options && options.since) params.set("since", options.since);
+      // v6.8.15 — the Worker works out "today" / "last 7 days" in venue time
+      // (Europe/London); the page never uses its own clock for the boundary.
+      if (options && options.range) params.set("range", options.range);
+      if (options && options.limit) params.set("limit", options.limit);
       const suffix = params.toString() ? "?" + params.toString() : "";
       return request("/org/attendance" + suffix, {
         orgKey

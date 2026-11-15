@@ -2675,9 +2675,14 @@ async function orgAuditLog(request, env) {
   await ensureAuditTable(env);
   let rows;
   try {
+    // v6.8.15 — every name we could show for the actor, best first. The
+    // stored name is what was true at the time; the others cover rows saved
+    // with no name (a settings save by the org key, an old invite) or a bare
+    // role word. resolveAuditActorName() picks the first real one.
     rows = await env.DB.prepare(
       "SELECT a.id, a.created_at, a.action, a.target, a.outcome, a.detail, a.actor_pub_fp, a.actor_role, " +
-      "COALESCE(a.actor_display_name, u.display_name, a.actor_pub_fp) AS actor_name " +
+      "a.actor_display_name AS stored_name, u.display_name AS user_name, " +
+      "(SELECT p.display_name FROM portal_users p WHERE a.actor_pub_fp IS NOT NULL AND p.pub_fp = a.actor_pub_fp LIMIT 1) AS key_user_name " +
       "FROM org_audit_log a LEFT JOIN portal_users u ON u.id = a.actor_user_id " +
       "WHERE a.org_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT ?"
     ).bind(org.id, limit).all();
@@ -2685,7 +2690,51 @@ async function orgAuditLog(request, env) {
     // Defensive: degrade to empty rather than 500 if the table is somehow absent.
     return noStore(json({ ok: true, entries: [], note: "audit_log_unavailable" }));
   }
-  return noStore(json({ ok: true, entries: rows.results || [] }));
+  const list = rows.results || [];
+  // Last resort, best-effort and never fatal: the roster name for the key. Only
+  // looked up for rows that have no real name yet.
+  const needRoster = [...new Set(list
+    .filter(r => r.actor_pub_fp && ![r.stored_name, r.user_name, r.key_user_name].some(isRealAuditName))
+    .map(r => r.actor_pub_fp))].slice(0, 100);
+  const rosterByFp = new Map();
+  if (needRoster.length) {
+    try {
+      const marks = needRoster.map(() => "?").join(",");
+      const roster = await env.DB.prepare(
+        "SELECT device_pub_fp AS fp, display_name FROM org_expected WHERE org_id = ? AND device_pub_fp IN (" + marks + ") ORDER BY id ASC"
+      ).bind(org.id, ...needRoster).all();
+      for (const r of (roster.results || [])) if (isRealAuditName(r.display_name)) rosterByFp.set(r.fp, r.display_name);
+    } catch (_) { /* roster unavailable: fall back to "Unnamed ..." below */ }
+  }
+  const entries = list.map(r => {
+    const { stored_name, user_name, key_user_name, ...rest } = r;
+    return { ...rest, actor_name: resolveAuditActorName({ ...r, roster_name: rosterByFp.get(r.actor_pub_fp) || null }) };
+  });
+  return noStore(json({ ok: true, entries }));
+}
+
+// v6.8.15 — the audit log names the real person, never a bare role word.
+// Order: the name saved with the row, the signed-in user's name, the name on
+// the key's account, the roster name for that key. A role word ("staff",
+// "manager", ...) is not a name. Only the Developer super-admin may show as a
+// role, because that is how it is recorded everywhere. With nothing real to
+// show, the row says so plainly and gives the key's short id so the person can
+// still be found, e.g. "Unnamed staff (key ab12cd34)".
+const AUDIT_ROLE_WORDS = new Set(["staff", "manager", "lead admin", "lead_admin", "leadadmin", "admin", "developer", "attendee", "user", "member", "unknown", "none", "null", "undefined", "-", "—"]);
+function isRealAuditName(n) {
+  const t = String(n == null ? "" : n).trim();
+  if (!t) return false;
+  return !AUDIT_ROLE_WORDS.has(t.toLowerCase());
+}
+function resolveAuditActorName(r) {
+  for (const cand of [r.stored_name, r.user_name, r.key_user_name, r.roster_name]) {
+    if (isRealAuditName(cand)) return String(cand).trim();
+  }
+  const role = String(r.actor_role || "").trim();
+  if (role === "developer") return "Developer (Super-Admin)";
+  const fp = String(r.actor_pub_fp || "").replace(/^fp[-_:]?/i, "").slice(0, 8);
+  const roleText = role ? role.replace(/_/g, " ") : "person";
+  return "Unnamed " + roleText + (fp ? " (key " + fp + ")" : "");
 }
 
 function decodeInvitePayload(value) {
@@ -3933,13 +3982,18 @@ async function orgUpdateSettings(request, env) {
   // (service accounts) are recorded without a name.
   let settingsActor = null;
   try { const sctx = await requireSession(request, env); if (!sctx.error) settingsActor = sctx.user; } catch (_) {}
+  // v6.8.15 — a save made with the org key (no named person) is still named.
+  let settingsActorFallback = null;
+  if (!settingsActor) {
+    try { settingsActorFallback = await bootstrapDeveloperFromBearer(request, env); } catch (_) {}
+  }
   const changedKeys = Object.keys(body || {}).filter(k => allowed.indexOf(k) !== -1);
   await recordAudit(env, {
     orgId: org.id,
     actorUserId: settingsActor ? settingsActor.id : null,
     actorPubFp: settingsActor ? settingsActor.pub_fp : null,
-    actorName: settingsActor ? settingsActor.display_name : null,
-    actorRole: settingsActor ? await orgRoleForUser(env, settingsActor, org.id) : null,
+    actorName: settingsActor ? settingsActor.display_name : (settingsActorFallback ? settingsActorFallback.display_name : null),
+    actorRole: settingsActor ? await orgRoleForUser(env, settingsActor, org.id) : (settingsActorFallback && !settingsActorFallback.api_key_developer ? "developer" : null),
     action: "settings_save",
     target: changedKeys.length ? changedKeys.slice(0, 8).join(", ") : "settings",
     outcome: "allowed",
@@ -5996,12 +6050,50 @@ async function orgResolveCheckoutToken(request, env, tokenParam) {
   });
 }
 
+// v6.8.15 — "today" means today at the venue (Europe/London, rule C5), not the
+// last 24 hours and not the viewer's phone clock. The old 24 h window kept
+// yesterday evening's check-ins on "Attendance — Today" until the same time
+// the next day, and a browser in another time zone moved the boundary.
+// Returns the unix second of 00:00 London time, `daysBack` days before the
+// day that contains `nowSec`. Handles BST / GMT (23 h and 25 h days).
+const VENUE_TIME_ZONE = "Europe/London";
+const londonParts = new Intl.DateTimeFormat("en-GB", {
+  timeZone: VENUE_TIME_ZONE, hourCycle: "h23",
+  year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
+});
+function londonOffsetMs(epochMs) {
+  const p = {};
+  for (const x of londonParts.formatToParts(new Date(epochMs))) p[x.type] = x.value;
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return asUtc - Math.floor(epochMs / 1000) * 1000;
+}
+function venueDayStart(nowSec, daysBack = 0) {
+  const nowMs = Number(nowSec) * 1000;
+  const p = {};
+  for (const x of londonParts.formatToParts(new Date(nowMs))) p[x.type] = x.value;
+  // Calendar day we want, as a plain UTC date, then back to a real instant.
+  const wantedMidnightUtc = Date.UTC(+p.year, +p.month - 1, +p.day - Math.max(0, Math.floor(daysBack)));
+  let t = wantedMidnightUtc - londonOffsetMs(wantedMidnightUtc);
+  t = wantedMidnightUtc - londonOffsetMs(t); // settle across a clock change
+  return Math.floor(t / 1000);
+}
+// The London calendar date (YYYY-MM-DD) of a unix second.
+function venueDateOf(sec) {
+  const p = {};
+  for (const x of londonParts.formatToParts(new Date(Number(sec) * 1000))) p[x.type] = x.value;
+  return p.year + "-" + p.month + "-" + p.day;
+}
+
 async function orgAttendance(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   const url = new URL(request.url);
   const includeExpected = url.searchParams.get("include_expected") === "1";
-  const requestedLimit = parseInt(url.searchParams.get("limit") || "60", 10);
-  const limit = Math.max(1, Math.min(Number.isFinite(requestedLimit) ? requestedLimit : 60, 150));
+  // v6.8.15 — range=today (London midnight to now) or range=7d (the last 7
+  // London days, today included, for the "Last 7 days" list and its CSV).
+  const range = String(url.searchParams.get("range") || "").toLowerCase();
+  const weekRange = range === "7d" || range === "week";
+  const requestedLimit = parseInt(url.searchParams.get("limit") || (weekRange ? "1000" : "60"), 10);
+  const limit = Math.max(1, Math.min(Number.isFinite(requestedLimit) ? requestedLimit : 60, weekRange ? 2000 : 150));
   const checkinColumns = await tableColumnSet(env, "org_checkins");
   const hasCheckinColumn = (name) => checkinColumns.has(name);
   let eventId = cleanOptionalText(url.searchParams.get("event_id"), 90);
@@ -6019,7 +6111,10 @@ async function orgAttendance(request, env) {
   // v5.11.2 - `since` is honoured if passed (client convention: local midnight today
   // as unix epoch). Fallback to 24h sliding window for legacy / unauth'd callers
   // only; the dashboard always passes since explicitly.
-  const since = url.searchParams.get("since") ? parseInt(url.searchParams.get("since")) : (now() - 86400);
+  // v6.8.15 — a named range wins over `since`; the venue's day, not a phone's.
+  const since = weekRange ? venueDayStart(now(), 6)
+    : range === "today" ? venueDayStart(now(), 0)
+    : url.searchParams.get("since") ? parseInt(url.searchParams.get("since")) : (now() - 86400);
   const checkinClauses = ["c.org_id=?", "c.checkin_at>=?"];
   const checkinBinds = [org.id, since];
   if (eventId) {
@@ -6089,8 +6184,12 @@ async function orgAttendance(request, env) {
     avg_score: Number(statsRow?.avg_score || 0),
     bio_verified: Number(statsRow?.bio_verified || 0)
   };
+  // The 7-day list is its own view: never mixed with the expected-not-yet-seen rows.
+  if (weekRange) {
+    return noStore(json({ checkins, stats, range: "7d", since, venue_time_zone: VENUE_TIME_ZONE, truncated: checkins.length >= limit }));
+  }
   if (!includeExpected) {
-    return json({ checkins, stats });
+    return json({ checkins, stats, ...(range === "today" ? { range: "today", since, venue_time_zone: VENUE_TIME_ZONE } : {}) });
   }
   const expectedSql = eventId && hasCheckinColumn("event_id") && hasCheckinColumn("expected_id")
     ? "SELECT e.id AS expected_id,e.display_name AS name,COALESCE(e.role_key,'attendee') AS role,COALESCE(e.role_key,'attendee') AS prototype_role FROM org_expected e JOIN event_expected ee ON ee.expected_id=e.id WHERE ee.event_id=? AND e.org_id=? AND e.archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM org_checkins c WHERE c.org_id=? AND c.event_id=? AND c.expected_id=e.id AND c.checkin_at>=?) ORDER BY LOWER(e.display_name) ASC, e.id ASC"
@@ -7459,7 +7558,7 @@ async function orgAuth(request, env) {
 //  ROUTER
 // =====================
 
-export { venueGpsBand, fetchPublicUrl };
+export { venueGpsBand, fetchPublicUrl, venueDayStart, venueDateOf };
 
 // =====================
 //  PUSH UPDATES (Durable Object hub)
