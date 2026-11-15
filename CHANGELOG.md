@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v209
+
+v6.8.18 SETTINGS SLUG: the Organisation tab's masthead and the disabled slug box show the real currentOrg.slug, never the old mockup "imbue-ventures". Leaving an organisation or signing out clears it. The slug stays read-only (changing it would break existing receipts and QRs).
+
 ## irlid-shell-v206
 
 v6.8.15 SMALL FIXES (five): (1) the admin actions log names the real person on every row, never just "staff" (a row with no name falls back to the person's account name, then their roster name, then "Unnamed staff (key ab12cd34)"; Developer shows as Developer); (2) every Worker call has a time limit (15 s dashboard, 8 s door check-in, 20 s queue replay) so a hung request fails cleanly and the offline queue takes over, and a door check-in that times out or has no connection is queued at once instead of retried for seconds; (3) an offline scan says why it was queued ("no internet", "server too slow", "could not be reached") or refused (outside event times, signature, held for staff, too many tries, server problem); (4) "Attendance - Today" is today in UK time (Europe/London), not the last 24 hours, so it resets at UK midnight in summer and winter and a phone in another time zone cannot move the boundary; (5) new "Last 7 days" list (staff and above) with CSV export, UK times, grouped by day. New files: js/fetch-timeout.js, js/checkin-reasons.js, js/attendance-week.js.
