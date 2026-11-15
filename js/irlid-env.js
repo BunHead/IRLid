@@ -1,7 +1,7 @@
 // Copyright 2025 Spencer Austin. All rights reserved.
 // Licensed under Apache 2.0 with Commons Clause. See LICENSE.
 //
-// js/irlid-env.js — which IRLid environment is this page in? (v6.8.14)
+// js/irlid-env.js — which IRLid environment is this page in? (v6.8.16)
 //
 // One place that decides LIVE or TEST, so a test page can never quietly
 // talk to the live database (12 Nov 2026: a person added on the old test

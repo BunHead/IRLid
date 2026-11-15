@@ -25,7 +25,7 @@ were tangled:
 - A second org on the live site is **not** a sandbox: it is in the same live
   database, and a Developer can see and write every org there.
 
-## How the pages choose LIVE or TEST (v6.8.14)
+## How the pages choose LIVE or TEST (v6.8.16)
 
 `js/irlid-env.js` is the first script on every page:
 
@@ -122,7 +122,7 @@ the website:
   open `http://localhost:8000`. The staging Workers already allow this
   address (`CORS_ORIGIN = "http://localhost:8000"`).
 
-Since v6.8.14 a page opened from a preview or localhost address uses the
+Since v6.8.16 a page opened from a preview or localhost address uses the
 staging Workers (see "How the pages choose LIVE or TEST" above). Some pages
 still have the live address written in as a last fallback (for example
 `Org.html` and `check.html` when `orgapi.js` has not loaded); on a test copy

@@ -44,7 +44,13 @@
     try {
       var opts = { method: method, headers: headers };
       if (body && method !== "GET") opts.body = JSON.stringify(body);
-      var resp = await fetch(BACKEND_URL + path, opts);
+      // v6.8.15 - a hung request ends after 15 s as a network error.
+      var ctl = (typeof AbortController === "function") ? new AbortController() : null;
+      var timer = ctl ? setTimeout(function () { ctl.abort(); }, 15000) : null;
+      if (ctl) opts.signal = ctl.signal;
+      var resp;
+      try { resp = await fetch(BACKEND_URL + path, opts); }
+      finally { if (timer) clearTimeout(timer); }
       var data = await resp.json();
       if (!resp.ok) return { ok: false, status: resp.status, error: data.error || resp.statusText, data: data };
       return { ok: true, status: resp.status, data: data };

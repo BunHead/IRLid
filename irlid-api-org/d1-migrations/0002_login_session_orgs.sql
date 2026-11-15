@@ -1,0 +1,12 @@
+-- v6.8.14 (two-org bleed fix, 14 Nov 2026). Adds one table. Changes nothing else (R4).
+--
+-- login_session_orgs ties a login session token to the one organisation it
+-- was opened for. The Worker refuses an org call from that session for any
+-- other organisation (403 session_org_mismatch).
+--
+-- Times are in SECONDS (W10 ops trap), the same as login_sessions.
+--
+-- The Worker also creates this table on demand (CREATE TABLE IF NOT EXISTS),
+-- so it works before this file is applied. Applying it only records the table
+-- in wrangler's d1_migrations history.
+CREATE TABLE IF NOT EXISTS login_session_orgs (token TEXT PRIMARY KEY, org_id TEXT NOT NULL, bound_at INTEGER NOT NULL);

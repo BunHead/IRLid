@@ -1,4 +1,4 @@
-// LIVE vs TEST isolation (v6.8.14, 12 Nov 2026). A person added on the old
+// LIVE vs TEST isolation (v6.8.16, updated 15 Nov 2026). A person added on the old
 // test site ended up on a live organisation's dashboard. These tests make sure
 // a page that is NOT on irlid.co.uk can never default to, or be pointed at,
 // the live Workers, and that it always shows the TEST bar.
@@ -147,6 +147,6 @@ test("org-login.html accepts the staging Workers and flags any Worker that is no
 test("service worker pre-caches irlid-env.js and the cache and build moved on (W8)", () => {
   const sw = read("sw.js");
   assert.match(sw, /'\.\/js\/irlid-env\.js'/);
-  assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 205);
+  assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 207);
   assert.match(read("Org.html"), /Build v6\.8\.(1[4-9]|[2-9]\d)</);
 });

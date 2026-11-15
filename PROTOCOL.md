@@ -1086,6 +1086,7 @@ The `BOOTSTRAP_DEVELOPER_FP` is rotateable: changing the Cloudflare env var inst
 - **TTL:** 24 hours from issuance. Sliding refresh: every successful authed request resets `expires_at = now() + 24h`.
 - **Header:** `Authorization: Bearer <token>` on every authed request. The legacy `X-Org-Key` header continues to work for service accounts but is rejected for any endpoint that requires user identity (e.g., new-org creation).
 - **Revocation:** explicit logout (`POST /user/logout`) deletes the row. Admin-revocable: a lead_admin can revoke any session belonging to a user in their org by deleting the row.
+- **One organisation per token (v6.8.14):** the portal ties its session to the organisation it opens (`POST /user/session/org`). From then on that token works for that organisation only: an org call naming any other organisation is refused (`403 session_org_mismatch`), for a Developer too. The tie never changes for a token. Switching organisation returns a new token for the new organisation; the old token keeps reaching only its own organisation until it expires or is signed out, so a queued offline check-in still lands where it was made. A session that has not been tied yet (an old cached page) behaves as before.
 - **Audit:** `ip_hash` (SHA-256 of source IP, salt-less since this is anti-fingerprinting at log-read time, not at issuance time) and `user_agent` are stored for forensic purposes. Not used for authorisation decisions.
 
 The session token is **not** itself a signing credential. It only authenticates HTTP requests. Receipt signing continues to use the user's v3/v4/v5 IRLid keypair, completely independent of any active session.
@@ -1129,7 +1130,9 @@ POST /org/login/claim
 
 GET /user/orgs
   Header: Authorization: Bearer <session_token>
-  Response: 200 {orgs: [{id, name, role, slug, settings}]}
+  Response: 200 {orgs: [{id, name, role, slug, settings}], session_org_id: "<org id>" | null}
+  session_org_id (v6.8.14) is the organisation this token is tied to. A reloaded
+  portal opens that one. It never opens "the first organisation in the list".
   The org api_key is never returned (v6.8.4). The dashboard calls org endpoints with
   Authorization: Bearer <session_token> + X-Org-Id: <org id>; the Worker checks the
   session is live and belongs to a staff-tier member (staff / manager / lead_admin /
@@ -1142,6 +1145,20 @@ POST /user/create-org
   Allowed only when user.role === 'developer' OR user has lead_admin on at least one existing org.
   Response: 201 {org: {id, name, slug, settings}, membership: {...}, theme_scrape_status: "queued"|"none"}
   (no api_key, v6.8.4)
+
+POST /user/session/org   (v6.8.14)
+  Header: Authorization: Bearer <session_token>
+  Body: {org_id}
+  Needs a staff-tier role in that organisation (or the bootstrap Developer).
+  Response: 200 {ok: true, org_id, org_name, role, session_token, switched: bool}
+            session_token is the token to use from now on: the same one, or a
+            new one when this token was already tied to another organisation.
+            403 {error: "not_a_member"}   404 {error: "org_not_found"}
+  After this, org calls from the token for any other organisation get
+            403 {error: "session_org_mismatch", session_org_id}
+  Check-in and check-out (replayed by the offline queue, C8) get instead
+            202 {quarantined: true, not_stored: true, reason: "session_org_mismatch", notice}
+  and nothing is counted or stored.
 
 POST /user/logout
   Header: Authorization: Bearer <session_token>
@@ -1488,6 +1505,10 @@ Resolution of an unrecognised scan requires staff (or higher) to act at the dash
 | `developer` | All ops, in any state |
 
 Once the escalation completes, the original scan resolves into the recognised+allowed branch and the attendee is checked in.
+
+#### The scan names its organisation (v6.8.14)
+
+The orange device-key QR carries `org_code`: the slug or id of the organisation whose check-in QR the phone scanned. The acting staff dashboard checks it before anything else. If it names a different organisation than the one the dashboard is in, the scan is refused with both names shown, nothing is written, and the scan is not kept to replay later. The dashboard also passes it to the Worker as `scan_org_code` on **Choose from List** (`bind-additional-key`) and **Add** (`create-and-bind`); the Worker refuses with `409 scan_org_mismatch` when it names another organisation. The check only ever refuses: a matching, missing or unknown code grants nothing and blocks nothing (S13), so old printed QRs and offline doorman scans work as before. The escalation dialog shows the name of the organisation it will write to.
 
 #### Auth freshness
 

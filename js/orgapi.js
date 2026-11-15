@@ -88,6 +88,12 @@
     try { return (sessionProvider && sessionProvider()) || ""; } catch (_) { return ""; }
   }
 
+  // v6.8.15 — time limit on every Worker call (see js/fetch-timeout.js).
+  const REQUEST_TIMEOUT_MS = 15000;
+  function timedFetch(url, init, ms) {
+    return (window.IRLidFetch && window.IRLidFetch.fetch) ? window.IRLidFetch.fetch(url, init, ms) : fetch(url, init);
+  }
+
   async function request(path, options) {
     const opts = options || {};
     const method = (opts.method || "GET").toUpperCase();
@@ -117,7 +123,9 @@
 
     let response;
     try {
-      response = await fetch(url, opts.signal ? { method, headers, body, signal: opts.signal } : { method, headers, body });
+      // v6.8.15 — a hung request fails after REQUEST_TIMEOUT_MS as a network
+      // error, so the queue below takes over instead of the page waiting.
+      response = await timedFetch(url, opts.signal ? { method, headers, body, signal: opts.signal } : { method, headers, body }, REQUEST_TIMEOUT_MS);
     } catch (err) {
       if (eligible && window.IRLidOfflineQueue) {
         return enqueueOfflineRequest(url, method, headers, body);
@@ -136,8 +144,26 @@
       if (response.status === 401 && data && /^session_(invalid|expired|required|user_missing)$/.test(String(data.error || ""))) {
         try { window.dispatchEvent(new CustomEvent("irlid:session-expired", { detail: { error: data.error } })); } catch (_) {}
       }
+      // v6.8.14 — the Worker refused because this sign-in is tied to a
+      // different organisation than the one the page named. The dashboard
+      // listens and stops, rather than carry on showing the wrong one.
+      if (response.status === 403 && data && data.error === "session_org_mismatch") {
+        try { window.dispatchEvent(new CustomEvent("irlid:session-org-mismatch", { detail: { session_org_id: data.session_org_id || null } })); } catch (_) {}
+      }
       const error = new Error(message);
       error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+
+    // v6.8.14 — a door check-in sent for a different organisation than this
+    // sign-in is in comes back 202 "not counted" (that path is replayed by the
+    // offline queue, so the Worker never answers it with a final error, C8).
+    // For a live call that is a failure: say so instead of showing success.
+    if (response.status === 202 && data && data.quarantined && data.reason === "session_org_mismatch") {
+      try { window.dispatchEvent(new CustomEvent("irlid:session-org-mismatch", { detail: {} })); } catch (_) {}
+      const error = new Error(data.notice || "Not counted: this sign-in is in a different organisation.");
+      error.status = 403;
       error.data = data;
       throw error;
     }
@@ -234,6 +260,17 @@
     listMyOrgs(sessionToken) {
       return request("/user/orgs", { sessionToken });
     },
+    // v6.8.14 — tie this login session to one organisation. The Worker then
+    // refuses org calls from it for any other organisation. Returns
+    // { session_token }: the token to use from now on (a new one when the
+    // session was already tied to another organisation).
+    selectSessionOrg(sessionToken, orgId) {
+      return request("/user/session/org", {
+        method: "POST",
+        sessionToken,
+        body: { org_id: orgId }
+      });
+    },
     createOrg(sessionToken, payload) {
       return request("/user/create-org", {
         method: "POST",
@@ -242,7 +279,7 @@
       });
     },
     async signOutAllDevices(sessionToken) {
-      const resp = await fetch(getBaseUrl() + "/user/sign-out-all-devices", {
+      const resp = await timedFetch(getBaseUrl() + "/user/sign-out-all-devices", {
         method: "POST",
         headers: { "Authorization": "Bearer " + sessionToken }
       });
@@ -321,6 +358,10 @@
       if (includeExpected) params.set("include_expected", "1");
       if (options && options.eventId) params.set("event_id", options.eventId);
       if (options && options.since) params.set("since", options.since);
+      // v6.8.15 — the Worker works out "today" / "last 7 days" in venue time
+      // (Europe/London); the page never uses its own clock for the boundary.
+      if (options && options.range) params.set("range", options.range);
+      if (options && options.limit) params.set("limit", options.limit);
       const suffix = params.toString() ? "?" + params.toString() : "";
       return request("/org/attendance" + suffix, {
         orgKey
