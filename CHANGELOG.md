@@ -76,7 +76,7 @@ v6.8.3 FULL SCREEN QR FOLLOWS ROTATION: Org.html redraws the full screen kiosk Q
 
 ## irlid-shell-v192
 
-v6.8.2 REQUIRE LIVE SCREEN CODE (S12, opt-in): Org Settings toggle; when on, a photographed / stale / code-less check-in is held for staff review and not counted; org-entry says 'Scan the live screen'.
+v6.8.2 REQUIRE LIVE SCREEN CODE (C2 opt-in, off by default; otherwise C14 accepts it as offline / unverified): Org Settings toggle; when on, a photographed / stale / code-less check-in is held for staff review and not counted; org-entry says 'Scan the live screen'.
 
 ## irlid-shell-v191
 

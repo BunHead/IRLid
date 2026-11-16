@@ -1499,7 +1499,7 @@ function kioskUnlockPayloadSchema(p) {
 // challenge; the phone (offline, after the v5 fingerprint / face check) shows
 //     code = 8 digits of HMAC-SHA256(kiosk_key, "unlock|" + challenge)
 // The kiosk checks it offline. A challenge lasts 90 s, is used once, and gets
-// 5 tries. A photo of a code is useless after that (S6, S12). The kiosk logs
+// 5 tries. A photo of a code is useless after that (S6). The kiosk logs
 // each unlock and syncs it to the audit log when back online.
 const KIOSK_CODE_ENROL_ACTION = "irlid_kiosk_code_enrol_v5";
 const KIOSK_OFFLINE_UNLOCK_ACTION = "irlid_kiosk_offline_unlock_v5";
@@ -3607,7 +3607,7 @@ async function orgUpdateSettings(request, env) {
   // A staff-tier session (or the service-account api_key) passes orgAuth, so
   // that alone must not be enough to change RBAC-sensitive settings.
   const GOVERNANCE_FIELDS = ["manager_perms"];
-  // S12: "requireLiveCode" is a security gate. The api_key alone must not be
+  // C2 opt-in "Require live screen code": "requireLiveCode" is a security gate. The api_key alone must not be
   // able to switch it, so a change (either way) needs the same lead_admin+
   // session. Sending the unchanged value (a full-form save) needs nothing extra.
   if (body.requireLiveCode !== undefined && typeof body.requireLiveCode !== "boolean") {
@@ -3653,7 +3653,7 @@ async function orgUpdateSettings(request, env) {
   const allowed = [
     // --- Original v6 core gates ---
     "minScore","distanceM","windowS","bioRequired","privacyMode","checkoutEnabled","anonymousMode",
-    // S12: count only check-ins made with a live, unused screen code.
+    // C2 opt-in (Require live screen code): count only check-ins made with a live, unused screen code.
     "requireLiveCode",
     // Kiosk: leaving the full screen check-in QR needs a staff v5 scan. Off by default.
     "lockFullscreen",
@@ -5347,7 +5347,8 @@ async function redeemCheckinHold(env, holdId, checkinId, t) {
 // as check-ins either way (S1).
 const QUARANTINE_DAILY_CAP = 200;
 
-// S12 (photographed / forwarded QR): an org may turn on "requireLiveCode".
+// C2 opt-in "Require live screen code" (photographed / forwarded QR; off by
+// default, otherwise C14 accepts it as offline / unverified): an org may turn on "requireLiveCode".
 // Then only a check-in carrying a live, unused code the Worker issued counts.
 // Anything else (no code, a stale / used code from a photo, a queued replay)
 // is quarantined for staff review, never counted and never dropped (C8). The
@@ -5606,7 +5607,7 @@ async function orgCheckin(request, env) {
     if (fresh) {
       assurance = "fresh";
     } else if (requireLiveCodeFromSettings(org.settings_json)) {
-      // S12: this org counts only live-code check-ins. A photo of an old QR
+      // C2 opt-in (Require live screen code): this org counts only live-code check-ins. A photo of an old QR
       // (or any other code-less check-in) is kept for staff, not counted.
       return quarantineCheckin(env, org, body, LIVE_CODE_REQUIRED_REASON, tNow);
     } else {

@@ -172,7 +172,7 @@ test("offline code: the phone's code for this screen and challenge unlocks, once
   const state = K.createLockState(true);
   assert.equal(state.acceptOfflineUnlock(ok), true);
   assert.equal(state.isLocked(), false);
-  // Single use: the same code is useless against the next challenge (photo replay, S12).
+  // Single use: the same code is useless against the next challenge (photo replay, S6).
   const next = v.challenge();
   assert.notEqual(next.challenge, challenge);
   const replay = await v.check(code);

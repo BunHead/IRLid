@@ -1,4 +1,4 @@
-// S12: a photo of an old venue QR, scanned later from somewhere else.
+// C2 opt-in 'Require live screen code': a photo of an old venue QR, scanned later from somewhere else.
 // With the org setting "requireLiveCode" on, only a check-in carrying a live,
 // unused code the Worker issued is counted. Anything else is quarantined for
 // staff (202, never a final error, C8) and never counted. Off by default, so

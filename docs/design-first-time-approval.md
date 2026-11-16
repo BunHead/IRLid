@@ -8,14 +8,14 @@
 2. The org doesn't know the phone's key, so `org-entry.html` shows the orange "Get a member of staff" screen. Staff scan its QR on the dashboard and Bind or Add at the door, with a passkey prompt (S5, a phone never approves itself).
 3. `pollOrangeResolution()` sees the device linked, holds "Identity confirmed" for 7 s, then `continueVenueWalkin()` sends the check-in with the code from step 1.
 4. By then the code is normally older than 90 s (finding staff, opening the dashboard and the passkey prompt take longer), so `orgCheckin` finds it unusable and records the check-in as **offline / unverified** (C2, C14), even though the screen and phone were online and staff saw the person.
-5. If the org has **Require live screen code** on, step 4 instead **quarantines** the first check-in for staff review and does not count it (S12 exception to C2). So with that setting on, every first-time phone's first visit goes uncounted until staff review it.
+5. If the org has **Require live screen code** on, step 4 instead **quarantines** the first check-in for staff review and does not count it (the C2 opt-in 'Require live screen code', off by default; otherwise C14 accepts it as offline / unverified). So with that setting on, every first-time phone's first visit goes uncounted until staff review it.
 
 Nothing is lost (C13) and nothing is refused, but the first visit is under-labelled, and with Require live code it is not counted.
 
 ## What must not change
 
 - S13 / C9: the server decides "fresh", never the phone. A phone's clock or flag never makes anything fresh.
-- S12: a photo of an old QR must not become fresh.
+- C2 opt-in 'Require live screen code': a photo of an old QR must not become fresh.
 - S6: codes stay single use.
 - C1, C2, C13: no refusal and no loss, online or offline.
 - A phone still can't approve itself (S5).
@@ -33,7 +33,7 @@ Nothing is lost (C13) and nothing is refused, but the first visit is under-label
 
 - How: the Worker accepts an unknown device's code up to N minutes old.
 - Good: tiny change.
-- Bad: **weakens freshness** for exactly the phones we know least about. A photo of the screen works for N minutes from anywhere (S12). It also needs the Worker to treat "unknown device" specially before it knows who it is.
+- Bad: **weakens freshness** for exactly the phones we know least about. A photo of the screen works for N minutes from anywhere (the C2 'Require live screen code' opt-in). It also needs the Worker to treat "unknown device" specially before it knows who it is.
 - Not recommended.
 
 ### C. Hold the code when the phone first scans it (recommended)
