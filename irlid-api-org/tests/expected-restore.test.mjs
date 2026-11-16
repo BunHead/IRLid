@@ -185,3 +185,51 @@ test("check-in is untouched: restore is never queued offline, and the dashboard 
   assert.match(dash, /restoreExpectedFromArchive/);
   assert.match(dash, /'expected_restore': 'Restore expected'/);
 });
+
+test("Show archived box is inside #expectedAttendeeManagement, not a descendant of .expected-list (v6.8.20)", () => {
+  const dash = readFileSync(new URL("../../Org.html", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../css/org.css", import.meta.url), "utf8");
+  // The live dashboard hides .expected-list when the panel is docked; this is the
+  // rule that made the tickbox invisible in v6.8.19.
+  assert.match(css, /\.dashboard-expected-dock\s+\.expected-list\s*\{[^}]*display:\s*none/);
+  const markup = dash.replace(/<script\b[\s\S]*?<\/script>/gi, "").replace(/<style\b[\s\S]*?<\/style>/gi, "");
+  const ancestors = elementAncestors(markup, "expectedArchivedBox");
+  assert.ok(ancestors.some((a) => a.id === "expectedAttendeeManagement"),
+    "expectedArchivedBox must be inside #expectedAttendeeManagement, got " + fmt(ancestors));
+  assert.ok(!ancestors.some((a) => (a.className || "").split(/\s+/).includes("expected-list")),
+    "expectedArchivedBox must not be inside .expected-list, got " + fmt(ancestors));
+  assert.match(dash, /id="expectedArchivedBox"[^>]*\bhidden\b[^>]*data-min-role="lead_admin"/);
+  assert.match(dash, /function updateExpectedArchivedBox\(\)/);
+});
+
+const VOID_TAGS = new Set(["area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"]);
+
+function elementAncestors(html, id) {
+  const token = `id="${id}"`;
+  const pos = html.indexOf(token);
+  assert.ok(pos >= 0, id + " exists in Org.html");
+  const prefix = html.slice(0, pos);
+  const stack = [];
+  const re = /<\/?([a-zA-Z][\w:-]*)\b[^>]*>/g;
+  let m;
+  while ((m = re.exec(prefix))) {
+    const tag = m[1].toLowerCase();
+    const raw = m[0];
+    if (raw.startsWith("</")) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i].tag === tag) { stack.splice(i); break; }
+      }
+      continue;
+    }
+    const selfClosing = /\/\s*>$/.test(raw) || VOID_TAGS.has(tag);
+    if (selfClosing) continue;
+    const idm = raw.match(/\bid="([^"]+)"/);
+    const clsm = raw.match(/\bclass="([^"]+)"/);
+    stack.push({ tag, id: idm ? idm[1] : "", className: clsm ? clsm[1] : "" });
+  }
+  return stack;
+}
+
+function fmt(ancestors) {
+  return ancestors.map((a) => [a.tag, a.id && "#" + a.id, a.className && "." + a.className.split(/\s+/).join(".")].filter(Boolean).join("")).join(" > ");
+}

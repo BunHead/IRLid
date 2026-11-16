@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v211
+
+v6.8.20 SHOW ARCHIVED VISIBLE: the "Show archived" tickbox and Restore list now sit in Expected attendee management, below the Add button, so they stay visible on the live dashboard. In v6.8.19 they sat inside `.expected-list`, which is hidden when the panel is docked (`.dashboard-expected-dock .expected-list { display: none; }`).
+
 ## irlid-shell-v210
 
 v6.8.19 RESTORE ARCHIVED EXPECTED: under Expected attendees, a Lead Admin or Developer gets a "Show archived" tickbox listing the people archived by "Delete expected" in their own organisation, with a Restore button per row. Restore clears the archive mark and writes an append-only admin-log row (`expected_restore`) with the real person's name (Developer is fine), the organisation, the target name and the time. Restoring someone already active does nothing and writes no row. Needs a login session for that organisation; never queued offline (S10); one organisation can never see or restore another's people. People removed with "Delete record" are gone and cannot be restored. Builds on v6.8.17 (PR #196).

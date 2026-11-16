@@ -676,6 +676,7 @@ body.developer-bearer-active .dashboard-staff-scan-card .staff-auth-panel { disp
 .checkin-lower-grid { margin-top: 14px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: stretch; }
 .expected-admin-panel { background: #151b23; border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
 .expected-admin-panel h5 { font-size: 13px; margin-bottom: 12px; }
+#expectedArchivedBox { margin-top: 14px; }
 .expected-admin-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .expected-admin-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
 .expected-role-select { min-width: 172px; border: 1px solid var(--line); border-radius: 6px; background: #0b1220; color: var(--text); padding: 7px 9px; }
@@ -3214,6 +3215,8 @@ body .irlid-qr-fullscreen-holder.cycle-deny-burst::after,
 .dashboard-expected-dock { margin-top: 14px; }
 .dashboard-expected-dock #expectedSharedPanel { display: block; }
 .dashboard-expected-dock .expected-list { display: none; }
+.dashboard-expected-dock #expectedArchivedBox { display: block; }
+.dashboard-expected-dock #expectedArchivedBox[hidden] { display: none !important; }
 .dashboard-expected-dock .checkin-lower-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.75fr); }
 .dashboard-expected-dock .expected-admin-panel h5::after { content: attr(data-role-hint); color: var(--muted); font-size: 11px; font-weight: 400; }
 .prototype-permission-disabled { opacity: 0.45; filter: grayscale(0.2); }

@@ -105,5 +105,5 @@ test("the dashboard API never offline-queues a hold, check-in still queues", () 
 test("build and cache are bumped (W8)", () => {
   const swVer = Number((readFileSync(new URL("sw.js", ROOT), "utf8").match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/) || [])[1]);
   assert.ok(swVer >= 203, "sw.js CACHE_VERSION should be at least v203, got v" + swVer);
-  assert.match(readFileSync(new URL("Org.html", ROOT), "utf8"), /Build v6\.8\.1[3-9]/);
+  assert.match(readFileSync(new URL("Org.html", ROOT), "utf8"), /Build v6\.8\.(1[3-9]|[2-9]\d)/);
 });
