@@ -1,17 +1,30 @@
 // IRLid organisation portal API client for the live Org Worker.
 (function () {
-  const DEFAULT_BASE_URL = "https://irlid-api-org.irlid-bunhead.workers.dev";
+  // v6.8.14 — LIVE vs TEST (js/irlid-env.js). On irlid.co.uk this is exactly
+  // as before: the live org Worker. Anywhere else (localhost, a preview or
+  // GitHub Pages copy) it is the STAGING org Worker and the live Worker is
+  // refused, so a test page can never write to live data (12 Nov 2026).
+  // The page-address check is repeated here so it still holds if a page
+  // forgot to load irlid-env.js.
+  const LIVE_SITE_HOSTS = ["irlid.co.uk", "www.irlid.co.uk"];
+  const IS_LIVE_SITE = LIVE_SITE_HOSTS.includes((typeof location !== "undefined" && location.hostname) || "");
+  const LIVE_ORG_HOST = "irlid-api-org.irlid-bunhead.workers.dev";
+  const STAGING_ORG_HOST = "irlid-api-org-staging.irlid-bunhead.workers.dev";
+  const DEFAULT_BASE_URL = "https://" + (IS_LIVE_SITE ? LIVE_ORG_HOST : STAGING_ORG_HOST);
   // v6.4.24 — only these hosts may serve the org API. An injected override to a
   // hostile host would otherwise exfiltrate the Bearer token + X-Org-Key on every
   // request. Reject any override that isn't https + an allowlisted host.
-  const ALLOWED_API_HOSTS = ["irlid-api-org.irlid-bunhead.workers.dev", "localhost"];
+  // v6.8.14 — a test page may not use the live host, a live page may not use staging.
+  const ALLOWED_API_HOSTS = IS_LIVE_SITE
+    ? [LIVE_ORG_HOST, "localhost"]
+    : [STAGING_ORG_HOST, "localhost", "127.0.0.1"];
 
   function getBaseUrl() {
     const override = window.IRLID_ORG_API_BASE_URL;
     if (override) {
       try {
         const u = new URL(override);
-        const okScheme = u.protocol === "https:" || u.hostname === "localhost";
+        const okScheme = u.protocol === "https:" || u.hostname === "localhost" || u.hostname === "127.0.0.1";
         if (okScheme && ALLOWED_API_HOSTS.includes(u.hostname)) {
           return String(override).replace(/\/+$/, "");
         }

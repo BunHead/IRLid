@@ -10,8 +10,9 @@
 //     is back, and lands as OFFLINE / unverified. Nothing is lost (C7, C13).
 //
 // Real org-entry.html, js/sign.js, js/offline-queue.js and the real org Worker
-// on in-memory SQLite. Requests to the live Worker host are routed to the
-// local Worker; everything else outside localhost is blocked.
+// on in-memory SQLite. On localhost the pages call the staging Worker host
+// (v6.8.16 isolation). Those requests are routed to the local Worker;
+// everything else outside localhost is blocked.
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
@@ -29,7 +30,7 @@ try { ({ chromium } = require("playwright")); } catch (_) { chromium = null; }
 const ROOT = new URL("../../", import.meta.url).pathname;
 const SITE_PORT = 8000;
 const ORG_KEY = "org_e2e_attendee_key_1234567890";
-const LIVE_WORKER_HOST = "irlid-api-org.irlid-bunhead.workers.dev";
+const STAGING_WORKER_HOST = "irlid-api-org-staging.irlid-bunhead.workers.dev";
 
 // ---- In-memory D1 (same shim as the Worker unit tests) ----
 class D1Statement {
@@ -107,14 +108,14 @@ function startSite() {
   });
 }
 
-// The phone's view of the Worker: the live host, served by the local Worker
-// while "up", unreachable while "down".
+// The phone's view of the Worker: the staging host (localhost is TEST), served
+// by the local Worker while "up", unreachable while "down".
 async function phoneContext(browser, workerPort, net) {
   const ctx = await browser.newContext({ serviceWorkers: "allow" });
   await ctx.addInitScript("window.QRCode = function (el, o) { el.setAttribute('data-qr-text', (o && o.text) || ''); el.textContent = 'QR'; }; window.QRCode.CorrectLevel = { L: 1, M: 0, Q: 2, H: 3 };");
   await ctx.route((url) => !/^http:\/\/localhost:8000\//.test(url.href), async (route) => {
     const u = new URL(route.request().url());
-    if (u.host !== LIVE_WORKER_HOST || !net.up) return route.abort();
+    if (u.host !== STAGING_WORKER_HOST || !net.up) return route.abort();
     const req = route.request();
     const res = await fetch("http://localhost:" + workerPort + u.pathname + u.search, {
       method: req.method(), headers: req.headers(),
