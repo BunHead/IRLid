@@ -142,19 +142,19 @@
       // defence in depth.
       // v5.9 — added 'org' suffix to allowlist for the new live Org dashboard
       // Worker at irlid-api-org.irlid-bunhead.workers.dev (Phase 1 of v5.9 live
-      // port). Now matches all three Workers in the irlid-bunhead account:
-      // irlid-api (consumer), irlid-api-test (test env), irlid-api-org (org).
-      // v6.8.14 — added the staging Workers (irlid-api-org-staging,
-      // irlid-api-staging; docs/test-environment.md). Any Worker that is not a
-      // live one gets a striped "TEST SIGN-IN - NOT LIVE" bar (js/irlid-env.js),
-      // so a test sign-in can't be mistaken for a live one. irlid-api-test (the
-      // old test site) is kept so that site can still sign in to its own test
-      // database; it never wrote to live through this page.
+      // port). Matches the live and staging Workers in the irlid-bunhead account:
+      // irlid-api (consumer), irlid-api-org (org), irlid-api-staging, and
+      // irlid-api-org-staging. v6.8.14 added the staging Workers.
+      // v6.8.21 — irlid-api-test (the retired test site) is no longer allowed.
+      // A Worker that is not a live one still gets a striped "TEST SIGN-IN -
+      // NOT LIVE" bar (js/irlid-env.js), so a staging sign-in can't be mistaken
+      // for a live one.
       const WORKER_ALLOWLIST = [
-        /^https:\/\/irlid-api(-test|-org|-staging|-org-staging)?\.irlid-bunhead\.workers\.dev\/?$/,
+        /^https:\/\/irlid-api(-org|-staging|-org-staging)?\.irlid-bunhead\.workers\.dev\/?$/,
         /^http:\/\/localhost:\d+\/?$/,
         /^http:\/\/127\.0\.0\.1:\d+\/?$/
       ];
+
       function workerOk(url) {
         if (!url) return false;
         return WORKER_ALLOWLIST.some(re => re.test(url));
@@ -169,8 +169,10 @@
       // bounce back to the dashboard so it can pick up the session and
       // process the original staff scan. Allowlist guards against an
       // attacker-crafted nonce QR also setting a malicious return URL.
+      // v6.8.21 — the retired test site (IRLid-TestEnvironment) is no longer a
+      // permitted return URL.
       const RETURN_ALLOWLIST = [
-        /^https:\/\/bunhead\.github\.io\/IRLid(-TestEnvironment)?\//,
+        /^https:\/\/bunhead\.github\.io\/IRLid\//,
         /^https:\/\/irlid\.co\.uk\//,
         /^http:\/\/localhost:\d+\//,
         /^http:\/\/127\.0\.0\.1:\d+\//

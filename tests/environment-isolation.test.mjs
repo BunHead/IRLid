@@ -141,7 +141,8 @@ test("scan.html: the org Worker falls back to IRLidEnv before the live Worker", 
 
 test("org-login.html accepts the staging Workers and flags any Worker that is not live", () => {
   const html = read("org-login.html");
-  assert.match(html, /irlid-api\(-test\|-org\|-staging\|-org-staging\)\?/);
+  assert.match(html, /irlid-api\(-org\|-staging\|-org-staging\)\?/);
+  assert.doesNotMatch(html, /irlid-api\(-test\|-org\|-staging\|-org-staging\)\?/);
   assert.match(html, /window\.IRLidEnv\.markWorker\(workerRaw\)/);
 });
 
@@ -150,4 +151,31 @@ test("service worker pre-caches irlid-env.js and the cache and build moved on (W
   assert.match(sw, /'\.\/js\/irlid-env\.js'/);
   assert.ok(Number(sw.match(/CACHE_VERSION = 'irlid-shell-v(\d+)'/)[1]) >= 207);
   assert.match(read("Org.html"), /Build v6\.8\.(1[4-9]|[2-9]\d)</);
+});
+
+test("org-login.html: the retired test Worker and test-site return URL are no longer allowed", () => {
+  const html = read("org-login.html");
+  const workerSrc = html.slice(html.indexOf("const WORKER_ALLOWLIST"), html.indexOf("function workerOk"));
+  const returnSrc = html.slice(html.indexOf("const RETURN_ALLOWLIST"), html.indexOf("function returnOk"));
+  const workerList = new Function(workerSrc + "; return WORKER_ALLOWLIST;")();
+  const returnList = new Function(returnSrc + "; return RETURN_ALLOWLIST;")();
+  function allowed(list, url) { return list.some((re) => re.test(url)); }
+
+  const liveAndStaging = [
+    "https://irlid-api.irlid-bunhead.workers.dev",
+    "https://irlid-api-org.irlid-bunhead.workers.dev",
+    "https://irlid-api-staging.irlid-bunhead.workers.dev",
+    "https://irlid-api-org-staging.irlid-bunhead.workers.dev",
+    "http://localhost:8787",
+    "http://127.0.0.1:8787"
+  ];
+  for (const w of liveAndStaging) assert.equal(allowed(workerList, w), true, "should still allow " + w);
+  assert.equal(allowed(workerList, "https://irlid-api-test.irlid-bunhead.workers.dev"), false);
+  assert.equal(allowed(workerList, "https://attacker.example.com"), false);
+
+  assert.equal(allowed(returnList, "https://irlid.co.uk/Org.html"), true);
+  assert.equal(allowed(returnList, "https://bunhead.github.io/IRLid/Org.html"), true);
+  assert.equal(allowed(returnList, "http://localhost:8000/Org.html"), true);
+  assert.equal(allowed(returnList, "https://bunhead.github.io/IRLid-TestEnvironment/OrgCheckin.html"), false);
+  assert.equal(allowed(returnList, "https://evil.example/IRLid/"), false);
 });
