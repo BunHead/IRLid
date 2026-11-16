@@ -421,7 +421,6 @@ function allowedOrigins(env) {
   return [
     env.CORS_ORIGIN || "https://irlid.co.uk",
     "https://irlid.co.uk",
-    "https://bunhead.github.io",
     "http://localhost:3000", "http://localhost:8000",
     "http://127.0.0.1:3000", "http://127.0.0.1:8000"
   ];
@@ -429,10 +428,9 @@ function allowedOrigins(env) {
 
 function corsHeaders(env, request) {
   const origin = request.headers.get("Origin") || "";
-  // Allowed origins: env.CORS_ORIGIN (the primary frontend host — bunhead.github.io for
-  // test, irlid.co.uk for live), plus the live IRLid origin always (because PROTOCOL.md
-  // §14 login flow has the phone-side org-login.html hosted at irlid.co.uk POSTing to
-  // either prod or test Worker — by design cross-origin), plus localhost dev variants.
+  // Allowed origins: env.CORS_ORIGIN (https://irlid.co.uk for live), plus the live
+  // IRLid origin always, plus localhost dev variants. The retired GitHub Pages test
+  // site (bunhead.github.io) is not allowed (v6.8.21).
   const allowed = allowedOrigins(env); // one list (W7)
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],

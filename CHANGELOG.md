@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v212
+
+v6.8.21 RETIRE OLD TEST SITE: the live org Worker no longer allows origin https://bunhead.github.io. org-login.html no longer accepts Worker irlid-api-test, and no longer allows a return to the retired GitHub Pages test site. Localhost and the staging Workers are unchanged. The old test site was unpublished and its repo archived on 16/11/2026.
+
 ## irlid-shell-v211
 
 v6.8.20 SHOW ARCHIVED VISIBLE: the "Show archived" tickbox and Restore list now sit in Expected attendee management, below the Add button, so they stay visible on the live dashboard. In v6.8.19 they sat inside `.expected-list`, which is hidden when the panel is docked (`.dashboard-expected-dock .expected-list { display: none; }`).
