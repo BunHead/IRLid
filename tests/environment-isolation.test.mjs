@@ -71,6 +71,7 @@ test("irlid-env.js: any other address is TEST, uses staging only and shows the T
     assert.equal(window.IRLID_ORG_API_BASE_URL, STG_ORG);
     assert.equal(dom.kids.length, 1, "TEST bar shown");
     assert.match(dom.kids[0].textContent, /TEST COPY .* NOT LIVE/);
+    assert.match(dom.kids[0].style.cssText, /pointer-events:\s*none/i, host + ': TEST bar must not block clicks');
     assert.match(dom.document.title, /^\[TEST\] /);
     assert.ok(dom.classes.has("irlid-env-test"));
   }

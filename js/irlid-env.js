@@ -66,7 +66,10 @@
           "padding:10px 14px", "font:700 16px/1.35 system-ui,-apple-system,Segoe UI,Arial,sans-serif",
           "color:#111", "text-align:center", "letter-spacing:.02em",
           "background:repeating-linear-gradient(45deg,#ffd400 0 18px,#ffb000 18px 36px)",
-          "border-bottom:4px solid #111"
+          "border-bottom:4px solid #111",
+          // Clicks must pass through: a fixed kiosk control at the top would
+          // otherwise be blocked (e2e kiosk-offline-code, and any test copy).
+          "pointer-events:none"
         ].join(";");
         document.body.insertBefore(bar, document.body.firstChild);
       }
