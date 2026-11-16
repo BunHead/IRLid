@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v208
+
+v6.8.17 DELETE EXPECTED AUDIT: the dashboard "Delete expected" button (orgExpectedDelete) now writes an append-only admin-log row for every archive of an expected attendee, naming the real person (same as v6.8.15; Developer is fine), the organisation, the target name and the time. The row is only archived, not erased. "Delete record" is unchanged. Best-effort: if the log write fails, the archive still stands. The stale comment saying archive-delete is unreachable from the UI is removed.
+
 ## irlid-shell-v207
 
 v6.8.16 LIVE vs TEST (updated 15 Nov 2026 onto v6.8.15): a person added on the old test site ended up on a live organisation's dashboard. New js/irlid-env.js decides LIVE (page open on irlid.co.uk) or TEST (anywhere else). On a test copy, js/orgapi.js, js/backend.js, scan.html and org-entry.html use only the staging Workers and refuse the live ones; org-entry.html's orange staff QR opens the copy's own scan page, not live irlid.co.uk/scan.html; every page shows a striped "TEST COPY - NOT LIVE" bar and "[TEST]" in the tab title. org-login.html, org-action-auth.html and kiosk-code.html (always on irlid.co.uk) accept the staging Workers and show a "TEST SIGN-IN - NOT LIVE" bar for any Worker that is not live. On irlid.co.uk nothing changes for live users.
