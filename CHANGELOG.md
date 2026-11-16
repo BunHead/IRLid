@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v213
+
+v6.8.22 KIOSK NOT OFFLINE: the Check-in panel picked "the event running now" from the calendar saved in the browser, which was only reloaded from the Worker when an event was saved or a push update arrived. On 16/11/2026 a saved "Test 1" event that had been archived on the server made the Worker refuse every live code ("Event not found", 404), and the kiosk showed "Offline mode · backup QR" with a red dot while the site and Worker were up. Now the panel loads the live calendar once per organisation on start, reloads it (at most once a minute) when the Worker refuses the event, and the badge says "Backup QR · live code refused" when the Worker answered, keeping "Offline mode" for real network failures.
+
 ## irlid-shell-v212
 
 v6.8.21 RETIRE OLD TEST SITE: the live org Worker no longer allows origin https://bunhead.github.io. org-login.html no longer accepts Worker irlid-api-test, and no longer allows a return to the retired GitHub Pages test site. Localhost and the staging Workers are unchanged. The old test site was unpublished and its repo archived on 16/11/2026.
