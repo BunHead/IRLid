@@ -78,6 +78,7 @@ function loadPage() {
   runInContext(`
     var venueQrPayload = null;
     var venueQrOffline = false;
+    var venueQrOfflineReason = 'network';
     ${extractFunction("renderVenueQR")}
     ${extractFunction("renderRealVenueQrIntoInlineClone")}
     ${extractFunction("renderRealVenueQrIntoFullscreen")}

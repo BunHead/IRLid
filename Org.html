@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.21</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.22</span></div>
   </div>
 </div>
 
@@ -9999,6 +9999,13 @@ let venueQrUsedPollId = null;
 let venueQrUsedPollBusy = false;
 let venueQrLiveNonce = null;
 let venueQrOffline = false;
+// v6.8.22 - why the door is on the backup QR: 'network' (no answer from the
+// Worker) or 'refused' (the Worker answered but would not issue a live code).
+let venueQrOfflineReason = 'network';
+// v6.8.22 - the org whose live calendar has been loaded this page view, and
+// when the check-in panel last asked for a calendar reload.
+let venueQrCalendarLoadedOrg = null;
+let venueQrCalendarReloadAt = 0;
 let checkoutConfirmId = null;
 let checkoutBusyId = null;
 let checkoutErrors = {};
@@ -10634,6 +10641,7 @@ function resetOrgScopedState(opts) {
   venueQrPayload = null;
   venueQrLiveNonce = null;
   currentCheckinEventContext = { eventId: null, eventName: null, orgKey: null };
+  venueQrCalendarLoadedOrg = null; // v6.8.22: load the next org's live calendar
   // The "new check-in" detector starts again, so the next organisation's
   // existing rows are not announced as arrivals.
   __seenRowSnapshot = new Map();
@@ -11351,7 +11359,28 @@ function refreshCurrentEventQr() {
   updateCheckinQrTitle(next.eventName);
 }
 
+// v6.8.22 - the check-in panel used to pick "the event running now" from the
+// calendar saved in this browser (localStorage), which is only reloaded from
+// the Worker when an event is saved or a push update arrives. A stale saved
+// event that has since been archived made the Worker refuse every live code
+// ("Event not found"), so the door sat on the backup QR saying "Offline mode"
+// while everything was up (16 Nov 2026). Load the live calendar once per org
+// on start, and again (at most once a minute) if the Worker refuses the event.
+function reloadCheckinCalendar(force) {
+  if (!currentOrg?.id || typeof window.refreshV511CalendarData !== 'function') return;
+  if (!force && venueQrCalendarLoadedOrg === currentOrg.id) return;
+  const t = Date.now();
+  if (force && t - venueQrCalendarReloadAt < 60000) return;
+  venueQrCalendarReloadAt = t;
+  venueQrCalendarLoadedOrg = currentOrg.id;
+  Promise.resolve(window.refreshV511CalendarData()).catch(function () {
+    // Let the next start try again; the saved calendar stays in use meanwhile.
+    if (venueQrCalendarLoadedOrg === currentOrg?.id) venueQrCalendarLoadedOrg = null;
+  });
+}
+
 function startCurrentEventQrPolling() {
+  reloadCheckinCalendar(false);
   if (currentEventQrPollId) return refreshCurrentEventQr();
   refreshCurrentEventQr();
   currentEventQrPollId = setInterval(refreshCurrentEventQr, 60000);
@@ -13296,17 +13325,27 @@ async function generateVenueQR(eventContext) {
     venueQrLiveNonce = null;
     renderVenueQR(basePayload);
     const wasOffline = venueQrOffline;
-    setVenueQrOfflineMode(true);
+    // v6.8.22 - an HTTP status means the Worker answered: that is not
+    // "offline", so say what really happened.
+    const refused = !!(err && err.status);
+    setVenueQrOfflineMode(true, refused ? 'refused' : 'network');
+    // The event on screen is no longer active on the Worker (archived or
+    // deleted elsewhere): reload the live calendar, which re-issues the QR.
+    if (refused && err.status === 404 && checkinEvent.eventId) reloadCheckinCalendar(true);
     const preview = document.getElementById('qrPayloadPreview');
-    if (preview) preview.textContent = 'Offline mode: showing the static backup QR. Check-ins are saved as offline / unverified until the live QR is back.\n' + basePayload;
-    if (!wasOffline) showToast('Offline: showing the backup check-in QR', true);
+    if (preview) preview.textContent = (refused
+      ? 'Backup QR: the server would not issue a live code (' + (err.message || ('HTTP ' + err.status)) + '). Check-ins are saved as offline / unverified until the live QR is back.\n'
+      : 'Offline mode: showing the static backup QR. Check-ins are saved as offline / unverified until the live QR is back.\n') + basePayload;
+    if (!wasOffline) showToast(refused ? 'Live QR refused by the server: showing the backup check-in QR' : 'Offline: showing the backup check-in QR', true);
   }
 }
 
 // Visible marker so staff know the door is on the backup QR. It sits beside
 // (not inside) the QR slots, which are cleared on every re-render.
-function setVenueQrOfflineMode(offline) {
+function setVenueQrOfflineMode(offline, reason) {
   venueQrOffline = !!offline;
+  if (reason) venueQrOfflineReason = reason;
+  const badgeText = venueQrOfflineReason === 'refused' ? 'Backup QR · live code refused' : 'Offline mode · backup QR';
   document.body.dataset.venueQrMode = venueQrOffline ? 'offline' : 'live';
   ['venueQrBox', 'v511InlineCheckinStage', 'v511FullscreenStage'].forEach(function (id) {
     const host = document.getElementById(id);
@@ -13318,9 +13357,9 @@ function setVenueQrOfflineMode(offline) {
     if (!badge) {
       badge = document.createElement('div');
       badge.className = 'venue-qr-offline-badge';
-      badge.textContent = 'Offline mode · backup QR';
       slot.insertAdjacentElement('afterend', badge);
     }
+    badge.textContent = badgeText;
   });
 }
 
