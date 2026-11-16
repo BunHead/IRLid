@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v209
+
+v6.8.18 SETTINGS SLUG: the Organisation tab's masthead and the disabled slug box show the real currentOrg.slug, never the old mockup "imbue-ventures". Leaving an organisation or signing out clears it. The slug stays read-only (changing it would break existing receipts and QRs).
+
 ## irlid-shell-v208
 
 v6.8.17 DELETE EXPECTED AUDIT: the dashboard "Delete expected" button (orgExpectedDelete) now writes an append-only admin-log row for every archive of an expected attendee, naming the real person (same as v6.8.15; Developer is fine), the organisation, the target name and the time. The row is only archived, not erased. "Delete record" is unchanged. Best-effort: if the log write fails, the archive still stands. The stale comment saying archive-delete is unreachable from the UI is removed.
