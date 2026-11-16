@@ -59,6 +59,8 @@
     // "Deleted record" while nothing had been deleted. It fails loudly now.
     /^\/org\/expected\/[^/?]+\/full([/?]|$)/,               // Delete record (Lead Admin / Developer)
     /^\/org\/debug\//,                                        // Clear attendance
+    // v6.8.19 — Restore (Lead Admin / Developer) is an admin action (S10): never queued.
+    /^\/org\/expected\/[^/?]+\/restore([/?]|$)/,
     // v6.8.13 — a first-scan hold only means anything while the code is live,
     // so it is never queued (a late copy would only be refused).
     /^\/org\/checkin\/hold([/?]|$)/
@@ -434,6 +436,20 @@
     listExpected(orgKey) {
       return request("/org/expected", {
         orgKey
+      });
+    },
+
+    // v6.8.19 — archived ("Delete expected") people of this org, and restore.
+    listArchivedExpected(orgKey) {
+      return request("/org/expected?archived=1", { orgKey });
+    },
+
+    restoreExpected(orgKey, id, sessionToken) {
+      return request(`/org/expected/${encodeURIComponent(id)}/restore`, {
+        method: "POST",
+        orgKey,
+        sessionToken,
+        body: {}
       });
     },
 

@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.18</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.19</span></div>
   </div>
 </div>
 
@@ -409,6 +409,10 @@
                 <div class="expected-list">
                   <div class="expected-head">Expected attendees</div>
                   <div id="expectedAttendeeList"></div>
+                  <div id="expectedArchivedBox" hidden data-min-role="lead_admin">
+                    <label><input type="checkbox" id="expectedShowArchived" onchange="toggleExpectedArchived(this.checked)"> Show archived</label>
+                    <div id="expectedArchivedList" role="region" aria-label="Archived expected attendees"></div>
+                  </div>
                 </div>
 
                 <details class="dashboard-collapsible" id="expectedAttendeeManagement" data-min-role="staff">
@@ -9041,6 +9045,8 @@
               'invite_create': 'Issue invite',
               'invite_accept': 'Accept invite',
               'member_remove': 'Remove member',
+              'expected_delete': 'Delete expected',
+              'expected_restore': 'Restore expected',
               'settings_save': 'Save settings'
             };
             function esc(s) {
@@ -11940,6 +11946,7 @@ function renderExpectedAttendeesApiState() {
 renderExpectedAttendees = renderExpectedAttendeesApiState;
 async function refreshExpectedAttendees() {
   const root = document.getElementById('expectedAttendeeList'); if (!root) return;
+  updateExpectedArchivedBox();
   if (!currentOrg) {
     expectedAttendees = [];
     expectedError = null;
@@ -11972,6 +11979,52 @@ async function refreshExpectedAttendees() {
   } finally {
     expectedLoading = false;
     renderExpectedAttendees();
+  }
+}
+// v6.8.19 — archived ("Delete expected") people, Lead Admin / Developer only.
+// Always fetched live from this organisation; never cached or queued (S10).
+let expectedArchived = [];
+function updateExpectedArchivedBox() {
+  const box = document.getElementById('expectedArchivedBox'); if (!box) return;
+  box.hidden = !(currentOrg && canDeleteExpected());
+}
+function renderExpectedArchived(message) {
+  const root = document.getElementById('expectedArchivedList'); if (!root) return;
+  if (message) { root.textContent = message; return; }
+  if (!expectedArchived.length) { root.textContent = 'No archived people'; return; }
+  root.innerHTML = expectedArchived.map(r => {
+    const id = escapeHtml(String(r.id));
+    return `<div class="expected-row"><span>${escapeHtml(r.display_name || '')}</span> <button class="btn btn-secondary btn-sm" type="button" onclick="restoreExpectedFromArchive('${id}')">Restore</button></div>`;
+  }).join('');
+}
+async function loadExpectedArchived() {
+  const root = document.getElementById('expectedArchivedList'); if (!root || !currentOrg) return;
+  const generation = orgLoadGeneration;
+  renderExpectedArchived('Loading...');
+  try {
+    const payload = await window.IRLidOrgApi.listArchivedExpected(currentOrg.id);
+    if (generation !== orgLoadGeneration) return;
+    expectedArchived = payload.expected || [];
+    renderExpectedArchived();
+  } catch (err) {
+    if (generation !== orgLoadGeneration) return;
+    expectedArchived = [];
+    renderExpectedArchived('Could not load archived people (needs a connection)');
+  }
+}
+function toggleExpectedArchived(on) {
+  if (!on) { expectedArchived = []; renderExpectedArchived(''); return; }
+  loadExpectedArchived();
+}
+async function restoreExpectedFromArchive(id) {
+  if (!currentOrg || !canDeleteExpected()) return showToast(`${roleLabelFor('lead_admin')} role required to restore attendees`, true);
+  try {
+    await window.IRLidOrgApi.restoreExpected(currentOrg.id, id);
+    showToast('Restored');
+    await loadExpectedArchived();
+    await refreshExpectedAttendees();
+  } catch (err) {
+    showToast((err && err.message) || 'Could not restore (needs a connection)', true);
   }
 }
 function setExpectedValidation(message) {
