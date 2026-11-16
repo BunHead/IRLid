@@ -7239,6 +7239,66 @@ async function orgExpectedCreateAndBind(request, env) {
   return json({ ok: true, expected });
 }
 
+// Who is doing this request, for the admin actions log. Same name order as
+// v6.8.15: the signed-in person's name, then the key's account, then the
+// roster name. Developer may show as Developer. Never a bare "staff".
+async function actorForAudit(request, env, org, body) {
+  const ctx = await requireSession(request, env);
+  if (!ctx.error && ctx.user) {
+    let role = await orgRoleForUser(env, ctx.user, org.id);
+    if (!role && isBootstrapDeveloperFp(env, ctx.user.pub_fp)) role = "developer";
+    let name = ctx.user.display_name;
+    if (!isRealAuditName(name) && role === "developer") name = "Developer (Super-Admin)";
+    return {
+      actorUserId: ctx.user.id || null,
+      actorPubFp: ctx.user.pub_fp || null,
+      actorName: name || null,
+      actorRole: role || null
+    };
+  }
+  const dev = await bootstrapDeveloperFromBearer(request, env);
+  if (dev) {
+    if (dev.api_key_developer) {
+      return { actorUserId: null, actorPubFp: null, actorName: "Service account (api_key)", actorRole: "developer" };
+    }
+    let name = dev.display_name;
+    if (!isRealAuditName(name)) name = "Developer (Super-Admin)";
+    return {
+      actorUserId: dev.id || null,
+      actorPubFp: dev.pub_fp || null,
+      actorName: name,
+      actorRole: "developer"
+    };
+  }
+  const staffTok = staffSessionTokenFrom(request, body);
+  if (staffTok) {
+    const session = await env.DB.prepare(
+      "SELECT staff_pub_fp FROM org_staff_sessions WHERE id=? AND org_id=?"
+    ).bind(staffTok, org.id).first();
+    const fp = session && session.staff_pub_fp ? String(session.staff_pub_fp) : "";
+    if (fp) {
+      const user = await env.DB.prepare(
+        "SELECT id, display_name, pub_fp FROM portal_users WHERE pub_fp=?"
+      ).bind(fp).first();
+      if (user && isRealAuditName(user.display_name)) {
+        const role = await orgRoleForUser(env, user, org.id);
+        return { actorUserId: user.id, actorPubFp: user.pub_fp, actorName: user.display_name, actorRole: role || "staff" };
+      }
+      const roster = await env.DB.prepare(
+        "SELECT display_name, role_key FROM org_expected WHERE org_id=? AND device_pub_fp=? AND archived_at IS NULL ORDER BY id DESC LIMIT 1"
+      ).bind(org.id, fp).first();
+      if (roster && isRealAuditName(roster.display_name)) {
+        return { actorUserId: user ? user.id : null, actorPubFp: fp, actorName: roster.display_name, actorRole: roster.role_key || "staff" };
+      }
+      const role = await roleForStaffPubFp(env, org, fp);
+      const short = fp.replace(/^fp[-_:]?/i, "").slice(0, 8);
+      const roleText = (role || "staff").replace(/_/g, " ");
+      return { actorUserId: null, actorPubFp: fp, actorName: "Unnamed " + roleText + " (key " + short + ")", actorRole: role || "staff" };
+    }
+  }
+  return { actorUserId: null, actorPubFp: null, actorName: null, actorRole: null };
+}
+
 async function orgExpectedDelete(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body = {};
@@ -7252,20 +7312,58 @@ async function orgExpectedDelete(request, env, id) {
   // Developer login session, and it is written to org_audit_log (rule R1).
   const staff = await requireCalendarStaff(request, env, org, body);
   if (staff.error) return staff.error;
+
+  const existing = await env.DB.prepare(
+    "SELECT id, display_name, archived_at FROM org_expected WHERE id=? AND org_id=?"
+  ).bind(id, org.id).first();
+  if (!existing) return err("Expected attendee not found", 404);
+
   const t = now();
-  const result = await env.DB.prepare(
-    "UPDATE org_expected SET archived_at=COALESCE(archived_at,?) WHERE id=? AND org_id=?"
-  ).bind(t, id, org.id).run();
-  const deleted = (result.meta?.changes || 0) > 0;
-  if (!deleted) return err("Expected attendee not found", 404);
-  return json({ deleted: true, archived: true, id, archived_at: t });
+  const alreadyArchived = existing.archived_at != null;
+  if (!alreadyArchived) {
+    const result = await env.DB.prepare(
+      "UPDATE org_expected SET archived_at=? WHERE id=? AND org_id=? AND archived_at IS NULL"
+    ).bind(t, id, org.id).run();
+    if ((result.meta?.changes || 0) === 0) {
+      // Lost a race, or the row vanished. Re-read so we never say archived
+      // when it was not.
+      const again = await env.DB.prepare(
+        "SELECT archived_at FROM org_expected WHERE id=? AND org_id=?"
+      ).bind(id, org.id).first();
+      if (!again) return err("Expected attendee not found", 404);
+      if (again.archived_at == null) return err("Expected attendee could not be archived", 500);
+      return json({ deleted: true, archived: true, id, archived_at: again.archived_at });
+    }
+    // Best-effort log: if this write fails, the archive still stands, so
+    // staff do not see a new error. The row names the real person (v6.8.15).
+    const actor = await actorForAudit(request, env, org, body);
+    await recordAudit(env, {
+      orgId: org.id,
+      actorUserId: actor.actorUserId,
+      actorPubFp: actor.actorPubFp,
+      actorName: actor.actorName,
+      actorRole: actor.actorRole,
+      action: "expected_delete",
+      target: existing.display_name || "Expected attendee",
+      targetRef: String(id),
+      outcome: "allowed",
+      detail: JSON.stringify({
+        archived: true,
+        org_id: org.id,
+        org_name: org.name || null
+      })
+    });
+    return json({ deleted: true, archived: true, id, archived_at: t });
+  }
+  return json({ deleted: true, archived: true, id, archived_at: existing.archived_at });
 }
 
 // v5.7.0g — Cascading delete for an attendee record. Removes the
 // org_checkins history rows, rebind_history, attendee_conflicts, AND the
-// org_expected row itself. Use this when the attendee has moved past the
-// "expected" state (e.g. checked in/out, conflict, invalid) and the
-// regular orgExpectedDelete is no longer reachable from the UI.
+// org_expected row itself. The dashboard's "Delete expected" button still
+// calls orgExpectedDelete (archive only, now also written to org_audit_log).
+// "Delete record" calls this full erase. Use this when the attendee has
+// moved past the expected state (checked in/out, conflict, invalid).
 //
 // Refuses to delete a row with an active (un-checked-out) checkin —
 // staff must check the attendee out cleanly first. This guard exists so
