@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.19</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.20</span></div>
   </div>
 </div>
 
@@ -409,10 +409,6 @@
                 <div class="expected-list">
                   <div class="expected-head">Expected attendees</div>
                   <div id="expectedAttendeeList"></div>
-                  <div id="expectedArchivedBox" hidden data-min-role="lead_admin">
-                    <label><input type="checkbox" id="expectedShowArchived" onchange="toggleExpectedArchived(this.checked)"> Show archived</label>
-                    <div id="expectedArchivedList" role="region" aria-label="Archived expected attendees"></div>
-                  </div>
                 </div>
 
                 <details class="dashboard-collapsible" id="expectedAttendeeManagement" data-min-role="staff">
@@ -434,6 +430,10 @@
                       <button class="btn btn-primary" type="button" id="expectedAddBtn">Add</button>
                     </div>
                     <div class="expected-validation" id="expectedValidation"></div>
+                    <div id="expectedArchivedBox" hidden data-min-role="lead_admin">
+                      <label><input type="checkbox" id="expectedShowArchived" onchange="toggleExpectedArchived(this.checked)"> Show archived</label>
+                      <div id="expectedArchivedList" role="region" aria-label="Archived expected attendees"></div>
+                    </div>
                   </div>
 
                   <div class="match-panel">
