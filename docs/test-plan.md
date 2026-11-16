@@ -1,6 +1,6 @@
 # IRLid test plan
 
-15 Nov 2026. Written against main at v6.8.14 (after #192). Plan only: no code, no Worker deploy, no production data.
+15 Nov 2026. Written against main at v6.8.14 (after #192). Updated 16 Nov 2026 with Spencer's decisions on receipts (8.9). Plan only: no code, no Worker deploy, no production data.
 
 Rules this plan serves: `docs/rules.md` (W3: every S, C, R and A rule gets a test; W4: never guess, test on a real phone), `docs/requirements/offline-first.md`, PROTOCOL.md section 16. If this file disagrees with `docs/rules.md`, the rules win and this file gets fixed (W7).
 
@@ -275,11 +275,11 @@ Each step is its own PR. Rough size in brackets.
 10. **Accessibility pass** (medium): 4.1, 4.2.
 11. **Staging smoke pack** (needs Spencer's one-time Cloudflare setup first).
 12. **Outside security review** (separate decision).
-13. **Receipt sync, phone first** (section 8): not before Spencer's answers to 8.9 and a design review.
+13. **Receipt sync, phone first** (section 8): not before a design review, and Spencer's answer on Pi scope (8.9).
 
 ## 8. Receipts on all devices (plan only)
 
-**Status:** plan only, updated 15 Nov 2026 with Spencer's decisions (10:56 UK, and question 2 at 15:39 UK). No code, no merge, no deploy. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
+**Status:** plan only, updated 16 Nov 2026 with Spencer's decisions (15 Nov 10:56 UK, question 2 at 15:39 UK, and questions 1, 3 and 4 on 16/11/2026). No code, no deploy. Question 5 (Pi scope) is still pending. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
 
 ### 8.1 Spencer's decisions
 
@@ -289,6 +289,9 @@ Each step is its own PR. Rough size in brackets.
 4. **Phone first.** Build for the phone, then other devices.
 5. **Docs only** until Spencer says build.
 6. **No erase of the synced server copy, for now** (15:39 UK). People may not erase their own synced list on the server. Storage is not an issue until things scale up, so revisit then.
+7. **v5 as an extra gate** (Decided by Spencer 16/11/2026). Where v5 is on, adding a device or changing the recovery key also needs a v5 signature.
+8. **Recovery key may be skipped** (Decided by Spencer 16/11/2026). After a warning, the person can skip saving the recovery key, and is then marked unprotected.
+9. **Honest wording on org visits** (Decided by Spencer 16/11/2026). Say plainly that an organisation can still link its own visit receipt to a device.
 
 ### 8.2 The problem today
 
@@ -313,7 +316,7 @@ Short answer: **today nothing in the check-in path checks that, and the "linked"
 
 What this means for the plan:
 - "Linked" has to mean **a row in `devices`, not revoked**, proved by a signature from that device's ordinary key. That check is the gate for every sync call.
-- v5 can add strength but cannot be the gate: most phones don't have it on (R2), and the server can't tell. Plan: where a phone **does** have v5 enabled, adding a device or changing the recovery key also needs a v5 signature. Without v5, the person confirms on an already-linked phone in person (S5). **Spencer to confirm** (question 1 in 8.9).
+- v5 can add strength but cannot be the gate: most phones don't have it on (R2), and the server can't tell. Plan: where a phone **does** have v5 enabled, adding a device or changing the recovery key also needs a v5 signature. Without v5, the person confirms on an already-linked phone in person (S5). **Decided by Spencer 16/11/2026** (question 1 in 8.9).
 - A test must read this from the code, not assume it (see 8.8).
 
 ### 8.4 What must stay true
@@ -328,7 +331,7 @@ What this means for the plan:
 
 ### 8.5 The design in plain English
 
-**What is locked.** One list per person. Each receipt is one small locked entry. The server sees: the person's account, the size and time of each entry, and how many there are. It cannot see which org, who, when you visited, or the receipt contents. **Honest limit:** for an org visit the org Worker already holds the receipt and the device key it was made with. So the server operator could in principle match an org receipt to a device key. The lock protects the person's *list and its contents* from the account server. It does not hide the fact of a visit from the org that recorded it. This must be said in the product, plainly (I1).
+**What is locked.** One list per person. Each receipt is one small locked entry. The server sees: the person's account, the size and time of each entry, and how many there are. It cannot see which org, who, when you visited, or the receipt contents. **Honest limit:** for an org visit the org Worker already holds the receipt and the device key it was made with. So the server operator could in principle match an org receipt to a device key. The lock protects the person's *list and its contents* from the account server. It does not hide the fact of a visit from the org that recorded it. This must be said in the product, plainly (I1). **Decided by Spencer 16/11/2026** (question 4 in 8.9).
 
 **Keys (three kinds, none of them the signing keys):**
 1. **List key.** One random 256-bit key per person, made on the first phone. Locks every entry (AES-GCM). Never leaves a device unlocked.
@@ -347,14 +350,14 @@ What this means for the plan:
 1. The person turns on "Sync my receipts" in settings. (Off by default.)
 2. The phone must already be a linked device (8.3). If not, it links first, using the existing account flow.
 3. The phone makes the list key and its sync key pair, locks the receipts it holds, and uploads them.
-4. It then shows the **recovery key once** and asks the person to save it (write down, print, or password manager). The person must tick that they saved it before sync is marked "protected". They can skip, and then the screen says plainly "if you lose this phone, your synced list can't be opened". (E1, I1: honest, not blocking.)
+4. It then shows the **recovery key once** and asks the person to save it (write down, print, or password manager). The person must tick that they saved it before sync is marked "protected". They can skip after a warning, and are then marked unprotected; the screen says plainly "if you lose this phone, your synced list can't be opened". (E1, I1: honest, not blocking.) **Decided by Spencer 16/11/2026** (question 3 in 8.9).
 
 **Adding a new device (phone, tablet, desktop, Pi).**
 1. New device: "Sign in to see my receipts." It makes its own sync key pair and shows a **QR and a short check code** (words or 6 digits) made from its public sync key.
 2. An already-linked phone scans that QR (in person, S5: no email or code shortcut). It checks the short code matches what the new device shows, so a server in the middle can't swap the key (anti man-in-the-middle).
 3. The phone wraps the list key for the new device and uploads it. The new device downloads the locked entries and opens them.
 4. The existing **link code** (6 digits, 5 minutes, single use, attempt-limited) can be how the server knows the new device may join the account. **The link code alone never gives the key**: without step 2 the new device gets locked data it can't open.
-5. Where the new device has no camera (a Pi), it shows the QR on screen and the phone scans it, so the Pi needs no camera. A Pi with no screen at all is out of scope for v1.
+5. Where the new device has no camera (a Pi), one option is that it shows the QR on screen and the phone scans it, so the Pi needs no camera. **Pi scope is still pending** (question 5 in 8.9): whether a Pi with a screen and keyboard is in, and a Pi with no screen is out of v1, has not been decided.
 
 **Phone lost or stolen (other devices still work).**
 1. On another linked device the person removes the lost one (sets `revoked_at`, the existing revoke flow). That needs the person's in-person confirmation on a linked device (S5).
@@ -372,7 +375,7 @@ What this means for the plan:
 
 ### 8.7 Order of build (phone first)
 
-Each step is its own PR, optional for the person, off by default (R2). No step starts until Spencer approves the open items.
+Each step is its own PR, optional for the person, off by default (R2). No step starts until a design review, and Spencer's answer on Pi scope (8.9).
 
 1. **Phone keeps every receipt locally:** move the receipt list to IndexedDB, remove the 50 cap, ask the browser to keep storage, "Copy link" on every receipt. No account, no server. This alone fixes most loss on one phone. **[UNCHECKED]** on iPhone until tested.
 2. **Local export and import file** (signed receipts only, no keys): a backup that works offline.
@@ -380,7 +383,7 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 4. **Phone sync UI:** setup, recovery key screen, "N waiting" dot.
 5. **Adding a device by QR** (phone as the already-linked device, desktop or tablet as the new one).
 6. **Recovery and lost-device flow**, with rotation.
-7. **Other devices:** desktop browser, tablet, Pi. Tested in a plain browser first.
+7. **Other devices:** desktop browser, tablet, Pi (Pi scope still pending, 8.9). Tested in a plain browser first.
 
 ### 8.8 Tests (when built)
 
@@ -408,12 +411,15 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 
 2. **Erasure.** People may **not** erase their own synced server copy for now. Keep every receipt. Storage is not an issue until things scale up, so revisit then.
 
-**Still open:**
+**Answered (Decided by Spencer 16/11/2026):**
 
-1. **v5 as an extra gate (8.3).** Where a phone has v5 enabled, require a v5 signature to add a device or change the recovery key? (Recommended.) Or never require it?
-3. **Recovery key skippable?** Recommended: setup tells the person plainly and lets them skip, with an "unprotected" state shown. Or make it mandatory.
-4. **Honest wording on org visits (8.5).** The org and the server operator can still link an org receipt to a device key. Is the plain-English wording acceptable, or should the server stop recording the device key on org receipts? (Stopping would change org receipts and needs its own review: R2, R4.)
-5. **Pi scope.** A Pi with a screen and keyboard is in; a Pi with no screen is out of v1?
+1. **v5 as an extra gate (8.3).** Yes. Where a phone has v5 enabled, adding a device or changing the recovery key also needs a v5 signature. Without v5, the person confirms on an already-linked phone in person (S5).
+3. **Recovery key skippable?** Yes. After a warning, the person can skip saving the recovery key, and is then marked unprotected.
+4. **Honest wording on org visits (8.5).** Yes. Say plainly that an organisation can still link its own visit receipt to a device. Do not stop recording the device key on org receipts.
+
+**Still open (pending):**
+
+5. **Pi scope.** A Pi with a screen and keyboard is in; a Pi with no screen is out of v1? Not yet decided.
 
 ## 9. Out of scope
 
