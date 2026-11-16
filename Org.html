@@ -10079,7 +10079,7 @@ function applyServerSettingsToLocalState(s) {
   if (typeof src.requireDoormanConfirmation === 'boolean') portalState.requireDoormanConfirmation = src.requireDoormanConfirmation;
   settings.manager_perms = normaliseManagerPerms(src.manager_perms);
   writeManagerPermsToUI(settings.manager_perms);
-  // S12: hydrate from the server only. Until then it is not sent on save, so a
+  // C2 opt-in (Require live screen code): hydrate from the server only. Until then it is not sent on save, so a
   // save before load can never switch the gate off by accident.
   settings.requireLiveCode = src.requireLiveCode === true;
   { const rl = document.getElementById('requireLiveCode'); if (rl) rl.checked = settings.requireLiveCode; }

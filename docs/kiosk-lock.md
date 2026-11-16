@@ -39,7 +39,7 @@ To unlock with no internet: tap the padlock. With no internet it goes straight t
 
     code = 8 digits of HMAC-SHA256(kiosk_key, "unlock|" + challenge)
 
-The screen checks it offline. A challenge lasts 90 s, works once, and is retired after 5 wrong codes, so a photo of the screen or of a code is no use later (S6, S12). Every offline unlock, and every 5-wrong-codes lock-out, is queued on the screen and written to the audit log (`POST /org/kiosk/offline-unlock-log`, action `irlid_kiosk_offline_unlock_v5`) when the screen is back online and signed in. The same entry is never logged twice.
+The screen checks it offline. A challenge lasts 90 s, works once, and is retired after 5 wrong codes, so a photo of the screen or of a code is no use later (S6). Every offline unlock, and every 5-wrong-codes lock-out, is queued on the screen and written to the audit log (`POST /org/kiosk/offline-unlock-log`, action `irlid_kiosk_offline_unlock_v5`) when the screen is back online and signed in. The same entry is never logged twice.
 
 **What the audit row proves (I1).** It is what the screen reported. The screen holds the key that checks a code, so it could make a matching code itself: the row is never proof that the key's owner was there, and it names no actor (shown as "Kiosk XXXX (kiosk-reported)"). It says whether the report came from the approved screen (its secret), whether the code the screen sent matches the named person's key for that screen and challenge, the screen's own time, and who was signed in when it synced. The phone's fingerprint / face check unlocks the code on the phone only; that signature is not sent anywhere yet.
 

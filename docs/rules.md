@@ -96,6 +96,7 @@
 - **R4. Database changes only add things. Old rows are never backfilled.**
   - Why: the originals stay original.
 - **R5. The audit log never blocks an action and can't be edited.**
+  - **Exception (fail-closed, PR #145):** erasure ("Delete record", "Clear attendance") is logged in the same database transaction as the delete. If the audit row can't be written, the erase is refused with a 503 (`audit_log_unavailable`) and nothing is deleted. The log blocks an erase, never any other action.
   - Why: the trail must be true.
 - **R6. Auto check-out is marked "auto" and has no trust score.**
   - Why: it isn't a person's proof.

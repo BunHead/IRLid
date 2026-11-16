@@ -1039,7 +1039,7 @@
         renderCheckoutChoice(err.data);
         return;
       }
-      // S12: this venue counts only live-screen check-ins. Kept for staff,
+      // C2 opt-in (Require live screen code): this venue counts only live-screen check-ins. Kept for staff,
       // not counted, so say so plainly instead of "checked in".
       if (err.data?.reason === "live_code_required") {
         render({
