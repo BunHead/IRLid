@@ -275,11 +275,11 @@ Each step is its own PR. Rough size in brackets.
 10. **Accessibility pass** (medium): 4.1, 4.2.
 11. **Staging smoke pack** (needs Spencer's one-time Cloudflare setup first).
 12. **Outside security review** (separate decision).
-13. **Receipt sync, phone first** (section 8): not before a design review, and Spencer's answer on Pi scope (8.9).
+13. **Receipt sync, phone first** (section 8): not before a design review.
 
 ## 8. Receipts on all devices (plan only)
 
-**Status:** plan only, updated 16 Nov 2026 with Spencer's decisions (15 Nov 10:56 UK, question 2 at 15:39 UK, and questions 1, 3 and 4 on 16/11/2026). No code, no deploy. Question 5 (Pi scope) is still pending. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
+**Status:** plan only, updated 16 Nov 2026 with Spencer's decisions (15 Nov 10:56 UK, question 2 at 15:39 UK, and questions 1, 3, 4 and 5 on 16/11/2026). No code, no deploy. Anything marked **[UNCHECKED]** has not been tested on a real phone (W4) and must not be treated as fact.
 
 ### 8.1 Spencer's decisions
 
@@ -292,6 +292,7 @@ Each step is its own PR. Rough size in brackets.
 7. **v5 as an extra gate** (Decided by Spencer 16/11/2026). Where v5 is on, adding a device or changing the recovery key also needs a v5 signature.
 8. **Recovery key may be skipped** (Decided by Spencer 16/11/2026). After a warning, the person can skip saving the recovery key, and is then marked unprotected.
 9. **Honest wording on org visits** (Decided by Spencer 16/11/2026). Say plainly that an organisation can still link its own visit receipt to a device.
+10. **Pi scope** (Decided by Spencer 16/11/2026). A Pi with a screen is in. A Pi with no screen, and any other screenless device, is out.
 
 ### 8.2 The problem today
 
@@ -357,7 +358,7 @@ What this means for the plan:
 2. An already-linked phone scans that QR (in person, S5: no email or code shortcut). It checks the short code matches what the new device shows, so a server in the middle can't swap the key (anti man-in-the-middle).
 3. The phone wraps the list key for the new device and uploads it. The new device downloads the locked entries and opens them.
 4. The existing **link code** (6 digits, 5 minutes, single use, attempt-limited) can be how the server knows the new device may join the account. **The link code alone never gives the key**: without step 2 the new device gets locked data it can't open.
-5. Where the new device has no camera (a Pi), one option is that it shows the QR on screen and the phone scans it, so the Pi needs no camera. **Pi scope is still pending** (question 5 in 8.9): whether a Pi with a screen and keyboard is in, and a Pi with no screen is out of v1, has not been decided.
+5. Where the new device has no camera (a Pi with a screen), it shows the QR on screen and the phone scans it, so the Pi needs no camera. **Decided by Spencer 16/11/2026** (question 5 in 8.9): a Pi with a screen is in; a Pi with no screen, and any other screenless device, is out.
 
 **Phone lost or stolen (other devices still work).**
 1. On another linked device the person removes the lost one (sets `revoked_at`, the existing revoke flow). That needs the person's in-person confirmation on a linked device (S5).
@@ -375,7 +376,7 @@ What this means for the plan:
 
 ### 8.7 Order of build (phone first)
 
-Each step is its own PR, optional for the person, off by default (R2). No step starts until a design review, and Spencer's answer on Pi scope (8.9).
+Each step is its own PR, optional for the person, off by default (R2). No step starts until a design review.
 
 1. **Phone keeps every receipt locally:** move the receipt list to IndexedDB, remove the 50 cap, ask the browser to keep storage, "Copy link" on every receipt. No account, no server. This alone fixes most loss on one phone. **[UNCHECKED]** on iPhone until tested.
 2. **Local export and import file** (signed receipts only, no keys): a backup that works offline.
@@ -383,7 +384,7 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 4. **Phone sync UI:** setup, recovery key screen, "N waiting" dot.
 5. **Adding a device by QR** (phone as the already-linked device, desktop or tablet as the new one).
 6. **Recovery and lost-device flow**, with rotation.
-7. **Other devices:** desktop browser, tablet, Pi (Pi scope still pending, 8.9). Tested in a plain browser first.
+7. **Other devices:** desktop browser, tablet, and a Pi with a screen (no screenless devices). Tested in a plain browser first.
 
 ### 8.8 Tests (when built)
 
@@ -416,10 +417,7 @@ Each step is its own PR, optional for the person, off by default (R2). No step s
 1. **v5 as an extra gate (8.3).** Yes. Where a phone has v5 enabled, adding a device or changing the recovery key also needs a v5 signature. Without v5, the person confirms on an already-linked phone in person (S5).
 3. **Recovery key skippable?** Yes. After a warning, the person can skip saving the recovery key, and is then marked unprotected.
 4. **Honest wording on org visits (8.5).** Yes. Say plainly that an organisation can still link its own visit receipt to a device. Do not stop recording the device key on org receipts.
-
-**Still open (pending):**
-
-5. **Pi scope.** A Pi with a screen and keyboard is in; a Pi with no screen is out of v1? Not yet decided.
+5. **Pi scope.** Yes. A Pi with a screen is in. A Pi with no screen, and any other screenless device, is out.
 
 ## 9. Out of scope
 
