@@ -88,7 +88,7 @@
         </div>
 
         <div class="settings-kv" id="debugHelp">
-          When enabled, extra recovery controls appear (like <i>Clear local data</i> buttons).
+          When enabled, extra recovery controls appear (like <i>Clear receipts on this device</i> buttons).
         </div>
 
         <div class="settings-kv" id="debugState"></div>
@@ -100,8 +100,8 @@
           All data is stored locally in your browser (no backend). Clearing data cannot be undone.
         </p>
         <div class="controls" style="justify-content:flex-start; gap:10px;">
-          <button class="btn secondary" id="clearLocalBtn" type="button">Clear local data</button>
-          <button class="btn secondary" id="clearReceiptsBtn" type="button">Clear receipts only</button>
+          <button class="btn secondary" id="clearLocalBtn" type="button">Clear all local data on this device</button>
+          <button class="btn secondary" id="clearReceiptsBtn" type="button">Clear receipts on this device</button>
         </div>
       </div>
 
@@ -269,6 +269,7 @@
   </main>
 
   <script src="js/sign.js?v=5.0"></script>
+  <script src="js/receipt-store.js?v=6.8.23"></script>
   <script src="js/auth.js"></script>
   <script src="js/backend.js"></script>
   <script src="js/nav.js"></script>
@@ -322,6 +323,16 @@
       for (var i = 0; i < keys.length; i++) {
         try{ localStorage.removeItem(keys[i]); }catch{}
       }
+      return clearReceiptStoreOnDevice();
+    }
+
+    // v6.8.23: receipts live in IndexedDB on this phone. This empties that store
+    // (this device only, never a server copy).
+    function clearReceiptStoreOnDevice(){
+      try {
+        if (window.IRLReceiptStore) return window.IRLReceiptStore.clearAllOnDevice();
+      } catch(_) {}
+      return Promise.resolve(false);
     }
 
     function clearReceiptsOnly(){
@@ -329,6 +340,7 @@
       for (var i = 0; i < keys.length; i++) {
         try{ localStorage.removeItem(keys[i]); }catch{}
       }
+      return clearReceiptStoreOnDevice();
     }
 
     async function renderKeyId(){
@@ -358,17 +370,19 @@
 
     if (clearLocalBtn) {
       clearLocalBtn.addEventListener("click", function () {
-        if (!confirm("Clear local data on this device? This cannot be undone.")) return;
-        clearLocalData();
-        alert("Local data cleared.");
+        if (!confirm("Clear all local data, including your receipts, on this device? Copies kept on the server are not touched. This cannot be undone.")) return;
+        Promise.resolve(clearLocalData()).then(function () {
+          alert("Local data and receipts cleared on this device.");
+        });
       });
     }
 
     if (clearReceiptsBtn) {
       clearReceiptsBtn.addEventListener("click", function () {
-        if (!confirm("Clear stored receipts on this device? This cannot be undone.")) return;
-        clearReceiptsOnly();
-        alert("Receipts cleared.");
+        if (!confirm("Clear your receipts on this device? Copies kept on the server are not touched. This cannot be undone.")) return;
+        Promise.resolve(clearReceiptsOnly()).then(function () {
+          alert("Receipts cleared on this device.");
+        });
       });
     }
 
@@ -603,7 +617,7 @@
     // Also clear trust history when clearing all local data
     var _origClearLocalData = clearLocalData;
     clearLocalData = function() {
-      _origClearLocalData();
+      var done = _origClearLocalData();
       try { localStorage.removeItem("irlid_trust_history"); } catch{}
       try { localStorage.removeItem("irlid_harvest_ts"); } catch{}
       try { localStorage.removeItem("irlid_harvest_unverified"); } catch{}
@@ -617,6 +631,7 @@
       try { localStorage.removeItem("irlid_v5_cred_id"); } catch{}
       try { localStorage.removeItem("irlid_v5_pub_jwk"); } catch{}
       try { localStorage.removeItem("irlid_v5_enabled"); } catch{}
+      return done;
     };
 
     // Init

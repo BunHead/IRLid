@@ -308,6 +308,7 @@
     }
     .receipt-item-badge.verified{ background: #eaffea; border-color: #c8f2c8; color: #1a6e1a; }
     .receipt-item-badge.unverified{ background: #ffecec; border-color: #ffd0d0; color: #8b2020; }
+    .receipt-copy-btn{ margin-left: 8px; padding: 4px 10px; font-size: 12px; border-radius: 999px; border: 1px solid #ccc; background: #fff; color: #333; cursor: pointer; min-height: 32px; }
     .receipt-item-badge.local-badge{ background: #f7f7f7; border-color: #ddd; color: #555; }
     .receipt-item-badge.org-badge{ background: #eef6ff; border-color: #cfe5ff; color: #07559d; }
     .receipt-item-main{ min-width: 0; }
@@ -549,6 +550,7 @@
 <script src="js/backend.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/sign.js?v=5.0"></script>
+<script src="js/receipt-store.js?v=6.8.23"></script><!-- v6.8.23: receipts kept in IndexedDB -->
 <script src="js/qr.js?v=63"></script>
 
 <script>
@@ -1409,6 +1411,9 @@ function venueGpsBandLabel(band, distanceKm) {
     badge.className = "receipt-item-badge " + (item.verified ? "verified" : "unverified");
     badge.textContent = item.verified ? "VERIFIED" : "UNVERIFIED";
     row.appendChild(badge);
+    if (item.receipt_hash) {
+      addCopyLinkButton(row, () => window.IRLReceiptStore.linkForServer(item.receipt_hash, location));
+    }
 
     li.appendChild(row);
     return li;
@@ -1447,6 +1452,9 @@ function venueGpsBandLabel(band, distanceKm) {
     badge.className = "receipt-item-badge local-badge";
     badge.textContent = "LOCAL";
     row.appendChild(badge);
+    if (entry.combined && entry.combined.type === "combined") {
+      addCopyLinkButton(row, () => makeReceiptUrlForCombined(entry.combined));
+    }
 
     li.appendChild(row);
 
@@ -1468,13 +1476,41 @@ function venueGpsBandLabel(band, distanceKm) {
     return String(action || "").toLowerCase() === "out" ? "out" : "in";
   }
 
-  function getLocalOrgReceipts(){
-    let parsed = null;
+  // v6.8.23: the person's receipts are kept in IndexedDB (js/receipt-store.js).
+  // These copies are filled by refreshReceiptStore() before a list is drawn.
+  let storedOrgReceipts = [];
+  let storedP2pReceipts = [];
+  async function refreshReceiptStore(){
     try {
-      parsed = JSON.parse(localStorage.getItem("irlid_org_receipts") || "[]");
-    } catch {
-      return [];
-    }
+      if (!window.IRLReceiptStore) return;
+      storedOrgReceipts = await window.IRLReceiptStore.listOrg();
+      storedP2pReceipts = await window.IRLReceiptStore.listP2p();
+    } catch (_) {}
+  }
+
+  // v6.8.23: "Copy link" on every receipt row. Never opens the receipt.
+  function addCopyLinkButton(row, getUrl){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "receipt-copy-btn";
+    btn.textContent = "Copy link";
+    btn.setAttribute("aria-label", "Copy link to this receipt");
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      let ok = false;
+      try {
+        const url = await getUrl();
+        ok = !!url && await window.IRLReceiptStore.copyText(url);
+      } catch (_) {}
+      btn.textContent = ok ? "Copied" : "Could not copy";
+      setTimeout(() => { btn.textContent = "Copy link"; }, 1800);
+    });
+    row.appendChild(btn);
+  }
+
+  function getLocalOrgReceipts(){
+    const parsed = storedOrgReceipts;
     if (!Array.isArray(parsed)) return [];
 
     const byReceiptId = new Map();
@@ -1609,6 +1645,7 @@ function venueGpsBandLabel(band, distanceKm) {
     badge.className = "receipt-item-badge org-badge";
     badge.textContent = "Org check-in";
     row.appendChild(badge);
+    addCopyLinkButton(row, () => window.IRLReceiptStore.linkForOrg(entry, location));
 
     li.appendChild(row);
     return li;
@@ -1632,6 +1669,7 @@ function venueGpsBandLabel(band, distanceKm) {
 
   async function loadServerReceipts(page){
     currentPage = page || 1;
+    await refreshReceiptStore();
     listLoading.style.display = "block";
     listEmpty.style.display = "none";
     receiptListEl.innerHTML = "";
@@ -1851,15 +1889,11 @@ function venueGpsBandLabel(band, distanceKm) {
   }
 
   function getLocalReceiptList(){
-    const raw = localStorage.getItem(KEY_LIST);
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : []);
-    } catch { return []; }
+    return storedP2pReceipts.slice();
   }
 
-  function loadLocalReceipts(){
+  async function loadLocalReceipts(){
+    await refreshReceiptStore();
     listLoading.style.display = "none";
     listEmpty.style.display = "none";
     receiptListEl.innerHTML = "";
@@ -1908,7 +1942,8 @@ function venueGpsBandLabel(band, distanceKm) {
     if (currentPage < totalPages) loadServerReceipts(currentPage + 1);
   });
 
-  clearBtn.onclick = () => {
+  clearBtn.onclick = async () => {
+    try { if (window.IRLReceiptStore) await window.IRLReceiptStore.clearP2p(); } catch (_) {}
     localStorage.removeItem(KEY_SELF);
     localStorage.removeItem(KEY_GUEST);
     localStorage.removeItem(KEY_LAST);
@@ -2349,6 +2384,8 @@ function venueGpsBandLabel(band, distanceKm) {
   // =========================
 
   (async () => {
+    // v6.8.23: ask the browser to keep our storage. Best effort, never blocks.
+    try { if (window.IRLReceiptStore) window.IRLReceiptStore.requestPersistence(); } catch (_) {}
     if (typeof refreshNav === "function") await refreshNav();
 
     const orgReceiptId = new URLSearchParams(location.search || "").get("org_receipt");
