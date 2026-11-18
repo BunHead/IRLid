@@ -232,6 +232,16 @@
     return Promise.resolve(false);
   }
 
+  // Settings buttons: erase every receipt on THIS phone only. Also removes the old
+  // localStorage lists, otherwise the next page load would copy them back in. Never
+  // contacts a server and never touches a server copy.
+  function clearAllOnDevice() {
+    [LS_P2P, LS_ORG, "irlid_org_receipt_last", LS_MIGRATED].forEach(function (k) {
+      try { root.localStorage.removeItem(k); } catch (e) {}
+    });
+    return Promise.all([idbClear(STORE_P2P), idbClear(STORE_ORG)]).then(function () { return true; }, function () { return false; });
+  }
+
   // ---- Copy link ----
 
   function baseUrl(loc) {
@@ -298,6 +308,7 @@
     putOrg: putOrg,
     putP2p: putP2p,
     clearP2p: clearP2p,
+    clearAllOnDevice: clearAllOnDevice,
     requestPersistence: requestPersistence,
     linkForOrg: linkForOrg,
     linkForServer: linkForServer,

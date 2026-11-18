@@ -158,3 +158,67 @@ test("persistent storage is requested, and a refusal is harmless", async () => {
   const { S } = phone();
   assert.equal(await S.requestPersistence(), true);
 });
+
+// ---- Settings buttons: "Clear all local data on this device" / "Clear receipts on this device" ----
+const settingsHtml = readFileSync(new URL("../settings.html", import.meta.url), "utf8");
+
+function fnSource(name) {
+  const start = settingsHtml.indexOf("function " + name + "(");
+  assert.ok(start > 0, "found " + name);
+  let i = settingsHtml.indexOf("{", start), depth = 0;
+  for (; i < settingsHtml.length; i++) {
+    if (settingsHtml[i] === "{") depth++;
+    else if (settingsHtml[i] === "}" && --depth === 0) break;
+  }
+  return settingsHtml.slice(start, i + 1);
+}
+
+// Runs the real settings.html clear functions against the real store and a fake IndexedDB.
+// No fetch / XMLHttpRequest exists in the context, so any server call would throw and fail the test.
+async function runSettingsClear(which) {
+  const dbs = new Map();
+  const p = phone({
+    dbs,
+    ls: {
+      irlid_receipts: JSON.stringify([{ ts: 1, combined: { type: "combined", receipt_hash: "h1" } }]),
+      irlid_org_receipts: JSON.stringify([org(1)]),
+      irlid_org_receipt_last: "{}"
+    }
+  });
+  await p.S.putOrg(org(2));
+  await p.S.putP2p({ ts: 2, combined: { type: "combined", receipt_hash: "h2" } });
+  assert.equal((await p.S.listOrg()).length, 2);
+  assert.equal((await p.S.listP2p()).length, 2);
+
+  const code = [fnSource("clearLocalData"), fnSource("clearReceiptStoreOnDevice"), fnSource("clearReceiptsOnly")].join("\n");
+  assert.ok(!/fetch|XMLHttpRequest|IRLBackend/.test(code), "clear buttons never call a server");
+  const ctx = { window: { IRLReceiptStore: p.S }, localStorage: p.localStorage, Promise };
+  vm.createContext(ctx);
+  vm.runInContext(code + "\nthis.__run = { clearLocalData, clearReceiptsOnly };", ctx);
+  await ctx.__run[which]();
+
+  const fresh = phone({ dbs }); // reopen the same IndexedDB with an empty localStorage view
+  assert.equal((await fresh.S.listOrg()).length, 0);
+  assert.equal((await fresh.S.listP2p()).length, 0);
+  assert.equal(p.localStorage.getItem("irlid_org_receipts"), null, "old list cannot be re-imported");
+  assert.equal(p.localStorage.getItem("irlid_receipts"), null);
+  // and it stays empty after another load (migration has nothing to copy back)
+  assert.equal((await phone({ dbs, ls: {} }).S.listOrg()).length, 0);
+}
+
+test("Settings 'Clear all local data on this device' empties the IndexedDB receipt store", () => runSettingsClear("clearLocalData"));
+test("Settings 'Clear receipts on this device' empties the IndexedDB receipt store", () => runSettingsClear("clearReceiptsOnly"));
+
+test("Settings buttons are labelled as this-device-only and the override keeps the promise", () => {
+  assert.ok(settingsHtml.includes(">Clear receipts on this device</button>"));
+  assert.ok(settingsHtml.includes(">Clear all local data on this device</button>"));
+  assert.ok(/Copies kept on the server are not touched/.test(settingsHtml));
+  assert.ok(settingsHtml.includes('js/receipt-store.js'));
+  const ov = settingsHtml.slice(settingsHtml.indexOf("var _origClearLocalData"), settingsHtml.indexOf("// Init"));
+  assert.ok(/var done = _origClearLocalData\(\)/.test(ov) && /return done;/.test(ov));
+});
+
+test("receipts-page 'Clear local receipts' button is unchanged: clears only the 1-on-1 list", () => {
+  assert.ok(receiptHtml.includes("window.IRLReceiptStore.clearP2p()"));
+  assert.ok(!/IRLReceiptStore\.clearAllOnDevice/.test(receiptHtml));
+});
