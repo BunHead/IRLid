@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v214
+
+v6.8.23 RECEIPTS ON THE PHONE (Phase 1): the person's own receipt list (`irlid_receipts` and `irlid_org_receipts`) now lives in IndexedDB on the phone (new `js/receipt-store.js`), so every receipt is kept. The 50-receipt cap in `org-entry.html` is gone. The browser is asked to keep the storage (persistent storage; iPhone behaviour [UNCHECKED] until tested on a real phone). Every receipt row on `receipt.html` has a "Copy link" button. Old localStorage receipts are copied across on first open and the old copy is left untouched (R1, R2). Signing keys are never written to the receipt store. No account, no server route, no sync, no second device: those are later steps. Offline check-in and showing a receipt are unchanged (C1); no check-in path changed (C8).
+
 ## irlid-shell-v213
 
 v6.8.22 KIOSK NOT OFFLINE: the Check-in panel picked "the event running now" from the calendar saved in the browser, which was only reloaded from the Worker when an event was saved or a push update arrived. On 16/11/2026 a saved "Test 1" event that had been archived on the server made the Worker refuse every live code ("Event not found", 404), and the kiosk showed "Offline mode · backup QR" with a red dot while the site and Worker were up. Now the panel loads the live calendar once per organisation on start, reloads it (at most once a minute) when the Worker refuses the event, and the badge says "Backup QR · live code refused" when the Worker answered, keeping "Offline mode" for real network failures.

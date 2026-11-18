@@ -585,6 +585,7 @@
 <script src="js/fetch-timeout.js?v=6.8.15"></script>
 <script src="js/checkin-reasons.js?v=6.8.15"></script>
 <script src="js/offline-queue.js"></script>
+<script src="js/receipt-store.js?v=6.8.23"></script><!-- v6.8.23: receipts kept in IndexedDB -->
 <script src="js/orgapi.js"></script>
 <script src="js/qr-fullscreen.js"></script>
 <script>
@@ -1848,9 +1849,6 @@
 
   function storeOrgReceipt(payload) {
     try {
-      const key = "irlid_org_receipts";
-      const existing = JSON.parse(localStorage.getItem(key) || "[]");
-      const list = Array.isArray(existing) ? existing : [];
       const entry = {
         receipt_id: payload.receipt_id,
         receipt_url: payload.receipt_url || `receipt.html?org_receipt=${encodeURIComponent(payload.receipt_id)}`,
@@ -1862,9 +1860,12 @@
         created_at: Date.now(),
         receipt: payload.receipt || null
       };
-      const deduped = list.filter(item => item && item.receipt_id !== entry.receipt_id);
-      deduped.unshift(entry);
-      localStorage.setItem(key, JSON.stringify(deduped.slice(0, 50)));
+      // v6.8.23: kept in IndexedDB with no 50-receipt cap (the person's own list, C1:
+      // works offline). The store falls back to localStorage if IndexedDB is missing.
+      if (window.IRLReceiptStore) {
+        window.IRLReceiptStore.putOrg(entry).catch(err => console.warn("Could not store org receipt locally:", err));
+        try { window.IRLReceiptStore.requestPersistence(); } catch (_) {}
+      }
       localStorage.setItem("irlid_org_receipt_last", JSON.stringify(entry));
     } catch (err) {
       console.warn("Could not store org receipt locally:", err);
