@@ -218,7 +218,80 @@ test("Settings buttons are labelled as this-device-only and the override keeps t
   assert.ok(/var done = _origClearLocalData\(\)/.test(ov) && /return done;/.test(ov));
 });
 
-test("receipts-page 'Clear local receipts' button is unchanged: clears only the 1-on-1 list", () => {
-  assert.ok(receiptHtml.includes("window.IRLReceiptStore.clearP2p()"));
-  assert.ok(!/IRLReceiptStore\.clearAllOnDevice/.test(receiptHtml));
+test("receipts-page clear button (v6.8.24): now clears both lists on this device only", () => {
+  assert.ok(receiptHtml.includes("window.IRLReceiptStore.clearAllOnDevice()"));
+});
+
+// ---- v6.8.24: optional add-only server backup (phone side) ----
+const syncSrc = readFileSync(new URL("../js/receipt-sync.js", import.meta.url), "utf8");
+
+function syncPhone({ ls = {}, token = true } = {}) {
+  const base = phone({ ls });
+  const calls = [];
+  const ctx = {
+    console, Promise, JSON, Object, Array,
+    localStorage: base.localStorage,
+    IRLReceiptStore: base.S,
+    IRLBackend: {
+      hasSession: () => token,
+      syncReceipts: async (entries) => { calls.push(entries); return { ok: true }; }
+    }
+  };
+  ctx.self = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(syncSrc, ctx);
+  return { Sync: ctx.IRLReceiptSync, S: base.S, calls, localStorage: base.localStorage };
+}
+
+test("sync is OFF by default and sends nothing", async () => {
+  const { Sync, S, calls } = syncPhone();
+  await S.putOrg(org(1));
+  assert.equal(Sync.isOn(), false);
+  assert.equal((await Sync.syncAll()).skipped, true);
+  assert.equal(calls.length, 0);
+});
+
+test("sync sends receipts with signing keys stripped", async () => {
+  const { Sync, S, calls } = syncPhone({ ls: { irlid_sync_receipts: "1" } });
+  await S.putOrg(org(1));
+  await Sync.syncAll();
+  assert.equal(calls.length, 1);
+  assert.ok(!JSON.stringify(calls).includes("irlid_priv_jwk"));
+  const out = await Sync.syncOne("org", { ...org(2), irlid_priv_jwk: { kty: "EC", d: "SECRET", x: "X" } });
+  assert.ok(out);
+  assert.ok(!JSON.stringify(calls).includes("SECRET"));
+});
+
+test("no session means nothing is sent and nothing breaks (offline / not linked)", async () => {
+  const { Sync, S, calls } = syncPhone({ ls: { irlid_sync_receipts: "1" }, token: false });
+  await S.putOrg(org(1));
+  assert.equal((await Sync.syncAll()).skipped, true);
+  assert.equal(calls.length, 0);
+});
+
+test("device-only clear wipes both local lists and never calls a server", async () => {
+  const { Sync, S, calls } = syncPhone({ ls: { irlid_sync_receipts: "1" } });
+  await S.putOrg(org(1));
+  await S.putP2p({ ts: 1, combined: { type: "combined", receipt_hash: "h1" } });
+  await Sync.syncAll();
+  const before = calls.length;
+  await S.clearAllOnDevice();
+  assert.equal((await S.listOrg()).length, 0);
+  assert.equal((await S.listP2p()).length, 0);
+  assert.equal(calls.length, before); // clear made no server call
+});
+
+test("receipt page and Settings clear buttons: this device only, no server call", () => {
+  const clickBlock = receiptHtml.split("clearBtn.onclick")[1].split("backToList.addEventListener")[0];
+  assert.ok(clickBlock.includes("clearAllOnDevice"));
+  assert.ok(!/fetch\(|IRLBackend|syncReceipts|api\(/.test(clickBlock));
+  assert.ok(receiptHtml.includes("Clear receipts on this device"));
+  assert.ok(settingsHtml.includes("Clear receipts on this device"));
+  assert.ok(settingsHtml.includes("Clear all local data on this device"));
+  assert.ok(!/syncReceipts|\/me\/receipts/.test(settingsHtml.split("function clearReceiptsOnly")[1].split("async function renderKeyId")[0]));
+});
+
+test("the sync client has no edit or delete call", () => {
+  const code = syncSrc.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/DELETE|\"PUT\"|PATCH|deleteReceipt|removeItem\(\"irlid_receipts/i.test(code.replace(/removeItem|setItem/g, "")) );
 });

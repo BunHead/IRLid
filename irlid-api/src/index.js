@@ -306,6 +306,109 @@ function requireAuth(session) {
   return null;
 }
 
+
+// =====================
+//  PERSONAL RECEIPT BACKUP (add-only, v6.8.24)
+// =====================
+// A person's own list, copied from their phone. Rules (Spencer, 15/11 + 18/11):
+//  - append-only: there is NO update or delete route, and the nightly cleanup
+//    does not list this table. Nobody can erase their own synced copy.
+//  - signing keys are never stored: stripped here the same way as js/receipt-store.js.
+//  - personal only: every query is scoped to the caller's user_id (A5).
+//  - "linked" = a non-revoked row in `devices` for the session's device.
+// The public /receipts routes above are untouched.
+const PERSONAL_MAX_ENTRY_BYTES = 64 * 1024;
+const PERSONAL_MAX_BATCH = 50;
+const PERSONAL_SECRET_NAMES = new Set([
+  "irlid_priv_jwk", "priv_jwk", "privatekey", "private_key", "privjwk", "irlid_v5_priv", "secret", "seed"
+]);
+const PERSONAL_JWK_PRIVATE = new Set(["d", "p", "q", "dp", "dq", "qi"]);
+
+function scrubSecrets(value, depth = 0) {
+  if (value === null || typeof value !== "object" || depth > 12) return value;
+  if (Array.isArray(value)) return value.map((v) => scrubSecrets(v, depth + 1));
+  const isJwk = typeof value.kty === "string";
+  const out = {};
+  for (const k of Object.keys(value)) {
+    if (PERSONAL_SECRET_NAMES.has(String(k).toLowerCase())) continue;
+    if (isJwk && PERSONAL_JWK_PRIVATE.has(k)) continue;
+    out[k] = scrubSecrets(value[k], depth + 1);
+  }
+  return out;
+}
+
+async function requireLinkedDevice(request, env) {
+  const session = await getSession(request, env);
+  if (!session) return { denied: err("Unauthorized", 401) };
+  const dev = await env.DB.prepare(
+    "SELECT id FROM devices WHERE id = ? AND user_id = ? AND revoked_at IS NULL"
+  ).bind(session.deviceId, session.userId).first();
+  if (!dev) return { denied: err("device_not_linked", 403) };
+  return { session };
+}
+
+function personalKey(kind, entry) {
+  if (kind === "org") return entry && typeof entry.receipt_id === "string" ? entry.receipt_id : "";
+  const h = (entry && entry.combined && entry.combined.receipt_hash) || (entry && entry.receipt_hash);
+  return typeof h === "string" ? h : "";
+}
+
+async function backupPersonalReceipts(request, env) {
+  const { session, denied } = await requireLinkedDevice(request, env);
+  if (denied) return denied;
+  const declared = Number(request.headers.get("content-length") || 0);
+  if (declared > PERSONAL_MAX_ENTRY_BYTES * 4) return err("too_large", 413);
+  let body;
+  try { body = JSON.parse(await request.text()); } catch { return err("Invalid JSON body"); }
+  const items = Array.isArray(body && body.entries) ? body.entries : (body && body.entry ? [body] : null);
+  if (!items || !items.length || items.length > PERSONAL_MAX_BATCH) return err("entries_required");
+  const results = [];
+  for (const item of items) {
+    const kind = item && item.kind;
+    if ((kind !== "p2p" && kind !== "org") || !item.entry || typeof item.entry !== "object") {
+      results.push({ ok: false, error: "bad_entry" });
+      continue;
+    }
+    const entry = scrubSecrets(item.entry);
+    delete entry._key;
+    const key = personalKey(kind, entry);
+    const entryJson = JSON.stringify(entry);
+    if (!key) { results.push({ ok: false, error: "missing_key" }); continue; }
+    if (entryJson.length > PERSONAL_MAX_ENTRY_BYTES) { results.push({ ok: false, error: "entry_too_large" }); continue; }
+    const existing = await env.DB.prepare(
+      "SELECT id FROM personal_receipts WHERE user_id = ? AND kind = ? AND receipt_key = ?"
+    ).bind(session.userId, kind, key).first();
+    if (existing) { results.push({ ok: true, receipt_id: existing.id, duplicate: true }); continue; }
+    const id = uuid();
+    // INSERT OR IGNORE: a race with the same entry can never overwrite one.
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO personal_receipts (id, user_id, kind, receipt_key, entry_json, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    ).bind(id, session.userId, kind, key, entryJson, now()).run();
+    const row = await env.DB.prepare(
+      "SELECT id FROM personal_receipts WHERE user_id = ? AND kind = ? AND receipt_key = ?"
+    ).bind(session.userId, kind, key).first();
+    results.push({ ok: true, receipt_id: row ? row.id : id, duplicate: !!row && row.id !== id });
+  }
+  return json({ results });
+}
+
+async function listPersonalReceipts(request, env) {
+  const { session, denied } = await requireLinkedDevice(request, env);
+  if (denied) return denied;
+  const url = new URL(request.url);
+  const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+  const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "100")));
+  const rows = await env.DB.prepare(
+    "SELECT id, kind, receipt_key, entry_json, created_at FROM personal_receipts WHERE user_id = ? ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
+  ).bind(session.userId, limit, (page - 1) * limit).all();
+  const receipts = (rows.results || []).map((r) => {
+    let entry = null;
+    try { entry = JSON.parse(r.entry_json); } catch {}
+    return { receipt_id: r.id, kind: r.kind, receipt_key: r.receipt_key, entry, created_at: r.created_at };
+  });
+  return json({ receipts, page, limit });
+}
+
 // =====================
 //  CORS
 // =====================
@@ -940,6 +1043,9 @@ export default {
       else if (method === "POST" && path === "/receipts")            response = await uploadReceipt(request, env);
       else if (method === "GET"  && path === "/receipts")             response = await listReceipts(request, env);
       else if (method === "POST" && path === "/verify")              response = await verify(request, env);
+
+      else if (method === "POST" && path === "/me/receipts")         response = await backupPersonalReceipts(request, env);
+      else if (method === "GET"  && path === "/me/receipts")         response = await listPersonalReceipts(request, env);
 
       else {
         const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);

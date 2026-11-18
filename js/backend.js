@@ -149,6 +149,11 @@
 
     // ===== Receipts =====
 
+    // v6.8.24: add-only personal backup. There is no edit or delete call, by design.
+    syncReceipts: async function (entries) {
+      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      return api("POST", "/me/receipts", { entries: entries });
+    },
     uploadReceipt: async function (combinedObj) {
       // No login required — anonymous uploads are allowed (uploader_id stored as null)
       return await api("POST", "/receipts", { combined: combinedObj });
