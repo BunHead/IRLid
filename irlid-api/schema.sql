@@ -61,3 +61,15 @@ CREATE TABLE IF NOT EXISTS link_codes (
   expires_at    INTEGER NOT NULL,
   claimed       INTEGER DEFAULT 0
 );
+
+-- Personal receipt backup (add-only). Same SQL as d1-migrations/0001_personal_receipt_backup.sql.
+CREATE TABLE IF NOT EXISTS personal_receipts (
+  id            TEXT PRIMARY KEY,
+  user_id       TEXT NOT NULL REFERENCES users(id),
+  kind          TEXT NOT NULL CHECK (kind IN ('p2p', 'org')),
+  receipt_key   TEXT NOT NULL,
+  entry_json    TEXT NOT NULL,
+  created_at    INTEGER NOT NULL,
+  UNIQUE (user_id, kind, receipt_key)
+);
+CREATE INDEX IF NOT EXISTS idx_personal_receipts_user ON personal_receipts(user_id, created_at);
