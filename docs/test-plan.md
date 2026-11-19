@@ -149,9 +149,9 @@ Each area lists **Exists** (real, today), **Missing** (a gap, in priority order)
 
 - **Exists:** the theme validators on the Worker are exercised in passing (`developer-every-setting`); the "theme falls back to the plain look, not the last org's" rule has a client test.
 - **Missing (this is nearly empty):**
-  - **P1** Theme validation: hex shape, contrast against white, palette length, unknown keys dropped, a script in a theme value never runs (S11).
-  - **P1** Every theme (light, dark, the "dragon" theme and any other shipped theme) renders the dashboard and the phone screens with readable contrast. Automated contrast check on key screens.
-  - Public `/org/entry-info` returns only safe branding (no keys, no members).
+  - **P1, done 19 Nov 2026** (`irlid-api-org/tests/theme-validation.test.mjs`): theme validation: hex shape, QR contrast against white (the 4.5:1 line), palette length, image URLs, enums, clearing; a save with no sign-in is refused. **Gaps found, not fixed yet:** unknown theme keys are kept as sent (not dropped); only `qrFg` is contrast-checked; a staff session can save the theme and other non-governed settings (redirect URL, terms, welcome text) although Settings is Lead Admin only in the dashboard.
+  - **P1, done 19 Nov 2026** (`tests/e2e/themes.e2e.mjs`): five themes (IRLid's own, light, red, green dark, pale yellow light) on the Check-in, Dashboard and Settings panels and the attendee's first-scan screen, every visible text checked against WCAG AA. Today's failures are listed in the test (`KNOWN_LOW_CONTRAST`), so new ones fail and fixed ones must be taken off. None depend on the theme's colours. Script in theme text or the org's name never runs (S11).
+  - Public `/org/entry-info` returns only safe branding (no keys, no members): **done**, same Worker test file.
   - Theme change shows on the next phone scan without a cache problem (see 4.10).
   - Banner, fonts and background image load failures fall back cleanly, offline too.
   - Visual snapshots of 3 to 4 key screens per theme (Playwright screenshots, compared by eye first; add pixel comparison only if it stays stable).
