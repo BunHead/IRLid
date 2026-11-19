@@ -85,8 +85,8 @@ Each area lists **Exists** (real, today), **Missing** (a gap, in priority order)
 
 - **Exists:** the Worker side of almost every dashboard action; two-org bleed in a browser; many tests read `Org.html` as text to check a guard is present. That proves the code is there, not that it works.
 - **Missing:**
-  - **P1** Browser smoke test: sign in (fake Worker), see the attendance list, a new check-in appears, check-out works, sign out clears everything.
-  - **P1** "Attendance Today" across midnight with the clock set (UK time, summer and winter), and the new "Last 7 days" list with CSV (check the file's columns and that a name like `=cmd` is defused).
+  - **P1, done 19 Nov 2026** (`tests/e2e/dashboard-smoke.e2e.mjs`): browser smoke test: sign in, see the attendance list, a new check-in appears, signed check-out works (and a wrong key is refused), sign out clears everything.
+  - **P1** "Attendance Today" across midnight with the clock set (UK time, summer and winter): covered in unit tests (`attendance-days.test.mjs`), not yet in the browser. The "Last 7 days" list and its CSV download (columns, `=` name defused) are **done** in the browser smoke test.
   - Settings tabs: every setting saves and reads back (the "every visible Save saves everything" rule, v5.5.10), and a Developer can change every Lead Admin setting (partly covered in the Worker).
   - Add person, link at the door, Delete record and Clear attendance (R1): confirm dialog, audited, never queued (S10).
   - Offline dashboard: cached snapshot shows, "N waiting" counter, no spinner (I3), nothing admin is queued.
