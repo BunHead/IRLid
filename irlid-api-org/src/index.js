@@ -3630,19 +3630,25 @@ async function orgUpdateSettings(request, env) {
     || (requireLiveCodeChanging ? "requireLiveCode" : null)
     || (lockFullscreenChanging ? "lockFullscreen" : null)
     || (kioskModeChanging ? "kioskMode" : null);
-  if (governedField) {
+  // Spencer, 20 Nov 2026: every settings save needs a Lead Admin or
+  // Developer login session, not only the governed fields above. Settings is
+  // Lead Admin only in the dashboard, but the Worker used to accept a staff
+  // session (or the org key alone) for theme, redirect links, terms and
+  // welcome text, so a staff member could point attendees at another site.
+  const whatChanges = governedField || "organisation settings";
+  {
     const ctx = await requireSession(request, env);
     if (ctx.error) {
       return json({
         error: "insufficient_role",
-        message: `A Lead Admin or Developer session is required to change ${governedField}.`
+        message: `A Lead Admin or Developer session is required to change ${whatChanges}.`
       }, 403);
     }
     const callerRole = await orgRoleForUser(env, ctx.user, org.id);
     if (callerRole !== "lead_admin" && callerRole !== "developer") {
       return json({
         error: "insufficient_role",
-        message: `Only Lead Admins and Developers can change ${governedField}.`
+        message: `Only Lead Admins and Developers can change ${whatChanges}.`
       }, 403);
     }
   }
