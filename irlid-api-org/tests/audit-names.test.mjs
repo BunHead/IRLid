@@ -103,17 +103,16 @@ test("the log stays append-only and reading it writes nothing (R5)", async () =>
   assert.throws(() => d1.exec("DELETE FROM org_audit_log"), /immutable/);
 });
 
-test("a settings save by the org key is recorded under a name, not blank", async () => {
+test("a settings save by the org key alone is refused (20 Nov 2026: Lead Admin or Developer session only)", async () => {
   const d1 = setup();
   const res = await worker.fetch(new Request("https://worker.test/org/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Org-Key": ORG_KEY, Authorization: "Bearer " + ORG_KEY },
     body: JSON.stringify({ welcomeMessage: "Hello" })
   }), { DB: d1, CORS_ORIGIN: "*" });
-  assert.equal(res.status, 200);
-  const row = d1.get("SELECT actor_display_name, actor_role FROM org_audit_log WHERE action='settings_save'");
-  assert.equal(row.actor_display_name, "Service account (api_key)");
-  assert.notEqual(row.actor_role, "developer", "an org-key save is not claimed as a person");
+  assert.equal(res.status, 403);
+  assert.equal((await res.json()).error, "insufficient_role");
+  assert.equal(d1.get("SELECT COUNT(*) AS n FROM org_audit_log WHERE action='settings_save'").n, 0, "nothing saved, so nothing to audit");
 });
 
 test("Org.html never shows a bare role when the Worker sends no name", async () => {
