@@ -95,6 +95,22 @@
       </div>
 
       <div class="panel">
+        <div class="settings-row">
+          <label for="syncReceiptsToggle">
+            <input type="checkbox" id="syncReceiptsToggle" />
+            <span><b>Sync my receipts</b> (off by default)</span>
+          </label>
+        </div>
+        <div class="settings-kv">
+          Keeps an extra copy of your receipts on the IRLid server, for your account only. Needs a linked device. Check-in and showing a receipt work the same with this off or offline. The copy is add-only: clearing receipts on this device never removes it. Signing keys are never sent.
+        </div>
+        <div class="controls" style="justify-content:flex-start; gap:10px;">
+          <button class="btn secondary" id="syncNowBtn" type="button">Sync now</button>
+        </div>
+        <div class="settings-kv" id="syncState"></div>
+      </div>
+
+      <div class="panel">
         <h3 style="margin: 0 0 8px;">Data</h3>
         <p class="small" style="margin: 0 0 10px;">
           All data is stored locally in your browser (no backend). Clearing data cannot be undone.
@@ -269,7 +285,8 @@
   </main>
 
   <script src="js/sign.js?v=5.0"></script>
-  <script src="js/receipt-store.js?v=6.8.23"></script>
+  <script src="js/receipt-store.js?v=6.8.24"></script>
+  <script src="js/receipt-sync.js?v=6.8.24"></script>
   <script src="js/auth.js"></script>
   <script src="js/backend.js"></script>
   <script src="js/nav.js"></script>
@@ -367,6 +384,32 @@
         renderDebugState();
       });
     }
+
+    // v6.8.24: optional add-only receipt backup (off by default).
+    (function(){
+      var t = document.getElementById("syncReceiptsToggle");
+      var b = document.getElementById("syncNowBtn");
+      var st = document.getElementById("syncState");
+      if (!t || !window.IRLReceiptSync) return;
+      t.checked = window.IRLReceiptSync.isOn();
+      function note(m){ if (st) st.textContent = m; }
+      function run(){
+        note("Syncing...");
+        window.IRLReceiptSync.syncAll().then(function(r){
+          if (r && r.skipped) note("Not synced: link this device first.");
+          else if (r && r.error) note("Could not sync now. Your receipts on this device are unchanged.");
+          else note("Synced " + (r.sent || 0) + " of " + (r.total || 0) + " receipts.");
+        });
+      }
+      t.addEventListener("change", function(){
+        window.IRLReceiptSync.setOn(t.checked);
+        if (t.checked) run(); else note("Sync is off. Copies already on the server stay there.");
+      });
+      if (b) b.addEventListener("click", function(){
+        if (!window.IRLReceiptSync.isOn()) { note("Turn on Sync my receipts first."); return; }
+        run();
+      });
+    })();
 
     if (clearLocalBtn) {
       clearLocalBtn.addEventListener("click", function () {
