@@ -146,8 +146,9 @@ test("turning the lock on or off needs a Lead Admin session, not just the org ke
   assert.equal(res.status, 403);
   assert.equal(d1.settings().lockFullscreen, true);
 
-  // A full-form save that sends the unchanged value needs nothing extra.
-  res = await call(d1, "POST", "/org/settings", { lockFullscreen: true, minScore: 40 }, { orgKey: ORG_KEY });
+  // A full-form save that sends the unchanged value is fine for a Lead Admin.
+  // (Since 20 Nov 2026 every settings save needs a Lead Admin or Developer session.)
+  res = await call(d1, "POST", "/org/settings", { lockFullscreen: true, minScore: 40 }, { orgKey: ORG_KEY, session: kioskSession });
   assert.equal(res.status, 200, JSON.stringify(res.body));
 
   res = await call(d1, "POST", "/org/settings", { lockFullscreen: "yes" }, { orgKey: ORG_KEY, session: kioskSession });
