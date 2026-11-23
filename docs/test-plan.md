@@ -137,8 +137,9 @@ Each area lists **Exists** (real, today), **Missing** (a gap, in priority order)
 
 - **Exists:** `two-org-bleed` (16 Worker tests), `two-org-bleed-client` (23), the browser replay, a Worker rule that a session is tied to one org (`session_org_mismatch`), a scan naming another org is refused.
 - **Missing:**
-  - **P1** A generic "org B's session against org A's route" sweep over **every** route, so a new route that forgets the check fails the build. Today each route is checked by hand.
-  - **P1** Every read endpoint: attendance, audit log, members, receipts, theme, settings, quarantine, expected list, calendar: org A never sees org B's rows.
+  - ~~**P1** A generic "org B's session against org A's route" sweep over every route.~~ Done: `cross-org-sweep.test.mjs` (23 Nov 2026). Every `/org` and `/user` route in the router is either swept or listed with a written reason, so a new route that is in neither fails the build.
+  - ~~**P1** Every read endpoint: org A never sees org B's rows.~~ Done in the same file: attendance, audit log, members, receipts, settings and theme, quarantine, expected list **and the archived list**, calendar, invites, kiosk screens. Checked with a Lead Admin session, staff session, org key, and a Developer tied to one org.
+  - Found and pinned, not changed (Spencer's call): three slug-level routes answer without a login to anyone holding the venue slug. `GET /org/expected` (the "I'm not on the list" picker: names only, never an archived person, closed by `allowSelfSelection=false`), `GET /org/active-checkin?device_pub=` (name and check-in time for a known device key) and `GET /org/recognize?device_pub=`. All three only ever search the org named. Rule A5 says attendees never see the guest list, so whether the picker should stay open by default is a question for Spencer.
   - Developer account in two orgs: switching clears settings, theme, people, the 7-day list (new in v6.8.15) and the audit log view.
   - Offline queue: an op queued for org A is still sent to org A after the user switches to org B.
   - Durable Object push channel: org A's socket never gets org B's events.
