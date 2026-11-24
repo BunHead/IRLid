@@ -18,7 +18,8 @@
   function londonTime(v) { var ms = toMs(v); return ms ? timeFmt.format(new Date(ms)) : ""; }
   function londonDayLabel(v) { var ms = toMs(v); return ms ? dayNameFmt.format(new Date(ms)) : ""; }
 
-  function rowName(r) { return String((r && (r.name || r.attendee_label)) || "").trim(); }
+  // v6.8.26: name_label ("Name (…a3f9)") when two people share a name.
+  function rowName(r) { return String((r && (r.name_label || r.name || r.attendee_label)) || "").trim(); }
 
   // How it was checked in, in words (never "fresh" for an offline one, rule C9).
   function kindOf(r) {

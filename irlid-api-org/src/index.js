@@ -4055,6 +4055,56 @@ function surnameFromDisplayName(name) {
   return parts.length > 1 ? parts.slice(1).join(" ") : "";
 }
 
+// v6.8.26 - people with the same name. Two active people in one organisation
+// may share a name. Wherever an admin sees the name, the Worker adds a
+// name_label: the name plus the last 4 characters of that person's device key,
+// e.g. "Sam Example (…a3f9)", but only while another active person shares it.
+// The stored name never changes (R1); name_label is display only.
+function deviceKeyTag(fp) {
+  const s = String(fp || "").trim();
+  return s.length >= 4 ? "\u2026" + s.slice(-4) : "";
+}
+function nameWithKeyTag(name, fp) {
+  const n = String(name || "").trim();
+  if (!n) return n;
+  const tag = deviceKeyTag(fp);
+  return n + " (" + (tag || "no key yet") + ")";
+}
+// Lower-cased names held by two or more ACTIVE people, and the active rows by id.
+async function sharedActiveNames(env, orgId) {
+  const shared = new Set();
+  const byId = new Map();
+  try {
+    const rows = (await env.DB.prepare(
+      "SELECT id, display_name, device_pub_fp FROM org_expected WHERE org_id=? AND archived_at IS NULL"
+    ).bind(orgId).all()).results || [];
+    const count = new Map();
+    for (const r of rows) {
+      byId.set(String(r.id), r);
+      const k = String(r.display_name || "").trim().toLowerCase();
+      if (k) count.set(k, (count.get(k) || 0) + 1);
+    }
+    for (const [k, n] of count) if (n > 1) shared.add(k);
+  } catch { /* labels are best effort; never fail a read */ }
+  return { shared, byId };
+}
+// Label rows in place. nameOf/fpOf pick the fields for each row shape.
+function applyNameLabels(rows, ctx, nameOf, fpOf, extraShared) {
+  for (const r of rows || []) {
+    if (!r) continue;
+    const name = String(nameOf(r) || "").trim();
+    const k = name.toLowerCase();
+    if (name && (ctx.shared.has(k) || (extraShared && extraShared.has(k)))) r.name_label = nameWithKeyTag(name, fpOf(r));
+  }
+  return rows;
+}
+// An old database still has the unique-name index until migration 0003 is
+// applied. Its error becomes the same 409 "duplicate" the dashboard knows.
+function isUniqueNameError(e) {
+  return /UNIQUE constraint failed: org_expected|uq_org_expected_name/i.test(String((e && e.message) || e));
+}
+const duplicateNameReply = () => json({ error: "duplicate", message: "Someone with this name is already on the list. This organisation's database still needs the same-name update." }, 409);
+
 const EXPECTED_SELECT =
   "id,org_id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,device_pub_fp,email_hint,phone_hint,notes,created_at,archived_at";
 
@@ -5698,9 +5748,12 @@ async function orgCheckin(request, env) {
     if (expected) expectedId = expected.id;
   }
   if (!expected && displayName) {
-    expected = await env.DB.prepare(
-      `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) ORDER BY id ASC LIMIT 1`
-    ).bind(org.id, displayName).first();
+    // v6.8.26: match by name only when exactly ONE active person has it. With
+    // two people sharing a name the Worker never guesses which one it is.
+    const sameName = (await env.DB.prepare(
+      `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) ORDER BY id ASC LIMIT 2`
+    ).bind(org.id, displayName).all()).results || [];
+    expected = sameName.length === 1 ? sameName[0] : null;
     if (expected) {
       expected.device_key_fps = await expectedKeySet(env, org.id, expected.id);
       expectedId = expected.id;
@@ -6189,6 +6242,10 @@ async function orgAttendance(request, env) {
     avg_score: Number(statsRow?.avg_score || 0),
     bio_verified: Number(statsRow?.bio_verified || 0)
   };
+  // v6.8.26: name_label for people who share a name with another active person.
+  const nameCtx = await sharedActiveNames(env, org.id);
+  const checkinFp = (r) => r.device_key_fp || (nameCtx.byId.get(String(r.expected_id)) || {}).device_pub_fp;
+  applyNameLabels(checkins, nameCtx, (r) => r.name || r.attendee_label, checkinFp);
   // The 7-day list is its own view: never mixed with the expected-not-yet-seen rows.
   if (weekRange) {
     return noStore(json({ checkins, stats, range: "7d", since, venue_time_zone: VENUE_TIME_ZONE, truncated: checkins.length >= limit }));
@@ -6219,6 +6276,7 @@ async function orgAttendance(request, env) {
     last_seen: null,
     expected_only: true
   }));
+  applyNameLabels(expectedRows, nameCtx, (r) => r.name, (r) => (nameCtx.byId.get(String(r.expected_id)) || {}).device_pub_fp);
   return json({ checkins: checkins.concat(expectedRows), stats });
 }
 
@@ -6727,9 +6785,20 @@ async function orgExpectedListArchived(request, env) {
   const admin = await requireOrgAdminSession(request, env, org);
   if (admin.error) return admin.error;
   const rows = await env.DB.prepare(
-    "SELECT id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,created_at,archived_at FROM org_expected WHERE org_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC, id DESC LIMIT 500"
+    "SELECT id,display_name,initials,COALESCE(role_key,'attendee') AS role_key,device_pub_fp,created_at,archived_at FROM org_expected WHERE org_id=? AND archived_at IS NOT NULL ORDER BY archived_at DESC, id DESC LIMIT 500"
   ).bind(org.id).all();
-  return noStore(json({ expected: rows.results || [], archived: true }));
+  // v6.8.26: label an archived person whose name an active person (or another
+  // archived person in this list) also has, so Restore picks the right one.
+  // The device key itself is never sent, only the 4-character tag.
+  const archived = rows.results || [];
+  const nameCtx = await sharedActiveNames(env, org.id);
+  const activeNames = new Set([...nameCtx.byId.values()].map(r => String(r.display_name || "").trim().toLowerCase()));
+  const seen = new Map();
+  for (const r of archived) { const k = String(r.display_name || "").trim().toLowerCase(); seen.set(k, (seen.get(k) || 0) + 1); }
+  const clash = new Set([...activeNames].filter(k => seen.has(k)).concat([...seen].filter(([, n]) => n > 1).map(([k]) => k)));
+  applyNameLabels(archived, nameCtx, (r) => r.display_name, (r) => r.device_pub_fp, clash);
+  const shaped = archived.map(({ device_pub_fp, ...rest }) => rest);
+  return noStore(json({ expected: shaped, archived: true }));
 }
 
 // v6.8.19 — restore one archived expected attendee (clear archived_at).
@@ -6744,20 +6813,25 @@ async function orgExpectedRestore(request, env, id) {
   if (admin.error) return admin.error;
 
   const existing = await env.DB.prepare(
-    "SELECT id, display_name, archived_at FROM org_expected WHERE id=? AND org_id=?"
+    "SELECT id, display_name, device_pub_fp, archived_at FROM org_expected WHERE id=? AND org_id=?"
   ).bind(id, org.id).first();
   if (!existing) return err("Expected attendee not found", 404);
   if (existing.archived_at == null) {
     return json({ ok: true, restored: false, already_active: true, id });
   }
-  const dup = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_id=? AND id<>? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
-  ).bind(org.id, id, existing.display_name || "").first();
-  if (dup) return json({ error: "duplicate", existing_id: dup.id, message: "Someone with this name is already on the list." }, 409);
-
-  const result = await env.DB.prepare(
-    "UPDATE org_expected SET archived_at=NULL WHERE id=? AND org_id=? AND archived_at IS NOT NULL"
-  ).bind(id, org.id).run();
+  // v6.8.26: a same-name active person no longer blocks a restore.
+  let result;
+  try {
+    result = await env.DB.prepare(
+      "UPDATE org_expected SET archived_at=NULL WHERE id=? AND org_id=? AND archived_at IS NOT NULL"
+    ).bind(id, org.id).run();
+  } catch (e) {
+    if (isUniqueNameError(e)) return duplicateNameReply();
+    throw e;
+  }
+  const restoredNames = await sharedActiveNames(env, org.id);
+  const restoredLabel = restoredNames.shared.has(String(existing.display_name || "").trim().toLowerCase())
+    ? nameWithKeyTag(existing.display_name, existing.device_pub_fp) : null;
   if ((result.meta?.changes || 0) === 0) {
     // Someone else restored it first: success, but only the winner logs.
     return json({ ok: true, restored: false, already_active: true, id });
@@ -6770,7 +6844,7 @@ async function orgExpectedRestore(request, env, id) {
     actorName: actor.actorName,
     actorRole: actor.actorRole,
     action: "expected_restore",
-    target: existing.display_name || "Expected attendee",
+    target: restoredLabel || existing.display_name || "Expected attendee",
     targetRef: String(id),
     outcome: "allowed",
     detail: JSON.stringify({ restored: true, org_id: org.id, org_name: org.name || null })
@@ -6815,7 +6889,10 @@ async function orgExpectedList(request, env) {
   const rows = await env.DB.prepare(
     `SELECT ${EXPECTED_SELECT} FROM org_expected WHERE org_id=? AND archived_at IS NULL ORDER BY LOWER(display_name) ASC, id ASC`
   ).bind(org.id).all();
-  return json({ expected: rows.results });
+  // v6.8.26: staff list only (never the attendee picker above): name_label for
+  // people who share a name.
+  const nameCtx = await sharedActiveNames(env, org.id);
+  return json({ expected: applyNameLabels(rows.results || [], nameCtx, (r) => r.display_name, (r) => r.device_pub_fp) });
 }
 
 async function orgExpectedCreate(request, env) {
@@ -6826,14 +6903,13 @@ async function orgExpectedCreate(request, env) {
   const displayName = cleanText(body.display_name || [body.first_name, body.surname].filter(Boolean).join(" "), 80);
   const roleKey = attendeeOnlyExpectedRole(body, "orgExpectedCreate");
   if (!displayName) return err("display_name required");
-  const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
-  ).bind(org.id, displayName).first();
-  if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
+  // v6.8.26: two people may share a name (no duplicate refusal any more).
   const createdAt = now();
   const id = cleanOptionalText(body.id, 80) || newExpectedId(displayName);
   const initials = cleanOptionalText(body.initials, 16) || initialsForName(displayName);
-  const row = await env.DB.prepare(
+  let row;
+  try {
+    row = await env.DB.prepare(
     `INSERT INTO org_expected (id,org_id,display_name,initials,role_key,device_pub_fp,email_hint,phone_hint,notes,created_at,archived_at) ` +
     `VALUES (?,?,?,?,?,?,?,?,?,?,NULL) RETURNING ${EXPECTED_SELECT}`
   ).bind(
@@ -6848,6 +6924,10 @@ async function orgExpectedCreate(request, env) {
     cleanOptionalText(body.notes, 1000),
     createdAt
   ).first();
+  } catch (e) {
+    if (isUniqueNameError(e)) return duplicateNameReply();
+    throw e;
+  }
   return json({ expected_id: row.id, expected: row }, 201);
 }
 
@@ -7304,16 +7384,19 @@ async function orgExpectedCreateAndBind(request, env) {
   const boundExpectedId = await expectedBoundToDevice(env, org.id, deviceFp);
   if (boundExpectedId) return json({ error: "device_key_already_bound", expected_id: boundExpectedId }, 409);
   const displayName = cleanText(`${firstName} ${surname}`.trim(), 80);
-  const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_id=? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
-  ).bind(org.id, displayName).first();
-  if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
+  // v6.8.26: two people may share a name (no duplicate refusal any more).
 
   const t = now();
   const expectedId = newExpectedId(displayName);
-  const expected = await env.DB.prepare(
-    `INSERT INTO org_expected (id,org_id,display_name,initials,role_key,device_pub_fp,created_at,archived_at) VALUES (?,?,?,?,?,?,?,NULL) RETURNING ${EXPECTED_SELECT}`
-  ).bind(expectedId, org.id, displayName, initialsForName(displayName), prototypeRole, deviceFp, t).first();
+  let expected;
+  try {
+    expected = await env.DB.prepare(
+      `INSERT INTO org_expected (id,org_id,display_name,initials,role_key,device_pub_fp,created_at,archived_at) VALUES (?,?,?,?,?,?,?,NULL) RETURNING ${EXPECTED_SELECT}`
+    ).bind(expectedId, org.id, displayName, initialsForName(displayName), prototypeRole, deviceFp, t).first();
+  } catch (e) {
+    if (isUniqueNameError(e)) return duplicateNameReply();
+    throw e;
+  }
   expected.device_key_fps = [deviceFp];
 
   return json({ ok: true, expected });
@@ -7394,9 +7477,14 @@ async function orgExpectedDelete(request, env, id) {
   if (staff.error) return staff.error;
 
   const existing = await env.DB.prepare(
-    "SELECT id, display_name, archived_at FROM org_expected WHERE id=? AND org_id=?"
+    "SELECT id, display_name, device_pub_fp, archived_at FROM org_expected WHERE id=? AND org_id=?"
   ).bind(id, org.id).first();
   if (!existing) return err("Expected attendee not found", 404);
+  // v6.8.26: name the right person in the admin log when two share a name
+  // (worked out before the archive, while both are still active).
+  const deleteCtx = await sharedActiveNames(env, org.id);
+  const deleteLabel = deleteCtx.shared.has(String(existing.display_name || "").trim().toLowerCase())
+    ? nameWithKeyTag(existing.display_name, existing.device_pub_fp) : null;
 
   const t = now();
   const alreadyArchived = existing.archived_at != null;
@@ -7424,7 +7512,7 @@ async function orgExpectedDelete(request, env, id) {
       actorName: actor.actorName,
       actorRole: actor.actorRole,
       action: "expected_delete",
-      target: existing.display_name || "Expected attendee",
+      target: deleteLabel || existing.display_name || "Expected attendee",
       targetRef: String(id),
       outcome: "allowed",
       detail: JSON.stringify({
@@ -7560,11 +7648,10 @@ async function orgExpectedUpdate(request, env, id) {
   if (roleProvided && !isExpectedRoleAllowedFromDashboard(roleKey)) {
     return err("developer role cannot be granted from the dashboard - bootstrap or invite token only", 403);
   }
-  const existing = await env.DB.prepare(
-    "SELECT id FROM org_expected WHERE org_id=? AND id<>? AND archived_at IS NULL AND LOWER(display_name)=LOWER(?) LIMIT 1"
-  ).bind(org.id, id, displayName).first();
-  if (existing) return json({ error: "duplicate", existing_id: existing.id }, 409);
-  const row = await env.DB.prepare(
+  // v6.8.26: renaming to a name someone else has is allowed.
+  let row;
+  try {
+    row = await env.DB.prepare(
     `UPDATE org_expected SET display_name=?, initials=?, role_key=?, device_pub_fp=?, email_hint=?, phone_hint=?, notes=? ` +
     `WHERE id=? AND org_id=? RETURNING ${EXPECTED_SELECT}`
   ).bind(
@@ -7578,6 +7665,10 @@ async function orgExpectedUpdate(request, env, id) {
     id,
     org.id
   ).first();
+  } catch (e) {
+    if (isUniqueNameError(e)) return duplicateNameReply();
+    throw e;
+  }
   if (!row) return err("Expected attendee not found", 404);
   return json({ expected: row });
 }

@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v218
+
+v6.8.27 PEOPLE WITH THE SAME NAME: the Worker no longer refuses a second active person with the same name (add, add at the door, rename, restore). While two or more ACTIVE people share a name, admins see the name with the last 4 characters of that person's device key, e.g. "Sam Example (…a3f9)" ("(no key yet)" for someone not linked yet): expected attendees, the check-in list, Last 7 days and its CSV, the Restore list, the event attendee picker, and the admin log (Delete expected / Restore expected). Display only (`name_label`): stored names are never changed (R1), and only the 4-character tag leaves the Worker. A check-in that matches by name alone now links only when exactly one active person has that name (it never guesses). The attendee "I'm not on the list" picker is unchanged. A database that still has the old unique-name index keeps the old behaviour (409 "already on the list", never a 500) until Spencer decides on removing it (rule R4: see docs/proposal-same-name-index.md).
+
 ## irlid-shell-v216
 
 v6.8.25 OFFLINE CACHE GAPS: the offline shell pages now work from the phone's saved copy. Before, `irlid-env.js`, `fetch-timeout.js`, `checkin-reasons.js` (check-in page) and `attendance-week.js` were saved but the service worker let their requests go straight to the network, and `receipt.html` / `check.html` loaded `css/style.css`, `auth.js`, `backend.js`, `nav.js` and `qr.js` that were not saved at all. All are now pre-cached and served by the service worker (scripts and styles stay network-first, so updates still arrive at once). No Worker, check-in logic, receipt or guest-list change. Test `sw-precache-complete.test.mjs` now expects no gaps.
