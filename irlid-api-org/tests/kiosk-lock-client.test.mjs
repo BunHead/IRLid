@@ -131,10 +131,11 @@ test("Org.html: Lock full screen toggle exists, unchecked by default, hydrated f
   assert.ok(toggle, "toggle missing");
   assert.doesNotMatch(toggle[0], /checked/);
   assert.match(html, /settings\.lockFullscreen = src\.lockFullscreen === true;/);
+  assert.match(html, /function irlidKioskLockApply\(src, authoritative\) \{\s*if \(authoritative\) \{\s*settings\.lockFullscreen = src\.lockFullscreen === true;/);
   assert.match(html, /window\.__irlidLockFullscreenHydrated \? \{ lockFullscreen: irlidKioskLockFullscreenForSave\(\) \}/);
   assert.match(html, /<script src="js\/kiosk-lock\.js(\?v=[0-9.]+)?"><\/script>/);
   // Only the real Check-in full screen locks, never the theme preview.
-  assert.match(html, /const kioskLockOn = !!\(settings && \(settings\.lockFullscreen === true \|\| settings\.kioskMode === true\)\) && !emitInSetup &&\s*document\.body\.dataset\.activePanel === 'checkin';/);
+  assert.match(html, /const kioskLockOn = irlidKioskLockShouldShow\(\) && !emitInSetup &&\s*document\.body\.dataset\.activePanel === 'checkin';/);
   // When locked there is no plain X.
   assert.match(html, /if \(!kioskLockOn\) clone\.appendChild\(closeBtn\);/);
   // Unlock asks the Worker for the kiosk action, never builds a payload with extra fields.

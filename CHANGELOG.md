@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v219
+
+v6.8.28 KIOSK LOCK FAILS CLOSED: on the Imbue kiosk the padlock went missing and the X appeared, giving full dashboard access. Cause: choosing an organisation resets every setting to off, and the lock only came back when the settings call succeeded; if it failed, was slow, or the offline copy had no settings, the lock stayed off. Now this device remembers, per organisation, the last kiosk-lock setting (Lock full screen / Kiosk mode) that a real server settings reply gave (`irlid_kiosk_lock_v1:<org id>`, two yes/no flags only). A reset, a failed or slow settings call, an org-list row, or an offline copy with no settings keep the lock ON if it was on; the check-in full screen also checks the memory directly. Only a real Worker settings reply (or the read-back after a save) that says off turns the lock off, and that is remembered as off. A page that has not heard from the server still never sends a lock value back on save. No Worker change; first visit on a new device (nothing remembered yet) behaves as before until the first settings reply.
+
 ## irlid-shell-v216
 
 v6.8.25 OFFLINE CACHE GAPS: the offline shell pages now work from the phone's saved copy. Before, `irlid-env.js`, `fetch-timeout.js`, `checkin-reasons.js` (check-in page) and `attendance-week.js` were saved but the service worker let their requests go straight to the network, and `receipt.html` / `check.html` loaded `css/style.css`, `auth.js`, `backend.js`, `nav.js` and `qr.js` that were not saved at all. All are now pre-cached and served by the service worker (scripts and styles stay network-first, so updates still arrive at once). No Worker, check-in logic, receipt or guest-list change. Test `sw-precache-complete.test.mjs` now expects no gaps.
