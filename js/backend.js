@@ -154,6 +154,15 @@
       if (!getToken()) return { ok: false, error: "not_logged_in" };
       return api("POST", "/me/receipts", { entries: entries });
     },
+    // v6.8.26: read the person's own backup list, and ask if the server offers it.
+    listSyncedReceipts: async function (page) {
+      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      return api("GET", "/me/receipts?limit=200&page=" + (page || 1));
+    },
+    syncAvailable: async function () {
+      if (!getToken()) return { ok: false, error: "not_logged_in" };
+      return api("GET", "/me/receipts/status");
+    },
     uploadReceipt: async function (combinedObj) {
       // No login required — anonymous uploads are allowed (uploader_id stored as null)
       return await api("POST", "/receipts", { combined: combinedObj });
