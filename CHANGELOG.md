@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v217
+
+v6.8.26 RECEIPTS ON EVERY DEVICE: My Receipts (`receipt.html`) has a "Back up my receipts to my IRLid account" switch, OFF by default. It shows only when you are signed in with a linked device AND the server offers the backup (new `GET /me/receipts/status`); otherwise it is hidden with no message. When on, your handshake and organisation check-in receipts are copied add-only to your own `personal_receipts` list (no edit or delete route; signing keys never sent), and the list shows your backup from other devices merged with this phone's and de-duplicated (org receipts by receipt id, 1-on-1 by receipt hash). Display only: nothing is written into this phone's store, and "Clear receipts on this device" clears only this device. No organisation route reads the table. If the table is missing the backup routes answer 503 `backup_unavailable` and the switch stays hidden. Needs the D1 migration `irlid-api/d1-migrations/0001_personal_receipt_backup.sql` (applied by Spencer, not by this change): `cd irlid-api && npx wrangler d1 migrations apply irlid-db --remote`.
+
 ## irlid-shell-v216
 
 v6.8.25 OFFLINE CACHE GAPS: the offline shell pages now work from the phone's saved copy. Before, `irlid-env.js`, `fetch-timeout.js`, `checkin-reasons.js` (check-in page) and `attendance-week.js` were saved but the service worker let their requests go straight to the network, and `receipt.html` / `check.html` loaded `css/style.css`, `auth.js`, `backend.js`, `nav.js` and `qr.js` that were not saved at all. All are now pre-cached and served by the service worker (scripts and styles stay network-first, so updates still arrive at once). No Worker, check-in logic, receipt or guest-list change. Test `sw-precache-complete.test.mjs` now expects no gaps.
