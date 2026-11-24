@@ -24,6 +24,10 @@ test("the service worker pre-caches css/org.css, intercepts it and serves it net
   assert.ok(m);
   const re = eval(m[1]);
   assert.ok(re.test("/css/org.css"), "dashboard path");
-  assert.ok(!re.test("/css/style.css"), "consumer stylesheet still passes through");
+  // v6.8.25: receipt.html and check.html (offline shell pages) load css/style.css,
+  // so it is now pre-cached and intercepted too, network-first like the rest.
+  assert.ok(re.test("/css/style.css"), "css/style.css is served offline for receipt.html and check.html");
+  assert.match(sw, /'\.\/css\/style\.css',/);
+  assert.ok(!re.test("/css/other.css") && !re.test("/index.html"), "unrelated consumer files still pass through");
   assert.match(sw, /if \(\/\\\.\(js\|css\)\(\\\?\|\$\)\/\.test\(url\.pathname\)\)/, "network-first like scripts");
 });

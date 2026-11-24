@@ -7,9 +7,8 @@
 // v6.8.15 had to add three new scripts by hand; this makes the next one fail
 // the build instead.
 //
-// The pages and their files are read from the real repo files. Anything that is
-// a gap today is named in KNOWN_GAPS, not skipped: a NEW gap fails, and so does
-// fixing one without taking it off the list (so the list only ever shrinks).
+// The pages and their files are read from the real repo files. There are no
+// known gaps (v6.8.25 closed the ones this test first found).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -41,43 +40,10 @@ function localFilesOf(html) {
   return [...out].filter(u => !/^(https?:)?\/\//.test(u) && !u.startsWith("data:")).map(u => u.split(/[?#]/)[0].replace(/^\.?\//, ""));
 }
 
-// Gaps that exist on main today. Each is "<page> <file>: what is missing".
-// Fixing one needs a sw.js change and a cache-version bump (W8), so it is a
-// separate decision from this test.
-const KNOWN_GAPS = new Set([
-  // Pre-cached but not matched by DASHBOARD_PATHS: the worker lets the request
-  // through to the network, so offline the cached copy is never served.
-  "Org.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  "Org.html js/fetch-timeout.js: not in DASHBOARD_PATHS",
-  "Org.html js/attendance-week.js: not in DASHBOARD_PATHS",
-  "org-entry.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  "org-entry.html js/fetch-timeout.js: not in DASHBOARD_PATHS",
-  "org-entry.html js/checkin-reasons.js: not in DASHBOARD_PATHS",
-  "org-action-auth.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  "kiosk-code.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  "receipt.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  "check.html js/irlid-env.js: not in DASHBOARD_PATHS",
-  // Loaded by the consumer-style pages (receipt, check) but neither pre-cached
-  // nor matched, so a first offline visit has no stylesheet or helper scripts.
-  "receipt.html css/style.css: not pre-cached",
-  "receipt.html css/style.css: not in DASHBOARD_PATHS",
-  "receipt.html js/auth.js: not pre-cached",
-  "receipt.html js/auth.js: not in DASHBOARD_PATHS",
-  "receipt.html js/backend.js: not pre-cached",
-  "receipt.html js/backend.js: not in DASHBOARD_PATHS",
-  "receipt.html js/nav.js: not pre-cached",
-  "receipt.html js/nav.js: not in DASHBOARD_PATHS",
-  "receipt.html js/qr.js: not pre-cached",
-  "receipt.html js/qr.js: not in DASHBOARD_PATHS",
-  "check.html css/style.css: not pre-cached",
-  "check.html css/style.css: not in DASHBOARD_PATHS",
-  "check.html js/auth.js: not pre-cached",
-  "check.html js/auth.js: not in DASHBOARD_PATHS",
-  "check.html js/backend.js: not pre-cached",
-  "check.html js/backend.js: not in DASHBOARD_PATHS",
-  "check.html js/nav.js: not pre-cached",
-  "check.html js/nav.js: not in DASHBOARD_PATHS"
-]);
+// No gaps are allowed (v6.8.25 closed the ones this test first found). A new
+// one fails the build: add the file to SHELL_ASSETS and DASHBOARD_PATHS in sw.js
+// and bump CACHE_VERSION (W8).
+const KNOWN_GAPS = new Set([]);
 
 function findGaps() {
   const assets = shellAssets();
@@ -100,10 +66,15 @@ test("every local script and stylesheet an offline shell page loads is pre-cache
     "New offline gap(s). Add the file to SHELL_ASSETS and DASHBOARD_PATHS in sw.js and bump CACHE_VERSION (W8):\n  " + fresh.join("\n  "));
 });
 
-test("the known-gap list only shrinks: a gap that is fixed must be taken off KNOWN_GAPS", () => {
-  const gaps = new Set(findGaps());
-  const stale = [...KNOWN_GAPS].filter(g => !gaps.has(g));
-  assert.deepEqual(stale, [], "These gaps are fixed. Remove them from KNOWN_GAPS:\n  " + stale.join("\n  "));
+test("there are no gaps at all (the known-gap list stays empty)", () => {
+  assert.equal(KNOWN_GAPS.size, 0);
+  assert.deepEqual(findGaps(), []);
+});
+
+test("the cache version has a CHANGELOG entry (W8: bump it whenever a cached file changes)", () => {
+  const v = sw.match(/const CACHE_VERSION = '([^']+)'/)[1];
+  assert.ok(read("CHANGELOG.md").includes("## " + v + "\n"), `CHANGELOG.md has no "## ${v}" section`);
+  assert.ok(Number(v.replace(/\D+/g, "")) >= 216, "the cache version must be at least v216 so phones drop the v215 copy");
 });
 
 test("every pre-cached file really exists in the repo", () => {

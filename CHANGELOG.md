@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v216
+
+v6.8.25 OFFLINE CACHE GAPS: the offline shell pages now work from the phone's saved copy. Before, `irlid-env.js`, `fetch-timeout.js`, `checkin-reasons.js` (check-in page) and `attendance-week.js` were saved but the service worker let their requests go straight to the network, and `receipt.html` / `check.html` loaded `css/style.css`, `auth.js`, `backend.js`, `nav.js` and `qr.js` that were not saved at all. All are now pre-cached and served by the service worker (scripts and styles stay network-first, so updates still arrive at once). No Worker, check-in logic, receipt or guest-list change. Test `sw-precache-complete.test.mjs` now expects no gaps.
+
 ## irlid-shell-v215
 
 v6.8.24 RECEIPT BACKUP (Phase 2, add-only, OFF by default): new Settings option "Sync my receipts" (plus "Sync now") copies the person's receipts to a new personal list on the consumer Worker (`POST/GET /me/receipts`, new table `personal_receipts`, migration `irlid-api/d1-migrations/0001_personal_receipt_backup.sql`, not applied). Add-only: there is no edit or delete route, and the nightly cleanup does not touch it. Needs a linked, non-revoked device. Signing keys are stripped on the phone and again in the Worker. Stored entries are signed receipts with keys removed, not yet the encrypted list from test plan 8.5 (later PR). The receipts page's Clear button is now "Clear receipts on this device", empties both lists on this phone, asks first, and never touches the server. The public `/receipts` routes are unchanged. Check-in is unchanged with sync off, offline or the server down (C1, C8, C13).
