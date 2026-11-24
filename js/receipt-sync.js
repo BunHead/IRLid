@@ -64,5 +64,78 @@
     return send([{ kind: kind, entry: scrub(entry) }]).catch(function () { return { error: true }; });
   }
 
-  root.IRLReceiptSync = { isOn: isOn, setOn: setOn, syncAll: syncAll, syncOne: syncOne, FLAG: LS_FLAG };
+  // ---- v6.8.26: show the backup on any device, merged with this phone's list ----
+  // Display only. Nothing here writes the server list into this phone's store, so
+  // "Clear receipts on this device" stays a clear of this device alone (the backup
+  // is add-only and keeps what it has).
+  var LS_AVAILABLE = "irlid_sync_available";
+
+  // Same keys the server uses: org = receipt_id, 1-on-1 = receipt hash.
+  function orgKey(e) { return e && typeof e.receipt_id === "string" ? e.receipt_id : ""; }
+  function p2pHash(e) {
+    var h = (e && e.combined && e.combined.receipt_hash) || (e && e.receipt_hash);
+    return typeof h === "string" ? h : "";
+  }
+
+  // local wins on a clash (it may hold more detail); entries with no key are kept.
+  function mergeBy(local, remote, keyOf) {
+    var out = (local || []).slice();
+    var seen = {};
+    out.forEach(function (e) { var k = keyOf(e); if (k) seen[k] = true; });
+    (remote || []).forEach(function (e) {
+      var k = keyOf(e);
+      if (!e || typeof e !== "object" || !k || seen[k]) return;
+      seen[k] = true;
+      out.push(e);
+    });
+    return out;
+  }
+  function mergeOrg(local, remote) { return mergeBy(local, remote, orgKey); }
+  function mergeP2p(local, remote) { return mergeBy(local, remote, p2pHash); }
+
+  // Does the server offer the backup? The answer is remembered so the switch
+  // still shows offline. A missing table (503 / available:false) hides it.
+  function checkAvailable() {
+    var B = root.IRLBackend;
+    if (!B || !B.hasSession() || typeof B.syncAvailable !== "function") return Promise.resolve(false);
+    return B.syncAvailable().then(function (r) {
+      var ok = !!(r && r.ok && r.data && r.data.available === true);
+      var definite = !!(r && (r.ok || r.status === 503 || r.status === 403 || r.status === 401));
+      try { if (definite) root.localStorage.setItem(LS_AVAILABLE, ok ? "1" : "0"); } catch (e) {}
+      if (definite) return ok;
+      try { return root.localStorage.getItem(LS_AVAILABLE) === "1"; } catch (e) { return false; }
+    }).catch(function () { return false; });
+  }
+
+  // The person's own backup, newest first. Any problem returns [] and shows nothing.
+  function fetchRemote() {
+    var B = root.IRLBackend;
+    if (!isOn() || !B || !B.hasSession() || typeof B.listSyncedReceipts !== "function") return Promise.resolve({ org: [], p2p: [] });
+    var org = [], p2p = [];
+    function page(n) {
+      return B.listSyncedReceipts(n).then(function (r) {
+        var rows = (r && r.ok && r.data && r.data.receipts) || [];
+        rows.forEach(function (row) {
+          if (!row || !row.entry || typeof row.entry !== "object") return;
+          (row.kind === "org" ? org : p2p).push(scrub(row.entry));
+        });
+        if (rows.length >= 200 && n < 5) return page(n + 1);
+      });
+    }
+    return page(1).then(function () { return { org: org, p2p: p2p }; })
+      .catch(function () { return { org: [], p2p: [] }; });
+  }
+
+  // Local lists in, merged and de-duplicated lists out. Never throws.
+  function mergedWithRemote(localOrg, localP2p) {
+    return fetchRemote().then(function (rem) {
+      return { org: mergeOrg(localOrg, rem.org), p2p: mergeP2p(localP2p, rem.p2p) };
+    }).catch(function () { return { org: localOrg || [], p2p: localP2p || [] }; });
+  }
+
+  root.IRLReceiptSync = {
+    isOn: isOn, setOn: setOn, syncAll: syncAll, syncOne: syncOne, FLAG: LS_FLAG,
+    checkAvailable: checkAvailable, fetchRemote: fetchRemote, mergedWithRemote: mergedWithRemote,
+    mergeOrg: mergeOrg, mergeP2p: mergeP2p
+  };
 })(typeof self !== "undefined" ? self : this);

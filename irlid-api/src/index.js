@@ -347,6 +347,26 @@ async function requireLinkedDevice(request, env) {
   return { session };
 }
 
+// v6.8.26: the table comes from a migration Spencer applies by hand. Until then
+// every personal-backup route answers 503 backup_unavailable (no stack, no data)
+// and the page hides the switch. Never a 500 and never touches another table.
+async function personalTableReady(env) {
+  try {
+    const row = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'personal_receipts'"
+    ).first();
+    return !!row;
+  } catch { return false; }
+}
+const backupUnavailable = () => json({ error: "backup_unavailable", available: false }, 503);
+
+// GET /me/receipts/status: does the server offer the backup? Needs a linked device.
+async function personalReceiptsStatus(request, env) {
+  const { denied } = await requireLinkedDevice(request, env);
+  if (denied) return denied;
+  return json({ available: await personalTableReady(env) });
+}
+
 function personalKey(kind, entry) {
   if (kind === "org") return entry && typeof entry.receipt_id === "string" ? entry.receipt_id : "";
   const h = (entry && entry.combined && entry.combined.receipt_hash) || (entry && entry.receipt_hash);
@@ -356,6 +376,7 @@ function personalKey(kind, entry) {
 async function backupPersonalReceipts(request, env) {
   const { session, denied } = await requireLinkedDevice(request, env);
   if (denied) return denied;
+  if (!(await personalTableReady(env))) return backupUnavailable();
   const declared = Number(request.headers.get("content-length") || 0);
   if (declared > PERSONAL_MAX_ENTRY_BYTES * 4) return err("too_large", 413);
   let body;
@@ -395,6 +416,7 @@ async function backupPersonalReceipts(request, env) {
 async function listPersonalReceipts(request, env) {
   const { session, denied } = await requireLinkedDevice(request, env);
   if (denied) return denied;
+  if (!(await personalTableReady(env))) return backupUnavailable();
   const url = new URL(request.url);
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
   const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "100")));
@@ -1046,6 +1068,7 @@ export default {
 
       else if (method === "POST" && path === "/me/receipts")         response = await backupPersonalReceipts(request, env);
       else if (method === "GET"  && path === "/me/receipts")         response = await listPersonalReceipts(request, env);
+      else if (method === "GET"  && path === "/me/receipts/status")  response = await personalReceiptsStatus(request, env);
 
       else {
         const m = path.match(/^\/receipts\/([A-Za-z0-9\-_]+)$/);
