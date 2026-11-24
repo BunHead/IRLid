@@ -460,6 +460,17 @@
     <!-- ===== LIST VIEW ===== -->
     <div id="listView" style="display:none;">
       <h3 style="margin:0 0 4px; text-align:left;">My Receipts</h3>
+      <!-- v6.8.26: opt-in backup. Hidden unless you are signed in and the server offers it. -->
+      <div class="panel" id="backupPanel" style="display:none; margin:8px 0;">
+        <label for="backupToggle" style="display:flex; gap:10px; align-items:flex-start; cursor:pointer;">
+          <input type="checkbox" id="backupToggle" role="switch" aria-describedby="backupHelp backupState" style="margin-top:3px;" />
+          <span><b>Back up my receipts to my IRLid account</b> (off by default)</span>
+        </label>
+        <div class="small" id="backupHelp" style="margin-top:6px;">
+          Keeps a private, add-only copy of your receipts, handshakes and check-ins, on your own account. They then show on any device you sign in on. No organisation can see it. Clearing receipts on one device clears only that device; the backup keeps its copy. Signing keys are never sent.
+        </div>
+        <div class="small" id="backupState" role="status" aria-live="polite" style="margin-top:6px;"></div>
+      </div>
       <div id="listLoading" class="loading-msg">Loading receipts…</div>
       <div id="listEmpty" class="panel" style="display:none;">
         No receipts yet. Use <a href="scan.html">Scan</a> to exchange QRs with someone.
@@ -552,7 +563,7 @@
 <script src="js/nav.js"></script>
 <script src="js/sign.js?v=5.0"></script>
 <script src="js/receipt-store.js?v=6.8.24"></script>
-<script src="js/receipt-sync.js?v=6.8.24"></script><!-- v6.8.24: optional add-only backup, off by default --><!-- v6.8.23: receipts kept in IndexedDB -->
+<script src="js/receipt-sync.js?v=6.8.26"></script><!-- v6.8.24: optional add-only backup, off by default --><!-- v6.8.23: receipts kept in IndexedDB -->
 <script src="js/qr.js?v=63"></script>
 
 <script>
@@ -1488,6 +1499,16 @@ function venueGpsBandLabel(band, distanceKm) {
       storedOrgReceipts = await window.IRLReceiptStore.listOrg();
       storedP2pReceipts = await window.IRLReceiptStore.listP2p();
     } catch (_) {}
+    // v6.8.26: opt-in backup. Only when the switch is on and the person is signed in:
+    // add the person's own backed-up receipts from other devices, de-duplicated.
+    // Display only: nothing is written into this phone's store.
+    try {
+      if (window.IRLReceiptSync && window.IRLReceiptSync.isOn() && window.IRLBackend && window.IRLBackend.hasSession()) {
+        const m = await window.IRLReceiptSync.mergedWithRemote(storedOrgReceipts, storedP2pReceipts);
+        storedOrgReceipts = m.org;
+        storedP2pReceipts = m.p2p;
+      }
+    } catch (_) {}
   }
 
   // v6.8.23: "Copy link" on every receipt row. Never opens the receipt.
@@ -2387,6 +2408,40 @@ function venueGpsBandLabel(band, distanceKm) {
   //  MAIN INIT
   // =========================
 
+  // v6.8.26: the opt-in switch. Hidden (no error, no message) if you are not signed
+  // in or the server does not offer the backup yet.
+  async function initBackupSwitch(){
+    const panel = document.getElementById("backupPanel");
+    const toggle = document.getElementById("backupToggle");
+    const state = document.getElementById("backupState");
+    if (!panel || !toggle || !window.IRLReceiptSync || !window.IRLBackend) return;
+    try {
+      if (!window.IRLBackend.hasSession()) return;
+      if (!(await window.IRLReceiptSync.checkAvailable())) return;
+    } catch (_) { return; }
+    const S = window.IRLReceiptSync;
+    const note = (m) => { state.textContent = m; };
+    toggle.checked = S.isOn();
+    note(toggle.checked ? "Backup is on." : "Backup is off.");
+    panel.style.display = "block";
+    toggle.addEventListener("change", async () => {
+      S.setOn(toggle.checked);
+      if (!toggle.checked) { note("Backup is off. Copies already saved stay on your account."); await redrawList(); return; }
+      note("Backing up...");
+      const r = await S.syncAll();
+      if (r && r.error) note("Could not back up now. Your receipts on this device are unchanged.");
+      else if (r && r.skipped) note("Sign in and link this device to back up.");
+      else note("Backed up " + (r.sent || 0) + " of " + (r.total || 0) + " receipts.");
+      await redrawList();
+    });
+  }
+  async function redrawList(){
+    try {
+      if (window.IRLBackend && window.IRLBackend.hasSession()) await loadServerReceipts(1);
+      else await loadLocalReceipts();
+    } catch (_) {}
+  }
+
   (async () => {
     // v6.8.23: ask the browser to keep our storage. Best effort, never blocks.
     try { if (window.IRLReceiptStore) window.IRLReceiptStore.requestPersistence(); } catch (_) {}
@@ -2424,6 +2479,7 @@ function venueGpsBandLabel(band, distanceKm) {
 
     // ---- LIST VIEW ----
     showListView();
+    initBackupSwitch();
 
     if (window.IRLBackend && window.IRLBackend.hasSession()) {
       await loadServerReceipts(1);
