@@ -24,6 +24,23 @@ test("the D1 workflow is manual only, confirmed, and waits in a protected enviro
   }
 });
 
+test("the confirmation check is the first step and can run before checkout (run 45572132194 failed here)", () => {
+  const yml = read(".github/workflows/d1-migrations.yml");
+  const d1 = yml.slice(yml.indexOf("\n  d1:"));
+  const steps = d1.slice(d1.indexOf("    steps:")).split(/\n      - name: /).slice(1);
+  assert.match(steps[0], /^Check the confirmation\n/, "confirmation is the first step");
+  assert.match(steps[1], /^Checkout\n\s+uses: actions\/checkout@/, "checkout comes right after it");
+  // The job default (irlid-api-org) only exists after checkout, so the first
+  // step must set its own folder that already exists.
+  assert.match(d1, /defaults:\n\s+run:\n\s+working-directory: irlid-api-org/);
+  assert.match(steps[0], /\n\s+working-directory: \$\{\{ github\.workspace \}\}\n/);
+  assert.match(steps[0], /if \[ "\$CONFIRM" != "irlid-db-org" \]; then[\s\S]*exit 1/, "a wrong confirmation still stops the job");
+  // Every other run step comes after checkout and keeps the default folder.
+  for (const st of steps.slice(1)) {
+    if (/\n\s+run: /.test(st)) assert.doesNotMatch(st, /working-directory:/, "wrangler steps keep irlid-api-org: " + st.split("\n")[0]);
+  }
+});
+
 test("wrangler uses the numbered folder, never the hand-applied history", () => {
   const toml = read("irlid-api-org/wrangler.toml");
   assert.match(toml, /^migrations_dir = "d1-migrations"$/m);
