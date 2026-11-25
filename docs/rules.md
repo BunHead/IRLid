@@ -94,6 +94,7 @@
 - **R3. Keep data small: name, device ID, time and venue. GDPR is the org's job.**
   - Why: less data, less risk.
 - **R4. Database changes only add things. Old rows are never backfilled.**
+  - **Exception (Spencer, 25/11/2026, "Do same name as agreed"):** migration `0003_allow_same_name.sql` drops the unique-name index `uq_org_expected_name` so two people may share a name (PR #214). It removes a restriction only; no row is changed or removed. This one named file is the only migration allowed to DROP (`d1-migrations-gated.test.mjs`). See `docs/proposal-same-name-index.md`.
   - Why: the originals stay original.
 - **R5. The audit log never blocks an action and can't be edited.**
   - **Exception (fail-closed, PR #145):** erasure ("Delete record", "Clear attendance") is logged in the same database transaction as the delete. If the audit row can't be written, the erase is refused with a 503 (`audit_log_unavailable`) and nothing is deleted. The log blocks an erase, never any other action.
