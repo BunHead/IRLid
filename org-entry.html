@@ -994,12 +994,12 @@
     try {
       const pub = compactJwk(await getPublicJwk());
       const fp = await deviceKeyFingerprint(pub);
-      const active = await activeCheckinForDevice(fp);
+      const active = await activeCheckinForDevice(fp, pub);
       if (active?.active) {
         renderCheckoutChoice(active);
         return;
       }
-      const recognized = await recognizeDevice(fp);
+      const recognized = await recognizeDevice(fp, pub);
       if (recognized?.recognized) {
         if (recognized.name) localStorage.setItem(`irlid_org_name_${orgParam}`, recognized.name);
         continueVenueWalkin();
@@ -1271,9 +1271,9 @@
     return data;
   }
 
-  async function getOrgAuthed(path) {
+  async function getOrgAuthed(path, extraHeaders) {
     if (!orgParam) throw new Error("Missing organisation key");
-    const response = await fetch(API_BASE + path, { headers: { "X-Org-Key": orgParam } });
+    const response = await fetch(API_BASE + path, { headers: Object.assign({ "X-Org-Key": orgParam }, extraHeaders || {}) });
     let data = null;
     try { data = await response.json(); } catch {}
     if (!response.ok) throw new Error(data?.error || `Request failed ${response.status}`);
@@ -1290,7 +1290,7 @@
     const fp = await deviceKeyFingerprint(pub);
     if (localName) return localName;
     try {
-      const result = await getOrgAuthed(`/org/recognize?device_pub=${encodeURIComponent(fp)}`);
+      const result = await recognizeDevice(fp, pub);
       if (result?.recognized && result.name) {
         localStorage.setItem(`irlid_org_name_${orgParam}`, result.name);
         return result.name;
@@ -1301,12 +1301,23 @@
     return "";
   }
 
-  async function recognizeDevice(fp) {
-    return getOrgAuthed(`/org/recognize?device_pub=${encodeURIComponent(fp)}`);
+  // v6.8.30: "am I already checked in?" / "does this org know me?" are signed
+  // with this phone's device key, so only the phone that holds the key gets its
+  // own name back (a key fingerprint alone, as in a receipt, gets yes/no only).
+  // Live only: a failure just carries on to the normal check-in.
+  async function deviceLookupHeaders(pub, kind) {
+    const payload = { mode: "device_lookup", kind, org: orgParam, pub, ts: Math.floor(Date.now() / 1000), v: 1 };
+    const hash = await hashPayloadToB64url(payload, 3);
+    const sig = await signHashB64url(hash);
+    return { "X-Device-Proof": b64urlEncode(new TextEncoder().encode(JSON.stringify({ payload, sig }))) };
   }
 
-  async function activeCheckinForDevice(fp) {
-    return getOrgAuthed(`/org/active-checkin?device_pub=${encodeURIComponent(fp)}`);
+  async function recognizeDevice(fp, pub) {
+    return getOrgAuthed(`/org/recognize?device_pub=${encodeURIComponent(fp)}`, pub ? await deviceLookupHeaders(pub, "recognize") : null);
+  }
+
+  async function activeCheckinForDevice(fp, pub) {
+    return getOrgAuthed(`/org/active-checkin?device_pub=${encodeURIComponent(fp)}`, pub ? await deviceLookupHeaders(pub, "active-checkin") : null);
   }
 
   async function lookupExpectedByFingerprint(fp) {
