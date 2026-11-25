@@ -49,7 +49,11 @@ jobs:
       run:
         working-directory: irlid-api-org
     steps:
+      # Runs before checkout, so it must not use the job's default
+      # working-directory (irlid-api-org does not exist yet). The workspace
+      # folder is created by the runner before any step.
       - name: Check the confirmation
+        working-directory: ${{ github.workspace }}
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
