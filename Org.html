@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.27</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.29</span></div>
   </div>
 </div>
 
@@ -5082,8 +5082,10 @@
                 var dow = parseInt(dayStr, 10);
                 if (isNaN(dow)) dow = dayMap[dayStr.toLowerCase()] || 1;
                 var expectedIds = expectedNames.map(function (nm) {
-                  var existing = loadOrgExpectedState().find(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); });
-                  if (existing) return existing.id;
+                  // v6.8.29: never guess between people who share a name.
+                  var same = loadOrgExpectedState().filter(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); });
+                  if (same.length === 1) return same[0].id;
+                  if (same.length > 1) return null;
                   var added = addOrgExpectedEntry(nm, 'attendee');
                   return added ? added.id : null;
                 }).filter(Boolean);
@@ -12545,6 +12547,16 @@ let __remoteCheckinPollHandle = null;
 function markDashboardCheckin() { __lastDashboardCheckinAt = Date.now(); }
 window.markDashboardCheckin = markDashboardCheckin;
 
+// v6.8.29: the event CSV import never guesses between people with the same
+// name. It says which rows need an admin to choose the right person.
+function importAmbiguousMessage(res) {
+  const list = (res && Array.isArray(res.ambiguous)) ? res.ambiguous : [];
+  if (!list.length) return '';
+  const lines = list.slice(0, 10).map(a => 'Row ' + a.row + ' (' + String(a.event_name || 'event') + '): "' + String(a.name || '') + '" matches more than one person: ' +
+    (a.candidates || []).map(c => String(c.name_label || '')).join(', ') + '. Not added.');
+  return 'Imported week CSV. ' + list.length + ' name' + (list.length === 1 ? '' : 's') + ' matches more than one person and ' + (list.length === 1 ? 'was' : 'were') +
+    ' not added. Open each event and choose the right person.\n' + lines.join('\n') + (list.length > 10 ? '\n...and ' + (list.length - 10) + ' more.' : '');
+}
 function rowDisplayName(row) {
   if (!row) return '';
   // v6.8.26: name_label tells apart two people with the same name.
@@ -20319,7 +20331,7 @@ document.addEventListener('DOMContentLoaded', function () {
   async function refreshLiveCalendar(){ if (typeof window.refreshV511CalendarData === 'function') return window.refreshV511CalendarData(); try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
   document.addEventListener('DOMContentLoaded',function(){
     const exp=document.getElementById('v511ExportWeekBtn'); if(exp) exp.addEventListener('click',async function(e){ e.stopImmediatePropagation(); try{ const r=await api('/org/weekly-events/export-csv',{raw:true}); const blob=new Blob([await r.text()],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='week-export.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),500); }catch(err){ showToast('Export failed: '+(err.message||err), true); } }, true);
-    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
+    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); const res=await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); const amb=importAmbiguousMessage(res); if (amb) { showToast(amb, true); try { alert(amb); } catch (_) {} } else showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
   });
 })();
 </script>

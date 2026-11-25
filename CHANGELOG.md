@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v220
+
+v6.8.29 EVENT CSV IMPORT NEVER GUESSES: since v6.8.27 two people may share a name. An `expected_names` entry in the week CSV now links only when exactly one active person has that name. With two or more, nobody is added for that name, the row comes back as `ambiguous` (with each person's "Name (…a3f9)" tag, never the device key), and the dashboard tells the admin which rows and events need a choice. A name nobody has is still created once. The event itself is always created. (Shell v219 / v6.8.28 is the kiosk lock PR #215, not yet merged.)
+
 ## irlid-shell-v218
 
 v6.8.27 PEOPLE WITH THE SAME NAME: the Worker no longer refuses a second active person with the same name (add, add at the door, rename, restore). While two or more ACTIVE people share a name, admins see the name with the last 4 characters of that person's device key, e.g. "Sam Example (…a3f9)" ("(no key yet)" for someone not linked yet): expected attendees, the check-in list, Last 7 days and its CSV, the Restore list, the event attendee picker, and the admin log (Delete expected / Restore expected). Display only (`name_label`): stored names are never changed (R1), and only the 4-character tag leaves the Worker. A check-in that matches by name alone now links only when exactly one active person has that name (it never guesses). The attendee "I'm not on the list" picker is unchanged. A database that still has the old unique-name index keeps the old behaviour (409 "already on the list", never a 500) until Spencer decides on removing it (rule R4: see docs/proposal-same-name-index.md).
