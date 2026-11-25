@@ -157,14 +157,20 @@ test("fully deleted records are not restorable (404) and never listed", async ()
   assert.equal(auditRows(d1).length, 0);
 });
 
-test("restore refuses to create a duplicate of an active person with the same name", async () => {
+test("restore works when an active person has the same name (v6.8.26), and both are told apart by key", async () => {
+  // Was: refused with 409. Two people may now share a name in one organisation.
   const d1 = setup();
   const arch = add(d1, { name: "Pat Person", archivedAt: T - 10 });
   add(d1, { name: "pat person" });
+  const before = await archivedList(d1, { bearer: tokenFor("u-lead") });
+  assert.match(before.body.expected[0].name_label, /^Pat Person \(\u2026\S{4}\)$/, "the Restore list labels the clash");
   const r = await restore(d1, arch, { bearer: tokenFor("u-lead") });
-  assert.equal(r.status, 409);
-  assert.ok(d1.get("SELECT archived_at FROM org_expected WHERE id=?", arch).archived_at);
-  assert.equal(auditRows(d1).length, 0);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.restored, true);
+  assert.equal(d1.get("SELECT archived_at FROM org_expected WHERE id=?", arch).archived_at, null);
+  const rows = auditRows(d1);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].target, "Pat Person (\u2026rson)", "the admin log names which one");
 });
 
 test("if the audit write fails the restore still stands (R5)", async () => {

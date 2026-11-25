@@ -67,7 +67,7 @@
 <script src="js/fetch-timeout.js?v=6.8.15"></script>
 <script src="js/offline-queue.js"></script>
 <script src="js/offline-snapshot.js"></script>
-<script src="js/attendance-week.js?v=6.8.15"></script>
+<script src="js/attendance-week.js?v=6.8.27"></script>
 <script src="js/vendor/jsqr.min.js"></script>
 <!-- v5.7.0h — html5-qrcode for live webcam scanning in the Process attendee scan
      widget. Same library used by live repo scan.html for receipt scanning. -->
@@ -4459,7 +4459,7 @@
               return data || {};
             }
             function normalizeExpectedRow(row) {
-              return { id: row.id || row.expected_id, name: row.name || row.display_name || '', role: row.role || row.role_key || row.prototype_role || 'attendee' };
+              return { id: row.id || row.expected_id, name: row.name || row.display_name || '', label: row.name_label || '', role: row.role || row.role_key || row.prototype_role || 'attendee' };
             }
             async function refreshLiveCalendar(options) {
               options = options || {};
@@ -4869,7 +4869,7 @@
               var filtered = q ? all.filter(function (p) { return p.name.toLowerCase().indexOf(q) >= 0; }) : all;
               var html = filtered.slice(0, 8).map(function (p) {
                 var checked = modalExpectedIds.indexOf(p.id) >= 0;
-                return '<button type="button" class="v511-expected-suggestion' + (checked ? ' is-selected' : '') + '" data-expected-toggle="' + htmlEscape(p.id) + '">' + (checked ? '☑ ' : '☐ ') + htmlEscape(p.name) + ' <span class="v511-expected-role">' + htmlEscape(p.role) + '</span></button>';
+                return '<button type="button" class="v511-expected-suggestion' + (checked ? ' is-selected' : '') + '" data-expected-toggle="' + htmlEscape(p.id) + '">' + (checked ? '☑ ' : '☐ ') + htmlEscape(p.label || p.name) + ' <span class="v511-expected-role">' + htmlEscape(p.role) + '</span></button>';
               }).join('');
               var exact = all.find(function (p) { return p.name.toLowerCase() === q; });
               if (q && !exact) {
@@ -4931,7 +4931,7 @@
                   return bt - at;
                 });
                 var logHtml = sortedRows.slice(0, 80).map(function (row) {
-                  var label = row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
+                  var label = row.name_label || row.name || row.attendee_label || row.attendee_key_id || 'Unknown attendee';
                   var status = row.expected_only ? 'EXPECTED' : (row.checkout_at ? (row.checkout_method === 'auto' ? 'OUT · auto' : 'OUT') : 'IN');
                   if (!row.expected_only && (row.assurance === 'offline' || row.assurance === 'soft')) status += ' · offline / unverified';
                   if (!row.expected_only && row.gps_band && typeof venueGpsBandLabel === 'function') status += ' · ' + venueGpsBandLabel(row.gps_band, row.gps_distance_km);
@@ -11977,6 +11977,9 @@ function nameForViewer(fullName, viewingAs) {
   return viewingAs === 'attendee' ? initialsForName(name) : name;
 }
 function expectedNameForViewer(row, viewingAs = currentPrototypeRole()) {
+  // v6.8.26: name_label ("Name (…a3f9)") tells apart people who share a name.
+  // Staff and admins only; an attendee view still gets initials of the plain name.
+  if (viewingAs !== 'attendee' && row && row.name_label) return row.name_label;
   return nameForViewer(expectedDisplayName(row), viewingAs) || 'Unnamed attendee';
 }
 function rolesVisibleForViewer(viewingAs = currentPrototypeRole()) {
@@ -12083,7 +12086,7 @@ function renderExpectedArchived(message) {
   if (!expectedArchived.length) { root.textContent = 'No archived people'; return; }
   root.innerHTML = expectedArchived.map(r => {
     const id = escapeHtml(String(r.id));
-    return `<div class="expected-row"><span>${escapeHtml(r.display_name || '')}</span> <button class="btn btn-secondary btn-sm" type="button" onclick="restoreExpectedFromArchive('${id}')">Restore</button></div>`;
+    return `<div class="expected-row"><span>${escapeHtml(r.name_label || r.display_name || '')}</span> <button class="btn btn-secondary btn-sm" type="button" onclick="restoreExpectedFromArchive('${id}')">Restore</button></div>`;
   }).join('');
 }
 async function loadExpectedArchived() {
@@ -12272,6 +12275,7 @@ function aggregateAttendees(checkins) {
       byAttendee.set(id, {
         id,
         name: row.name || row.attendee_label || id,
+        name_label: row.name_label || null,
         first_seen: firstSeen,
         last_seen: lastSeen,
         scan_count: 1,
@@ -12295,6 +12299,7 @@ function aggregateAttendees(checkins) {
     existing.last_seen = Math.max(existing.last_seen || lastSeen, lastSeen || existing.last_seen);
     existing.scan_count += 1;
     if (!existing.name && (row.name || row.attendee_label)) existing.name = row.name || row.attendee_label;
+    if (!existing.name_label && row.name_label) existing.name_label = row.name_label;
     if (isActive && (!existing.active_since || firstSeen >= existing.active_since)) {
       existing.active_checkin_id = row.id;
       existing.active_since = firstSeen;
@@ -12602,7 +12607,8 @@ window.markDashboardCheckin = markDashboardCheckin;
 
 function rowDisplayName(row) {
   if (!row) return '';
-  const n = (row.name || row.attendee_label || '').toString().trim();
+  // v6.8.26: name_label tells apart two people with the same name.
+  const n = (row.name_label || row.name || row.attendee_label || '').toString().trim();
   return n || '';
 }
 
@@ -12977,12 +12983,16 @@ function renderTable(rows) {
   });
   renderReceiptsHistory();
   const attendanceNames = new Set(enrichedRows.map(r => String(r.name || '').trim().toLowerCase()).filter(Boolean));
+  // v6.8.26: two people can share a name, so a check-in hides its own expected
+  // row by id; matching by name is kept only for a name nobody else has.
+  const attendanceExpectedIds = new Set(enrichedRows.map(r => r.expected_id).filter(v => v != null).map(String));
   const expectedRows = expectedAttendees
-    .filter(row => !attendanceNames.has(expectedDisplayName(row).toLowerCase()))
+    .filter(row => !(attendanceExpectedIds.has(String(row.id)) || (!row.name_label && attendanceNames.has(expectedDisplayName(row).toLowerCase()))))
     .map(row => ({
       id: `expected:${row.id}`,
       expected_id: row.id,
       name: expectedDisplayName(row),
+      name_label: row.name_label || null,
       first_seen: row.linked_at || row.created_at || null,
       last_seen: row.linked_at || row.created_at || null,
       scan_count: 0,
@@ -12999,7 +13009,8 @@ function renderTable(rows) {
   const eventInfo = activeDashboardEvent();
   liveTbody.innerHTML = displayRows.map(r => {
     const rawLabel = r.name || '';
-    const displayLabel = rawLabel ? nameForViewer(rawLabel, viewingAs) : (r.id || 'Unknown attendee');
+    // v6.8.26: staff see "Name (…a3f9)" when two people share a name.
+    const displayLabel = rawLabel ? (viewingAs !== 'attendee' && r.name_label ? r.name_label : nameForViewer(rawLabel, viewingAs)) : (r.id || 'Unknown attendee');
     const pendingPill = r.pending_sync ? '<span class="pending-sync-pill">PENDING SYNC</span>' : '';
     const checkinId = r.active_checkin_id || '';
     const methodBadge = r.checkout_method === 'signed'
