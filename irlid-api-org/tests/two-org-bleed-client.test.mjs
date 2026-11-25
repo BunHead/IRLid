@@ -281,7 +281,7 @@ test("opening an organisation: tell the server, clear the last one, then show th
   const set = src.indexOf("currentOrg = {");
   assert.ok(bind > 0 && bind < seq && seq < reset && reset < set, "order: server, last-pick-wins, clear, show");
   assert.ok((src.match(/if \(stale\(\)\) return;/g) || []).length >= 5, "every wait is followed by a stale check");
-  assert.ok(src.indexOf("if (stale()) return;") < src.indexOf("applyServerSettingsToLocalState(s)"), "old settings are never applied to the new organisation");
+  assert.ok(src.indexOf("if (stale()) return;") < src.indexOf("applyServerSettingsToLocalState(s, { authoritative"), "old settings are never applied to the new organisation");
 });
 
 test("a slow people or attendance reply for the organisation just left is dropped, not shown or cached under the next", () => {
