@@ -1,6 +1,6 @@
 # Proof of records: audit and plan
 
-**Status:** phase 1 built (v6.8.32, PR on top of #220). Phases 2 to 4 are a plan, not built.
+**Status:** phase 1 built (v6.8.32, PR #222). Phases 2 to 4 are a plan, not built.
 Asked by Spencer, 26/11/2026: "every record must be kept and every party (attendee, staff,
 org admin) must be able to prove each part later".
 
@@ -35,27 +35,49 @@ recovered into the log now.
 ## 2. Who can see or export what (phase 1)
 
 - **Org admin (Lead Admin / Developer):** the whole Admin actions log, and **Export CSV**.
-- **Staff (any staff-tier member):** **Export my actions (CSV)** under Last 7 days: only the rows
-  for what they did (`GET /org/audit-log?mine=1`). They still cannot see the whole log.
+- **Staff:** no view of their own. Captain's decision (26/11/2026): staff ask their Lead Admin,
+  who can export the log. A staff "my actions" view was built and then removed before merge.
 - **Attendee:** their own signed receipts (My Receipts, and the optional account backup from
   v6.8.26). Each receipt is signed by the organisation, so it proves the visit on its own.
 
-## 3. Not changed, needs Spencer
+## 3. Not changed (Captain's decision, 26/11/2026)
 
-- **Delete record and Clear attendance still erase.** "Never hard-delete" would change rule R1,
-  which allows deliberate erasure and says the log keeps that it happened, not the erased data.
-  Erasure is also how an organisation meets a person's right to be forgotten (R3: GDPR is the
-  org's job). Only Spencer changes a rule.
-- **Removing someone from an event still deletes the link row.** It is now logged (who, when,
-  which person), so it can be proven and put back. Keeping the row instead needs a new column
-  (a D1 migration) and every calendar query changed: phase 2.
+- **Delete record and Clear attendance still erase, under rule R1.** R1 allows deliberate
+  erasure and says the log keeps that it happened, never the erased data. Erasure is also how an
+  organisation meets a person's right to be forgotten (R3). Unchanged for now.
+- **Removing someone from an event still deletes the link row.** Since v6.8.32 it is logged
+  (who, when, which person), so it can be proven and put back. Keeping the row is phase 2.
 
-## 4. Later phases (plan, not built)
+## 4. Phase 2 plan: soft removal from events (NOT built; the Captain runs the migration)
 
-2. **Soft removal from events:** migration `000N_event_expected_removed_at.sql` (adds
-   `removed_at`, `removed_by`; R4 add only); the Worker filters on it once present.
+Goal: taking a person off an event keeps the link row, marked as removed, instead of deleting it.
+
+1. **Migration (written in its own PR, applied by the Captain only, through the "D1 migrations
+   (org database)" workflow):** a new file `irlid-api-org/d1-migrations/0004_event_expected_removed.sql`
+   that only adds (R4):
+   - `ALTER TABLE event_expected ADD COLUMN removed_at INTEGER;` (seconds, like the rest of the
+     calendar tables; W10)
+   - `ALTER TABLE event_expected ADD COLUMN removed_by TEXT;`
+   - an index on `(event_id, removed_at)`.
+   SQLite has no `ADD COLUMN IF NOT EXISTS`, so the columns go in this one file only.
+2. **Worker, tolerant both ways** (it deploys on merge, the migration is applied later):
+   - checks for the column with `tableColumnSet` (as elsewhere);
+   - **removing** a person: `UPDATE event_expected SET removed_at=?, removed_by=?` when the column
+     exists, the current `DELETE` (logged) when it does not;
+   - **adding back** someone removed: clears `removed_at` / `removed_by` and logs it (one row per
+     event and person, so the history lives in the log, not in many rows);
+   - **every read** of `event_expected` adds `removed_at IS NULL` when the column exists:
+     the calendar list and export, the attendance "expected not yet seen" rows, the event
+     attendee picker, the CSV import's links, the cross-org sweep.
+3. **Delete record (R1 erasure) keeps deleting** that person's links, as now.
+4. **Tests:** before and after the migration (both table shapes); a removal keeps the row and
+   hides it everywhere; adding back restores it; the log has both steps; erasure still erases.
+5. **Order:** the Worker change can merge first (it works without the column); the Captain then
+   applies the migration; nothing breaks in between.
+
+## 5. Later phases (plan, not built)
+
 3. **Attendee "my records here":** a page on the phone that lists that person's check-ins and
    check-outs at an organisation, signed with their own device key (reuses the v6.8.30 device
-   proof, so it waits for PR #219), and exports them.
-4. **Staff view in the app** of "my actions" (not just the CSV), and an org-wide export of
-   check-ins with their receipts.
+   proof from #219), and exports them.
+4. **An org-wide export of check-ins with their receipts** for the Lead Admin.

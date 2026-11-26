@@ -2660,29 +2660,21 @@ async function orgAuditLog(request, env) {
   // qrLoginSession.session_token is unavailable sends the api_key as the Bearer,
   // which requireSession alone rejects with session_invalid — the exact failure
   // the first live smoke hit. orgAuth has already validated the X-Org-Key.
-  // v6.8.32: ?mine=1 lets ANY staff-tier member see (and export) the rows for
-  // what THEY did, so staff can prove their own actions too. The whole log is
-  // still Lead Admin / Developer only. ?format=csv downloads it as a file.
+  // v6.8.32: ?format=csv downloads the log as a file (Lead Admin / Developer).
   const url = new URL(request.url);
-  const mine = url.searchParams.get("mine") === "1";
   const asCsv = url.searchParams.get("format") === "csv";
   let allowed = false;
-  let me = null;
   const dev = await bootstrapDeveloperFromBearer(request, env);
   if (dev) {
     allowed = true;
-    me = dev.user || dev;
   } else {
     const ctx = await requireSession(request, env);
     if (!ctx.error && ctx.user) {
       const role = await orgRoleForUser(env, ctx.user, org.id);
       if (role === "lead_admin" || role === "developer") allowed = true;
-      if (mine && STAFF_TIER_ROLES.has(role)) allowed = true;
-      me = ctx.user;
     }
   }
-  if (!allowed) return json({ error: "insufficient_role", message: mine ? "Staff access to this organisation required." : "Lead Admin or Developer access required." }, 403);
-  if (mine && !(me && (me.id || me.pub_fp))) return json({ error: "session_required" }, 401);
+  if (!allowed) return json({ error: "insufficient_role", message: "Lead Admin or Developer access required." }, 403);
 
   let limit = parseInt(url.searchParams.get("limit") || "200", 10);
   if (!Number.isFinite(limit) || limit < 1) limit = 200;
@@ -2699,9 +2691,8 @@ async function orgAuditLog(request, env) {
       "a.actor_display_name AS stored_name, u.display_name AS user_name, " +
       "(SELECT p.display_name FROM portal_users p WHERE a.actor_pub_fp IS NOT NULL AND p.pub_fp = a.actor_pub_fp LIMIT 1) AS key_user_name " +
       "FROM org_audit_log a LEFT JOIN portal_users u ON u.id = a.actor_user_id " +
-      "WHERE a.org_id = ?" + (mine ? " AND (a.actor_user_id = ? OR (a.actor_pub_fp IS NOT NULL AND a.actor_pub_fp = ?))" : "") +
-      " ORDER BY a.created_at DESC, a.id DESC LIMIT ?"
-    ).bind(...(mine ? [org.id, me.id || "", me.pub_fp || "", limit] : [org.id, limit])).all();
+      "WHERE a.org_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT ?"
+    ).bind(org.id, limit).all();
   } catch (e) {
     // Defensive: degrade to empty rather than 500 if the table is somehow absent.
     return noStore(json({ ok: true, entries: [], note: "audit_log_unavailable" }));
@@ -2737,11 +2728,11 @@ async function orgAuditLog(request, env) {
     const day = new Date().toISOString().slice(0, 10);
     return new Response(lines.join("\r\n") + "\r\n", { status: 200, headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="irlid-${mine ? "my-actions" : "admin-log"}-${day}.csv"`,
+      "Content-Disposition": `attachment; filename="irlid-admin-log-${day}.csv"`,
       "Cache-Control": "no-store"
     } });
   }
-  return noStore(json({ ok: true, entries, mine }));
+  return noStore(json({ ok: true, entries }));
 }
 
 // v6.8.15 — the audit log names the real person, never a bare role word.

@@ -463,7 +463,6 @@
                   <div class="card-body">
                     <div class="v511-hint" id="attendanceWeekStatus" aria-live="polite">Open this list to load the last 7 days (UK time).</div>
                     <div class="receipts-history-wrap" id="attendanceWeekBody"></div>
-                    <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" type="button" id="myActionsExportBtn" onclick="irlidDownloadAuditCsv(true)">Export my actions (CSV)</button> <span class="v511-hint">Everything the log records that you did here, so you can prove it later.</span></div>
                   </div>
                 </details>
               </div>
@@ -9802,7 +9801,7 @@
     <div id="auditLogStatus" class="v511-hint" style="padding: 6px 2px;" aria-live="polite">Loading…</div>
     <div id="auditLogTableWrap" style="max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 6px;"></div>
     <div class="v511-invite-modal-actions">
-      <button type="button" class="v511-btn" id="auditLogExportBtn" onclick="irlidDownloadAuditCsv(false)">Export CSV</button>
+      <button type="button" class="v511-btn" id="auditLogExportBtn" onclick="irlidDownloadAuditCsv()">Export CSV</button>
       <button type="button" class="v511-btn" id="auditLogRefreshBtn">Refresh</button>
       <button type="button" class="v511-btn v511-btn-primary" id="auditLogDoneBtn">Done</button>
     </div>
@@ -12673,22 +12672,21 @@ function importAmbiguousMessage(res) {
   }
   return parts.join('\n');
 }
-// v6.8.32: download the admin log (Lead Admin / Developer) or "my actions"
-// (any staff member: only what they did) as a CSV file.
-async function irlidDownloadAuditCsv(mine) {
+// v6.8.32: download the admin log as a CSV file (Lead Admin / Developer).
+async function irlidDownloadAuditCsv() {
   try {
     if (!currentOrg || !currentOrg.id) return showToast('Sign in to an organisation first.', true);
     const headers = { 'X-Org-Id': currentOrg.id };
     const token = (typeof qrLoginSession !== 'undefined' && qrLoginSession) ? qrLoginSession.session_token : null;
     if (token) headers.Authorization = 'Bearer ' + token;
     const base = (window.IRLidOrgApi && window.IRLidOrgApi.workerBaseUrl) ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/, '') : 'https://irlid-api-org.irlid-bunhead.workers.dev';
-    const resp = await fetch(base + '/org/audit-log?format=csv&limit=5000' + (mine ? '&mine=1' : ''), { headers });
+    const resp = await fetch(base + '/org/audit-log?format=csv&limit=5000', { headers });
     if (!resp.ok) return showToast(resp.status === 403 ? 'You do not have access to that log.' : 'Could not download the log (' + resp.status + ').', true);
     const blob = await resp.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'irlid-' + (mine ? 'my-actions' : 'admin-log') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.download = 'irlid-admin-log-' + new Date().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 500);
   } catch (e) {

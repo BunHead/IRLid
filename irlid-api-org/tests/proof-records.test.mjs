@@ -2,7 +2,7 @@
 // change must leave an append-only trace (who, when, what) that each party can
 // see or export later. These tests cover the changes that used to leave NO
 // row in the admin log, the detail now written for calendar changes and CSV
-// imports, the staff "my actions" view, and the CSV export.
+// imports, and the CSV export of the log (Lead Admin / Developer only).
 // Made-up names only. Runs the Worker's real SQL.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -154,23 +154,23 @@ test("the log cannot be edited or deleted", async () => {
   assert.throws(() => ctx.d1.exec("DELETE FROM org_audit_log"), /immutable/);
 });
 
-// ---- each party can see or export what is recorded about them ----
-test("STAFF: ?mine=1 shows only my own actions; the whole log stays Lead Admin / Developer only", async () => {
+// ---- who can see or export the log ----
+test("the log stays Lead Admin / Developer only: no staff 'my actions' view (Captain, 26/11/2026)", async () => {
   const ctx = await ctxWithStaff();
   await callAs(ctx, "POST", "/org/expected", { display_name: "Alex Sample" }, STAFF_TOK);
-  await callAs(ctx, "POST", "/org/expected", { display_name: "Jo Sample" }, OTHER_STAFF_TOK);
   await callAs(ctx, "POST", "/org/expected", { display_name: "Kim Sample" });
-  const mine = await callAs(ctx, "GET", "/org/audit-log?mine=1", null, STAFF_TOK);
-  assert.equal(mine.status, 200, mine.text);
-  assert.equal(mine.data.mine, true);
-  assert.deepEqual(mine.data.entries.map(e => e.target), ["Alex Sample"]);
-  assert.equal((await callAs(ctx, "GET", "/org/audit-log", null, STAFF_TOK)).status, 403, "staff never see the whole log");
-  const all = await callAs(ctx, "GET", "/org/audit-log", null);
-  assert.deepEqual(all.data.entries.map(e => e.target).sort(), ["Alex Sample", "Jo Sample", "Kim Sample"]);
-  assert.equal((await callAs(ctx, "GET", "/org/audit-log?mine=1", null, null)).status, 401);
+  for (const path of ["/org/audit-log", "/org/audit-log?mine=1", "/org/audit-log?format=csv", "/org/audit-log?format=csv&mine=1"]) {
+    const r = await callAs(ctx, "GET", path, null, STAFF_TOK);
+    assert.equal(r.status, 403, path + " must refuse staff");
+    assert.ok(!/Alex Sample|Kim Sample/.test(r.text));
+  }
+  // and ?mine=1 is not a filter: the Lead Admin still gets the whole log
+  const lead = await callAs(ctx, "GET", "/org/audit-log?mine=1", null);
+  assert.deepEqual(lead.data.entries.map(e => e.target).sort(), ["Alex Sample", "Kim Sample"]);
+  assert.equal(lead.data.mine, undefined);
 });
 
-test("EXPORT: the log downloads as CSV (whole log for the Lead Admin, my actions for staff); formula cells are defused", async () => {
+test("EXPORT: the Lead Admin downloads the whole log as CSV; formula cells are defused", async () => {
   const ctx = await ctxWithStaff();
   await callAs(ctx, "POST", "/org/expected", { display_name: "=HYPERLINK(\"x\")" }, STAFF_TOK);
   await callAs(ctx, "POST", "/org/expected", { display_name: "Jo Sample" }, OTHER_STAFF_TOK);
@@ -178,27 +178,21 @@ test("EXPORT: the log downloads as CSV (whole log for the Lead Admin, my actions
   assert.equal(full.status, 200);
   assert.match(full.headers.get("Content-Type"), /text\/csv/);
   assert.match(full.headers.get("Content-Disposition"), /irlid-admin-log-\d{4}-\d{2}-\d{2}\.csv/);
+  assert.match(full.headers.get("Cache-Control") || "", /no-store/);
   const lines = full.text.trim().split(/\r\n/);
   assert.equal(lines[0], "when_utc,who,role,action,target,outcome,detail,entry_id");
   assert.equal(lines.length, 3);
   assert.ok(lines.some(l => l.includes("'=HYPERLINK")), "a formula is never live in the spreadsheet");
   assert.ok(!lines.some(l => /,=HYPERLINK/.test(l)));
-  const mine = await callAs(ctx, "GET", "/org/audit-log?format=csv&mine=1", null, OTHER_STAFF_TOK);
-  assert.match(mine.headers.get("Content-Disposition"), /irlid-my-actions-/);
-  assert.equal(mine.text.trim().split(/\r\n/).length, 2);
-  assert.match(mine.text, /Rio Staff,staff,expected_create,Jo Sample,allowed/);
-  assert.equal((await callAs(ctx, "GET", "/org/audit-log?format=csv", null, STAFF_TOK)).status, 403);
+  assert.match(full.text, /Rio Staff,staff,expected_create,Jo Sample,allowed/);
 });
 
-test("dashboard: labels for every new log entry, Export CSV in the Admin log, Export my actions for staff", () => {
+test("dashboard: labels for every new log entry, Export CSV in the Admin log, and no staff export", () => {
   const html = readFileSync(new URL("../../Org.html", import.meta.url), "utf8");
   for (const a of ["expected_create", "expected_update", "expected_rebind", "expected_claim", "conflict_resolve", "invite_revoke", "event_attendees_change", "calendar_import", "record_delete", "attendance_clear"]) {
     assert.match(html, new RegExp("'" + a + "': '"), a + " has a label");
   }
-  assert.match(html, /id="auditLogExportBtn" onclick="irlidDownloadAuditCsv\(false\)"/);
-  assert.match(html, /id="myActionsExportBtn" onclick="irlidDownloadAuditCsv\(true\)"/);
-  // the staff button sits in a panel staff can open
-  const panel = html.slice(html.indexOf('id="attendanceWeekPanel"') - 80, html.indexOf('id="myActionsExportBtn"'));
-  assert.match(panel, /data-min-role="staff"/);
-  assert.match(html, /\/org\/audit-log\?format=csv&limit=5000' \+ \(mine \? '&mine=1' : ''\)/);
+  assert.match(html, /id="auditLogExportBtn" onclick="irlidDownloadAuditCsv\(\)"/);
+  assert.match(html, /\/org\/audit-log\?format=csv&limit=5000', \{ headers \}/);
+  assert.doesNotMatch(html, /myActionsExportBtn|Export my actions|mine=1/, "the staff export is removed");
 });
