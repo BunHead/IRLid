@@ -4,7 +4,9 @@
 // But a device key fingerprint is in every receipt, so on its own it must not
 // return a person's name (S2). Full answers go only to the phone that proves it
 // holds the key (fresh signature), or to a staff-tier session for the org; old
-// cached pages keep the full answer until the cutoff; everyone else gets yes/no.
+// cached pages keep the full answer until the cutoff; everyone else gets yes/no
+// from recognize and nothing from active-checkin (v6.8.30 review: a page that
+// cannot check out with that answer must just check in instead).
 // Made-up names only. Runs the Worker's real SQL.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -63,6 +65,8 @@ async function lookup(env, kind, fp, { proofHeader, token, orgId, orgKey = "samp
   let data = null; try { data = JSON.parse(text); } catch (_) {}
   return { status: res.status, data, text };
 }
+// (a) The phone's decision in org-entry.html renderVenue, run on each answer.
+const showsCheckOut = (active) => !!(active?.active && active.checkin_id);
 const noDetail = (r) => !/Sam Example|ci-1|checkin_at|checkin_id|expected_id|rescan_|"name"/.test(r.text);
 
 // ---- allowed: the phone that holds the key ----
@@ -97,21 +101,37 @@ test("ALLOWED (grace): an old cached page with no signature still gets the full 
   assert.equal(r.data.name, "Sam Example");
 });
 
-test("unknown phone: plain no, whoever asks", async () => {
+test("unknown phone: plain no when it proves its key; an unproven active-checkin says nothing", async () => {
   const { env, stranger } = await setup();
-  assert.deepEqual((await lookup(env, "active-checkin", stranger.fp)).data, { active: false });
+  assert.deepEqual((await lookup(env, "active-checkin", stranger.fp, { proofHeader: await proof(stranger, { kind: "active-checkin" }) })).data, { active: false });
   assert.deepEqual((await lookup(env, "recognize", stranger.fp, { proofHeader: await proof(stranger, { kind: "recognize" }) })).data, { recognized: false });
+  assert.deepEqual((await lookup(env, "active-checkin", stranger.fp)).data, { limited: true });
 });
 
 // ---- refused: a fingerprint alone (as in a receipt) ----
-test("REFUSED: a fingerprint alone, after the cutoff, gets yes/no only: no name, id or time", async () => {
+test("REFUSED: a fingerprint alone, after the cutoff: active-checkin says nothing, recognize yes/no only", async () => {
   const { env, phone } = await setup();
   const a = await lookup(env, "active-checkin", phone.fp);
   assert.equal(a.status, 200);
-  assert.deepEqual(a.data, { active: true, limited: true });
+  assert.deepEqual(a.data, { limited: true }, "not even whether this phone is checked in");
   const r = await lookup(env, "recognize", phone.fp);
   assert.deepEqual(r.data, { recognized: true, limited: true });
   assert.ok(noDetail(a) && noDetail(r));
+});
+
+test("(a) a limited answer never shows Check out: the phone goes on to check in (old page after 9 Dec, or clock more than 2 min out)", async () => {
+  const { env, phone } = await setup();
+  // old cached page after the cutoff: no proof
+  const oldPage = await lookup(env, "active-checkin", phone.fp);
+  // new page whose phone clock is 5 minutes slow: proof refused
+  const slowClock = await lookup(env, "active-checkin", phone.fp, { proofHeader: await proof(phone, { kind: "active-checkin", ts: Math.floor(Date.now() / 1000) - 300 }) });
+  for (const r of [oldPage, slowClock]) {
+    assert.equal(showsCheckOut(r.data), false, JSON.stringify(r.data));
+    assert.equal(r.data.active, undefined, "an old page reads active?.active, so it must be falsy too");
+  }
+  // the right phone with a good clock still gets check-out
+  const good = await lookup(env, "active-checkin", phone.fp, { proofHeader: await proof(phone, { kind: "active-checkin" }) });
+  assert.equal(showsCheckOut(good.data), true);
 });
 
 test("REFUSED: the org key alone is not enough (old printed QRs carried it)", async () => {
@@ -143,13 +163,13 @@ test("REFUSED: a bad proof never gets details, even during the grace period", as
 test("REFUSED: staff of another organisation get yes/no only", async () => {
   const { env, phone } = await setup();
   const r = await lookup(env, "active-checkin", phone.fp, { token: "sess_other_lead_abcdefghijklmn" });
-  assert.deepEqual(r.data, { active: true, limited: true });
+  assert.deepEqual(r.data, { limited: true });
 });
 
 test("REFUSED: a signed proof from org A's page never answers for org B", async () => {
   const { env, phone } = await setup();
   const r = await lookup(env, "active-checkin", phone.fp, { orgKey: "other-club", proofHeader: await proof(phone, { kind: "active-checkin" }) });
-  assert.deepEqual(r.data, { active: false }, "and org B has no check-in for this phone anyway");
+  assert.deepEqual(r.data, { limited: true }, "the proof is for org A, so org B treats it as unproven");
 });
 
 // ---- rate limits ----
@@ -164,17 +184,51 @@ test("RATE LIMIT: one device key is limited to 20 lookups a minute per org; othe
   assert.equal((await lookup(env, "recognize", stranger.fp, { ip: "203.0.113.1" })).status, 200);
 });
 
-test("RATE LIMIT: one network is limited to 300 lookups a minute per org (enumerating fingerprints), not per phone", async () => {
+test("RATE LIMIT: unproven lookups from one network: 600 a minute per org; another network or org is not blocked", async () => {
   const { env } = await setup();
   let lastOk = 0;
-  for (let i = 0; i < 300; i++) {
+  for (let i = 0; i < 600; i++) {
     const r = await lookup(env, "recognize", "fp_guess_" + String(i).padStart(7, "0"), { ip: "198.51.100.7" });
     if (r.status === 200) lastOk = i + 1;
   }
-  assert.equal(lastOk, 300);
+  assert.equal(lastOk, 600);
   assert.equal((await lookup(env, "recognize", "fp_guess_extra001", { ip: "198.51.100.7" })).status, 429);
   assert.equal((await lookup(env, "recognize", "fp_guess_extra001", { ip: "198.51.100.8" })).status, 200, "another network is not blocked");
   assert.equal((await lookup(env, "recognize", "fp_guess_extra001", { orgKey: "other-club", ip: "198.51.100.7" })).status, 200, "another org is not blocked");
+});
+
+test("RATE LIMIT: signed lookups never count towards the network limit (a busy door of new phones is never slowed)", async () => {
+  const { env, phone, stranger } = await setup();
+  // the network is used up by unproven lookups...
+  for (let i = 0; i < 600; i++) await lookup(env, "recognize", "fp_fill_" + String(i).padStart(7, "0"), { ip: "198.51.100.9" });
+  assert.equal((await lookup(env, "recognize", "fp_fill_extra0001", { ip: "198.51.100.9" })).status, 429);
+  // ...and real phones on the same Wi-Fi still get their own answers
+  for (const dev of [phone, stranger]) {
+    for (const kind of ["active-checkin", "recognize"]) {
+      const r = await lookup(env, kind, dev.fp, { ip: "198.51.100.9", proofHeader: await proof(dev, { kind }) });
+      assert.equal(r.status, 200, kind);
+    }
+  }
+});
+
+test("RATE LIMIT (b): someone with a receipt fingerprint cannot block that person's phone", async () => {
+  const { env, phone } = await setup();
+  // 25 unproven lookups for the victim's fingerprint, from anywhere
+  for (let i = 0; i < 25; i++) await lookup(env, "active-checkin", phone.fp, { ip: "203.0.113." + (i % 5) });
+  assert.equal((await lookup(env, "active-checkin", phone.fp, { ip: "203.0.113.50" })).status, 429, "unproven lookups for that key are capped");
+  // the real phone signs, so it is not affected
+  const mine = await lookup(env, "active-checkin", phone.fp, { proofHeader: await proof(phone, { kind: "active-checkin" }) });
+  assert.equal(mine.status, 200);
+  assert.equal(mine.data.checkin_id, "ci-1");
+  const rec = await lookup(env, "recognize", phone.fp, { proofHeader: await proof(phone, { kind: "recognize" }) });
+  assert.equal(rec.data.name, "Sam Example");
+});
+
+test("RATE LIMIT: a phone's own signed lookups are capped at 60 a minute (its own bucket)", async () => {
+  const { env, phone } = await setup();
+  const header = await proof(phone, { kind: "recognize" });
+  for (let i = 0; i < 60; i++) assert.equal((await lookup(env, "recognize", phone.fp, { proofHeader: header })).status, 200, "call " + (i + 1));
+  assert.equal((await lookup(env, "recognize", phone.fp, { proofHeader: header })).status, 429);
 });
 
 test("answers are never cached by the browser", async () => {
@@ -194,6 +248,9 @@ test("org-entry.html signs both lookups with the device key, and check-in still 
   assert.match(html, /const payload = \{ mode: "device_lookup", kind, org: orgParam, pub, ts: Math\.floor\(Date\.now\(\) \/ 1000\), v: 1 \};/);
   assert.match(html, /"X-Device-Proof": b64urlEncode/);
   assert.match(html, /await activeCheckinForDevice\(fp, pub\)/);
+  // (a) check-out is offered only with a real check-in id; a limited answer
+  // goes on to the normal check-in (which says "already signed in", C4)
+  assert.match(html, /if \(active\?\.active && active\.checkin_id\) \{\s*renderCheckoutChoice\(active\);/);
   assert.match(html, /await recognizeDevice\(fp, pub\)/);
   assert.doesNotMatch(html, /getOrgAuthed\(`\/org\/recognize\?device_pub=\$\{encodeURIComponent\(fp\)\}`\)/, "no unsigned recognize left");
   // a failed lookup (429, network) carries on to the normal check-in (C13)

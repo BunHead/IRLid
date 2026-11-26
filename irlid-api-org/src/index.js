@@ -4245,8 +4245,17 @@ async function orgExpectedLookupByFp(request, env, fpParam) {
 //    never stops check-in: the page just goes on to check in (C13).
 const DEVICE_LOOKUP_WINDOW_S = 120;
 const DEVICE_LOOKUP_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 11, 9) / 1000); // 9 Dec 2026
-const DEVICE_LOOKUP_MAX_PER_ORG_IP = 300;   // per minute: a busy door shares one Wi-Fi address
-const DEVICE_LOOKUP_MAX_PER_DEVICE = 20;    // per minute, per device key per org
+// Rate limits (per minute). Signed lookups prove the caller holds the key, so
+// nobody else can use up a phone's allowance, and they cannot be used to work
+// through other people's fingerprints: they have their own per-device cap only.
+// Unsigned or failed lookups (old cached pages, a phone whose clock is far out,
+// or someone with a receipt fingerprint) share the per-device and per-network
+// caps. A scan makes up to 3 lookups, so 600 a minute per network covers about
+// 200 old-page scans a minute at one door before anyone is slowed; a refusal
+// only means the phone goes straight on to check in (C13).
+const DEVICE_LOOKUP_MAX_SIGNED_PER_DEVICE = 60;
+const DEVICE_LOOKUP_MAX_PER_ORG_IP = 600;   // unsigned / failed only
+const DEVICE_LOOKUP_MAX_PER_DEVICE = 20;    // unsigned / failed only, per device key per org
 function deviceLookupCutoffS(env) {
   const raw = env && env.DEVICE_LOOKUP_SIGNING_CUTOFF;
   if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
@@ -4308,13 +4317,19 @@ async function keyRateLimited(env, key, maxPerWindow, windowSec) {
 }
 // Returns null to go ahead, or a reply. `level` is "full" or "minimal".
 async function deviceLookupGate(request, env, org, deviceFp, kind) {
+  const limited = () => ({ reply: json({ error: "rate_limited", retry_after: 60 }, 429) });
+  const proof = await deviceLookupProof(request, org, deviceFp, kind);
+  if (proof.signed) {
+    // Only this phone can sign for its key, so this bucket is its own.
+    if (await keyRateLimited(env, "device_lookup_signed:" + org.id + ":" + deviceFp, DEVICE_LOOKUP_MAX_SIGNED_PER_DEVICE, 60)) return limited();
+    return { level: "full", signed: true };
+  }
+  if (await staffTierSessionForOrg(request, env, org)) return { level: "full", staff: true };
+  // Unsigned or failed: these are what a fingerprint from a receipt can send.
   if (await ipRateLimited(env, request, "device_lookup:" + org.id, DEVICE_LOOKUP_MAX_PER_ORG_IP, 60)
     || await keyRateLimited(env, "device_lookup_fp:" + org.id + ":" + deviceFp, DEVICE_LOOKUP_MAX_PER_DEVICE, 60)) {
-    return { reply: json({ error: "rate_limited", retry_after: 60 }, 429) };
+    return limited();
   }
-  const proof = await deviceLookupProof(request, org, deviceFp, kind);
-  if (proof.signed) return { level: "full", signed: true };
-  if (await staffTierSessionForOrg(request, env, org)) return { level: "full", staff: true };
   if (!proof.present && now() < deviceLookupCutoffS(env)) return { level: "full", grace: true };
   return { level: "minimal" };
 }
@@ -4329,13 +4344,15 @@ async function orgActiveCheckin(request, env) {
   if (!deviceFp) return err("device_pub required");
   const gate = await deviceLookupGate(request, env, org, deviceFp, "active-checkin");
   if (gate.reply) return gate.reply;
+  // Not proven to be this phone: say nothing, not even yes/no. A page that
+  // cannot check out with this answer (no check-in id) then just checks in, and
+  // the check-in itself answers "already signed in" with the details (C4).
+  if (gate.level !== "full") return noStore(json({ limited: true }));
 
   const row = await env.DB.prepare(
     "SELECT id,name,attendee_label,checkin_at FROM org_checkins WHERE org_id=? AND device_key_fp=? AND checkout_at IS NULL AND status!='invalid' ORDER BY checkin_at DESC LIMIT 1"
   ).bind(org.id, deviceFp).first();
   if (!row) return noStore(json({ active: false }));
-  // Not the phone that holds the key: yes/no only (no name, id or time).
-  if (gate.level !== "full") return noStore(json({ active: true, limited: true }));
 
   const settings = JSON.parse(org.settings_json || "{}");
   return noStore(json({

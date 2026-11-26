@@ -995,7 +995,12 @@
       const pub = compactJwk(await getPublicJwk());
       const fp = await deviceKeyFingerprint(pub);
       const active = await activeCheckinForDevice(fp, pub);
-      if (active?.active) {
+      // v6.8.30: offer check-out only with a real check-in to check out of. A
+      // limited answer (old page after the cutoff, or this phone's clock more
+      // than 2 minutes out, so its proof was refused) has no check-in id: go on
+      // to the normal check-in instead, which answers "already signed in" with
+      // the details when it applies (C4).
+      if (active?.active && active.checkin_id) {
         renderCheckoutChoice(active);
         return;
       }
