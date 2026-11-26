@@ -5082,8 +5082,10 @@
                 var dow = parseInt(dayStr, 10);
                 if (isNaN(dow)) dow = dayMap[dayStr.toLowerCase()] || 1;
                 var expectedIds = expectedNames.map(function (nm) {
-                  var existing = loadOrgExpectedState().find(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); });
-                  if (existing) return existing.id;
+                  // v6.8.29: never guess between people who share a name.
+                  var same = loadOrgExpectedState().filter(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); });
+                  if (same.length === 1) return same[0].id;
+                  if (same.length > 1) return null;
                   var added = addOrgExpectedEntry(nm, 'attendee');
                   return added ? added.id : null;
                 }).filter(Boolean);
@@ -10058,8 +10060,66 @@ function snapshotOrgCode(org) {
   const target = org || currentOrg || {};
   return target.id || target.slug || target.name || '';
 }
-function applyServerSettingsToLocalState(s) {
+// v6.8.28 KIOSK LOCK FAILS CLOSED. The padlock-or-X rule must never fall back to
+// the X just because settings did not load. The last lock setting a real server
+// reply gave for THIS organisation is remembered on THIS device. Resetting on
+// organisation select, a failed or slow settings call, or an offline copy with
+// no settings all keep the lock on if it was on. Only an actual server settings
+// reply that says off turns it off (and is remembered as off).
+const KIOSK_LOCK_MEMORY_PREFIX = 'irlid_kiosk_lock_v1:';
+function irlidKioskLockMemoryRead(orgId) {
+  if (!orgId) return { lf: false, km: false };
+  try {
+    const raw = localStorage.getItem(KIOSK_LOCK_MEMORY_PREFIX + orgId);
+    const m = raw ? JSON.parse(raw) : null;
+    return { lf: !!(m && m.lf === 1), km: !!(m && m.km === 1) };
+  } catch (_) { return { lf: false, km: false }; }
+}
+function irlidKioskLockRemember(orgId, lf, km) {
+  if (!orgId) return;
+  try { localStorage.setItem(KIOSK_LOCK_MEMORY_PREFIX + orgId, JSON.stringify({ lf: lf ? 1 : 0, km: km ? 1 : 0, at: Date.now() })); } catch (_) {}
+}
+function irlidKioskLockRememberedOn() {
+  const m = irlidKioskLockMemoryRead(currentOrg && currentOrg.id);
+  return m.lf || m.km;
+}
+// Never turns a lock OFF: keeps whatever is already on (in settings, in the
+// data just received, or remembered for this org) and shows it.
+function irlidKioskLockKeepClosed(src) {
+  const m = irlidKioskLockMemoryRead(currentOrg && currentOrg.id);
+  const from = src || {};
+  const lf = settings.lockFullscreen === true || from.lockFullscreen === true || m.lf;
+  const km = settings.kioskMode === true || from.kioskMode === true || m.km;
+  if (lf) settings.lockFullscreen = true;
+  if (km) settings.kioskMode = true;
+  { const el = document.getElementById('lockFullscreen'); if (el && lf) el.checked = true; }
+  { const el = document.getElementById('kioskMode'); if (el && km) el.checked = true; }
+}
+function irlidKioskLockApply(src, authoritative) {
+  if (authoritative) {
+    settings.lockFullscreen = src.lockFullscreen === true;
+    { const lf = document.getElementById('lockFullscreen'); if (lf) lf.checked = settings.lockFullscreen; }
+    window.__irlidLockFullscreenHydrated = true;
+    settings.kioskMode = src.kioskMode === true;
+    { const km = document.getElementById('kioskMode'); if (km) km.checked = settings.kioskMode; }
+    window.__irlidKioskModeHydrated = true;
+    irlidKioskLockRemember(currentOrg && currentOrg.id, settings.lockFullscreen, settings.kioskMode);
+  } else {
+    // Not the server's word: never switch the lock off, never mark it loaded
+    // (so a save cannot send a guess back to the server).
+    irlidKioskLockKeepClosed(src);
+  }
+}
+// The one rule for "padlock, not X" (used by the check-in full screen).
+function irlidKioskLockShouldShow() {
+  return !!((settings && (settings.lockFullscreen === true || settings.kioskMode === true)) || irlidKioskLockRememberedOn());
+}
+// `opts.authoritative` is true ONLY for a real settings reply from the Worker
+// (or the read-back after a save). Everything else (cached copy, org list row,
+// empty object) is not allowed to switch the lock off.
+function applyServerSettingsToLocalState(s, opts) {
   const src = s || {};
+  const authoritative = !!(opts && opts.authoritative === true);
   if (typeof window.v511HydrateCalendarDefaultsFromServer === 'function') {
     window.v511HydrateCalendarDefaultsFromServer(src.calendar_defaults);
   }
@@ -10091,14 +10151,9 @@ function applyServerSettingsToLocalState(s) {
   settings.requireLiveCode = src.requireLiveCode === true;
   { const rl = document.getElementById('requireLiveCode'); if (rl) rl.checked = settings.requireLiveCode; }
   window.__irlidRequireLiveCodeHydrated = true;
-  // Kiosk lock: same rule as requireLiveCode, hydrate from the server only.
-  settings.lockFullscreen = src.lockFullscreen === true;
-  { const lf = document.getElementById('lockFullscreen'); if (lf) lf.checked = settings.lockFullscreen; }
-  window.__irlidLockFullscreenHydrated = true;
-  settings.kioskMode = src.kioskMode === true;
-  { const km = document.getElementById('kioskMode'); if (km) km.checked = settings.kioskMode; }
+  // Kiosk lock: hydrate from a real server reply only (v6.8.28: fail closed).
+  irlidKioskLockApply(src, authoritative);
   if (typeof window.irlidKioskSyncSettingsUi === 'function') window.irlidKioskSyncSettingsUi();
-  window.__irlidKioskModeHydrated = true;
   if (typeof window.irlidKioskAfterSettings === 'function') window.irlidKioskAfterSettings();
   // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
   // both portalState and settings so the dashboard helper roleLabel() picks
@@ -10195,6 +10250,8 @@ function applySnapshotToDashboard(snap) {
   if (snap.settings) {
     applyServerSettingsToLocalState(snap.settings);
     settings = Object.assign({}, settings, snap.settings);
+    // v6.8.28: an offline copy with no (or off) lock values cannot wipe the lock.
+    irlidKioskLockKeepClosed(snap.settings);
     saveJson(STORAGE_KEY_SETTINGS, settings);
     if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   }
@@ -11162,6 +11219,10 @@ async function loadDashboardForOrg(org) {
     mode: 'irlid-api-test'
   };
   irlidDebugLog("[v5.5.5] currentOrg now:", currentOrg);
+  // v6.8.28: the reset above switched every setting off. Put this device's
+  // remembered kiosk lock for THIS organisation straight back, before any
+  // fetch, so a slow or failed settings call can never show the X.
+  irlidKioskLockKeepClosed(null);
   saveJson(STORAGE_KEY_ORG, currentOrg);
   saveJson(STORAGE_KEY_PORTAL, portalState);
   saveJson(STORAGE_KEY_SETTINGS, settings);
@@ -11181,7 +11242,8 @@ async function loadDashboardForOrg(org) {
       const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
       if (stale()) return;
       const s = (res && res.settings) || {};
-      applyServerSettingsToLocalState(s);
+      // Only a real settings object from the Worker may change the lock.
+      applyServerSettingsToLocalState(s, { authoritative: !!(res && res.settings && typeof res.settings === 'object') });
     }
   } catch (e) {
     if (stale()) return;
@@ -11871,7 +11933,7 @@ async function saveSettings() {
   }
 
   // Update portalState from the readback so the UI state matches the Worker.
-  applyServerSettingsToLocalState(r);
+  applyServerSettingsToLocalState(r, { authoritative: !!(readback && readback.settings && typeof readback.settings === 'object') });
   applyRoleLabelsToViewingAs();
   activeTheme = normalizeThemeForSave(r.theme);
   writeV511RoleVocabularyToUI(activeTheme.roleVocabulary);
@@ -12545,6 +12607,16 @@ let __remoteCheckinPollHandle = null;
 function markDashboardCheckin() { __lastDashboardCheckinAt = Date.now(); }
 window.markDashboardCheckin = markDashboardCheckin;
 
+// v6.8.29: the event CSV import never guesses between people with the same
+// name. It says which rows need an admin to choose the right person.
+function importAmbiguousMessage(res) {
+  const list = (res && Array.isArray(res.ambiguous)) ? res.ambiguous : [];
+  if (!list.length) return '';
+  const lines = list.slice(0, 10).map(a => 'Row ' + a.row + ' (' + String(a.event_name || 'event') + '): "' + String(a.name || '') + '" matches more than one person: ' +
+    (a.candidates || []).map(c => String(c.name_label || '')).join(', ') + '. Not added.');
+  return 'Imported week CSV. ' + list.length + ' name' + (list.length === 1 ? '' : 's') + ' matches more than one person and ' + (list.length === 1 ? 'was' : 'were') +
+    ' not added. Open each event and choose the right person.\n' + lines.join('\n') + (list.length > 10 ? '\n...and ' + (list.length - 10) + ' more.' : '');
+}
 function rowDisplayName(row) {
   if (!row) return '';
   // v6.8.26: name_label tells apart two people with the same name.
@@ -14728,7 +14800,9 @@ function fullscreenQR() {
   // the X is replaced by a padlock + refresh-QR button (js/kiosk-lock.js) and
   // leaving full screen needs a staff v5 phone scan. Only the real Check-in
   // full screen locks; the Visual Theming preview never does.
-  const kioskLockOn = !!(settings && (settings.lockFullscreen === true || settings.kioskMode === true)) && !emitInSetup &&
+  // v6.8.28: also on if this device remembers the lock for this organisation, so
+  // the X can never appear just because settings did not load.
+  const kioskLockOn = irlidKioskLockShouldShow() && !emitInSetup &&
     document.body.dataset.activePanel === 'checkin';
 
   // Close button — Settings preview uses Esc-only; production needs a tap target.
@@ -20319,7 +20393,7 @@ document.addEventListener('DOMContentLoaded', function () {
   async function refreshLiveCalendar(){ if (typeof window.refreshV511CalendarData === 'function') return window.refreshV511CalendarData(); try{ await Promise.all([api('/org/rooms'),api('/org/expected'),api('/org/weekly-events')]); } catch(e){ console.warn('[v5.11 live calendar refresh]', e); } }
   document.addEventListener('DOMContentLoaded',function(){
     const exp=document.getElementById('v511ExportWeekBtn'); if(exp) exp.addEventListener('click',async function(e){ e.stopImmediatePropagation(); try{ const r=await api('/org/weekly-events/export-csv',{raw:true}); const blob=new Blob([await r.text()],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='week-export.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),500); }catch(err){ showToast('Export failed: '+(err.message||err), true); } }, true);
-    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
+    const imp=document.getElementById('v511ImportWeekBtn'); if(imp) imp.addEventListener('click',function(e){ e.stopImmediatePropagation(); if (typeof canManageCalendar === 'function' && !canManageCalendar()) return showToast('Calendar import requires Lead Admin, or Manager permission from Sign-in & Auth', true); const input=document.createElement('input'); input.type='file'; input.accept='.csv,text/csv'; input.onchange=async()=>{ const file=input.files&&input.files[0]; if(!file) return; try{ const form=new FormData(); form.append('file',file,file.name); form.append('signed_action',JSON.stringify(await calendarSigned({replace:true}))); const res=await api('/org/weekly-events/import-csv?replace=1',{method:'POST',body:form}); await refreshLiveCalendar(); const amb=importAmbiguousMessage(res); if (amb) { showToast(amb, true); try { alert(amb); } catch (_) {} } else showToast('Imported week CSV'); }catch(err){ showToast('Import failed: '+(err.message||err), true); } }; input.click(); }, true);
   });
 })();
 </script>
