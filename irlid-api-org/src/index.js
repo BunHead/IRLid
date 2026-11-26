@@ -7198,15 +7198,51 @@ async function orgWeeklyEventDelete(request, env, id) {
   return json({ deleted: true, archived: true, id, archived_at: t });
 }
 
+// v6.8.31: a CSV name can point at ONE person, so an admin's choice between
+// namesakes survives a weekly replace re-import:
+//   "Sam Example (…a3f9)"  name + last 4 of the device key ("..." also works)
+//   "Sam Example (no key yet)"  the namesake who has no phone linked yet
+//   "id:p_sam_example_1a2b3c4d"  the record id
+// A specific reference that matches nobody active is reported, never created.
+function parseCsvPersonRef(text) {
+  const raw = String(text || "").trim();
+  const id = /^id:\s*(\S+)$/i.exec(raw);
+  if (id) return { kind: "id", id: id[1], text: raw };
+  const tag = /^(.*\S)\s*\(\s*(?:\u2026|\.\.\.)\s*([A-Za-z0-9_-]{4})\s*\)$/.exec(raw);
+  if (tag) return { kind: "tag", name: tag[1], tag: tag[2], text: raw };
+  const nokey = /^(.*\S)\s*\(\s*no key yet\s*\)$/i.exec(raw);
+  if (nokey) return { kind: "nokey", name: nokey[1], text: raw };
+  return { kind: "name", name: raw, text: raw };
+}
+// The text that names this person exactly among `namesakes` (all active people
+// with the same name). The tag when it is unique, else the record id.
+function csvPersonRef(person, namesakes) {
+  const tag = deviceKeyTag(person.device_pub_fp);
+  const same = (namesakes || []).filter(o => deviceKeyTag(o.device_pub_fp) === tag);
+  if (same.length === 1) return nameWithKeyTag(person.display_name, person.device_pub_fp);
+  return "id:" + person.id;
+}
+
 async function orgWeeklyEventsExportCsv(request, env) {
   const org = await orgAuth(request, env); if (org.error) return org;
   const staff = await requireCalendarStaff(request, env, org);
   if (staff.error) return staff.error;
 
   const expectedRows = await env.DB.prepare(
-    "SELECT id,display_name FROM org_expected WHERE org_id=? AND archived_at IS NULL"
+    "SELECT id,display_name,device_pub_fp FROM org_expected WHERE org_id=? AND archived_at IS NULL"
   ).bind(org.id).all();
-  const expectedNames = new Map((expectedRows.results || []).map(r => [r.id, r.display_name]));
+  // v6.8.31: a name two active people share is written so it names ONE of
+  // them, so exporting, editing and re-importing keeps the admin's choice.
+  const byKey = new Map();
+  for (const r of expectedRows.results || []) {
+    const k = nameKey(r.display_name);
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(r);
+  }
+  const expectedNames = new Map((expectedRows.results || []).map(r => {
+    const same = byKey.get(nameKey(r.display_name)) || [];
+    return [r.id, same.length > 1 ? csvPersonRef(r, same) : r.display_name];
+  }));
   const roomRows = await env.DB.prepare(
     "SELECT id,label FROM rooms WHERE org_id=? AND archived_at IS NULL"
   ).bind(org.id).all();
@@ -7274,7 +7310,14 @@ async function orgWeeklyEventsImportCsv(request, env) {
     if (!expectedByName.has(k)) expectedByName.set(k, []);
     expectedByName.get(k).push(r);
   }
+  const expectedById = new Map((expectedRows.results || []).map(r => [String(r.id), r]));
   const ambiguous = [];
+  const notFound = [];
+  const candidatesOf = (matches) => matches.map(m => ({
+    id: m.id,
+    name_label: nameWithKeyTag(m.display_name, m.device_pub_fp),
+    csv_ref: csvPersonRef(m, matches)   // paste this into the CSV to choose
+  }));
 
   const reportRows = [];
   const statements = [];
@@ -7313,15 +7356,36 @@ async function orgWeeklyEventsImportCsv(request, env) {
     // NFC on store too, so a new person's name is saved in one form.
     const names = csvCell(row, header, "expected_names").split(";").map(n => cleanText(String(n || "").normalize("NFC"), 80)).filter(Boolean);
     const rowAmbiguous = [];
-    for (const displayName of names) {
+    const rowNotFound = [];
+    for (const entry of names) {
+      const ref = parseCsvPersonRef(entry);
+      const displayName = ref.kind === "id" ? entry : ref.name;
       const key = nameKey(displayName);
-      const matches = expectedByName.get(key) || [];
+      let matches;
+      if (ref.kind === "id") {
+        const hit = expectedById.get(ref.id);
+        matches = hit ? [hit] : [];
+      } else if (ref.kind === "tag") {
+        matches = (expectedByName.get(key) || []).filter(m => deviceKeyTag(m.device_pub_fp) === "\u2026" + ref.tag);
+      } else if (ref.kind === "nokey") {
+        matches = (expectedByName.get(key) || []).filter(m => !m.device_pub_fp);
+      } else {
+        matches = expectedByName.get(key) || [];
+      }
       if (matches.length > 1) {
         // Never guess: not added to the event. Only the 4-character key tag
         // leaves the Worker, never the device key itself.
-        const item = { name: displayName, candidates: matches.map(m => ({ id: m.id, name_label: nameWithKeyTag(m.display_name, m.device_pub_fp) })) };
+        const item = { name: ref.kind === "name" ? displayName : ref.text, candidates: candidatesOf(matches) };
         rowAmbiguous.push(item);
         ambiguous.push({ row: rowNo, event_id: eventId, event_name: name, ...item });
+        continue;
+      }
+      if (!matches.length && ref.kind !== "name") {
+        // The CSV named one specific person who is not (or no longer) active
+        // here. Report it; never create someone new for it.
+        const item = { name: ref.text, reason: ref.kind === "id" ? "no_such_person" : "no_person_with_that_key" };
+        rowNotFound.push(item);
+        notFound.push({ row: rowNo, event_id: eventId, event_name: name, ...item });
         continue;
       }
       let expectedId = matches.length === 1 ? matches[0].id : null;
@@ -7338,9 +7402,10 @@ async function orgWeeklyEventsImportCsv(request, env) {
       ).bind(eventId, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
     }
     eventsCreated++;
-    reportRows.push(rowAmbiguous.length
-      ? { row: rowNo, status: "ambiguous", event_id: eventId, ambiguous: rowAmbiguous }
-      : { row: rowNo, status: "ok", event_id: eventId });
+    const reportRow = { row: rowNo, status: rowAmbiguous.length ? "ambiguous" : (rowNotFound.length ? "not_found" : "ok"), event_id: eventId };
+    if (rowAmbiguous.length) reportRow.ambiguous = rowAmbiguous;
+    if (rowNotFound.length) reportRow.not_found = rowNotFound;
+    reportRows.push(reportRow);
   }
 
   if (statements.length) await env.DB.batch(statements);
@@ -7351,6 +7416,8 @@ async function orgWeeklyEventsImportCsv(request, env) {
     org_expected_created: expectedCreated,
     ambiguous_count: ambiguous.length,
     ambiguous,
+    not_found_count: notFound.length,
+    not_found: notFound,
     rows: reportRows
   });
 }

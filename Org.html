@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.30</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.31</span></div>
   </div>
 </div>
 
@@ -5068,6 +5068,8 @@
               var dayMap = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7 };
               var rooms = loadRoomsState();
               var events = [];
+              var skippedNames = [];
+              parseImportedCsv.lastSkipped = skippedNames;
               for (var i = 1; i < lines.length; i++) {
                 var cells = parseCsvRow(lines[i]);
                 if (cells.length < 4) continue;
@@ -5083,10 +5085,26 @@
                 if (isNaN(dow)) dow = dayMap[dayStr.toLowerCase()] || 1;
                 var expectedIds = expectedNames.map(function (nm) {
                   // v6.8.29: never guess between people who share a name.
-                  var nk = function (x) { return String(x || '').normalize('NFC').trim().toLowerCase(); };
-                  var same = loadOrgExpectedState().filter(function (p) { return nk(p.name) === nk(nm); });
+                  // v6.8.31: "id:<record id>" or "Name (…a3f9)" names one person;
+                  // every name that is skipped is reported after the import.
+                  var nk = function (x) { return String(x || '').normalize('NFC').replace(/\.\.\./g, '\u2026').replace(/\s+/g, ' ').trim().toLowerCase(); };
+                  var all = loadOrgExpectedState();
+                  var idRef = /^id:\s*(\S+)$/i.exec(nm.trim());
+                  if (idRef) {
+                    var byId = all.find(function (p) { return p.id === idRef[1]; });
+                    if (byId) return byId.id;
+                    skippedNames.push({ row: i + 1, name: nm, why: 'not found' });
+                    return null;
+                  }
+                  var byLabel = all.filter(function (p) { return p.label && nk(p.label) === nk(nm); });
+                  if (byLabel.length === 1) return byLabel[0].id;
+                  if (/\((?:\u2026|\.\.\.)\s*[A-Za-z0-9_-]{4}\)\s*$|\(no key yet\)\s*$/i.test(nm)) {
+                    skippedNames.push({ row: i + 1, name: nm, why: byLabel.length > 1 ? 'matches more than one person' : 'not found' });
+                    return null;
+                  }
+                  var same = all.filter(function (p) { return nk(p.name) === nk(nm); });
                   if (same.length === 1) return same[0].id;
-                  if (same.length > 1) return null;
+                  if (same.length > 1) { skippedNames.push({ row: i + 1, name: nm, why: 'matches more than one person' }); return null; }
                   var added = addOrgExpectedEntry(nm, 'attendee');
                   return added ? added.id : null;
                 }).filter(Boolean);
@@ -5121,7 +5139,15 @@
                     state.events = events;
                     saveWeeklyState();
                     renderAll();
-                    showGlobalSavedToast('✓ Imported ' + events.length + ' events from ' + file.name);
+                    var skipped = parseImportedCsv.lastSkipped || [];
+                    if (skipped.length) {
+                      var note = '✓ Imported ' + events.length + ' events from ' + file.name + '. ' + skipped.length + ' name' + (skipped.length === 1 ? ' was' : 's were') + ' not added:\n' +
+                        skipped.slice(0, 10).map(function (x) { return 'Row ' + x.row + ': "' + x.name + '" ' + x.why; }).join('\n') + (skipped.length > 10 ? '\n...and ' + (skipped.length - 10) + ' more.' : '');
+                      showGlobalSavedToast(note);
+                      try { alert(note); } catch (_) {}
+                    } else {
+                      showGlobalSavedToast('✓ Imported ' + events.length + ' events from ' + file.name);
+                    }
                   } catch (e) {
                     showGlobalSavedToast('✗ Import failed: ' + (e && e.message ? e.message : 'parse error'));
                   }
@@ -12612,11 +12638,22 @@ window.markDashboardCheckin = markDashboardCheckin;
 // name. It says which rows need an admin to choose the right person.
 function importAmbiguousMessage(res) {
   const list = (res && Array.isArray(res.ambiguous)) ? res.ambiguous : [];
-  if (!list.length) return '';
-  const lines = list.slice(0, 10).map(a => 'Row ' + a.row + ' (' + String(a.event_name || 'event') + '): "' + String(a.name || '') + '" matches more than one person: ' +
-    (a.candidates || []).map(c => String(c.name_label || '')).join(', ') + '. Not added.');
-  return 'Imported week CSV. ' + list.length + ' name' + (list.length === 1 ? '' : 's') + ' matches more than one person and ' + (list.length === 1 ? 'was' : 'were') +
-    ' not added. Open each event and choose the right person.\n' + lines.join('\n') + (list.length > 10 ? '\n...and ' + (list.length - 10) + ' more.' : '');
+  const missing = (res && Array.isArray(res.not_found)) ? res.not_found : [];
+  if (!list.length && !missing.length) return '';
+  const parts = ['Imported week CSV.'];
+  if (list.length) {
+    parts.push(list.length + ' name' + (list.length === 1 ? '' : 's') + ' matches more than one person and ' + (list.length === 1 ? 'was' : 'were') +
+      ' not added. Choose in each event, or write the one you mean in the CSV (so the next import keeps it).');
+    list.slice(0, 10).forEach(a => parts.push('Row ' + a.row + ' (' + String(a.event_name || 'event') + '): "' + String(a.name || '') + '" could be ' +
+      (a.candidates || []).map(c => String(c.csv_ref || c.name_label || '')).join(' or ') + '. Not added.'));
+    if (list.length > 10) parts.push('...and ' + (list.length - 10) + ' more.');
+  }
+  if (missing.length) {
+    parts.push(missing.length + ' named person' + (missing.length === 1 ? ' was' : 's were') + ' not found (the key or record id matches nobody on the list), so ' + (missing.length === 1 ? 'was' : 'were') + ' not added:');
+    missing.slice(0, 10).forEach(a => parts.push('Row ' + a.row + ' (' + String(a.event_name || 'event') + '): "' + String(a.name || '') + '".'));
+    if (missing.length > 10) parts.push('...and ' + (missing.length - 10) + ' more.');
+  }
+  return parts.join('\n');
 }
 function rowDisplayName(row) {
   if (!row) return '';
