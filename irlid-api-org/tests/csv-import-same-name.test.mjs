@@ -195,9 +195,9 @@ test("dashboard: the import tells the admin which rows need a choice, and the ol
   const html = readFileSync(new URL("../../Org.html", import.meta.url), "utf8");
   assert.match(html, /const res=await api\('\/org\/weekly-events\/import-csv\?replace=1'/);
   assert.match(html, /importAmbiguousMessage\(res\)/);
-  const msg = html.slice(html.indexOf("function importAmbiguousMessage"), html.indexOf("function importAmbiguousMessage") + 900);
+  const msg = html.slice(html.indexOf("function importAmbiguousMessage"), html.indexOf("function rowDisplayName"));
   assert.match(msg, /matches more than one person/);
   // the local (mockup) parser: more than one match -> not added
-  assert.match(html, /if \(same\.length === 1\) return same\[0\]\.id;\s*if \(same\.length > 1\) return null;/);
+  assert.match(html, /if \(same\.length === 1\) return same\[0\]\.id;\s*if \(same\.length > 1\) \{ skippedNames\.push/);
   assert.match(html, /normalize\('NFC'\)/);
 });

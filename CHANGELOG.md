@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v222
+
+v6.8.31 CSV CAN NAME ONE PERSON: in the week CSV's `expected_names`, an admin can now name a specific person among namesakes: `Sam Example (…a3f9)` (or `(...a3f9)`, the last 4 characters of the device key), `Sam Example (no key yet)`, or `id:<record id>`. The Export writes shared names that way (the tag when it is unique, else the record id), so exporting, editing and re-importing with replace keeps the admin's choice. A specific reference that matches nobody active (unknown or archived id, a key tag that no longer matches) is reported as not found and never creates a new person. The import message lists, for each ambiguous name, the exact text that picks each candidate. The offline (local-only) parser in the dashboard does the same matching and now reports every name it skips. Stacked on v6.8.29 / v220 (PR #218); v6.8.30 / v221 is PR #219.
+
 ## irlid-shell-v220
 
 v6.8.29 EVENT CSV IMPORT NEVER GUESSES: since v6.8.27 two people may share a name. An `expected_names` entry in the week CSV now links only when exactly one active person has that name. With two or more, nobody is added for that name, the row comes back as `ambiguous` (with each person's "Name (…a3f9)" tag, never the device key), and the dashboard tells the admin which rows and events need a choice. A name nobody has is still created once. The event itself is always created. Names are compared and stored in Unicode NFC, so the same name typed two ways (for example é as one character or as e plus an accent) is one name; accents are never stripped.
