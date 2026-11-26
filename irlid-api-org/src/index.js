@@ -435,7 +435,7 @@ function corsHeaders(env, request) {
   return {
     "Access-Control-Allow-Origin": allowed.includes(origin) ? origin : allowed[0],
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id, X-Login-Poll-Secret, X-Kiosk-Secret",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Org-Key, X-Org-Id, X-Login-Poll-Secret, X-Kiosk-Secret, X-Device-Proof",
     "Access-Control-Max-Age": "86400"
   };
 }
@@ -4188,9 +4188,14 @@ async function orgRecognize(request, env) {
   const url = new URL(request.url);
   const deviceFp = (url.searchParams.get("device_pub") || "").trim();
   if (!deviceFp) return err("device_pub required");
+  const gate = await deviceLookupGate(request, env, org, deviceFp, "recognize");
+  if (gate.reply) return gate.reply;
   const row = await findExpectedByDeviceFp(env, org.id, deviceFp);
-  if (!row) return json({ recognized: false });
-  return json({ recognized: true, name: row.display_name || `${row.first_name || ""} ${row.surname || ""}`.trim(), expected_id: row.id });
+  if (!row) return noStore(json({ recognized: false }));
+  if (gate.level !== "full") return noStore(json({ recognized: true, limited: true }));
+  const name = row.display_name || `${row.first_name || ""} ${row.surname || ""}`.trim();
+  // The phone only needs its own name; the record id is for staff.
+  return noStore(json(gate.staff ? { recognized: true, name, expected_id: row.id } : { recognized: true, name }));
 }
 
 async function orgExpectedLookupByFp(request, env, fpParam) {
@@ -4223,6 +4228,112 @@ async function orgExpectedLookupByFp(request, env, fpParam) {
   return noStore(json({ status: "pending" }));
 }
 
+// v6.8.30 - DEVICE LOOKUPS (GET /org/active-checkin, GET /org/recognize).
+// The attendee's phone (org-entry.html) asks these before it checks in: "am I
+// already checked in?" (offer check-out, C4) and "does this org know me?"
+// (skip the orange staff screen). The phone has no login, so they cannot need
+// one (C1, E1). But a device key fingerprint is in every receipt, so it must
+// not be enough to learn a person's name (S2). So:
+//  - Full answer only to (a) the phone that holds the key, proven by a fresh
+//    signature over {mode:"device_lookup", kind, org, pub, ts} in the
+//    X-Device-Proof header (live window 120 s), or (b) a staff-tier login
+//    session for the org. Until DEVICE_LOOKUP_SIGNING_CUTOFF (default
+//    9 Dec 2026) an unsigned call from an old cached page also gets the full
+//    answer, so nothing breaks while phones update (as C15).
+//  - Anyone else gets yes/no only: no name, no check-in id, no time.
+//  - Rate limited per organisation and network, and per device key. A refusal
+//    never stops check-in: the page just goes on to check in (C13).
+const DEVICE_LOOKUP_WINDOW_S = 120;
+const DEVICE_LOOKUP_CUTOFF_DEFAULT_S = Math.floor(Date.UTC(2026, 11, 9) / 1000); // 9 Dec 2026
+// Rate limits (per minute). Signed lookups prove the caller holds the key, so
+// nobody else can use up a phone's allowance, and they cannot be used to work
+// through other people's fingerprints: they have their own per-device cap only.
+// Unsigned or failed lookups (old cached pages, a phone whose clock is far out,
+// or someone with a receipt fingerprint) share the per-device and per-network
+// caps. A scan makes up to 3 lookups, so 600 a minute per network covers about
+// 200 old-page scans a minute at one door before anyone is slowed; a refusal
+// only means the phone goes straight on to check in (C13).
+const DEVICE_LOOKUP_MAX_SIGNED_PER_DEVICE = 60;
+const DEVICE_LOOKUP_MAX_PER_ORG_IP = 600;   // unsigned / failed only
+const DEVICE_LOOKUP_MAX_PER_DEVICE = 20;    // unsigned / failed only, per device key per org
+function deviceLookupCutoffS(env) {
+  const raw = env && env.DEVICE_LOOKUP_SIGNING_CUTOFF;
+  if (raw !== undefined && raw !== null && String(raw).trim() !== "") {
+    const asNumber = Number(raw);
+    if (Number.isFinite(asNumber)) return asNumber;
+    const asDate = Date.parse(String(raw));
+    if (Number.isFinite(asDate)) return Math.floor(asDate / 1000);
+  }
+  return DEVICE_LOOKUP_CUTOFF_DEFAULT_S;
+}
+// { signed: true } only for a valid, fresh signature by the key whose
+// fingerprint is being looked up, for this org and this kind of lookup.
+async function deviceLookupProof(request, org, deviceFp, kind) {
+  const raw = String(request.headers.get("X-Device-Proof") || "").trim();
+  if (!raw) return { signed: false, present: false };
+  try {
+    const env = JSON.parse(new TextDecoder().decode(b64urlDecode(raw)));
+    const payload = env && env.payload;
+    const sig = env && typeof env.sig === "string" ? env.sig : "";
+    if (!payload || typeof payload !== "object" || !sig) return { signed: false, present: true };
+    if (payload.mode !== "device_lookup" || payload.kind !== kind || !orgRefMatches(org, payload.org)) return { signed: false, present: true };
+    const ts = Number(payload.ts);
+    if (!Number.isFinite(ts) || Math.abs(now() - ts) > DEVICE_LOOKUP_WINDOW_S) return { signed: false, present: true };
+    const pub = normaliseDevicePubJwk(payload.pub);
+    if (!pub || (await deviceKeyFp(pub)) !== deviceFp) return { signed: false, present: true };
+    const hash = await hashPayloadToB64url(payload, 3);
+    if (!(await verifySig(hash, sig, pub))) return { signed: false, present: true };
+    return { signed: true, present: true };
+  } catch (_) {
+    return { signed: false, present: true };
+  }
+}
+// A staff-tier login session for THIS org (the dashboard). The org key alone
+// does not count: old printed QRs carried it.
+async function staffTierSessionForOrg(request, env, org) {
+  const auth = String(request.headers.get("Authorization") || "");
+  if (!/^Bearer\s+/i.test(auth) || /^Bearer\s+org_/i.test(auth)) return false;
+  const ctx = await requireSession(request, env);
+  if (ctx.error || !ctx.user) return false;
+  const role = await orgRoleForUser(env, ctx.user, org.id);
+  return STAFF_TIER_ROLES.has(role);
+}
+async function keyRateLimited(env, key, maxPerWindow, windowSec) {
+  try {
+    const bucket = Math.floor(now() / windowSec);
+    await env.DB.prepare(
+      "CREATE TABLE IF NOT EXISTS ip_rate_limits (k TEXT PRIMARY KEY, count INTEGER NOT NULL, created_at INTEGER NOT NULL)"
+    ).run();
+    const k = `${key}|${bucket}`;
+    const row = await env.DB.prepare("SELECT count FROM ip_rate_limits WHERE k=?").bind(k).first();
+    if (row && row.count >= maxPerWindow) return true;
+    await env.DB.prepare(
+      "INSERT INTO ip_rate_limits (k, count, created_at) VALUES (?,1,?) ON CONFLICT(k) DO UPDATE SET count=count+1"
+    ).bind(k, now()).run();
+    return false;
+  } catch (_) {
+    return false; // never block a real phone because the limiter failed
+  }
+}
+// Returns null to go ahead, or a reply. `level` is "full" or "minimal".
+async function deviceLookupGate(request, env, org, deviceFp, kind) {
+  const limited = () => ({ reply: json({ error: "rate_limited", retry_after: 60 }, 429) });
+  const proof = await deviceLookupProof(request, org, deviceFp, kind);
+  if (proof.signed) {
+    // Only this phone can sign for its key, so this bucket is its own.
+    if (await keyRateLimited(env, "device_lookup_signed:" + org.id + ":" + deviceFp, DEVICE_LOOKUP_MAX_SIGNED_PER_DEVICE, 60)) return limited();
+    return { level: "full", signed: true };
+  }
+  if (await staffTierSessionForOrg(request, env, org)) return { level: "full", staff: true };
+  // Unsigned or failed: these are what a fingerprint from a receipt can send.
+  if (await ipRateLimited(env, request, "device_lookup:" + org.id, DEVICE_LOOKUP_MAX_PER_ORG_IP, 60)
+    || await keyRateLimited(env, "device_lookup_fp:" + org.id + ":" + deviceFp, DEVICE_LOOKUP_MAX_PER_DEVICE, 60)) {
+    return limited();
+  }
+  if (!proof.present && now() < deviceLookupCutoffS(env)) return { level: "full", grace: true };
+  return { level: "minimal" };
+}
+
 async function orgActiveCheckin(request, env) {
   const org = await orgFromRequest(request, env);
   if (!org) return authErr("organisation required", 401);
@@ -4231,14 +4342,20 @@ async function orgActiveCheckin(request, env) {
   const url = new URL(request.url);
   const deviceFp = (url.searchParams.get("device_pub") || "").trim();
   if (!deviceFp) return err("device_pub required");
+  const gate = await deviceLookupGate(request, env, org, deviceFp, "active-checkin");
+  if (gate.reply) return gate.reply;
+  // Not proven to be this phone: say nothing, not even yes/no. A page that
+  // cannot check out with this answer (no check-in id) then just checks in, and
+  // the check-in itself answers "already signed in" with the details (C4).
+  if (gate.level !== "full") return noStore(json({ limited: true }));
 
   const row = await env.DB.prepare(
     "SELECT id,name,attendee_label,checkin_at FROM org_checkins WHERE org_id=? AND device_key_fp=? AND checkout_at IS NULL AND status!='invalid' ORDER BY checkin_at DESC LIMIT 1"
   ).bind(org.id, deviceFp).first();
-  if (!row) return json({ active: false });
+  if (!row) return noStore(json({ active: false }));
 
   const settings = JSON.parse(org.settings_json || "{}");
-  return json({
+  return noStore(json({
     active: true,
     checkin_id: row.id,
     nonce: "rescan_" + randomToken(),
@@ -4246,7 +4363,7 @@ async function orgActiveCheckin(request, env) {
     checkin_at: row.checkin_at,
     event: org.name || "IRLid Event",
     logo: settings.logoUrl || ""
-  });
+  }));
 }
 
 function orgSettingEnabled(settings, camelName, snakeName, defaultValue) {
