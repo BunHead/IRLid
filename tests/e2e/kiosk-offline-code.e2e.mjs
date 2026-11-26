@@ -176,7 +176,16 @@ async function kioskOfflineChallengeUrl(kiosk) {
 async function typeOnKiosk(kiosk, code) {
   await kiosk.fill(".irlid-kiosk-offline input", code);
   await kiosk.click(".irlid-kiosk-offline button");
-  await kiosk.waitForTimeout(150);
+  // Wait until the kiosk has really finished checking this code (it is async:
+  // HMAC in Web Crypto). It then either unlocks (the full screen stage goes) or
+  // clears the box and re-enables the button. A fixed 150 ms wait used to read
+  // the PREVIOUS attempt's message on a busy machine (flaky step 4).
+  await kiosk.waitForFunction(() => {
+    if (!document.getElementById("v511FullscreenStage")) return true;
+    const input = document.querySelector(".irlid-kiosk-offline input");
+    const btn = document.querySelector(".irlid-kiosk-offline button");
+    return !input || (input.value === "" && !(btn && btn.disabled));
+  }, null, { timeout: 10000 });
   return {
     unlocked: await kiosk.evaluate(() => !document.getElementById("v511FullscreenStage")),
     status: await kiosk.evaluate(() => document.querySelector(".irlid-kiosk-status")?.textContent || "")
@@ -381,8 +390,18 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     const made2 = await makeCodeOnPhone(phone, url2);
     await kiosk.evaluate(() => { const real = Date.now; window.__realNow = real; Date.now = () => real() + 91000; });
     r = await typeOnKiosk(kiosk, made2.code);
-    assert.equal(r.unlocked, false);
-    assert.match(r.status, /ran out|New challenge/);
+    assert.equal(r.unlocked, false, "a right code typed after 90 s must not unlock");
+    // Two correct outcomes, depending on timing: the submit sees the old
+    // challenge has run out ("ran out"), or the kiosk's 1 s timer has already
+    // swapped in a new challenge, so the old code is checked against the new
+    // one and refused ("Wrong code"). Either way the old challenge is gone.
+    assert.match(r.status, /ran out|New challenge|Wrong code/);
+    // In the second case that refused code counted as one wrong try on the new
+    // challenge, which step 5 then reuses (cancel and reopen keep the verifier).
+    const triesAlreadyOnChallenge = /Wrong code/.test(r.status) ? 1 : 0;
+    const oldChallenge = new URLSearchParams(new URL(url2).hash.slice(1)).get("c");
+    const shownNow = await kiosk.textContent(".irlid-kiosk-panel .irlid-kiosk-challenge");
+    assert.ok(!shownNow.includes(oldChallenge.slice(0, 4) + "-" + oldChallenge.slice(4)), "the expired challenge is no longer offered: " + shownNow);
     await kiosk.evaluate(() => { Date.now = window.__realNow; });
 
     // 5) Five wrong codes retire the challenge; its right code no longer works.
@@ -391,7 +410,12 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     const url3 = await kioskOfflineChallengeUrl(kiosk);
     const made3 = await makeCodeOnPhone(phone, url3);
     const bad = made3.code === "22222222" ? "33333333" : "22222222";
-    for (let i = 0; i < 5; i += 1) r = await typeOnKiosk(kiosk, bad);
+    // Exactly 5 wrong tries in total on this challenge retire it.
+    const toType = 5 - triesAlreadyOnChallenge;
+    for (let i = 0; i < toType; i += 1) {
+      r = await typeOnKiosk(kiosk, bad);
+      if (i < toType - 1) assert.match(r.status, new RegExp("Wrong code\\. " + (5 - triesAlreadyOnChallenge - i - 1) + " tries left"), "try " + (i + 1));
+    }
     assert.match(r.status, /5 wrong codes/);
     r = await typeOnKiosk(kiosk, made3.code);
     assert.equal(r.unlocked, false);
@@ -400,7 +424,10 @@ test("offline unlock code works end to end with the network cut", { skip: !chrom
     await managerCtx.setOffline(true);
     // (The manager page is still open from set-up; reuse it with the URL.)
     await manager.evaluate((u) => { location.href = u; }, url3).catch(() => {});
-    await manager.waitForTimeout(500);
+    // Wait for the code page to say what it can do, not a fixed 500 ms (the
+    // page may still be the previous one, or busy). A timeout falls through to
+    // the assert below, which then shows what the page did say.
+    await manager.waitForFunction(() => /not set up/.test(document.getElementById("status")?.textContent || ""), null, { timeout: 10000 }).catch(() => {});
     const mgrStatus = await manager.evaluate(() => document.getElementById("status")?.textContent || "");
     assert.match(mgrStatus, /not set up/);
 
