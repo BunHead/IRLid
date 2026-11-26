@@ -5083,7 +5083,8 @@
                 if (isNaN(dow)) dow = dayMap[dayStr.toLowerCase()] || 1;
                 var expectedIds = expectedNames.map(function (nm) {
                   // v6.8.29: never guess between people who share a name.
-                  var same = loadOrgExpectedState().filter(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); });
+                  var nk = function (x) { return String(x || '').normalize('NFC').trim().toLowerCase(); };
+                  var same = loadOrgExpectedState().filter(function (p) { return nk(p.name) === nk(nm); });
                   if (same.length === 1) return same[0].id;
                   if (same.length > 1) return null;
                   var added = addOrgExpectedEntry(nm, 'attendee');
