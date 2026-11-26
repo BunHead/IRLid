@@ -111,7 +111,7 @@
     <div class="nav-item" id="navSettings" data-min-role="lead_admin" onclick="showPanel('settings', this)">⚙ <span>Settings</span></div>
     <!-- v5.9 - first live deployment of the Org dashboard. From here, live and test-env version pills track separately.
          v5.9.0.5 - env strings hostname-gated via .env-badge-test / .env-badge-live spans. -->
-    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.31</span></div>
+    <div class="sidebar-footer">IRLid Protocol v5<br><span class="env-badge-test">Test Environment</span><span class="env-badge-live">Live</span> / Offline-safe<br><span style="color: var(--accent, #58a6ff); font-weight: 600;">Build v6.8.32</span></div>
   </div>
 </div>
 
@@ -463,6 +463,7 @@
                   <div class="card-body">
                     <div class="v511-hint" id="attendanceWeekStatus" aria-live="polite">Open this list to load the last 7 days (UK time).</div>
                     <div class="receipts-history-wrap" id="attendanceWeekBody"></div>
+                    <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" type="button" id="myActionsExportBtn" onclick="irlidDownloadAuditCsv(true)">Export my actions (CSV)</button> <span class="v511-hint">Everything the log records that you did here, so you can prove it later.</span></div>
                   </div>
                 </details>
               </div>
@@ -9076,7 +9077,23 @@
               'member_remove': 'Remove member',
               'expected_delete': 'Delete expected',
               'expected_restore': 'Restore expected',
-              'settings_save': 'Save settings'
+              'settings_save': 'Save settings',
+              // v6.8.32: every admin change is now in the log
+              'expected_create': 'Add attendee',
+              'expected_update': 'Edit attendee',
+              'expected_rebind': 'New phone for attendee',
+              'expected_claim': 'Attendee claimed a name',
+              'conflict_resolve': 'Phone clash decided',
+              'invite_revoke': 'Revoke invite',
+              'event_attendees_change': 'Event attendees changed',
+              'calendar_import': 'Week CSV import',
+              'record_delete': 'Delete record',
+              'attendance_clear': 'Clear attendance',
+              'irlid_kiosk_unlock_v5': 'Kiosk unlocked (staff phone)',
+              'irlid_kiosk_offline_unlock_v5': 'Kiosk unlocked (offline code)',
+              'irlid_kiosk_code_enrol_v5': 'Set up offline kiosk codes',
+              'irlid_kiosk_screen_approve_v5': 'Approve kiosk screen',
+              'irlid_kiosk_screen_revoke': 'Revoke kiosk screen'
             };
             function esc(s) {
               return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -9785,6 +9802,7 @@
     <div id="auditLogStatus" class="v511-hint" style="padding: 6px 2px;" aria-live="polite">Loading…</div>
     <div id="auditLogTableWrap" style="max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; border-radius: 6px;"></div>
     <div class="v511-invite-modal-actions">
+      <button type="button" class="v511-btn" id="auditLogExportBtn" onclick="irlidDownloadAuditCsv(false)">Export CSV</button>
       <button type="button" class="v511-btn" id="auditLogRefreshBtn">Refresh</button>
       <button type="button" class="v511-btn v511-btn-primary" id="auditLogDoneBtn">Done</button>
     </div>
@@ -12655,6 +12673,29 @@ function importAmbiguousMessage(res) {
   }
   return parts.join('\n');
 }
+// v6.8.32: download the admin log (Lead Admin / Developer) or "my actions"
+// (any staff member: only what they did) as a CSV file.
+async function irlidDownloadAuditCsv(mine) {
+  try {
+    if (!currentOrg || !currentOrg.id) return showToast('Sign in to an organisation first.', true);
+    const headers = { 'X-Org-Id': currentOrg.id };
+    const token = (typeof qrLoginSession !== 'undefined' && qrLoginSession) ? qrLoginSession.session_token : null;
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const base = (window.IRLidOrgApi && window.IRLidOrgApi.workerBaseUrl) ? window.IRLidOrgApi.workerBaseUrl().replace(/\/+$/, '') : 'https://irlid-api-org.irlid-bunhead.workers.dev';
+    const resp = await fetch(base + '/org/audit-log?format=csv&limit=5000' + (mine ? '&mine=1' : ''), { headers });
+    if (!resp.ok) return showToast(resp.status === 403 ? 'You do not have access to that log.' : 'Could not download the log (' + resp.status + ').', true);
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'irlid-' + (mine ? 'my-actions' : 'admin-log') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  } catch (e) {
+    showToast('Could not download the log: ' + (e && e.message || e), true);
+  }
+}
+window.irlidDownloadAuditCsv = irlidDownloadAuditCsv;
 function rowDisplayName(row) {
   if (!row) return '';
   // v6.8.26: name_label tells apart two people with the same name.

@@ -35,7 +35,7 @@ async function makeDevice() {
   const pub = { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y };
   return { kp, pub, fp: b64u(await sha256(new TextEncoder().encode(canonical(pub)))).slice(0, 16) };
 }
-async function signV5(device, payload) {
+export async function signV5(device, payload) {
   const challenge = b64u(await sha256(new TextEncoder().encode(canonical(payload))));
   const clientData = new TextEncoder().encode(JSON.stringify({ type: "webauthn.get", challenge, origin: "https://irlid.co.uk" }));
   const authData = new Uint8Array(37); authData[32] = 0x05;
@@ -76,3 +76,20 @@ export async function importCsv({ env, lead }, csv) {
 export const HEADER = "event_name,studio,day_of_week,start_time,duration_min,expected_names\n";
 export const linked = (d1, eventId) => d1.all("SELECT expected_id FROM event_expected WHERE event_id=? ORDER BY expected_id", eventId).map(r => r.expected_id);
 
+
+// A signed v5 calendar action for the Lead Admin, as the dashboard sends it.
+export async function calendarAction(ctx, extra = {}) {
+  const payload = { type: "irlid_calendar_write_v5", org_id: "org-1", nonce: "nonce_" + crypto.randomUUID().replace(/-/g, ""), timestamp: Date.now(), ...extra };
+  return signV5(ctx.lead, payload);
+}
+// A JSON call to the Worker as the Lead Admin (or another session token).
+export async function callAs(ctx, method, path, body, token = "sess_csv_lead_abcdefghijklmnop") {
+  const headers = { "Content-Type": "application/json", "X-Org-Id": "org-1" };
+  if (token) headers.Authorization = "Bearer " + token;
+  const res = await worker.fetch(new Request("https://worker.test" + path, {
+    method, headers, body: method === "GET" ? undefined : JSON.stringify(body || {})
+  }), ctx.env, { waitUntil() {} });
+  const text = await res.text();
+  let data = null; try { data = JSON.parse(text); } catch (_) {}
+  return { status: res.status, data, text, headers: res.headers };
+}
