@@ -13,7 +13,7 @@ const STATUSES = new Set(["tested", "partial", "gap", "design only", "process", 
 
 // Rules with code but no test yet. Closing one: add its tests to the map AND
 // take it off this list (the test below fails until both agree).
-const KNOWN_GAPS = ["R6", "A2", "I3", "I4", "I6", "E4"];
+const KNOWN_GAPS = ["I3", "I4", "I6", "E4"];
 
 function rulesInRulesMd() {
   return [...read("docs/rules.md").matchAll(/^- \*\*([A-Z]\d+)\./gm)].map(m => m[1]);
