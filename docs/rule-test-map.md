@@ -51,17 +51,17 @@ Test file paths: `org/` is `irlid-api-org/tests/`, `api/` is `irlid-api/tests/`,
 | C14 | tested | org/checkin-nonce.test.mjs, org/crowd-checkin.test.mjs | |
 | C15 | tested | org/signed-checkin.test.mjs, org/device-lookup-hardening.test.mjs | |
 | C16 | design only | | needs a signing venue device; not built |
-| R1 | partial | org/erasure-audit.test.mjs, org/expected-delete-audit.test.mjs, org/expected-restore.test.mjs | erasure logged; "check-out fields filled once" has no direct test |
+| R1 | tested | org/erasure-audit.test.mjs, org/expected-delete-audit.test.mjs, org/expected-restore.test.mjs, org/rules-r6-a2.test.mjs | erasure logged; check-out fields filled once |
 | R2 | partial | api/verify-receipt.test.mjs, unit/sign.test.js | no fixture receipts from every past version yet (test plan step 7) |
 | R3 | partial | org/theme-validation.test.mjs, org/checkin-nonce.test.mjs | spot checks only (public pages leak nothing, GPS band only) |
 | R4 | tested | org/d1-migrations-gated.test.mjs | one approved exception: 0003_allow_same_name.sql |
 | R5 | tested | org/erasure-audit.test.mjs, org/expected-delete-audit.test.mjs | fail-closed for erasure, best effort otherwise |
-| R6 | gap | | auto check-out is marked "auto" and has no score: no test yet |
+| R6 | tested | org/rules-r6-a2.test.mjs | marked "auto" at event end + grace; no score or signature added |
 | R7 | process | | policy, not code (source of the rule still open) |
 | R8 | partial | org/offline-first.test.mjs | org receipts keep the band only; consumer GPS re-check not tested |
 | R9 | design only | | face witness not built |
 | A1 | partial | org/developer-access.test.mjs, org/developer-every-setting.test.mjs | Developer reaches every setting; one-step Lead Admin handover not tested |
-| A2 | gap | | "Developer cannot be handed out" has no test yet |
+| A2 | tested | org/rules-r6-a2.test.mjs | no invite, add or edit can make a Developer; role names fixed, labels only |
 | A3 | partial | org/auth-sweep.test.mjs | only Lead Admin / Developer may remove: refusals tested; re-invite to change role not tested |
 | A4 | tested | org/settings-lead-admin-only.test.mjs, org/developer-every-setting.test.mjs | |
 | A5 | tested | org/cross-org-sweep.test.mjs, org/auth-sweep.test.mjs, org/device-lookup-hardening.test.mjs | attendees never reach the dashboard; picker shows names only |

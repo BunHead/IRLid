@@ -265,7 +265,7 @@ Some of these are design-only or off by default (C16, R9), so "no test" there me
 
 Each step is its own PR. Rough size in brackets.
 
-1. **Rule-to-test map** (small, docs plus a script): one table, rule by rule, with the test file that proves it. Adds a test that fails if a rule has no row. Makes section 5 exact. **Done 26/11/2026:** `docs/rule-test-map.md`, checked by `rule-test-map.test.mjs`. S, C, R and A rules with code but no test yet: R6 and A2 (plus I3, I4, I6, E4).
+1. **Rule-to-test map** (small, docs plus a script): one table, rule by rule, with the test file that proves it. Adds a test that fails if a rule has no row. Makes section 5 exact. **Done 26/11/2026:** `docs/rule-test-map.md`, checked by `rule-test-map.test.mjs`. R6 and A2 got their tests the same day (`rules-r6-a2.test.mjs`); every S, C, R and A rule with code now has a test. Gaps left: I3, I4, I6, E4.
 2. **Role matrix and cross-org route sweep** (medium): covers 4.6, 4.10 and half of 4.13 from one generated list of routes.
 3. **Migrations test** (small): run all migrations in order, then the suite on that result (4.4).
 4. **Browser smoke for the dashboard** (medium): sign in, attendance, Today across midnight, Last 7 days and CSV, sign out clears (4.2).
