@@ -2028,10 +2028,10 @@ async function executeVerifiedCalendarAction(env, action) {
   const orgId = String(body.org_id || "").trim();
   const authorizedBy = action.authorized_by_user?.id || action.user?.id || null;
   if (calendarAction === "create") {
-    return orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy);
+    return orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy, action);
   }
   if (calendarAction === "update") {
-    return orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy);
+    return orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy, action);
   }
   if (calendarAction === "delete") {
     return orgWeeklyEventDeleteFromPayload(env, orgId, body);
@@ -2039,7 +2039,7 @@ async function executeVerifiedCalendarAction(env, action) {
   return { error: json({ error: "unsupported_calendar_action" }, 400) };
 }
 
-async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
+async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy, signedAction) {
   const createBody = Object.assign({}, body || {});
   if (!createBody.id && createBody.event_id) createBody.id = createBody.event_id;
   const ev = cleanEventBody(createBody);
@@ -2061,11 +2061,12 @@ async function orgWeeklyEventCreateFromPayload(env, orgId, body, authorizedBy) {
     ).bind(ev.id, expectedId, t, authorizedBy));
   }
   await env.DB.batch(statements);
+  await logEventAttendeeChange(env, orgId, actorFromSignedAction(signedAction), ev.id, ev.name, expectedCheck.ids, [], "event_create");
   const events = await rowsForWeeklyEvents(env, orgId, {});
   return { ok: true, result: { event_id: ev.id, event: events.find(e => e.id === ev.id) || null } };
 }
 
-async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
+async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy, signedAction) {
   const id = String(body.event_id || body.id || "").trim();
   const existing = await env.DB.prepare(
     "SELECT * FROM weekly_events WHERE id=? AND org_id=? AND archived_at IS NULL"
@@ -2076,6 +2077,7 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
   const inputError = validateEventInput(ev);
   if (inputError) return { error: err(inputError) };
   const expectedCheck = body.expected_ids !== undefined ? await calendarActionExpectedIdsForOrg(env, orgId, body.expected_ids, "update") : null;
+  let attendeeChange = null;
   const statements = [
     env.DB.prepare(
       "UPDATE weekly_events SET room_id=?,name=?,day_of_week=?,start_time_local=?,duration_min=?,capacity=?,color_hex=?,notes=?,require_proof=?,late_grace_min=? WHERE id=? AND org_id=?"
@@ -2097,11 +2099,15 @@ async function orgWeeklyEventUpdateFromPayload(env, orgId, body, authorizedBy) {
     }
     for (const expectedId of current) {
       if (!next.has(expectedId)) {
+        // The link row goes, but the removal is logged (who, when, which
+        // person), so it can always be proven and put back.
         statements.push(env.DB.prepare("DELETE FROM event_expected WHERE event_id=? AND expected_id=?").bind(id, expectedId));
       }
     }
+    attendeeChange = { added: [...next].filter(x => !current.has(x)), removed: [...current].filter(x => !next.has(x)) };
   }
   await env.DB.batch(statements);
+  if (attendeeChange) await logEventAttendeeChange(env, orgId, actorFromSignedAction(signedAction), id, ev.name, attendeeChange.added, attendeeChange.removed, "event_update");
   const events = await rowsForWeeklyEvents(env, orgId, {});
   return { ok: true, result: { event: events.find(e => e.id === id) || null } };
 }
@@ -2654,6 +2660,9 @@ async function orgAuditLog(request, env) {
   // qrLoginSession.session_token is unavailable sends the api_key as the Bearer,
   // which requireSession alone rejects with session_invalid — the exact failure
   // the first live smoke hit. orgAuth has already validated the X-Org-Key.
+  // v6.8.32: ?format=csv downloads the log as a file (Lead Admin / Developer).
+  const url = new URL(request.url);
+  const asCsv = url.searchParams.get("format") === "csv";
   let allowed = false;
   const dev = await bootstrapDeveloperFromBearer(request, env);
   if (dev) {
@@ -2667,9 +2676,9 @@ async function orgAuditLog(request, env) {
   }
   if (!allowed) return json({ error: "insufficient_role", message: "Lead Admin or Developer access required." }, 403);
 
-  let limit = parseInt(new URL(request.url).searchParams.get("limit") || "200", 10);
+  let limit = parseInt(url.searchParams.get("limit") || "200", 10);
   if (!Number.isFinite(limit) || limit < 1) limit = 200;
-  if (limit > 500) limit = 500;
+  if (limit > (asCsv ? 5000 : 500)) limit = asCsv ? 5000 : 500;
   await ensureAuditTable(env);
   let rows;
   try {
@@ -2708,6 +2717,21 @@ async function orgAuditLog(request, env) {
     const { stored_name, user_name, key_user_name, ...rest } = r;
     return { ...rest, actor_name: resolveAuditActorName({ ...r, roster_name: rosterByFp.get(r.actor_pub_fp) || null }) };
   });
+  if (asCsv) {
+    // A spreadsheet runs a cell that starts with = + - @ as a formula; names and
+    // targets come from people, so such cells are defused (as the 7-day CSV).
+    const cell = (v) => { let t = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return csvEscape(t); };
+    const lines = [["when_utc", "who", "role", "action", "target", "outcome", "detail", "entry_id"].join(",")];
+    for (const e of entries) {
+      lines.push([new Date(Number(e.created_at) * 1000).toISOString(), e.actor_name, e.actor_role, e.action, e.target, e.outcome, e.detail, e.id].map(cell).join(","));
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    return new Response(lines.join("\r\n") + "\r\n", { status: 200, headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="irlid-admin-log-${day}.csv"`,
+      "Cache-Control": "no-store"
+    } });
+  }
   return noStore(json({ ok: true, entries }));
 }
 
@@ -3381,7 +3405,13 @@ async function orgInviteRevoke(request, env, nonceOverride) {
   const result = await env.DB.prepare(
     "UPDATE org_invites SET status='revoked' WHERE nonce = ? AND org_id = ? AND status = 'pending'"
   ).bind(nonce, issuer.org.id).run();
-  return json({ ok: true, revoked: (result.meta?.changes || 0) > 0 });
+  const revoked = (result.meta?.changes || 0) > 0;
+  if (revoked) {
+    await logOrgChange(env, issuer.org.id, { actorUserId: issuer.user.id, actorPubFp: issuer.user.pub_fp || null, actorName: issuer.user.display_name || null, actorRole: issuer.role }, {
+      action: "invite_revoke", target: "invite " + nonce.slice(0, 8), targetRef: nonce.slice(0, 16)
+    });
+  }
+  return json({ ok: true, revoked });
 }
 
 async function orgPublicMeta(request, env) {
@@ -7051,6 +7081,10 @@ async function orgExpectedCreate(request, env) {
     if (isUniqueNameError(e)) return duplicateNameReply();
     throw e;
   }
+  await logOrgChange(env, org.id, await actorForAudit(request, env, org, body), {
+    action: "expected_create", target: displayName, targetRef: row.id,
+    detail: { role: roleKey, device_key: row.device_pub_fp ? deviceKeyTag(row.device_pub_fp) : null }
+  });
   return json({ expected_id: row.id, expected: row }, 201);
 }
 
@@ -7133,6 +7167,7 @@ async function orgWeeklyEventCreate(request, env) {
     ).bind(ev.id, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
   }
   await env.DB.batch(statements);
+  await logEventAttendeeChange(env, org.id, actorFromSignedAction(action), ev.id, ev.name, expectedCheck.ids, [], "event_create");
   const events = await rowsForWeeklyEvents(env, org.id, {});
   return json({ event_id: ev.id, event: events.find(e => e.id === ev.id) || null }, 201);
 }
@@ -7153,6 +7188,7 @@ async function orgWeeklyEventUpdate(request, env, id) {
   if (inputError) return err(inputError);
   const expectedCheck = body.expected_ids !== undefined ? await ensureExpectedIdsForOrg(env, org.id, body.expected_ids) : null;
   if (expectedCheck && !expectedCheck.ok) return json({ error: "expected_ids_not_found", missing: expectedCheck.missing }, 400);
+  let attendeeChange = null;
 
   const statements = [
     env.DB.prepare(
@@ -7175,11 +7211,15 @@ async function orgWeeklyEventUpdate(request, env, id) {
     }
     for (const expectedId of current) {
       if (!next.has(expectedId)) {
+        // The link row goes, but the removal is logged (who, when, which
+        // person), so it can always be proven and put back.
         statements.push(env.DB.prepare("DELETE FROM event_expected WHERE event_id=? AND expected_id=?").bind(id, expectedId));
       }
     }
+    attendeeChange = { added: [...next].filter(x => !current.has(x)), removed: [...current].filter(x => !next.has(x)) };
   }
   await env.DB.batch(statements);
+  if (attendeeChange) await logEventAttendeeChange(env, org.id, actorFromSignedAction(action), id, ev.name, attendeeChange.added, attendeeChange.removed, "event_update");
   const events = await rowsForWeeklyEvents(env, org.id, {});
   return json({ event: events.find(e => e.id === id) || null });
 }
@@ -7409,8 +7449,23 @@ async function orgWeeklyEventsImportCsv(request, env) {
   }
 
   if (statements.length) await env.DB.batch(statements);
+  const batchId = "imp_" + randomToken().slice(0, 18);
+  // One row per import: what it did, and every name it did NOT add and why,
+  // so a missing person on an event can always be traced back to the file.
+  const notAdded = ambiguous.map(a => ({ row: a.row, event: a.event_name, name: a.name, reason: "matches more than one person" }))
+    .concat(notFound.map(a => ({ row: a.row, event: a.event_name, name: a.name, reason: a.reason })));
+  await logOrgChange(env, org.id, actorFromSignedAction(action), {
+    action: "calendar_import",
+    target: "Week CSV import: " + eventsCreated + " event" + (eventsCreated === 1 ? "" : "s") + (notAdded.length ? ", " + notAdded.length + " name" + (notAdded.length === 1 ? "" : "s") + " not added" : ""),
+    targetRef: batchId,
+    detail: {
+      batch_id: batchId, replace, events_created: eventsCreated, events_replaced: eventsReplaced,
+      people_created: expectedCreated, rows_with_errors: reportRows.filter(r => r.status === "error").length,
+      not_added: notAdded.slice(0, 200), not_added_total: notAdded.length
+    }
+  });
   return json({
-    batch_id: "imp_" + randomToken().slice(0, 18),
+    batch_id: batchId,
     events_created: eventsCreated,
     events_replaced: eventsReplaced,
     org_expected_created: expectedCreated,
@@ -7676,6 +7731,72 @@ async function actorForAudit(request, env, org, body) {
   return { actorUserId: null, actorPubFp: null, actorName: null, actorRole: null };
 }
 
+// v6.8.32 PROOF OF RECORDS: every admin change that used to leave no trace now
+// writes an append-only org_audit_log row (who, when, what). Best effort, like
+// every non-erasure log write (R5): a failed log never blocks the action.
+function actorFromSignedAction(action) {
+  const by = (action && (action.authorized_by_user || action.user)) || {};
+  return {
+    actorUserId: by.id || null,
+    actorPubFp: (action && action.actor_pub_fp) || null,
+    actorName: by.display_name || null,
+    actorRole: (action && action.role) || null
+  };
+}
+async function logOrgChange(env, orgId, actor, f) {
+  const a = actor || {};
+  const detail = f.detail === undefined || f.detail === null ? null
+    : (typeof f.detail === "string" ? f.detail : JSON.stringify(f.detail)).slice(0, 8000);
+  await recordAudit(env, {
+    orgId,
+    actorUserId: a.actorUserId || null,
+    actorPubFp: a.actorPubFp || null,
+    actorName: a.actorName || null,
+    actorRole: a.actorRole || null,
+    action: f.action,
+    target: String(f.target || "").slice(0, 300),
+    targetRef: f.targetRef != null ? String(f.targetRef) : null,
+    outcome: f.outcome || "allowed",
+    detail
+  });
+}
+// "Name" or, when another active person shares it, "Name (…a3f9)".
+async function peopleForLog(env, orgId, ids) {
+  const list = [...new Set((ids || []).map(String))];
+  if (!list.length) return [];
+  const rows = [];
+  for (let k = 0; k < list.length; k += 50) {
+    const part = list.slice(k, k + 50);
+    const r = await env.DB.prepare(
+      "SELECT id, display_name, device_pub_fp FROM org_expected WHERE org_id=? AND id IN (" + part.map(() => "?").join(",") + ")"
+    ).bind(orgId, ...part).all();
+    rows.push(...(r.results || []));
+  }
+  const ctx = await sharedActiveNames(env, orgId);
+  const byId = new Map(rows.map(r => [String(r.id), r]));
+  return list.map(id => {
+    const r = byId.get(id);
+    if (!r) return { id, name: "(unknown person)" };
+    return { id, name: ctx.shared.has(nameKey(r.display_name)) ? nameWithKeyTag(r.display_name, r.device_pub_fp) : r.display_name };
+  });
+}
+// Who was put on, or taken off, an event (also same-name picks: the log names
+// the exact person, with their key tag when the name is shared).
+async function logEventAttendeeChange(env, orgId, actor, eventId, eventName, addedIds, removedIds, via) {
+  const added = await peopleForLog(env, orgId, addedIds);
+  const removed = await peopleForLog(env, orgId, removedIds);
+  if (!added.length && !removed.length) return;
+  const parts = [];
+  if (added.length) parts.push("added " + added.map(p => p.name).slice(0, 5).join(", ") + (added.length > 5 ? " +" + (added.length - 5) : ""));
+  if (removed.length) parts.push("removed " + removed.map(p => p.name).slice(0, 5).join(", ") + (removed.length > 5 ? " +" + (removed.length - 5) : ""));
+  await logOrgChange(env, orgId, actor, {
+    action: "event_attendees_change",
+    target: String(eventName || "event") + ": " + parts.join("; "),
+    targetRef: eventId,
+    detail: { event_id: eventId, added: added.slice(0, 200), removed: removed.slice(0, 200), via: via || null }
+  });
+}
+
 async function orgExpectedDelete(request, env, id) {
   const org = await orgAuth(request, env); if (org.error) return org;
   let body = {};
@@ -7884,6 +8005,21 @@ async function orgExpectedUpdate(request, env, id) {
     throw e;
   }
   if (!row) return err("Expected attendee not found", 404);
+  // Old -> new for the name, role and device key (tag only). For the private
+  // hint and note fields only WHICH changed is logged, never their contents (R3).
+  const changes = {};
+  if (String(existingRow.display_name || "") !== String(row.display_name || "")) changes.display_name = [existingRow.display_name, row.display_name];
+  if (String(existingRow.role_key || "") !== String(row.role_key || "")) changes.role = [existingRow.role_key, row.role_key];
+  if (String(existingRow.device_pub_fp || "") !== String(row.device_pub_fp || "")) changes.device_key = [deviceKeyTag(existingRow.device_pub_fp) || null, deviceKeyTag(row.device_pub_fp) || null];
+  const privateChanged = ["email_hint", "phone_hint", "notes", "initials"].filter(k => String(existingRow[k] || "") !== String(row[k] || ""));
+  if (privateChanged.length) changes.also_changed = privateChanged;
+  if (Object.keys(changes).length) {
+    await logOrgChange(env, org.id, actorFromSignedAction(action), {
+      action: "expected_update",
+      target: changes.display_name ? existingRow.display_name + " -> " + row.display_name : row.display_name,
+      targetRef: id, detail: changes
+    });
+  }
   return json({ expected: row });
 }
 
@@ -7917,6 +8053,10 @@ async function orgExpectedRebind(request, env, id) {
   await env.DB.prepare(
     "UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=?"
   ).bind(newDeviceFp, id, org.id).run();
+  await logOrgChange(env, org.id, await actorForAudit(request, env, org, body), {
+    action: "expected_rebind", target: expected.display_name || "Expected attendee", targetRef: id,
+    detail: { old_key: deviceKeyTag(expected.device_pub_fp) || null, new_key: deviceKeyTag(newDeviceFp) || null, reason: reason || null, rebind_id: rebind?.id || null }
+  });
 
   return json({ ok: true, rebind_id: rebind?.id || null });
 }
@@ -7964,6 +8104,11 @@ async function orgExpectedClaim(request, env, id) {
   const row = await env.DB.prepare(
     `UPDATE org_expected SET device_pub_fp=? WHERE id=? AND org_id=? RETURNING ${EXPECTED_SELECT}`
   ).bind(devicePubFp, id, org.id).first();
+  // The attendee's phone claimed this name ("I'm not on the list" picker).
+  await logOrgChange(env, org.id, { actorPubFp: devicePubFp, actorName: "Attendee phone (key " + deviceKeyTag(devicePubFp) + ")", actorRole: "attendee" }, {
+    action: "expected_claim", target: (row && row.display_name) || expected.display_name || "Expected attendee", targetRef: id,
+    detail: { device_key: deviceKeyTag(devicePubFp) }
+  });
   return json({ ok: true, expected: shapeRow(row) });
 }
 
@@ -7994,6 +8139,12 @@ async function orgResolveConflict(request, env, id) {
         .bind(resolution, t, id, org.id)
     ]);
   }
+  await logOrgChange(env, org.id, await actorForAudit(request, env, org, body), {
+    action: "conflict_resolve",
+    target: String(conflict.claimed_name || "attendee") + (resolution === "confirmed_new_device" ? " (new phone accepted)" : " (rejected)"),
+    targetRef: conflict.expected_id,
+    detail: { conflict_id: id, resolution, checkin_id: conflict.checkin_id || null, claiming_key: deviceKeyTag(conflict.claiming_device_fp) || null, bound_key: deviceKeyTag(conflict.bound_device_fp) || null }
+  });
   return json({ ok: true, conflict_id: id, resolution });
 }
 

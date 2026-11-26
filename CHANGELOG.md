@@ -2,6 +2,10 @@
 
 Release history of the dashboard shell, newest first. It used to live in one very long comment on the `CACHE_VERSION` line in `sw.js`. Copied here unchanged on 10 Nov 2026 (review 5.3) so it can be read on a phone. Each entry starts with its service-worker cache version where the original had one.
 
+## irlid-shell-v223
+
+v6.8.32 PROOF OF RECORDS (phase 1): every admin change that used to leave no trace now writes an append-only row in the admin log (who, when, what): Add attendee (the dashboard form), Edit attendee (old -> new name, role and key tag; for private hints and notes only which field changed), New phone (rebind, old and new key tag), an attendee's phone claiming a name, a phone-clash decision, Revoke invite, who was put on or taken off an event (named by key tag when a name is shared, so same-name picks are on record), and each week CSV import (counts, plus every name it did not add and why). The log already could not be edited or deleted. New: the Admin actions log has Export CSV (Lead Admin / Developer only; staff ask their Lead Admin). Formula cells are defused. A failed log write never blocks an action (R5). No D1 change. See docs/proof-of-records.md for the full audit and the later phases.
+
 ## irlid-shell-v222
 
 v6.8.31 CSV CAN NAME ONE PERSON: in the week CSV's `expected_names`, an admin can now name a specific person among namesakes: `Sam Example (…a3f9)` (or `(...a3f9)`, the last 4 characters of the device key), `Sam Example (no key yet)`, or `id:<record id>`. The Export writes shared names that way (the tag when it is unique, else the record id), so exporting, editing and re-importing with replace keeps the admin's choice. A specific reference that matches nobody active (unknown or archived id, a key tag that no longer matches) is reported as not found and never creates a new person. The import message lists, for each ambiguous name, the exact text that picks each candidate. The offline (local-only) parser in the dashboard does the same matching and now reports every name it skips. Stacked on v6.8.29 / v220 (PR #218); v6.8.30 / v221 is PR #219.
