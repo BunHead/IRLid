@@ -4,7 +4,7 @@ Release history of the dashboard shell, newest first. It used to live in one ver
 
 ## irlid-shell-v220
 
-v6.8.29 EVENT CSV IMPORT NEVER GUESSES: since v6.8.27 two people may share a name. An `expected_names` entry in the week CSV now links only when exactly one active person has that name. With two or more, nobody is added for that name, the row comes back as `ambiguous` (with each person's "Name (…a3f9)" tag, never the device key), and the dashboard tells the admin which rows and events need a choice. A name nobody has is still created once. The event itself is always created.
+v6.8.29 EVENT CSV IMPORT NEVER GUESSES: since v6.8.27 two people may share a name. An `expected_names` entry in the week CSV now links only when exactly one active person has that name. With two or more, nobody is added for that name, the row comes back as `ambiguous` (with each person's "Name (…a3f9)" tag, never the device key), and the dashboard tells the admin which rows and events need a choice. A name nobody has is still created once. The event itself is always created. Names are compared and stored in Unicode NFC, so the same name typed two ways (for example é as one character or as e plus an accent) is one name; accents are never stripped.
 
 ## irlid-shell-v219
 

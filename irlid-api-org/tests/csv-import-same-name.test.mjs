@@ -154,6 +154,43 @@ test("ambiguous across several rows is reported for each row", async () => {
   assert.ok(r.data.ambiguous[0].candidates.some(c => c.name_label === "Sam Example (no key yet)"));
 });
 
+test("Unicode: the same name typed two ways (NFC / NFD) is one name; accents are never stripped", async () => {
+  const NFC = "Jos\u00e9 Example";      // é as one character
+  const NFD = "Jose\u0301 Example";     // e + combining acute
+  assert.notEqual(NFC, NFD);
+  // stored one way, typed the other: links
+  let ctx = await setup();
+  const jose = person(ctx.d1, NFD, null);
+  let r = await importCsv(ctx, HEADER + `Yoga,Studio,Mon,10:00,60,${NFC}\n`);
+  assert.equal(r.data.rows[0].status, "ok", r.text);
+  assert.deepEqual(linked(ctx.d1, r.data.rows[0].event_id), [jose]);
+  assert.equal(r.data.org_expected_created, 0, "no duplicate made for the other spelling");
+  // two people stored the two ways ARE the same name: ambiguous, never a guess
+  ctx = await setup();
+  person(ctx.d1, NFC, "fpJoseOne000a3f9"); person(ctx.d1, NFD, "fpJoseTwo0007c21");
+  r = await importCsv(ctx, HEADER + `Yoga,Studio,Mon,10:00,60,${NFD}\n`);
+  assert.equal(r.data.rows[0].status, "ambiguous");
+  assert.equal(r.data.ambiguous[0].candidates.length, 2);
+  // a new name typed decomposed is saved composed (NFC), accent kept
+  ctx = await setup();
+  r = await importCsv(ctx, HEADER + "Yoga,Studio,Mon,10:00,60,Ren\u0065\u0301e Sample\n");
+  assert.equal(r.data.org_expected_created, 1);
+  assert.equal(ctx.d1.get("SELECT display_name FROM org_expected").display_name, "Ren\u00e9e Sample");
+  // accents are not stripped: "Jose" is not "José"
+  ctx = await setup();
+  person(ctx.d1, NFC, null);
+  r = await importCsv(ctx, HEADER + "Yoga,Studio,Mon,10:00,60,Jose Example\n");
+  assert.equal(r.data.org_expected_created, 1, "Jose (no accent) is a different person");
+});
+
+test("Unicode: the dashboard labels treat NFC and NFD as the same name too", async () => {
+  const ctx = await setup();
+  person(ctx.d1, "Jos\u00e9 Example", "fpJoseOne000a3f9"); person(ctx.d1, "Jose\u0301 Example", "fpJoseTwo0007c21");
+  const res = await worker.fetch(new Request("https://worker.test/org/expected", { headers: { Authorization: "Bearer sess_csv_lead_abcdefghijklmnop", "X-Org-Id": "org-1" } }), ctx.env, { waitUntil() {} });
+  const data = await res.json();
+  assert.equal(data.expected.filter(e => e.name_label).length, 2, JSON.stringify(data));
+});
+
 test("dashboard: the import tells the admin which rows need a choice, and the old local parser never guesses either", () => {
   const html = readFileSync(new URL("../../Org.html", import.meta.url), "utf8");
   assert.match(html, /const res=await api\('\/org\/weekly-events\/import-csv\?replace=1'/);
@@ -162,4 +199,5 @@ test("dashboard: the import tells the admin which rows need a choice, and the ol
   assert.match(msg, /matches more than one person/);
   // the local (mockup) parser: more than one match -> not added
   assert.match(html, /if \(same\.length === 1\) return same\[0\]\.id;\s*if \(same\.length > 1\) return null;/);
+  assert.match(html, /normalize\('NFC'\)/);
 });
