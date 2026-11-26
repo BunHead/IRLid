@@ -10060,8 +10060,66 @@ function snapshotOrgCode(org) {
   const target = org || currentOrg || {};
   return target.id || target.slug || target.name || '';
 }
-function applyServerSettingsToLocalState(s) {
+// v6.8.28 KIOSK LOCK FAILS CLOSED. The padlock-or-X rule must never fall back to
+// the X just because settings did not load. The last lock setting a real server
+// reply gave for THIS organisation is remembered on THIS device. Resetting on
+// organisation select, a failed or slow settings call, or an offline copy with
+// no settings all keep the lock on if it was on. Only an actual server settings
+// reply that says off turns it off (and is remembered as off).
+const KIOSK_LOCK_MEMORY_PREFIX = 'irlid_kiosk_lock_v1:';
+function irlidKioskLockMemoryRead(orgId) {
+  if (!orgId) return { lf: false, km: false };
+  try {
+    const raw = localStorage.getItem(KIOSK_LOCK_MEMORY_PREFIX + orgId);
+    const m = raw ? JSON.parse(raw) : null;
+    return { lf: !!(m && m.lf === 1), km: !!(m && m.km === 1) };
+  } catch (_) { return { lf: false, km: false }; }
+}
+function irlidKioskLockRemember(orgId, lf, km) {
+  if (!orgId) return;
+  try { localStorage.setItem(KIOSK_LOCK_MEMORY_PREFIX + orgId, JSON.stringify({ lf: lf ? 1 : 0, km: km ? 1 : 0, at: Date.now() })); } catch (_) {}
+}
+function irlidKioskLockRememberedOn() {
+  const m = irlidKioskLockMemoryRead(currentOrg && currentOrg.id);
+  return m.lf || m.km;
+}
+// Never turns a lock OFF: keeps whatever is already on (in settings, in the
+// data just received, or remembered for this org) and shows it.
+function irlidKioskLockKeepClosed(src) {
+  const m = irlidKioskLockMemoryRead(currentOrg && currentOrg.id);
+  const from = src || {};
+  const lf = settings.lockFullscreen === true || from.lockFullscreen === true || m.lf;
+  const km = settings.kioskMode === true || from.kioskMode === true || m.km;
+  if (lf) settings.lockFullscreen = true;
+  if (km) settings.kioskMode = true;
+  { const el = document.getElementById('lockFullscreen'); if (el && lf) el.checked = true; }
+  { const el = document.getElementById('kioskMode'); if (el && km) el.checked = true; }
+}
+function irlidKioskLockApply(src, authoritative) {
+  if (authoritative) {
+    settings.lockFullscreen = src.lockFullscreen === true;
+    { const lf = document.getElementById('lockFullscreen'); if (lf) lf.checked = settings.lockFullscreen; }
+    window.__irlidLockFullscreenHydrated = true;
+    settings.kioskMode = src.kioskMode === true;
+    { const km = document.getElementById('kioskMode'); if (km) km.checked = settings.kioskMode; }
+    window.__irlidKioskModeHydrated = true;
+    irlidKioskLockRemember(currentOrg && currentOrg.id, settings.lockFullscreen, settings.kioskMode);
+  } else {
+    // Not the server's word: never switch the lock off, never mark it loaded
+    // (so a save cannot send a guess back to the server).
+    irlidKioskLockKeepClosed(src);
+  }
+}
+// The one rule for "padlock, not X" (used by the check-in full screen).
+function irlidKioskLockShouldShow() {
+  return !!((settings && (settings.lockFullscreen === true || settings.kioskMode === true)) || irlidKioskLockRememberedOn());
+}
+// `opts.authoritative` is true ONLY for a real settings reply from the Worker
+// (or the read-back after a save). Everything else (cached copy, org list row,
+// empty object) is not allowed to switch the lock off.
+function applyServerSettingsToLocalState(s, opts) {
   const src = s || {};
+  const authoritative = !!(opts && opts.authoritative === true);
   if (typeof window.v511HydrateCalendarDefaultsFromServer === 'function') {
     window.v511HydrateCalendarDefaultsFromServer(src.calendar_defaults);
   }
@@ -10093,14 +10151,9 @@ function applyServerSettingsToLocalState(s) {
   settings.requireLiveCode = src.requireLiveCode === true;
   { const rl = document.getElementById('requireLiveCode'); if (rl) rl.checked = settings.requireLiveCode; }
   window.__irlidRequireLiveCodeHydrated = true;
-  // Kiosk lock: same rule as requireLiveCode, hydrate from the server only.
-  settings.lockFullscreen = src.lockFullscreen === true;
-  { const lf = document.getElementById('lockFullscreen'); if (lf) lf.checked = settings.lockFullscreen; }
-  window.__irlidLockFullscreenHydrated = true;
-  settings.kioskMode = src.kioskMode === true;
-  { const km = document.getElementById('kioskMode'); if (km) km.checked = settings.kioskMode; }
+  // Kiosk lock: hydrate from a real server reply only (v6.8.28: fail closed).
+  irlidKioskLockApply(src, authoritative);
   if (typeof window.irlidKioskSyncSettingsUi === 'function') window.irlidKioskSyncSettingsUi();
-  window.__irlidKioskModeHydrated = true;
   if (typeof window.irlidKioskAfterSettings === 'function') window.irlidKioskAfterSettings();
   // v5.9.0.13.14 — roleLabels persisted at top level of settings, mirrored into
   // both portalState and settings so the dashboard helper roleLabel() picks
@@ -10197,6 +10250,8 @@ function applySnapshotToDashboard(snap) {
   if (snap.settings) {
     applyServerSettingsToLocalState(snap.settings);
     settings = Object.assign({}, settings, snap.settings);
+    // v6.8.28: an offline copy with no (or off) lock values cannot wipe the lock.
+    irlidKioskLockKeepClosed(snap.settings);
     saveJson(STORAGE_KEY_SETTINGS, settings);
     if (typeof applyRoleLabelsToViewingAs === 'function') applyRoleLabelsToViewingAs();
   }
@@ -11164,6 +11219,10 @@ async function loadDashboardForOrg(org) {
     mode: 'irlid-api-test'
   };
   irlidDebugLog("[v5.5.5] currentOrg now:", currentOrg);
+  // v6.8.28: the reset above switched every setting off. Put this device's
+  // remembered kiosk lock for THIS organisation straight back, before any
+  // fetch, so a slow or failed settings call can never show the X.
+  irlidKioskLockKeepClosed(null);
   saveJson(STORAGE_KEY_ORG, currentOrg);
   saveJson(STORAGE_KEY_PORTAL, portalState);
   saveJson(STORAGE_KEY_SETTINGS, settings);
@@ -11183,7 +11242,8 @@ async function loadDashboardForOrg(org) {
       const res = await window.IRLidOrgApi.getOrgSettings(currentOrg.id);
       if (stale()) return;
       const s = (res && res.settings) || {};
-      applyServerSettingsToLocalState(s);
+      // Only a real settings object from the Worker may change the lock.
+      applyServerSettingsToLocalState(s, { authoritative: !!(res && res.settings && typeof res.settings === 'object') });
     }
   } catch (e) {
     if (stale()) return;
@@ -11873,7 +11933,7 @@ async function saveSettings() {
   }
 
   // Update portalState from the readback so the UI state matches the Worker.
-  applyServerSettingsToLocalState(r);
+  applyServerSettingsToLocalState(r, { authoritative: !!(readback && readback.settings && typeof readback.settings === 'object') });
   applyRoleLabelsToViewingAs();
   activeTheme = normalizeThemeForSave(r.theme);
   writeV511RoleVocabularyToUI(activeTheme.roleVocabulary);
@@ -14740,7 +14800,9 @@ function fullscreenQR() {
   // the X is replaced by a padlock + refresh-QR button (js/kiosk-lock.js) and
   // leaving full screen needs a staff v5 phone scan. Only the real Check-in
   // full screen locks; the Visual Theming preview never does.
-  const kioskLockOn = !!(settings && (settings.lockFullscreen === true || settings.kioskMode === true)) && !emitInSetup &&
+  // v6.8.28: also on if this device remembers the lock for this organisation, so
+  // the X can never appear just because settings did not load.
+  const kioskLockOn = irlidKioskLockShouldShow() && !emitInSetup &&
     document.body.dataset.activePanel === 'checkin';
 
   // Close button — Settings preview uses Esc-only; production needs a tap target.
