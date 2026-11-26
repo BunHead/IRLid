@@ -4070,6 +4070,12 @@ function nameWithKeyTag(name, fp) {
   const tag = deviceKeyTag(fp);
   return n + " (" + (tag || "no key yet") + ")";
 }
+// v6.8.29: one way to compare names. Unicode NFC first, so "José" typed with a
+// ready-made é and with e + combining accent is the same name; accents are
+// kept (never stripped), then case and spacing are ignored.
+function nameKey(name) {
+  return String(name || "").normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+}
 // Lower-cased names held by two or more ACTIVE people, and the active rows by id.
 async function sharedActiveNames(env, orgId) {
   const shared = new Set();
@@ -4081,7 +4087,7 @@ async function sharedActiveNames(env, orgId) {
     const count = new Map();
     for (const r of rows) {
       byId.set(String(r.id), r);
-      const k = String(r.display_name || "").trim().toLowerCase();
+      const k = nameKey(r.display_name);
       if (k) count.set(k, (count.get(k) || 0) + 1);
     }
     for (const [k, n] of count) if (n > 1) shared.add(k);
@@ -4093,7 +4099,7 @@ function applyNameLabels(rows, ctx, nameOf, fpOf, extraShared) {
   for (const r of rows || []) {
     if (!r) continue;
     const name = String(nameOf(r) || "").trim();
-    const k = name.toLowerCase();
+    const k = nameKey(name);
     if (name && (ctx.shared.has(k) || (extraShared && extraShared.has(k)))) r.name_label = nameWithKeyTag(name, fpOf(r));
   }
   return rows;
@@ -7141,8 +7147,17 @@ async function orgWeeklyEventsImportCsv(request, env) {
 
   const roomRows = await env.DB.prepare("SELECT id,label FROM rooms WHERE org_id=? AND archived_at IS NULL").bind(org.id).all();
   const roomsByLabel = new Map((roomRows.results || []).map(r => [String(r.label || "").trim().toLowerCase(), r.id]));
-  const expectedRows = await env.DB.prepare("SELECT id,display_name FROM org_expected WHERE org_id=? AND archived_at IS NULL").bind(org.id).all();
-  const expectedByName = new Map((expectedRows.results || []).map(r => [String(r.display_name || "").trim().toLowerCase(), r.id]));
+  const expectedRows = await env.DB.prepare("SELECT id,display_name,device_pub_fp FROM org_expected WHERE org_id=? AND archived_at IS NULL").bind(org.id).all();
+  // v6.8.29: two people may share a name (v6.8.27), so a name maps to a LIST.
+  // A name links only when exactly one active person has it; otherwise the row
+  // is reported as ambiguous and an admin chooses. The import never guesses.
+  const expectedByName = new Map();
+  for (const r of expectedRows.results || []) {
+    const k = nameKey(r.display_name);
+    if (!expectedByName.has(k)) expectedByName.set(k, []);
+    expectedByName.get(k).push(r);
+  }
+  const ambiguous = [];
 
   const reportRows = [];
   const statements = [];
@@ -7178,13 +7193,24 @@ async function orgWeeklyEventsImportCsv(request, env) {
       "INSERT INTO weekly_events (id,org_id,room_id,name,day_of_week,start_time_local,duration_min,capacity,color_hex,notes,require_proof,late_grace_min,created_at,archived_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)"
     ).bind(eventId, org.id, roomId, name, day, start, Math.floor(duration), Number.isFinite(capacity) ? capacity : null, null, null, boolishToInt(csvCell(row, header, "require_proof")), Math.max(0, Number(csvCell(row, header, "late_grace_min")) || 0), t));
 
-    const names = csvCell(row, header, "expected_names").split(";").map(n => cleanText(n, 80)).filter(Boolean);
+    // NFC on store too, so a new person's name is saved in one form.
+    const names = csvCell(row, header, "expected_names").split(";").map(n => cleanText(String(n || "").normalize("NFC"), 80)).filter(Boolean);
+    const rowAmbiguous = [];
     for (const displayName of names) {
-      const key = displayName.toLowerCase();
-      let expectedId = expectedByName.get(key);
+      const key = nameKey(displayName);
+      const matches = expectedByName.get(key) || [];
+      if (matches.length > 1) {
+        // Never guess: not added to the event. Only the 4-character key tag
+        // leaves the Worker, never the device key itself.
+        const item = { name: displayName, candidates: matches.map(m => ({ id: m.id, name_label: nameWithKeyTag(m.display_name, m.device_pub_fp) })) };
+        rowAmbiguous.push(item);
+        ambiguous.push({ row: rowNo, event_id: eventId, event_name: name, ...item });
+        continue;
+      }
+      let expectedId = matches.length === 1 ? matches[0].id : null;
       if (!expectedId) {
         expectedId = newExpectedId(displayName);
-        expectedByName.set(key, expectedId);
+        expectedByName.set(key, [{ id: expectedId, display_name: displayName, device_pub_fp: null }]);
         expectedCreated++;
         statements.push(env.DB.prepare(
           "INSERT INTO org_expected (id,org_id,display_name,initials,role_key,created_at,archived_at) VALUES (?,?,?,?,?,?,NULL)"
@@ -7195,7 +7221,9 @@ async function orgWeeklyEventsImportCsv(request, env) {
       ).bind(eventId, expectedId, t, action.authorized_by_user?.id || action.user?.id || null));
     }
     eventsCreated++;
-    reportRows.push({ row: rowNo, status: "ok", event_id: eventId });
+    reportRows.push(rowAmbiguous.length
+      ? { row: rowNo, status: "ambiguous", event_id: eventId, ambiguous: rowAmbiguous }
+      : { row: rowNo, status: "ok", event_id: eventId });
   }
 
   if (statements.length) await env.DB.batch(statements);
@@ -7204,6 +7232,8 @@ async function orgWeeklyEventsImportCsv(request, env) {
     events_created: eventsCreated,
     events_replaced: eventsReplaced,
     org_expected_created: expectedCreated,
+    ambiguous_count: ambiguous.length,
+    ambiguous,
     rows: reportRows
   });
 }
